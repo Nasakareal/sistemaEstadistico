@@ -53,7 +53,7 @@
             <div class="info-box">
                 <span class="info-box-icon bg-info"><i class="fas fa-file-alt"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Parte de Novedades</b></span>
+                    <span class="info-box-text"><b>Formatos</b></span>
                     <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
@@ -64,7 +64,7 @@
                 <span class="info-box-icon bg-warning"><i class="fas fa-gavel"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text"><b>Dictamenes</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <a href="{{ url('dictamenes') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>

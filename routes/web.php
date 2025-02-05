@@ -13,6 +13,17 @@ Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class
 // Home
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
+// Rutas para Dictamenes
+Route::prefix('dictamenes')->middleware('can:ver dictamenes')->group(function () {
+    Route::get('/', [App\Http\Controllers\DictamenController::class, 'index'])->name('dictamenes.index');
+    Route::get('/create', [App\Http\Controllers\DictamenController::class, 'create'])->middleware('can:crear dictamenes')->name('dictamenes.create');
+    Route::post('/', [App\Http\Controllers\DictamenController::class, 'store'])->middleware('can:crear dictamenes')->name('dictamenes.store');
+    Route::get('/{dictamen}', [App\Http\Controllers\DictamenController::class, 'show'])->middleware('can:ver dictamenes')->name('dictamenes.show');
+    Route::get('/{dictamen}/edit', [App\Http\Controllers\DictamenController::class, 'edit'])->middleware('can:editar dictamenes')->name('dictamenes.edit');
+    Route::put('/{dictamen}', [App\Http\Controllers\DictamenController::class, 'update'])->middleware('can:editar dictamenes')->name('dictamenes.update');
+    Route::delete('/{dictamen}', [App\Http\Controllers\DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes')->name('dictamenes.destroy');
+});
+
 // Rutas para Grúas
 Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
     Route::get('/', [App\Http\Controllers\GruaController::class, 'index'])->name('gruas.index');

@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
-    <link rel="icon" href="{{ asset('favicons.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ asset('Favicons.ico') }}" type="image/x-icon">
 
     {{-- Base Meta Tags --}}
     <meta charset="utf-8">

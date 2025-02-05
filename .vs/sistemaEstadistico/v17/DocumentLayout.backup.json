@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\hechos\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\hechos\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\DictamenController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\hechos\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\hechos\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,32 +18,32 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "create.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\hechos\\create.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\hechos\\create.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\hechos\\create.blade.php",
-              "RelativeToolTip": "resources\\views\\hechos\\create.blade.php",
-              "ViewState": "AgIAAIcBAAAAAAAAAAAAAKkBAABgAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "index.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\hechos\\index.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\hechos\\index.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\hechos\\index.blade.php",
+              "RelativeToolTip": "resources\\views\\hechos\\index.blade.php",
+              "ViewState": "AgIAADsAAAAAAAAAAAAqwHIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-01-30T05:46:31.234Z",
+              "WhenOpened": "2025-02-04T00:37:23.409Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "web.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
-              "RelativeDocumentMoniker": "routes\\web.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
-              "RelativeToolTip": "routes\\web.php",
-              "ViewState": "AgIAAAwAAAAAAAAAAAAAABQAAABRAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "DictamenController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\DictamenController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\DictamenController.php",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAAAD0AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-01-29T23:04:12.377Z",
+              "WhenOpened": "2025-02-04T00:20:55.405Z",
               "EditorCaption": ""
             }
           ]

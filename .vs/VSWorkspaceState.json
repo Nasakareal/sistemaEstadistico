@@ -1,9 +1,15 @@
 {
   "ExpandedNodes": [
     "",
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Models",
+    "\\database\\migrations",
     "\\resources",
-    "\\resources\\views"
+    "\\resources\\views",
+    "\\resources\\views\\dictamenes"
   ],
-  "SelectedNode": "\\resources\\views\\home.blade.php",
+  "SelectedNode": "\\app\\Models\\Dictamen.php",
   "PreviewInSolutionExplorer": false
 }

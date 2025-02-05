@@ -42,6 +42,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear gruas',
             'editar gruas',
             'eliminar gruas',
+
+            // Dictamenes
+            'ver dictamenes',
+            'crear dictamenes',
+            'editar dictamenes',
+            'eliminar dictamenes',
         ];
 
         // Crear permisos si no existen

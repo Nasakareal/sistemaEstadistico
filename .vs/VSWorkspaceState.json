@@ -1,10 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\vendor"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\DictamenController.php",
+  "SelectedNode": "\\resources\\views\\welcome.blade.php",
   "PreviewInSolutionExplorer": false
 }

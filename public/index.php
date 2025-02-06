@@ -16,10 +16,6 @@ define('LARAVEL_START', microtime(true));
 |
 */
 
-if ($_SERVER['REQUEST_URI'] === '/sistemaEstadistico/public/' || $_SERVER['REQUEST_URI'] === '/sistemaEstadistico/public') {
-    header('Location: /sistemaEstadistico/public/login');
-    exit;
-}
 
 /*
 |--------------------------------------------------------------------------

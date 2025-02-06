@@ -3,13 +3,8 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Models",
-    "\\database\\migrations",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\dictamenes"
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\app\\Models\\Dictamen.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\DictamenController.php",
   "PreviewInSolutionExplorer": false
 }

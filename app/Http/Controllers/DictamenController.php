@@ -30,16 +30,12 @@ class DictamenController extends Controller
 
         $areasDisponibles = User::select('area')->distinct()->pluck('area');
 
-        $numeroSiguiente = null;
+        // Aquí se elimina la condición por área
+        $ultimoDictamen = Dictamen::where('anio', $anioActual)
+                                  ->orderBy('numero_dictamen', 'desc')
+                                  ->first();
 
-        if ($areaUsuario) {
-            $ultimoDictamen = Dictamen::where('anio', $anioActual)
-                                      ->where('area', $areaUsuario)
-                                      ->orderBy('numero_dictamen', 'desc')
-                                      ->first();
-
-            $numeroSiguiente = $ultimoDictamen ? $ultimoDictamen->numero_dictamen + 1 : 1;
-        }
+        $numeroSiguiente = $ultimoDictamen ? $ultimoDictamen->numero_dictamen + 1 : 1;
 
         return view('dictamenes.create', compact('numeroSiguiente', 'rolUsuario', 'areaUsuario', 'areasDisponibles'));
     }
@@ -69,10 +65,11 @@ class DictamenController extends Controller
             $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
         }
 
+        // Eliminar filtro por área en la búsqueda del último dictamen
         $ultimoDictamen = Dictamen::where('anio', $anioActual)
-                                  ->where('area', $areaUsuario)
                                   ->orderBy('numero_dictamen', 'desc')
                                   ->first();
+
         $numeroSiguiente = $ultimoDictamen ? $ultimoDictamen->numero_dictamen + 1 : 1;
 
         Dictamen::create([
@@ -95,8 +92,6 @@ class DictamenController extends Controller
 
     public function update(Request $request, Dictamen $dictamen)
     {
-        $areaUsuario = $dictamen->area;
-
         $request->merge([
             'nombre_policia' => strtoupper($request->input('nombre_policia')),
             'nombre_mp' => strtoupper($request->input('nombre_mp')),
@@ -104,14 +99,8 @@ class DictamenController extends Controller
         ]);
 
         $request->validate([
-            'numero_dictamen' => [
-                'required',
-                'integer',
-                Rule::unique('dictamens')->ignore($dictamen->id)->where(function ($query) use ($request, $areaUsuario) {
-                    return $query->where('anio', $request->input('anio'))
-                                 ->where('area', $areaUsuario);
-                }),
-            ],
+            // Eliminar validación única por área
+            'numero_dictamen' => 'required|integer|unique:dictamens,numero_dictamen,' . $dictamen->id,
             'anio' => 'required|digits:4',
             'nombre_policia' => 'required|string|max:100',
             'nombre_mp' => 'required|string|max:100',

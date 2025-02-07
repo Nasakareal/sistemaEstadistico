@@ -23,8 +23,8 @@
             <div class="info-box">
                 <span class="info-box-icon bg-teal"><i class="fas fa-user-check"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Pase de lista</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <span class="info-box-text"><b>Añadir pase de lista</b></span>
+                    <a href="{{ url('listas/create') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>
@@ -33,7 +33,7 @@
             <div class="info-box">
                 <span class="info-box-icon bg-lime"><i class="fas fa-tasks"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Actividades</b></span>
+                    <span class="info-box-text"><b>Actividades (En desarrollo)</b></span>
                     <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
@@ -44,7 +44,7 @@
                 <span class="info-box-icon bg-maroon"><i class="fa-solid fa-truck-moving"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text"><b>Grúas</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <a href="{{ url('gruas') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>
@@ -63,8 +63,8 @@
             <div class="info-box">
                 <span class="info-box-icon bg-warning"><i class="fas fa-gavel"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Dictamenes</b></span>
-                    <a href="{{ url('dictamenes') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <span class="info-box-text"><b>Solicitar número Dictamen</b></span>
+                    <a href="{{ url('dictamenes/create') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>
@@ -74,7 +74,7 @@
                 <span class="info-box-icon bg-fuchsia"><i class="fas fa-envelope-open-text"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text"><b>Oficios</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <a href="{{ url('oficios') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>
@@ -83,7 +83,7 @@
             <div class="info-box">
                 <span class="info-box-icon bg-success"><i class="fa-solid fa-table-cells"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Estadisticas</b></span>
+                    <span class="info-box-text"><b>Estadisticas (En Desarrollo)</b></span>
                     <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
@@ -93,7 +93,7 @@
             <div class="info-box">
                 <span class="info-box-icon bg-indigo"><i class="fas fa-search"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Búsqueda</b></span>
+                    <span class="info-box-text"><b>Búsqueda (En Desarrollo)</b></span>
                     <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>

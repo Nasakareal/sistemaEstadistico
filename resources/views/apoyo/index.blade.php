@@ -158,7 +158,7 @@
                 Si tienes dudas o necesitas más asistencia, no dudes en explorar otras secciones.
             </p>
 
-            <!-- Nueva fila con imagen y descripción -->
+            <!-- Apoyo a personas perdidas -->
             <div class="row">
                 <img src="{{ asset('img/seg1.jpg') }}" alt="Servicio de Apoyo">
                 <div class="description">
@@ -169,6 +169,38 @@
                     </p>
                 </div>
             </div>
+
+            <!-- Examenes de Manejo -->
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <img src="{{ asset('img/lic1.jpg') }}" alt="Servicio de Apoyo" class="img-fluid mb-3">
+                </div>
+                <div class="description text-center">
+                    <h2>Exámenes de manejo</h2>
+                    <p>
+                        Este servicio está diseñado para facilitar la realización del examen de manejo, requisito fundamental para tramitar una licencia de conducir.
+                        Contamos con personal especializado y equipos adecuados para evaluar los conocimientos teóricos y habilidades prácticas de conducción, garantizando que los solicitantes cumplan con las normativas de seguridad vial establecidas.
+                        Nuestro compromiso es ofrecer una experiencia eficiente, segura y transparente, enfocada en preparar conductores responsables para la prevención de accidentes y el bienestar de la comunidad.
+                    </p>
+
+                    <!-- Botones de acción -->
+                    <div class="mt-4">
+                    <hr>
+                        <a href="{{ route('licencias.requisitos') }}" class="btn btn-primary mr-2">
+                            <i class="fa-solid fa-list"></i> Ver Requisitos de la Licencia
+                        </a>
+                        <hr>
+                        <a href="{{ route('licencias.costos') }}" class="btn btn-info">
+                            <i class="fa-solid fa-dollar-sign"></i> Ver Costos
+                        </a>
+                        <hr>
+                        <a href="{{ route('licencias.ubicaciones') }}" class="btn btn-info">
+                            <i class="fa-solid fa-dollar-sign"></i> Ver Ubicaciones
+                        </a>
+                    </div>
+                </div>
+            </div>
+
 
             <!-- Botón opcional para regresar al inicio -->
             <div class="links">

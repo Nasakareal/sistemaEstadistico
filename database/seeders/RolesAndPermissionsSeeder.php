@@ -60,6 +60,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear listas',
             'editar listas',
             'eliminar listas',
+
+            // Oficios
+            'ver oficios',
+            'crear oficios',
+            'editar oficios',
+            'eliminar oficios',
         ];
 
         // Crear permisos si no existen

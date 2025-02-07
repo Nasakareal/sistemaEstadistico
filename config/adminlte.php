@@ -367,7 +367,7 @@ return [
                     'text' => 'Añadir un accidente',
                     'icon' => 'fa-solid fa-plus',
                     'classes' => 'text-white',
-                    'url' => '#',
+                    'url' => 'hechos/create',
                 ],
                 
                 [
@@ -432,13 +432,6 @@ return [
                     'classes' => 'text-white',
                     'url' => 'gruas',
                 ],
-                
-                [
-                    'text' => 'Servicios Grúas',
-                    'icon' => 'fa-solid fa-truck-ramp-box',
-                    'classes' => 'text-white',
-                    'url' => 'servicios',
-                ],
 
                 [
                     'text' => 'Ver Gráfico de Servicios',
@@ -472,14 +465,14 @@ return [
                     'text' => 'Listado de Oficios',
                     'icon' => 'fas fa-envelope-open-text',
                     'classes' => 'text-white',
-                    'url' => '#',
+                    'url' => 'oficios',
                 ],
 
                 [
                     'text' => 'Subir Oficio',
                     'icon' => 'ffa-solid fa-plus',
                     'classes' => 'text-white',
-                    'url' => '#',
+                    'url' => 'oficios/create',
                 ],
             ],
         ],

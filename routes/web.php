@@ -15,12 +15,31 @@ Route::get('/contacto', [App\Http\Controllers\ContactoController::class, 'index'
 // Apoyos
 Route::get('/apoyo', [App\Http\Controllers\ApoyoController::class, 'index'])->name('apoyo.index');
 
+// Rutas para Licencias
+Route::prefix('licencias')->group(function () {
+    Route::get('/requisitos', [App\Http\Controllers\LicenciaController::class, 'requisitos'])->name('licencias.requisitos');
+    Route::get('/costos', [App\Http\Controllers\LicenciaController::class, 'costos'])->name('licencias.costos');
+    Route::get('/ubicaciones', [App\Http\Controllers\LicenciaController::class, 'ubicaciones'])->name('licencias.ubicaciones');
+});
+
+
 Auth::routes();
 
 Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class, 'grafico'])->name('servicios.grafico');
 
 // Home
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+// Rutas para Oficios
+Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
+    Route::get('/', [App\Http\Controllers\OficioController::class, 'index'])->name('oficios.index');
+    Route::get('/create', [App\Http\Controllers\OficioController::class, 'create'])->middleware('can:crear oficios')->name('oficios.create');
+    Route::post('/', [App\Http\Controllers\OficioController::class, 'store'])->middleware('can:crear oficios')->name('oficios.store');
+    Route::get('/{oficio}', [App\Http\Controllers\OficioController::class, 'show'])->middleware('can:ver oficios')->name('oficios.show');
+    Route::get('/{oficio}/edit', [App\Http\Controllers\OficioController::class, 'edit'])->middleware('can:editar oficios')->name('oficios.edit');
+    Route::put('/{oficio}', [App\Http\Controllers\OficioController::class, 'update'])->middleware('can:editar oficios')->name('oficios.update');
+    Route::delete('/{oficio}', [App\Http\Controllers\OficioController::class, 'destroy'])->middleware('can:eliminar oficios')->name('oficios.destroy');
+});
 
 // Rutas para Listas
 Route::prefix('listas')->middleware('can:ver listas')->group(function () {

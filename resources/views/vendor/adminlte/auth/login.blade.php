@@ -96,14 +96,3 @@
         </div>
     </form>
 @stop
-
-@section('auth_footer')
-    {{-- Enlace para recuperar contraseña --}}
-    @if ($password_reset_url)
-        <p class="my-0">
-            <a href="{{ $password_reset_url }}">
-                {{ __('adminlte::adminlte.i_forgot_my_password') }}
-            </a>
-        </p>
-    @endif
-@stop

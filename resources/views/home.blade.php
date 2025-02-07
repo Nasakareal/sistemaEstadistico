@@ -54,7 +54,7 @@
                 <span class="info-box-icon bg-info"><i class="fas fa-file-alt"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text"><b>Formatos</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <a href="{{ url('formatos') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>

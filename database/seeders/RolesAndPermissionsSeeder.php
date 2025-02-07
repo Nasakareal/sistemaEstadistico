@@ -48,6 +48,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear dictamenes',
             'editar dictamenes',
             'eliminar dictamenes',
+
+            // Formatos
+            'ver formatos',
+            'crear formatos',
+            'editar formatos',
+            'eliminar formatos',
+
+            // Listas
+            'ver listas',
+            'crear listas',
+            'editar listas',
+            'eliminar listas',
         ];
 
         // Crear permisos si no existen
@@ -64,6 +76,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 'crear hechos',
                 'editar hechos',
                 'eliminar hechos',
+                'ver dictamenes',
+                'crear dictamenes',
+                'editar dictamenes',
             ],
             'Empleado' => [
                 'ver hechos',

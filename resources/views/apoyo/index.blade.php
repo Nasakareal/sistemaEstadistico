@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Seguridad Vial - Michoacán</title>
+        <title>Apoyo - Seguridad Vial</title>
 
         <!-- Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
@@ -86,6 +86,37 @@
             text-align: justify;
         }
 
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            margin: 40px 0;
+        }
+
+        .row img {
+            width: 300px;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .row .description {
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .description h2 {
+            font-size: 1.5rem;
+            color: #004a87;
+            margin-bottom: 10px;
+        }
+
+        .description p {
+            font-size: 1rem;
+            line-height: 1.5;
+            text-align: justify;
+        }
+
         .links {
             margin-top: 30px;
             text-align: center;
@@ -108,62 +139,45 @@
             background-color: #004a87;
             color: white;
         }
-
-        .tiktok-container {
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .tiktok-container h2 {
-            font-size: 1.5rem;
-            color: #004a87;
-            margin-bottom: 20px;
-        }
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>Coordinación del Agrupamiento de Seguridad Vial</h1>
-        </div>
 
         <!-- Barra fija de navegación -->
         <div class="navbar-fixed">
-            <a href="{{ url('/apoyo') }}">Servicios</a>
+            <a href="{{ route('apoyo.index') }}">Servicios</a>
             <a href="{{ url('/campanas') }}">Campañas</a>
             <a href="{{ url('/contacto') }}">Contáctanos</a>
             <a href="{{ route('login') }}">Iniciar Sesión</a>
         </div>
 
         <div class="content">
-            <h1>Bienvenidos a Seguridad Vial - Michoacán</h1>
+            <h1>Bienvenido a la sección de Apoyo</h1>
             <p>
-                La seguridad vial es una prioridad para nuestro estado. Nuestra misión es reducir accidentes de tránsito, 
-                promover conductas responsables en la vía pública y garantizar que las reglas de tránsito sean respetadas 
-                por todos los ciudadanos.
-            </p>
-            <p>
-                Aquí encontrarás información sobre nuestras campañas, servicios, reglamentos y medidas para mejorar la seguridad 
-                en las carreteras y calles de Michoacán.
+                Aquí encontrarás información detallada sobre los servicios que ofrece nuestra organización. 
+                Si tienes dudas o necesitas más asistencia, no dudes en explorar otras secciones.
             </p>
 
-            <div class="links">
-                <a href="https://www.tiktok.com/@sseguridadmich" target="_blank">Perfil de TikTok</a>
+            <!-- Nueva fila con imagen y descripción -->
+            <div class="row">
+                <img src="{{ asset('img/seg1.jpg') }}" alt="Servicio de Apoyo">
+                <div class="description">
+                    <h2>Asistencia a Personas en Situación de Pérdida</h2>
+                    <p>
+                        Este servicio está diseñado para brindar apoyo a personas que se encuentren en una situación de vulnerabilidad o pérdida. 
+                        Contamos con personal capacitado para orientar y asistir en todo momento, garantizando la seguridad y tranquilidad de los ciudadanos.
+                    </p>
+                </div>
             </div>
 
-            <!-- Videos de TikTok -->
-            <div class="tiktok-container">
-                <h2>Último video en TikTok</h2>
-                <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@sseguridadmich/video/7467950702103383302" data-video-id="7467950702103383302" style="max-width: 605px;min-width: 325px;">
-                    <section>Ver video en <a href="https://www.tiktok.com/@sseguridadmich">TikTok</a></section>
-                </blockquote>
+            <!-- Botón opcional para regresar al inicio -->
+            <div class="links">
+                <a href="{{ url('/') }}">Regresar al Inicio</a>
             </div>
         </div>
 
         <div class="footer">
             &copy; 2025 Coordinación del Agrupamiento de Seguridad Vial. Todos los derechos reservados.
         </div>
-
-        <!-- Script de TikTok para cargar los videos -->
-        <script async src="https://www.tiktok.com/embed.js"></script>
     </body>
 </html>

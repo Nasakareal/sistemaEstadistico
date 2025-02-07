@@ -6,12 +6,43 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Campañas
+Route::get('/campanas', [App\Http\Controllers\CampanaController::class, 'index'])->name('campanas.index');
+
+// Contacto
+Route::get('/contacto', [App\Http\Controllers\ContactoController::class, 'index'])->name('contacto.index');
+
+// Apoyos
+Route::get('/apoyo', [App\Http\Controllers\ApoyoController::class, 'index'])->name('apoyo.index');
+
 Auth::routes();
 
 Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class, 'grafico'])->name('servicios.grafico');
 
 // Home
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+// Rutas para Listas
+Route::prefix('listas')->middleware('can:ver listas')->group(function () {
+    Route::get('/', [App\Http\Controllers\ListaController::class, 'index'])->name('listas.index');
+    Route::get('/create', [App\Http\Controllers\ListaController::class, 'create'])->middleware('can:crear listas')->name('listas.create');
+    Route::post('/', [App\Http\Controllers\ListaController::class, 'store'])->middleware('can:crear listas')->name('listas.store');
+    Route::get('/{lista}', [App\Http\Controllers\ListaController::class, 'show'])->middleware('can:ver listas')->name('listas.show');
+    Route::get('/{lista}/edit', [App\Http\Controllers\ListaController::class, 'edit'])->middleware('can:editar listas')->name('listas.edit');
+    Route::put('/{lista}', [App\Http\Controllers\ListaController::class, 'update'])->middleware('can:editar listas')->name('listas.update');
+    Route::delete('/{lista}', [App\Http\Controllers\ListaController::class, 'destroy'])->middleware('can:eliminar listas')->name('listas.destroy');
+});
+
+// Rutas para Formatos
+Route::prefix('formatos')->middleware('can:ver formatos')->group(function () {
+    Route::get('/', [App\Http\Controllers\FormatoController::class, 'index'])->name('formatos.index');
+    Route::get('/create', [App\Http\Controllers\FormatoController::class, 'create'])->middleware('can:crear formatos')->name('formatos.create');
+    Route::post('/', [App\Http\Controllers\FormatoController::class, 'store'])->middleware('can:crear formatos')->name('formatos.store');
+    Route::get('/{formato}', [App\Http\Controllers\FormatoController::class, 'show'])->middleware('can:ver formatos')->name('formatos.show');
+    Route::get('/{formato}/edit', [App\Http\Controllers\FormatoController::class, 'edit'])->middleware('can:editar formatos')->name('formatos.edit');
+    Route::put('/{formato}', [App\Http\Controllers\FormatoController::class, 'update'])->middleware('can:editar formatos')->name('formatos.update');
+    Route::delete('/{formato}', [App\Http\Controllers\FormatoController::class, 'destroy'])->middleware('can:eliminar formatos')->name('formatos.destroy');
+});
 
 // Rutas para Dictamenes
 Route::prefix('dictamenes')->middleware('can:ver dictamenes')->group(function () {

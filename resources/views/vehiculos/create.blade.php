@@ -329,6 +329,24 @@
                             </div>
                         </div>
 
+                        <!-- Nuevo campo: Número de Licencia -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="numero_licencia">Número de Licencia</label>
+                                    <input type="text" name="numero_licencia" id="numero_licencia"
+                                           class="form-control @error('numero_licencia') is-invalid @enderror"
+                                           value="{{ old('numero_licencia') }}" placeholder="Ingrese el número de licencia" required>
+                                    @error('numero_licencia')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+
                             
                         <!-- Partes Dañadas, Monto de los Daños, Grúa, Corralón -->
                         <div class="row">

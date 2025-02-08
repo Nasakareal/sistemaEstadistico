@@ -33,9 +33,11 @@ class LicenciaController extends Controller
     public function ubicaciones()
     {
         $ubicaciones = [
-            ['nombre' => 'Módulo Central', 'direccion' => 'Av. Central #123, Centro, Ciudad X', 'horario' => 'Lunes a Viernes, 9:00 a 17:00'],
-            ['nombre' => 'Módulo Norte', 'direccion' => 'Calle Norte #456, Colonia Y, Ciudad X', 'horario' => 'Lunes a Sábado, 10:00 a 18:00'],
-            ['nombre' => 'Módulo Sur', 'direccion' => 'Blvd. Sur #789, Ciudad Z', 'horario' => 'Lunes a Viernes, 8:00 a 16:00'],
+            ['nombre' => 'Módulo Policía y Tránsito', 'direccion' => 'Periférico Independencia #5000, col. Sentimientos de la Nación, Morelia, Michoacán', 'horario' => 'Lunes a Viernes, 9:00 a 15:00'],
+            ['nombre' => 'Módulo Casa Cuna', 'direccion' => 'Av. Lázaro Cárdenas y Miguel de Cervantes Saavedra #225, col. Ventura Puente, Morelia, Michoacán', 'horario' => 'Lunes a Sábado, 9:00 a 15:00'],
+            ['nombre' => 'Macro Módulo', 'direccion' => 'Av. Lázaro Cárdenas #2100, col. Chapultepec Norte, Morelia, Michoacán', 'horario' => 'Lunes a Viernes, 9:00 a 15:00'],
+            ['nombre' => 'Módulo Capuchinas', 'direccion' => 'Ortega y Montañes, col. Centro, Morelia, Michoacán', 'horario' => 'Lunes a Viernes, 9:00 a 15:00'],
+            ['nombre' => 'Módulo Central Camioneta', 'direccion' => 'Periférico República, Sala C, col. Eduardo Ruiz, Morelia, Michoacán', 'horario' => 'Lunes a Viernes, 9:00 a 15:00'],
         ];
 
         return view('licencias.ubicaciones', compact('ubicaciones'));

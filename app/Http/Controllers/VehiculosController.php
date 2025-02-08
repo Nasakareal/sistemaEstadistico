@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Hechos;
 use App\Models\Vehiculo;
-use App\Models\Conductores;
+use App\Models\Conductor;
 use Illuminate\Http\Request;
 
 class VehiculosController extends Controller
@@ -17,13 +17,13 @@ class VehiculosController extends Controller
 
     public function create(Hechos $hecho)
     {
-        $conductores = Conductores::all();
+        $conductores = Conductor::all();
         return view('vehiculos.create', compact('hecho', 'conductores'));
     }
 
     public function store(Request $request, Hechos $hecho)
     {
-        // Validar los datos del vehículo y del conductor
+        // Agregar validación para 'numero_licencia'
         $validated = $request->validate([
             // Datos del vehículo
             'marca'                      => 'required|string|max:50',
@@ -39,6 +39,7 @@ class VehiculosController extends Controller
             'tarjeta_circulacion_nombre' => 'required|string|max:60',
             'grua'                       => 'nullable|string|max:50',
             'corralon'                   => 'nullable|string|max:50',
+
             // Datos del conductor
             'conductor_nombre'           => 'required|string|max:255',
             'telefono'                   => 'required|digits:10',
@@ -49,9 +50,10 @@ class VehiculosController extends Controller
             'tipo_licencia'              => 'required|string|max:50',
             'estado_licencia'            => 'required|string|max:100',
             'vigencia_licencia'          => 'required|date',
+            'numero_licencia'            => 'required|string|max:50',  // Se agrega la validación
         ]);
 
-        // Convertir a mayúsculas algunos campos del vehículo
+        // Convertir campos a mayúsculas
         $camposMayusculas = [
             'marca', 'modelo', 'tipo', 'linea', 'color', 'estado_placas',
             'serie', 'tipo_servicio', 'tarjeta_circulacion_nombre', 'grua', 'corralon',
@@ -62,7 +64,7 @@ class VehiculosController extends Controller
             }
         }
 
-        // Extraer los datos del conductor y preparar el arreglo
+        // Preparar los datos del conductor
         $conductorData = [
             'nombre'           => $validated['conductor_nombre'],
             'telefono'         => $validated['telefono'],
@@ -73,22 +75,22 @@ class VehiculosController extends Controller
             'tipo_licencia'    => strtoupper($validated['tipo_licencia']),
             'estado_licencia'  => strtoupper($validated['estado_licencia']),
             'vigencia_licencia'=> $validated['vigencia_licencia'],
+            'numero_licencia'  => strtoupper($validated['numero_licencia']),  // Se incluye en los datos
         ];
 
-        // Eliminar los datos del conductor del arreglo de datos del vehículo
+        // Eliminar los campos del conductor del arreglo del vehículo
         unset(
             $validated['conductor_nombre'], $validated['telefono'], $validated['domicilio'],
             $validated['sexo'], $validated['ocupacion'], $validated['edad'],
-            $validated['tipo_licencia'], $validated['estado_licencia'], $validated['vigencia_licencia']
+            $validated['tipo_licencia'], $validated['estado_licencia'], $validated['vigencia_licencia'],
+            $validated['numero_licencia']
         );
 
-        // Crear el vehículo asociado al hecho (esto crea el registro en "vehiculos" y la entrada en "hecho_vehiculo")
+        // Crear el vehículo y el conductor
         $vehiculo = $hecho->vehiculos()->create($validated);
+        $conductor = Conductor::create($conductorData);
 
-        // Crear el conductor (nuevo registro en la tabla conductores)
-        $conductor = \App\Models\Conductores::create($conductorData);
-
-        // Asociar el conductor al vehículo mediante la tabla pivot "vehiculo_conductor"
+        // Asociar el conductor al vehículo
         $vehiculo->conductores()->attach($conductor->id);
 
         return redirect()->route('vehiculos.index', $hecho->id)

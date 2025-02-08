@@ -43,6 +43,7 @@
                                 <th><center>Policía</center></th>
                                 <th><center>MP</center></th>
                                 <th><center>Área</center></th>
+                                <th><center>Creado por</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
                         </thead>
@@ -54,6 +55,7 @@
                                     <td>{{ $dictamen->nombre_policia }}</td>
                                     <td>{{ $dictamen->nombre_mp }}</td>
                                     <td>{{ $dictamen->area }}</td>
+                                    <td>{{ $dictamen->creator ? $dictamen->creator->name : 'Desconocido' }}</td>
                                     <td style="text-align: center">
                                         <a href="{{ route('dictamenes.show', $dictamen->id) }}" class="btn btn-info btn-sm">
                                             <i class="fa-regular fa-eye"></i> Ver

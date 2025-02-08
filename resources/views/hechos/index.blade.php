@@ -26,6 +26,7 @@
                                 <th><center>Fecha y Hora</center></th>
                                 <th><center>Ubicación</center></th>
                                 <th><center>Estado</center></th>
+                                <th><center>Creado por</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
                         </thead>
@@ -33,9 +34,10 @@
                             @foreach ($hechos as $hecho)
                                 <tr>
                                     <td>{{ $hecho->folio_c5i }}</td>
-                                    <td>{{ $hecho->hora }}</td>
+                                    <td>{{ $hecho->fecha }} {{ $hecho->hora }}</td>
                                     <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
                                     <td>{{ $hecho->situacion }}</td> <!-- Muestra el estado del hecho -->
+                                    <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td> <!-- Muestra el nombre del usuario que creó el hecho -->
                                     <td style="text-align: center">
                                         <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">
                                             <i class="fa-regular fa-eye"></i> Ver
@@ -43,9 +45,10 @@
                                         <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
                                             <i class="fa-solid fa-pencil"></i> Editar
                                         </a>
-                                        <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-warning btn-sm">
+                                        <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                             <i class="fas fa-download"></i> Descargar
                                         </a>
+
                                         <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display: inline-block;">
                                             @csrf
                                             @method('DELETE')

@@ -25,7 +25,6 @@ Route::prefix('licencias')->group(function () {
 
 Auth::routes();
 
-Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class, 'grafico'])->name('servicios.grafico');
 
 // Home
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
@@ -96,7 +95,6 @@ Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
     });
 });
 
-
 // Rutas para Hechos
 Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::get('/', [App\Http\Controllers\HechosController::class, 'index'])->name('hechos.index');
@@ -106,6 +104,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::get('/{hecho}/edit', [App\Http\Controllers\HechosController::class, 'edit'])->middleware('can:editar hechos')->name('hechos.edit');
     Route::put('/{hecho}', [App\Http\Controllers\HechosController::class, 'update'])->middleware('can:editar hechos')->name('hechos.update');
     Route::delete('/{hecho}', [App\Http\Controllers\HechosController::class, 'destroy'])->middleware('can:eliminar hechos')->name('hechos.destroy');
+    Route::get('/{hecho}/descargar', [App\Http\Controllers\DocumentoHechoController::class, 'descargarDocx'])->name('hechos.descargar');
 
     // Rutas anidadas para Vehículos
     Route::prefix('/{hecho}/vehiculos')->middleware('can:crear vehiculos')->group(function () {
@@ -118,6 +117,8 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     });
 });
 
+
+Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class, 'grafico'])->name('servicios.grafico');
 
 // Configuraciones generales
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {

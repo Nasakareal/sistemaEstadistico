@@ -401,6 +401,20 @@ return [
         ],
 
         [
+            'text' => 'Dictamenes',
+            'icon' => 'fas fa-gavel',
+            'classes' => 'bg-blue text-white',
+            'submenu' => [
+                [
+                    'text' => 'Listado de Dictamenes',
+                    'icon' => 'fas fa-gavel',
+                    'classes' => 'text-white',
+                    'url' => 'dictamenes',
+                ],
+            ],
+        ],
+
+        [
             'text' => 'Actividades',
             'icon' => 'fas fa-tasks',
             'classes' => 'bg-blue text-white',

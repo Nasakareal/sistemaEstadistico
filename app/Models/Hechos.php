@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Hechos extends Model
 {
@@ -34,6 +35,8 @@ class Hechos extends Model
         'oficio_mp',
         'vehiculos_mp',
         'personas_mp',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -44,5 +47,15 @@ class Hechos extends Model
     {
         return $this->belongsToMany(Vehiculo::class, 'hecho_vehiculo', 'hecho_id', 'vehiculo_id')
                     ->withTimestamps();
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

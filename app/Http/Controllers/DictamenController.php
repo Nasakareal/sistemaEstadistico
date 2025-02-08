@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Dictamen;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class DictamenController extends Controller
 {
@@ -30,7 +29,6 @@ class DictamenController extends Controller
 
         $areasDisponibles = User::select('area')->distinct()->pluck('area');
 
-        // Aquí se elimina la condición por área
         $ultimoDictamen = Dictamen::where('anio', $anioActual)
                                   ->orderBy('numero_dictamen', 'desc')
                                   ->first();
@@ -65,7 +63,6 @@ class DictamenController extends Controller
             $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
         }
 
-        // Eliminar filtro por área en la búsqueda del último dictamen
         $ultimoDictamen = Dictamen::where('anio', $anioActual)
                                   ->orderBy('numero_dictamen', 'desc')
                                   ->first();
@@ -79,6 +76,7 @@ class DictamenController extends Controller
             'nombre_mp' => $request->input('nombre_mp'),
             'area' => $areaUsuario,
             'archivo_dictamen' => $archivoDictamen,
+            'created_by' => $usuario->id,
         ]);
 
         return redirect()->route('dictamenes.index')
@@ -87,11 +85,25 @@ class DictamenController extends Controller
 
     public function edit(Dictamen $dictamen)
     {
+        $usuario = auth()->user();
+
+        if ($usuario->id !== $dictamen->created_by && !$usuario->hasRole('Administrador')) {
+            return redirect()->route('dictamenes.index')
+                             ->with('error', 'No tienes permiso para editar este dictamen.');
+        }
+
         return view('dictamenes.edit', compact('dictamen'));
     }
 
     public function update(Request $request, Dictamen $dictamen)
     {
+        $usuario = auth()->user();
+
+        if ($usuario->id !== $dictamen->created_by && !$usuario->hasRole('Administrador')) {
+            return redirect()->route('dictamenes.index')
+                             ->with('error', 'No tienes permiso para modificar este dictamen.');
+        }
+
         $request->merge([
             'nombre_policia' => strtoupper($request->input('nombre_policia')),
             'nombre_mp' => strtoupper($request->input('nombre_mp')),
@@ -99,7 +111,6 @@ class DictamenController extends Controller
         ]);
 
         $request->validate([
-            // Eliminar validación única por área
             'numero_dictamen' => 'required|integer|unique:dictamens,numero_dictamen,' . $dictamen->id,
             'anio' => 'required|digits:4',
             'nombre_policia' => 'required|string|max:100',
@@ -120,6 +131,7 @@ class DictamenController extends Controller
             'nombre_mp' => $request->input('nombre_mp'),
             'area' => $request->input('area'),
             'archivo_dictamen' => $archivoDictamen,
+            'updated_by' => $usuario->id,
         ]);
 
         return redirect()->route('dictamenes.index')
@@ -133,6 +145,13 @@ class DictamenController extends Controller
 
     public function destroy(Dictamen $dictamen)
     {
+        $usuario = auth()->user();
+
+        if (!$usuario->hasRole('Administrador')) {
+            return redirect()->route('dictamenes.index')
+                             ->with('error', 'No tienes permiso para eliminar este dictamen.');
+        }
+
         $dictamen->delete();
 
         return redirect()->route('dictamenes.index')

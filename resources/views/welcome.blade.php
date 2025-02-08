@@ -32,6 +32,21 @@
             padding: 20px;
             text-align: center;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header img {
+            height: 60px;
+            width: 60px;
+            margin-right: 15px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            line-height: 1.2;
         }
 
         /* Barra fija superior debajo de la cabecera */
@@ -123,7 +138,9 @@
     </head>
     <body>
         <div class="header">
+            <img src="{{ asset('Favicons.ico') }}" alt="Logo">
             <h1>Coordinación del Agrupamiento de Seguridad Vial</h1>
+            <img src="{{ asset('Favicons.ico') }}" alt="Logo">
         </div>
 
         <!-- Barra fija de navegación -->

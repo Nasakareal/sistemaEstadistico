@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Hechos;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;  // Importación correcta de Rule
+use Illuminate\Validation\Rule;
 
 class HechosController extends Controller
 {
@@ -22,6 +22,8 @@ class HechosController extends Controller
 
     public function store(Request $request)
     {
+        $usuario = auth()->user();
+
         $validated = $request->validate([
             'folio_c5i' => 'required|string|max:20|unique:hechos,folio_c5i',
             'perito' => 'required|string|max:255',
@@ -51,18 +53,13 @@ class HechosController extends Controller
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
-        $camposMayusculas = [
-            'folio_c5i', 'perito', 'autorizacion_practico', 'unidad', 'sector', 'calle',
-            'colonia', 'entre_calles', 'municipio', 'tipo_hecho', 'superficie_via',
-            'tiempo', 'clima', 'condiciones', 'control_transito', 'causas', 'colision_camino',
-            'situacion', 'oficio_mp',
-        ];
-
-        foreach ($camposMayusculas as $campo) {
-            if (isset($validated[$campo]) && is_string($validated[$campo])) {
-                $validated[$campo] = strtoupper($validated[$campo]);
+        foreach ($validated as $key => $value) {
+            if (is_string($value)) {
+                $validated[$key] = strtoupper($value);
             }
         }
+
+        $validated['created_by'] = $usuario->id;
 
         $hecho = Hechos::create($validated);
 
@@ -77,27 +74,31 @@ class HechosController extends Controller
 
     public function edit(Hechos $hecho)
     {
+        $usuario = auth()->user();
+
+        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador')) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
+        }
+
         return view('hechos.edit', compact('hecho'));
     }
 
     public function update(Request $request, Hechos $hecho)
     {
+        $usuario = auth()->user();
+
+        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador')) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para modificar este hecho.');
+        }
+
         $validated = $request->validate([
-            // Validar unicidad del folio, ignorando el registro actual
             'folio_c5i' => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('hechos')->ignore($hecho->id),
             ],
-            'hora' => [
-                'required',
-                function ($attribute, $value, $fail) {
-                    if (!\DateTime::createFromFormat('H:i', $value) && !\DateTime::createFromFormat('H:i:s', $value)) {
-                        $fail("El campo $attribute no tiene el formato correcto (H:i o H:i:s).");
-                    }
-                }
-            ],
+            'hora' => 'required|date_format:H:i',
             'fecha' => 'required|date',
             'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
             'calle' => 'required|string|max:255',
@@ -119,33 +120,13 @@ class HechosController extends Controller
             'personas_mp' => 'required|integer|min:0',
         ]);
 
-        $camposMayusculas = [
-            'folio_c5i',
-            'perito',
-            'autorizacion_practico',
-            'unidad',
-            'sector',
-            'calle',
-            'colonia',
-            'entre_calles',
-            'municipio',
-            'tipo_hecho',
-            'superficie_via',
-            'tiempo',
-            'clima',
-            'condiciones',
-            'control_transito',
-            'causas',
-            'colision_camino',
-            'situacion',
-            'oficio_mp',
-        ];
-
-        foreach ($camposMayusculas as $campo) {
-            if (isset($validated[$campo]) && is_string($validated[$campo])) {
-                $validated[$campo] = strtoupper($validated[$campo]);
+        foreach ($validated as $key => $value) {
+            if (is_string($value)) {
+                $validated[$key] = strtoupper($value);
             }
         }
+
+        $validated['updated_by'] = $usuario->id;
 
         $hecho->update($validated);
 
@@ -154,6 +135,12 @@ class HechosController extends Controller
 
     public function destroy(Hechos $hecho)
     {
+        $usuario = auth()->user();
+
+        if (!$usuario->hasRole('Administrador')) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para eliminar este hecho.');
+        }
+
         $hecho->delete();
 
         return redirect()->route('hechos.index')->with('success', 'Hecho eliminado exitosamente.');

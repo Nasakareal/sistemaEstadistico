@@ -35,7 +35,7 @@ class Vehiculo extends Model
 
     public function conductores()
     {
-        return $this->belongsToMany(Conductores::class, 'vehiculo_conductor', 'vehiculo_id', 'conductor_id')
+        return $this->belongsToMany(Conductor::class, 'vehiculo_conductor', 'vehiculo_id', 'conductor_id')
                     ->withTimestamps();
     }
 }

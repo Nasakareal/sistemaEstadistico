@@ -39,7 +39,6 @@
                         <thead>
                             <tr>
                                 <th><center>Número de Dictamen</center></th>
-                                <th><center>Año</center></th>
                                 <th><center>Policía</center></th>
                                 <th><center>MP</center></th>
                                 <th><center>Área</center></th>
@@ -51,26 +50,25 @@
                             @foreach ($dictamenes as $dictamen)
                                 <tr>
                                     <td>{{ $dictamen->numero_dictamen }}</td>
-                                    <td>{{ $dictamen->anio }}</td>
                                     <td>{{ $dictamen->nombre_policia }}</td>
                                     <td>{{ $dictamen->nombre_mp }}</td>
                                     <td>{{ $dictamen->area }}</td>
                                     <td>{{ $dictamen->creator ? $dictamen->creator->name : 'Desconocido' }}</td>
                                     <td style="text-align: center">
                                         <a href="{{ route('dictamenes.show', $dictamen->id) }}" class="btn btn-info btn-sm">
-                                            <i class="fa-regular fa-eye"></i> Ver
+                                            <i class="fa-regular fa-eye"></i>
                                         </a>
                                         <a href="{{ route('dictamenes.edit', $dictamen->id) }}" class="btn btn-success btn-sm">
-                                            <i class="fa-solid fa-pencil"></i> Editar
+                                            <i class="fa-solid fa-pencil"></i>
                                         </a>
                                         <a href="{{ route('dictamenes.show', $dictamen->id) }}" class="btn btn-warning btn-sm">
-                                            <i class="fas fa-download"></i> Descargar
+                                            <i class="fas fa-download"></i>
                                         </a>
                                         <form action="{{ route('dictamenes.destroy', $dictamen->id) }}" method="POST" style="display: inline-block;">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este dictamen?');">
-                                                <i class="fa-solid fa-trash"></i> Eliminar
+                                                <i class="fa-solid fa-trash"></i>
                                             </button>
                                         </form>
                                     </td>
@@ -97,6 +95,7 @@
     <script>
         $(function () {
             $('#dictamenes').DataTable({
+                "order": [[0, "desc"]],
                 "pageLength": 10,
                 "language": {
                     "emptyTable": "No hay información disponible",
@@ -132,3 +131,4 @@
         @endif
     </script>
 @stop
+

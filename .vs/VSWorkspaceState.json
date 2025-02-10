@@ -4,10 +4,12 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
+    "\\database",
+    "\\database\\migrations",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\licencias"
+    "\\resources\\views\\dictamenes"
   ],
-  "SelectedNode": "\\resources\\views\\licencias\\requisitos.blade.php",
+  "SelectedNode": "\\database\\migrations\\2025_02_04_001118_create_dictamens_table.php",
   "PreviewInSolutionExplorer": false
 }

@@ -55,7 +55,7 @@ class DictamenController extends Controller
             'nombre_policia' => 'required|string|max:100',
             'nombre_mp' => 'required|string|max:100',
             'area' => 'required|string|max:100',
-            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:2048',
+            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         $archivoDictamen = null;
@@ -116,7 +116,7 @@ class DictamenController extends Controller
             'nombre_policia' => 'required|string|max:100',
             'nombre_mp' => 'required|string|max:100',
             'area' => 'required|string|max:100',
-            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:2048',
+            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         $archivoDictamen = $dictamen->archivo_dictamen;

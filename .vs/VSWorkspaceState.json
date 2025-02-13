@@ -2,8 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\config"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Models",
+    "\\database",
+    "\\database\\migrations",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\vehiculos"
   ],
-  "SelectedNode": "\\config\\adminlte.php",
+  "SelectedNode": "\\database\\migrations\\2025_01_28_194322_create_conductores_table.php",
   "PreviewInSolutionExplorer": false
 }

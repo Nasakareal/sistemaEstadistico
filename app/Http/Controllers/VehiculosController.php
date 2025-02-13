@@ -30,9 +30,9 @@ class VehiculosController extends Controller
             'tipo'                       => 'required|string|max:50',
             'linea'                      => 'required|string|max:50',
             'color'                      => 'required|string|max:30',
-            'placas'                     => 'required|string|max:15|unique:vehiculos,placas',
-            'estado_placas'              => 'required|string|max:15|unique:vehiculos,estado_placas',
-            'serie'                      => 'required|string|max:17|unique:vehiculos,serie',
+            'placas'                     => 'required|string|max:15',
+            'estado_placas'              => 'required|string|max:15',
+            'serie'                      => 'required|string|max:17',
             'capacidad_personas'         => 'required|integer|min:0',
             'tipo_servicio'              => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'required|string|max:60',
@@ -43,20 +43,20 @@ class VehiculosController extends Controller
 
             // Datos del conductor
             'conductor_nombre'           => 'required|string|max:255',
-            'telefono'                   => 'required|digits:10',
+            'telefono'                   => 'nullable|digits:10',
             'domicilio'                  => 'required|string|max:255',
             'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
             'ocupacion'                  => 'required|string|max:255',
             'edad'                       => 'required|integer|min:18|max:100',
-            'tipo_licencia'              => 'required|string|max:50',
-            'estado_licencia'            => 'required|string|max:100',
-            'vigencia_licencia'          => 'required|date',
-            'numero_licencia'            => 'required|string|max:50',
+            'tipo_licencia'              => 'nullable|string|max:50',
+            'estado_licencia'            => 'nullable|string|max:100',
+            'vigencia_licencia'          => 'nullable|date',
+            'numero_licencia'            => 'nullable|string|max:50',
 
             // Datos del daño patrimonial
-            'danos_patrimoniales'        => 'required|string',
-            'propiedad'                  => 'required|string|max:255',
-            'monto_danos_patrimoniales'  => 'required|numeric|min:0',
+            'danos_patrimoniales'        => 'nullable|string',
+            'propiedad'                  => 'nullable|string|max:255',
+            'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
         $vehiculo = $hecho->vehiculos()->create($validated);
@@ -123,20 +123,20 @@ class VehiculosController extends Controller
 
             // Datos del conductor
             'conductor_nombre'           => 'required|string|max:255',
-            'telefono'                   => 'required|digits:10',
+            'telefono'                   => 'nullable|digits:10',
             'domicilio'                  => 'required|string|max:255',
             'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
             'ocupacion'                  => 'required|string|max:255',
             'edad'                       => 'required|integer|min:18|max:100',
-            'tipo_licencia'              => 'required|string|max:50',
-            'estado_licencia'            => 'required|string|max:100',
-            'vigencia_licencia'          => 'required|date',
-            'numero_licencia'            => 'required|string|max:50',
+            'tipo_licencia'              => 'nullable|string|max:50',
+            'estado_licencia'            => 'nullable|string|max:100',
+            'vigencia_licencia'          => 'nullable|date',
+            'numero_licencia'            => 'nullable|string|max:50',
 
             // Datos del daño patrimonial
-            'danos_patrimoniales'        => 'required|string',
-            'propiedad'                  => 'required|string|max:255',
-            'monto_danos_patrimoniales'  => 'required|numeric|min:0',
+            'danos_patrimoniales'        => 'nullable|string',
+            'propiedad'                  => 'nullable|string|max:255',
+            'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
         // Actualizar el vehículo

@@ -198,7 +198,7 @@
                                     <input type="text" name="entre_calles" id="entre_calles" 
                                            class="form-control @error('entre_calles') is-invalid @enderror" 
                                            value="{{ old('entre_calles', $hecho->entre_calles) }}" 
-                                           placeholder="Ingrese entre calles" required>
+                                           placeholder="Ingrese entre calles">
                                     @error('entre_calles')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

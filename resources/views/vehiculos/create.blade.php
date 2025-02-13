@@ -203,7 +203,7 @@
                                     <label for="telefono">Teléfono</label>
                                     <input type="tel" name="telefono" id="telefono"
                                            class="form-control @error('telefono') is-invalid @enderror"
-                                           value="{{ old('telefono') }}" placeholder="Ingrese el teléfono del conductor" pattern="[0-9]{10}" required>
+                                           value="{{ old('telefono') }}" placeholder="Ingrese el teléfono del conductor" pattern="[0-9]{10}">
                                     <small class="form-text text-muted">Formato: 10 dígitos</small>
                                     @error('telefono')
                                         <span class="invalid-feedback" role="alert">
@@ -289,7 +289,7 @@
                                     <label for="tipo_licencia">Tipo de Licencia</label>
                                     <input type="text" name="tipo_licencia" id="tipo_licencia"
                                            class="form-control @error('tipo_licencia') is-invalid @enderror"
-                                           value="{{ old('tipo_licencia') }}" placeholder="Ingrese el tipo de licencia" required>
+                                           value="{{ old('tipo_licencia') }}" placeholder="Ingrese el tipo de licencia">
                                     @error('tipo_licencia')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -304,7 +304,7 @@
                                     <label for="estado_licencia">Estado de Licencia</label>
                                     <input type="text" name="estado_licencia" id="estado_licencia"
                                            class="form-control @error('estado_licencia') is-invalid @enderror"
-                                           value="{{ old('estado_licencia') }}" placeholder="Ingrese el estado de la licencia" required>
+                                           value="{{ old('estado_licencia') }}" placeholder="Ingrese el estado de la licencia">
                                     @error('estado_licencia')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -319,7 +319,7 @@
                                     <label for="vigencia_licencia">Vigencia de Licencia</label>
                                     <input type="date" name="vigencia_licencia" id="vigencia_licencia"
                                            class="form-control @error('vigencia_licencia') is-invalid @enderror"
-                                           value="{{ old('vigencia_licencia') }}" required>
+                                           value="{{ old('vigencia_licencia') }}">
                                     @error('vigencia_licencia')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -329,14 +329,14 @@
                             </div>
                         </div>
 
-                        <!-- Nuevo campo: Número de Licencia -->
+                        <!-- Número de Licencia -->
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="numero_licencia">Número de Licencia</label>
                                     <input type="text" name="numero_licencia" id="numero_licencia"
                                            class="form-control @error('numero_licencia') is-invalid @enderror"
-                                           value="{{ old('numero_licencia') }}" placeholder="Ingrese el número de licencia" required>
+                                           value="{{ old('numero_licencia') }}" placeholder="Ingrese el número de licencia">
                                     @error('numero_licencia')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -419,7 +419,7 @@
                                     <label for="danos_patrimoniales">Daños Patrimoniales</label>
                                     <textarea name="danos_patrimoniales" id="danos_patrimoniales"
                                               class="form-control @error('danos_patrimoniales') is-invalid @enderror"
-                                              placeholder="Describa los daños patrimoniales" required>{{ old('danos_patrimoniales') }}</textarea>
+                                              placeholder="Describa los daños patrimoniales">{{ old('danos_patrimoniales') }}</textarea>
                                     @error('danos_patrimoniales')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -434,7 +434,7 @@
                                     <label for="propiedad">Propiedad</label>
                                     <input type="text" name="propiedad" id="propiedad"
                                            class="form-control @error('propiedad') is-invalid @enderror"
-                                           value="{{ old('propiedad') }}" placeholder="Ingrese el nombre del propietario afectado" required>
+                                           value="{{ old('propiedad') }}" placeholder="Ingrese el nombre del propietario afectado">
                                     @error('propiedad')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -449,7 +449,7 @@
                                     <label for="monto_danos_patrimoniales">Monto de los Daños</label>
                                     <input type="number" name="monto_danos_patrimoniales" id="monto_danos_patrimoniales"
                                            class="form-control @error('monto_danos_patrimoniales') is-invalid @enderror"
-                                           value="{{ old('monto_danos_patrimoniales') }}" placeholder="Ingrese el monto estimado" min="0" step="0.01" required>
+                                           value="{{ old('monto_danos_patrimoniales') }}" placeholder="Ingrese el monto estimado" min="0" step="0.01">
                                     @error('monto_danos_patrimoniales')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

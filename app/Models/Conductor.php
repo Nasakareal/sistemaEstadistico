@@ -23,6 +23,8 @@ class Conductor extends Model
         'estado_licencia',
         'vigencia_licencia',
         'numero_licencia',
+        'ocupacion',
+        'sexo',
         'tipo_licencia'
     ];
 

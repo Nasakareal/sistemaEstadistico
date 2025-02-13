@@ -19,6 +19,14 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <!-- Filtro por Fecha -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="fecha_filtro">Filtrar por fecha:</label>
+                            <input type="date" id="fecha_filtro" class="form-control" value="{{ now()->format('Y-m-d') }}">
+                        </div>
+                    </div>
+
                     <table id="hechos" class="table table-striped table-bordered table-hover table-sm">
                         <thead>
                             <tr>
@@ -34,7 +42,7 @@
                             @foreach ($hechos as $hecho)
                                 <tr>
                                     <td>{{ $hecho->folio_c5i }}</td>
-                                    <td>{{ $hecho->fecha }} {{ $hecho->hora }}</td>
+                                    <td data-fecha="{{ $hecho->fecha }}">{{ $hecho->fecha }} {{ $hecho->hora }}</td>
                                     <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
                                     <td>{{ $hecho->situacion }}</td> <!-- Muestra el estado del hecho -->
                                     <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td> <!-- Muestra el nombre del usuario que creó el hecho -->
@@ -79,7 +87,7 @@
 @section('js')
     <script>
         $(function () {
-            $('#hechos').DataTable({
+            var table = $('#hechos').DataTable({
                 "pageLength": 10,
                 "language": {
                     "emptyTable": "No hay información disponible",
@@ -102,6 +110,15 @@
                 "lengthChange": true,
                 "autoWidth": false,
             });
+
+            // Filtro de fecha
+            $('#fecha_filtro').on('change', function () {
+                var selectedDate = $(this).val();
+                table.columns(1).search(selectedDate).draw();
+            });
+
+            // Pre-filtrar con la fecha actual
+            $('#fecha_filtro').trigger('change');
         });
 
         @if (session('success'))

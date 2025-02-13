@@ -9,10 +9,10 @@ class DocumentoHechoController extends Controller
 {
     public function descargarDocx($id)
     {
-        // Obtener el hecho desde la base de datos
-        $hecho = Hechos::findOrFail($id);
+        // Obtener el hecho desde la base de datos con los vehículos y conductores relacionados
+        $hecho = Hechos::with(['vehiculos.conductores'])->findOrFail($id);
 
-        // Renderizar la vista con los datos del hecho
+        // Renderizar la vista con los datos del hecho, vehículos y conductores
         $html = view('hechos.reporte_docx', compact('hecho'))->render();
 
         // Envolver el contenido en un formato compatible con Word
@@ -20,8 +20,13 @@ class DocumentoHechoController extends Controller
         <html xmlns:o='urn:schemas-microsoft-com:office:office'
               xmlns:w='urn:schemas-microsoft-com:office:word'
               xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset='UTF-8'><title>Reporte del Hecho</title></head>
-        <body>{$html}</body>
+        <head>
+            <meta charset='UTF-8'>
+            <title>Reporte del Hecho</title>
+        </head>
+        <body>
+            {$html}
+        </body>
         </html>";
 
         // Configurar la respuesta para descargar el archivo con extensión `.doc`

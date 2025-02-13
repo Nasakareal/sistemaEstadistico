@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Seguridad Vial - Michoacán</title>
+        <title>Contacto - Seguridad Vial</title>
 
         <!-- Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
@@ -32,24 +32,8 @@
             padding: 20px;
             text-align: center;
             position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        .header img {
-            height: 60px;
-            width: 60px;
-            margin-right: 15px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 1.8rem;
-            line-height: 1.2;
-        }
-
-        /* Barra fija superior debajo de la cabecera */
         .navbar-fixed {
             position: sticky;
             top: 0;
@@ -101,6 +85,53 @@
             text-align: justify;
         }
 
+        .contact-info {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .contact-info p {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .contact-form {
+            margin-top: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .form-group textarea {
+            height: 120px;
+            resize: none;
+        }
+
+        .form-group button {
+            background-color: #004a87;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .form-group button:hover {
+            background-color: #003366;
+        }
+
         .links {
             margin-top: 30px;
             text-align: center;
@@ -123,64 +154,64 @@
             background-color: #004a87;
             color: white;
         }
-
-        .tiktok-container {
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .tiktok-container h2 {
-            font-size: 1.5rem;
-            color: #004a87;
-            margin-bottom: 20px;
-        }
         </style>
     </head>
     <body>
-        <div class="header">
-            <img src="{{ asset('Favicons.ico') }}" alt="Logo">
-            <h1>Coordinación del Agrupamiento de Seguridad Vial</h1>
-            <img src="{{ asset('Favicons.ico') }}" alt="Logo">
-        </div>
 
-        <!-- Barra fija de navegación -->
+        <!-- Barra de navegación -->
         <div class="navbar-fixed">
-            <a href="{{ url('/apoyo') }}">Servicios</a>
+            <a href="{{ route('apoyo.index') }}">Servicios</a>
             <a href="{{ url('/campanas') }}">Campañas</a>
             <a href="{{ url('/contacto') }}">Contáctanos</a>
             <a href="{{ route('login') }}">Iniciar Sesión</a>
         </div>
 
         <div class="content">
-            <h1>Bienvenidos a Seguridad Vial - Michoacán</h1>
-            <p>
-                La seguridad vial es una prioridad para nuestro estado. Nuestra misión es reducir accidentes de tránsito, 
-                promover conductas responsables en la vía pública y garantizar que las reglas de tránsito sean respetadas 
-                por todos los ciudadanos.
-            </p>
-            <p>
-                Aquí encontrarás información sobre nuestras campañas, servicios, reglamentos y medidas para mejorar la seguridad 
-                en las carreteras y calles de Michoacán.
-            </p>
+            <h1>Contacto</h1>
+            <p>Si tienes dudas, sugerencias o necesitas asistencia, no dudes en comunicarte con nosotros.</p>
 
-            <div class="links">
-                <a href="https://www.tiktok.com/@sseguridadmich" target="_blank">Perfil de TikTok</a>
+            <!-- Información de contacto -->
+            <div class="contact-info">
+                <h2>Información de Contacto</h2>
+                <p><strong>Teléfono:</strong> (443) 123-4567</p>
+                <p><strong>Email:</strong> contacto@seguridadvial-mich.com</p>
+                <p><strong>Dirección:</strong> Periférico Independencia #5000, col. Sentimientos de la Nación, Morelia, Michoacán</p>
             </div>
 
-            <!-- Videos de TikTok -->
-            <div class="tiktok-container">
-                <h2>Último video en TikTok</h2>
-                <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@sseguridadmich/video/7469838485197786374" data-video-id="7469838485197786374" style="max-width: 605px;min-width: 325px;">
-                    <section>Ver video en <a href="https://www.tiktok.com/@sseguridadmich">TikTok</a></section>
-                </blockquote>
+            <!-- Formulario de contacto -->
+            <div class="contact-form">
+                <h2>Envíanos un Mensaje</h2>
+                <form action="{{ route('contacto.enviar') }}" method="POST">
+                    @csrf
+                    <div class="form-group">
+                        <label for="nombre">Nombre</label>
+                        <input type="text" name="nombre" id="nombre" placeholder="Tu nombre" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Correo Electrónico</label>
+                        <input type="email" name="email" id="email" placeholder="Tu correo electrónico" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mensaje">Mensaje</label>
+                        <textarea name="mensaje" id="mensaje" placeholder="Escribe tu mensaje aquí..." required></textarea>
+                    </div>
+
+                    <div class="form-group text-center">
+                        <button type="submit">Enviar Mensaje</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Botón de regreso -->
+            <div class="links">
+                <a href="{{ url('/') }}">Regresar al Inicio</a>
             </div>
         </div>
 
         <div class="footer">
             &copy; 2025 Coordinación del Agrupamiento de Seguridad Vial. Todos los derechos reservados.
         </div>
-
-        <!-- Script de TikTok para cargar los videos -->
-        <script async src="https://www.tiktok.com/embed.js"></script>
     </body>
 </html>

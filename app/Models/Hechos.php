@@ -35,6 +35,9 @@ class Hechos extends Model
         'oficio_mp',
         'vehiculos_mp',
         'personas_mp',
+        'danos_patrimoniales',
+        'propiedades_afectadas',
+        'monto_danos_patrimoniales',
         'created_by',
         'updated_by',
     ];

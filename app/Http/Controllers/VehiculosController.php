@@ -23,7 +23,6 @@ class VehiculosController extends Controller
 
     public function store(Request $request, Hechos $hecho)
     {
-        // Agregar validación para 'numero_licencia'
         $validated = $request->validate([
             // Datos del vehículo
             'marca'                      => 'required|string|max:50',
@@ -39,6 +38,8 @@ class VehiculosController extends Controller
             'tarjeta_circulacion_nombre' => 'required|string|max:60',
             'grua'                       => 'nullable|string|max:50',
             'corralon'                   => 'nullable|string|max:50',
+            'monto_danos'                => 'required|numeric|min:0',
+            'partes_danadas'             => 'required|string',
 
             // Datos del conductor
             'conductor_nombre'           => 'required|string|max:255',
@@ -50,71 +51,128 @@ class VehiculosController extends Controller
             'tipo_licencia'              => 'required|string|max:50',
             'estado_licencia'            => 'required|string|max:100',
             'vigencia_licencia'          => 'required|date',
-            'numero_licencia'            => 'required|string|max:50',  // Se agrega la validación
+            'numero_licencia'            => 'required|string|max:50',
+
+            // Datos del daño patrimonial
+            'danos_patrimoniales'        => 'required|string',
+            'propiedad'                  => 'required|string|max:255',
+            'monto_danos_patrimoniales'  => 'required|numeric|min:0',
         ]);
 
-        // Convertir campos a mayúsculas
-        $camposMayusculas = [
-            'marca', 'modelo', 'tipo', 'linea', 'color', 'estado_placas',
-            'serie', 'tipo_servicio', 'tarjeta_circulacion_nombre', 'grua', 'corralon',
-        ];
-        foreach ($camposMayusculas as $campo) {
-            if (isset($validated[$campo])) {
-                $validated[$campo] = strtoupper($validated[$campo]);
-            }
-        }
+        $vehiculo = $hecho->vehiculos()->create($validated);
 
-        // Preparar los datos del conductor
-        $conductorData = [
-            'nombre'           => $validated['conductor_nombre'],
+        // Crear conductor y asociarlo al vehículo
+        $conductor = Conductor::create([
+            'nombre'           => strtoupper($validated['conductor_nombre']),
             'telefono'         => $validated['telefono'],
-            'domicilio'        => $validated['domicilio'],
+            'domicilio'        => strtoupper($validated['domicilio']),
             'sexo'             => strtoupper($validated['sexo']),
             'ocupacion'        => strtoupper($validated['ocupacion']),
             'edad'             => $validated['edad'],
             'tipo_licencia'    => strtoupper($validated['tipo_licencia']),
             'estado_licencia'  => strtoupper($validated['estado_licencia']),
             'vigencia_licencia'=> $validated['vigencia_licencia'],
-            'numero_licencia'  => strtoupper($validated['numero_licencia']),  // Se incluye en los datos
-        ];
+            'numero_licencia'  => strtoupper($validated['numero_licencia']),
+        ]);
 
-        // Eliminar los campos del conductor del arreglo del vehículo
-        unset(
-            $validated['conductor_nombre'], $validated['telefono'], $validated['domicilio'],
-            $validated['sexo'], $validated['ocupacion'], $validated['edad'],
-            $validated['tipo_licencia'], $validated['estado_licencia'], $validated['vigencia_licencia'],
-            $validated['numero_licencia']
-        );
-
-        // Crear el vehículo y el conductor
-        $vehiculo = $hecho->vehiculos()->create($validated);
-        $conductor = Conductor::create($conductorData);
-
-        // Asociar el conductor al vehículo
         $vehiculo->conductores()->attach($conductor->id);
 
+        // Actualizar daños patrimoniales en el hecho
+        $hecho->update([
+            'danos_patrimoniales'       => strtoupper($validated['danos_patrimoniales']),
+            'propiedades_afectadas'     => strtoupper($validated['propiedad']),
+            'monto_danos_patrimoniales' => $validated['monto_danos_patrimoniales'],
+        ]);
+
         return redirect()->route('vehiculos.index', $hecho->id)
-                         ->with('success', 'Vehículo y conductor agregados exitosamente.');
+                         ->with('success', 'Vehículo, conductor y daños patrimoniales agregados exitosamente.');
     }
 
-
-    public function show(Vehiculo $vehiculo)
+    public function edit(Hechos $hecho, Vehiculo $vehiculo)
     {
-        //
+        // Verificar que el vehículo realmente pertenece al hecho
+        if (!$hecho->vehiculos->contains($vehiculo->id)) {
+            abort(404, 'El vehículo no pertenece a este hecho.');
+        }
+
+        // Obtener el conductor asociado al vehículo
+        $conductor = $vehiculo->conductores()->first();
+
+        return view('vehiculos.edit', compact('hecho', 'vehiculo', 'conductor'));
     }
 
-    public function edit(Vehiculo $vehiculo)
+    public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
-        //
+        $validated = $request->validate([
+            // Datos del vehículo
+            'marca'                      => 'required|string|max:50',
+            'modelo'                     => 'required|string|max:10',
+            'tipo'                       => 'required|string|max:50',
+            'linea'                      => 'required|string|max:50',
+            'color'                      => 'required|string|max:30',
+            'placas'                     => 'required|string|max:15',
+            'estado_placas'              => 'required|string|max:15',
+            'serie'                      => 'required|string|max:17',
+            'capacidad_personas'         => 'required|integer|min:0',
+            'tipo_servicio'              => 'required|string|max:50',
+            'tarjeta_circulacion_nombre' => 'required|string|max:60',
+            'grua'                       => 'nullable|string|max:50',
+            'corralon'                   => 'nullable|string|max:50',
+            'monto_danos'                => 'required|numeric|min:0',
+            'partes_danadas'             => 'required|string',
+
+            // Datos del conductor
+            'conductor_nombre'           => 'required|string|max:255',
+            'telefono'                   => 'required|digits:10',
+            'domicilio'                  => 'required|string|max:255',
+            'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
+            'ocupacion'                  => 'required|string|max:255',
+            'edad'                       => 'required|integer|min:18|max:100',
+            'tipo_licencia'              => 'required|string|max:50',
+            'estado_licencia'            => 'required|string|max:100',
+            'vigencia_licencia'          => 'required|date',
+            'numero_licencia'            => 'required|string|max:50',
+
+            // Datos del daño patrimonial
+            'danos_patrimoniales'        => 'required|string',
+            'propiedad'                  => 'required|string|max:255',
+            'monto_danos_patrimoniales'  => 'required|numeric|min:0',
+        ]);
+
+        // Actualizar el vehículo
+        $vehiculo->update($validated);
+
+        // Obtener conductor asociado y actualizar sus datos
+        $conductor = $vehiculo->conductores()->first();
+        if ($conductor) {
+            $conductor->update([
+                'nombre'           => strtoupper($validated['conductor_nombre']),
+                'telefono'         => $validated['telefono'],
+                'domicilio'        => strtoupper($validated['domicilio']),
+                'sexo'             => strtoupper($validated['sexo']),
+                'ocupacion'        => strtoupper($validated['ocupacion']),
+                'edad'             => $validated['edad'],
+                'tipo_licencia'    => strtoupper($validated['tipo_licencia']),
+                'estado_licencia'  => strtoupper($validated['estado_licencia']),
+                'vigencia_licencia'=> $validated['vigencia_licencia'],
+                'numero_licencia'  => strtoupper($validated['numero_licencia']),
+            ]);
+        }
+
+        // Actualizar daños patrimoniales en el hecho
+        $hecho->update([
+            'danos_patrimoniales'       => strtoupper($validated['danos_patrimoniales']),
+            'propiedades_afectadas'     => strtoupper($validated['propiedad']),
+            'monto_danos_patrimoniales' => $validated['monto_danos_patrimoniales'],
+        ]);
+
+        return redirect()->route('vehiculos.index', $hecho->id)
+                         ->with('success', 'Vehículo, conductor y daños patrimoniales actualizados correctamente.');
     }
 
-    public function update(Request $request, Vehiculo $vehiculo)
+    public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
-        //
-    }
-
-    public function destroy(Vehiculo $vehiculo)
-    {
-        //
+        $vehiculo->delete();
+        return back()->with('success', 'Vehículo eliminado correctamente.');
     }
 }

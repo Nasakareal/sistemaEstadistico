@@ -374,7 +374,7 @@ return [
                     'text' => 'Búsqueda',
                     'icon' => 'fas fa-search',
                     'classes' => 'text-white',
-                    'url' => '#',
+                    'url' => 'busqueda',
                 ],
             ],
         ],

@@ -93,8 +93,8 @@
             <div class="info-box">
                 <span class="info-box-icon bg-indigo"><i class="fas fa-search"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Búsqueda (En Desarrollo)</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <span class="info-box-text"><b>Búsqueda</b></span>
+                    <a href="{{ url('busqueda') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>

@@ -6,11 +6,16 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Búsqueda
+Route::get('/busqueda', [App\Http\Controllers\BusquedaController::class, 'index'])->name('busqueda.index');
+
 // Campañas
 Route::get('/campanas', [App\Http\Controllers\CampanaController::class, 'index'])->name('campanas.index');
 
 // Contacto
 Route::get('/contacto', [App\Http\Controllers\ContactoController::class, 'index'])->name('contacto.index');
+Route::post('/contacto/enviar', [ContactoController::class, 'enviarMensaje'])->name('contacto.enviar');
+
 
 // Apoyos
 Route::get('/apoyo', [App\Http\Controllers\ApoyoController::class, 'index'])->name('apoyo.index');

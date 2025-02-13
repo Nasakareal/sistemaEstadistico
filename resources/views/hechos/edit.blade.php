@@ -452,6 +452,14 @@
                                     @enderror
                                 </div>
                             </div>
+
+                            <div class="col-md-4">
+                                <a href="{{ route('vehiculos.index', $hecho->id) }}" class="btn btn-success btn-lg w-100">
+                                    <i class="fa-solid fa-car-side"></i> Listado de Vehículos
+                                </a>
+                            </div>
+
+
                         </div>
                         
                         <!-- BOTONES: Actualizar y Cancelar -->
@@ -463,9 +471,6 @@
                                     <button type="submit" class="btn btn-success">
                                         <i class="fa-solid fa-check"></i> Actualizar
                                     </button>
-                                    <a href="{{ route('vehiculos.index', $hecho->id) }}" class="btn btn-success">
-                                        <i class="fa-solid fa-car-side"></i> Registrar y Añadir Vehículos
-                                    </a>
 
                                     <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
                                         <i class="fa-solid fa-ban"></i> Cancelar

@@ -25,6 +25,8 @@ class Vehiculo extends Model
         'tarjeta_circulacion_nombre',
         'grua',
         'corralon',
+        'monto_danos',
+        'partes_danadas',
     ];
 
     public function hechos()

@@ -50,7 +50,7 @@ class VehiculosController extends Controller
             'domicilio'                  => 'required|string|max:255',
             'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
             'ocupacion'                  => 'required|string|max:255',
-            'edad'                       => 'required|integer|min:18|max:100',
+            'edad'                       => 'required|integer|min:00|max:100',
             'tipo_licencia'              => 'nullable|string|max:50',
             'estado_licencia'            => 'nullable|string|max:100',
             'vigencia_licencia'          => 'nullable|date',
@@ -62,13 +62,16 @@ class VehiculosController extends Controller
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
-        // Procesar la foto, si se sube
-        if ($request->hasFile('fotos')) {
+        // Procesar la foto, si se sube y es válida
+        if ($request->hasFile('fotos') && $request->file('fotos')->isValid()) {
             $validated['fotos'] = $request->file('fotos')->store('vehiculos', 'public');
         }
+        
+        // Crear el vehículo de forma independiente
+        $vehiculo = Vehiculo::create($validated);
 
-        // Crear el vehículo asociado al hecho
-        $vehiculo = $hecho->vehiculos()->create($validated);
+        // Asociar el vehículo al hecho (crear registro en la tabla pivot)
+        $hecho->vehiculos()->attach($vehiculo->id);
 
         // Crear conductor y asociarlo al vehículo
         $conductor = Conductor::create([
@@ -85,7 +88,7 @@ class VehiculosController extends Controller
         ]);
         $vehiculo->conductores()->attach($conductor->id);
 
-        // Actualizar datos de daños patrimoniales en el hecho
+        // Actualizar datos de daños patrimoniales en el hecho (si corresponde)
         $hecho->update([
             'danos_patrimoniales'       => strtoupper($validated['danos_patrimoniales'] ?? ''),
             'propiedades_afectadas'     => strtoupper($validated['propiedad'] ?? ''),
@@ -107,11 +110,9 @@ class VehiculosController extends Controller
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
-        // Si no se sube una nueva foto, eliminamos el campo 'fotos' del request para no validarlo
         if (!$request->hasFile('fotos')) {
             $request->request->remove('fotos');
         }
-
         $validated = $request->validate([
             'marca'                      => 'required|string|max:50',
             'modelo'                     => 'required|string|max:10',
@@ -129,7 +130,6 @@ class VehiculosController extends Controller
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
 
-            // Validación para la foto en actualización
             'fotos'                      => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
 
             'conductor_nombre'           => 'required|string|max:255',
@@ -137,7 +137,7 @@ class VehiculosController extends Controller
             'domicilio'                  => 'required|string|max:255',
             'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
             'ocupacion'                  => 'required|string|max:255',
-            'edad'                       => 'required|integer|min:18|max:100',
+            'edad'                       => 'required|integer|min:00|max:100',
             'tipo_licencia'              => 'nullable|string|max:50',
             'estado_licencia'            => 'nullable|string|max:100',
             'vigencia_licencia'          => 'nullable|date',
@@ -148,7 +148,6 @@ class VehiculosController extends Controller
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
-        // Procesar la nueva foto, si se sube; de lo contrario, se mantiene la actual
         if ($request->hasFile('fotos')) {
             $validated['fotos'] = $request->file('fotos')->store('vehiculos', 'public');
         } else {

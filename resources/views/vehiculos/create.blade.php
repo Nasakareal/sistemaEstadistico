@@ -274,7 +274,7 @@
                                     <label for="edad">Edad</label>
                                     <input type="number" name="edad" id="edad"
                                            class="form-control @error('edad') is-invalid @enderror"
-                                           value="{{ old('edad') }}" placeholder="Ingrese la edad del conductor" min="18" max="100" required>
+                                           value="{{ old('edad') }}" placeholder="Ingrese la edad del conductor" min="00" max="100" required>
                                     @error('edad')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -459,13 +459,13 @@
                             </div>
                         </div>
 
-                        <!-- Daños Patrimoniales, Propiedad, Monto de Daños -->
+                        <!-- Fotos -->
                         <div class="row">
                             <!-- Fotos -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="fotos">Fotos</label>
-                                    <input type="file" name="fotos[]" id="fotos" class="form-control @error('fotos') is-invalid @enderror" accept="image/*" multiple>
+                                    <input type="file" name="fotos" id="fotos" class="form-control @error('fotos') is-invalid @enderror" accept="image/*">
                                     @error('fotos')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

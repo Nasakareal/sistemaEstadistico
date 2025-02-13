@@ -173,7 +173,7 @@
             <!-- Examenes de Manejo -->
             <div class="row">
                 <div class="col-md-12 text-center">
-                    <img src="{{ asset('img/lic1.jpg') }}" alt="Servicio de Apoyo" class="img-fluid mb-3">
+                    <img src="{{ asset('img/lic2.jpg') }}" alt="Servicio de Apoyo" class="img-fluid mb-3">
                 </div>
                 <div class="description text-center">
                     <h2>Exámenes de manejo</h2>

@@ -14,7 +14,7 @@
                     <h3 class="card-title">Datos del Vehículo</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('vehiculos.update', [$hecho->id, $vehiculo->id]) }}" method="POST">
+                    <form action="{{ route('vehiculos.update', [$hecho->id, $vehiculo->id]) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
 
@@ -455,8 +455,42 @@
                                     @enderror
                                 </div>
                             </div>
-
                         </div>
+
+                        <!-- Sección de Foto en el formulario de edición -->
+                        <div class="row">
+                            <!-- Mostrar Foto Actual -->
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label>Foto Actual</label>
+                                    <div class="d-flex flex-wrap">
+                                        @if(!empty($vehiculo->fotos))
+                                            <div class="m-2">
+                                                <img src="{{ asset('storage/' . $vehiculo->fotos) }}" alt="Foto del vehículo" class="img-thumbnail" width="120">
+                                            </div>
+                                        @else
+                                            <p class="text-muted">No hay foto disponible.</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subir Nueva Foto -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="fotos">Cambiar Foto</label>
+                                    <input type="file" name="fotos" id="fotos" class="form-control @error('fotos') is-invalid @enderror" accept="image/*">
+                                    @error('fotos')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+
+
 
                         <!-- Botones -->
                         <div class="form-group text-center">

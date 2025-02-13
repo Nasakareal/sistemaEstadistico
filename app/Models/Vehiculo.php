@@ -27,7 +27,9 @@ class Vehiculo extends Model
         'corralon',
         'monto_danos',
         'partes_danadas',
+        'fotos',
     ];
+
 
     public function hechos()
     {

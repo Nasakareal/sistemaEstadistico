@@ -14,7 +14,7 @@
                     <h3 class="card-title">Datos del Vehículo</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('vehiculos.store', $hecho->id) }}" method="POST">
+                    <form action="{{ route('vehiculos.store', $hecho->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
                         <div class="row">
@@ -451,6 +451,22 @@
                                            class="form-control @error('monto_danos_patrimoniales') is-invalid @enderror"
                                            value="{{ old('monto_danos_patrimoniales') }}" placeholder="Ingrese el monto estimado" min="0" step="0.01">
                                     @error('monto_danos_patrimoniales')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Daños Patrimoniales, Propiedad, Monto de Daños -->
+                        <div class="row">
+                            <!-- Fotos -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="fotos">Fotos</label>
+                                    <input type="file" name="fotos[]" id="fotos" class="form-control @error('fotos') is-invalid @enderror" accept="image/*" multiple>
+                                    @error('fotos')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>

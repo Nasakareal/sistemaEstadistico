@@ -15,11 +15,18 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        {{-- Título del Hecho --}}
+                        {{-- Calle --}}
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="titulo">Título</label>
-                                <p class="form-control-static">{{ $hecho->titulo }}</p>
+                                <label for="calle">Calle</label>
+                                <p class="form-control-static">{{ $hecho->calle }}</p>
+                            </div>
+                        </div>
+                        {{-- Color --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="colonia">Colonia</label>
+                                <p class="form-control-static">{{ $hecho->colonia }}</p>
                             </div>
                         </div>
                         {{-- Fecha del Hecho --}}
@@ -81,6 +88,37 @@
                                 @endif
                             </div>
                         </div>
+
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3>Vehículos Asociados</h3>
+                                @if($hecho->vehiculos->count())
+                                    <div class="row">
+                                        @foreach($hecho->vehiculos as $vehiculo)
+                                            <div class="col-md-4">
+                                                <div class="card mb-3">
+                                                    <div class="card-header">
+                                                        <strong>{{ $vehiculo->marca }} - {{ $vehiculo->modelo }}</strong>
+                                                    </div>
+                                                    <div class="card-body text-center">
+                                                        @if($vehiculo->fotos)
+                                                            <img src="{{ asset('storage/' . $vehiculo->fotos) }}" alt="Foto del vehículo" class="img-thumbnail" style="width:100%;">
+                                                        @else
+                                                            <p class="text-muted">No hay foto disponible.</p>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p>No hay vehículos asociados a este hecho.</p>
+                                @endif
+                            </div>
+                        </div>
+
+
                     </div>
                     <hr>
                     <div class="row">

@@ -1,16 +1,16 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Models",
     "\\database",
     "\\database\\migrations",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\resources\\views\\apoyo",
+    "\\resources\\views\\hechos",
+    "\\resources\\views\\servicios",
+    "\\resources\\views\\vehiculos",
+    "\\routes"
   ],
-  "SelectedNode": "\\database\\migrations\\2025_01_28_194322_create_conductores_table.php",
+  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

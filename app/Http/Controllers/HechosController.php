@@ -66,9 +66,9 @@ class HechosController extends Controller
         return redirect()->route('hechos.index')->with('success', 'Hecho creado exitosamente.');
     }
 
-    public function show(Hechos $hechos)
+    public function show(Hechos $hecho)
     {
-        $hecho = $hechos->load('vehiculos');
+        $hecho->load('vehiculos');
         return view('hechos.show', compact('hecho'));
     }
 

@@ -37,6 +37,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar vehiculos',
             'eliminar vehiculos',
 
+            // Hechos de Lesionados
+            'ver lesionados',
+            'crear lesionados',
+            'editar lesionados',
+            'eliminar lesionados',
+
             // Grúas
             'ver gruas',
             'crear gruas',

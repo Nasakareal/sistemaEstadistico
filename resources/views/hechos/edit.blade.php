@@ -228,6 +228,7 @@
                                         <option value="COLISIÓN POR CAMBIO DE CARRIL" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR CAMBIO DE CARRIL' ? 'selected' : '' }}>COLISIÓN POR CAMBIO DE CARRIL</option>
                                         <option value="COLISIÓN POR CORTE DE CIRCULACIÓN" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR CORTE DE CIRCULACIÓN' ? 'selected' : '' }}>COLISIÓN POR CORTE DE CIRCULACIÓN</option>
                                         <option value="COLISIÓN POR MANIOBRA DE REVERSA" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR MANIOBRA DE REVERSA' ? 'selected' : '' }}>COLISIÓN POR MANIOBRA DE REVERSA</option>
+                                        <option value="COLISIÓN CONTRA OBJETO FIJO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN CONTRA OBJETO FIJO' ? 'selected' : '' }}>COLISIÓN CONTRA OBJETO FIJO</option>
                                         <option value="CAIDA ACUATICA DE VEHÍCULO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'CAIDA ACUATICA DE VEHÍCULO' ? 'selected' : '' }}>CAIDA ACUATICA DE VEHÍCULO</option>
                                         <option value="DESBARRANCAMIENTO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'DESBARRANCAMIENTO' ? 'selected' : '' }}>DESBARRANCAMIENTO</option>
                                         <option value="INCENDIO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'INCENDIO' ? 'selected' : '' }}>INCENDIO</option>
@@ -456,6 +457,12 @@
                             <div class="col-md-4">
                                 <a href="{{ route('vehiculos.index', $hecho->id) }}" class="btn btn-success btn-lg w-100">
                                     <i class="fa-solid fa-car-side"></i> Listado de Vehículos
+                                </a>
+                            </div>
+
+                            <div class="col-md-4">
+                                <a href="{{ route('lesionados.index', $hecho->id) }}" class="btn btn-primary btn-lg w-100">
+                                    <i class="fa-solid fa-user-injured"></i> Listado de Lesionados
                                 </a>
                             </div>
 

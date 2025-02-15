@@ -165,6 +165,53 @@
 
   <br>
 
+    <br>
+
+  <!-- Lesionados involucrados -->
+  @if($hecho->lesionados->isNotEmpty())
+    <h3>Lesionados</h3>
+    <table class="boxes-table">
+      <tr>
+        <td><strong>Nombre</strong></td>
+        <td><strong>Edad</strong></td>
+        <td><strong>Sexo</strong></td>
+        <td><strong>Tipo de Lesión</strong></td>
+        <td><strong>Hospitalizado</strong></td>
+        <td><strong>Hospital</strong></td>
+      </tr>
+
+      @foreach($hecho->lesionados as $lesionado)
+      <tr>
+        <td>{{ $lesionado->nombre }}</td>
+        <td>{{ $lesionado->edad ?? 'N/A' }}</td>
+        <td>{{ $lesionado->sexo }}</td>
+        <td>{{ $lesionado->tipo_lesion }}</td>
+        <td>{{ $lesionado->hospitalizado ? 'Sí' : 'No' }}</td>
+        <td>{{ $lesionado->hospital ?? 'N/A' }}</td>
+      </tr>
+      @endforeach
+    </table>
+
+    <table class="boxes-table">
+      <tr>
+        <td><strong>Atención en Sitio</strong></td>
+        <td><strong>Ambulancia</strong></td>
+        <td><strong>Paramédico</strong></td>
+        <td><strong>Observaciones</strong></td>
+      </tr>
+
+      @foreach($hecho->lesionados as $lesionado)
+      <tr>
+        <td>{{ $lesionado->atencion_en_sitio ? 'Sí' : 'No' }}</td>
+        <td>{{ $lesionado->ambulancia ?? 'N/A' }}</td>
+        <td>{{ $lesionado->paramedico ?? 'N/A' }}</td>
+        <td>{{ $lesionado->observaciones ?? 'N/A' }}</td>
+      </tr>
+      @endforeach
+    </table>
+  @endif
+
+
   <!-- Situación del Hecho -->
   <table class="boxes-table">
     <tr>

@@ -6,8 +6,8 @@
     "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\resources\\views\\servicios"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\VehiculosController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\ConstanciaManejoController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -52,6 +52,11 @@ class Hechos extends Model
                     ->withTimestamps();
     }
 
+    public function lesionados()
+    {
+        return $this->hasMany(Lesionado::class, 'hecho_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

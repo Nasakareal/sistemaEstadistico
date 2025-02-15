@@ -80,7 +80,8 @@
     <script>
         $(function () {
             $('#servicios').DataTable({
-                "pageLength": 5,
+                "pageLength": 10,
+                "order": [[4, "desc"]],
                 "language": {
                     "emptyTable": "No hay información",
                     "info": "Mostrando _START_ a _END_ de _TOTAL_ Servicios",

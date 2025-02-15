@@ -33,6 +33,7 @@ class CreateHechosTable extends Migration
                 'COLISIÓN POR CAMBIO DE CARRIL',
                 'COLISIÓN POR CORTE DE CIRCULACIÓN',
                 'COLISIÓN POR MANIOBRA DE REVERSA',
+                'COLISIÓN CONTRA OBJETO FIJO',
                 'CAIDA ACUATICA DE VEHÍCULO',
                 'DESBARRANCAMIENTO',
                 'INCENDIO',

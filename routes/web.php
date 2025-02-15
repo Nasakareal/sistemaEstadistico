@@ -112,13 +112,23 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::get('/{hecho}/descargar', [App\Http\Controllers\DocumentoHechoController::class, 'descargarDocx'])->name('hechos.descargar');
 
     // Rutas anidadas para Vehículos
-    Route::prefix('/{hecho}/vehiculos')->middleware('can:crear vehiculos')->group(function () {
+    Route::prefix('/{hecho}/vehiculos')->middleware('can:ver vehiculos')->group(function () {
         Route::get('/', [App\Http\Controllers\VehiculosController::class, 'index'])->name('vehiculos.index');
         Route::get('/create', [App\Http\Controllers\VehiculosController::class, 'create'])->middleware('can:crear vehiculos')->name('vehiculos.create');
         Route::post('/', [App\Http\Controllers\VehiculosController::class, 'store'])->middleware('can:crear vehiculos')->name('vehiculos.store');
         Route::get('/{vehiculo}/edit', [App\Http\Controllers\VehiculosController::class, 'edit'])->middleware('can:editar vehiculos')->name('vehiculos.edit');
         Route::put('/{vehiculo}', [App\Http\Controllers\VehiculosController::class, 'update'])->middleware('can:editar vehiculos')->name('vehiculos.update');
         Route::delete('/{vehiculo}', [App\Http\Controllers\VehiculosController::class, 'destroy'])->middleware('can:eliminar vehiculos')->name('vehiculos.destroy');
+    });
+
+    // Rutas anidadas para Lesionados
+    Route::prefix('/{hecho}/lesionados')->middleware('can:ver lesionados')->group(function () {
+        Route::get('/', [App\Http\Controllers\LesionadoController::class, 'index'])->name('lesionados.index');
+        Route::get('/create', [App\Http\Controllers\LesionadoController::class, 'create'])->middleware('can:crear lesionados')->name('lesionados.create');
+        Route::post('/', [App\Http\Controllers\LesionadoController::class, 'store'])->middleware('can:crear lesionados')->name('lesionados.store');
+        Route::get('/{lesionado}/edit', [App\Http\Controllers\LesionadoController::class, 'edit'])->middleware('can:editar lesionados')->name('lesionados.edit');
+        Route::put('/{lesionado}', [App\Http\Controllers\LesionadoController::class, 'update'])->middleware('can:editar lesionados')->name('lesionados.update');
+        Route::delete('/{lesionado}', [App\Http\Controllers\LesionadoController::class, 'destroy'])->middleware('can:eliminar lesionados')->name('lesionados.destroy');
     });
 });
 

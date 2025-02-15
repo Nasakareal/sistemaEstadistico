@@ -170,7 +170,7 @@
             <!-- Videos de TikTok -->
             <div class="tiktok-container">
                 <h2>Último video en TikTok</h2>
-                <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@sseguridadmich/video/7469838485197786374" data-video-id="7469838485197786374" style="max-width: 605px;min-width: 325px;">
+                <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@sseguridadmich/video/7471296574182771974" data-video-id="7471296574182771974" style="max-width: 605px;min-width: 325px;">
                     <section>Ver video en <a href="https://www.tiktok.com/@sseguridadmich">TikTok</a></section>
                 </blockquote>
             </div>

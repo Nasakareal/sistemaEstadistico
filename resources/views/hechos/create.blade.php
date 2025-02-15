@@ -205,6 +205,7 @@
                                         <option value="COLISIÓN POR CAMBIO DE CARRIL" {{ old('tipo_hecho') == 'COLISIÓN POR CAMBIO DE CARRIL' ? 'selected' : '' }}>COLISIÓN POR CAMBIO DE CARRIL</option>
                                         <option value="COLISIÓN POR CORTE DE CIRCULACIÓN" {{ old('tipo_hecho') == 'COLISIÓN POR CORTE DE CIRCULACIÓN' ? 'selected' : '' }}>COLISIÓN POR CORTE DE CIRCULACIÓN</option>
                                         <option value="COLISIÓN POR MANIOBRA DE REVERSA" {{ old('tipo_hecho') == 'COLISIÓN POR MANIOBRA DE REVERSA' ? 'selected' : '' }}>COLISIÓN POR MANIOBRA DE REVERSA</option>
+                                        <option value="COLISIÓN CONTRA OBJETO FIJO" {{ old('tipo_hecho') == 'COLISIÓN CONTRA OBJETO FIJO' ? 'selected' : '' }}>COLISIÓN CONTRA OBJETO FIJO</option>
                                         <option value="CAIDA ACUATICA DE VEHÍCULO" {{ old('tipo_hecho') == 'CAIDA ACUATICA DE VEHÍCULO' ? 'selected' : '' }}>CAIDA ACUATICA DE VEHÍCULO</option>
                                         <option value="DESBARRANCAMIENTO" {{ old('tipo_hecho') == 'DESBARRANCAMIENTO' ? 'selected' : '' }}>DESBARRANCAMIENTO</option>
                                         <option value="INCENDIO" {{ old('tipo_hecho') == 'INCENDIO' ? 'selected' : '' }}>INCENDIO</option>
@@ -423,10 +424,6 @@
                                     <button type="submit" class="btn btn-primary">
                                         <i class="fa-solid fa-check"></i> Registrar
                                     </button>
-                                    <a href="{{ route('hechos.index') }}" class="btn btn-success">
-                                        <i class="fa-solid fa-car-side"></i> Registrar y Añadir Vehículos
-                                    </a>
-
 
                                     <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
                                         <i class="fa-solid fa-ban"></i> Cancelar

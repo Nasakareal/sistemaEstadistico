@@ -1,13 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\servicios"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ConstanciaManejoController.php",
+  "SelectedNode": "\\database\\migrations\\2025_01_28_194049_create_hechos_table.php",
   "PreviewInSolutionExplorer": false
 }

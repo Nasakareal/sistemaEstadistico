@@ -1,9 +1,15 @@
 {
   "ExpandedNodes": [
     "",
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Models",
     "\\database",
-    "\\database\\migrations"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\busqueda"
   ],
-  "SelectedNode": "\\database\\migrations\\2025_01_28_194049_create_hechos_table.php",
+  "SelectedNode": "\\resources\\views\\busqueda\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

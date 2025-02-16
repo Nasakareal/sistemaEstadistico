@@ -18,7 +18,9 @@
 
     @if(isset($query))
         <div class="card">
-            <div class="card-header">Resultados de la búsqueda para: <strong>{{ $query }}</strong></div>
+            <div class="card-header">
+                Resultados de la búsqueda para: <strong>{{ $query }}</strong>
+            </div>
             <div class="card-body">
                 
                 <!-- Conductores Encontrados -->
@@ -42,7 +44,18 @@
                                     <td>{{ $conductor->domicilio }}</td>
                                     <td>{{ $conductor->numero_licencia }}</td>
                                     <td>
-                                        <a href="{{ route('hechos.show', $conductor->hechos()->first()->id ?? '#') }}" class="btn btn-info btn-sm">Ver Hecho</a>
+                                        @php
+                                            // Obtenemos el primer vehículo del conductor
+                                            $primerVehiculo = $conductor->vehiculos->first();
+                                            // Si existe un vehículo, obtenemos el primer hecho relacionado a ese vehículo
+                                            $primerHecho = $primerVehiculo ? $primerVehiculo->hechos->first() : null;
+                                        @endphp
+
+                                        @if($primerHecho)
+                                            <a href="{{ route('hechos.show', $primerHecho->id) }}" class="btn btn-info btn-sm">Ver Hecho</a>
+                                        @else
+                                            <span class="text-muted">Sin hechos</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -71,6 +84,7 @@
                                     <td>{{ $vehiculo->placas }}</td>
                                     <td>{{ $vehiculo->serie }}</td>
                                     <td>
+                                        {{-- Se mantiene la llamada directa en el vehículo, ya que la relación 'hechos' existe en Vehiculo --}}
                                         <a href="{{ route('hechos.show', $vehiculo->hechos()->first()->id ?? '#') }}" class="btn btn-info btn-sm">Ver Hecho</a>
                                     </td>
                                 </tr>

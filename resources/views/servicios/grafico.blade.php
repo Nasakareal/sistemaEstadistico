@@ -141,7 +141,7 @@
                         title: { display: true, text: 'Grúas' },
                         ticks: {
                             autoSkip: false,
-                            maxRotation: 45, /* Rotar etiquetas en móviles */
+                            maxRotation: 45,
                             minRotation: 0
                         }
                     },
@@ -181,18 +181,28 @@
                 if (filtroFecha === 'mes' && fechaServicio < mesAtras) {
                     incluir = false;
                 }
-                if (filtroFecha === 'rango' && (fechaServicio < new Date(fechaInicio) || fechaServicio > new Date(fechaFin))) {
-                    incluir = false;
+                if (filtroFecha === 'rango') {
+                    // Verificar que ambas fechas estén seleccionadas
+                    if (!fechaInicio || !fechaFin) {
+                        incluir = false;
+                    } else {
+                        // Convertir las fechas incluyendo la hora para abarcar todo el día
+                        let inicio = new Date(fechaInicio + 'T00:00:00');
+                        let fin = new Date(fechaFin + 'T23:59:59');
+                        if (fechaServicio < inicio || fechaServicio > fin) {
+                            incluir = false;
+                        }
+                    }
                 }
 
                 return incluir;
             });
 
-            etiquetas = datosFiltrados.map(grua => grua.nombre);
-            datos = datosFiltrados.map(grua => grua.servicios_count);
+            let etiquetasFiltradas = datosFiltrados.map(grua => grua.nombre);
+            let datosFiltradosCount = datosFiltrados.map(grua => grua.servicios_count);
 
-            chart.data.labels = etiquetas;
-            chart.data.datasets[0].data = datos;
+            chart.data.labels = etiquetasFiltradas;
+            chart.data.datasets[0].data = datosFiltradosCount;
             chart.update();
         });
     </script>

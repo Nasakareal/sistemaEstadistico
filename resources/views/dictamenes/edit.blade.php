@@ -14,7 +14,7 @@
                     <h3 class="card-title">Actualizar Datos del Dictamen</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('dictamenes.update', $dictamen->id) }}" method="POST">
+                    <form action="{{ route('dictamenes.update', $dictamen->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT') <!-- Para actualizar usamos PUT -->
 
@@ -96,6 +96,24 @@
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección para subir el escaneado del dictamen -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="archivo_dictamen">Escaneado del Dictamen (PDF)</label>
+                                    <input type="file" name="archivo_dictamen" id="archivo_dictamen" class="form-control-file @error('archivo_dictamen') is-invalid @enderror">
+                                    @error('archivo_dictamen')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    @if($dictamen->archivo_dictamen)
+                                        <p class="mt-2">Archivo actual: <a href="{{ asset('storage/' . $dictamen->archivo_dictamen) }}" target="_blank">Ver Escaneado</a></p>
+                                    @endif
                                 </div>
                             </div>
                         </div>

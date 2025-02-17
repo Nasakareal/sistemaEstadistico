@@ -3,16 +3,14 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Auth",
     "\\app\\Http\\Middleware",
-    "\\config",
+    "\\database",
+    "\\database\\migrations",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\users"
+    "\\resources\\views\\auth",
+    "\\resources\\views\\dictamenes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Auth\\ResetPasswordController.php",
+  "SelectedNode": "\\app\\Http\\Middleware\\Authenticate.php",
   "PreviewInSolutionExplorer": false
 }

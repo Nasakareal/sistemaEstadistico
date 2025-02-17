@@ -51,11 +51,13 @@ class HechosController extends Controller
             'personas_mp' => 'required|integer|min:0',
         ]);
 
+        // Se marca como verdadero si se envía la opción
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
+        // Recorrer y transformar cada valor de tipo string: quitar acentos y pasar a mayúsculas
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
-                $validated[$key] = strtoupper($value);
+                $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
@@ -63,7 +65,8 @@ class HechosController extends Controller
 
         $hecho = Hechos::create($validated);
 
-        return redirect()->route('hechos.index')->with('success', 'Hecho creado exitosamente.');
+        // Redirigir al formulario de edición del hecho recien creado
+        return redirect()->route('hechos.edit', $hecho->id)->with('success', 'Hecho creado exitosamente.');
     }
 
     public function show(Hechos $hecho)
@@ -120,9 +123,10 @@ class HechosController extends Controller
             'personas_mp' => 'required|integer|min:0',
         ]);
 
+        // Transformar los valores de tipo string: quitar acentos y pasar a mayúsculas
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
-                $validated[$key] = strtoupper($value);
+                $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
@@ -144,5 +148,22 @@ class HechosController extends Controller
         $hecho->delete();
 
         return redirect()->route('hechos.index')->with('success', 'Hecho eliminado exitosamente.');
+    }
+    
+    private function removeAccents($string)
+    {
+        $unwanted_array = [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
+            'À' => 'A', 'È' => 'E', 'Ì' => 'I', 'Ò' => 'O', 'Ù' => 'U',
+            'Â' => 'A', 'Ê' => 'E', 'Î' => 'I', 'Ô' => 'O', 'Û' => 'U',
+            'Ä' => 'A', 'Ë' => 'E', 'Ï' => 'I', 'Ö' => 'O', 'Ü' => 'U',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U',
+            'à' => 'A', 'è' => 'E', 'ì' => 'I', 'ò' => 'O', 'ù' => 'U',
+            'â' => 'A', 'ê' => 'E', 'î' => 'I', 'ô' => 'O', 'û' => 'U',
+            'ä' => 'A', 'ë' => 'E', 'ï' => 'I', 'ö' => 'O', 'ü' => 'U',
+            'Ñ' => 'N', 'ñ' => 'N',
+            'Ç' => 'C', 'ç' => 'C'
+        ];
+        return strtr($string, $unwanted_array);
     }
 }

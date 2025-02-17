@@ -4,7 +4,8 @@
   <title>Reporte del Hecho</title>
   <style>
       @page {
-        size: 216mm 340mm;
+        /* Tamaño oficio: 216mm x 356mm (aproximadamente 8.5" x 14") */
+        size: 216mm 356mm;
         margin: 10mm;
       }
       body {
@@ -36,25 +37,25 @@
         margin: 0;
         margin-top: 5px;
       }
-      /* Ajustar cuadros al tamaño de las letras y eliminar espacio superior */
+      /* Estilos para tablas */
       .boxes-table {
             border-collapse: collapse;
             margin-top: 20px;
-            table-layout: fixed; /* Asegura que la tabla ocupe todo el ancho */
-            width: 100%; /* Hace que las tablas ocupen todo el ancho disponible */
+            table-layout: fixed;
+            width: 100%;
         }
-
-        .boxes-table td {
+        .boxes-table td, .boxes-table th {
             border: 1px solid #000;
             padding: 5px;
             font-size: 12px;
-            white-space: nowrap;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: break-word;
             vertical-align: top;
             line-height: 1;
             margin: 0;
         }
-
-    </style>
+  </style>
 </head>
 <body>
   <!-- Encabezado centrado -->
@@ -66,7 +67,7 @@
     </div>
   </div>
 
-  <!-- Fecha, Hora, Folio C5i, ID del sistema -->
+  <!-- Datos generales -->
   <table class="boxes-table">
     <tr>
       <td><strong>Fecha</strong><br>{{ $hecho->fecha }}</td>
@@ -76,7 +77,7 @@
     </tr>
   </table>
 
-  <!-- Perito, Unidad, Autorización de Práctico -->
+  <!-- Perito, Unidad, Autorización -->
   <table class="boxes-table">
     <tr>
       <td><strong>Perito</strong><br>{{ $hecho->perito }}</td>
@@ -97,10 +98,9 @@
 
   <br>
 
-  <!-- Vehículos involucrados -->
-  <table class="boxes-table">
-    @foreach($hecho->vehiculos as $vehiculo)
-      <!-- Vehículo -->
+  <!-- Detalle de Vehículos y Conductores -->
+  @foreach($hecho->vehiculos as $vehiculo)
+      <!-- Datos del vehículo -->
       <table class="boxes-table">
         <tr>
           <td><strong>Placas</strong><br>{{ $vehiculo->placas }}</td>
@@ -114,58 +114,54 @@
 
       <table class="boxes-table">
         <tr>
-          <td><strong>Estado de Expedición de Placas</strong><br>{{ $vehiculo->estado_placas }}</td>
+          <td><strong>Entidad Placas</strong><br>{{ $vehiculo->estado_placas }}</td>
           <td><strong>Tipo de Servicio</strong><br>{{ $vehiculo->tipo_servicio }}</td>
-          <td><strong>Capacidad de Personas</strong><br>{{ $vehiculo->capacidad_personas }}</td>
+          <td><strong>Capacidad</strong><br>{{ $vehiculo->capacidad_personas }}</td>
           <td><strong>Serie</strong><br>{{ $vehiculo->serie }}</td>
         </tr>
       </table>
 
+      <!-- Datos de Conductores -->
       @foreach($vehiculo->conductores as $conductor)
             <table class="boxes-table">
                 <tr>
-                  <td><strong>Tarjeta de circulación a nombre de</strong><br>{{ $vehiculo->tarjeta_circulacion_nombre }}</td>
+                  <td><strong>Tarjeta circulación</strong><br>{{ $vehiculo->tarjeta_circulacion_nombre }}</td>
                   <td><strong>Conductor</strong><br>{{ $conductor->nombre }}</td>
                   <td><strong>Edad</strong><br>{{ $conductor->edad }}</td>
-                  <td><strong>sexo</strong><br>{{ $conductor->sexo }}</td>
-                  <td><strong>ocupacion</strong><br>{{ $conductor->ocupacion }}</td>
+                  <td><strong>Sexo</strong><br>{{ $conductor->sexo }}</td>
+                  <td><strong>Ocupación</strong><br>{{ $conductor->ocupacion }}</td>
                 </tr>
-              </table>
+            </table>
 
-              <table class="boxes-table">
+            <table class="boxes-table">
                 <tr>
-                  <td><strong>domicilio</strong><br>{{ $conductor->domicilio }}</td>
-                  <td><strong>cinturon</strong><br>{{ $conductor->cinturon }}</td>
-                  <td><strong>antecedentes</strong><br>{{ $conductor->antecedentes }}</td>
-                  <td><strong>Aliento Etilico</strong><br>{{ $conductor->aliento_etilico }}</td>
+                  <td><strong>Domicilio</strong><br>{{ $conductor->domicilio }}</td>
+                  <td><strong>Cinturón</strong><br>{{ $conductor->cinturon }}</td>
+                  <td><strong>Antecedentes</strong><br>{{ $conductor->antecedentes }}</td>
+                  <td><strong>Aliento Etílico</strong><br>{{ $conductor->aliento_etilico }}</td>
                   <td><strong>Cert. Lesiones</strong><br>{{ $conductor->certificado_lesiones }}</td>
                   <td><strong>Cert. Ebriedad</strong><br>{{ $conductor->certificado_alcoholemia }}</td>
                 </tr>
-              </table>
+            </table>
 
-              <table class="boxes-table">
+            <table class="boxes-table">
                 <tr>
-                  <td><strong>tipo_licencia</strong><br>{{ $conductor->tipo_licencia }}</td>
-                  <td><strong>numero_licencia</strong><br>{{ $conductor->numero_licencia }}</td>
-                  <td><strong>vigencia_licencia</strong><br>{{ $conductor->vigencia_licencia }}</td>
-                  <td><strong>estado_licencia</strong><br>{{ $conductor->estado_licencia }}</td>
+                  <td><strong>Tipo Licencia</strong><br>{{ $conductor->tipo_licencia }}</td>
+                  <td><strong>Número Licencia</strong><br>{{ $conductor->numero_licencia }}</td>
+                  <td><strong>Vigencia Licencia</strong><br>{{ $conductor->vigencia_licencia }}</td>
+                  <td><strong>Estado Licencia</strong><br>{{ $conductor->estado_licencia }}</td>
                 </tr>
-              </table>
-          @endforeach
+            </table>
+      @endforeach
 
       <table class="boxes-table">
         <tr>
-          <td><strong>grua</strong><br>{{ $vehiculo->grua }}</td>
-          <td><strong>corralon</strong><br>{{ $vehiculo->corralon }}</td>
+          <td><strong>Grua</strong><br>{{ $vehiculo->grua }}</td>
+          <td><strong>Corralón</strong><br>{{ $vehiculo->corralon }}</td>
         </tr>
       </table>
-      
-    @endforeach
-  </table>
-
-  <br>
-
-    <br>
+      <br>
+  @endforeach
 
   <!-- Lesionados involucrados -->
   @if($hecho->lesionados->isNotEmpty())
@@ -179,7 +175,6 @@
         <td><strong>Hospitalizado</strong></td>
         <td><strong>Hospital</strong></td>
       </tr>
-
       @foreach($hecho->lesionados as $lesionado)
       <tr>
         <td>{{ $lesionado->nombre }}</td>
@@ -199,7 +194,6 @@
         <td><strong>Paramédico</strong></td>
         <td><strong>Observaciones</strong></td>
       </tr>
-
       @foreach($hecho->lesionados as $lesionado)
       <tr>
         <td>{{ $lesionado->atencion_en_sitio ? 'Sí' : 'No' }}</td>
@@ -211,6 +205,7 @@
     </table>
   @endif
 
+  <br>
 
   <!-- Situación del Hecho -->
   <table class="boxes-table">
@@ -219,23 +214,77 @@
     </tr>
   </table>
 
-  <!-- Situación del Tipo de hecho, tiempo, control de transito, superficie de la via -->
+  <!-- Tipo de hecho, tiempo, control de tránsito, superficie de la vía -->
   <table class="boxes-table">
-        <tr>
-          <td><strong>tipo_hecho</strong><br>{{ $hecho->tipo_hecho }}</td>
-          <td><strong>tiempo</strong><br>{{ $hecho->tiempo }}</td>
-          <td><strong>control_transito</strong><br>{{ $hecho->control_transito }}</td>
-          <td><strong>superficie_via</strong><br>{{ $hecho->superficie_via }}</td>
-        </tr>
+    <tr>
+      <td><strong>Tipo de Hecho</strong><br>{{ $hecho->tipo_hecho }}</td>
+      <td><strong>Tiempo</strong><br>{{ $hecho->tiempo }}</td>
+      <td><strong>Control de Tránsito</strong><br>{{ $hecho->control_transito }}</td>
+      <td><strong>Superficie de la Vía</strong><br>{{ $hecho->superficie_via }}</td>
+    </tr>
   </table>
 
-  <!-- Causas-->
+  <!-- Causas -->
   <table class="boxes-table">
-        <tr>
-          <td><strong>causas</strong><br>{{ $hecho->causas }}</td>
-        </tr>
+    <tr>
+      <td><strong>Causas</strong><br>{{ $hecho->causas }}</td>
+    </tr>
   </table>
 
+  <!-- Resumen de Daños Vehiculares (una fila por vehículo con daños) -->
+  @php
+    $vehiculosConDanos = $hecho->vehiculos->filter(function($vehiculo) {
+      return $vehiculo->monto_danos || $vehiculo->partes_danadas;
+    });
+  @endphp
+
+  @if($vehiculosConDanos->count() > 0)
+    <br>
+    <h3>Daños Vehiculares</h3>
+    <table class="boxes-table">
+      <tr>
+        <th>Vehículo</th>
+        <th>Partes Dañadas</th>
+        <th>Monto Daños</th>
+      </tr>
+      @foreach($vehiculosConDanos as $vehiculo)
+        <tr>
+          <td>Vehículo {{ $loop->iteration }}</td>
+          <td>{{ $vehiculo->partes_danadas ?? 'N/A' }}</td>
+          <td>
+            @if($vehiculo->monto_danos)
+              ${{ number_format($vehiculo->monto_danos, 2) }}
+            @else
+              N/A
+            @endif
+          </td>
+        </tr>
+      @endforeach
+    </table>
+  @endif
+
+  <!-- Daños Patrimoniales -->
+  @if($hecho->danos_patrimoniales || $hecho->propiedades_afectadas || $hecho->monto_danos_patrimoniales)
+    <br>
+    <h3>Daños Patrimoniales</h3>
+    <table class="boxes-table">
+      <tr>
+        <td><strong>Daños Patrimoniales</strong><br>{{ $hecho->danos_patrimoniales ?? 'N/A' }}</td>
+      </tr>
+    </table>
+    <table class="boxes-table">
+      <tr>
+        <td><strong>Propiedades Afectadas</strong><br>{{ $hecho->propiedades_afectadas ?? 'N/A' }}</td>
+        <td><strong>Monto Daños Patrimoniales</strong><br>
+          @if($hecho->monto_danos_patrimoniales)
+            ${{ number_format($hecho->monto_danos_patrimoniales, 2) }}
+          @else
+            N/A
+          @endif
+        </td>
+      </tr>
+    </table>
+  @endif
 
 </body>
 </html>

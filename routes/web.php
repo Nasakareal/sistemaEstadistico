@@ -6,6 +6,15 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [App\Http\Controllers\UserController::class, 'profile'])->name('profile');
+    Route::get('/change-password', [App\Http\Controllers\UserController::class, 'showChangePasswordForm'])->name('password.change');
+    // Renombramos la ruta a "user.password.update"
+    Route::post('/change-password', [App\Http\Controllers\UserController::class, 'updatePassword'])->name('user.password.update');
+});
+
+
+
 // Búsqueda
 Route::get('/busqueda', [App\Http\Controllers\BusquedaController::class, 'index'])->name('busqueda.index');
 

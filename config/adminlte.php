@@ -319,16 +319,18 @@ return [
         ],
 
         [
-            'text' => 'profile',
-            'url' => 'admin/settings',
-            'icon' => 'fas fa-fw fa-user',
-            'topnav_user' => true,
+            // Enlace para "Perfil"
+            'text'         => 'Perfil',
+            'route'        => 'profile',  // <-- Apunta a la ruta "profile"
+            'icon'         => 'fas fa-fw fa-user',
+            'topnav_user'  => true,       // <-- Indica que va en el menú de usuario
         ],
         [
-            'text' => 'change_password',
-            'url' => 'password/change',
-            'icon' => 'fas fa-fw fa-lock',
-            'topnav_user' => true,
+            // Enlace para "Cambiar Contraseña"
+            'text'         => 'Cambiar Contraseña',
+            'route'        => 'password.change', // <-- Apunta a la ruta "password.change"
+            'icon'         => 'fas fa-fw fa-lock',
+            'topnav_user'  => true,
         ],
 
 

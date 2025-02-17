@@ -4,12 +4,15 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Models",
-    "\\database",
+    "\\app\\Http\\Controllers\\Auth",
+    "\\app\\Http\\Middleware",
+    "\\config",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\busqueda"
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\users"
   ],
-  "SelectedNode": "\\resources\\views\\busqueda\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Auth\\ResetPasswordController.php",
   "PreviewInSolutionExplorer": false
 }

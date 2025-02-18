@@ -3,14 +3,11 @@
     "",
     "\\app",
     "\\app\\Http",
+    "\\app\\Http\\Controllers",
     "\\app\\Http\\Middleware",
-    "\\database",
-    "\\database\\migrations",
     "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\auth",
-    "\\resources\\views\\dictamenes"
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Middleware\\Authenticate.php",
+  "SelectedNode": "\\app\\Http\\Middleware\\RedirectIfAuthenticated.php",
   "PreviewInSolutionExplorer": false
 }

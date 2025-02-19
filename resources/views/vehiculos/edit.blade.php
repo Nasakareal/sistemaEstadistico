@@ -235,7 +235,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="sexo">Sexo</label>
-                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror" required>
+                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror">
                                         <option value="" disabled>Seleccione el sexo</option>
                                         <option value="MASCULINO" {{ old('sexo', $conductor->sexo) == 'MASCULINO' ? 'selected' : '' }}>Masculino</option>
                                         <option value="FEMENINO" {{ old('sexo', $conductor->sexo) == 'FEMENINO' ? 'selected' : '' }}>Femenino</option>
@@ -256,7 +256,7 @@
                                     <label for="ocupacion">Ocupación</label>
                                     <input type="text" name="ocupacion" id="ocupacion"
                                            class="form-control @error('ocupacion') is-invalid @enderror"
-                                           value="{{ old('ocupacion', $conductor ? $conductor->ocupacion : '') }}" placeholder="Ingrese la ocupación del conductor" required>
+                                           value="{{ old('ocupacion', $conductor ? $conductor->ocupacion : '') }}" placeholder="Ingrese la ocupación del conductor">
                                     @error('ocupacion')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

@@ -48,10 +48,10 @@
                                     <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td> <!-- Muestra el nombre del usuario que creó el hecho -->
                                     <td style="text-align: center">
                                         <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">
-                                            <i class="fa-regular fa-eye"></i> Ver
+                                            <i class="fa-regular fa-eye"></i>
                                         </a>
                                         <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
-                                            <i class="fa-solid fa-pencil"></i> Editar
+                                            <i class="fa-solid fa-pencil"></i>
                                         </a>
                                         <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                             <i class="fas fa-download"></i> Descargar
@@ -61,7 +61,7 @@
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este hecho?');">
-                                                <i class="fa-solid fa-trash"></i> Eliminar
+                                                <i class="fa-solid fa-trash"></i>
                                             </button>
                                         </form>
                                     </td>
@@ -91,9 +91,9 @@
                 "pageLength": 10,
                 "language": {
                     "emptyTable": "No hay información disponible",
-                    "info": "Mostrando _START_ a _END_ de _TOTAL_ Hechos",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 Hechos",
-                    "infoFiltered": "(Filtrado de _MAX_ total Hechos)",
+                    "info": "",
+                    "infoEmpty": "",
+                    "infoFiltered": "",
                     "lengthMenu": "Mostrar _MENU_ Hechos",
                     "loadingRecords": "Cargando...",
                     "processing": "Procesando...",

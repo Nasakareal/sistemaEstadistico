@@ -37,24 +37,26 @@
         margin: 0;
         margin-top: 5px;
       }
+
       /* Estilos para tablas */
       .boxes-table {
-            border-collapse: collapse;
-            margin-top: 20px;
-            table-layout: fixed;
-            width: 100%;
-        }
-        .boxes-table td, .boxes-table th {
-            border: 1px solid #000;
-            padding: 5px;
-            font-size: 12px;
-            white-space: normal;
-            word-break: break-word;
-            overflow-wrap: break-word;
-            vertical-align: top;
-            line-height: 1;
-            margin: 0;
-        }
+        border-collapse: collapse;
+        /* Se redujo de 20px a 10px */
+        margin-top: 10px;
+        table-layout: fixed;
+        width: 100%;
+      }
+      .boxes-table td, .boxes-table th {
+        border: 1px solid #000;
+        padding: 5px;
+        font-size: 12px;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        vertical-align: top;
+        line-height: 1;
+        margin: 0;
+      }
   </style>
 </head>
 <body>
@@ -123,35 +125,35 @@
 
       <!-- Datos de Conductores -->
       @foreach($vehiculo->conductores as $conductor)
-            <table class="boxes-table">
-                <tr>
-                  <td><strong>Tarjeta circulación</strong><br>{{ $vehiculo->tarjeta_circulacion_nombre }}</td>
-                  <td><strong>Conductor</strong><br>{{ $conductor->nombre }}</td>
-                  <td><strong>Edad</strong><br>{{ $conductor->edad }}</td>
-                  <td><strong>Sexo</strong><br>{{ $conductor->sexo }}</td>
-                  <td><strong>Ocupación</strong><br>{{ $conductor->ocupacion }}</td>
-                </tr>
-            </table>
+        <table class="boxes-table">
+          <tr>
+            <td><strong>Tarjeta circulación</strong><br>{{ $vehiculo->tarjeta_circulacion_nombre }}</td>
+            <td><strong>Conductor</strong><br>{{ $conductor->nombre }}</td>
+            <td><strong>Edad</strong><br>{{ $conductor->edad }}</td>
+            <td><strong>Sexo</strong><br>{{ $conductor->sexo }}</td>
+            <td><strong>Ocupación</strong><br>{{ $conductor->ocupacion }}</td>
+          </tr>
+        </table>
 
-            <table class="boxes-table">
-                <tr>
-                  <td><strong>Domicilio</strong><br>{{ $conductor->domicilio }}</td>
-                  <td><strong>Cinturón</strong><br>{{ $conductor->cinturon }}</td>
-                  <td><strong>Antecedentes</strong><br>{{ $conductor->antecedentes }}</td>
-                  <td><strong>Aliento Etílico</strong><br>{{ $conductor->aliento_etilico }}</td>
-                  <td><strong>Cert. Lesiones</strong><br>{{ $conductor->certificado_lesiones }}</td>
-                  <td><strong>Cert. Ebriedad</strong><br>{{ $conductor->certificado_alcoholemia }}</td>
-                </tr>
-            </table>
+        <table class="boxes-table">
+          <tr>
+            <td><strong>Domicilio</strong><br>{{ $conductor->domicilio }}</td>
+            <td><strong>Cinturón</strong><br>{{ $conductor->cinturon }}</td>
+            <td><strong>Antecedentes</strong><br>{{ $conductor->antecedentes }}</td>
+            <td><strong>Aliento Etílico</strong><br>{{ $conductor->aliento_etilico }}</td>
+            <td><strong>Cert. Lesiones</strong><br>{{ $conductor->certificado_lesiones }}</td>
+            <td><strong>Cert. Ebriedad</strong><br>{{ $conductor->certificado_alcoholemia }}</td>
+          </tr>
+        </table>
 
-            <table class="boxes-table">
-                <tr>
-                  <td><strong>Tipo Licencia</strong><br>{{ $conductor->tipo_licencia }}</td>
-                  <td><strong>Número Licencia</strong><br>{{ $conductor->numero_licencia }}</td>
-                  <td><strong>Vigencia Licencia</strong><br>{{ $conductor->vigencia_licencia }}</td>
-                  <td><strong>Estado Licencia</strong><br>{{ $conductor->estado_licencia }}</td>
-                </tr>
-            </table>
+        <table class="boxes-table">
+          <tr>
+            <td><strong>Tipo Licencia</strong><br>{{ $conductor->tipo_licencia }}</td>
+            <td><strong>Número Licencia</strong><br>{{ $conductor->numero_licencia }}</td>
+            <td><strong>Vigencia Licencia</strong><br>{{ $conductor->vigencia_licencia }}</td>
+            <td><strong>Estado Licencia</strong><br>{{ $conductor->estado_licencia }}</td>
+          </tr>
+        </table>
       @endforeach
 
       <table class="boxes-table">
@@ -165,7 +167,6 @@
 
   <!-- Lesionados involucrados -->
   @if($hecho->lesionados->isNotEmpty())
-    <h3>Lesionados</h3>
     <table class="boxes-table">
       <tr>
         <td><strong>Nombre</strong></td>
@@ -265,7 +266,6 @@
   <!-- Daños Patrimoniales -->
   @if($hecho->danos_patrimoniales || $hecho->propiedades_afectadas || $hecho->monto_danos_patrimoniales)
     <br>
-    <h3>Daños Patrimoniales</h3>
     <table class="boxes-table">
       <tr>
         <td><strong>Daños Patrimoniales</strong><br>{{ $hecho->danos_patrimoniales ?? 'N/A' }}</td>
@@ -286,7 +286,7 @@
   @endif
 
   <!-- CROQUIS DEL LUGAR DEL HECHO -->
-  <div style="margin-top: 40px; text-align: center; border: 2px solid #000; padding: 20px;">
+  <div style="margin-top: 20px; text-align: center; border: 2px solid #000; padding: 20px;">
     <h2 style="margin: 0; font-size: 24px;">CROQUIS DEL LUGAR DEL HECHO</h2>
   </div>
 

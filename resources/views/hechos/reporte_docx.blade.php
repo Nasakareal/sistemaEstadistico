@@ -240,7 +240,6 @@
 
   @if($vehiculosConDanos->count() > 0)
     <br>
-    <h3>Daños Vehiculares</h3>
     <table class="boxes-table">
       <tr>
         <th>Vehículo</th>
@@ -285,6 +284,11 @@
       </tr>
     </table>
   @endif
+
+  <!-- CROQUIS DEL LUGAR DEL HECHO -->
+  <div style="margin-top: 40px; text-align: center; border: 2px solid #000; padding: 20px;">
+    <h2 style="margin: 0; font-size: 24px;">CROQUIS DEL LUGAR DEL HECHO</h2>
+  </div>
 
 </body>
 </html>

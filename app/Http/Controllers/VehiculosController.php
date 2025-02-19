@@ -50,11 +50,12 @@ class VehiculosController extends Controller
             'domicilio'                  => 'required|string|max:255',
             'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
             'ocupacion'                  => 'required|string|max:255',
-            'edad'                       => 'required|integer|min:00|max:100',
+            'edad'                       => 'required|integer|min:0|max:100',
             'tipo_licencia'              => 'nullable|string|max:50',
             'estado_licencia'            => 'nullable|string|max:100',
             'vigencia_licencia'          => 'nullable|date',
             'numero_licencia'            => 'nullable|string|max:50',
+            'permanente'                 => 'sometimes', // Nuevo campo para indicar licencia permanente
 
             // Datos del daño patrimonial
             'danos_patrimoniales'        => 'nullable|string',
@@ -83,8 +84,10 @@ class VehiculosController extends Controller
             'edad'              => $validated['edad'],
             'tipo_licencia'     => strtoupper($validated['tipo_licencia']),
             'estado_licencia'   => strtoupper($validated['estado_licencia']),
-            'vigencia_licencia' => $validated['vigencia_licencia'],
+            // Si se marca como permanente se ignora la vigencia
+            'vigencia_licencia' => $request->has('permanente') ? null : $validated['vigencia_licencia'],
             'numero_licencia'   => strtoupper($validated['numero_licencia']),
+            'permanente'        => $request->has('permanente'),
         ]);
         $vehiculo->conductores()->attach($conductor->id);
 
@@ -137,11 +140,12 @@ class VehiculosController extends Controller
             'domicilio'                  => 'required|string|max:255',
             'sexo'                       => 'required|string|in:MASCULINO,FEMENINO,OTRO',
             'ocupacion'                  => 'required|string|max:255',
-            'edad'                       => 'required|integer|min:00|max:100',
+            'edad'                       => 'required|integer|min:0|max:100',
             'tipo_licencia'              => 'nullable|string|max:50',
             'estado_licencia'            => 'nullable|string|max:100',
             'vigencia_licencia'          => 'nullable|date',
             'numero_licencia'            => 'nullable|string|max:50',
+            'permanente'                 => 'sometimes', // Campo para licencia permanente
 
             'danos_patrimoniales'        => 'nullable|string',
             'propiedad'                  => 'nullable|string|max:255',
@@ -167,8 +171,10 @@ class VehiculosController extends Controller
                 'edad'              => $validated['edad'],
                 'tipo_licencia'     => strtoupper($validated['tipo_licencia']),
                 'estado_licencia'   => strtoupper($validated['estado_licencia']),
-                'vigencia_licencia' => $validated['vigencia_licencia'],
+                // Si la licencia es permanente se guarda null en vigencia
+                'vigencia_licencia' => $request->has('permanente') ? null : $validated['vigencia_licencia'],
                 'numero_licencia'   => strtoupper($validated['numero_licencia']),
+                'permanente'        => $request->has('permanente'),
             ]);
         }
 

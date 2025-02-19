@@ -344,6 +344,21 @@
                                     @enderror
                                 </div>
                             </div>
+
+                            <!-- Checkbox para licencia permanente -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="permanente">Licencia Permanente</label>
+                                    <input type="checkbox" name="permanente" id="permanente" 
+                                           class="@error('permanente') is-invalid @enderror" 
+                                           {{ old('permanente') ? 'checked' : '' }}>
+                                    @error('permanente')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Partes Dañadas, Monto de los Daños, Grúa, Corralón -->

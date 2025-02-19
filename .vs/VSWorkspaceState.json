@@ -5,9 +5,12 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Middleware",
+    "\\database",
+    "\\database\\migrations",
     "\\resources",
-    "\\routes"
+    "\\resources\\views",
+    "\\resources\\views\\vehiculos"
   ],
-  "SelectedNode": "\\app\\Http\\Middleware\\RedirectIfAuthenticated.php",
+  "SelectedNode": "\\resources\\views\\vehiculos\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

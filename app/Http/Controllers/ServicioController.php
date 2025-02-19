@@ -71,14 +71,38 @@ class ServicioController extends Controller
         return redirect()->route('servicios.index', $grua->id)->with('success', 'Servicio actualizado correctamente.');
     }
 
-    public function grafico()
+    public function grafico(Request $request)
     {
-        // Obtener el número de servicios por grúa
-        $gruasServicios = Grua::withCount('servicios')->get();
+        // Obtener filtros desde el request
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+        $gruasSeleccionadas = $request->input('gruas');
 
-        // Enviar los datos a la vista
+        // Consulta base con la relación de servicios
+        $query = Grua::with(['servicios' => function ($q) use ($fechaInicio, $fechaFin) {
+            if ($fechaInicio && $fechaFin) {
+                $q->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
+            }
+        }]);
+
+        // Filtrar por grúas si se seleccionaron
+        if (!empty($gruasSeleccionadas)) {
+            $query->whereIn('nombre', $gruasSeleccionadas);
+        }
+
+        // Obtener las grúas con conteo de servicios y la fecha del último servicio
+        $gruasServicios = $query->get()->map(function ($grua) {
+            return [
+                'nombre' => $grua->nombre,
+                'servicios_count' => $grua->servicios->count(),
+                'fecha_ultimo_servicio' => $grua->servicios->max('created_at'), // Obtener la fecha más reciente
+            ];
+        });
+
+        // Enviar datos a la vista
         return view('servicios.grafico', compact('gruasServicios'));
     }
+
 
 
     public function destroy(Grua $grua, Servicio $servicio)

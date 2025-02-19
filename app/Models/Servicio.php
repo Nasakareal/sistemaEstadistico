@@ -15,6 +15,7 @@ class Servicio extends Model
         'aseguradora',
         'descripcion',
         'foto_vehiculo',
+        'created_at',
     ];
 
     public function grua()

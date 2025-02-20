@@ -1,16 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Models",
-    "\\database",
-    "\\database\\migrations",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\servicios"
+    "\\resources\\views\\vehiculos"
   ],
-  "SelectedNode": "\\database\\migrations\\2025_02_03_052757_create_servicios_table.php",
+  "SelectedNode": "\\resources\\views\\vehiculos\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

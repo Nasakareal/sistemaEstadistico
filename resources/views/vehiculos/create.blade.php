@@ -235,7 +235,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="sexo">Sexo</label>
-                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror">
+                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione el sexo</option>
                                         <option value="MASCULINO" {{ old('sexo') == 'MASCULINO' ? 'selected' : '' }}>Masculino</option>
                                         <option value="FEMENINO" {{ old('sexo') == 'FEMENINO' ? 'selected' : '' }}>Femenino</option>

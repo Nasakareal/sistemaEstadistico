@@ -8,6 +8,7 @@
 
 @section('content')
     <div class="row">
+        <!-- Filtros -->
         <div class="col-md-12">
             <div class="card card-outline card-primary">
                 <div class="card-header">
@@ -16,7 +17,7 @@
                 <div class="card-body">
                     <form id="filtro-form">
                         <div class="row">
-                            <!-- Filtro por grúa -->
+                            <!-- Filtro por Grúa -->
                             <div class="col-md-12 col-lg-4">
                                 <label for="filtro-grua">Filtrar por Grúa:</label>
                                 <select id="filtro-grua" class="form-control select2" multiple>
@@ -25,8 +26,7 @@
                                     @endforeach
                                 </select>
                             </div>
-
-                            <!-- Filtro por rango de fechas -->
+                            <!-- Filtro por Fecha -->
                             <div class="col-md-6 col-lg-4 mt-3 mt-lg-0">
                                 <label for="filtro-fecha">Filtrar por Fecha:</label>
                                 <select id="filtro-fecha" class="form-control">
@@ -36,15 +36,13 @@
                                     <option value="rango">Rango Personalizado</option>
                                 </select>
                             </div>
-
-                            <!-- Fechas personalizadas -->
+                            <!-- Fechas Personalizadas -->
                             <div class="col-md-6 col-lg-4 mt-3 mt-lg-0 rango-fechas d-none">
                                 <label>Selecciona un rango de fechas:</label>
                                 <input type="date" id="fecha-inicio" class="form-control">
                                 <input type="date" id="fecha-fin" class="form-control mt-2">
                             </div>
                         </div>
-
                         <button type="button" class="btn btn-primary mt-3 w-100" id="btn-filtrar">
                             <i class="fa-solid fa-filter"></i> Aplicar Filtros
                         </button>
@@ -53,7 +51,7 @@
             </div>
         </div>
 
-        <!-- Contenedor del gráfico -->
+        <!-- Gráfico -->
         <div class="col-md-12">
             <div class="card card-outline card-primary">
                 <div class="card-header">
@@ -71,53 +69,55 @@
 
 @section('css')
     <style>
-        .card {
-            margin: 20px;
-        }
-
-        /* Ajustes para pantallas pequeñas */
+        .card { margin: 20px; }
+        /* Pantallas pequeñas */
         @media (max-width: 768px) {
-            .chart-container {
-                width: 100%;
-                height: 60vh; /* Ajusta el alto en móviles */
-            }
-            .select2 {
-                width: 100% !important;
-            }
+            .chart-container { width: 100%; height: 60vh; }
+            .select2 { width: 100% !important; }
         }
-
-        /* Asegurar que el gráfico se adapta */
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 400px;
-        }
+        /* Adaptar el gráfico */
+        .chart-container { position: relative; width: 100%; height: 400px; }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
 @stop
 
 @section('js')
+    <!-- Incluir Chart.js y Select2 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script>
         $(document).ready(function () {
             $('.select2').select2({ placeholder: 'Selecciona una o más grúas', allowClear: true });
-
             $('#filtro-fecha').change(function () {
-                if ($(this).val() === 'rango') {
-                    $('.rango-fechas').removeClass('d-none');
-                } else {
-                    $('.rango-fechas').addClass('d-none');
-                }
+                ($(this).val() === 'rango') 
+                    ? $('.rango-fechas').removeClass('d-none') 
+                    : $('.rango-fechas').addClass('d-none');
             });
         });
 
-        // Los datos se envían desde el controlador en formato JSON, incluyendo 'created_at'
+        // Recibimos los datos desde el controlador (asegúrate de que $gruasServicios tenga 'nombre', 'servicios_count' y 'fecha_ultimo_servicio')
         const serviciosData = @json($gruasServicios);
-        let etiquetas = serviciosData.map(grua => grua.nombre);
-        let datos = serviciosData.map(grua => grua.servicios_count);
+        console.log("Datos iniciales:", serviciosData);
 
-        const ctx = document.getElementById('grafico-servicios').getContext('2d');
+        // Si hay entradas sin fecha, las excluimos (puedes ajustar según tu necesidad)
+        const conFecha = serviciosData.filter(item => item.fecha_ultimo_servicio);
+
+        // Ordenar por fecha_ultimo_servicio (ascendente)
+        conFecha.sort((a, b) => {
+            const dateA = new Date(a.fecha_ultimo_servicio.replace(' ', 'T'));
+            const dateB = new Date(b.fecha_ultimo_servicio.replace(' ', 'T'));
+            return dateA - dateB;
+        });
+
+        // Datos iniciales para el gráfico
+        let etiquetas = conFecha.map(item => item.nombre);
+        let datos = conFecha.map(item => item.servicios_count);
+
+        const canvasElem = document.getElementById('grafico-servicios');
+        if (!canvasElem) {
+            console.error("No se encontró el elemento canvas");
+        }
+        const ctx = canvasElem.getContext('2d');
         let chart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -133,18 +133,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
-                },
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
                 scales: {
                     x: {
                         title: { display: true, text: 'Grúas' },
-                        ticks: {
-                            autoSkip: false,
-                            maxRotation: 45,
-                            minRotation: 0
-                        }
+                        ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 }
                     },
                     y: {
                         beginAtZero: true,
@@ -154,62 +147,55 @@
             }
         });
 
+        // Función de filtrado y actualización del gráfico
         $('#btn-filtrar').click(function () {
-            let gruasSeleccionadas = $('#filtro-grua').val();
-            let filtroFecha = $('#filtro-fecha').val();
-            let fechaInicio = $('#fecha-inicio').val();
-            let fechaFin = $('#fecha-fin').val();
+            const gruasSeleccionadas = $('#filtro-grua').val();
+            const filtroFecha = $('#filtro-fecha').val();
+            const fechaInicio = $('#fecha-inicio').val();
+            const fechaFin = $('#fecha-fin').val();
 
-            let datosFiltrados = serviciosData.filter(grua => {
-                let incluir = true;
-
-                // Filtrar por grúa si se seleccionaron opciones
-                if (gruasSeleccionadas && gruasSeleccionadas.length > 0) {
-                    incluir = gruasSeleccionadas.includes(grua.nombre);
-                }
-
-                // Filtrar por fecha utilizando el campo 'created_at'
-                let fechaStr = grua.created_at;
-                // Convertir a formato ISO si el string contiene un espacio
-                if (fechaStr.indexOf(' ') > -1) {
-                    fechaStr = fechaStr.replace(' ', 'T');
-                }
-                let fechaServicio = new Date(fechaStr);
-                // Verificar que la fecha sea válida
-                if (isNaN(fechaServicio.getTime())) {
-                    console.error("Fecha inválida para grúa:", grua);
+            let datosFiltrados = serviciosData.filter(item => {
+                // Si se filtra por grúa
+                if (gruasSeleccionadas && gruasSeleccionadas.length > 0 && !gruasSeleccionadas.includes(item.nombre)) {
                     return false;
                 }
+                // Si se elige "todas", se acepta sin filtrar por fecha
+                if (filtroFecha === 'todas') return true;
+                // Si no hay fecha, se descarta
+                if (!item.fecha_ultimo_servicio) return false;
+                // Convertir a formato ISO
+                let fechaStr = (item.fecha_ultimo_servicio.indexOf(' ') > -1)
+                    ? item.fecha_ultimo_servicio.replace(' ', 'T')
+                    : item.fecha_ultimo_servicio;
+                let fechaServicio = new Date(fechaStr);
+                if (isNaN(fechaServicio.getTime())) return false;
 
-                let hoy = new Date();
-                let semanaAtras = new Date(hoy.getTime() - (7 * 24 * 60 * 60 * 1000));
-                let mesAtras = new Date(hoy.getTime() - (30 * 24 * 60 * 60 * 1000));
+                const hoy = new Date();
+                const semanaAtras = new Date(hoy.getTime() - (7 * 24 * 60 * 60 * 1000));
+                const mesAtras = new Date(hoy.getTime() - (30 * 24 * 60 * 60 * 1000));
 
-                if (filtroFecha === 'semana' && fechaServicio < semanaAtras) {
-                    incluir = false;
-                }
-                if (filtroFecha === 'mes' && fechaServicio < mesAtras) {
-                    incluir = false;
-                }
+                if (filtroFecha === 'semana' && fechaServicio < semanaAtras) return false;
+                if (filtroFecha === 'mes' && fechaServicio < mesAtras) return false;
                 if (filtroFecha === 'rango') {
-                    if (!fechaInicio || !fechaFin) {
-                        incluir = false;
-                    } else {
-                        // Se crean fechas de inicio y fin en formato ISO para abarcar todo el día
-                        let inicio = new Date(fechaInicio + 'T00:00:00');
-                        let fin = new Date(fechaFin + 'T23:59:59');
-                        if (fechaServicio < inicio || fechaServicio > fin) {
-                            incluir = false;
-                        }
-                    }
+                    if (!fechaInicio || !fechaFin) return false;
+                    const inicio = new Date(fechaInicio + 'T00:00:00');
+                    const fin = new Date(fechaFin + 'T23:59:59');
+                    if (fechaServicio < inicio || fechaServicio > fin) return false;
                 }
-                // Para 'todas' no se aplica filtro adicional
-
-                return incluir;
+                return true;
             });
 
-            let etiquetasFiltradas = datosFiltrados.map(grua => grua.nombre);
-            let datosFiltradosCount = datosFiltrados.map(grua => grua.servicios_count);
+            // Ordenar los datos filtrados por fecha_ultimo_servicio (ascendente)
+            datosFiltrados.sort((a, b) => {
+                const dateA = new Date(a.fecha_ultimo_servicio.replace(' ', 'T'));
+                const dateB = new Date(b.fecha_ultimo_servicio.replace(' ', 'T'));
+                return dateA - dateB;
+            });
+
+            console.log("Datos filtrados y ordenados:", datosFiltrados);
+
+            const etiquetasFiltradas = datosFiltrados.map(item => item.nombre);
+            const datosFiltradosCount = datosFiltrados.map(item => item.servicios_count);
 
             chart.data.labels = etiquetasFiltradas;
             chart.data.datasets[0].data = datosFiltradosCount;

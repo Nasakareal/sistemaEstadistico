@@ -112,6 +112,7 @@
             });
         });
 
+        // Los datos se envían desde el controlador en formato JSON, incluyendo 'created_at'
         const serviciosData = @json($gruasServicios);
         let etiquetas = serviciosData.map(grua => grua.nombre);
         let datos = serviciosData.map(grua => grua.servicios_count);
@@ -162,18 +163,27 @@
             let datosFiltrados = serviciosData.filter(grua => {
                 let incluir = true;
 
-                // Filtrar por grúa
+                // Filtrar por grúa si se seleccionaron opciones
                 if (gruasSeleccionadas && gruasSeleccionadas.length > 0) {
                     incluir = gruasSeleccionadas.includes(grua.nombre);
                 }
 
-                // Filtrar por fecha
-                let fechaServicio = new Date(grua.fecha_ultimo_servicio);
+                // Filtrar por fecha utilizando el campo 'created_at'
+                let fechaStr = grua.created_at;
+                // Convertir a formato ISO si el string contiene un espacio
+                if (fechaStr.indexOf(' ') > -1) {
+                    fechaStr = fechaStr.replace(' ', 'T');
+                }
+                let fechaServicio = new Date(fechaStr);
+                // Verificar que la fecha sea válida
+                if (isNaN(fechaServicio.getTime())) {
+                    console.error("Fecha inválida para grúa:", grua);
+                    return false;
+                }
+
                 let hoy = new Date();
-                let semanaAtras = new Date();
-                semanaAtras.setDate(hoy.getDate() - 7);
-                let mesAtras = new Date();
-                mesAtras.setMonth(hoy.getMonth() - 1);
+                let semanaAtras = new Date(hoy.getTime() - (7 * 24 * 60 * 60 * 1000));
+                let mesAtras = new Date(hoy.getTime() - (30 * 24 * 60 * 60 * 1000));
 
                 if (filtroFecha === 'semana' && fechaServicio < semanaAtras) {
                     incluir = false;
@@ -182,11 +192,10 @@
                     incluir = false;
                 }
                 if (filtroFecha === 'rango') {
-                    // Verificar que ambas fechas estén seleccionadas
                     if (!fechaInicio || !fechaFin) {
                         incluir = false;
                     } else {
-                        // Convertir las fechas incluyendo la hora para abarcar todo el día
+                        // Se crean fechas de inicio y fin en formato ISO para abarcar todo el día
                         let inicio = new Date(fechaInicio + 'T00:00:00');
                         let fin = new Date(fechaFin + 'T23:59:59');
                         if (fechaServicio < inicio || fechaServicio > fin) {
@@ -194,6 +203,7 @@
                         }
                     }
                 }
+                // Para 'todas' no se aplica filtro adicional
 
                 return incluir;
             });

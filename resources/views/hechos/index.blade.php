@@ -89,6 +89,7 @@
         $(function () {
             var table = $('#hechos').DataTable({
                 "pageLength": 10,
+                "order": [[1, "asc"]],
                 "language": {
                     "emptyTable": "No hay información disponible",
                     "info": "",
@@ -132,3 +133,4 @@
         @endif
     </script>
 @stop
+

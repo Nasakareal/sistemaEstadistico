@@ -13,8 +13,8 @@
             <div class="info-box">
                 <span class="info-box-icon bg-navy"><i class="fa-solid fa-car-side"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Añadir nuevo Accidente</b></span>
-                    <a href="{{ url('hechos/create') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <span class="info-box-text"><b>Listado de Accidentse</b></span>
+                    <a href="{{ url('hechos') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>
@@ -23,8 +23,8 @@
             <div class="info-box">
                 <span class="info-box-icon bg-teal"><i class="fas fa-user-check"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text"><b>Añadir pase de lista</b></span>
-                    <a href="{{ url('listas/create') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <span class="info-box-text"><b>Listado pase de lista</b></span>
+                    <a href="{{ url('listas') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>
@@ -35,6 +35,16 @@
                 <div class="info-box-content">
                     <span class="info-box-text"><b>Actividades (En desarrollo)</b></span>
                     <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="info-box">
+                <span class="info-box-icon bg-teal"><i class="fa-solid fa-chart-line"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text"><b>Gráfico de Servicios Grúas</b></span>
+                    <a href="{{ url('servicios/grafico') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>

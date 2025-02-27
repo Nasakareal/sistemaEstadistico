@@ -3,8 +3,8 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\resources\\views\\servicios"
   ],
-  "SelectedNode": "\\resources\\views\\vehiculos\\edit.blade.php",
+  "SelectedNode": "\\resources\\views\\servicios\\grafico.blade.php",
   "PreviewInSolutionExplorer": false
 }

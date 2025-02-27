@@ -16,7 +16,7 @@
                         <a href="{{ route('vehiculos.create', $hecho->id) }}" class="btn btn-success">
                             <i class="fa-solid fa-car-side"></i> Añadir Vehículo
                         </a>
-                        <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-secondary">
+                        <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-secondary">
                             <i class="fa-solid fa-arrow-left"></i> Volver al Hecho
                         </a>
                     </div>

@@ -34,7 +34,7 @@
                 <span class="info-box-icon bg-success"><i class="fa-solid fa-chart-pie"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text"><b>Estadisticas</b></span>
-                    <a href="{{ url('#') }}" class="btn btn-primary btn-sm">Acceder</a>
+                    <a href="{{ url('/admin/settings/estadisticas') }}" class="btn btn-primary btn-sm">Acceder</a>
                 </div>
             </div>
         </div>

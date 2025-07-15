@@ -22,7 +22,7 @@
                             <div class="col-md-3">
                                 <!-- Marca -->
                                 <div class="form-group">
-                                    <label for="marca">Marca</label>
+                                    <label for="marca">Marca<span style="color: red">*</span></label>
                                     <input type="text" name="marca" id="marca" class="form-control @error('marca') is-invalid @enderror" 
                                            value="{{ old('marca') }}" placeholder="Ingrese la marca" required>
                                     @error('marca')
@@ -38,7 +38,7 @@
                                 <div class="form-group">
                                     <label for="modelo">Modelo</label>
                                     <input type="text" name="modelo" id="modelo" class="form-control @error('modelo') is-invalid @enderror" 
-                                           value="{{ old('modelo') }}" placeholder="Ingrese el modelo" required>
+                                           value="{{ old('modelo') }}" placeholder="Ingrese el modelo">
                                     @error('modelo')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -50,7 +50,7 @@
                              <!-- Tipo -->
                              <div class="col-md-3">
                                  <div class="form-group">
-                                    <label for="tipo">Tipo</label>
+                                    <label for="tipo">Tipo<span style="color: red">*</span></label>
                                     <input type="text" name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror" 
                                            value="{{ old('tipo') }}" placeholder="Ingrese el tipo de Carroceria" required>
                                     @error('tipo')
@@ -64,7 +64,7 @@
                              <!-- Línea -->
                              <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="linea">Línea</label>
+                                    <label for="linea">Línea<span style="color: red">*</span></label>
                                     <input type="text" name="linea" id="linea" class="form-control @error('linea') is-invalid @enderror" 
                                            value="{{ old('linea') }}" placeholder="Ingrese la línea" required>
                                     @error('linea')
@@ -81,7 +81,7 @@
                             <!-- Color -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="color">Color</label>
+                                    <label for="color">Color<span style="color: red">*</span></label>
                                     <input type="text" name="color" id="color" class="form-control @error('color') is-invalid @enderror" 
                                            value="{{ old('color') }}" placeholder="Ingrese el color" required>
                                     @error('color')
@@ -95,7 +95,7 @@
                             <!-- Placas -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="placas">Placas</label>
+                                    <label for="placas">Placas<span style="color: red">*</span></label>
                                     <input type="text" name="placas" id="placas" class="form-control @error('placas') is-invalid @enderror" 
                                            value="{{ old('placas') }}" placeholder="Ingrese las placas" required>
                                     @error('placas')
@@ -111,7 +111,7 @@
                                 <div class="form-group">
                                     <label for="estado_placas">Estado de Placas</label>
                                     <input type="text" name="estado_placas" id="estado_placas" class="form-control @error('estado_placas') is-invalid @enderror" 
-                                           value="{{ old('estado_placas') }}" placeholder="Ingrese el estado de placas" required>
+                                           value="{{ old('estado_placas') }}" placeholder="Ingrese el estado de placas">
                                     @error('estado_placas')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -128,7 +128,7 @@
                                 <div class="form-group">
                                     <label for="serie">Serie</label>
                                     <input type="text" name="serie" id="serie" class="form-control @error('serie') is-invalid @enderror" 
-                                           value="{{ old('serie') }}" placeholder="Ingrese la serie" required>
+                                           value="{{ old('serie') }}" placeholder="Ingrese la serie">
                                     @error('serie')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -140,7 +140,7 @@
                             <!-- Capacidad de Personas -->
                             <div class="col-md-1">
                                 <div class="form-group">
-                                    <label for="capacidad_personas">Capacidad</label>
+                                    <label for="capacidad_personas">Capacidad<span style="color: red">*</span></label>
                                     <input type="number" name="capacidad_personas" id="capacidad_personas" class="form-control @error('capacidad_personas') is-invalid @enderror" 
                                            value="{{ old('capacidad_personas', 0) }}" min="0" required>
                                     @error('capacidad_personas')
@@ -154,7 +154,7 @@
                             <!-- Tipo de Servicio -->
                             <div class="col-md-5">
                                 <div class="form-group">
-                                    <label for="tipo_servicio">Tipo de Servicio</label>
+                                    <label for="tipo_servicio">Tipo de Servicio<span style="color: red">*</span></label>
                                     <input type="text" name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" 
                                            value="{{ old('tipo_servicio') }}" placeholder="Ingrese el tipo de servicio" required>
                                     @error('tipo_servicio')
@@ -173,7 +173,7 @@
                                 <div class="form-group">
                                     <label for="tarjeta_circulacion_nombre">Tarjeta de Circulación Nombre</label>
                                     <input type="text" name="tarjeta_circulacion_nombre" id="tarjeta_circulacion_nombre" class="form-control @error('tarjeta_circulacion_nombre') is-invalid @enderror" 
-                                           value="{{ old('tarjeta_circulacion_nombre') }}" placeholder="Ingrese el nombre de la tarjeta de circulación" required>
+                                           value="{{ old('tarjeta_circulacion_nombre') }}" placeholder="Ingrese el nombre de la tarjeta de circulación">
                                     @error('tarjeta_circulacion_nombre')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -188,7 +188,7 @@
                                     <label for="conductor_nombre">Nombre del Conductor</label>
                                     <input type="text" name="conductor_nombre" id="conductor_nombre"
                                            class="form-control @error('conductor_nombre') is-invalid @enderror"
-                                           value="{{ old('conductor_nombre') }}" placeholder="Ingrese el nombre del conductor" required>
+                                           value="{{ old('conductor_nombre') }}" placeholder="Ingrese el nombre del conductor">
                                     @error('conductor_nombre')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -222,7 +222,7 @@
                                     <label for="domicilio">Domicilio</label>
                                     <input type="text" name="domicilio" id="domicilio"
                                            class="form-control @error('domicilio') is-invalid @enderror"
-                                           value="{{ old('domicilio') }}" placeholder="Ingrese el domicilio del conductor" required>
+                                           value="{{ old('domicilio') }}" placeholder="Ingrese el domicilio del conductor">
                                     @error('domicilio')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -235,7 +235,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="sexo">Sexo</label>
-                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror" required>
+                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror">
                                         <option value="" disabled selected>Seleccione el sexo</option>
                                         <option value="MASCULINO" {{ old('sexo') == 'MASCULINO' ? 'selected' : '' }}>Masculino</option>
                                         <option value="FEMENINO" {{ old('sexo') == 'FEMENINO' ? 'selected' : '' }}>Femenino</option>
@@ -274,7 +274,7 @@
                                     <label for="edad">Edad</label>
                                     <input type="number" name="edad" id="edad"
                                            class="form-control @error('edad') is-invalid @enderror"
-                                           value="{{ old('edad') }}" placeholder="Ingrese la edad del conductor" min="00" max="100" required>
+                                           value="{{ old('edad') }}" placeholder="Ingrese la edad del conductor" min="00" max="100">
                                     @error('edad')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -369,7 +369,7 @@
                             <!-- Partes Dañadas -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="partes_danadas">Partes Dañadas</label>
+                                    <label for="partes_danadas">Partes Dañadas<span style="color: red">*</span></label>
                                     <textarea name="partes_danadas" id="partes_danadas"
                                               class="form-control @error('partes_danadas') is-invalid @enderror"
                                               placeholder="Describa las partes dañadas del vehículo" required>{{ old('partes_danadas') }}</textarea>
@@ -384,7 +384,7 @@
                             <!-- Monto de los Daños -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="monto_danos">Monto de los Daños</label>
+                                    <label for="monto_danos">Monto de los Daños<span style="color: red">*</span></label>
                                     <input type="number" name="monto_danos" id="monto_danos"
                                            class="form-control @error('monto_danos') is-invalid @enderror"
                                            value="{{ old('monto_danos') }}" placeholder="Ingrese el monto estimado" min="0" step="0.01" required>
@@ -400,9 +400,21 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="grua">Grúa</label>
-                                    <input type="text" name="grua" id="grua"
-                                           class="form-control @error('grua') is-invalid @enderror"
-                                           value="{{ old('grua', 'N/A') }}" placeholder="Ingrese la grúa (opcional)">
+                                    <select name="grua" id="grua"
+                                            class="form-control @error('grua') is-invalid @enderror">
+                                        <option value="">Seleccione una grúa</option>
+                                        <option value="AUTOPISTA" {{ old('grua') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
+                                        <option value="DANNYS" {{ old('grua') == 'DANNYS' ? 'selected' : '' }}>DANNYS</option>
+                                        <option value="EXPRESS" {{ old('grua') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
+                                        <option value="GALVAN" {{ old('grua') == 'GALVAN' ? 'selected' : '' }}>GALVAN</option>
+                                        <option value="HERNANDEZ" {{ old('grua') == 'HERNANDEZ' ? 'selected' : '' }}>HERNANDEZ</option>
+                                        <option value="PINEDA" {{ old('grua') == 'PINEDA' ? 'selected' : '' }}>PINEDA</option>
+                                        <option value="PROFESIONALES" {{ old('grua') == 'PROFESIONALES' ? 'selected' : '' }}>PROFESIONALES</option>
+                                        <option value="MORELIA" {{ old('grua') == 'MORELIA' ? 'selected' : '' }}>MORELIA</option>
+                                        <option value="MONARCAS" {{ old('grua') == 'MONARCAS' ? 'selected' : '' }}>MONARCAS</option>
+                                        <option value="EXPRESS" {{ old('grua') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
+                                        <option value="MUÑOZ" {{ old('grua') == 'MUÑOZ' ? 'selected' : '' }}>MUÑOZ</option>
+                                    </select>
                                     @error('grua')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -415,9 +427,23 @@
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="corralon">Corralón</label>
-                                    <input type="text" name="corralon" id="corralon"
-                                           class="form-control @error('corralon') is-invalid @enderror"
-                                           value="{{ old('corralon', 'N/A') }}" placeholder="Ingrese el corralón (opcional)">
+                                    <select name="corralon" id="corralon"
+                                            class="form-control @error('corralon') is-invalid @enderror">
+                                        <option value="">Seleccione un corralón</option>
+                                        <option value="ESTRELLA 1" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
+                                        <option value="ESTRELLA 2" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
+                                        <option value="AUTOPISTA" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
+                                        <option value="DANNYS" {{ old('corralon') == 'DANNYS' ? 'selected' : '' }}>DANNYS</option>
+                                        <option value="EXPRESS" {{ old('corralon') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
+                                        <option value="GALVAN" {{ old('corralon') == 'GALVAN' ? 'selected' : '' }}>GALVAN</option>
+                                        <option value="HERNANDEZ" {{ old('corralon') == 'HERNANDEZ' ? 'selected' : '' }}>HERNANDEZ</option>
+                                        <option value="PINEDA" {{ old('corralon') == 'PINEDA' ? 'selected' : '' }}>PINEDA</option>
+                                        <option value="PROFESIONALES" {{ old('corralon') == 'PROFESIONALES' ? 'selected' : '' }}>PROFESIONALES</option>
+                                        <option value="MORELIA" {{ old('corralon') == 'MORELIA' ? 'selected' : '' }}>MORELIA</option>
+                                        <option value="MONARCAS" {{ old('corralon') == 'MONARCAS' ? 'selected' : '' }}>MONARCAS</option>
+                                        <option value="EXPRESS" {{ old('corralon') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
+                                        <option value="MUÑOZ" {{ old('corralon') == 'MUÑOZ' ? 'selected' : '' }}>MUÑOZ</option>
+                                    </select>
                                     @error('corralon')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

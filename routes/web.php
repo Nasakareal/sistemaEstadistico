@@ -6,14 +6,36 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
+// Ruta pública para ver la liberación
+Route::get('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'publica'])->name('liberacion.publica');
+
+Route::get('liberacion/qr/{token}', [App\Http\Controllers\LiberacionController::class, 'desdeToken'])->name('liberacion.publica.token');
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [App\Http\Controllers\UserController::class, 'profile'])->name('profile');
     Route::get('/change-password', [App\Http\Controllers\UserController::class, 'showChangePasswordForm'])->name('password.change');
-    // Renombramos la ruta a "user.password.update"
     Route::post('/change-password', [App\Http\Controllers\UserController::class, 'updatePassword'])->name('user.password.update');
 });
 
+// Ruta de Grúas para las liberaciones
+Route::middleware(['auth', 'can:subir liberacion grua'])->group(function () {
+    Route::get('/liberacion/{vehiculo}/grua', [App\Http\Controllers\LiberacionController::class, 'verParaGruas'])->name('liberacion.grua.ver');
+    Route::post('/liberacion/{vehiculo}/grua', [App\Http\Controllers\LiberacionController::class, 'storePdfGruas'])->name('liberacion.grua.subir');
+});
+
+// Para usuarios no grúas
+Route::middleware(['auth'])->group(function () {
+    Route::get('/liberacion/{vehiculo}/crear', [App\Http\Controllers\LiberacionController::class, 'create'])->name('liberacion.create');
+    Route::post('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'store'])->name('liberacion.store');
+
+    Route::get('/liberacion/{vehiculo}/editar', [App\Http\Controllers\LiberacionController::class, 'edit'])->name('liberacion.edit');
+    Route::put('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'update'])->name('liberacion.update');
+
+    Route::get('/liberacion/{vehiculo}/detalles', [App\Http\Controllers\LiberacionController::class, 'detalles'])->name('liberacion.detalles');
+
+    Route::get('/liberacion/{vehiculo}/acuse', [App\Http\Controllers\LiberacionController::class, 'generarAcuse'])->name('liberacion.descargar');
+});
 
 
 // Búsqueda
@@ -174,6 +196,14 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/{role}/permissions', [App\Http\Controllers\RoleController::class, 'permissions'])->middleware('can:editar roles')->name('roles.permissions');
         Route::post('/{role}/permissions', [App\Http\Controllers\RoleController::class, 'assignPermissions'])->middleware('can:editar roles')->name('roles.assignPermissions');
     });
+
+    // Estadísticas
+    Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
+        Route::get('/', [App\Http\Controllers\EstadisticasController::class, 'index'])->name('estadisticas.index');
+        Route::get('/parte-novedades', [App\Http\Controllers\EstadisticasController::class, 'parteNovedades'])->name('estadisticas.parteNovedades');
+        Route::get('/parte-novedades/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarParte'])->name('estadisticas.parteNovedades.descargar');
+    });
+
 });
 
 Route::get('/prueba-404', function () {

@@ -22,7 +22,7 @@
                         <!-- Folio de C5i -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="folio_c5i">Folio de C5i</label>
+                                    <label for="folio_c5i">Folio de C5i<span style="color: red">*</span></label>
                                     <input type="text" name="folio_c5i" id="folio_c5i" class="form-control @error('folio_c5i') is-invalid @enderror" 
                                            value="{{ old('folio_c5i') }}" placeholder="Ingrese el folio de C5i" required>
                                     @error('folio_c5i')
@@ -36,7 +36,7 @@
                             <!-- Perito -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="perito">Perito</label>
+                                    <label for="perito">Perito<span style="color: red">*</span></label>
                                     <input type="text" name="perito" id="perito" class="form-control @error('perito') is-invalid @enderror" 
                                            value="{{ old('perito') }}" placeholder="Nombre del perito" required>
                                     @error('perito')
@@ -52,7 +52,7 @@
                                 <div class="form-group">
                                     <label for="autorizacion_practico">N° Autorización de Práctico</label>
                                     <input type="text" name="autorizacion_practico" id="autorizacion_practico" class="form-control @error('autorizacion_practico') is-invalid @enderror" 
-                                           value="{{ old('autorizacion_practico') }}" placeholder="Ingrese el número de autorización" required>
+                                           value="{{ old('autorizacion_practico') }}" placeholder="Ingrese el número de autorización">
                                     @error('autorizacion_practico')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -64,7 +64,7 @@
                             <!-- Unidad-->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="unidad">Unidad</label>
+                                    <label for="unidad">Unidad<span style="color: red">*</span></label>
                                     <input type="text" name="unidad" id="unidad" class="form-control @error('unidad') is-invalid @enderror" 
                                            value="{{ old('unidad') }}" placeholder="Ingrese la unidad" required>
                                     @error('unidad')
@@ -81,7 +81,7 @@
                             <!-- Hora -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="hora">Hora</label>
+                                    <label for="hora">Hora<span style="color: red">*</span></label>
                                     <input type="time" name="hora" id="hora" class="form-control @error('hora') is-invalid @enderror" 
                                            value="{{ old('hora') }}" required>
                                     @error('hora')
@@ -95,9 +95,11 @@
                             <!-- Fecha -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="fecha">Fecha</label>
-                                    <input type="date" name="fecha" id="fecha" class="form-control @error('fecha') is-invalid @enderror" 
-                                           value="{{ old('fecha', \Carbon\Carbon::now()->toDateString()) }}" required>
+                                    <label for="fecha">Fecha <span style="color: red">*</span></label>
+                                    <input type="date" name="fecha" id="fecha"
+                                           class="form-control @error('fecha') is-invalid @enderror"
+                                           value="{{ old('fecha', \Carbon\Carbon::now()->toDateString()) }}" 
+                                           readonly required>
                                     @error('fecha')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -109,7 +111,7 @@
                             <!-- Sector -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="sector">Sector</label>
+                                    <label for="sector">Sector<span style="color: red">*</span></label>
                                     <select name="sector" id="sector" class="form-control @error('sector') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione un sector</option>
                                         <option value="REVOLUCIÓN" {{ old('sector') == 'REVOLUCIÓN' ? 'selected' : '' }}>REVOLUCIÓN</option>
@@ -129,7 +131,7 @@
                              <!-- Municipio -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="municipio">Municipio</label>
+                                    <label for="municipio">Municipio<span style="color: red">*</span></label>
                                     <input type="text" name="municipio" id="municipio" class="form-control @error('municipio') is-invalid @enderror" 
                                            value="{{ old('municipio') }}" placeholder="Ingrese el municipio" required>
                                     @error('municipio')
@@ -146,7 +148,7 @@
                             <!-- Calle -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="calle">Calle</label>
+                                    <label for="calle">Calle<span style="color: red">*</span></label>
                                     <input type="text" name="calle" id="calle" class="form-control @error('calle') is-invalid @enderror" 
                                            value="{{ old('calle') }}" placeholder="Ingrese la calle" required>
                                     @error('calle')
@@ -160,7 +162,7 @@
                             <!-- Colonia -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="colonia">Colonia</label>
+                                    <label for="colonia">Colonia<span style="color: red">*</span></label>
                                     <input type="text" name="colonia" id="colonia" class="form-control @error('colonia') is-invalid @enderror" 
                                            value="{{ old('colonia') }}" placeholder="Ingrese la colonia" required>
                                     @error('colonia')
@@ -191,7 +193,7 @@
                             <!-- Tipo de Hecho de Tránsito -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="tipo_hecho">Tipo de Hecho de Tránsito</label>
+                                    <label for="tipo_hecho">Tipo de Hecho de Tránsito<span style="color: red">*</span></label>
                                     <select name="tipo_hecho" id="tipo_hecho" class="form-control @error('tipo_hecho') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione el tipo de hecho</option>
                                         <option value="VOLCADURA" {{ old('tipo_hecho') == 'VOLCADURA' ? 'selected' : '' }}>VOLCADURA</option>
@@ -223,7 +225,7 @@
                             <!-- Superficie de la Vía -->
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="superficie_via">Superficie de la Vía</label>
+                                    <label for="superficie_via">Superficie de la Vía<span style="color: red">*</span></label>
                                     <input type="text" name="superficie_via" id="superficie_via" class="form-control @error('superficie_via') is-invalid @enderror" 
                                            value="{{ old('superficie_via') }}" placeholder="Ingrese la superficie de la vía" required>
                                     @error('superficie_via')
@@ -237,7 +239,7 @@
                             <!-- Tiempo -->
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="tiempo">Tiempo</label>
+                                    <label for="tiempo">Tiempo<span style="color: red">*</span></label>
                                     <select name="tiempo" id="tiempo" class="form-control @error('tiempo') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione el tiempo</option>
                                         <option value="Día" {{ old('tiempo') == 'Día' ? 'selected' : '' }}>DÍA</option>
@@ -255,7 +257,7 @@
                             <!-- Clima -->
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="clima">Clima</label>
+                                    <label for="clima">Clima<span style="color: red">*</span></label>
                                     <select name="clima" id="clima" class="form-control @error('clima') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione el clima</option>
                                         <option value="Bueno" {{ old('clima') == 'Bueno' ? 'selected' : '' }}>BUENO</option>
@@ -274,7 +276,7 @@
                              <!-- Condiciones -->
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label for="condiciones">Condiciones</label>
+                                    <label for="condiciones">Condiciones<span style="color: red">*</span></label>
                                     <select name="condiciones" id="condiciones" class="form-control @error('condiciones') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione las condiciones</option>
                                         <option value="Bueno" {{ old('condiciones') == 'Bueno' ? 'selected' : '' }}>BUENO</option>
@@ -295,7 +297,7 @@
                              <!-- situacion -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="situacion">Situación</label>
+                                    <label for="situacion">Situación<span style="color: red">*</span></label>
                                     <select name="situacion" id="situacion" class="form-control @error('situacion') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione la situación</option>
                                         <option value="RESUELTO" {{ old('situacion') == 'RESUELTO' ? 'selected' : '' }}>RESUELTO</option>
@@ -314,7 +316,7 @@
                             <!-- Control de Tránsito -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="control_transito">Control de Tránsito</label>
+                                    <label for="control_transito">Control de Tránsito<span style="color: red">*</span></label>
                                     <input type="text" name="control_transito" id="control_transito" class="form-control @error('control_transito') is-invalid @enderror" 
                                            value="{{ old('control_transito') }}" placeholder="Ingrese el control de tránsito" required>
                                     @error('control_transito')
@@ -328,7 +330,7 @@
                              <!-- Colisión sobre el camino -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="colision_camino">Colisión sobre el Camino</label>
+                                    <label for="colision_camino">Colisión sobre el Camino<span style="color: red">*</span></label>
                                     <input type="text" name="colision_camino" id="colision_camino" class="form-control @error('colision_camino') is-invalid @enderror" 
                                            value="{{ old('colision_camino') }}" placeholder="Ingrese la colisión sobre el camino" required>
                                     @error('colision_camino')
@@ -345,7 +347,7 @@
                             <!-- Se checaron antecedentes? -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="checaron_antecedentes">Se checaron antecedentes?</label>
+                                    <label for="checaron_antecedentes">Se checaron antecedentes?<span style="color: red">*</span></label>
                                     <select name="checaron_antecedentes" id="checaron_antecedentes" class="form-control">
                                         <option value="0" {{ old('checaron_antecedentes') == '0' ? 'selected' : '' }}>No</option>
                                         <option value="1" {{ old('checaron_antecedentes') == '1' ? 'selected' : '' }}>Sí</option>
@@ -356,7 +358,7 @@
                             <!-- Causas -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="causas">Causas</label>
+                                    <label for="causas">Causas<span style="color: red">*</span></label>
                                     <input type="text" name="causas" id="causas" class="form-control @error('causas') is-invalid @enderror" 
                                            value="{{ old('causas') }}" placeholder="Ingrese las causas" required>
                                     @error('causas')
@@ -376,7 +378,7 @@
                             <!-- Oficio MP (Visible solo si situacion es Turnado) -->
                             <div class="col-md-4" id="oficio_mp_group" style="display: none;">
                                 <div class="form-group">
-                                    <label for="oficio_mp">Oficio MP</label>
+                                    <label for="oficio_mp">Oficio MP<span style="color: red">*</span></label>
                                     <input type="text" name="oficio_mp" id="oficio_mp" class="form-control @error('oficio_mp') is-invalid @enderror" 
                                            value="{{ old('oficio_mp') }}" placeholder="Ingrese el número de oficio">
                                     @error('oficio_mp')

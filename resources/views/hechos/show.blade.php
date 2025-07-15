@@ -65,58 +65,66 @@
                         </div>
                     </div>
 
+                    {{-- ---- ROW Responsbale y Evidencia ---- --}}
                     <div class="row">
-                        {{-- Responsable --}}
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="responsable">Responsable</label>
                                 <p class="form-control-static">{{ $hecho->responsable->nombre ?? 'No asignado' }}</p>
                             </div>
                         </div>
-                        {{-- Evidencia adjunta --}}
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="evidencia">Evidencia Adjunta</label>
                                 @if ($hecho->evidencia)
-                                    <div>
-                                        <a href="{{ asset('storage/' . $hecho->evidencia) }}" target="_blank" class="btn btn-info">
-                                            Ver Evidencia
-                                        </a>
-                                    </div>
+                                    <a href="{{ asset('storage/' . $hecho->evidencia) }}" class="btn btn-info">Ver Evidencia</a>
                                 @else
                                     <p class="form-control-static">No hay evidencia adjunta.</p>
                                 @endif
                             </div>
                         </div>
+                    </div> {{-- <-- CERRAMOS este .row correctamente --}}
 
+                    {{-- ---- NUEVO ROW para Vehículos ---- --}}
+                    <div class="row">
+                        <div class="col-12">
+                            <h3>Vehículos Asociados</h3>
+                            @if($hecho->vehiculos->count())
+                                <div class="row g-3">
+                                    @foreach($hecho->vehiculos as $vehiculo)
+                                        <div class="col-sm-6 col-md-4">
+                                            <div class="card h-100">
+                                                <div class="card-header text-center">
+                                                    <strong>{{ $vehiculo->marca }} - {{ $vehiculo->modelo }}</strong>
+                                                </div>
+                                                <div class="card-body text-center d-flex flex-column justify-content-between">
+                                                    @if($vehiculo->fotos)
+                                                        <img src="{{ asset('storage/' . $vehiculo->fotos) }}"
+                                                             class="img-thumbnail mb-2" style="width:100%;">
+                                                    @else
+                                                        <p class="text-muted">No hay foto disponible.</p>
+                                                    @endif
 
-                        <div class="row">
-                            <div class="col-md-12">
-                                <h3>Vehículos Asociados</h3>
-                                @if($hecho->vehiculos->count())
-                                    <div class="row">
-                                        @foreach($hecho->vehiculos as $vehiculo)
-                                            <div class="col-md-4">
-                                                <div class="card mb-3">
-                                                    <div class="card-header">
-                                                        <strong>{{ $vehiculo->marca }} - {{ $vehiculo->modelo }}</strong>
-                                                    </div>
-                                                    <div class="card-body text-center">
-                                                        @if($vehiculo->fotos)
-                                                            <img src="{{ asset('storage/' . $vehiculo->fotos) }}" alt="Foto del vehículo" class="img-thumbnail" style="width:100%;">
-                                                        @else
-                                                            <p class="text-muted">No hay foto disponible.</p>
-                                                        @endif
-                                                    </div>
+                                                    @if ($vehiculo->corralon !== null)
+                                                        <a href="{{ route('liberacion.publica', $vehiculo->id) }}"
+                                                           class="btn btn-outline-primary btn-block mt-2">
+                                                            Ver Liberación
+                                                        </a>
+                                                    @else
+                                                        <p class="text-muted mt-2">No está en corralón</p>
+                                                    @endif
                                                 </div>
                                             </div>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <p>No hay vehículos asociados a este hecho.</p>
-                                @endif
-                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p>No hay vehículos asociados a este hecho.</p>
+                            @endif
                         </div>
+                    </div>
+
+
 
 
                     </div>
@@ -147,6 +155,11 @@
             font-size: 1rem;
             margin-top: 0.5rem;
         }
+        .btn-liberacion {
+            white-space: normal !important;
+            text-align: center;
+        }
+
     </style>
 @stop
 

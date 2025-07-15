@@ -27,7 +27,7 @@ class HechosController extends Controller
         $validated = $request->validate([
             'folio_c5i' => 'required|string|max:20|unique:hechos,folio_c5i',
             'perito' => 'required|string|max:255',
-            'autorizacion_practico' => 'required|string|max:255',
+            'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
             'hora' => 'required|date_format:H:i',
             'fecha' => 'required|date',

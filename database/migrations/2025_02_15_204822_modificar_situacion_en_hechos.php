@@ -32,22 +32,19 @@ class ModificarSituacionEnHechos extends Migration
     public function down()
     {
         Schema::table('hechos', function (Blueprint $table) {
-            // Crear una nueva columna temporal con los valores anteriores
-            $table->enum('situacion_antigua', ['RESUELTO', 'PENDIENTE', 'TURNADO'])
+            $table->enum('situacion_antigua', ['RESUELTO', 'PENDIENTE', 'TURNADO', 'REPORTE'])
                   ->default('PENDIENTE');
         });
 
-        // Copiar los valores de vuelta a la columna antigua
         DB::statement("UPDATE hechos SET situacion_antigua = situacion");
 
         Schema::table('hechos', function (Blueprint $table) {
-            // Eliminar la columna modificada
             $table->dropColumn('situacion');
         });
 
         Schema::table('hechos', function (Blueprint $table) {
-            // Renombrar la columna antigua de nuevo a "situacion"
             $table->renameColumn('situacion_antigua', 'situacion');
         });
     }
+
 }

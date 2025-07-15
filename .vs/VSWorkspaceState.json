@@ -4,11 +4,10 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Models",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\servicios"
+    "\\resources\\views\\vehiculos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ServicioController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\VehiculosController.php",
   "PreviewInSolutionExplorer": false
 }

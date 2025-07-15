@@ -38,7 +38,7 @@
                                 <div class="form-group">
                                     <label for="modelo">Modelo</label>
                                     <input type="text" name="modelo" id="modelo" class="form-control @error('modelo') is-invalid @enderror" 
-                                           value="{{ old('modelo', $vehiculo->modelo) }}" placeholder="Ingrese el modelo" required>
+                                           value="{{ old('modelo', $vehiculo->modelo) }}" placeholder="Ingrese el modelo">
                                     @error('modelo')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -97,7 +97,7 @@
                                 <div class="form-group">
                                     <label for="placas">Placas</label>
                                     <input type="text" name="placas" id="placas" class="form-control @error('placas') is-invalid @enderror" 
-                                           value="{{ old('placas', $vehiculo->placas) }}" placeholder="Ingrese las placas" required>
+                                           value="{{ old('placas', $vehiculo->placas) }}" placeholder="Ingrese las placas">
                                     @error('placas')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -111,7 +111,7 @@
                                 <div class="form-group">
                                     <label for="estado_placas">Estado de Placas</label>
                                     <input type="text" name="estado_placas" id="estado_placas" class="form-control @error('estado_placas') is-invalid @enderror" 
-                                           value="{{ old('estado_placas', $vehiculo->estado_placas) }}" placeholder="Ingrese el estado de placas" required>
+                                           value="{{ old('estado_placas', $vehiculo->estado_placas) }}" placeholder="Ingrese el estado de placas">
                                     @error('estado_placas')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -128,7 +128,7 @@
                                 <div class="form-group">
                                     <label for="serie">Serie</label>
                                     <input type="text" name="serie" id="serie" class="form-control @error('serie') is-invalid @enderror" 
-                                           value="{{ old('serie', $vehiculo->serie) }}" placeholder="Ingrese la serie" required>
+                                           value="{{ old('serie', $vehiculo->serie) }}" placeholder="Ingrese la serie">
                                     @error('serie')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -173,7 +173,7 @@
                                 <div class="form-group">
                                     <label for="tarjeta_circulacion_nombre">Tarjeta de Circulación Nombre</label>
                                     <input type="text" name="tarjeta_circulacion_nombre" id="tarjeta_circulacion_nombre" class="form-control @error('tarjeta_circulacion_nombre') is-invalid @enderror" 
-                                           value="{{ old('tarjeta_circulacion_nombre', $vehiculo->tarjeta_circulacion_nombre) }}" placeholder="Ingrese el nombre de la tarjeta de circulación" required>
+                                           value="{{ old('tarjeta_circulacion_nombre', $vehiculo->tarjeta_circulacion_nombre) }}" placeholder="Ingrese el nombre de la tarjeta de circulación">
                                     @error('tarjeta_circulacion_nombre')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -188,7 +188,7 @@
                                     <label for="conductor_nombre">Nombre del Conductor</label>
                                     <input type="text" name="conductor_nombre" id="conductor_nombre"
                                            class="form-control @error('conductor_nombre') is-invalid @enderror"
-                                           value="{{ old('conductor_nombre', $conductor ? $conductor->nombre : '') }}" placeholder="Ingrese el nombre del conductor" required>
+                                           value="{{ old('conductor_nombre', $conductor ? $conductor->nombre : '') }}" placeholder="Ingrese el nombre del conductor">
                                     @error('conductor_nombre')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -222,7 +222,7 @@
                                     <label for="domicilio">Domicilio</label>
                                     <input type="text" name="domicilio" id="domicilio"
                                            class="form-control @error('domicilio') is-invalid @enderror"
-                                           value="{{ old('domicilio', $conductor ? $conductor->domicilio : '') }}" placeholder="Ingrese el domicilio del conductor" required>
+                                           value="{{ old('domicilio', $conductor ? $conductor->domicilio : '') }}" placeholder="Ingrese el domicilio del conductor">
                                     @error('domicilio')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -235,11 +235,11 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="sexo">Sexo</label>
-                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione el sexo</option>
-                                        <option value="MASCULINO" {{ old('sexo', $conductor->sexo) == 'MASCULINO' ? 'selected' : '' }}>Masculino</option>
-                                        <option value="FEMENINO" {{ old('sexo', $conductor->sexo) == 'FEMENINO' ? 'selected' : '' }}>Femenino</option>
-                                        <option value="OTRO" {{ old('sexo', $conductor->sexo) == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                                    <select name="sexo" id="sexo" class="form-control @error('sexo') is-invalid @enderror">
+                                        <option value="" disabled {{ old('sexo', optional($conductor)->sexo) ? '' : 'selected' }}>Seleccione el sexo</option>
+                                        <option value="MASCULINO" {{ old('sexo', optional($conductor)->sexo) == 'MASCULINO' ? 'selected' : '' }}>Masculino</option>
+                                        <option value="FEMENINO" {{ old('sexo', optional($conductor)->sexo) == 'FEMENINO' ? 'selected' : '' }}>Femenino</option>
+                                        <option value="OTRO" {{ old('sexo', optional($conductor)->sexo) == 'OTRO' ? 'selected' : '' }}>Otro</option>
                                     </select>
                                     @error('sexo')
                                         <span class="invalid-feedback" role="alert">
@@ -248,7 +248,6 @@
                                     @enderror
                                 </div>
                             </div>
-
 
                             <!-- Ocupación -->
                             <div class="col-md-4">
@@ -274,7 +273,7 @@
                                     <label for="edad">Edad</label>
                                     <input type="number" name="edad" id="edad"
                                            class="form-control @error('edad') is-invalid @enderror"
-                                           value="{{ old('edad', $conductor ? $conductor->edad : '') }}" placeholder="Ingrese la edad del conductor" min="18" max="100" required>
+                                           value="{{ old('edad', $conductor ? $conductor->edad : '') }}" placeholder="Ingrese la edad del conductor" min="18" max="100">
                                     @error('edad')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -397,9 +396,16 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="grua">Grúa</label>
-                                    <input type="text" name="grua" id="grua"
-                                           class="form-control @error('grua') is-invalid @enderror"
-                                           value="{{ old('grua', $vehiculo->grua) }}" placeholder="Ingrese la grúa (opcional)">
+                                    <select name="grua" id="grua"
+                                            class="form-control @error('grua') is-invalid @enderror">
+                                        <option value="">Seleccione una grúa</option>
+                                        @foreach ([
+                                            'AUTOPISTA', 'DANNYS', 'EXPRESS', 'GALVAN', 'HERNANDEZ', 'PINEDA',
+                                            'PROFESIONALES', 'MORELIA', 'MONARCAS', 'MUÑOZ'
+                                        ] as $opcion)
+                                            <option value="{{ $opcion }}" {{ old('grua', $vehiculo->grua) == $opcion ? 'selected' : '' }}>{{ $opcion }}</option>
+                                        @endforeach
+                                    </select>
                                     @error('grua')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -412,9 +418,16 @@
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="corralon">Corralón</label>
-                                    <input type="text" name="corralon" id="corralon"
-                                           class="form-control @error('corralon') is-invalid @enderror"
-                                           value="{{ old('corralon', $vehiculo->corralon) }}" placeholder="Ingrese el corralón (opcional)">
+                                    <select name="corralon" id="corralon"
+                                            class="form-control @error('corralon') is-invalid @enderror">
+                                        <option value="">Seleccione un corralón</option>
+                                        @foreach ([
+                                            'ESTRELLA 1', 'ESTRELLA 2', 'AUTOPISTA', 'DANNYS', 'EXPRESS', 'GALVAN',
+                                            'HERNANDEZ', 'PINEDA', 'PROFESIONALES', 'MORELIA', 'MONARCAS', 'MUÑOZ'
+                                        ] as $opcion)
+                                            <option value="{{ $opcion }}" {{ old('corralon', $vehiculo->corralon) == $opcion ? 'selected' : '' }}>{{ $opcion }}</option>
+                                        @endforeach
+                                    </select>
                                     @error('corralon')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

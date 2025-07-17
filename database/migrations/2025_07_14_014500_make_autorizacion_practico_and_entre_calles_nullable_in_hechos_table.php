@@ -17,8 +17,8 @@ class MakeAutorizacionPracticoAndEntreCallesNullableInHechosTable extends Migrat
     public function down()
     {
         Schema::table('hechos', function (Blueprint $table) {
-            $table->string('autorizacion_practico', 255)->nullable(false)->change();
-            $table->string('entre_calles', 255)->nullable(false)->change();
+            $table->string('autorizacion_practico', 255)->nullable()->change();
+            $table->string('entre_calles', 255)->nullable()->change();
         });
     }
 }

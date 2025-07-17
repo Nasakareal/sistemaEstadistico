@@ -28,6 +28,8 @@ class Vehiculo extends Model
         'monto_danos',
         'partes_danadas',
         'fotos',
+        'aseguradora',
+        'antecedente_vehiculo',
     ];
 
 

@@ -11,8 +11,8 @@ class CreateConductoresTable extends Migration
         Schema::create('conductores', function (Blueprint $table) {
             $table->id();
             $table->string('nombre', 255);
-            $table->integer('edad');
-            $table->string('domicilio', 255);
+            $table->integer('edad')->nullable();
+            $table->string('domicilio', 255)->nullable();
             $table->string('telefono', 20)->nullable();
             $table->string('sexo', 20)->nullable();
             $table->string('ocupacion', 255)->nullable();
@@ -21,10 +21,10 @@ class CreateConductoresTable extends Migration
             $table->boolean('certificado_lesiones')->default(false);
             $table->boolean('certificado_alcoholemia')->default(false);
             $table->boolean('aliento_etilico')->default(false);
-            $table->string('estado_licencia', 100);
-            $table->date('vigencia_licencia');
-            $table->string('numero_licencia', 50);
-            $table->string('tipo_licencia', 50);
+            $table->string('estado_licencia', 100)->nullable();
+            $table->date('vigencia_licencia')->nullable();
+            $table->string('numero_licencia', 50)->nullable();
+            $table->string('tipo_licencia', 50)->nullable();
             $table->timestamps();
         });
     }

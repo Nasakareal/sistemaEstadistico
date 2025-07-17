@@ -399,23 +399,17 @@
                             <!-- Grúa -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="grua">Grúa</label>
-                                    <select name="grua" id="grua"
-                                            class="form-control @error('grua') is-invalid @enderror">
+                                    <label for="grua_id">Grúa</label>
+                                    <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror">
                                         <option value="">Seleccione una grúa</option>
-                                        <option value="AUTOPISTA" {{ old('grua') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
-                                        <option value="DANNYS" {{ old('grua') == 'DANNYS' ? 'selected' : '' }}>DANNYS</option>
-                                        <option value="EXPRESS" {{ old('grua') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
-                                        <option value="GALVAN" {{ old('grua') == 'GALVAN' ? 'selected' : '' }}>GALVAN</option>
-                                        <option value="HERNANDEZ" {{ old('grua') == 'HERNANDEZ' ? 'selected' : '' }}>HERNANDEZ</option>
-                                        <option value="PINEDA" {{ old('grua') == 'PINEDA' ? 'selected' : '' }}>PINEDA</option>
-                                        <option value="PROFESIONALES" {{ old('grua') == 'PROFESIONALES' ? 'selected' : '' }}>PROFESIONALES</option>
-                                        <option value="MORELIA" {{ old('grua') == 'MORELIA' ? 'selected' : '' }}>MORELIA</option>
-                                        <option value="MONARCAS" {{ old('grua') == 'MONARCAS' ? 'selected' : '' }}>MONARCAS</option>
-                                        <option value="EXPRESS" {{ old('grua') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
-                                        <option value="MUÑOZ" {{ old('grua') == 'MUÑOZ' ? 'selected' : '' }}>MUÑOZ</option>
+                                        @foreach ($gruas as $grua)
+                                            <option value="{{ $grua->id }}" 
+                                                {{ old('grua_id') == $grua->id ? 'selected' : '' }}>
+                                                {{ $grua->nombre }}
+                                            </option>
+                                        @endforeach
                                     </select>
-                                    @error('grua')
+                                    @error('grua_id')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
@@ -430,8 +424,8 @@
                                     <select name="corralon" id="corralon"
                                             class="form-control @error('corralon') is-invalid @enderror">
                                         <option value="">Seleccione un corralón</option>
-                                        <option value="ESTRELLA 1" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
-                                        <option value="ESTRELLA 2" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
+                                        <option value="ESTRELLA 1" {{ old('corralon') == 'ESTRELLA 1' ? 'selected' : '' }}>ESTRELLA 1</option>
+                                        <option value="ESTRELLA 2" {{ old('corralon') == 'ESTRELLA 2' ? 'selected' : '' }}>ESTRELLA 2</option>
                                         <option value="AUTOPISTA" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
                                         <option value="DANNYS" {{ old('corralon') == 'DANNYS' ? 'selected' : '' }}>DANNYS</option>
                                         <option value="EXPRESS" {{ old('corralon') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
@@ -501,6 +495,90 @@
                             </div>
                         </div>
 
+                        <!-- Verificaciones, condición física y aseguradora -->
+                        <div class="row">
+                            <!-- Antecedentes del vehículo -->
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="antecedente_vehiculo" value="1" {{ old('antecedente_vehiculo') ? 'checked' : '' }}>
+                                        ¿Antecedente vehicular?
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Antecedentes del conductor -->
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="antecedente_conductor" value="1" {{ old('antecedente_conductor') ? 'checked' : '' }}>
+                                        ¿Antecedente conductor?
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Cinturón -->
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="cinturon" value="1" {{ old('cinturon') ? 'checked' : '' }}>
+                                        ¿Usaba cinturón?
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Certificado de lesiones -->
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="certificado_lesiones" value="1" {{ old('certificado_lesiones') ? 'checked' : '' }}>
+                                        Cert. lesiones
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Certificado de alcoholemia -->
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="certificado_alcoholemia" value="1" {{ old('certificado_alcoholemia') ? 'checked' : '' }}>
+                                        Cert. alcoholemia
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Aliento etílico -->
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" name="aliento_etilico" value="1" {{ old('aliento_etilico') ? 'checked' : '' }}>
+                                        Aliento etílico
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fila para aseguradora -->
+                        <div class="row">
+                            <!-- Aseguradora -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="aseguradora">Aseguradora</label>
+                                    <input type="text" name="aseguradora" id="aseguradora"
+                                       class="form-control @error('aseguradora') is-invalid @enderror"
+                                       value="{{ old('aseguradora') }}"
+                                       placeholder="Nombre de la aseguradora">
+                                    @error('aseguradora')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+
+                        
                         <!-- Fotos -->
                         <div class="row">
                             <!-- Fotos -->
@@ -516,6 +594,7 @@
                                 </div>
                             </div>
                         </div>
+                        
 
                         <!-- Botones -->
                         <div class="form-group text-center">

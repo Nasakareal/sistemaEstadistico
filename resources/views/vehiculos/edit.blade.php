@@ -395,18 +395,17 @@
                             <!-- Grúa -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="grua">Grúa</label>
-                                    <select name="grua" id="grua"
-                                            class="form-control @error('grua') is-invalid @enderror">
+                                    <label for="grua_id">Grúa</label>
+                                    <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror">
                                         <option value="">Seleccione una grúa</option>
-                                        @foreach ([
-                                            'AUTOPISTA', 'DANNYS', 'EXPRESS', 'GALVAN', 'HERNANDEZ', 'PINEDA',
-                                            'PROFESIONALES', 'MORELIA', 'MONARCAS', 'MUÑOZ'
-                                        ] as $opcion)
-                                            <option value="{{ $opcion }}" {{ old('grua', $vehiculo->grua) == $opcion ? 'selected' : '' }}>{{ $opcion }}</option>
+                                        @foreach ($gruas as $grua)
+                                            <option value="{{ $grua->id }}" 
+                                                {{ old('grua_id', optional($vehiculo->servicio)->grua_id) == $grua->id ? 'selected' : '' }}>
+                                                {{ $grua->nombre }}
+                                            </option>
                                         @endforeach
                                     </select>
-                                    @error('grua')
+                                    @error('grua_id')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
@@ -499,6 +498,95 @@
                                         @else
                                             <p class="text-muted">No hay foto disponible.</p>
                                         @endif
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <!-- Verificaciones, condición física y aseguradora (edit) -->
+                            <div class="row">
+                                <!-- Antecedentes del vehículo -->
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="antecedente_vehiculo" value="1"
+                                                   {{ old('antecedente_vehiculo', optional($conductor)->antecedente_vehiculo) ? 'checked' : '' }}>
+                                            ¿Antecedente vehicular?
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Antecedentes del conductor -->
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="antecedente_conductor" value="1"
+                                                   {{ old('antecedente_conductor', optional($conductor)->antecedente_conductor) ? 'checked' : '' }}>
+                                            ¿Antecedente conductor?
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Cinturón -->
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="cinturon" value="1"
+                                                   {{ old('cinturon', optional($conductor)->cinturon) ? 'checked' : '' }}>
+                                            ¿Usaba cinturón?
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Certificado de lesiones -->
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="certificado_lesiones" value="1"
+                                                   {{ old('certificado_lesiones', optional($conductor)->certificado_lesiones) ? 'checked' : '' }}>
+                                            Cert. lesiones
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Certificado de alcoholemia -->
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="certificado_alcoholemia" value="1"
+                                                   {{ old('certificado_alcoholemia', optional($conductor)->certificado_alcoholemia) ? 'checked' : '' }}>
+                                            Cert. alcoholemia
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Aliento etílico -->
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="aliento_etilico" value="1"
+                                                   {{ old('aliento_etilico', optional($conductor)->aliento_etilico) ? 'checked' : '' }}>
+                                            Aliento etílico
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fila para aseguradora -->
+                            <div class="row">
+                                <!-- Aseguradora -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="aseguradora">Aseguradora</label>
+                                        <input type="text" name="aseguradora" id="aseguradora"
+                                           class="form-control @error('aseguradora') is-invalid @enderror"
+                                           value="{{ old('aseguradora', optional($vehiculo->servicio)->aseguradora) }}"
+                                           placeholder="Nombre de la aseguradora">
+                                        @error('aseguradora')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
                                     </div>
                                 </div>
                             </div>

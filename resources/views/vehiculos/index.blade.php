@@ -13,7 +13,7 @@
                 <div class="card-header">
                     <h3 class="card-title">Listado de Vehículos</h3>
                     <div class="card-tools">
-                        <a href="{{ route('vehiculos.create', $hecho->id) }}" class="btn btn-success">
+                        <a href="{{ route('vehiculos.create', $hecho->id) }}" class="btn btn-primary">
                             <i class="fa-solid fa-car-side"></i> Añadir Vehículo
                         </a>
                         <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-secondary">

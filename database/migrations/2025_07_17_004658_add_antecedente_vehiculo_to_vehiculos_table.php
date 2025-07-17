@@ -4,19 +4,19 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class MakeModeloNullableInVehiculosTable extends Migration
+class AddAntecedenteVehiculoToVehiculosTable extends Migration
 {
     public function up()
     {
         Schema::table('vehiculos', function (Blueprint $table) {
-            $table->string('modelo')->nullable()->change();
+            $table->boolean('antecedente_vehiculo')->default(0)->after('fotos');
         });
     }
 
     public function down()
     {
         Schema::table('vehiculos', function (Blueprint $table) {
-            $table->string('modelo')->nullable(false)->change();
+            $table->dropColumn('antecedente_vehiculo');
         });
     }
 }

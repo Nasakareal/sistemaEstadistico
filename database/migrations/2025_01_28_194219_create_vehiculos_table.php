@@ -11,13 +11,13 @@ class CreateVehiculosTable extends Migration
         Schema::create('vehiculos', function (Blueprint $table) {
             $table->id();
             $table->string('marca', 50);
-            $table->string('modelo', 10);
+            $table->string('modelo', 10)->nullable();
             $table->string('tipo', 50);
             $table->string('linea', 50);
             $table->string('color', 30);
-            $table->string('placas', 15)->unique();
-            $table->string('estado_placas', 15)->unique();
-            $table->string('serie', 17)->unique();
+            $table->string('placas', 15);
+            $table->string('estado_placas', 15);
+            $table->string('serie', 17);
             $table->integer('capacidad_personas');
             $table->string('tipo_servicio', 50);
             $table->string('tarjeta_circulacion_nombre', 60);

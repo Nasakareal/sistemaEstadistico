@@ -11,6 +11,7 @@ class Servicio extends Model
 
     protected $fillable = [
         'grua_id',
+        'vehiculo_id',
         'tipo_vehiculo',
         'aseguradora',
         'descripcion',
@@ -21,5 +22,10 @@ class Servicio extends Model
     public function grua()
     {
         return $this->belongsTo(Grua::class);
+    }
+
+    public function vehiculo()
+    {
+        return $this->belongsTo(Vehiculo::class);
     }
 }

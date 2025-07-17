@@ -1,13 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\VehiculosController.php",
+  "SelectedNode": "\\database\\migrations\\2025_01_28_194219_create_vehiculos_table.php",
   "PreviewInSolutionExplorer": false
 }

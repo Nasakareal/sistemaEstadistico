@@ -1,9 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\database",
-    "\\database\\migrations"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\routes"
   ],
-  "SelectedNode": "\\database\\migrations\\2025_01_28_194219_create_vehiculos_table.php",
+  "SelectedNode": "\\app\\Http\\Kernel.php",
   "PreviewInSolutionExplorer": false
 }

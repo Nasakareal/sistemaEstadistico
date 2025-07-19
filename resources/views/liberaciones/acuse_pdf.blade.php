@@ -3,169 +3,147 @@
 <head>
   <meta charset="UTF-8">
   <title>Acuse de Liberación de Vehículo</title>
+
   <style>
     body {
       font-family: DejaVu Sans, sans-serif;
-      font-size: 12px;
-      margin: 0 40px;
+      font-size:12px;
+      margin:0 40px;
+      position: relative; /* necesario para los absolute */
     }
-    /* Contenedor con fondo (logo) */
+
+    /* Encabezado con logo */
     .header-container {
-      position: relative;
-      margin-bottom: 20px;
-
-      /* aquí va la imagen de fondo */
-      background: url("{{ public_path('ssp.jpg') }}") no-repeat left top;
-      background-size: 280px auto;  /* ancho fijo de 150px */
+      position:relative;
+      margin-bottom:20px;
+      background:url('{{ public_path("ssp.jpg") }}') no-repeat left top;
+      background-size:280px auto;
     }
-
-    /* Tabla del encabezado */
     .header-table {
-      border-collapse: collapse;
-      font-size: 11px;
-      margin-left: 320px;
-      width: calc(100% - 200px);
+      border-collapse:collapse;
+      font-size:11px;
+      margin-left:320px;
+      width:380px;
     }
-
     .header-table td {
-      border: 1px solid #000;
-      padding: 6px;
+      border:1px solid #000;
+      padding:6px;
     }
 
     h2 {
-      text-align: left;
-      font-size: 10px;
-      margin: 20px 0 10px 320px;
+      text-align:left;
+      font-size:10px;
+      margin:20px 0 10px 320px;
     }
-
     h1 {
-      text-align: left;
-      font-size: 10px;
+      text-align:left;
+      font-size:10px;
     }
 
-
+    /* Tabla principal */
     .main-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
+      border-collapse:collapse;
+      width:380px;
+      margin-bottom:20px;
     }
     .main-table th,
     .main-table td {
-      border: 1px solid #000;
-      padding: 6px;
-      vertical-align: top;
+      border:1px solid #000;
+      padding:6px;
+      vertical-align:top;
+    }
+    .main-table th { width:40%; }
+    .main-table td { width:60%; }
+
+    /* Receptor ABSOLUTO y girado */
+    .receptor {
+      position: absolute;
+      /* Ajusta top para bajar/ sube el bloque */
+      top: 460px;
+      /* Ajusta right para acercar/alejar del borde derecho */
+      right: -140px;
+      width:160px;
+      height:160px;
+      padding:6px;
+      font-size:10px;
+      border:none;
+      text-align:left;
+      transform: rotate(-90deg);
+      transform-origin: top right;
     }
 
+    /* Firma y QR */
     .firma {
-      margin-top: 50px;
-      text-align: center;
+      margin-top: 200px;
+      text-align:center;
+      font-size:10px;
     }
     .qr {
-      margin-top: 30px;
-      text-align: right;
+      position:absolute;
+      bottom:40px;
+      right:40px;
     }
   </style>
 </head>
 <body>
 
-  {{-- Encabezado con logo de fondo --}}
+  {{-- Encabezado --}}
   <div class="header-container">
     <table class="header-table">
-      <tr>
-        <td><strong>Dependencia</strong></td>
-        <td>Secretaría de Seguridad Pública</td>
-      </tr>
-      <tr>
-        <td><strong>Sub-dependencia</strong></td>
-        <td>Coordinación de Seguridad Vial</td>
-      </tr>
-      <tr>
-        <td><strong>Oficina</strong></td>
-        <td>Unidad de Atención a Siniestros</td>
-      </tr>
-      <tr>
-        <td><strong>No. de oficio</strong></td>
-        <td>UAS/LIBERACION/{{ $liberacion->folio_anual }}</td>
-      </tr>
-      <tr>
-        <td><strong>Asunto</strong></td>
-        <td>Orden de Devolución</td>
-      </tr>
+      <tr><td><strong>Dependencia</strong></td><td>Secretaría de Seguridad Pública</td></tr>
+      <tr><td><strong>Sub‑dependencia</strong></td><td>Coordinación de Seguridad Vial</td></tr>
+      <tr><td><strong>Oficina</strong></td><td>Unidad de Atención a Siniestros</td></tr>
+      <tr><td><strong>No. de oficio</strong></td><td>UAS/LIBERACION/{{ $liberacion->folio_anual }}</td></tr>
+      <tr><td><strong>Asunto</strong></td><td>Orden de Devolución</td></tr>
     </table>
   </div>
 
-    {{-- Título --}}
-    @php
-        use Carbon\Carbon;
-        $fechaFormateada = Carbon::parse($liberacion->fecha_liberacion)->translatedFormat('d \d\e F \d\e Y');
-    @endphp
+  {{-- Fecha larga --}}
+  @php
+    use Carbon\Carbon;
+    $fechaFormateada = Carbon::parse($liberacion->fecha_liberacion)
+                             ->translatedFormat('d \d\e F \d\e Y');
+  @endphp
+  <h2>Morelia, Michoacán a {{ $fechaFormateada }}</h2>
+  <br><br><br><br>
 
-    <h2 style="text-align: left; margin-left: 320px;">
-        Morelia, Michoacán a {{ $fechaFormateada }}
-    </h2>
-
-    <h1 style="text-align: left;">
-        PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}
-    </h1>
-
-    <br>
-
-    <h1 style="text-align: left;">
-        EL VEHÍCULO DE LAS SIGUIENTES CARACTERISTICAS:
-    </h1>
-
+  <h1>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</h1>
+  <br>
+  <h1>EL VEHÍCULO DE LAS SIGUIENTES CARACTERÍSTICAS:</h1>
 
   {{-- Datos del vehículo --}}
   <table class="main-table">
-    <tr>
-      <th>Marca</th>
-      <td>{{ $vehiculo->marca }}</td>
-      <th>Tipo</th>
-      <td>{{ $vehiculo->tipo }}</td>
-    </tr>
-    <tr>
-      <th>Modelo</th>
-      <td>{{ $vehiculo->modelo }}</td>
-      <th>Color</th>
-      <td>{{ $vehiculo->color }}</td>
-    </tr>
-    <tr>
-      <th>Placas</th>
-      <td>{{ $vehiculo->placas }}</td>
-      <th>Serie</th>
-      <td>{{ $vehiculo->serie }}</td>
-    </tr>
-    <tr>
-      <th>Partes dañadas</th>
-      <td colspan="3">{{ $vehiculo->partes_danadas ?? 'N/D' }}</td>
-    </tr>
-    <tr>
-      <th>Monto de daños</th>
-      <td colspan="3">${{ number_format($vehiculo->monto_danios ?? 0, 2) }}</td>
-    </tr>
-    <tr>
-      <th>Personas autorizadas</th>
-      <td colspan="3">{{ $liberacion->personas_autorizadas }}</td>
-    </tr>
-    <tr>
-      <th>Fecha de liberación</th>
-      <td colspan="3">{{ $liberacion->fecha_liberacion }}</td>
-    </tr>
-    <tr>
-      <th>Observaciones (Motivo de devolución)</th>
-      <td colspan="3">{{ $liberacion->observaciones ?? 'Ninguna' }}</td>
-    </tr>
+    <tr><th>Fecha de resguardo</th>
+        <td>{{ \Carbon\Carbon::parse($liberacion->hecho->fecha)->format('d/m/Y') }}</td></tr>
+    <tr><th>Marca</th>   <td>{{ $vehiculo->marca }}</td></tr>
+    <tr><th>Tipo</th>    <td>{{ $vehiculo->tipo }}</td></tr>
+    <tr><th>Modelo</th>  <td>{{ $vehiculo->modelo }}</td></tr>
+    <tr><th>Serie</th>   <td>{{ $vehiculo->serie }}</td></tr>
+    <tr><th>Placas</th>  <td>{{ $vehiculo->placas }}</td></tr>
+    <tr><th>Color</th>   <td>{{ $vehiculo->color }}</td></tr>
+    <tr><th>Motivo de devolución</th><td>{{ $liberacion->motivo_liberacion ?? 'No especificado' }}</td></tr>
   </table>
 
-  {{-- Firma --}}
-  <div class="firma">
-    ___________________________<br>
-    Firma del responsable del corralón
+  {{-- Bloque receptor girado y posicionado con absolute --}}
+  <div class="receptor">
+    <strong>RECIBE:</strong><br><br>
+    Nombre:<br><br>
+    Fecha:<br><br>
+    Firma:<br><br>
+    Teléfono:
   </div>
 
-  {{-- Código QR --}}
+  {{-- Firma autorizador --}}
+  <div class="firma">
+    <strong>ATENTAMENTE<br><br><br></strong>
+    <strong>{{ $liberacion->autoriza ?? 'Ninguno' }}</strong><br>
+    ___________________________
+  </div>
+  <br>
+
+  {{-- Código QR --}}
   <div class="qr">
-    <img src="{{ $qrBase64 }}" width="120" height="120" alt="QR">
+    <img src="{{ $qrBase64 }}" width="140" height="140" alt="QR">
   </div>
 
 </body>

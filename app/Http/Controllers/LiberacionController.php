@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Liberacion;
 use App\Models\Vehiculo;
+use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
-
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
@@ -70,10 +70,13 @@ class LiberacionController extends Controller
 
         $qrBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath));
 
+        $hecho = $liberacion->hecho;
+
         $pdf = Pdf::loadView('liberaciones.acuse_pdf', [
             'vehiculo'   => $vehiculo,
             'liberacion' => $liberacion,
-            'qrBase64'   => $qrBase64
+            'qrBase64'   => $qrBase64,
+            'hecho'      => $hecho
         ]);
 
         return $pdf->download('acuse_liberacion_vehiculo_' . $vehiculo->id . '.pdf');
@@ -106,8 +109,11 @@ class LiberacionController extends Controller
         $folioFormateado = str_pad($folio, 3, '0', STR_PAD_LEFT);
         $folioAnual = "{$folioFormateado}/{$anio}";
 
+        $hecho = $vehiculo->hechos()->first();
+
         $liberacion = Liberacion::create([
             'vehiculo_id' => $vehiculo->id,
+            'hecho_id' => $hecho?->id,
             'token_unico' => Str::uuid(),
             'fecha_liberacion' => $request->fecha_liberacion,
             'personas_autorizadas' => $request->personas_autorizadas,
@@ -120,7 +126,6 @@ class LiberacionController extends Controller
         return redirect()->route('liberacion.detalles', $vehiculo->id)
             ->with('success', 'Liberación registrada correctamente.');
     }
-
 
     // Editar liberación
     public function edit(Vehiculo $vehiculo)

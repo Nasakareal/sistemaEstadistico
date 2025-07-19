@@ -9,14 +9,17 @@ use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 
+use App\Models\Hechos; // ✅ Importar el modelo con el nombre correcto
+
 class Liberacion extends Model
 {
     use HasFactory;
 
     protected $table = 'liberaciones';
 
-   protected $fillable = [
+    protected $fillable = [
         'vehiculo_id',
+        'hecho_id', // ✅ ya lo estás guardando correctamente
         'token_unico',
         'fecha_liberacion',
         'personas_autorizadas',
@@ -28,10 +31,14 @@ class Liberacion extends Model
         'motivo_liberacion',
     ];
 
-
     public function vehiculo()
     {
         return $this->belongsTo(Vehiculo::class);
+    }
+
+    public function hecho()
+    {
+        return $this->belongsTo(Hechos::class, 'hecho_id', 'id');
     }
 
     public function creador()
@@ -67,5 +74,4 @@ class Liberacion extends Model
             }
         });
     }
-
 }

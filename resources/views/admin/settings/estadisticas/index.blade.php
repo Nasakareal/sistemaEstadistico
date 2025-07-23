@@ -7,43 +7,6 @@
 @stop
 
 @section('content')
-    <div class="row">
-        {{-- Tarjetas de resumen --}}
-        <div class="col-lg-4 col-6">
-            <div class="small-box bg-info">
-                <div class="inner">
-                    <h3>{{ $totalHechos ?? 0 }}</h3>
-                    <p>Total de Hechos</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-car-crash"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 col-6">
-            <div class="small-box bg-success">
-                <div class="inner">
-                    <h3>{{ $totalVehiculos ?? 0 }}</h3>
-                    <p>Vehículos Registrados</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-car"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 col-6">
-            <div class="small-box bg-warning">
-                <div class="inner">
-                    <h3>{{ $totalConductores ?? 0 }}</h3>
-                    <p>Conductores Involucrados</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-id-card"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
     {{-- Tabla de estadísticas por día --}}
     <div class="row mt-4">
         <div class="col-md-12">
@@ -66,6 +29,7 @@
                                     <td>{{ $registro->total }}</td>
                                 </tr>
                             @endforeach
+
                             <tr>
                                 <td><strong>Parte de Novedades</strong></td>
                                 <td>
@@ -74,6 +38,16 @@
                                     </a>
                                 </td>
                             </tr>
+
+                            <tr>
+                                <td><strong>Mini Parte</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.miniParte') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file-word"></i> Ver Mini Parte
+                                    </a>
+                                </td>
+                            </tr>
+
                         </tbody>
                     </table>
                 </div>

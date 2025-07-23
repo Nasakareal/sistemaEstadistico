@@ -494,21 +494,6 @@ return [
         ],
 
         [
-            'text' => 'Estadisticas',
-            'icon' => 'fa-solid fa-table-cells',
-            'classes' => 'bg-blue text-white',
-            'submenu' => [
-                [
-                    'text' => 'Listado de Estadisticas',
-                    'icon' => 'fa-solid fa-table-cells',
-                    'classes' => 'text-white',
-                    'url' => '#',
-                ],
-            ],
-        ],
-
-
-        [
             'text' => 'Configuraciones',
             'icon' => 'fas fa-fw fa-gear',
             'classes' => 'bg-blue text-white',

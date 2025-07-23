@@ -200,9 +200,16 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     // Estadísticas
     Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
         Route::get('/', [App\Http\Controllers\EstadisticasController::class, 'index'])->name('estadisticas.index');
+
+        //Parte de Novedades
         Route::get('/parte-novedades', [App\Http\Controllers\EstadisticasController::class, 'parteNovedades'])->name('estadisticas.parteNovedades');
         Route::get('/parte-novedades/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarParte'])->name('estadisticas.parteNovedades.descargar');
+
+        // Mini Parte
+        Route::get('/mini-parte', [App\Http\Controllers\EstadisticasController::class, 'miniParte'])->name('estadisticas.miniParte');
+        Route::get('/mini-parte/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarMiniParte'])->name('estadisticas.miniParte.descargar');
     });
+
 
 });
 

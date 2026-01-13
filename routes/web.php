@@ -6,6 +6,12 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
+// --- MAPA (Patrullas / Ubicaciones) ---
+Route::middleware(['auth', 'can:ver mapa'])->group(function () {
+    Route::get('/mapa', [App\Http\Controllers\MapaPatrullasController::class, 'index'])->name('mapa.index');
+});
+
+
 // Ruta pública para ver la liberación
 Route::get('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'publica'])->name('liberacion.publica');
 
@@ -208,9 +214,11 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         // Mini Parte
         Route::get('/mini-parte', [App\Http\Controllers\EstadisticasController::class, 'miniParte'])->name('estadisticas.miniParte');
         Route::get('/mini-parte/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarMiniParte'])->name('estadisticas.miniParte.descargar');
+
+        Route::get('/settings/estadisticas/dictamen', [App\Http\Controllers\EstadisticasController::class, 'dictamen'])->name('estadisticas.dictamen');
+        Route::get('/settings/estadisticas/dictamen/{id}', [App\Http\Controllers\EstadisticasController::class, 'dictamenShow'])->name('estadisticas.dictamen.show');
+        Route::get('/settings/estadisticas/dictamen/{id}/docx', [App\Http\Controllers\EstadisticasController::class, 'dictamenDocx'])->name('estadisticas.dictamen.docx');
     });
-
-
 });
 
 Route::get('/prueba-404', function () {

@@ -47,12 +47,30 @@
                                 </div>
                             </div>
 
-                            <!-- Tipo -->
+                            <!-- Tipo General -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="tipo">Tipo</label>
-                                    <input type="text" name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror" 
-                                           value="{{ old('tipo', $vehiculo->tipo) }}" placeholder="Ingrese el tipo de Carrocería" required>
+                                    <label for="tipo_general">Tipo de Vehículo<span style="color: red">*</span></label>
+                                    <select name="tipo_general" id="tipo_general" class="form-control" required>
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="semoviente">Semoviente</option>
+                                        <option value="automovil">Automóvil</option>
+                                        <option value="camion">Camión</option>
+                                        <option value="camioneta">Camioneta</option>
+                                        <option value="bicicleta">Bicicleta</option>
+                                        <option value="motocicleta">Motocicleta</option>
+                                        <option value="remolque">Remolque</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Carrocería -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="tipo">Carrocería<span style="color: red">*</span></label>
+                                    <select name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror" required>
+                                        <option value="">-- Seleccione un tipo general primero --</option>
+                                    </select>
                                     @error('tipo')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -60,21 +78,39 @@
                                     @enderror
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Línea -->
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="linea">Línea</label>
-                                    <input type="text" name="linea" id="linea" class="form-control @error('linea') is-invalid @enderror" 
-                                           value="{{ old('linea', $vehiculo->linea) }}" placeholder="Ingrese la línea" required>
-                                    @error('linea')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
+                        <!-- Fila para aseguradora -->
+                            <div class="row">
+                                <!-- Línea -->
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="linea">Línea</label>
+                                        <input type="text" name="linea" id="linea" class="form-control @error('linea') is-invalid @enderror" 
+                                                value="{{ old('linea', $vehiculo->linea) }}" placeholder="Ingrese la línea" required>
+                                        @error('linea')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
+                                </div>
+                                <!-- Aseguradora -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="aseguradora">Aseguradora</label>
+                                        <input type="text" name="aseguradora" id="aseguradora"
+                                           class="form-control @error('aseguradora') is-invalid @enderror"
+                                           value="{{ old('aseguradora', optional($vehiculo->servicio)->aseguradora) }}"
+                                           placeholder="Nombre de la aseguradora">
+                                        @error('aseguradora')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
                         <!-- Color, Placas, Estado de Placas -->
                         <div class="row">
@@ -155,8 +191,12 @@
                             <div class="col-md-5">
                                 <div class="form-group">
                                     <label for="tipo_servicio">Tipo de Servicio</label>
-                                    <input type="text" name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" 
-                                           value="{{ old('tipo_servicio', $vehiculo->tipo_servicio) }}" placeholder="Ingrese el tipo de servicio" required>
+                                    <select name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" required>
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="Particular" {{ old('tipo_servicio', $vehiculo->tipo_servicio) == 'Particular' ? 'selected' : '' }}>Particular</option>
+                                        <option value="Oficial" {{ old('tipo_servicio', $vehiculo->tipo_servicio) == 'Oficial' ? 'selected' : '' }}>Oficial</option>
+                                        <option value="Público" {{ old('tipo_servicio', $vehiculo->tipo_servicio) == 'Público' ? 'selected' : '' }}>Público</option>
+                                    </select>
                                     @error('tipo_servicio')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -348,6 +388,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="permanente">Licencia Permanente</label>
+                                    <input type="hidden" name="permanente" value="0">
                                     <input type="checkbox" name="permanente" id="permanente" 
                                            class="@error('permanente') is-invalid @enderror" 
                                            {{ old('permanente') ? 'checked' : '' }}>
@@ -486,7 +527,7 @@
 
                         <!-- Sección de Foto en el formulario de edición -->
                         <div class="row">
-                            <!-- Mostrar Foto Actual -->
+                            <!-- Mostrar Foto Actual 
                             <div class="col-md-8">
                                 <div class="form-group">
                                     <label>Foto Actual</label>
@@ -501,6 +542,7 @@
                                     </div>
                                 </div>
                             </div>
+                            -->
 
 
                             <!-- Verificaciones, condición física y aseguradora (edit) -->
@@ -572,26 +614,10 @@
                                 </div>
                             </div>
 
-                            <!-- Fila para aseguradora -->
-                            <div class="row">
-                                <!-- Aseguradora -->
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="aseguradora">Aseguradora</label>
-                                        <input type="text" name="aseguradora" id="aseguradora"
-                                           class="form-control @error('aseguradora') is-invalid @enderror"
-                                           value="{{ old('aseguradora', optional($vehiculo->servicio)->aseguradora) }}"
-                                           placeholder="Nombre de la aseguradora">
-                                        @error('aseguradora')
-                                            <span class="invalid-feedback" role="alert">
-                                                <strong>{{ $message }}</strong>
-                                            </span>
-                                        @enderror
-                                    </div>
-                                </div>
-                            </div>
+                           
 
-                            <!-- Subir Nueva Foto -->
+                            <!--
+                            // Subir Nueva Foto 
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="fotos">Cambiar Foto</label>
@@ -603,6 +629,7 @@
                                     @enderror
                                 </div>
                             </div>
+                            -->
                         </div>
 
 
@@ -649,4 +676,58 @@
             });
         @endif
     </script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tipoGeneral = document.getElementById('tipo_general');
+        const tipo = document.getElementById('tipo');
+
+        const carrocerias = {
+            automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
+            camion: ['Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
+            camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
+            motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
+            bicicleta: ['Montaña', 'Ruta', 'BMX'],
+            remolque: ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
+            semoviente: ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro']
+        };
+
+        const tipoActual = "{{ old('tipo', $vehiculo->tipo ?? '') }}";
+        let tipoGeneralDetectado = '';
+
+        for (const [categoria, lista] of Object.entries(carrocerias)) {
+            if (lista.includes(tipoActual)) {
+                tipoGeneralDetectado = categoria;
+                break;
+            }
+        }
+
+        const tipoGeneralActual = "{{ old('tipo_general') }}";
+        tipoGeneral.value = tipoGeneralActual || tipoGeneralDetectado;
+
+        function cargarOpciones() {
+            const seleccion = tipoGeneral.value;
+            tipo.innerHTML = '<option value="">-- Seleccione --</option>';
+
+            if (carrocerias[seleccion]) {
+                carrocerias[seleccion].forEach(function (opcion) {
+                    const opt = document.createElement('option');
+                    opt.value = opcion;
+                    opt.textContent = opcion;
+                    tipo.appendChild(opt);
+                });
+            }
+
+            if (tipoActual) {
+                tipo.value = tipoActual;
+            }
+        }
+
+        tipoGeneral.addEventListener('change', cargarOpciones);
+        if (tipoGeneral.value) {
+            cargarOpciones();
+        }
+    });
+</script>
+
 @stop

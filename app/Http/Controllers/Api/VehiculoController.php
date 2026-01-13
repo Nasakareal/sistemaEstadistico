@@ -9,11 +9,9 @@ use App\Models\Conductor;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class VehiculoController extends Controller
 {
-    /* ========== LISTAR ========== */
     public function index(Hechos $hecho)
     {
         return response()->json([
@@ -21,66 +19,69 @@ class VehiculoController extends Controller
         ]);
     }
 
-    /* ========== CREAR ========== */
     public function store(Request $request, Hechos $hecho)
     {
         $validated = $this->validateRequest($request);
 
-        // Normalizar a mayúsculas y quitar acentos
-        $validated = $this->normalize($validated);
+        $validated = $this->normalize($request, $validated);
 
-        // Verificar duplicados dentro del mismo hecho
         if ($this->hayDuplicados($hecho, $validated)) {
             return response()->json([
                 'message' => 'Placas, serie o conductor ya registrados en este hecho'
             ], 409);
         }
 
-        // Guardar vehículo
-        $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
-        $hecho->vehiculos()->attach($vehiculo->id);
+        return DB::transaction(function () use ($validated, $hecho) {
 
-        // Servicio de grúa (si aplica)
-        if (!empty($validated['grua_id'])) {
-            DB::table('servicios')->insert([
-                'vehiculo_id'   => $vehiculo->id,
-                'grua_id'       => $validated['grua_id'],
-                'tipo_vehiculo' => $validated['tipo'],
-                'aseguradora'   => $validated['aseguradora'] ?? '',
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ]);
-        }
+            $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
 
-        // Conductor (si viene en la petición)
-        if (!empty($validated['conductor_nombre'])) {
-            $conductor = Conductor::create($this->onlyConductor($validated));
-            $vehiculo->conductores()->attach($conductor->id);
-        }
+            $hecho->vehiculos()->attach($vehiculo->id);
 
-        return response()->json([
-            'message' => 'Vehículo creado',
-            'data'    => $vehiculo->load('conductores')
-        ], 201);
+            // Servicio de grúa (solo si viene grua_id)
+            if (!empty($validated['grua_id'])) {
+                DB::table('servicios')->insert([
+                    'vehiculo_id'   => $vehiculo->id,
+                    'grua_id'       => $validated['grua_id'],
+                    'tipo_vehiculo' => $validated['tipo'],
+                    'aseguradora'   => $validated['aseguradora'] ?? '',
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // Conductor (si viene algo de conductor)
+            if ($this->hayDatosConductor($validated)) {
+                $conductor = Conductor::create($this->onlyConductor($validated));
+                $vehiculo->conductores()->attach($conductor->id);
+            }
+
+            return response()->json([
+                'message' => 'Vehículo creado',
+                'data'    => $vehiculo->load('conductores')
+            ], 201);
+        });
     }
 
-    /* ========== MOSTRAR UNO ========== */
     public function show(Hechos $hecho, Vehiculo $vehiculo)
     {
-        abort_unless($hecho->vehiculos->contains($vehiculo->id), 404);
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
 
         return response()->json([
             'data' => $vehiculo->load('conductores')
         ]);
     }
 
-    /* ========== ACTUALIZAR ========== */
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
-        abort_unless($hecho->vehiculos->contains($vehiculo->id), 404);
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
 
         $validated = $this->validateRequest($request, $vehiculo->id);
-        $validated = $this->normalize($validated);
+
+        $validated = $this->normalize($request, $validated);
 
         if ($this->hayDuplicados($hecho, $validated, $vehiculo->id)) {
             return response()->json([
@@ -88,52 +89,80 @@ class VehiculoController extends Controller
             ], 409);
         }
 
-        $vehiculo->update($this->onlyVehiculo($validated));
+        return DB::transaction(function () use ($validated, $vehiculo) {
 
-        // actualizar / crear servicio de grúa
-        DB::table('servicios')->updateOrInsert(
-            ['vehiculo_id' => $vehiculo->id],
-            [
-                'grua_id'       => $validated['grua_id'],
-                'tipo_vehiculo' => $validated['tipo'],
-                'aseguradora'   => $validated['aseguradora'] ?? '',
-                'updated_at'    => now(),
-            ]
-        );
+            $vehiculo->update($this->onlyVehiculo($validated));
 
-        // Conductor (crea o actualiza el primero ligado)
-        if (!empty($validated['conductor_nombre'])) {
-            $conductor = $vehiculo->conductores()->first();
-            if ($conductor) {
-                $conductor->update($this->onlyConductor($validated));
+            // Servicio grúa:
+            // - si viene grua_id => upsert
+            // - si no viene grua_id => eliminar si existe
+            if (!empty($validated['grua_id'])) {
+                DB::table('servicios')->updateOrInsert(
+                    ['vehiculo_id' => $vehiculo->id],
+                    [
+                        'grua_id'       => $validated['grua_id'],
+                        'tipo_vehiculo' => $validated['tipo'],
+                        'aseguradora'   => $validated['aseguradora'] ?? '',
+                        'updated_at'    => now(),
+                        'created_at'    => now(),
+                    ]
+                );
             } else {
-                $conductor = Conductor::create($this->onlyConductor($validated));
-                $vehiculo->conductores()->attach($conductor->id);
+                DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
             }
-        }
 
-        return response()->json([
-            'message' => 'Vehículo actualizado',
-            'data'    => $vehiculo->load('conductores')
-        ]);
+            // Conductor: si hay datos => crear/actualizar
+            // si NO hay datos => no toca (no borro nada automáticamente)
+            if ($this->hayDatosConductor($validated)) {
+                $conductor = $vehiculo->conductores()->first();
+
+                if ($conductor) {
+                    $conductor->update($this->onlyConductor($validated));
+                } else {
+                    $conductor = Conductor::create($this->onlyConductor($validated));
+                    $vehiculo->conductores()->attach($conductor->id);
+                }
+            }
+
+            return response()->json([
+                'message' => 'Vehículo actualizado',
+                'data'    => $vehiculo->fresh()->load('conductores')
+            ]);
+        });
     }
 
-    /* ========== ELIMINAR ========== */
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
-        abort_unless($hecho->vehiculos->contains($vehiculo->id), 404);
-        $vehiculo->delete();
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
 
-        return response()->json([
-            'message' => 'Vehículo eliminado'
-        ]);
+        return DB::transaction(function () use ($hecho, $vehiculo) {
+
+            // Quitar relación hecho-vehículo
+            $hecho->vehiculos()->detach($vehiculo->id);
+
+            // Eliminar servicio si existe
+            DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
+
+            // Conductores asociados: DETACH (y borrar solo si tú así lo quieres)
+            // Si tu modelo de negocio es "conductor solo existe para este vehículo", entonces sí bórralos.
+            // Para no cagarla si en el futuro se reutilizan, aquí solo los detach.
+            $vehiculo->conductores()->detach();
+
+            // Si estás seguro que son exclusivos, descomenta:
+            // foreach ($vehiculo->conductores as $c) { $c->delete(); }
+
+            $vehiculo->delete();
+
+            return response()->json([
+                'message' => 'Vehículo eliminado'
+            ]);
+        });
     }
 
-    /* --------------------------------------------------------------------
-       Helpers
-    -------------------------------------------------------------------- */
+    /* ===================== HELPERS ===================== */
 
-    /** Reglas y mensajes compartidos */
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
         $uniquePlacas = Rule::unique('vehiculos', 'placas');
@@ -141,82 +170,96 @@ class VehiculoController extends Controller
 
         if ($vehiculoId) {
             $uniquePlacas->ignore($vehiculoId);
-            $uniqueSerie ->ignore($vehiculoId);
+            $uniqueSerie->ignore($vehiculoId);
         }
 
         return $request->validate([
-            'marca'      => 'required|string|max:50',
-            'modelo'     => 'nullable|string|max:10',
-            'tipo'       => 'required|string|max:50',
-            'linea'      => 'required|string|max:50',
-            'color'      => 'required|string|max:30',
-            'placas'     => ['required','string','max:15',$uniquePlacas],
-            'estado_placas'=>'nullable|string|max:15',
-            'serie'      => ['nullable','string','max:17',$uniqueSerie],
-            'capacidad_personas'=>'required|integer|min:0',
-            'tipo_servicio'=>'required|string|max:50',
-            'tarjeta_circulacion_nombre'=>'nullable|string|max:60',
-            'grua_id'    => 'nullable|exists:gruas,id',
-            'corralon'   => 'nullable|string|max:50',
-            'aseguradora'=> 'nullable|string|max:100',
-            'monto_danos'=> 'required|numeric|min:0',
-            'partes_danadas'=>'required|string',
-            'antecedente_vehiculo'=> 'sometimes|boolean',
+            'marca'                      => 'required|string|max:50',
+            'modelo'                     => 'nullable|string|max:10',
+            'tipo'                       => 'required|string|max:50',
+            'linea'                      => 'required|string|max:50',
+            'color'                      => 'required|string|max:30',
+            'placas'                     => ['required','string','max:15',$uniquePlacas],
+            'estado_placas'              => 'nullable|string|max:15',
+            'serie'                      => ['nullable','string','max:17',$uniqueSerie],
 
-            /* datos de conductor */
-            'conductor_nombre'  => 'nullable|string|max:255',
-            'telefono'          => 'nullable|digits:10',
-            'domicilio'         => 'nullable|string|max:255',
-            'sexo'              => 'nullable|string|in:MASCULINO,FEMENINO,OTRO',
-            'ocupacion'         => 'nullable|string|max:255',
-            'edad'              => 'nullable|integer|min:0|max:100',
-            'tipo_licencia'     => 'nullable|string|max:50',
-            'estado_licencia'   => 'nullable|string|max:100',
-            'vigencia_licencia' => 'nullable|date',
-            'numero_licencia'   => 'nullable|string|max:50',
-            'permanente'        => 'sometimes|boolean',
-            'cinturon'          => 'sometimes|boolean',
-            'antecedente_conductor' => 'sometimes|boolean',
-            'certificado_lesiones'  => 'sometimes|boolean',
-            'certificado_alcoholemia'=> 'sometimes|boolean',
-            'aliento_etilico'   => 'sometimes|boolean',
+            'capacidad_personas'         => 'required|integer|min:0',
+            'tipo_servicio'              => 'required|string|max:50',
+            'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
+
+            'grua_id'                    => 'nullable|exists:gruas,id',
+            'corralon'                   => 'nullable|string|max:50',
+            'aseguradora'                => 'nullable|string|max:100',
+
+            'monto_danos'                => 'required|numeric|min:0',
+            'partes_danadas'             => 'required|string',
+
+            'antecedente_vehiculo'       => 'sometimes|boolean',
+
+            // conductor
+            'conductor_nombre'           => 'nullable|string|max:255',
+            'telefono'                   => 'nullable|digits:10',
+            'domicilio'                  => 'nullable|string|max:255',
+            'sexo'                       => 'nullable|string|in:MASCULINO,FEMENINO,OTRO',
+            'ocupacion'                  => 'nullable|string|max:255',
+            'edad'                       => 'nullable|integer|min:0|max:100',
+            'tipo_licencia'              => 'nullable|string|max:50',
+            'estado_licencia'            => 'nullable|string|max:100',
+            'vigencia_licencia'          => 'nullable|date',
+            'numero_licencia'            => 'nullable|string|max:50',
+
+            'permanente'                 => 'sometimes|boolean',
+            'cinturon'                   => 'sometimes|boolean',
+            'antecedente_conductor'      => 'sometimes|boolean',
+            'certificado_lesiones'       => 'sometimes|boolean',
+            'certificado_alcoholemia'    => 'sometimes|boolean',
+            'aliento_etilico'            => 'sometimes|boolean',
         ]);
     }
 
-    /** Normaliza strings (mayúsculas + sin acentos) y checkboxes → boolean */
-    private function normalize(array $data): array
+    private function normalize(Request $request, array $data): array
     {
-        $upper = ['marca','modelo','tipo','linea','color','estado_placas','tipo_servicio',
-                  'tarjeta_circulacion_nombre','corralon','aseguradora','partes_danadas',
-                  'conductor_nombre','domicilio','sexo','ocupacion','tipo_licencia',
-                  'estado_licencia','numero_licencia'];
+        $upper = [
+            'marca','modelo','tipo','linea','color','estado_placas','tipo_servicio',
+            'tarjeta_circulacion_nombre','corralon','aseguradora','partes_danadas',
+            'conductor_nombre','domicilio','sexo','ocupacion','tipo_licencia',
+            'estado_licencia','numero_licencia'
+        ];
 
         foreach ($upper as $k) {
-            if (isset($data[$k]) && is_string($data[$k])) {
+            if (array_key_exists($k, $data) && is_string($data[$k])) {
                 $data[$k] = strtoupper($this->removeAccents($data[$k]));
             }
         }
 
-        /* placas & serie sin guiones */
-        if (isset($data['placas'])) $data['placas'] = strtoupper(str_replace('-', '', $data['placas']));
-        if (!empty($data['serie'])) $data['serie']  = strtoupper(str_replace('-', '', $data['serie']));
-
-        /* checkboxes */
-        foreach (['antecedente_vehiculo','cinturon','antecedente_conductor',
-                  'certificado_lesiones','certificado_alcoholemia','aliento_etilico',
-                  'permanente'] as $chk) {
-            $data[$chk] = !empty($data[$chk]);
+        // placas y serie sin guiones
+        if (isset($data['placas'])) {
+            $data['placas'] = strtoupper(str_replace('-', '', $data['placas']));
         }
+
+        // IMPORTANTÍSIMO: si serie viene vacía, que sea NULL (no '')
+        if (array_key_exists('serie', $data)) {
+            $serie = strtoupper(str_replace('-', '', (string)($data['serie'] ?? '')));
+            $data['serie'] = ($serie !== '') ? $serie : null;
+        }
+
+        // booleans correctos para JSON
+        $data['antecedente_vehiculo']    = $request->boolean('antecedente_vehiculo');
+        $data['permanente']              = $request->boolean('permanente');
+        $data['cinturon']                = $request->boolean('cinturon');
+        $data['antecedente_conductor']   = $request->boolean('antecedente_conductor');
+        $data['certificado_lesiones']    = $request->boolean('certificado_lesiones');
+        $data['certificado_alcoholemia'] = $request->boolean('certificado_alcoholemia');
+        $data['aliento_etilico']         = $request->boolean('aliento_etilico');
 
         return $data;
     }
 
-    /** Comprueba duplicados de placas, serie o conductor en el hecho */
     private function hayDuplicados(Hechos $hecho, array $v, ?int $ignoreId = null): bool
     {
         $q = $hecho->vehiculos();
-
         if ($ignoreId) $q->where('vehiculos.id', '!=', $ignoreId);
+
         $dupPlaca = $q->where('placas', $v['placas'])->exists();
 
         $dupSerie = false;
@@ -230,49 +273,73 @@ class VehiculoController extends Controller
         if (!empty($v['conductor_nombre'])) {
             $q3 = $hecho->vehiculos();
             if ($ignoreId) $q3->where('vehiculos.id', '!=', $ignoreId);
-            $dupConductor = $q3->whereHas('conductores', fn($q) =>
-                $q->where('nombre', $v['conductor_nombre'])
-            )->exists();
+            $dupConductor = $q3->whereHas('conductores', function ($q) use ($v) {
+                $q->where('nombre', $v['conductor_nombre']);
+            })->exists();
         }
 
         return $dupPlaca || $dupSerie || $dupConductor;
     }
 
-    /* ----- Separadores de datos ----- */
+    private function hayDatosConductor(array $v): bool
+    {
+        return !empty($v['conductor_nombre'])
+            || !empty($v['telefono'])
+            || !empty($v['domicilio']);
+    }
+
     private function onlyVehiculo(array $v): array
     {
-        return collect($v)->only([
-            'marca','modelo','tipo','linea','color','placas','estado_placas',
-            'serie','capacidad_personas','tipo_servicio','tarjeta_circulacion_nombre',
-            'grua_id','corralon','aseguradora','monto_danos','partes_danadas',
-            'antecedente_vehiculo'
-        ])->toArray();
+        return [
+            'marca'                      => $v['marca'] ?? null,
+            'modelo'                     => $v['modelo'] ?? null,
+            'tipo'                       => $v['tipo'] ?? null,
+            'linea'                      => $v['linea'] ?? null,
+            'color'                      => $v['color'] ?? null,
+            'placas'                     => $v['placas'] ?? null,
+            'estado_placas'              => $v['estado_placas'] ?? null,
+            'serie'                      => $v['serie'] ?? null,
+            'capacidad_personas'         => $v['capacidad_personas'] ?? 0,
+            'tipo_servicio'              => $v['tipo_servicio'] ?? null,
+            'tarjeta_circulacion_nombre' => $v['tarjeta_circulacion_nombre'] ?? null,
+            'corralon'                   => $v['corralon'] ?? null,
+            'aseguradora'                => $v['aseguradora'] ?? null,
+            'monto_danos'                => $v['monto_danos'] ?? 0,
+            'partes_danadas'             => $v['partes_danadas'] ?? null,
+            'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
+        ];
     }
 
     private function onlyConductor(array $v): array
     {
-        return collect($v)->only([
-            'conductor_nombre as nombre','telefono','domicilio','sexo','ocupacion',
-            'edad','tipo_licencia','estado_licencia','vigencia_licencia',
-            'numero_licencia','permanente','cinturon','antecedente_conductor as antecedentes',
-            'certificado_lesiones','certificado_alcoholemia','aliento_etilico'
-        ])->mapWithKeys(function($value, $key){
-            // mapWithKeys para cambiar nombre campos
-            $map = [
-                'conductor_nombre as nombre'        => 'nombre',
-                'antecedente_conductor as antecedentes' => 'antecedentes',
-            ];
-            return [$map[$key] ?? $key => $value];
-        })->toArray();
+        return [
+            'nombre'                  => $v['conductor_nombre'] ?? null,
+            'telefono'                => $v['telefono'] ?? null,
+            'domicilio'               => $v['domicilio'] ?? null,
+            'sexo'                    => $v['sexo'] ?? null,
+            'ocupacion'               => $v['ocupacion'] ?? null,
+            'edad'                    => $v['edad'] ?? null,
+            'tipo_licencia'           => $v['tipo_licencia'] ?? null,
+            'estado_licencia'         => $v['estado_licencia'] ?? null,
+            'vigencia_licencia'       => $v['permanente'] ? null : ($v['vigencia_licencia'] ?? null),
+            'numero_licencia'         => $v['numero_licencia'] ?? null,
+            'permanente'              => $v['permanente'] ?? false,
+            'cinturon'                => $v['cinturon'] ?? false,
+            'antecedentes'            => $v['antecedente_conductor'] ?? false,
+            'certificado_lesiones'    => $v['certificado_lesiones'] ?? false,
+            'certificado_alcoholemia' => $v['certificado_alcoholemia'] ?? false,
+            'aliento_etilico'         => $v['aliento_etilico'] ?? false,
+        ];
     }
 
-    /* Quitar acentos */
     private function removeAccents(string $s): string
     {
         return strtr($s, [
             'Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U',
             'á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U',
-            'Ñ'=>'N','ñ'=>'N'
+            'À'=>'A','È'=>'E','Ì'=>'I','Ò'=>'O','Ù'=>'U',
+            'à'=>'A','è'=>'E','ì'=>'I','ò'=>'O','ù'=>'U',
+            'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
         ]);
     }
 }

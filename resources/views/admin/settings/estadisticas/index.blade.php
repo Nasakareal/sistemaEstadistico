@@ -48,6 +48,16 @@
                                 </td>
                             </tr>
 
+                            {{-- NUEVA ESTADÍSTICA: DICTAMEN --}}
+                            <tr>
+                                <td><strong>Dictamen (Buscador)</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.dictamen') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-search"></i> Buscar por Placa / ID
+                                    </a>
+                                </td>
+                            </tr>
+
                         </tbody>
                     </table>
                 </div>

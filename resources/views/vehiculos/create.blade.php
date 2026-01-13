@@ -47,34 +47,71 @@
                                 </div>
                              </div>
 
-                             <!-- Tipo -->
-                             <div class="col-md-3">
-                                 <div class="form-group">
-                                    <label for="tipo">Tipo<span style="color: red">*</span></label>
-                                    <input type="text" name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror" 
-                                           value="{{ old('tipo') }}" placeholder="Ingrese el tipo de Carroceria" required>
+                             <!-- Tipo de Vehículo -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="tipo_general">Tipo de Vehículo<span style="color: red">*</span></label>
+                                    <select name="tipo_general" id="tipo_general" class="form-control" required>
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="semoviente" {{ old('tipo_general') == 'semoviente' ? 'selected' : '' }}>Semoviente</option>
+                                        <option value="automovil" {{ old('tipo_general') == 'automovil' ? 'selected' : '' }}>Automóvil</option>
+                                        <option value="camion" {{ old('tipo_general') == 'camion' ? 'selected' : '' }}>Camión</option>
+                                        <option value="camioneta" {{ old('tipo_general') == 'camioneta' ? 'selected' : '' }}>Camioneta</option>
+                                        <option value="bicicleta" {{ old('tipo_general') == 'bicicleta' ? 'selected' : '' }}>Bicicleta</option>
+                                        <option value="motocicleta" {{ old('tipo_general') == 'motocicleta' ? 'selected' : '' }}>Motocicleta</option>
+                                        <option value="remolque" {{ old('tipo_general') == 'remolque' ? 'selected' : '' }}>Remolque</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Carrocería -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="tipo">Carrocería<span style="color: red">*</span></label>
+                                    <select name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror" required>
+                                        <option value="">-- Seleccione un tipo general primero --</option>
+                                    </select>
                                     @error('tipo')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
                                 </div>
-                             </div>
+                            </div>                            
+                         </div>
 
-                             <!-- Línea -->
-                             <div class="col-md-3">
+                         
+                        <!-- Fila para aseguradora -->
+                        <div class="row">
+                            <!-- Línea -->
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="linea">Línea<span style="color: red">*</span></label>
                                     <input type="text" name="linea" id="linea" class="form-control @error('linea') is-invalid @enderror" 
-                                           value="{{ old('linea') }}" placeholder="Ingrese la línea" required>
+                                            value="{{ old('linea') }}" placeholder="Ingrese la línea" required>
                                     @error('linea')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
                                 </div>
-                             </div>
-                         </div>
+                            </div>
+                            <!-- Aseguradora -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="aseguradora">Aseguradora</label>
+                                    <input type="text" name="aseguradora" id="aseguradora"
+                                       class="form-control @error('aseguradora') is-invalid @enderror"
+                                       value="{{ old('aseguradora') }}"
+                                       placeholder="Nombre de la aseguradora">
+                                    @error('aseguradora')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
 
                          <!-- Color, Placas, Estado de Placas -->
                          <div class="row">
@@ -155,8 +192,12 @@
                             <div class="col-md-5">
                                 <div class="form-group">
                                     <label for="tipo_servicio">Tipo de Servicio<span style="color: red">*</span></label>
-                                    <input type="text" name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" 
-                                           value="{{ old('tipo_servicio') }}" placeholder="Ingrese el tipo de servicio" required>
+                                    <select name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" required>
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="Particular" {{ old('tipo_servicio') == 'Particular' ? 'selected' : '' }}>Particular</option>
+                                        <option value="Oficial" {{ old('tipo_servicio') == 'Oficial' ? 'selected' : '' }}>Oficial</option>
+                                        <option value="Público" {{ old('tipo_servicio') == 'Público' ? 'selected' : '' }}>Público</option>
+                                    </select>
                                     @error('tipo_servicio')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -345,15 +386,18 @@
                                 </div>
                             </div>
 
-                            <!-- Checkbox para licencia permanente -->
+                            <!-- Licencia Permanente -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="permanente">Licencia Permanente</label>
-                                    <input type="checkbox" name="permanente" id="permanente" 
-                                           class="@error('permanente') is-invalid @enderror" 
-                                           {{ old('permanente') ? 'checked' : '' }}>
+                                    <label>
+                                        <input type="hidden" name="permanente" value="0">
+                                        <input type="checkbox" name="permanente" value="1"
+                                               {{ old('permanente', $conductor->permanente ?? 0) ? 'checked' : '' }}>
+                                        Licencia Permanente
+                                    </label>
+
                                     @error('permanente')
-                                        <span class="invalid-feedback" role="alert">
+                                        <span class="invalid-feedback d-block" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
@@ -558,30 +602,10 @@
                             </div>
                         </div>
 
-                        <!-- Fila para aseguradora -->
-                        <div class="row">
-                            <!-- Aseguradora -->
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="aseguradora">Aseguradora</label>
-                                    <input type="text" name="aseguradora" id="aseguradora"
-                                       class="form-control @error('aseguradora') is-invalid @enderror"
-                                       value="{{ old('aseguradora') }}"
-                                       placeholder="Nombre de la aseguradora">
-                                    @error('aseguradora')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-
                         
-                        <!-- Fotos -->
+                        <!-- Fotos 
                         <div class="row">
-                            <!-- Fotos -->
+                            // Fotos 
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="fotos">Fotos</label>
@@ -594,6 +618,7 @@
                                 </div>
                             </div>
                         </div>
+                        -->
                         
 
                         <!-- Botones -->
@@ -637,4 +662,43 @@
             });
         @endif
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tipoGeneral = document.getElementById('tipo_general');
+            const tipo = document.getElementById('tipo');
+
+            const carrocerias = {
+                automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
+                camion: ['Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
+                camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
+                motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
+                bicicleta: ['Montaña', 'Ruta', 'BMX'],
+                remolque: ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
+                semoviente: ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro']
+            };
+
+            tipoGeneral.addEventListener('change', function () {
+                const seleccion = this.value;
+                tipo.innerHTML = '<option value="">-- Seleccione --</option>';
+
+                if (carrocerias[seleccion]) {
+                    carrocerias[seleccion].forEach(function (opcion) {
+                        const opt = document.createElement('option');
+                        opt.value = opcion;
+                        opt.textContent = opcion;
+                        tipo.appendChild(opt);
+                    });
+                }
+            });
+
+            const oldTipoGeneral = "{{ old('tipo_general') }}";
+            const oldTipo = "{{ old('tipo') }}";
+            if (oldTipoGeneral) {
+                tipoGeneral.value = oldTipoGeneral;
+                tipoGeneral.dispatchEvent(new Event('change'));
+                tipo.value = oldTipo;
+            }
+        });
+    </script>
+
 @stop

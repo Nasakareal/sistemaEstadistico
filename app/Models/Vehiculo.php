@@ -35,13 +35,11 @@ class Vehiculo extends Model
 
     public function hechos()
     {
-        return $this->belongsToMany(Hechos::class, 'hecho_vehiculo', 'vehiculo_id', 'hecho_id')
-                    ->withTimestamps();
+        return $this->belongsToMany(Hechos::class, 'hecho_vehiculo', 'vehiculo_id', 'hecho_id')->withTimestamps();
     }
 
     public function conductores()
     {
-        return $this->belongsToMany(Conductor::class, 'vehiculo_conductor', 'vehiculo_id', 'conductor_id')
-                    ->withTimestamps();
+        return $this->belongsToMany(Conductor::class, 'vehiculo_conductor', 'vehiculo_id', 'conductor_id')->withTimestamps();
     }
 }

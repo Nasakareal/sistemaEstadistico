@@ -78,6 +78,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear estadisticas',
             'editar estadisticas',
             'eliminar estadisticas',
+            'ver mapa',
         ];
 
         // Crear permisos si no existen

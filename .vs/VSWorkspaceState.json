@@ -4,13 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
+    "\\app\\Models",
+    "\\database",
+    "\\database\\seeders",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\estadisticas",
-    "\\routes"
+    "\\resources\\views\\mapa"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas\\mini-parte.blade.php",
+  "SelectedNode": "\\resources\\views\\home.blade.php",
   "PreviewInSolutionExplorer": false
 }

@@ -10,20 +10,18 @@ use Illuminate\Support\Facades\Storage;
 
 class HechoController extends Controller
 {
-    /**
-     * Listar todos los hechos
-     */
     public function index(Request $request)
     {
-        $hechos = Hechos::with('vehiculos')->get();
-        return response()->json([
-            'data' => $hechos
-        ]);
+        $perPage = (int)($request->query('per_page', 20));
+        $perPage = $perPage > 0 ? min($perPage, 100) : 20;
+
+        $hechos = Hechos::with('vehiculos')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+
+        return response()->json($hechos);
     }
 
-    /**
-     * Crear un nuevo hecho
-     */
     public function store(Request $request)
     {
         $user = $request->user();
@@ -55,10 +53,8 @@ class HechoController extends Controller
             'personas_mp'           => 'required|integer|min:0',
         ]);
 
-        // Forzar booleano en antecedentes
-        $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
+        $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
 
-        // Quitar acentos y pasar a mayúsculas
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
@@ -66,37 +62,32 @@ class HechoController extends Controller
         }
 
         $validated['created_by'] = $user->id;
+
         $hecho = Hechos::create($validated);
 
         return response()->json([
             'message' => 'Hecho creado exitosamente',
-            'data'    => $hecho
+            'data'    => $hecho->load('vehiculos')
         ], 201);
     }
 
-    /**
-     * Ver detalle de un hecho
-     */
-    public function show($id)
+    public function show(Hechos $hecho)
     {
-        $hecho = Hechos::with('vehiculos')->findOrFail($id);
+        $hecho->load('vehiculos');
+
         return response()->json([
             'data' => $hecho
         ]);
     }
 
-    /**
-     * Actualizar un hecho existente
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, Hechos $hecho)
     {
-        $user  = $request->user();
-        $hecho = Hechos::findOrFail($id);
+        $user = $request->user();
 
         $validated = $request->validate([
-            'folio_c5i'             => [
+            'folio_c5i' => [
                 'required','string','max:20',
-                Rule::unique('hechos')->ignore($hecho->id, 'id'),
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
             ],
             'hora'                  => 'required|date_format:H:i',
             'fecha'                 => 'required|date',
@@ -120,6 +111,8 @@ class HechoController extends Controller
             'personas_mp'           => 'required|integer|min:0',
         ]);
 
+        $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
@@ -127,29 +120,23 @@ class HechoController extends Controller
         }
 
         $validated['updated_by'] = $user->id;
+
         $hecho->update($validated);
 
         return response()->json([
             'message' => 'Hecho actualizado exitosamente',
-            'data'    => $hecho
+            'data'    => $hecho->fresh()->load('vehiculos')
         ]);
     }
 
-    /**
-     * Subir un descargo (PDF o imagen) para un hecho
-     */
-    public function subirDescargo(Request $request, $id)
+    public function subirDescargo(Request $request, Hechos $hecho)
     {
         $request->validate([
             'descargo' => 'required|file|mimes:pdf,jpeg,png|max:5120',
         ]);
 
-        $hecho = Hechos::findOrFail($id);
-
-        // Guardar el archivo en storage/app/public/descargos
         $path = $request->file('descargo')->store('descargos', 'public');
 
-        // Suponiendo que tu tabla hechos tiene columna 'descargo_path'
         $hecho->descargo_path = $path;
         $hecho->save();
 
@@ -159,12 +146,8 @@ class HechoController extends Controller
         ]);
     }
 
-    /**
-     * Eliminar un hecho
-     */
-    public function destroy($id)
+    public function destroy(Hechos $hecho)
     {
-        $hecho = Hechos::findOrFail($id);
         $hecho->delete();
 
         return response()->json([
@@ -172,9 +155,6 @@ class HechoController extends Controller
         ]);
     }
 
-    /**
-     * Función auxiliar para quitar acentos
-     */
     private function removeAccents(string $string): string
     {
         $unwanted_array = [

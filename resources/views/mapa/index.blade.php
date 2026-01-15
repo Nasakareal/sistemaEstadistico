@@ -28,7 +28,6 @@
             maxZoom: 19
         }).addTo(map);
 
-        // ICONO PATRULLA (public/car.png)
         const patrullaIcon = L.icon({
             iconUrl: "{{ asset('car.png') }}",
             iconSize: [44, 44],
@@ -36,10 +35,38 @@
             popupAnchor: [0, -44],
         });
 
-        // MARCADOR DE PRUEBA (para verlo)
-        L.marker([19.703, -101.186], { icon: patrullaIcon })
-            .addTo(map)
-            .bindPopup("Patrulla 001")
-            .openPopup();
+        const markers = new Map();
+
+        function upsertMarker(p) {
+            const key = String(p.user_id);
+            const latlng = [p.lat, p.lng];
+            const popup = `<b>${p.name}</b><br>ID: ${p.user_id}<br>${p.captured_at ?? ''}`;
+
+            if (markers.has(key)) {
+                markers.get(key).setLatLng(latlng).setPopupContent(popup);
+            } else {
+                const m = L.marker(latlng, { icon: patrullaIcon }).addTo(map).bindPopup(popup);
+                markers.set(key, m);
+            }
+        }
+
+        async function cargarPatrullas() {
+            try {
+                const res = await fetch("{{ route('mapa.patrullas.data') }}", {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!res.ok) return;
+
+                const data = await res.json();
+                data.forEach(upsertMarker);
+
+            } catch (e) {}
+        }
+
+        cargarPatrullas();
+        setInterval(cargarPatrullas, 5000);
     </script>
 @stop

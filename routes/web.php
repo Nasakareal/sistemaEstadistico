@@ -9,6 +9,8 @@ Route::get('/', function () {
 // --- MAPA (Patrullas / Ubicaciones) ---
 Route::middleware(['auth', 'can:ver mapa'])->group(function () {
     Route::get('/mapa', [App\Http\Controllers\MapaPatrullasController::class, 'index'])->name('mapa.index');
+    Route::get('/mapa-patrullas/data', [App\Http\Controllers\MapaPatrullasController::class, 'data'])->name('mapa.patrullas.data');
+});
 });
 
 

@@ -9,7 +9,9 @@
     "\\database\\seeders",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\mapa"
+    "\\resources\\views\\mapa",
+    "\\routes"
   ],
+  "SelectedNode": "\\resources\\views\\mapa\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

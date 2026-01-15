@@ -833,12 +833,16 @@ class EstadisticasController extends Controller
 
     public function dictamenDocx($id)
     {
-        // Traer SOLO el hecho
+
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃            PARTE INFORMATIVO              ┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
         $hecho = Hechos::with(['vehiculos.conductores', 'lesionados'])->findOrFail($id);
-
-        // Fecha para el encabezado (usa la fecha real del hecho)
         $fecha = $hecho->fecha ?? now()->format('Y-m-d');
-
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Arial');
         $phpWord->setDefaultFontSize(12);
@@ -852,7 +856,6 @@ class EstadisticasController extends Controller
             'marginLeft'  => 1134,
         ]);
 
-        // === Numeración de páginas en el pie ===
         $footer = $section->addFooter();
 
         $footer->addPreserveText(
@@ -861,7 +864,6 @@ class EstadisticasController extends Controller
             ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]
         );
 
-        // === Encabezado con imágenes (igual al Parte) ===
         $phpWord->addTableStyle('EncabezadoTablaDictamen', [
             'borderSize' => 0,
             'borderColor'=> 'FFFFFF',
@@ -882,14 +884,12 @@ class EstadisticasController extends Controller
         ]);
 
         $table->addRow();
-        // Estilo de párrafo pegado (cero espacio)
         $phpWord->setDefaultParagraphStyle([
             'spaceBefore' => 0,
             'spaceAfter'  => 0,
             'lineHeight'  => 1,
         ]);
 
-        // === TABLA OFICIO (GRIS, SIN BORDES, SIN AIRE, FULL ANCHO) ===
         $phpWord->addTableStyle('TablaOficio', [
             'borderSize'  => 0,
             'borderColor' => 'FFFFFF',
@@ -902,11 +902,8 @@ class EstadisticasController extends Controller
 
         $tablaOficio = $section->addTable('TablaOficio');
         $tablaOficio->setWidth(100 * 50);
-
-        // Párrafo sin aire (por si Word se pone mamón)
         $p = ['spaceBefore'=>0,'spaceAfter'=>0,'lineHeight'=>1];
 
-        // Celda gris SIN bordes y SIN padding
         $cell = [
             'bgColor'      => 'D9D9D9',
             'valign'       => 'center',
@@ -921,7 +918,6 @@ class EstadisticasController extends Controller
 
         // helper
         $addFila = function ($izq, $der) use ($tablaOficio, $cell, $p) {
-            // altura exacta para que abrace el texto
             $tablaOficio->addRow(null, ['exactHeight' => true, 'height' => 260]);
 
             $tablaOficio->addCell(3200, $cell)->addText($izq, [], $p);
@@ -937,9 +933,6 @@ class EstadisticasController extends Controller
         $addFila('Expediente',    '');
         $addFila('Asunto',        '');
 
-
-
-        // === Fecha a la derecha ===
         $section->addTextBreak(1);
 
         $fechaFormatoOficio = 'Morelia Michoacán, ' 
@@ -962,9 +955,6 @@ class EstadisticasController extends Controller
             ]
         );
 
-
-
-        // === Destinatario (igual al Parte) ===
         $destinatario = [
             'DIRECCIÓN DE CARPETAS DE',
             'INVESTIGACION DE LA FISCALIA GENERAL',
@@ -981,9 +971,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(1);
 
-
-
-        // === Quién lo realiza ===
         $textRun = $section->addTextRun([
             'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::BOTH
         ]);
@@ -1019,10 +1006,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(2);
 
-
-
-
-
         // === Planteamiento del problema ===
         $section->addText(
             '                 I. PLANTEAMIENTO DEL PROBLEMA',
@@ -1033,9 +1016,6 @@ class EstadisticasController extends Controller
         );
 
         $section->addTextBreak(1);
-
-
-
 
         // === OBJETO DEL DICTAMEN ===
         $section->addTextBreak(1);
@@ -1113,13 +1093,7 @@ class EstadisticasController extends Controller
             ', en esta ciudad.'
         );
 
-
         $section->addTextBreak(2);
-
-
-
-
-
 
         // === Planteamiento del problema ===
         $section->addText(
@@ -1131,7 +1105,6 @@ class EstadisticasController extends Controller
         );
 
         $section->addTextBreak(2);
-
 
         // === METODOLOGÍA ===
         $section->addText(
@@ -1182,14 +1155,6 @@ class EstadisticasController extends Controller
         );
 
         $section->addTextBreak(2);
-
-
-
-
-
-
-
-
 
         // === III MATERIAL UTILIZADO===
         $section->addText(
@@ -1249,14 +1214,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(1);
 
-
-
-
-
-
-
-
-
         // === IV OBJETIVOS  ===
         $section->addText(
             '                 IV. OBJETIVOS:',
@@ -1279,7 +1236,6 @@ class EstadisticasController extends Controller
         );
 
         $section->addTextBreak(2);
-
 
         // === V FIJACIÓN DEL LUGAR DE LA INTERVENCIÓN  ===
         $section->addText(
@@ -1328,16 +1284,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(2);
 
-
-
-
-
-
-
-
-
-
-
         // === VI CONDICIONES CLIMATÓLOGICAS  ===
         $section->addText(
             '                 VI. CONDICIONES CLIMATÓLOGICAS:',
@@ -1350,7 +1296,7 @@ class EstadisticasController extends Controller
         $section->addTextBreak(2);
 
         // ---- TIEMPO ----
-        $tiempoTexto = 'De día'; // default seguro
+        $tiempoTexto = 'De día';
 
         switch (strtolower(trim($hecho->tiempo))) {
             case 'noche':
@@ -1398,12 +1344,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(2);
 
-
-
-
-
-
-
         // === VII CONDICIONES DE ILUMINACIÓN  ===
         $section->addText(
             '                 VII. CONDICIONES DE ILUMINACIÓN:',
@@ -1443,17 +1383,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(2);
 
-
-
-
-
-
-
-
-
-
-
-
         // === VIII DESCRIPCIÓN DEL LUGAR DE LOS HECHOS  ===
         $section->addText(
             '                 VIII. DESCRIPCIÓN DEL LUGAR DE LOS HECHOS:',
@@ -1478,13 +1407,6 @@ class EstadisticasController extends Controller
         );
 
         $section->addTextBreak(2);
-
-
-
-
-
-
-
 
         // === IX DESCRIPCIÓN DE VEHÍCULOS  ===
         $section->addText(
@@ -1513,15 +1435,10 @@ class EstadisticasController extends Controller
             $estadoPl  = trim((string) $v->estado_placas);
             $serie     = trim((string) $v->serie);
             $tarjeta   = trim((string) $v->tarjeta_circulacion_nombre);
-
-            // Encabezado del vehículo
             $textRun = $section->addTextRun(['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::BOTH]);
-
             $textRun->addText('               VEHÍCULO ');
             $textRun->addText("({$letra})", ['bold' => true]);
             $textRun->addText('.- ');
-
-            // Parte del vehículo (variables en negrita)
             $textRun->addText('Marca ');
             $textRun->addText($marca ?: 's/e', ['bold' => true]);
             $textRun->addText(', Modelo ');
@@ -1537,7 +1454,6 @@ class EstadisticasController extends Controller
             $textRun->addText(' Personas, Placas para circular ');
             $textRun->addText($placas ?: 's/e', ['bold' => true]);
 
-            // Servicio + Estado (si existe)
             if ($servicio !== '' || $estadoPl !== '') {
                 $textRun->addText(' del servicio ');
                 $textRun->addText($servicio !== '' ? $servicio : 's/e', ['bold' => true]);
@@ -1548,17 +1464,14 @@ class EstadisticasController extends Controller
                 }
             }
 
-            // Serie
             $textRun->addText(', Serie ');
             $textRun->addText($serie ?: 's/e', ['bold' => true]);
 
-            // Tarjeta de circulación
             if ($tarjeta !== '' && strtoupper($tarjeta) !== 'N/A') {
                 $textRun->addText(', tarjeta de circulación a nombre de ');
                 $textRun->addText($tarjeta, ['bold' => true]);
             }
 
-            // --- Conductores ---
             if ($v->conductores->count() === 0) {
                 $textRun->addText('. No se cuenta con datos del conductor.');
             } else {
@@ -1566,12 +1479,8 @@ class EstadisticasController extends Controller
                     $nombre = trim((string) $c->nombre);
                     $edad   = $c->edad ? (string)$c->edad : 's/e';
                     $dom    = trim((string) $c->domicilio);
-
-                    // licencia: si no hay tipo_licencia, "No presentó licencia de conducir."
                     $licencia = trim((string) $c->tipo_licencia);
                     $licTxt   = ($licencia !== '' ? $licencia : 'No presentó');
-
-                    // Si hay varios conductores, separarlos
                     $textRun->addText(', el C. ');
                     $textRun->addText($nombre ?: 's/e', ['bold' => true]);
                     $textRun->addText(' de ');
@@ -1592,7 +1501,6 @@ class EstadisticasController extends Controller
                         $textRun->addText('.');
                     }
 
-                    // Si hay más de un conductor, terminamos con punto y seguimos
                     if ($cIdx < $v->conductores->count() - 1) {
                         $textRun->addText(' ');
                     }
@@ -1603,8 +1511,6 @@ class EstadisticasController extends Controller
         }
 
         $section->addPageBreak();
-
-
 
         // === X DINÁMICA DEL HECHO DE TRÁNSITO  ===
         $section->addText(
@@ -1654,13 +1560,6 @@ class EstadisticasController extends Controller
 
         $section->addPageBreak();
 
-
-
-
-
-
-
-
         // === XIII VÍCTIMAS  ===
         $section->addText(
             '                 XIII. VÍCTIMAS:',
@@ -1686,8 +1585,6 @@ class EstadisticasController extends Controller
 
                 $nombre = trim((string) $l->nombre);
                 $edad   = $l->edad ? (string)$l->edad : 's/e';
-
-                // Estos campos deben existir en tu tabla lesionados; si no, cámbialos al nombre real:
                 $hospital = trim((string) ($l->hospital ?? ''));
                 $unidad   = trim((string) ($l->unidad ?? ''));
                 $cargo    = trim((string) ($l->a_cargo_de ?? $l->responsable_unidad ?? ''));
@@ -1697,13 +1594,8 @@ class EstadisticasController extends Controller
                 ]);
 
                 $textRun->addText('                 De este hecho de tránsito resultaron lesionados: ');
-
-                // Nombre en negritas (solo esto)
                 $textRun->addText($nombre, ['bold' => true]);
-
                 $textRun->addText(' de ' . $edad . ' años de edad');
-
-                // Redacción singular/plural: aquí queda singular como en tu ejemplo ("el cual fue...")
                 $textRun->addText(', el cual fue trasladado');
 
                 if ($hospital !== '') {
@@ -1725,7 +1617,6 @@ class EstadisticasController extends Controller
 
                 $textRun->addText('.');
 
-                // Si hay más lesionados, separa con "; " y sigue en otro párrafo/oración
                 if ($i < $hecho->lesionados->count() - 1) {
                     $section->addText(';', [], ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::BOTH]);
                 }
@@ -1733,12 +1624,6 @@ class EstadisticasController extends Controller
         }
 
         $section->addTextBreak(2);
-
-
-
-
-
-
 
         // === XIV DAÑOS  ===
         $section->addText(
@@ -1778,21 +1663,21 @@ class EstadisticasController extends Controller
                     $pref = ($cen === 100) ? 'CIENTO' : $c[$cen];
                     return $rem ? ($pref.' '.$toWords($rem)) : $pref;
                 }
-                if ($n < 2000) { // 1000-1999
+                if ($n < 2000) {
                     $rem = $n - 1000;
                     return $rem ? ('MIL '.$toWords($rem)) : 'MIL';
                 }
-                if ($n < 1000000) { // miles
+                if ($n < 1000000) {
                     $mil = (int)($n/1000);
                     $rem = $n % 1000;
                     $txt = $toWords($mil).' MIL';
                     return $rem ? ($txt.' '.$toWords($rem)) : $txt;
                 }
-                if ($n < 2000000) { // 1,000,000-1,999,999
+                if ($n < 2000000) {
                     $rem = $n - 1000000;
                     return $rem ? ('UN MILLÓN '.$toWords($rem)) : 'UN MILLÓN';
                 }
-                if ($n < 1000000000) { // millones
+                if ($n < 1000000000) {
                     $mil = (int)($n/1000000);
                     $rem = $n % 1000000;
                     $txt = $toWords($mil).' MILLONES';
@@ -1858,16 +1743,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(2);
 
-
-
-
-
-
-
-
-
-
-
         // === XV OBSERVACIONES  ===
         $section->addText(
             '                 XV. OBSERVACIONES:',
@@ -1879,7 +1754,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(1);
 
-        // ---- En tu DB: vehiculos.grua guarda NOMBRE (ej. "DANNYS") ----
         $gruaNombres = $hecho->vehiculos
             ->pluck('grua')
             ->filter(fn($x) => !is_null($x) && trim((string)$x) !== '' && trim((string)$x) !== '0')
@@ -1920,12 +1794,6 @@ class EstadisticasController extends Controller
         $textRun->addText('.');
 
         $section->addTextBreak(1);
-
-
-
-
-
-
 
         // === XVI CAUSAS  ===
         $section->addText(
@@ -2005,9 +1873,6 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(2);
 
-
-
-
         // === FIRMA ===
         $section->addTextBreak(3);
 
@@ -2036,8 +1901,11 @@ class EstadisticasController extends Controller
 
 
 
-
-
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃                  IPH                      ┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
         $fechaEvento = !empty($hecho->created_at)
             ? \Carbon\Carbon::parse($hecho->created_at)->format('d/m/Y')
@@ -2047,7 +1915,6 @@ class EstadisticasController extends Controller
             ? \Carbon\Carbon::parse($hecho->created_at)->format('H:i')
             : (!empty($hecho->hora) ? substr((string)$hecho->hora, 0, 5) : '');
 
-        // INFORME: fecha de descarga (hoy) y hora en blanco
         $fechaInforme = now()->format('d/m/Y');
         $horaInforme  = '';
 
@@ -2058,7 +1925,6 @@ class EstadisticasController extends Controller
             ['alignment' => Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 0]
         );
 
-        // Párrafo sin espacios (para TODAS las celdas)
         $pCenter0 = [
             'alignment'   => Jc::CENTER,
             'spaceBefore' => 0,
@@ -2066,7 +1932,6 @@ class EstadisticasController extends Controller
             'lineHeight'  => 1.0
         ];
 
-        // Tabla: a la DERECHA y más compacta
         $table = $section->addTable([
             'alignment'   => Jc::RIGHT,
             'width'       => 100,
@@ -2076,14 +1941,10 @@ class EstadisticasController extends Controller
             'cellMargin'  => 0
         ]);
 
-        // Anchos (4 columnas) que suman 7200
         $wLabel = 1100;
         $wVal   = 2500;
-
-        // Estilos
         $headerCellStyle = ['bgColor' => 'EBE1D1', 'valign' => 'center'];
 
-        // ===== Fila 1: EVENTO / INFORME =====
         $table->addRow(260);
         $table->addCell($wLabel + $wVal, array_merge($headerCellStyle, ['gridSpan' => 2]))
               ->addText('EVENTO', ['bold' => true], $pCenter0);
@@ -2091,24 +1952,17 @@ class EstadisticasController extends Controller
         $table->addCell($wLabel + $wVal, array_merge($headerCellStyle, ['gridSpan' => 2]))
               ->addText('INFORME', ['bold' => true], $pCenter0);
 
-        // ===== Fila 2: FECHA =====
         $table->addRow(340);
         $table->addCell($wLabel, ['valign' => 'center'])->addText('FECHA', [], $pCenter0);
         $table->addCell($wVal,   ['valign' => 'center'])->addText($fechaEvento,  ['bold' => true, 'size' => 12], $pCenter0);
         $table->addCell($wLabel, ['valign' => 'center'])->addText('FECHA', [], $pCenter0);
         $table->addCell($wVal,   ['valign' => 'center'])->addText($fechaInforme, ['bold' => true, 'size' => 12], $pCenter0);
 
-        // ===== Fila 3: HORA =====
         $table->addRow(340);
         $table->addCell($wLabel, ['valign' => 'center'])->addText('HORA', [], $pCenter0);
         $table->addCell($wVal,   ['valign' => 'center'])->addText($horaEvento,  ['bold' => true, 'size' => 12], $pCenter0);
         $table->addCell($wLabel, ['valign' => 'center'])->addText('HORA', [], $pCenter0);
         $table->addCell($wVal,   ['valign' => 'center'])->addText($horaInforme, ['bold' => true, 'size' => 12], $pCenter0);
-
-
-
-
-
 
         // ===== SEGUNDA TABLA IPH =====
 
@@ -2183,12 +2037,9 @@ class EstadisticasController extends Controller
         ]);
 
 
-        // ===== FILA 1: TIPO DE EVENTO | (col 2-4 combinadas) =====
         $table->addRow(320);
         $table->addCell($wC1, $leftColCell)->addText('TIPO DE EVENTO', $fontNormal7, $pCenter0);
         $table->addCell($wC2, array_merge($cellMid, ['gridSpan' => 3]))->addText($tituloTipoEvento, $fontBold7, $pCenter0);
-
-        // ===== FILA 2: LUGAR DEL EVENTO | (col 2-4 combinadas) =====
         $table->addRow(420);
         $table->addCell($wC1, $leftColCell)->addText('LUGAR DEL EVENTO', $fontNormal7, $pCenter0);
 
@@ -2199,16 +2050,13 @@ class EstadisticasController extends Controller
             $runUb->addText('  ' . $referencias, $fontBold7);
         }
 
-        // ===== FILA 3: PERITO... | (col 2-4 combinadas) =====
         $table->addRow(420);
         $table->addCell($wC1, $leftColCell)->addText("PERITO QUE\nLEVANTA EL ACTA", $fontNormal7, $pCenter0);
         $table->addCell($wC2, array_merge($cellMid, ['gridSpan' => 3]))->addText($peritoCompleto, $fontBold7, $pLeft0);
 
-        // ===== FILA 4: PERSONAS DETENIDAS (4 columnas reales) =====
         $table->addRow(420);
         $table->addCell($wC1, $leftColCell)->addText("PERSONAS\nDETENIDAS", $fontNormal7, $pCenter0);
 
-        // Col 2: SI / NO
         $cellPD2 = $table->addCell($wC2, $cellMid);
         $runPD2  = $cellPD2->addTextRun($pLeft0);
         $runPD2->addText('SI [', $fontNormal7);
@@ -2217,7 +2065,6 @@ class EstadisticasController extends Controller
         $runPD2->addText(!$hayDetenidos ? 'X' : ' ', (!$hayDetenidos) ? $fontBold7 : $fontNormal7);
         $runPD2->addText(']', $fontNormal7);
 
-        // Col 3: FLAGRANCIA / CASO URGENTE
         $cellPD3 = $table->addCell($wC3, $cellMid);
         $runPD3  = $cellPD3->addTextRun($pLeft0);
         $runPD3->addText('FLAGRANCIA [', $fontNormal7);
@@ -2226,7 +2073,6 @@ class EstadisticasController extends Controller
         $runPD3->addText($casoUrgente ? 'X' : ' ', $casoUrgente ? $fontBold7 : $fontNormal7);
         $runPD3->addText(']', $fontNormal7);
 
-        // Col 4: USO DE FUERZA FISICA SI / NO
         $cellPD4 = $table->addCell($wC4, $cellMid);
         $runPD4  = $cellPD4->addTextRun($pLeft0);
         $runPD4->addText('USO DE FUERZA FISICA  ', $fontNormal7);
@@ -2236,11 +2082,9 @@ class EstadisticasController extends Controller
         $runPD4->addText(!$usoFuerzaSi ? 'X' : ' ', (!$usoFuerzaSi) ? $fontBold7 : $fontNormal7);
         $runPD4->addText(']', $fontNormal7);
 
-        // ===== FILA 5: VEHÍCULOS INVOLUCRADOS (4 columnas) =====
         $table->addRow(420);
         $table->addCell($wC1, $leftColCell)->addText("VEHÍCULOS\nINVOLUCRADOS", $fontNormal7, $pCenter0);
 
-        // Col 2: SI / NO
         $cellV2 = $table->addCell($wC2, $cellMid);
         $runV2  = $cellV2->addTextRun($pLeft0);
         $runV2->addText('SI [', $fontNormal7);
@@ -2249,7 +2093,6 @@ class EstadisticasController extends Controller
         $runV2->addText(!$hayVehiculos ? 'X' : ' ', (!$hayVehiculos) ? $fontBold7 : $fontNormal7);
         $runV2->addText(']', $fontNormal7);
 
-        // Col 3: ROBADO / DAÑADO / ASEGURADO
         $cellV3 = $table->addCell($wC3, $cellMid);
         $runV3  = $cellV3->addTextRun($pLeft0);
         $runV3->addText('ROBADO [', $fontNormal7);
@@ -2260,7 +2103,6 @@ class EstadisticasController extends Controller
         $runV3->addText($vehAsegurado ? 'X' : ' ', $vehAsegurado ? $fontBold7 : $fontNormal7);
         $runV3->addText(']', $fontNormal7);
 
-        // Col 4: RECUPERADO / ABANDONADO
         $cellV4 = $table->addCell($wC4, $cellMid);
         $runV4  = $cellV4->addTextRun($pLeft0);
         $runV4->addText('RECUPERADO [', $fontNormal7);
@@ -2269,24 +2111,21 @@ class EstadisticasController extends Controller
         $runV4->addText($abandonado ? 'X' : ' ', $abandonado ? $fontBold7 : $fontNormal7);
         $runV4->addText(']', $fontNormal7);
 
-
         $section->addTextBreak(1);
 
-        // ===== TERCERA TABLA: FUNDAMENTO (centrado, MISMO COLOR, SIN BORDES / SIN MARCOS / SIN AIRE) =====
+        // ===== TERCERA TABLA: FUNDAMENTO =====
         $bgFund = 'EBE1D1';
 
-        // TABLA sin bordes, centrada, layout fijo, mismo ancho que tu tabla anterior
         $tablaFund = $section->addTable([
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-            'width'       => $tableW, // ej. 9800 (mismo que tu tabla IPH)
+            'width'       => $tableW,
             'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
             'borderSize'  => 0,
             'borderColor' => 'FFFFFF',
             'cellMargin'  => 0,
         ]);
 
-        // CELDA sin bordes y sin padding
         $cellFund = [
             'bgColor'      => $bgFund,
             'valign'       => 'center',
@@ -2303,11 +2142,9 @@ class EstadisticasController extends Controller
             'marginRight'  => 0,
         ];
 
-        // ===== Fila 1: FUNDAMENTO =====
         $tablaFund->addRow(320, ['exactHeight' => true, 'height' => 320]);
         $tablaFund->addCell($tableW, $cellFund)->addText('FUNDAMENTO', $fontBold7, $pCenter0);
 
-        // ===== Fila 2: texto fundamento (2 líneas) =====
         $tablaFund->addRow(700, ['exactHeight' => true, 'height' => 700]);
         $cell = $tablaFund->addCell($tableW, $cellFund);
 
@@ -2324,16 +2161,12 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(1);
 
-        // ===== CUARTA TABLA DE 2 FILAS: (1) ENCABEZADO GRIS  (2) TODO EL CONTENIDO ADENTRO =====
-
         $bgNarr = 'EBE1D1';
 
-        // Hora (restar 10 min) y hora de arribo (tal cual)
         $horaBase    = \Carbon\Carbon::parse($hecho->hora);
         $horaMenos10 = $horaBase->copy()->subMinutes(10)->format('H:i');
         $horaArribo  = $horaBase->format('H:i');
 
-        // Ubicación (calle + colonia + coords si hay)
         $ubiNarr = trim((string)($hecho->calle ?? ''));
         $colNarr = trim((string)($hecho->colonia ?? ''));
         if ($colNarr !== '') $ubiNarr .= ($ubiNarr !== '' ? ', ' : '') . $colNarr;
@@ -2346,7 +2179,6 @@ class EstadisticasController extends Controller
         $tipoHechoNarr = strtoupper((string)($hecho->tipo_hecho ?? ''));
         $unidadNarr     = (string)($hecho->unidad ?? '');
 
-        // Tabla exterior (con bordes)
         $tablaNarr = $section->addTable([
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
@@ -2360,7 +2192,6 @@ class EstadisticasController extends Controller
         $cellHeaderNarr = ['bgColor' => $bgNarr, 'valign' => 'center'];
         $cellBodyNarr   = ['valign'  => 'top'];
 
-        // ---------- FILA 1 (GRIS) ----------
         $tablaNarr->addRow(420, ['exactHeight' => true, 'height' => 420]);
         $cellH = $tablaNarr->addCell($tableW, $cellHeaderNarr);
 
@@ -2369,11 +2200,9 @@ class EstadisticasController extends Controller
         $run->addTextBreak();
         $run->addText('(Qué, Quién, Cuándo, Dónde, Cómo, Porqué, Con qué)', $fontNormal7, $pCenter0);
 
-        // ---------- FILA 2 (AQUÍ VA TODO) ----------
         $tablaNarr->addRow(1200, ['exactHeight' => false]);
         $cellB = $tablaNarr->addCell($tableW, $cellBodyNarr);
 
-        // ====== NARRATIVA (PÁRRAFO) ======
         $narrativaTxt =
             "                 Siendo las {$horaMenos10} horas me encontraba de recorrido vigilancia y disuasión del Delito sobre el Periférico Independencia # 5000, col. Sentimientos de la Nación, cuando por medio de la base de radio C-5i, reporto un hecho de tránsito: ({$tipoHechoNarr}) en {$ubiNarr}, motivo por el cual me traslade al lugar mencionado abordo de la unidad {$unidadNarr}, arribando a las {$horaArribo} horas.";
 
@@ -2385,10 +2214,6 @@ class EstadisticasController extends Controller
         ]);
 
         $cellB->addTextBreak(1);
-
-
-        // ===================== TODO LO DEMÁS VA ADENTRO DE ESTA MISMA CELDA =====================
-
 
         // === XIII VÍCTIMAS ===
         $cellB->addText('VÍCTIMAS:', ['bold' => true, 'size' => 10], [
@@ -2435,7 +2260,6 @@ class EstadisticasController extends Controller
         }
 
         $cellB->addTextBreak(1);
-
 
         // === X DINÁMICA DEL HECHO DE TRÁNSITO ===
         $cellB->addText('DINÁMICA DEL HECHO DE TRÁNSITO:', ['bold' => true, 'size' => 10], [
@@ -2502,7 +2326,6 @@ class EstadisticasController extends Controller
 
         $cellB->addTextBreak(1);
 
-
         // === XVI CAUSAS ===
         $cellB->addText('CAUSAS:', ['bold' => true, 'size' => 10], [
             'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT
@@ -2548,17 +2371,13 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(1);
 
-
-
         // ===== TABLA 2 FILAS: AUXILIO PRESTADO A =====
 
         $bgAux = 'EBE1D1';
 
-        // Fuente SOLO para esta tabla
-        $fontAuxTitle = $fontBold7;                       // TÍTULO (fila 1)
-        $fontAuxSmall = ['name' => 'Arial', 'size' => 6]; // texto (fila 2)
+        $fontAuxTitle = $fontBold7;
+        $fontAuxSmall = ['name' => 'Arial', 'size' => 6];
 
-        // Párrafos “apretados” (sin aire arriba/abajo)
         $pAuxCenterTight = [
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'spaceAfter'  => 0,
@@ -2572,7 +2391,6 @@ class EstadisticasController extends Controller
             'lineHeight'  => 1.0,
         ];
 
-        // OJO: baja cellMargin para que no “infle” la tabla
         $tablaAux = $section->addTable([
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
@@ -2580,11 +2398,10 @@ class EstadisticasController extends Controller
             'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
             'borderSize'  => 6,
             'borderColor' => '000000',
-            'cellMargin'  => 20,   // <-- antes 80, esto es lo que más mete “aire”
+            'cellMargin'  => 20,
         ]);
 
-        // ---------- FILA 1 (GRIS) ----------
-        $tablaAux->addRow(260, ['exactHeight' => true, 'height' => 260]); // <-- más bajita
+        $tablaAux->addRow(260, ['exactHeight' => true, 'height' => 260]);
         $cellH = $tablaAux->addCell($tableW, [
             'bgColor' => $bgAux,
             'valign'  => 'center',
@@ -2593,30 +2410,23 @@ class EstadisticasController extends Controller
 
         $cellH->addText('AUXILIO PRESTADO A :', $fontAuxTitle, $pAuxCenterTight);
 
-        // ---------- FILA 2 (BLANCA) ----------
-        $tablaAux->addRow(300, ['exactHeight' => true, 'height' => 300]); // <-- exacta para que quede “justo”
+        $tablaAux->addRow(300, ['exactHeight' => true, 'height' => 300]);
         $cellB = $tablaAux->addCell($tableW, ['valign' => 'center']);
 
         $textoAux =
             "VÍCTIMA(S) [   ]   OFENDIDO(S) [   ]   DENUNCIANTE(S) [   ]   TESTIGO(S) [   ]   DETENIDO(S) [   ]   NO APLICA [ X ]";
 
-        // sangría mínima (si aún quieres): 1 tab o quítalo
-        $textoAuxFinal = $textoAux; // <-- sin tab para que no se vaya a la derecha
+        $textoAuxFinal = $textoAux;
 
         $cellB->addText($textoAuxFinal, $fontAuxSmall, $pAuxLeftTight);
 
         $section->addTextBreak();
 
-
-        // ===== TABLA 2 FILAS: TIPO DE AUXILIO =====
-
         $bgAux = 'EBE1D1';
 
-        // Fuente SOLO para esta tabla
-        $fontAuxTitle = $fontBold7;                       // TÍTULO (fila 1)
-        $fontAuxSmall = ['name' => 'Arial', 'size' => 6]; // texto (fila 2)
+        $fontAuxTitle = $fontBold7;
+        $fontAuxSmall = ['name' => 'Arial', 'size' => 6];
 
-        // Párrafos “apretados”
         $pAuxCenterTight = [
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'spaceAfter'  => 0,
@@ -2640,12 +2450,10 @@ class EstadisticasController extends Controller
             'cellMargin'  => 20,
         ]);
 
-        // ---------- FILA 1 (GRIS) ----------
         $tablaTipoAux->addRow(260, ['exactHeight' => true, 'height' => 260]);
         $cellH = $tablaTipoAux->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center']);
         $cellH->addText('TIPO DE AUXILIO :', $fontAuxTitle, $pAuxCenterTight);
 
-        // ---------- FILA 2 (BLANCA) ----------
         $tablaTipoAux->addRow(320, ['exactHeight' => true, 'height' => 320]);
         $cellB = $tablaTipoAux->addCell($tableW, ['valign' => 'center']);
 
@@ -2656,16 +2464,12 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak();
 
-
         // ===== TABLA 2 FILAS: TRASLADO o CANALIZACIONES =====
 
         $bgAux = 'EBE1D1';
+        $fontAuxTitle = $fontBold7;
+        $fontAuxSmall = ['name' => 'Arial', 'size' => 6];
 
-        // Fuente SOLO para esta tabla
-        $fontAuxTitle = $fontBold7;                       // TÍTULO (fila 1)
-        $fontAuxSmall = ['name' => 'Arial', 'size' => 6]; // texto (fila 2)
-
-        // Párrafos “apretados”
         $pAuxCenterTight = [
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'spaceAfter'  => 0,
@@ -2689,12 +2493,10 @@ class EstadisticasController extends Controller
             'cellMargin'  => 20,
         ]);
 
-        // ---------- FILA 1 (GRIS) ----------
         $tablaTraslado->addRow(260, ['exactHeight' => true, 'height' => 260]);
         $cellH = $tablaTraslado->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center']);
         $cellH->addText('TRASLADO o CANALIZACIONES', $fontAuxTitle, $pAuxCenterTight);
 
-        // ---------- FILA 2 (BLANCA) ----------
         $tablaTraslado->addRow(320, ['exactHeight' => true, 'height' => 320]);
         $cellB = $tablaTraslado->addCell($tableW, ['valign' => 'center']);
 
@@ -2708,12 +2510,9 @@ class EstadisticasController extends Controller
         // ===== TABLA 2 FILAS: INSPECCIONES REALIZADAS =====
 
         $bgAux = 'EBE1D1';
+        $fontAuxTitle = $fontBold7;
+        $fontAuxSmall = ['name' => 'Arial', 'size' => 6];
 
-        // Fuente SOLO para esta tabla
-        $fontAuxTitle = $fontBold7;                       // TÍTULO (fila 1)
-        $fontAuxSmall = ['name' => 'Arial', 'size' => 6]; // texto (fila 2)
-
-        // Párrafos “apretados”
         $pAuxCenterTight = [
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'spaceAfter'  => 0,
@@ -2737,12 +2536,10 @@ class EstadisticasController extends Controller
             'cellMargin'  => 20,
         ]);
 
-        // ---------- FILA 1 (GRIS) ----------
         $tablaInspecciones->addRow(260, ['exactHeight' => true, 'height' => 260]);
         $cellH = $tablaInspecciones->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center']);
         $cellH->addText('INSPECCIONES REALIZADAS', $fontAuxTitle, $pAuxCenterTight);
 
-        // ---------- FILA 2 (BLANCA) ----------
         $tablaInspecciones->addRow(320, ['exactHeight' => true, 'height' => 320]);
         $cellB = $tablaInspecciones->addCell($tableW, ['valign' => 'center']);
 
@@ -2768,7 +2565,6 @@ class EstadisticasController extends Controller
             'cellMargin'  => 20,
         ]);
 
-        // Fila única (GRIS) apretada
         $tablaPersonasInvol->addRow(260, ['exactHeight' => true, 'height' => 260]);
         $cellPI = $tablaPersonasInvol->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center']);
 
@@ -2785,8 +2581,1686 @@ class EstadisticasController extends Controller
 
         $section->addTextBreak(1);
 
+        // ===============================
+        // ===== PERSONAS INVOLUCRADAS =====
+        // ===============================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7   = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7   = ['name' => 'Arial', 'size' => 7];
+        $fontLbl6   = ['name' => 'Arial', 'size' => 6, 'bold' => true];
+        $fontRoles6 = ['name' => 'Arial', 'size' => 6];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        
+        $conductoresUnicos = collect();
+
+        foreach ($hecho->vehiculos as $v) {
+            if (!empty($v->conductores) && $v->conductores->count() > 0) {
+                foreach ($v->conductores as $c) {
+                    $conductoresUnicos->push($c);
+                }
+            }
+        }
+
+        $conductoresUnicos = $conductoresUnicos->unique('id')->values();
+
+        // ---------- helper para filas ¿ ----------
+        $addCellTxt = function($table, $w, $txt, $font, $bg = null, $span = 1) use ($pLeftTight, $bgAux) {
+            $style = ['valign' => 'center'];
+            if ($bg !== null) $style['bgColor'] = $bg;
+            if ($span > 1) $style['gridSpan'] = $span;
+
+            $cell = $table->addCell($w, $style);
+            $cell->addText((string)$txt, $font, $pLeftTight);
+            return $cell;
+        };
+
+        $c1 = (int)round($tableW * 0.23);
+        $c2 = (int)round($tableW * 0.34);
+        $c3 = (int)round($tableW * 0.12);
+        $c4 = (int)round($tableW * 0.095);
+        $c5 = (int)round($tableW * 0.12);
+        $c6 = $tableW - ($c1 + $c2 + $c3 + $c4 + $c5);
+
+        // ---------- 1 tabla por conductor ----------
+        foreach ($conductoresUnicos as $c) {
+
+            $tCon = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            // ========= FILA 1: NOMBRE (label + valor a todo lo demás) =========
+            $tCon->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($tCon, $c1, 'NOMBRE', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $tableW - $c1, (string)($c->nombre ?? ''), $fontVal7, null, 5);
+
+            // ========= FILA 2: DOMICILIO =========
+            $tCon->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($tCon, $c1, 'DOMICILIO', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $tableW - $c1, (string)($c->domicilio ?? ''), $fontVal7, null, 5);
+
+            // ========= FILA 3: SEXO + ESTADO CIVIL (cuadro parejo) =========
+            $tCon->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($tCon, $c1, 'SEXO', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c2, (string)($c->sexo ?? ''), $fontVal7, null, 1);
+            $addCellTxt($tCon, $c3, 'ESTADO CIVIL', $fontLbl6, $bgAux, 1);
+            $addCellTxt($tCon, $c4, '', $fontVal7, null, 1);
+            // lo que sobra de la fila (para que siga siendo rectángulo perfecto)
+            $addCellTxt($tCon, $c5 + $c6, '', $fontVal7, null, 2);
+
+            // ========= FILA 4: ALIAS / FECHA NAC / LUGAR NAC (6 columnas completas) =========
+            $tCon->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($tCon, $c1, 'ALIAS O APODO', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c2, '', $fontVal7, null, 1);
+            $addCellTxt($tCon, $c3, 'FECHA DE NACIMIENTO', $fontLbl6, $bgAux, 1);
+            $addCellTxt($tCon, $c4, '', $fontVal7, null, 1);
+            $addCellTxt($tCon, $c5, 'LUGAR DE NACIMIENTO', $fontLbl6, $bgAux, 1);
+            $addCellTxt($tCon, $c6, '', $fontVal7, null, 1);
+
+            // ========= FILA 5: NACIONALIDAD / IDIOMA (ESPAÑOL) / OCUPACIÓN =========
+            $tCon->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($tCon, $c1, 'NACIONALIDAD', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c2, '', $fontVal7, null, 1);
+            $addCellTxt($tCon, $c3, 'IDIOMA', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c4, 'ESPAÑOL', $fontVal7, null, 1);
+            $addCellTxt($tCon, $c5, 'OCUPACIÓN', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c6, (string)($c->ocupacion ?? ''), $fontVal7, null, 1);
+
+            // ========= FILA 6: IDENTIFICACIÓN / FOLIO / ESCOLARIDAD =========
+            $tCon->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($tCon, $c1, 'IDENTIFICACIÓN', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c2, '', $fontVal7, null, 1);
+            $addCellTxt($tCon, $c3, 'FOLIO', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c4, '', $fontVal7, null, 1);
+            $addCellTxt($tCon, $c5, 'ESCOLARIDAD', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $c6, '', $fontVal7, null, 1);
+
+            // ========= FILA 7: TELÉFONOS (label + valor a todo lo demás) =========
+            $tCon->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($tCon, $c1, 'TELÉFONOS', $fontLbl7, $bgAux, 1);
+            $addCellTxt($tCon, $tableW - $c1, (string)($c->telefono ?? ''), $fontVal7, null, 5);
+
+            // ========= FILA 8: ROLES (1 sola celda, sin gris) =========
+            $tCon->addRow(280, ['exactHeight' => true, 'height' => 280]);
+            $roles = "VÍCTIMA [     ]      OFENDIDO [     ]      DENUNCIANTE [     ]      TESTIGO [     ]      IMPUTADO (A) [     ]";
+            $cellRoles = $tCon->addCell($tableW, ['gridSpan' => 6, 'valign' => 'center']);
+            $cellRoles->addText($roles, $fontRoles6, $pLeftTight);
+
+            // separación mínima entre conductores (sin inflar)
+            $section->addTextBreak(1);
+        }
+
+        // ===== TABLA 1 FILA: VEHICULOS INVOLUCRADAS =====
+
+        $bgAux = 'EBE1D1';
+
+        $tablaPersonasInvol = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 20,
+        ]);
+
+        $tablaPersonasInvol->addRow(260, ['exactHeight' => true, 'height' => 260]);
+        $cellPI = $tablaPersonasInvol->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center']);
+
+        $cellPI->addText(
+            'VEHICULOS INVOLUCRADOS',
+            $fontBold7,
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceAfter'  => 0,
+                'spaceBefore' => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+        // ===============================
+        // ===== VEHÍCULOS INVOLUCRADOS =====
+        // ===============================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 9, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 12];
+        $fontVal6 = ['name' => 'Arial', 'size' => 12];
+
+        $pCenterTight = [
+          'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+          'spaceAfter'  => 0,
+          'spaceBefore' => 0,
+          'lineHeight'  => 1.0,
+        ];
+
+        // ---- helper ----
+        $addCellTxt4 = function($table, $w, $txt, $font, $bg = null, $span = 1) use ($pCenterTight) {
+            $style = ['valign' => 'center'];
+            if ($bg !== null) $style['bgColor'] = $bg;
+            if ($span > 1)    $style['gridSpan'] = $span;
+
+            $cell = $table->addCell($w, $style);
+            $cell->addText((string)$txt, $font, $pCenterTight);
+            return $cell;
+        };
+
+        $vC1 = (int)round($tableW * 0.22);
+        $vC2 = (int)round($tableW * 0.28);
+        $vC3 = (int)round($tableW * 0.22);
+        $vC4 = $tableW - ($vC1 + $vC2 + $vC3);
+
+        foreach ($hecho->vehiculos as $i => $v) {
+
+            // tabla por vehículo
+            $tVeh = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            // ===== FILA 1: MARCA / TIPO =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'MARCA', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC2, $v->marca ?? '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'TIPO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, $v->tipo ?? '', $fontVal7, null);
+
+            // ===== FILA 2: LINEA / MODELO =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'LINEA', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC2, $v->linea ?? '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'MODELO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, $v->modelo ?? '', $fontVal7, null);
+
+            // ===== FILA 3: COLOR / PLACAS =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'COLOR', $fontLbl7, $bgAux, null);
+            $addCellTxt4($tVeh, $vC2, $v->color ?? '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'PLACAS', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, $v->placas ?? '', $fontVal7, null);
+
+            // ===== FILA 4: NO. SERIE / NO. MOTOR =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'NO. SERIE', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC2, $v->serie ?? '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'NO. MOTOR', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, '', $fontVal7, null);
+
+            // ===== FILA 5: NO SERIE ALTERADO / NO. MOTOR ALTERADO =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'NO SERIE ALTERADO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC2, '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'NO. MOTOR ALTERADO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, '', $fontVal7, null);
+
+            // ===== FILA 6: NO. ECONOMICO / CAPACIDAD =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'NO. ECONOMICO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC2, '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'CAPACIDAD', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, $v->capacidad_personas ?? '', $fontVal7, null);
+
+            // ===== FILA 7: PROCEDENCIA / REGISTRO =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'PROCEDENCIA', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC2, '', $fontVal7, null);
+            $addCellTxt4($tVeh, $vC3, 'REGISTRO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $vC4, '', $fontVal7, null);
+
+            // ===== FILA 8: TIPO DE SERVICIO (2 columnas) =====
+            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt4($tVeh, $vC1, 'TIPO DE SERVICIO', $fontLbl7, $bgAux);
+            $addCellTxt4($tVeh, $tableW - $vC1, $v->tipo_servicio ?? '', $fontVal7, null, 3);
+
+            // ===== FILA 9: OBSERVACIONES (solo palabra en gris, toda la fila) =====
+            $tVeh->addRow(240, ['exactHeight' => true, 'height' => 240]);
+            $addCellTxt4($tVeh, $tableW, 'OBSERVACIONES', $fontLbl7, $bgAux, 4);
+
+            // ===== FILA 10: partes_danadas (toda la fila, sin gris) =====
+            $tVeh->addRow(320, ['exactHeight' => true, 'height' => 320]);
+            $partes = (string)($v->partes_danadas ?? '');
+            $addCellTxt4($tVeh, $tableW, $partes, $fontVal6, null, 4);
+
+            // separación mínima entre vehículos
+            $section->addTextBreak(1);
+        }
+
+        // =========================================
+        // ===== TABLA FIRMAS (como tu 2da imagen)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $fC1 = (int)round($tableW * 0.20);
+        $fC2 = (int)round($tableW * 0.26);
+        $fC3 = (int)round($tableW * 0.14);
+        $fC4 = $tableW - ($fC1 + $fC2 + $fC3);
+
+        $tFirm = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $addCell = function($table, $w, $txt, $font, $p, $style = []) {
+            $base = ['valign' => 'center'];
+            $cell = $table->addCell($w, array_merge($base, $style));
+            if ($txt !== null) {
+                $cell->addText((string)$txt, $font, $p);
+            }
+            return $cell;
+        };
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+        $unidadTxt = (string)($hecho->unidad ?? '');
+
+        // -------------------- FILA 1 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), $peritoTxt, $fontVal7, $pCenterTight, [
+            'gridSpan' => 3
+        ]);
+
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'restart',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 2 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), 'NOMBRE DEL AGENTE INVESTIGADOR', $fontLbl7, $pCenterTight, [
+            'bgColor'  => $bgAux,
+            'gridSpan' => 3
+        ]);
+
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 3 --------------------
+        $tFirm->addRow(520, ['exactHeight' => true, 'height' => 520]);
+        $addCell($tFirm, $fC1, '', $fontVal7, $pCenterTight);
+        $addCell($tFirm, $fC2, '', $fontVal7, $pCenterTight);
+        $addCell($tFirm, $fC3, $unidadTxt, $fontVal7, $pCenterTight);
+
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 4 (encabezados grises) --------------------
+        $tFirm->addRow(300, ['exactHeight' => true, 'height' => 300]);
+
+        $addCell($tFirm, $fC1, 'CARGO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC2, 'NÚMERO DE GAFETE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC3, 'UNIDAD', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC4, 'FIRMA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+
+        $section->addPageBreak();
 
 
+
+
+
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃      REGISTRO E INSP. LUGAR DEL HECHO     ┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+        // ===== TÍTULO DEL DOCUMENTO (centrado) =====
+        $section->addText(
+            'PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 14, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+
+        // Fecha (SOLO fecha de la columna hechos.fecha)
+        $fechaLlegada = !empty($hecho->fecha)
+            ? \Carbon\Carbon::parse($hecho->fecha)->format('d/m/Y')
+            : '';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // 4 columnas fijas (mismo ancho total que vienes usando: $tableW)
+        $uC1 = (int)round($tableW * 0.30); // Unidad Administrativa
+        $uC2 = (int)round($tableW * 0.22); // Entidad Federativa
+        $uC3 = (int)round($tableW * 0.20); // Municipio
+        $uC4 = $tableW - ($uC1 + $uC2 + $uC3); // Fecha y hora de llegada
+
+        $tablaUA = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        // ---------- FILA 1 (ENCABEZADOS) ----------
+        $tablaUA->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $tablaUA->addCell($uC1, ['valign' => 'center'])->addText('Unidad Administrativa', $fontLbl7, $pCenterTight);
+        $tablaUA->addCell($uC2, ['valign' => 'center'])->addText('Entidad Federativa', $fontLbl7, $pCenterTight);
+        $tablaUA->addCell($uC3, ['valign' => 'center'])->addText('Municipio', $fontLbl7, $pCenterTight);
+        $tablaUA->addCell($uC4, ['valign' => 'center'])->addText('Fecha y hora de llegada.', $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 2 (VALORES) ----------
+        $tablaUA->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $tablaUA->addCell($uC1, ['valign' => 'center'])->addText('PERITOS', $fontVal7, $pCenterTight);
+        $tablaUA->addCell($uC2, ['valign' => 'center'])->addText('MICHOACAN', $fontVal7, $pCenterTight);
+        $tablaUA->addCell($uC3, ['valign' => 'center'])->addText('MORELIA', $fontVal7, $pCenterTight);
+        $tablaUA->addCell($uC4, ['valign' => 'center'])->addText($fechaLlegada, $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+
+
+                // ===== 1. LUGAR DE LOS HECHOS Y/O DEL HALLAZGO =====
+        $section->addText(
+            '1.	LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 4 FILAS =====
+        // Lugar / Código Postal / Entre que calles / Observaciones
+        // =========================================
+
+        $lugarTxt = '';
+        $calleTxt   = trim((string)($hecho->calle ?? ''));
+        $coloniaTxt = trim((string)($hecho->colonia ?? ''));
+
+        if ($calleTxt !== '' && $coloniaTxt !== '') {
+            $lugarTxt = $calleTxt . ', col. ' . $coloniaTxt;
+        } elseif ($calleTxt !== '') {
+            $lugarTxt = $calleTxt;
+        } elseif ($coloniaTxt !== '') {
+            $lugarTxt = 'col. ' . $coloniaTxt;
+        }
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 12];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaLugar = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // ---------- FILA 1 ----------
+        $tablaLugar->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaLugar->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Lugar: ', $fontLbl7);
+        $run->addText($lugarTxt, $fontVal7);
+
+        // ---------- FILA 2 ----------
+        $tablaLugar->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaLugar->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Código Postal: ', $fontLbl7);
+        // (sin valor, queda en blanco)
+
+        // ---------- FILA 3 ----------
+        $tablaLugar->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaLugar->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Entre que calles: ', $fontLbl7);
+        $run->addText((string)($hecho->entre_calles ?? ''), $fontVal7);
+
+        // ---------- FILA 4 ----------
+        $tablaLugar->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaLugar->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Observaciones: ', $fontLbl7);
+        // (contenido libre)
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (ESPACIO PARA TEXTO)
+        // =========================================
+
+        $tablaEspacio = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // Fila única con altura suficiente
+        $tablaEspacio->addRow(900, ['exactHeight' => false]);
+        $cell = $tablaEspacio->addCell($tableW, ['valign' => 'top']);
+
+        // Simulación de saltos de línea (≈ 8)
+        $run = $cell->addTextRun([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ]);
+
+        for ($i = 0; $i < 12; $i++) {
+            $run->addTextBreak();
+        }
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+
+                        // ===== 2. PROTECCIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO =====
+        $section->addText(
+            '2.	PROTECCIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 2 FILAS (SIN FONDO)
+        // Acordonamiento / Observaciones
+        // =========================================
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaAcord = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // ---------- FILA 1 ----------
+        $tablaAcord->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaAcord->addCell($tableW, ['valign' => 'center']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('Acordonamiento    ', $fontLbl7);
+        $run->addText('SÍ   [     ]', $fontVal7);
+        $run->addText('          ');
+        $run->addText('NO    [     ]', $fontVal7);
+
+        // ---------- FILA 2 ----------
+        $tablaAcord->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaAcord->addCell($tableW, ['valign' => 'center']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('Observaciones: ', $fontLbl7);
+
+        $section->addTextBreak(1);
+
+
+
+        
+                        // ===== 3. OBSERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO =====
+        $section->addText(
+            '3.	OBSERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 4 FILAS (SIN FONDO)
+        // Fijación fotográfica / Observaciones / Alteración del lugar / Observaciones
+        // =========================================
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaFix = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // ---------- FILA 1 ----------
+        $tablaFix->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaFix->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Fijación fotográfica y/o videograbación    ', $fontLbl7);
+        $run->addText('SÍ      [     ]', $fontVal7);
+        $run->addText('             ');
+        $run->addText('NO      [     ]', $fontVal7);
+
+        // ---------- FILA 2 ----------
+        $tablaFix->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaFix->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Observaciones: ', $fontLbl7);
+
+        // ---------- FILA 3 ----------
+        $tablaFix->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaFix->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Alteración del lugar    ', $fontLbl7);
+        $run->addText('SÍ      [     ]', $fontVal7);
+        $run->addText('             ');
+        $run->addText('NO      [     ]', $fontVal7);
+
+        // ---------- FILA 4 ----------
+        $tablaFix->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaFix->addCell($tableW, ['valign' => 'center']);
+        $run  = $cell->addTextRun($pLeftTight);
+        $run->addText('Observaciones: ', $fontLbl7);
+
+        $section->addTextBreak(1);
+
+
+
+                               // ===== 4. INFORMACIÓN OBTENIDA SOBRE EL LUGAR DE LOS HECHOS =====
+        $section->addText(
+            '4.	INFORMACIÓN OBTENIDA SOBRE EL LUGAR DE LOS HECHOS',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (DESCRIPCIÓN)
+        // =========================================
+
+        $fontTxt7 = ['name' => 'Arial', 'size' => 7];
+
+        $pJustifyTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::BOTH,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaDesc = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        $tablaDesc->addRow(520, ['exactHeight' => false]);
+        $cell = $tablaDesc->addCell($tableW, ['valign' => 'top']);
+
+        $cell->addText(
+            'Corresponde a la Carr. Tiripetio - Acuitzio, la cual se encuentra construida por una superficie de asfalto, en buen estado de conservación, tramo a nivel, cuenta con balizamientos, tiene capacidad para dos carriles de circulación, uno para cada sentido, orientados de norponiente a suroriente y viceversa, divididos por una línea longitudinal color amarillo, divisora de carriles, a la hora de la intervención la superficie de rodamiento se encontraba limpia y seca.',
+            $fontTxt7,
+            $pJustifyTight
+        );
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+                                // ===== 5. DETENIDO (S) =====
+        $section->addText(
+            '5.	DETENIDO (S)',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+
+        // =========================================
+        // ===== TABLA (3 FILAS) =====
+        // Fila 1: SI / NUMERO / NO
+        // Fila 2 (GRIS): Nombre(s) / Sexo / Edad
+        // Fila 3: fila en blanco
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaDet = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // 3 columnas (Nombre / Sexo / Edad)
+        $dC1 = (int)round($tableW * 0.70);
+        $dC2 = (int)round($tableW * 0.15);
+        $dC3 = $tableW - ($dC1 + $dC2);
+
+        // ---------- FILA 1 (texto en una sola celda) ----------
+        $tablaDet->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaDet->addCell($tableW, ['gridSpan' => 3, 'valign' => 'center']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('SI', $fontVal7);
+        $run->addText('   [    ]    ', $fontVal7);
+        $run->addText('NUMERO', $fontVal7);
+        $run->addText('   [  0  ]    ', $fontVal7);
+        $run->addText('NO', $fontVal7);
+        $run->addText('   [  X  ]', $fontVal7);
+
+        // ---------- FILA 2 (GRIS: encabezados) ----------
+        $tablaDet->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaDet->addCell($dC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Nombre (s)', $fontLbl7, $pCenterTight);
+        $tablaDet->addCell($dC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Sexo', $fontLbl7, $pCenterTight);
+        $tablaDet->addCell($dC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Edad', $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 3 (en blanco) ----------
+        $tablaDet->addRow(360, ['exactHeight' => true, 'height' => 360]);
+        $tablaDet->addCell($dC1, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+        $tablaDet->addCell($dC2, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+        $tablaDet->addCell($dC3, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+
+        $section->addTextBreak(1);
+
+
+
+                                        // ===== 6. VICTIMA (S) =====
+        $section->addText(
+            '6.	VICTIMA (S)',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+
+                // =========================================
+        // ===== TABLA (3 FILAS) =====
+        // Fila 1: SI / NUMERO / NO
+        // Fila 2 (GRIS): Nombre(s) / Sexo / Edad
+        // Fila 3: fila en blanco
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaDet = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // 3 columnas (Nombre / Sexo / Edad)
+        $dC1 = (int)round($tableW * 0.70);
+        $dC2 = (int)round($tableW * 0.15);
+        $dC3 = $tableW - ($dC1 + $dC2);
+
+        // ---------- FILA 1 (texto en una sola celda) ----------
+        $tablaDet->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaDet->addCell($tableW, ['gridSpan' => 3, 'valign' => 'center']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('SI', $fontVal7);
+        $run->addText('   [    ]    ', $fontVal7);
+        $run->addText('NUMERO', $fontVal7);
+        $run->addText('   [  0  ]    ', $fontVal7);
+        $run->addText('NO', $fontVal7);
+        $run->addText('   [  X  ]', $fontVal7);
+
+        // ---------- FILA 2 (GRIS: encabezados) ----------
+        $tablaDet->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaDet->addCell($dC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Nombre (s)', $fontLbl7, $pCenterTight);
+        $tablaDet->addCell($dC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Sexo', $fontLbl7, $pCenterTight);
+        $tablaDet->addCell($dC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Edad', $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 3 (en blanco) ----------
+        $tablaDet->addRow(360, ['exactHeight' => true, 'height' => 360]);
+        $tablaDet->addCell($dC1, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+        $tablaDet->addCell($dC2, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+        $tablaDet->addCell($dC3, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+
+                       // ===== 7. VEHÍCULOS IMPLICADOS =====
+        $section->addText(
+            '7.	VEHÍCULOS IMPLICADOS',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+        // =========================================
+        // ===== TABLA: FIJACIÓN + LISTADO DE VEHÍCULOS (DINÁMICA)
+        // Fila 1: (1 sola celda) "Fijación..." SI/NO
+        // Fila 2 (GRIS): MARCA | TIPO | COLOR | MODELO | PLACAS
+        // Filas 3..N: 1 por cada vehículo del hecho (si no hay, no se agrega ninguna)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 12];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // 5 columnas fijas
+        $v5C1 = (int)round($tableW * 0.22); // MARCA
+        $v5C2 = (int)round($tableW * 0.20); // TIPO
+        $v5C3 = (int)round($tableW * 0.18); // COLOR
+        $v5C4 = (int)round($tableW * 0.18); // MODELO
+        $v5C5 = $tableW - ($v5C1 + $v5C2 + $v5C3 + $v5C4); // PLACAS
+
+        $tablaFixVeh = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // ---------- FILA 1 (1 sola columna / sin fondo) ----------
+        $tablaFixVeh->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaFixVeh->addCell($tableW, ['gridSpan' => 5, 'valign' => 'center']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('Fijación fotográfica y/o videograbación', $fontVal7);
+        $run->addText('                       ', $fontVal7);
+        $run->addText('SI', $fontVal7);
+        $run->addText('  [  X  ]', $fontVal7);
+        $run->addText('    ', $fontVal7);
+        $run->addText('NO', $fontVal7);
+        $run->addText('  [  X  ]', $fontVal7);
+
+        // ---------- FILA 2 (GRIS: encabezados) ----------
+        $tablaFixVeh->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaFixVeh->addCell($v5C1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('MARCA',  $fontLbl7, $pCenterTight);
+        $tablaFixVeh->addCell($v5C2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('TIPO',   $fontLbl7, $pCenterTight);
+        $tablaFixVeh->addCell($v5C3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('COLOR',  $fontLbl7, $pCenterTight);
+        $tablaFixVeh->addCell($v5C4, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('MODELO', $fontLbl7, $pCenterTight);
+        $tablaFixVeh->addCell($v5C5, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('PLACAS', $fontLbl7, $pCenterTight);
+
+        // ---------- FILAS DINÁMICAS (1 por vehículo) ----------
+        if (isset($hecho->vehiculos) && $hecho->vehiculos->count() > 0) {
+
+            foreach ($hecho->vehiculos as $v) {
+
+                $marca  = (string)($v->marca ?? '');
+                $tipo   = (string)($v->tipo ?? '');
+                $color  = (string)($v->color ?? '');
+                $modelo = (string)($v->modelo ?? '');
+                $placas = (string)($v->placas ?? '');
+
+                $tablaFixVeh->addRow(280, ['exactHeight' => true, 'height' => 280]);
+                $tablaFixVeh->addCell($v5C1, ['valign' => 'center'])->addText($marca,  $fontVal7, $pCenterTight);
+                $tablaFixVeh->addCell($v5C2, ['valign' => 'center'])->addText($tipo,   $fontVal7, $pCenterTight);
+                $tablaFixVeh->addCell($v5C3, ['valign' => 'center'])->addText($color,  $fontVal7, $pCenterTight);
+                $tablaFixVeh->addCell($v5C4, ['valign' => 'center'])->addText($modelo, $fontVal7, $pCenterTight);
+                $tablaFixVeh->addCell($v5C5, ['valign' => 'center'])->addText($placas, $fontVal7, $pCenterTight);
+            }
+        }
+
+        $section->addTextBreak(1);
+
+
+
+
+             // ===== 8.	TESTIGOS (S): =====
+        $section->addText(
+            '8.	TESTIGOS (S):',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+                        // =========================================
+        // ===== TABLA (3 FILAS) =====
+        // Fila 1: SI / NUMERO / NO
+        // Fila 2 (GRIS): Nombre(s) / Sexo / Edad
+        // Fila 3: fila en blanco
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaDet = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // 3 columnas (Nombre / Sexo / Edad)
+        $dC1 = (int)round($tableW * 0.70);
+        $dC2 = (int)round($tableW * 0.15);
+        $dC3 = $tableW - ($dC1 + $dC2);
+
+        // ---------- FILA 1 (texto en una sola celda) ----------
+        $tablaDet->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaDet->addCell($tableW, ['gridSpan' => 3, 'valign' => 'center']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('SI', $fontVal7);
+        $run->addText('   [    ]    ', $fontVal7);
+        $run->addText('NUMERO', $fontVal7);
+        $run->addText('   [  0  ]    ', $fontVal7);
+        $run->addText('NO', $fontVal7);
+        $run->addText('   [  X  ]', $fontVal7);
+
+        // ---------- FILA 2 (GRIS: encabezados) ----------
+        $tablaDet->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaDet->addCell($dC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Nombre (s)', $fontLbl7, $pCenterTight);
+        $tablaDet->addCell($dC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Sexo', $fontLbl7, $pCenterTight);
+        $tablaDet->addCell($dC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Edad', $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 3 (en blanco) ----------
+        $tablaDet->addRow(360, ['exactHeight' => true, 'height' => 360]);
+        $tablaDet->addCell($dC1, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+        $tablaDet->addCell($dC2, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+        $tablaDet->addCell($dC3, ['valign' => 'center'])->addText('', $fontVal7, $pLeftTight);
+
+        $section->addTextBreak(1);
+
+
+
+        // ===== 9. OBSERVACIONES GENERALES: =====
+        $section->addText(
+            '9. OBSERVACIONES GENERALES:',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (CON TEXTO)
+        // (en vez de estar en blanco, mete el texto con grúa + dirección en negritas)
+        // =========================================
+
+        // ---- En tu DB: vehiculos.grua guarda NOMBRE (ej. "DANNYS") ----
+        $gruaNombres = isset($hecho->vehiculos)
+            ? $hecho->vehiculos
+                ->pluck('grua')
+                ->filter(fn($x) => !is_null($x) && trim((string)$x) !== '' && trim((string)$x) !== '0')
+                ->map(fn($x) => strtoupper(trim((string)$x)))
+                ->unique()
+                ->values()
+            : collect();
+
+        $gruaNombre    = '________________';
+        $gruaDireccion = '________________';
+
+        if ($gruaNombres->count() > 0) {
+
+            $gruas = \App\Models\Grua::whereIn(\DB::raw('UPPER(nombre)'), $gruaNombres->toArray())->get();
+
+            if ($gruas->count() > 0) {
+
+                $gruaNombre = $gruas->pluck('nombre')->filter()->implode(' y ');
+
+                $dir = $gruas->pluck('direccion')->filter()->first();
+                if (!$dir) $dir = $gruas->pluck('ubicacion_corralon')->filter()->first();
+
+                $gruaDireccion = $dir ? $dir : '________________';
+
+            } else {
+
+                $gruaNombre    = $gruaNombres->implode(' y ');
+                $gruaDireccion = '________________';
+            }
+        }
+
+        $tablaObs = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        $tablaObs->addRow(900, ['exactHeight' => false]);
+        $cell = $tablaObs->addCell($tableW, ['valign' => 'top']);
+
+        // Texto dentro de la celda (justificado) con variables en negritas
+        $run = $cell->addTextRun([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::BOTH,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ]);
+
+        $run->addText('Para el traslado de ambos vehículos fui auxiliado por la grúa particular ');
+        $run->addText($gruaNombre, ['name' => 'Arial', 'size' => 12, 'bold' => true]);
+        $run->addText(', quien los resguardó en sus propias instalaciones, garaje de apoyo a esta dependencia, ubicado en ');
+        $run->addText($gruaDireccion, ['name' => 'Arial', 'size' => 7, 'bold' => true]);
+        $run->addText('.');
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+        // ===== 10.	SERVIDORES PÚBLICOS QUE INTERVINIERON EN LA PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO =====
+        $section->addText(
+            '10 SERVIDORES PÚBLICOS QUE INTERVINIERON EN LA PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+        // =========================================
+        // ===== TABLA 3 COLUMNAS x 2 FILAS =====
+        // Fila 1 (GRIS): Nombre(s) | Cargo | Firma
+        // Fila 2: en blanco
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaFirmas = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // Anchos de columnas
+        $fC1 = (int)round($tableW * 0.40); // Nombre(s)
+        $fC2 = (int)round($tableW * 0.25); // Cargo
+        $fC3 = $tableW - ($fC1 + $fC2);    // Firma
+
+        // ---------- FILA 1 (GRIS) ----------
+        $tablaFirmas->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaFirmas->addCell($fC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Nombre (s)', $fontLbl7, $pCenterTight);
+        $tablaFirmas->addCell($fC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Cargo',      $fontLbl7, $pCenterTight);
+        $tablaFirmas->addCell($fC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Firma',      $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 2 (EN BLANCO) ----------
+        $tablaFirmas->addRow(360, ['exactHeight' => true, 'height' => 360]);
+        $tablaFirmas->addCell($fC1, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+        $tablaFirmas->addCell($fC2, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+        $tablaFirmas->addCell($fC3, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+                        // ===== 11.	SERVIDORES PÚBLICOS QUE ENTREGAN LA PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO =====
+        $section->addText(
+            '11 SERVIDORES PÚBLICOS QUE ENTREGAN LA PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+
+        // =========================================
+        // ===== TABLA 3 COLUMNAS x 2 FILAS (CASI IGUAL)
+        // Fila 1 (GRIS): Nombre(s) | Cargo | Firma
+        // Fila 2: perito (col1) | PERITO (col2) | blanco (col3, SIN FONDO)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaPerito = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // Anchos de columnas
+        $pC1 = (int)round($tableW * 0.40); // Nombre(s)
+        $pC2 = (int)round($tableW * 0.25); // Cargo
+        $pC3 = $tableW - ($pC1 + $pC2);    // Firma
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+
+        // ---------- FILA 1 (GRIS) ----------
+        $tablaPerito->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaPerito->addCell($pC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Nombre (s)', $fontLbl7, $pCenterTight);
+        $tablaPerito->addCell($pC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Cargo',      $fontLbl7, $pCenterTight);
+        $tablaPerito->addCell($pC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Firma',      $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 2 (PERITO / SIN FONDO EN FIRMA) ----------
+        $tablaPerito->addRow(360, ['exactHeight' => true, 'height' => 360]);
+        $tablaPerito->addCell($pC1, ['valign' => 'center'])->addText($peritoTxt, $fontVal7, $pCenterTight);
+        $tablaPerito->addCell($pC2, ['valign' => 'center'])->addText('PERITO',   $fontVal7, $pCenterTight);
+        $tablaPerito->addCell($pC3, ['valign' => 'center'])->addText('',         $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+
+
+
+
+
+
+                // ===== 12.	SSERVIDORES PÚBLICOS QUE RECIBEN LA PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO =====
+        $section->addText(
+            '12 SERVIDORES PÚBLICOS QUE RECIBEN LA PRESERVACIÓN DEL LUGAR DE LOS HECHOS Y/O DEL HALLAZGO',
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+
+        // =========================================
+        // ===== TABLA 3 COLUMNAS x 2 FILAS =====
+        // Fila 1 (GRIS): Nombre(s) | Cargo | Firma
+        // Fila 2: en blanco
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaFirmas = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // Anchos de columnas
+        $fC1 = (int)round($tableW * 0.40); // Nombre(s)
+        $fC2 = (int)round($tableW * 0.25); // Cargo
+        $fC3 = $tableW - ($fC1 + $fC2);    // Firma
+
+        // ---------- FILA 1 (GRIS) ----------
+        $tablaFirmas->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $tablaFirmas->addCell($fC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Nombre (s)', $fontLbl7, $pCenterTight);
+        $tablaFirmas->addCell($fC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Cargo',      $fontLbl7, $pCenterTight);
+        $tablaFirmas->addCell($fC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('Firma',      $fontLbl7, $pCenterTight);
+
+        // ---------- FILA 2 (EN BLANCO) ----------
+        $tablaFirmas->addRow(360, ['exactHeight' => true, 'height' => 360]);
+        $tablaFirmas->addCell($fC1, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+        $tablaFirmas->addCell($fC2, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+        $tablaFirmas->addCell($fC3, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+        $section->addPageBreak();
+
+
+
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃ ACTA DE RGSTO. E INSP. DEL LUGAR DEL HECHO┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+        // ===== TÍTULO DEL DOCUMENTO (centrado en dos líneas, como formato oficial) =====
+        $runTitulo = $section->addTextRun([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ]);
+
+        $runTitulo->addText(
+            'ACTA DE REGISTRO E INSPECCIÓN',
+            ['name' => 'Arial', 'size' => 14, 'bold' => true]
+        );
+
+        $runTitulo->addTextBreak();
+
+        $runTitulo->addText(
+            'DEL LUGAR DEL HECHO',
+            ['name' => 'Arial', 'size' => 14, 'bold' => true]
+        );
+
+        $section->addTextBreak(1);
+
+
+        // =========================================
+        // ===== TABLA 4 COLUMNAS x 3 FILAS (COL 3 y 4 MÁS ANGOSTAS) =====
+        // LUGAR / FECHA
+        // POLICÍA INVESTIGADOR / HORA
+        // UNIDAD ESPECIAL / N.U.C
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 12];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // ----- valores dinámicos -----
+        $calleTxt   = trim((string)($hecho->calle ?? ''));
+        $coloniaTxt = trim((string)($hecho->colonia ?? ''));
+
+        $lugarTxt = '';
+        if ($calleTxt !== '' && $coloniaTxt !== '') {
+            $lugarTxt = $calleTxt . ', col. ' . $coloniaTxt;
+        } elseif ($calleTxt !== '') {
+            $lugarTxt = $calleTxt;
+        } elseif ($coloniaTxt !== '') {
+            $lugarTxt = 'col. ' . $coloniaTxt;
+        }
+
+        $fechaTxt  = !empty($hecho->fecha)
+            ? \Carbon\Carbon::parse($hecho->fecha)->format('d/m/Y')
+            : '';
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+
+        // ----- tabla -----
+        $tablaDatos = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // ✅ anchos: col 3 y 4 más angostas (como en tu imagen)
+        $c1 = (int)round($tableW * 0.18); // etiqueta izquierda
+        $c3 = (int)round($tableW * 0.16); // etiqueta derecha (más angosta)
+        $c4 = (int)round($tableW * 0.16); // valor derecha (más angosta)
+        $c2 = $tableW - ($c1 + $c3 + $c4); // valor izquierda (se queda con lo demás)
+
+        // ---------- FILA 1 ----------
+        $tablaDatos->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $tablaDatos->addCell($c1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('LUGAR', $fontLbl7, $pCenterTight);
+        $tablaDatos->addCell($c2, ['valign' => 'center'])->addText($lugarTxt, $fontVal7, $pLeftTight);
+        $tablaDatos->addCell($c3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('FECHA', $fontLbl7, $pCenterTight);
+        $tablaDatos->addCell($c4, ['valign' => 'center'])->addText($fechaTxt, $fontVal7, $pCenterTight);
+
+        // ---------- FILA 2 ----------
+        $tablaDatos->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $tablaDatos->addCell($c1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('POLICÍA INVESTIGADOR', $fontLbl7, $pCenterTight);
+        $tablaDatos->addCell($c2, ['valign' => 'center'])->addText($peritoTxt, $fontVal7, $pLeftTight);
+        $tablaDatos->addCell($c3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('HORA', $fontLbl7, $pCenterTight);
+        $tablaDatos->addCell($c4, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+
+        // ---------- FILA 3 ----------
+        $tablaDatos->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $tablaDatos->addCell($c1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('UNIDAD ESPECIAL', $fontLbl7, $pCenterTight);
+        $tablaDatos->addCell($c2, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+        $tablaDatos->addCell($c3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('N.U.C', $fontLbl7, $pCenterTight);
+        $tablaDatos->addCell($c4, ['valign' => 'center'])->addText('', $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (FONDO GRIS, SIN MARCOS VISIBLES)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontTxt7 = ['name' => 'Arial', 'size' => 7];
+
+        $pJustifyTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::BOTH,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaLegal = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 0,          // 👈 sin bordes
+            'borderColor' => 'FFFFFF',   // respaldo visual
+            'cellMargin'  => 60,
+        ]);
+
+        $tablaLegal->addRow(320, ['exactHeight' => true, 'height' => 320]);
+        $cell = $tablaLegal->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center'
+        ]);
+
+        $cell->addText(
+            'Con base en lo previsto por los artículos 132 fracción VII, 214, 217, 251 fracciones I y II del Código Nacional de Procedimientos Penales.',
+            $fontTxt7,
+            $pJustifyTight
+        );
+
+        $section->addTextBreak(1);
+
+
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 2 FILAS =====
+        // Fila 1 (GRIS): Título + Descripción (en la MISMA fila)
+        // Fila 2: Texto descriptivo
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontTxt7 = ['name' => 'Arial', 'size' => 12];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pJustifyTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::BOTH,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaDescLugar = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 50,
+        ]);
+
+        // ---------- FILA 1 (GRIS: TÍTULO + DESCRIPCIÓN EN UNA SOLA FILA) ----------
+        $tablaDescLugar->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $cell = $tablaDescLugar->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center'
+        ]);
+
+        $run = $cell->addTextRun($pLeftTight);
+        $run->addText('DESCRIPCIÓN DEL LUGAR', $fontLbl7);
+        $run->addText('    ');
+        $run->addText(
+            'Descripción: (Qué, Quién, Cuándo, Cómo, Porqué, Dónde, Con qué)',
+            $fontTxt7
+        );
+
+        // ---------- FILA 2 (TEXTO DESCRIPTIVO) ----------
+        $tablaDescLugar->addRow(520, ['exactHeight' => false]);
+        $cell = $tablaDescLugar->addCell($tableW, ['valign' => 'top']);
+
+        $cell->addText(
+            'Corresponde a la Carr. Tiripetio - Acuitzio, la cual se encuentra construida por una superficie de asfalto, en buen estado de conservación, tramo a nivel, cuenta con balizamientos, tiene capacidad para dos carriles de circulación, uno para cada sentido, orientados de norponiente a suroriente y viceversa, divididos por una línea longitudinal color amarillo, divisora de carriles, a la hora de la intervención la superficie de rodamiento se encontraba limpia y seca.',
+            $fontTxt7,
+            $pJustifyTight
+        );
+
+        $section->addTextBreak(1);
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (FONDO GRIS, SIN MARCOS VISIBLES)
+        // TEXTO CENTRADO Y EN NEGRITAS
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontTxt7Bold = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaLegal = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 0,        // sin bordes visibles
+            'borderColor' => 'FFFFFF',
+            'cellMargin'  => 60,
+        ]);
+
+        $tablaLegal->addRow(320, ['exactHeight' => true, 'height' => 320]);
+        $cell = $tablaLegal->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center'
+        ]);
+
+        $cell->addText(
+            'PERSONAS ENCONTRADAS EN EL LUGAR.',
+            $fontTxt7Bold,
+            $pCenterTight
+        );
+
+        $section->addTextBreak();
 
 
 
@@ -2924,35 +4398,351 @@ class EstadisticasController extends Controller
         }
 
 
-
-
-
-
-                // ===== TABLA 1 FILA: VEHICULOS INVOLUCRADAS =====
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (FONDO GRIS, SIN MARCOS VISIBLES)
+        // TEXTO CENTRADO Y EN NEGRITAS
+        // =========================================
 
         $bgAux = 'EBE1D1';
 
-        $tablaPersonasInvol = $section->addTable([
+        $fontTxt7Bold = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaLegal = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 0,        // sin bordes visibles
+            'borderColor' => 'FFFFFF',
+            'cellMargin'  => 60,
+        ]);
+
+        $tablaLegal->addRow(320, ['exactHeight' => true, 'height' => 320]);
+        $cell = $tablaLegal->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center'
+        ]);
+
+        $cell->addText(
+            'OBJETOS ENCONTRADOS EN EL LUGAR.',
+            $fontTxt7Bold,
+            $pCenterTight
+        );
+
+        $section->addTextBreak();
+
+
+        // =========================================
+        // ===== TABLA 3 COLUMNAS: OBJETOS ASEGURADOS (1 fila por vehículo) =====
+        // - Encabezado gris
+        // - Filas dinámicas: una por cada vehículo del hecho
+        // - Si un dato es NULL / vacío: se OMITE el fragmento completo (no "Serie: " en blanco)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaObj = $section->addTable([
             'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
             'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
             'width'       => $tableW,
             'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
             'borderSize'  => 6,
             'borderColor' => '000000',
-            'cellMargin'  => 20,
+            'cellMargin'  => 40,
         ]);
 
-        // Fila única (GRIS) apretada
-        $tablaPersonasInvol->addRow(260, ['exactHeight' => true, 'height' => 260]);
-        $cellPI = $tablaPersonasInvol->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center']);
+        // Anchos (3 columnas)
+        $oC1 = (int)round($tableW * 0.12);  // NUMERO
+        $oC2 = (int)round($tableW * 0.20);  // OBJETO
+        $oC3 = $tableW - ($oC1 + $oC2);     // DESCRIPCIÓN
 
-        $cellPI->addText(
-            'VEHICULOS INVOLUCRADOS',
-            $fontBold7,
+        // ---------- ENCABEZADO ----------
+        $tablaObj->addRow(300, ['exactHeight' => true, 'height' => 300]);
+        $tablaObj->addCell($oC1, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('NUMERO', $fontLbl7, $pCenterTight);
+        $tablaObj->addCell($oC2, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('OBJETO', $fontLbl7, $pCenterTight);
+        $tablaObj->addCell($oC3, ['bgColor' => $bgAux, 'valign' => 'center'])->addText('DESCRIPCIÓN', $fontLbl7, $pCenterTight);
+
+        // ---------- FILAS DINÁMICAS (1 por vehículo) ----------
+        if (isset($hecho->vehiculos) && $hecho->vehiculos->count() > 0) {
+
+            foreach ($hecho->vehiculos as $idx => $v) {
+
+                $num = $idx + 1;
+                $letra = chr(65 + $idx); // A, B, C...
+
+                // helper: agrega fragmento SOLO si hay valor
+                $addFrag = function (&$parts, $label, $value) {
+                    $val = trim((string)($value ?? ''));
+                    if ($val !== '' && strtoupper($val) !== 'NULL' && $val !== '0') {
+                        $parts[] = $label . ' ' . $val;
+                    }
+                };
+
+                $parts = [];
+
+                $addFrag($parts, 'Marca', $v->marca);
+                $addFrag($parts, 'Tipo', $v->tipo);
+                $addFrag($parts, 'Línea', $v->linea);
+                $addFrag($parts, 'Color', $v->color);
+
+                // Capacidad (si es numérica y > 0)
+                $cap = $v->capacidad_personas;
+                if (!is_null($cap) && (string)$cap !== '' && (int)$cap > 0) {
+                    $parts[] = 'Capacidad para ' . (int)$cap . ' Personas';
+                }
+
+                // Placas + (opcional) servicio + (opcional) estado
+                $placas = trim((string)($v->placas ?? ''));
+                if ($placas !== '' && strtoupper($placas) !== 'NULL' && $placas !== '0') {
+                    $frag = 'Placas para circular ' . $placas;
+
+                    $tipoServicio = trim((string)($v->tipo_servicio ?? ''));
+                    if ($tipoServicio !== '' && strtoupper($tipoServicio) !== 'NULL') {
+                        $frag .= ' del servicio ' . $tipoServicio;
+                    }
+
+                    $estadoPlacas = trim((string)($v->estado_placas ?? ''));
+                    if ($estadoPlacas !== '' && strtoupper($estadoPlacas) !== 'NULL') {
+                        $frag .= ' de ' . $estadoPlacas;
+                    }
+
+                    $parts[] = $frag;
+                }
+
+                $addFrag($parts, 'Serie', $v->serie);
+
+                // Tarjeta a nombre de...
+                $tarj = trim((string)($v->tarjeta_circulacion_nombre ?? ''));
+                if ($tarj !== '' && strtoupper($tarj) !== 'NULL' && strtoupper($tarj) !== 'N/A') {
+                    $parts[] = 'Tarjeta de circulación a nombre de ' . $tarj;
+                }
+
+                $desc = 'VEHICULO (' . $letra . ').- ' . implode(', ', $parts) . '.';
+
+                // Fila
+                $tablaObj->addRow(320, ['exactHeight' => false]);
+                $tablaObj->addCell($oC1, ['valign' => 'center'])->addText((string)$num, $fontVal7, $pCenterTight);
+                $tablaObj->addCell($oC2, ['valign' => 'center'])->addText('VEHICULO (' . $letra . ')', $fontVal7, $pCenterTight);
+                $tablaObj->addCell($oC3, ['valign' => 'top'])->addText($desc, $fontVal7, $pLeftTight);
+            }
+        }
+
+        $section->addTextBreak(1);
+        $section->addPageBreak();
+
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 2 FILAS =====
+        // Fila 1 (GRIS): CROQUIS DEL LUGAR
+        // Fila 2: espacio en blanco con ~12 saltos de línea
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7Bold = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaCroquis = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 50,
+        ]);
+
+        // ---------- FILA 1 (GRIS) ----------
+        $tablaCroquis->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaCroquis->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center',
+        ]);
+        $cell->addText('CROQUIS DEL LUGAR', $fontLbl7Bold, $pCenterTight);
+
+        // ---------- FILA 2 (VACÍA CON 12 SALTOS) ----------
+        $tablaCroquis->addRow(1200, ['exactHeight' => false]);
+        $cell = $tablaCroquis->addCell($tableW, ['valign' => 'top']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        for ($i = 0; $i < 26; $i++) {
+            $run->addTextBreak();
+        }
+
+        $section->addTextBreak(1);
+
+        // =========================================
+        // ===== TABLA FIRMAS (como tu 2da imagen)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // 4 columnas fijas (las 3 primeras son el bloque izquierdo, la 4ta es FIRMA grande)
+        $fC1 = (int)round($tableW * 0.20);  // CARGO
+        $fC2 = (int)round($tableW * 0.26);  // NÚMERO DE GAFETE
+        $fC3 = (int)round($tableW * 0.14);  // UNIDAD (valor "3190" arriba)
+        $fC4 = $tableW - ($fC1 + $fC2 + $fC3); // FIRMA (columna grande sin divisiones internas)
+
+        $tFirm = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $addCell = function($table, $w, $txt, $font, $p, $style = []) {
+            $base = ['valign' => 'center'];
+            $cell = $table->addCell($w, array_merge($base, $style));
+            if ($txt !== null) {
+                $cell->addText((string)$txt, $font, $p);
+            }
+            return $cell;
+        };
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+        $unidadTxt = (string)($hecho->unidad ?? '');
+
+        // -------------------- FILA 1 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        // (c1..c3) Perito centrado en bloque izquierdo
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), $peritoTxt, $fontVal7, $pCenterTight, [
+            'gridSpan' => 3
+        ]);
+
+        // (c4) FIRMA: celda grande que se “estira” hacia abajo SIN divisiones internas
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'restart',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 2 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        // (c1..c3) Título gris
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), 'NOMBRE DEL AGENTE INVESTIGADOR', $fontLbl7, $pCenterTight, [
+            'bgColor'  => $bgAux,
+            'gridSpan' => 3
+        ]);
+
+        // (c4) continúa la celda grande de FIRMA (sin línea intermedia)
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 3 --------------------
+        $tFirm->addRow(520, ['exactHeight' => true, 'height' => 520]);
+
+        // (c1) vacío
+        $addCell($tFirm, $fC1, '', $fontVal7, $pCenterTight);
+
+        // (c2) vacío
+        $addCell($tFirm, $fC2, '', $fontVal7, $pCenterTight);
+
+        // (c3) unidad (3190) centrada
+        $addCell($tFirm, $fC3, $unidadTxt, $fontVal7, $pCenterTight);
+
+        // (c4) sigue FIRMA grande (sin línea intermedia)
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 4 (encabezados grises) --------------------
+        $tFirm->addRow(300, ['exactHeight' => true, 'height' => 300]);
+
+        $addCell($tFirm, $fC1, 'CARGO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC2, 'NÚMERO DE GAFETE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC3, 'UNIDAD', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC4, 'FIRMA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+
+        $section->addTextBreak(1);
+
+
+        $section->addPageBreak();
+
+
+
+
+
+
+
+
+
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃      ACTA DE INSPECCIÓN DE VEHÍCULOS      ┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+        // ===== TÍTULO DEL DOCUMENTO (centrado) =====
+        $section->addText(
+            'ACTA DE INSPECCIÓN DE VEHÍCULOS',
+            ['name' => 'Arial', 'size' => 14, 'bold' => true],
             [
                 'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
-                'spaceAfter'  => 0,
                 'spaceBefore' => 0,
+                'spaceAfter'  => 0,
                 'lineHeight'  => 1.0,
             ]
         );
@@ -2960,240 +4750,1875 @@ class EstadisticasController extends Controller
         $section->addTextBreak(1);
 
 
-
-
-        // ===============================
-        // ===== VEHÍCULOS INVOLUCRADOS — CUADRO PERFECTO (1 tabla por vehículo) =====
-        // ===============================
+        // =========================================
+        // ===== TABLA 4 COLUMNAS x 2 FILAS =====
+        // Fila 1: LUGAR (gris) | calle+colonia | FECHA (gris) | fecha hecho
+        // Fila 2: AGENTE (gris) | perito       | HORA (gris)  | vacío
+        // =========================================
 
         $bgAux = 'EBE1D1';
 
-        $fontLbl7 = ['name' => 'Arial', 'size' => 9, 'bold' => true];
-        $fontVal7 = ['name' => 'Arial', 'size' => 12];
-        $fontVal6 = ['name' => 'Arial', 'size' => 12];
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
 
         $pCenterTight = [
-          'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
-          'spaceAfter'  => 0,
-          'spaceBefore' => 0,
-          'lineHeight'  => 1.0,
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
         ];
 
-        // ---- helper: celda con texto (soporta gridSpan y bgColor) ----
-        $addCellTxt4 = function($table, $w, $txt, $font, $bg = null, $span = 1) use ($pCenterTight) {
-            $style = ['valign' => 'center'];
-            if ($bg !== null) $style['bgColor'] = $bg;
-            if ($span > 1)    $style['gridSpan'] = $span;
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
 
-            $cell = $table->addCell($w, $style);
-            $cell->addText((string)$txt, $font, $pCenterTight);
+        // ---- valores dinámicos ----
+        $calleTbl   = trim((string)($hecho->calle ?? ''));
+        $coloniaTbl = trim((string)($hecho->colonia ?? ''));
+
+        $lugarTbl = $calleTbl;
+        if ($coloniaTbl !== '') {
+            $lugarTbl .= ($lugarTbl !== '' ? ', ' : '') . 'col. ' . $coloniaTbl;
+        }
+
+        $fechaTbl = '';
+        if (!empty($hecho->fecha)) {
+            $fechaTbl = \Carbon\Carbon::parse($hecho->fecha)->format('d/m/Y');
+        }
+
+        $peritoTbl = (string)($hecho->perito ?? '');
+
+        // ---- tabla ----
+        $tablaLH = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 40,
+        ]);
+
+        // anchos (4 columnas)
+        $lhC1 = (int)round($tableW * 0.18); // etiqueta
+        $lhC2 = (int)round($tableW * 0.44); // valor largo
+        $lhC3 = (int)round($tableW * 0.14); // etiqueta corta
+        $lhC4 = $tableW - ($lhC1 + $lhC2 + $lhC3); // valor
+
+        // ---------- FILA 1 ----------
+        $tablaLH->addRow(300, ['exactHeight' => true, 'height' => 300]);
+
+        $tablaLH->addCell($lhC1, ['bgColor' => $bgAux, 'valign' => 'center'])
+                ->addText('LUGAR', $fontLbl7, $pCenterTight);
+
+        $tablaLH->addCell($lhC2, ['valign' => 'center'])
+                ->addText($lugarTbl, $fontVal7, $pLeftTight);
+
+        $tablaLH->addCell($lhC3, ['bgColor' => $bgAux, 'valign' => 'center'])
+                ->addText('FECHA', $fontLbl7, $pCenterTight);
+
+        $tablaLH->addCell($lhC4, ['valign' => 'center'])
+                ->addText($fechaTbl, $fontVal7, $pCenterTight);
+
+        // ---------- FILA 2 ----------
+        $tablaLH->addRow(300, ['exactHeight' => true, 'height' => 300]);
+
+        $tablaLH->addCell($lhC1, ['bgColor' => $bgAux, 'valign' => 'center'])
+                ->addText('AGENTE', $fontLbl7, $pCenterTight);
+
+        $tablaLH->addCell($lhC2, ['valign' => 'center'])
+                ->addText($peritoTbl, $fontVal7, $pLeftTight);
+
+        $tablaLH->addCell($lhC3, ['bgColor' => $bgAux, 'valign' => 'center'])
+                ->addText('HORA', $fontLbl7, $pCenterTight);
+
+        $tablaLH->addCell($lhC4, ['valign' => 'center'])
+                ->addText('', $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (GRIS)
+        // Título + texto legal en la MISMA celda
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontTitle10 = ['name' => 'Arial', 'size' => 10, 'bold' => true];
+        $fontText7   = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaRevision = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 0,        // sin marcos visibles
+            'borderColor' => 'FFFFFF',
+            'cellMargin'  => 60,
+        ]);
+
+        $tablaRevision->addRow(420, ['exactHeight' => false]);
+        $cell = $tablaRevision->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center'
+        ]);
+
+        $run = $cell->addTextRun($pCenterTight);
+        $run->addText('REVISIÓN E INSPECCIÓN DEL VEHÍCULO', $fontTitle10);
+        $run->addTextBreak();
+        $run->addText(
+            'Con fundamento en los artículos 16 de la Constitución Política de los Estados Unidos Mexicanos, '
+            . '132 fracción VII, 217, 251 fracción V, 267 y 268 del Código Nacional de Procedimientos Penales.',
+            $fontText7
+        );
+
+        $section->addTextBreak(1);
+
+
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 2 FILAS =====
+        // Fila 1 (GRIS): CAUSAS DE LA INSPECCIÓN
+        // Fila 2: opciones (sin fondo)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontTitle8 = ['name' => 'Arial', 'size' => 8, 'bold' => true];
+        $fontText7  = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaCausas = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 50,
+        ]);
+
+        // ---------- FILA 1 (GRIS) ----------
+        $tablaCausas->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaCausas->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center',
+        ]);
+        $cell->addText('CAUSAS DE LA INSPECCIÓN', $fontTitle8, $pCenterTight);
+
+        // ---------- FILA 2 ----------
+        $tablaCausas->addRow(320, ['exactHeight' => false]);
+        $cell = $tablaCausas->addCell($tableW, ['valign' => 'center']);
+
+        $cell->addText(
+            '(   ) Flagrancia.    (   ) Indicios que hagan presumir la existencia de instrumentos, objetos o productos relacionados con el hecho.',
+            $fontText7,
+            $pLeftTight
+        );
+
+        $section->addTextBreak(1);
+
+        
+        // =========================================
+        // ===== TABLA 1 COLUMNA x 1 FILA (FONDO GRIS, SIN MARCOS VISIBLES)
+        // TEXTO CENTRADO Y EN NEGRITAS
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontTxt7Bold = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaLegal = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 0,        // sin bordes visibles
+            'borderColor' => 'FFFFFF',
+            'cellMargin'  => 60,
+        ]);
+
+        $tablaLegal->addRow(320, ['exactHeight' => true, 'height' => 320]);
+        $cell = $tablaLegal->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center'
+        ]);
+
+        $cell->addText(
+            'DATOS DEL VEHÍCULO.',
+            $fontTxt7Bold,
+            $pCenterTight
+        );
+
+        $section->addTextBreak();
+
+        // =========================================
+        // ===== TABLA POR VEHÍCULO (DINÁMICA) =====
+        // - 4 columnas, 7 filas
+        // - Etiquetas en gris (EBE1D1)
+        // - Fila 5: CONDUCTOR/PROPIETARIO + NOMBRE (conductor asociado al vehículo)
+        // - Fila 6: OBSERVACIONES (gris) + subtítulo (gris)
+        // - Fila 7: partes_danadas / características del vehículo (texto)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // Anchos (4 columnas) -> “cuadro perfecto”
+        $vC1 = (int)round($tableW * 0.20); // etiqueta izq
+        $vC2 = (int)round($tableW * 0.30); // valor izq
+        $vC3 = (int)round($tableW * 0.18); // etiqueta der
+        $vC4 = $tableW - ($vC1 + $vC2 + $vC3); // valor der
+
+        $addCellTxt = function($table, $w, $txt, $font, $p, $style = []) {
+            $base = ['valign' => 'center'];
+            $cell = $table->addCell($w, array_merge($base, $style));
+            $cell->addText((string)$txt, $font, $p);
             return $cell;
         };
 
-        // ---- 4 columnas fijas (para que SIEMPRE sea “cuadro” parejo) ----
-        $vC1 = (int)round($tableW * 0.22);            // etiqueta izq
-        $vC2 = (int)round($tableW * 0.28);            // valor izq
-        $vC3 = (int)round($tableW * 0.22);            // etiqueta der
-        $vC4 = $tableW - ($vC1 + $vC2 + $vC3);        // valor der
+        if (isset($hecho->vehiculos) && $hecho->vehiculos->count() > 0) {
 
-        foreach ($hecho->vehiculos as $i => $v) {
+            foreach ($hecho->vehiculos as $v) {
 
-            // tabla por vehículo
-            $tVeh = $section->addTable([
+                // ---------- conductor asociado (si existe) ----------
+                $conductorNombre = '';
+                if (!empty($v->conductores) && $v->conductores->count() > 0) {
+                    // toma el primero asociado a ese vehículo en ESTE hecho
+                    $conductorNombre = trim((string)($v->conductores->first()->nombre ?? ''));
+                }
+
+                // ---------- observaciones (daños / características) ----------
+                $daniosVeh = trim((string)($v->partes_danadas ?? ''));
+                if ($daniosVeh === '') $daniosVeh = ' '; // para que no colapse visualmente
+
+                // ---------- tabla por vehículo ----------
+                $t = $section->addTable([
+                    'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                    'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                    'width'       => $tableW,
+                    'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                    'borderSize'  => 6,
+                    'borderColor' => '000000',
+                    'cellMargin'  => 0,
+                ]);
+
+                // ===== FILA 1 =====
+                $t->addRow(280, ['exactHeight' => true, 'height' => 280]);
+                $addCellTxt($t, $vC1, 'MARCA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC2, (string)($v->marca ?? ''), $fontVal7, $pCenterTight);
+                $addCellTxt($t, $vC3, 'TIPO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC4, (string)($v->tipo ?? ''), $fontVal7, $pCenterTight);
+
+                // ===== FILA 2 =====
+                $t->addRow(280, ['exactHeight' => true, 'height' => 280]);
+                $addCellTxt($t, $vC1, 'LÍNEA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC2, (string)($v->linea ?? ''), $fontVal7, $pCenterTight);
+                $addCellTxt($t, $vC3, 'MODELO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC4, (string)($v->modelo ?? ''), $fontVal7, $pCenterTight);
+
+                // ===== FILA 3 =====
+                $t->addRow(280, ['exactHeight' => true, 'height' => 280]);
+                $addCellTxt($t, $vC1, 'COLOR', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC2, (string)($v->color ?? ''), $fontVal7, $pCenterTight);
+                $addCellTxt($t, $vC3, 'NO. SERIE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC4, (string)($v->serie ?? ''), $fontVal7, $pCenterTight);
+
+                // ===== FILA 4 =====
+                $t->addRow(280, ['exactHeight' => true, 'height' => 280]);
+                $addCellTxt($t, $vC1, 'PLACAS', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC2, (string)($v->placas ?? ''), $fontVal7, $pCenterTight);
+                $addCellTxt($t, $vC3, 'NO. MOTOR', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC4, '', $fontVal7, $pCenterTight);
+
+                // ===== FILA 5 =====
+                // Izquierda: checks, Derecha: NOMBRE del conductor (si hay)
+                $t->addRow(340, ['exactHeight' => true, 'height' => 340]);
+
+                $checks = '(    ) CONDUCTOR (POSEEDOR)' . "\t" . '(    ) PROPIETARIO';
+                $addCellTxt($t, $vC1 + $vC2, $checks, $fontVal7, $pLeftTight);
+
+                $addCellTxt($t, $vC3, 'NOMBRE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+                $addCellTxt($t, $vC4, $conductorNombre, $fontVal7, $pCenterTight);
+
+                // ===== FILA 6 (GRIS, título + subtítulo) =====
+                $t->addRow(420, ['exactHeight' => true, 'height' => 420]);
+
+                $cellObs = $t->addCell($tableW, [
+                    'gridSpan' => 4,
+                    'bgColor'  => $bgAux,
+                    'valign'   => 'center',
+                ]);
+
+                $runObs = $cellObs->addTextRun($pCenterTight);
+                $runObs->addText('OBSERVACIONES', $fontLbl7);
+                $runObs->addTextBreak();
+                $runObs->addText(
+                    'Características particulares del vehículo (daños, injertos, calcas o aditamentos distintivos)',
+                    $fontVal7
+                );
+
+                // ===== FILA 7 (daños / características) =====
+                $t->addRow(380, ['exactHeight' => false]);
+                $cellDan = $t->addCell($tableW, ['gridSpan' => 4, 'valign' => 'top']);
+                $cellDan->addText($daniosVeh, $fontVal7, $pLeftTight);
+
+                $section->addTextBreak(1);
+            }
+        }
+
+
+
+
+
+                // =========================================
+        // ===== TABLA 1 COLUMNA x 2 FILAS =====
+        // Fila 1 (GRIS): OBSERVACIONES
+        // Fila 2: espacio en blanco con ~12 saltos de línea
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7Bold = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter'  => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tablaCroquis = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 50,
+        ]);
+
+        // ---------- FILA 1 (GRIS) ----------
+        $tablaCroquis->addRow(280, ['exactHeight' => true, 'height' => 280]);
+        $cell = $tablaCroquis->addCell($tableW, [
+            'bgColor' => $bgAux,
+            'valign'  => 'center',
+        ]);
+        $cell->addText('OBSERVACIONES', $fontLbl7Bold, $pCenterTight);
+
+        // ---------- FILA 2 (VACÍA CON 12 SALTOS) ----------
+        $tablaCroquis->addRow(1200, ['exactHeight' => false]);
+        $cell = $tablaCroquis->addCell($tableW, ['valign' => 'top']);
+
+        $run = $cell->addTextRun($pLeftTight);
+        for ($i = 0; $i < 4; $i++) {
+            $run->addTextBreak();
+        }
+
+        $section->addTextBreak(1);
+
+
+        // =========================================
+        // ===== TABLA FIRMAS (como tu 2da imagen)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // 4 columnas fijas (las 3 primeras son el bloque izquierdo, la 4ta es FIRMA grande)
+        $fC1 = (int)round($tableW * 0.20);  // CARGO
+        $fC2 = (int)round($tableW * 0.26);  // NÚMERO DE GAFETE
+        $fC3 = (int)round($tableW * 0.14);  // UNIDAD (valor "3190" arriba)
+        $fC4 = $tableW - ($fC1 + $fC2 + $fC3); // FIRMA (columna grande sin divisiones internas)
+
+        $tFirm = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $addCell = function($table, $w, $txt, $font, $p, $style = []) {
+            $base = ['valign' => 'center'];
+            $cell = $table->addCell($w, array_merge($base, $style));
+            if ($txt !== null) {
+                $cell->addText((string)$txt, $font, $p);
+            }
+            return $cell;
+        };
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+        $unidadTxt = (string)($hecho->unidad ?? '');
+
+        // -------------------- FILA 1 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        // (c1..c3) Perito centrado en bloque izquierdo
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), $peritoTxt, $fontVal7, $pCenterTight, [
+            'gridSpan' => 3
+        ]);
+
+        // (c4) FIRMA: celda grande que se “estira” hacia abajo SIN divisiones internas
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'restart',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 2 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        // (c1..c3) Título gris
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), 'NOMBRE DEL AGENTE INVESTIGADOR', $fontLbl7, $pCenterTight, [
+            'bgColor'  => $bgAux,
+            'gridSpan' => 3
+        ]);
+
+        // (c4) continúa la celda grande de FIRMA (sin línea intermedia)
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 3 --------------------
+        $tFirm->addRow(520, ['exactHeight' => true, 'height' => 520]);
+
+        // (c1) vacío
+        $addCell($tFirm, $fC1, '', $fontVal7, $pCenterTight);
+
+        // (c2) vacío
+        $addCell($tFirm, $fC2, '', $fontVal7, $pCenterTight);
+
+        // (c3) unidad (3190) centrada
+        $addCell($tFirm, $fC3, $unidadTxt, $fontVal7, $pCenterTight);
+
+        // (c4) sigue FIRMA grande (sin línea intermedia)
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
+
+        // -------------------- FILA 4 (encabezados grises) --------------------
+        $tFirm->addRow(300, ['exactHeight' => true, 'height' => 300]);
+
+        $addCell($tFirm, $fC1, 'CARGO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC2, 'NÚMERO DE GAFETE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC3, 'UNIDAD', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC4, 'FIRMA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+
+        $section->addTextBreak(0);
+
+
+        $section->addPageBreak();
+
+
+
+
+
+
+
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃               ASEGURAMIENTO               ┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+
+        // ===== ASEGURAMIENTO =====
+        $section->addText(
+            'ACTA DE INSPECCIÓN DE VEHÍCULOS',
+            ['name' => 'Arial', 'size' => 14, 'bold' => true],
+            [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceBefore' => 0,
+                'spaceAfter'  => 0,
+                'lineHeight'  => 1.0,
+            ]
+        );
+
+        $section->addTextBreak(1);
+
+
+        // =========================================
+        // ===== TABLA 2 FILAS (LUGAR/FECHA/HORA + PERITO/CARGO/UNIDAD)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 8, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 8];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // --- datos ---
+        $calle   = trim((string)($hecho->calle ?? ''));
+        $colonia = trim((string)($hecho->colonia ?? ''));
+        $lugarAseg = trim($calle);
+        if ($colonia !== '') $lugarAseg .= ($lugarAseg !== '' ? ', ' : '') . 'col. ' . $colonia;
+
+        $fechaTxt = !empty($hecho->fecha) ? \Carbon\Carbon::parse($hecho->fecha)->format('d/m/Y') : '';
+        $horaTxt  = ''; // debe ir vacío según tu formato
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+        $cargoTxt  = ''; // vacío
+        $unidadTxt = (string)($hecho->unidad ?? '');
+
+        // --- medidas (desiguales pero tabla pareja) ---
+        $tableW = 9800;
+
+        // 6 columnas: (label+valor) x3
+        // Ajusta si quieres más aire en "LUGAR DE ASEGURAMIENTO"
+        $c1 = 1900; // label LUGAR
+        $c2 = 3600; // valor LUGAR
+        $c3 = 900;  // label FECHA
+        $c4 = 1200; // valor FECHA
+        $c5 = 800;  // label HORA
+        $c6 = $tableW - ($c1 + $c2 + $c3 + $c4 + $c5); // valor HORA (vacío)
+
+        // --- tabla ---
+        $tDG = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $cellLbl = ['bgColor' => $bgAux, 'valign' => 'center'];
+        $cellVal = ['valign' => 'center'];
+
+        // ===== FILA 1: LUGAR / FECHA / HORA =====
+        $tDG->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        $tDG->addCell($c1, $cellLbl)->addText('LUGAR DE ASEGURAMIENTO', $fontLbl7, $pCenterTight);
+        $tDG->addCell($c2, $cellVal)->addText($lugarAseg, $fontVal7, $pLeftTight);
+
+        $tDG->addCell($c3, $cellLbl)->addText('FECHA', $fontLbl7, $pCenterTight);
+        $tDG->addCell($c4, $cellVal)->addText($fechaTxt, $fontVal7, $pCenterTight);
+
+        $tDG->addCell($c5, $cellLbl)->addText('HORA', $fontLbl7, $pCenterTight);
+        $tDG->addCell($c6, $cellVal)->addText($horaTxt, $fontVal7, $pCenterTight);
+
+        // ===== FILA 2: PERITO / CARGO / UNIDAD =====
+        $tDG->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        $tDG->addCell($c1, $cellLbl)->addText('PERITO DE TRÁNSITO', $fontLbl7, $pCenterTight);
+        $tDG->addCell($c2, $cellVal)->addText($peritoTxt, $fontVal7, $pLeftTight);
+
+        $tDG->addCell($c3, $cellLbl)->addText('CARGO', $fontLbl7, $pCenterTight);
+        $tDG->addCell($c4, $cellVal)->addText($cargoTxt, $fontVal7, $pCenterTight);
+
+        $tDG->addCell($c5, $cellLbl)->addText('UNIDAD', $fontLbl7, $pCenterTight);
+        $tDG->addCell($c6, $cellVal)->addText($unidadTxt, $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 FILA / 1 COLUMNA (GRIS) =====
+        // ===== ESPACIADO ULTRA CONTROLADO ========
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontBold7   = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontNormal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterUltra = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        $tAviso = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        // FILA MUY BAJA, SIN INFLADO
+        $tAviso->addRow(320, [
+            'exactHeight' => true,
+            'height'      => 320,
+        ]);
+
+        $cell = $tAviso->addCell($tableW, [
+            'bgColor'          => $bgAux,
+            'valign'           => 'center',
+            'borderTopSize'    => 6,
+            'borderBottomSize' => 6,
+            'borderLeftSize'   => 6,
+            'borderRightSize'  => 6,
+            'marginTop'        => 0,
+            'marginBottom'     => 0,
+            'marginLeft'       => 0,
+            'marginRight'      => 0,
+        ]);
+
+        $run = $cell->addTextRun($pCenterUltra);
+        $run->addText(
+            'SE ANEXA AL FORMATO DE CADENA Y ESLABONES DE CUSTODIA Y/O INVENTARIO DE VEHICULO',
+            $fontBold7
+        );
+        $run->addTextBreak(1);
+        $run->addText(
+            'EN CASO DE QUE EL ESPACIO SEA INSUFICIENTE  LLENAR FORMATO DE CONTINUACION  Y ANEXARLO',
+            $fontNormal7
+        );
+
+        // separación mínima, no inflar documento
+        $section->addTextBreak(1);
+
+
+
+        // =========================================
+        // ===== TABLA 1 FILA / 1 COLUMNA (GRIS) =====
+        // ===== ESPACIADO ULTRA CONTROLADO ========
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontBold7   = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontNormal7 = ['name' => 'Arial', 'size' => 6];
+
+        $pCenterUltra = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        $tAviso = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        // FILA MUY BAJA, SIN INFLADO
+        $tAviso->addRow(320, [
+            'exactHeight' => true,
+            'height'      => 320,
+        ]);
+
+        $cell = $tAviso->addCell($tableW, [
+            'bgColor'          => $bgAux,
+            'valign'           => 'center',
+            'borderTopSize'    => 6,
+            'borderBottomSize' => 6,
+            'borderLeftSize'   => 6,
+            'borderRightSize'  => 6,
+            'marginTop'        => 0,
+            'marginBottom'     => 0,
+            'marginLeft'       => 0,
+            'marginRight'      => 0,
+        ]);
+
+        $run = $cell->addTextRun($pCenterUltra);
+        $run->addText(
+            'OBJETO(S)',
+            $fontBold7
+        );
+        $run->addTextBreak(1);
+        $run->addText(
+            'Con fundamento en el artículo 132 fracción V y XV, 214, 217, 229, 230, 251 fracción XI  del Código Nacional de Procedimientos Penales.',
+            $fontNormal7
+        );
+        
+
+        // =========================================
+        // ===== TABLA: CAUSA / RELACIÓN / DECOMISO / PRUEBA / OTRO
+        // ===== + ENCABEZADOS 3 COLS (CANTIDAD / OBJETOS / DESCRIPCION)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        // 9 columnas (parejas pero desiguales)
+        $c1 = 1550; // CAUSA (gris)
+        $c2 = 1500; // RELACIÓN (label)
+        $c3 = 900;  // RELACIÓN (vacío)
+        $c4 = 1350; // SUJETOS (label)
+        $c5 = 900;  // SUJETOS (vacío)
+        $c6 = 1650; // PRUEBA (label)
+        $c7 = 900;  // PRUEBA (vacío)
+        $c8 = 1100; // OTRO (label)
+        $c9 = $tableW - ($c1+$c2+$c3+$c4+$c5+$c6+$c7+$c8); // OTRO (vacío)
+
+        // spans para 3 columnas grandes (3+3+3)
+        $wA = $c1 + $c2 + $c3;
+        $wB = $c4 + $c5 + $c6;
+        $wC = $c7 + $c8 + $c9;
+
+        $tCad = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $cellLblGray = ['bgColor' => $bgAux, 'valign' => 'center'];
+        $cellLbl     = ['valign' => 'center'];
+        $cellVal     = ['valign' => 'center'];
+
+        // ================== FILA 1 ==================
+        $tCad->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        $tCad->addCell($c1, $cellLblGray)->addText('CAUSA DE ASEGURAMIENTO', $fontLbl7, $pCenterTight);
+
+        $tCad->addCell($c2, $cellLbl)->addText('RELACIÓN CON EL DELITO', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c3, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $tCad->addCell($c4, $cellLbl)->addText('SUJETOS DE DECOMISO', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c5, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $tCad->addCell($c6, $cellLbl)->addText('SIRVE COMO MEDIO DE PRUEBA', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c7, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $tCad->addCell($c8, $cellLbl)->addText('OTRO ESPECIFIQUE:', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c9, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        // ================== FILA 2 (ENCABEZADOS 3 COLS) ==================
+        $tCad->addRow(280, ['exactHeight' => true, 'height' => 280]);
+
+        $tCad->addCell($wA, array_merge($cellLblGray, ['gridSpan' => 3]))
+             ->addText('CANTIDAD Y/O PESO', $fontLbl7, $pCenterTight);
+
+        $tCad->addCell($wB, array_merge($cellLblGray, ['gridSpan' => 3]))
+             ->addText('OBJETO(S) ASEGURADO(S)', $fontLbl7, $pCenterTight);
+
+        $tCad->addCell($wC, array_merge($cellLblGray, ['gridSpan' => 3]))
+             ->addText('DESCRIPCION', $fontLbl7, $pCenterTight);
+
+        // ================== FILA 3 (VALORES 3 COLS VACÍOS) ==================
+        $tCad->addRow(360, ['exactHeight' => true, 'height' => 360]);
+
+        $tCad->addCell($wA, array_merge($cellVal, ['gridSpan' => 3]))->addText('', $fontVal7, $pLeftTight);
+        $tCad->addCell($wB, array_merge($cellVal, ['gridSpan' => 3]))->addText('', $fontVal7, $pLeftTight);
+        $tCad->addCell($wC, array_merge($cellVal, ['gridSpan' => 3]))->addText('', $fontVal7, $pLeftTight);
+
+        $section->addTextBreak(1);
+
+
+
+        // =========================================
+        // ===== TABLA 1 FILA / 1 COLUMNA (GRIS) =====
+        // ===== ESPACIADO ULTRA CONTROLADO ========
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontBold7   = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontNormal7 = ['name' => 'Arial', 'size' => 6];
+
+        $pCenterUltra = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        $tAviso = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        // FILA MUY BAJA, SIN INFLADO
+        $tAviso->addRow(320, [
+            'exactHeight' => true,
+            'height'      => 320,
+        ]);
+
+        $cell = $tAviso->addCell($tableW, [
+            'bgColor'          => $bgAux,
+            'valign'           => 'center',
+            'borderTopSize'    => 6,
+            'borderBottomSize' => 6,
+            'borderLeftSize'   => 6,
+            'borderRightSize'  => 6,
+            'marginTop'        => 0,
+            'marginBottom'     => 0,
+            'marginLeft'       => 0,
+            'marginRight'      => 0,
+        ]);
+
+        $run = $cell->addTextRun($pCenterUltra);
+        $run->addText(
+            'VEHICULO(S)',
+            $fontBold7
+        );
+        $run->addTextBreak(1);
+        $run->addText(
+            'Con base en los artículos 229, 230, 233,  237, 239 y 240 del Código Nacional de Procedimientos Penales.',
+            $fontNormal7
+        );
+
+
+
+
+        // =========================================
+        // ===== TABLA: CAUSA / RELACIÓN / DECOMISO / PRUEBA / OTRO
+        // ===== + ENCABEZADOS 3 COLS (CANTIDAD / OBJETOS / DESCRIPCION)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        // 9 columnas (parejas pero desiguales)
+        $c1 = 1550; // CAUSA (gris)
+        $c2 = 1500; // RELACIÓN (label)
+        $c3 = 900;  // RELACIÓN (vacío)
+        $c4 = 1350; // SUJETOS (label)
+        $c5 = 900;  // SUJETOS (vacío)
+        $c6 = 1650; // PRUEBA (label)
+        $c7 = 900;  // PRUEBA (vacío)
+        $c8 = 1100; // OTRO (label)
+        $c9 = $tableW - ($c1+$c2+$c3+$c4+$c5+$c6+$c7+$c8); // OTRO (vacío)
+
+        // spans para 3 columnas grandes (3+3+3)
+        $wA = $c1 + $c2 + $c3;
+        $wB = $c4 + $c5 + $c6;
+        $wC = $c7 + $c8 + $c9;
+
+        $tCad = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $cellLblGray = ['bgColor' => $bgAux, 'valign' => 'center'];
+        $cellLbl     = ['valign' => 'center'];
+        $cellVal     = ['valign' => 'center'];
+
+        // ================== FILA 1 ==================
+        $tCad->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+        $tCad->addCell($c1, $cellLblGray)->addText('CAUSA DE ASEGURAMIENTO', $fontLbl7, $pCenterTight);
+
+        $tCad->addCell($c2, $cellLbl)->addText('RELACIÓN CON EL DELITO', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c3, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $tCad->addCell($c4, $cellLbl)->addText('SUJETOS DE DECOMISO', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c5, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $tCad->addCell($c6, $cellLbl)->addText('SIRVE COMO MEDIO DE PRUEBA', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c7, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $tCad->addCell($c8, $cellLbl)->addText('OTRO ESPECIFIQUE:', $fontLbl7, $pCenterTight);
+        $tCad->addCell($c9, $cellVal)->addText('', $fontVal7, $pCenterTight);
+
+        $section->addTextBreak(1);
+
+
+
+
+        // =========================================
+        // ===== TABLA 1 COL / 1 FILA (GRIS) =======
+        // ===== TEXTO: VEHICULOS ASEGURADOS =======
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontBold7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterUltra = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        $tVehAseg = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
+
+        $tVehAseg->addRow(260, [
+            'exactHeight' => true,
+            'height'      => 260,
+        ]);
+
+        $cell = $tVehAseg->addCell($tableW, [
+            'bgColor'      => $bgAux,
+            'valign'       => 'center',
+            'marginTop'    => 0,
+            'marginBottom' => 0,
+            'marginLeft'   => 0,
+            'marginRight'  => 0,
+        ]);
+
+        $cell->addText('VEHICULOS ASEGURADOS', $fontBold7, $pCenterUltra);
+
+        $section->addTextBreak(1);
+
+
+
+
+
+        // =========================================
+        // ===== TABLA DINÁMICA (1 POR VEHÍCULO) =====
+        // ===== ARRIBA: 8 COLUMNAS (4 PARES) ========
+        // ===== ABAJO: 4 COLUMNAS (2+2) = MÁS ANCHO
+        // ===== PARA CAMPOS A LÁPIZ + FILA 10 CON
+        // ===== TELEFONO + FECHA/HORA (CON SU BLANCO)
+        // =========================================
+
+        $bgAux = 'EBE1D1';
+
+        $fontLbl7     = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7     = ['name' => 'Arial', 'size' => 7];
+        $fontValBold7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $tableW = 9800;
+
+        // 8 columnas (arriba) = 4 pares label/valor
+        $w1 = 1050; // label
+        $w2 = 1450; // valor
+        $w3 = 900;  // label
+        $w4 = 1650; // valor
+        $w5 = 900;  // label
+        $w6 = 1200; // valor
+        $w7 = 900;  // label derecha (CARGO/IDENT/FIRMA)
+        $w8 = $tableW - ($w1+$w2+$w3+$w4+$w5+$w6+$w7); // valor derecha
+
+        $cellGray = ['bgColor' => $bgAux, 'valign' => 'center'];
+        $cellVal  = ['valign' => 'center'];
+
+        $addCellTxt = function($table, $w, $txt, $font, $p, $style = []) {
+            $cell = $table->addCell($w, array_merge(['valign' => 'center'], $style));
+            if ($txt !== null) $cell->addText((string)$txt, $font, $p);
+            return $cell;
+        };
+
+        // Dirección de grúa por nombre (ajusta el modelo/campos si en tu proyecto se llaman distinto)
+        $resolveGruaDireccion = function($v) {
+            $gruaNombre = trim((string)($v->grua ?? ''));
+            if ($gruaNombre === '' || $gruaNombre === '0') return '';
+
+            $grua = \App\Models\Grua::where(\DB::raw('UPPER(nombre)'), strtoupper($gruaNombre))->first();
+            if (!$grua) return '';
+
+            $dir = trim((string)($grua->direccion ?? ''));
+            if ($dir === '') $dir = trim((string)($grua->ubicacion_corralon ?? ''));
+            return $dir;
+        };
+
+        foreach ($hecho->vehiculos as $v) {
+
+            $conductor = ($v->conductores && $v->conductores->count() > 0) ? $v->conductores->first() : null;
+
+            $linea  = (string)($v->linea ?? '');
+            $marca  = (string)($v->marca ?? '');
+            $modelo = (string)($v->modelo ?? '');
+            $color  = (string)($v->color ?? '');
+
+            $placas = (string)($v->placas ?? '');
+            $estado = (string)($v->estado_placas ?? '');
+            $tipo   = (string)($v->tipo ?? '');
+            $serie  = (string)($v->serie ?? '');
+
+            $plazas = (string)($v->capacidad_personas ?? '');
+
+            $nomCon = $conductor ? (string)($conductor->nombre ?? '') : '';
+            $domCon = $conductor ? (string)($conductor->domicilio ?? '') : '';
+
+            $dirGrua = $resolveGruaDireccion($v);
+
+            $t = $section->addTable([
                 'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
                 'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
                 'width'       => $tableW,
                 'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
                 'borderSize'  => 6,
                 'borderColor' => '000000',
-                'cellMargin'  => 0, // <- para que no tenga “aire” arriba/abajo
+                'cellMargin'  => 0,
             ]);
 
-            // ===== FILA 1: MARCA / TIPO =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'MARCA', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC2, $v->marca ?? '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'TIPO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, $v->tipo ?? '', $fontVal7, null);
+            // =========================
+            // FILA 1 (8 columnas)
+            // =========================
+            $t->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($t, $w1, 'LINEA',  $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w2, $linea,  $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w3, 'MARCA',  $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w4, $marca,  $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w5, 'MODELO', $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w6, $modelo, $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w7, 'COLOR',  $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w8, $color,  $fontValBold7, $pCenterTight, $cellVal);
 
-            // ===== FILA 2: LINEA / MODELO =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'LINEA', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC2, $v->linea ?? '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'MODELO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, $v->modelo ?? '', $fontVal7, null);
+            // =========================
+            // FILA 2 (8 columnas)
+            // =========================
+            $t->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($t, $w1, 'PLACA',     $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w2, $placas,    $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w3, 'ESTADO',    $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w4, $estado,    $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w5, 'TIPO',      $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w6, $tipo,      $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w7, 'SERIE/NIV', $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w8, $serie,     $fontValBold7, $pCenterTight, $cellVal);
 
-            // ===== FILA 3: COLOR / PLACAS =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            // OJO: aquí pediste COLOR sin gris en la etiqueta (así lo dejo)
-            $addCellTxt4($tVeh, $vC1, 'COLOR', $fontLbl7, $bgAux, null);
-            $addCellTxt4($tVeh, $vC2, $v->color ?? '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'PLACAS', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, $v->placas ?? '', $fontVal7, null);
+            // =========================
+            // FILA 3 (8 columnas)
+            // (los blancos ya quedan bien para lápiz)
+            // =========================
+            $t->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($t, $w1, 'N° MOTOR',     $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w2, '',             $fontVal7,  $pCenterTight, $cellVal);
+            $addCellTxt($t, $w3, 'N° ECONOMICO', $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w4, '',             $fontVal7,  $pCenterTight, $cellVal);
+            $addCellTxt($t, $w5, 'N° DE PLAZAS', $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w6, $plazas,        $fontValBold7, $pCenterTight, $cellVal);
+            $addCellTxt($t, $w7, 'OTROS',        $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w8, '',             $fontVal7,  $pCenterTight, $cellVal);
 
-            // ===== FILA 4: NO. SERIE / NO. MOTOR =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'NO. SERIE', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC2, $v->serie ?? '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'NO. MOTOR', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, '', $fontVal7, null);
+            // =========================================================
+            // FILA 4 (CONDUCTOR / FIRMA)
+            // =========================================================
+            $t->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($t, $w1, 'CONDUCTOR', $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w2+$w3+$w4+$w5, $nomCon, $fontValBold7, $pCenterTight, [
+                'gridSpan' => 4,
+                'valign'   => 'center',
+            ]);
+            $addCellTxt($t, $w6+$w7, 'FIRMA DEL CONDUCTOR', $fontLbl7, $pCenterTight, [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 2,
+                'valign'   => 'center',
+            ]);
+            $addCellTxt($t, $w8, '', $fontVal7, $pCenterTight, $cellVal);
 
-            // ===== FILA 5: NO SERIE ALTERADO / NO. MOTOR ALTERADO =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'NO SERIE ALTERADO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC2, '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'NO. MOTOR ALTERADO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, '', $fontVal7, null);
+            // =========================================================
+            // FILA 5 (DOMICILIO)
+            // =========================================================
+            $t->addRow(260, ['exactHeight' => true, 'height' => 260]);
+            $addCellTxt($t, $w1, 'DOMICILIO', $fontLbl7, $pCenterTight, $cellGray);
+            $addCellTxt($t, $w2+$w3+$w4+$w5+$w6+$w7+$w8, $domCon, $fontValBold7, $pLeftTight, [
+                'gridSpan' => 7,
+                'valign'   => 'center',
+            ]);
 
-            // ===== FILA 6: NO. ECONOMICO / CAPACIDAD =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'NO. ECONOMICO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC2, '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'CAPACIDAD', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, $v->capacidad_personas ?? '', $fontVal7, null);
+            // =========================================================
+            // ABAJO: HACEMOS MÁS ANCHO EL BLANCO (col2)
+            // L1 (label izq) = w1+w2+w3  (más chico)
+            // L2 (BLANCO/valor) = w4+w5+w6  (más ancho para lápiz)
+            // R1 (label der) = w7
+            // R2 (BLANCO/valor der) = w8
+            // =========================================================
+            $L1 = $w1+$w2+$w3;
+            $L2 = $w4+$w5+$w6;
+            $R1 = $w7;
+            $R2 = $w8;
 
-            // ===== FILA 7: PROCEDENCIA / REGISTRO =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'PROCEDENCIA', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC2, '', $fontVal7, null);
-            $addCellTxt4($tVeh, $vC3, 'REGISTRO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $vC4, '', $fontVal7, null);
+            // FILA 6
+            $t->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($t, $L1, 'SE PONEN BAJO CUSTODIO DE:', $fontLbl7, $pLeftTight, [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $L2, '', $fontVal7, $pLeftTight, [
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $R1, 'CARGO', $fontLbl7, $pCenterTight, [
+                'bgColor' => $bgAux,
+                'vMerge'  => 'restart',
+            ]);
+            $addCellTxt($t, $R2, '', $fontVal7, $pCenterTight, [
+                'vMerge'  => 'restart',
+            ]);
 
-            // ===== FILA 8: TIPO DE SERVICIO (2 columnas) =====
-            $tVeh->addRow(260, ['exactHeight' => true, 'height' => 260]);
-            $addCellTxt4($tVeh, $vC1, 'TIPO DE SERVICIO', $fontLbl7, $bgAux);
-            $addCellTxt4($tVeh, $tableW - $vC1, $v->tipo_servicio ?? '', $fontVal7, null, 3);
+            // FILA 7
+            $t->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($t, $L1, 'SE PONEN BAJO CUSTODIO EN:', $fontLbl7, $pLeftTight, [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $L2, $dirGrua, $fontValBold7, $pLeftTight, [
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $R1, null, $fontVal7, $pCenterTight, [
+                'vMerge' => 'continue',
+            ]);
+            $addCellTxt($t, $R2, null, $fontVal7, $pCenterTight, [
+                'vMerge' => 'continue',
+            ]);
 
-            // ===== FILA 9: OBSERVACIONES (solo palabra en gris, toda la fila) =====
-            $tVeh->addRow(240, ['exactHeight' => true, 'height' => 240]);
-            $addCellTxt4($tVeh, $tableW, 'OBSERVACIONES', $fontLbl7, $bgAux, 4);
+            // FILA 8
+            $t->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($t, $L1, 'SE ASEGURARON A:', $fontLbl7, $pLeftTight, [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $L2, '', $fontVal7, $pLeftTight, [
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $R1, 'IDENTIFICACIÓN', $fontLbl7, $pCenterTight, [
+                'bgColor' => $bgAux,
+            ]);
+            $addCellTxt($t, $R2, '', $fontVal7, $pCenterTight);
 
-            // ===== FILA 10: partes_danadas (toda la fila, sin gris) =====
-            $tVeh->addRow(320, ['exactHeight' => true, 'height' => 320]); // un poco más alta para texto largo
-            $partes = (string)($v->partes_danadas ?? '');
-            $addCellTxt4($tVeh, $tableW, $partes, $fontVal6, null, 4);
+            // FILA 9
+            $t->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCellTxt($t, $L1, 'CON DOMICILIO EN:', $fontLbl7, $pLeftTight, [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $L2, '', $fontVal7, $pLeftTight, [
+                'gridSpan' => 3,
+            ]);
+            $addCellTxt($t, $R1, 'FIRMA', $fontLbl7, $pCenterTight, [
+                'bgColor' => $bgAux,
+                'vMerge'  => 'restart',
+            ]);
+            $addCellTxt($t, $R2, '', $fontVal7, $pCenterTight, [
+                'vMerge' => 'restart',
+            ]);
 
-            // separación mínima entre vehículos
+            // =========================================================
+            // FILA 10 (AQUÍ VA TU ESTRUCTURA COMPLETA):
+            // TELEFONO (gris) | blanco | FECHA Y HORA (gris) | blanco | FIRMA (continúa) | (continúa)
+            //
+            // Mapeo exacto a las 8 columnas sin “comerte” nada:
+            //  - TEL label  = w1
+            //  - TEL blanco = w2+w3  (ancho para lápiz)
+            //  - FECHA label= w4+w5  (gris)
+            //  - FECHA blanco= w6    (ancho para lápiz)
+            //  - FIRMA      = w7 (vMerge continue)
+            //  - FIRMA      = w8 (vMerge continue)
+            // =========================================================
+            $t->addRow(320, ['exactHeight' => true, 'height' => 320]);
+
+            $addCellTxt($t, $w1, 'TELÉFONO:', $fontLbl7, $pCenterTight, [
+                'bgColor' => $bgAux,
+            ]);
+            $addCellTxt($t, $w2+$w3, '', $fontVal7, $pCenterTight, [
+                'gridSpan' => 2,
+            ]);
+
+            $addCellTxt($t, $w4+$w5, 'FECHA Y HORA DE LA ENTREGA:', $fontLbl7, $pCenterTight, [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 2,
+            ]);
+            $addCellTxt($t, $w6, '', $fontVal7, $pCenterTight);
+
+            $addCellTxt($t, $w7, null, $fontVal7, $pCenterTight, [
+                'vMerge' => 'continue',
+            ]);
+            $addCellTxt($t, $w8, null, $fontVal7, $pCenterTight, [
+                'vMerge' => 'continue',
+            ]);
+
             $section->addTextBreak(1);
         }
 
+        // =========================================
+        // ===== TABLA FIRMAS (como tu 2da imagen)
+        // =========================================
 
-// =========================================
-// ===== TABLA FIRMAS (como tu 2da imagen)
-// =========================================
+        $bgAux = 'EBE1D1';
 
-$bgAux = 'EBE1D1';
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
 
-$fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
-$fontVal7 = ['name' => 'Arial', 'size' => 7];
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
 
-$pCenterTight = [
-    'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
-    'spaceAfter'  => 0,
-    'spaceBefore' => 0,
-    'lineHeight'  => 1.0,
-];
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
 
-$pLeftTight = [
-    'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
-    'spaceAfter'  => 0,
-    'spaceBefore' => 0,
-    'lineHeight'  => 1.0,
-];
+        $fC1 = (int)round($tableW * 0.20);
+        $fC2 = (int)round($tableW * 0.26);
+        $fC3 = (int)round($tableW * 0.14);
+        $fC4 = $tableW - ($fC1 + $fC2 + $fC3);
 
-// 4 columnas fijas (las 3 primeras son el bloque izquierdo, la 4ta es FIRMA grande)
-$fC1 = (int)round($tableW * 0.20);  // CARGO
-$fC2 = (int)round($tableW * 0.26);  // NÚMERO DE GAFETE
-$fC3 = (int)round($tableW * 0.14);  // UNIDAD (valor "3190" arriba)
-$fC4 = $tableW - ($fC1 + $fC2 + $fC3); // FIRMA (columna grande sin divisiones internas)
+        $tFirm = $section->addTable([
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+            'width'       => $tableW,
+            'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+            'borderSize'  => 6,
+            'borderColor' => '000000',
+            'cellMargin'  => 0,
+        ]);
 
-$tFirm = $section->addTable([
-    'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
-    'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
-    'width'       => $tableW,
-    'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
-    'borderSize'  => 6,
-    'borderColor' => '000000',
-    'cellMargin'  => 0,
-]);
+        $addCell = function($table, $w, $txt, $font, $p, $style = []) {
+            $base = ['valign' => 'center'];
+            $cell = $table->addCell($w, array_merge($base, $style));
+            if ($txt !== null) {
+                $cell->addText((string)$txt, $font, $p);
+            }
+            return $cell;
+        };
 
-$addCell = function($table, $w, $txt, $font, $p, $style = []) {
-    $base = ['valign' => 'center'];
-    $cell = $table->addCell($w, array_merge($base, $style));
-    if ($txt !== null) {
-        $cell->addText((string)$txt, $font, $p);
-    }
-    return $cell;
-};
+        $peritoTxt = (string)($hecho->perito ?? '');
+        $unidadTxt = (string)($hecho->unidad ?? '');
 
-$peritoTxt = (string)($hecho->perito ?? '');
-$unidadTxt = (string)($hecho->unidad ?? '');
+        // -------------------- FILA 1 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
 
-// -------------------- FILA 1 --------------------
-$tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), $peritoTxt, $fontVal7, $pCenterTight, [
+            'gridSpan' => 3
+        ]);
 
-// (c1..c3) Perito centrado en bloque izquierdo
-$addCell($tFirm, ($fC1 + $fC2 + $fC3), $peritoTxt, $fontVal7, $pCenterTight, [
-    'gridSpan' => 3
-]);
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'restart',
+            'valign' => 'top'
+        ]);
 
-// (c4) FIRMA: celda grande que se “estira” hacia abajo SIN divisiones internas
-$addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
-    'vMerge' => 'restart',
-    'valign' => 'top'
-]);
+        // -------------------- FILA 2 --------------------
+        $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
 
-// -------------------- FILA 2 --------------------
-$tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+        $addCell($tFirm, ($fC1 + $fC2 + $fC3), 'NOMBRE DEL AGENTE INVESTIGADOR', $fontLbl7, $pCenterTight, [
+            'bgColor'  => $bgAux,
+            'gridSpan' => 3
+        ]);
 
-// (c1..c3) Título gris
-$addCell($tFirm, ($fC1 + $fC2 + $fC3), 'NOMBRE DEL AGENTE INVESTIGADOR', $fontLbl7, $pCenterTight, [
-    'bgColor'  => $bgAux,
-    'gridSpan' => 3
-]);
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
 
-// (c4) continúa la celda grande de FIRMA (sin línea intermedia)
-$addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
-    'vMerge' => 'continue',
-    'valign' => 'top'
-]);
+        // -------------------- FILA 3 --------------------
+        $tFirm->addRow(520, ['exactHeight' => true, 'height' => 520]);
+        $addCell($tFirm, $fC1, '', $fontVal7, $pCenterTight);
+        $addCell($tFirm, $fC2, '', $fontVal7, $pCenterTight);
+        $addCell($tFirm, $fC3, $unidadTxt, $fontVal7, $pCenterTight);
 
-// -------------------- FILA 3 --------------------
-$tFirm->addRow(520, ['exactHeight' => true, 'height' => 520]);
+        $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
+            'vMerge' => 'continue',
+            'valign' => 'top'
+        ]);
 
-// (c1) vacío
-$addCell($tFirm, $fC1, '', $fontVal7, $pCenterTight);
+        // -------------------- FILA 4 (encabezados grises) --------------------
+        $tFirm->addRow(300, ['exactHeight' => true, 'height' => 300]);
 
-// (c2) vacío
-$addCell($tFirm, $fC2, '', $fontVal7, $pCenterTight);
+        $addCell($tFirm, $fC1, 'CARGO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC2, 'NÚMERO DE GAFETE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC3, 'UNIDAD', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+        $addCell($tFirm, $fC4, 'FIRMA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
 
-// (c3) unidad (3190) centrada
-$addCell($tFirm, $fC3, $unidadTxt, $fontVal7, $pCenterTight);
-
-// (c4) sigue FIRMA grande (sin línea intermedia)
-$addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, [
-    'vMerge' => 'continue',
-    'valign' => 'top'
-]);
-
-// -------------------- FILA 4 (encabezados grises) --------------------
-$tFirm->addRow(300, ['exactHeight' => true, 'height' => 300]);
-
-$addCell($tFirm, $fC1, 'CARGO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
-$addCell($tFirm, $fC2, 'NÚMERO DE GAFETE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
-$addCell($tFirm, $fC3, 'UNIDAD', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
-$addCell($tFirm, $fC4, 'FIRMA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
-
-$section->addTextBreak(1);
+        $section->addPageBreak();
 
 
 
 
+        // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        // ┃ ACTA D CADENA y ESLAB. DE CTDIA. D EDCIA. ┃
+        // ┃      GENERACIÓN DE DOCUMENTO OFICIAL      ┃
+        // ┃   CAMBIOS AQUÍ ROMPEN EL FORMATO LEGAL    ┃
+        // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+        // =========================================
+        // ===== CONFIG BASE (FUERA DEL BUCLE) ======
+        // =========================================
+        $bgAux  = 'EBE1D1';
+        $tableW = 9800;
+
+        // Fuentes
+        $fontBold10  = ['name' => 'Arial', 'size' => 10, 'bold' => true];
+        $fontNormal9 = ['name' => 'Arial', 'size' => 9];
+
+        $fontLbl7 = ['name' => 'Arial', 'size' => 7, 'bold' => true];
+        $fontVal7 = ['name' => 'Arial', 'size' => 7];
+
+        $fontLbl8 = ['name' => 'Arial', 'size' => 8, 'bold' => true];
+        $fontVal8 = ['name' => 'Arial', 'size' => 8];
+
+        $fontHdr10  = ['name' => 'Arial', 'size' => 10, 'bold' => true];
+        $fontCell10 = ['name' => 'Arial', 'size' => 10];
+
+        // Párrafos
+        $pCenterTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        $pLeftTight = [
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+            'spaceAfter'  => 0,
+            'spaceBefore' => 0,
+            'lineHeight'  => 1.0,
+        ];
+
+        // Helper addCell (AQUÍ estaba el error: cuando $style llega como string, array_merge truena)
+        // Lo blindamos para que SIEMPRE sea array.
+        $addCell = function($table, $w, $txt, $font, $p, $style = []) {
+            $base = ['valign' => 'center'];
+            if (!is_array($style)) { $style = []; } // <- FIX
+            $cell = $table->addCell($w, array_merge($base, $style));
+            if ($txt !== null) {
+                $cell->addText((string)$txt, $font, $p);
+            }
+            return $cell;
+        };
+
+        // Letras A, B, C...
+        $getLetter = function($idx) {
+            $letters = range('A', 'Z');
+            return $letters[$idx] ?? (string)($idx + 1);
+        };
+
+        // ===== Lista de vehículos segura
+        $vehiculos = (isset($hecho->vehiculos) && $hecho->vehiculos) ? $hecho->vehiculos : collect();
+        $totalVeh  = $vehiculos->count();
+
+        // ===== Datos del hecho reutilizables
+        $fechaTxt = '';
+        if (!empty($hecho->fecha)) {
+            try { $fechaTxt = \Carbon\Carbon::parse($hecho->fecha)->format('d/m/Y'); }
+            catch (\Throwable $e) { $fechaTxt = (string)$hecho->fecha; }
+        }
+
+        $calleTxt   = trim((string)($hecho->calle ?? ''));
+        $coloniaTxt = trim((string)($hecho->colonia ?? ''));
+        $lugarTxt   = trim($calleTxt);
+        if ($coloniaTxt !== '') {
+            $lugarTxt .= ($lugarTxt !== '' ? ', col. ' : '') . $coloniaTxt;
+        }
+
+        $peritoTxt = (string)($hecho->perito ?? '');
+        $unidadTxt = (string)($hecho->unidad ?? '');
+
+        foreach ($vehiculos as $i => $v) {
+
+            // ============================
+            // ===== HOJA POR VEHÍCULO =====
+            // ============================
+
+            // ===== ASEGURAMIENTO =====
+            $section->addText(
+                'ACTA DE CADENA y ESLABONES DE CUSTODIA DE EVIDENCIA',
+                ['name' => 'Arial', 'size' => 14, 'bold' => true],
+                [
+                    'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                    'spaceBefore' => 0,
+                    'spaceAfter'  => 0,
+                    'lineHeight'  => 1.0,
+                ]
+            );
+
+            $section->addTextBreak(1);
+
+            // =========================================
+            // ===== TABLA 1 COLUMNA / 1 FILA (GRIS) ====
+            // =========================================
+            $tCadena = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            $tCadena->addRow(520, ['exactHeight' => true, 'height' => 520]);
+
+            $cell = $tCadena->addCell($tableW, [
+                'bgColor' => $bgAux,
+                'valign'  => 'center',
+            ]);
+
+            $run = $cell->addTextRun($pCenterTight);
+            $run->addText('CADENA DE CUSTODIA', $fontBold10);
+            $run->addTextBreak();
+            $run->addText(
+                'Artículos 132 fracciones VIII y IX, 217, 227 y 228 del Código Nacional de Procedimientos Penales',
+                $fontNormal9
+            );
+
+            $section->addTextBreak(1);
+
+            // =========================================
+            // ===== TABLA: OFICIO/FECHA/HORA + RESPONSABLES
+            // =========================================
+            $c1 = (int)round($tableW * 0.34);
+            $c2 = (int)round($tableW * 0.33);
+            $c3 = $tableW - ($c1 + $c2);
+
+            $tLev = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            // FILA 1
+            $tLev->addRow(320, ['exactHeight' => true, 'height' => 320]);
+            $addCell($tLev, $c1, 'No. DE OFICIO:', $fontLbl8, $pLeftTight);
+            $addCell($tLev, $c2, 'FECHA: ' . $fechaTxt, $fontLbl8, $pLeftTight);
+            $addCell($tLev, $c3, 'HORA:', $fontLbl8, $pLeftTight);
+
+            // FILA 2
+            $tLev->addRow(420, ['exactHeight' => true, 'height' => 420]);
+            $addCell($tLev, $c1, 'LUGAR DE LEVANTAMIENTO', $fontLbl8, $pLeftTight, ['bgColor' => $bgAux]);
+            $addCell($tLev, ($c2 + $c3), $lugarTxt, $fontVal8, $pLeftTight, ['gridSpan' => 2]);
+
+            // FILA 3
+            $tLev->addRow(420, ['exactHeight' => true, 'height' => 420]);
+            $addCell($tLev, $c1, 'AGENTE RESPONSABLE LEVANTAMIENTO', $fontLbl8, $pLeftTight, ['bgColor' => $bgAux]);
+            $addCell($tLev, ($c2 + $c3), $peritoTxt, $fontVal8, $pLeftTight, ['gridSpan' => 2]);
+
+            // FILA 4
+            $tLev->addRow(420, ['exactHeight' => true, 'height' => 420]);
+            $addCell($tLev, $c1, 'RESPONSABLE DE EMBALAR', $fontLbl8, $pLeftTight, ['bgColor' => $bgAux]);
+            $addCell($tLev, ($c2 + $c3), '', $fontVal8, $pLeftTight, ['gridSpan' => 2]);
+
+            // FILA 5
+            $tLev->addRow(420, ['exactHeight' => true, 'height' => 420]);
+            $addCell($tLev, $c1, 'RESPONSABLE DE TRASLADO', $fontLbl8, $pLeftTight, ['bgColor' => $bgAux]);
+            $addCell($tLev, ($c2 + $c3), '', $fontVal8, $pLeftTight, ['gridSpan' => 2]);
+
+            $section->addTextBreak(1);
+
+            // =========================================
+            // ===== TABLA: DESCRIPCIÓN DE EVIDENCIAS ===
+            // =========================================
+
+            // Datos del vehículo (SIN VARIABLES SUELTAS)
+            $marca             = (string)($v->marca ?? '');
+            $tipo              = (string)($v->tipo ?? '');
+            $linea             = (string)($v->linea ?? '');
+            $color             = (string)($v->color ?? '');
+            $capacidadPersonas = (string)($v->capacidad_personas ?? '');
+            $placas            = (string)($v->placas ?? '');
+            $tipoServicio      = (string)($v->tipo_servicio ?? '');
+            $estadoPlacas      = (string)($v->estado_placas ?? '');
+
+            $num   = $i + 1;         // 1,2,3
+            $letra = $getLetter($i); // A,B,C
+
+            // Anchos columnas (4 cols)
+            $eC1 = (int)round($tableW * 0.08);   // NO.
+            $eC4 = (int)round($tableW * 0.17);   // EXAMEN
+            $eC3 = (int)round($tableW * 0.22);   // LUGAR
+            $eC2 = $tableW - ($eC1 + $eC3 + $eC4);
+
+            $tEvi = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            // FILA 1 (título) - IMPORTANTE: gridSpan SIN addCell para evitar estilos raros
+            $tEvi->addRow(360, ['exactHeight' => true, 'height' => 360]);
+
+            $cellTitle = $tEvi->addCell($tableW, ['bgColor' => $bgAux, 'valign' => 'center', 'gridSpan' => 4]);
+            $cellTitle->addText('DESCIPCIÓN DE EVIDENCIAS', $fontHdr10, $pCenterTight);
+
+            // FILA 2 (encabezados)
+            $tEvi->addRow(520, ['exactHeight' => true, 'height' => 520]);
+            $addCell($tEvi, $eC1, 'NO.', $fontHdr10, $pCenterTight, ['bgColor' => $bgAux]);
+            $addCell($tEvi, $eC2, 'DESCRIPCIÓN DE LA EVIDENCIA', $fontHdr10, $pCenterTight, ['bgColor' => $bgAux]);
+            $addCell($tEvi, $eC3, 'LUGAR DEL HECHO', $fontHdr10, $pCenterTight, ['bgColor' => $bgAux]);
+
+            $cellEx = $tEvi->addCell($eC4, ['bgColor' => $bgAux, 'valign' => 'center']);
+            $runEx  = $cellEx->addTextRun($pCenterTight);
+            $runEx->addText('EXAMEN(ES)', $fontHdr10);
+            $runEx->addTextBreak();
+            $runEx->addText('SOLICITADO(S)', $fontHdr10);
+
+            // FILA 3 (vehículo)
+            $tEvi->addRow(820, ['exactHeight' => false]);
+
+            $addCell($tEvi, $eC1, $num, $fontCell10, $pCenterTight);
+
+            $cellDesc = $tEvi->addCell($eC2, ['valign' => 'center']);
+            $runDesc  = $cellDesc->addTextRun($pLeftTight);
+            $runDesc->addText("VEHICULO ($letra).-", $fontHdr10);
+            $runDesc->addText(
+                " Marca $marca, Tipo $tipo, Línea $linea, Color $color, Capacidad para $capacidadPersonas Personas, Placas para circular $placas del servicio $tipoServicio de $estadoPlacas",
+                $fontCell10
+            );
+
+            $addCell($tEvi, $eC3, $lugarTxt, $fontCell10, $pLeftTight);
+            $addCell($tEvi, $eC4, '', $fontCell10, $pCenterTight);
+
+            $section->addTextBreak(1);
+
+
+            // =========================================
+            // ===== TABLA: ESLABONES / ENTREGA-RECIBE ==
+            // ===== CUADRADO PERFECTO (2 COLS SIEMPRE) =
+            // ===== Fila 1: ESLABONES (colSpan 2) ======
+            // ===== Fila 2: ENTREGA | RECIBE ===========
+            // ===== Arial 10 ==========================
+            // =========================================
+
+            $bgAux  = 'EBE1D1';
+            $tableW = 9800;
+
+            $fontBold10 = ['name' => 'Arial', 'size' => 10, 'bold' => true];
+
+            $pCenterTight10 = [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'spaceAfter'  => 0,
+                'spaceBefore' => 0,
+                'lineHeight'  => 1.0,
+            ];
+
+            $w1 = (int)round($tableW * 0.50);
+            $w2 = $tableW - $w1;
+
+            $tEsl = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            // Helper (evita repeats)
+            $addCellT = function($table, $w, $txt, $style = []) use ($fontBold10, $pCenterTight10) {
+                $cell = $table->addCell($w, array_merge(['valign' => 'center'], $style));
+                $cell->addText((string)$txt, $fontBold10, $pCenterTight10);
+                return $cell;
+            };
+
+            // -------------------- FILA 1 (2 columnas, pero celda combinada) --------------------
+            $tEsl->addRow(360, ['exactHeight' => true, 'height' => 360]);
+
+            $addCellT($tEsl, $w1, 'ESLABONES', [
+                'bgColor'  => $bgAux,
+                'gridSpan' => 2
+            ]);
+            // (NO se agrega la segunda celda porque gridSpan=2 ya cubre las 2 columnas)
+
+            // -------------------- FILA 2 (2 columnas normales) --------------------
+            $tEsl->addRow(360, ['exactHeight' => true, 'height' => 360]);
+
+            $addCellT($tEsl, $w1, 'ENTREGA', ['bgColor' => $bgAux]);
+            $addCellT($tEsl, $w2, 'RECIBE',  ['bgColor' => $bgAux]);
+
+            $section->addTextBreak(1);
+
+
+            // =========================================
+            // ===== 5 TABLAS (DOBLE BLOQUE) ============
+            /*
+                - Fila 1: "Apellido Paterno ... Apellido Materno ... Nombre(s)" (Arial 5, superíndice)
+                          + salto de línea y espacio en blanco (Arial 12) para escribir
+                - Fila 2: FECHA / HORA / FIRMA (cada una con Arial 5 superíndice arriba y abajo Arial 12 en blanco)
+                - Repetido a la derecha (como la imagen)
+            */
+            // =========================================
+
+            $miniTop5Sup = ['name' => 'Arial', 'size' => 7, 'superScript' => true];
+            $miniBot12   = ['name' => 'Arial', 'size' => 12];
+
+            $pMiniTop = [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,
+                'spaceAfter'  => 0,
+                'spaceBefore' => 0,
+                'lineHeight'  => 1.0,
+            ];
+
+            $nbsp12 = str_repeat("\xC2\xA0", 12); // 12 espacios "duros" (no colapsan)
+            $apellidoLinea = "Apellido Paterno{$nbsp12}Apellido Materno{$nbsp12}Nombre(s)";
+
+            $addTopBottom = function($cell, $topText) use ($miniTop5Sup, $miniBot12, $pMiniTop) {
+                $run = $cell->addTextRun($pMiniTop);
+                $run->addText((string)$topText, $miniTop5Sup);
+                $run->addTextBreak();
+                // línea en blanco (pero con altura) para escribir
+                $run->addText("\xC2\xA0", $miniBot12);
+            };
+
+            $tblBase = [
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ];
+
+            // 6 columnas totales: (FECHA, HORA, FIRMA) izquierda + (FECHA, HORA, FIRMA) derecha
+            $halfW = (int)floor($tableW / 2);
+
+            $fechaW = (int)round($halfW * 0.33);
+            $horaW  = (int)round($halfW * 0.11);
+            $firmaW = $halfW - ($fechaW + $horaW);
+
+            // Repetir 5 tablas
+            for ($k = 0; $k < 5; $k++) {
+
+                $tMini = $section->addTable($tblBase);
+
+                // -------- FILA 1: Apellidos / Nombre(s) (izq y der) --------
+                $tMini->addRow(520, ['exactHeight' => true, 'height' => 520]);
+
+                $cellL = $tMini->addCell($halfW, ['gridSpan' => 3, 'valign' => 'top']);
+                $addTopBottom($cellL, $apellidoLinea);
+
+                $cellR = $tMini->addCell($halfW, ['gridSpan' => 3, 'valign' => 'top']);
+                $addTopBottom($cellR, $apellidoLinea);
+
+                // -------- FILA 2: FECHA / HORA / FIRMA (izq y der) --------
+                $tMini->addRow(650, ['exactHeight' => true, 'height' => 650]);
+
+                // Izquierda
+                $cFechaL = $tMini->addCell($fechaW, ['valign' => 'top']);
+                $addTopBottom($cFechaL, 'FECHA: día/mes/año');
+
+                $cHoraL = $tMini->addCell($horaW, ['valign' => 'top']);
+                $addTopBottom($cHoraL, 'HORA');
+
+                $cFirmaL = $tMini->addCell($firmaW, ['valign' => 'top']);
+                $addTopBottom($cFirmaL, 'FIRMA');
+
+                // Derecha
+                $cFechaR = $tMini->addCell($fechaW, ['valign' => 'top']);
+                $addTopBottom($cFechaR, 'FECHA: día/mes/año');
+
+                $cHoraR = $tMini->addCell($horaW, ['valign' => 'top']);
+                $addTopBottom($cHoraR, 'HORA');
+
+                $cFirmaR = $tMini->addCell($firmaW, ['valign' => 'top']);
+                $addTopBottom($cFirmaR, 'FIRMA');
+
+                // SIN addTextBreak() para que no meta “vergero” de espacio entre tablas
+            }
 
 
 
 
+            // =========================================
+            // ===== TABLA FIRMAS (como tu 2da imagen) ==
+            // =========================================
+            $fC1 = (int)round($tableW * 0.20);
+            $fC2 = (int)round($tableW * 0.26);
+            $fC3 = (int)round($tableW * 0.14);
+            $fC4 = $tableW - ($fC1 + $fC2 + $fC3);
 
+            $tFirm = $section->addTable([
+                'alignment'   => \PhpOffice\PhpWord\SimpleType\Jc::CENTER,
+                'layout'      => \PhpOffice\PhpWord\Style\Table::LAYOUT_FIXED,
+                'width'       => $tableW,
+                'unit'        => \PhpOffice\PhpWord\SimpleType\TblWidth::TWIP,
+                'borderSize'  => 6,
+                'borderColor' => '000000',
+                'cellMargin'  => 0,
+            ]);
+
+            // FILA 1
+            $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+            $addCell($tFirm, ($fC1 + $fC2 + $fC3), $peritoTxt, $fontVal7, $pCenterTight, ['gridSpan' => 3]);
+            $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, ['vMerge' => 'restart', 'valign' => 'top']);
+
+            // FILA 2
+            $tFirm->addRow(320, ['exactHeight' => true, 'height' => 320]);
+            $addCell($tFirm, ($fC1 + $fC2 + $fC3), 'NOMBRE DEL AGENTE INVESTIGADOR', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux, 'gridSpan' => 3]);
+            $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, ['vMerge' => 'continue', 'valign' => 'top']);
+
+            // FILA 3
+            $tFirm->addRow(520, ['exactHeight' => true, 'height' => 520]);
+            $addCell($tFirm, $fC1, '', $fontVal7, $pCenterTight);
+            $addCell($tFirm, $fC2, '', $fontVal7, $pCenterTight);
+            $addCell($tFirm, $fC3, $unidadTxt, $fontVal7, $pCenterTight);
+            $addCell($tFirm, $fC4, '', $fontVal7, $pCenterTight, ['vMerge' => 'continue', 'valign' => 'top']);
+
+            // FILA 4 (encabezados)
+            $tFirm->addRow(300, ['exactHeight' => true, 'height' => 300]);
+            $addCell($tFirm, $fC1, 'CARGO', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+            $addCell($tFirm, $fC2, 'NÚMERO DE GAFETE', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+            $addCell($tFirm, $fC3, 'UNIDAD', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+            $addCell($tFirm, $fC4, 'FIRMA', $fontLbl7, $pCenterTight, ['bgColor' => $bgAux]);
+
+            // =========================
+            // PAGE BREAK ENTRE HOJAS
+            // =========================
+            if ($i < $totalVeh - 1) {
+                $section->addPageBreak();
+            }
+        }
 
 
 

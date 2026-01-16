@@ -8,23 +8,40 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
     public function index()
     {
-        $users = User::all();
+        $actor = Auth::user();
+
+        // Si no es Superadmin, NO verá usuarios Superadmin
+        $users = User::query()
+            ->visibleFor($actor)
+            ->get();
+
         return view('admin.settings.users.index', compact('users'));
     }
 
     public function create()
     {
-        $roles = Role::all();
+        $actor = Auth::user();
+
+        // Si no es Superadmin, NO verá el rol Superadmin
+        $roles = Role::query()
+            ->when(!$actor->hasRole('Superadmin'), function ($q) {
+                $q->where('name', '!=', 'Superadmin');
+            })
+            ->get();
+
         return view('admin.settings.users.create', compact('roles'));
     }
 
     public function store(Request $request)
     {
+        $actor = Auth::user();
+
         // Validar los datos del formulario
         $validatedData = $request->validate([
             'name'     => 'required|string|max:255',
@@ -34,17 +51,20 @@ class UserController extends Controller
             'role'     => 'required|exists:roles,name',
         ]);
 
+        // Bloqueo: si no es Superadmin, no puede asignar Superadmin
+        if (!$actor->hasRole('Superadmin') && $validatedData['role'] === 'Superadmin') {
+            abort(403, 'No autorizado.');
+        }
+
         try {
-            // Crear el usuario
             $user = User::create([
                 'name'     => $validatedData['name'],
                 'email'    => $validatedData['email'],
-                'password' => bcrypt($validatedData['password']), // Encripta la contraseña
-                'estado'   => 'Activo', // Estado por defecto
+                'password' => bcrypt($validatedData['password']),
+                'estado'   => 'Activo',
                 'area'     => $validatedData['area'] ?? null,
             ]);
 
-            // Asignar rol al usuario
             $user->assignRole($validatedData['role']);
 
             Log::info("Usuario creado exitosamente: {$user->name}");
@@ -58,52 +78,85 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::findOrFail($id);
+        $actor = Auth::user();
+
+        // Evita que NO-superadmin vea usuarios superadmin
+        $user = User::query()->visibleFor($actor)->findOrFail($id);
+
         return view('admin.settings.users.show', compact('user'));
     }
 
     public function edit($id)
     {
-        $user = User::findOrFail($id);
-        $roles = Role::all();
+        $actor = Auth::user();
+
+        // Evita que NO-superadmin edite usuarios superadmin
+        $user = User::query()->visibleFor($actor)->findOrFail($id);
+
+        // Evita que NO-superadmin vea el rol superadmin en el combo
+        $roles = Role::query()
+            ->when(!$actor->hasRole('Superadmin'), function ($q) {
+                $q->where('name', '!=', 'Superadmin');
+            })
+            ->get();
 
         return view('admin.settings.users.edit', compact('user', 'roles'));
     }
 
     public function update(Request $request, $id)
     {
-        // Validar los datos, incluyendo la contraseña como campo opcional
+        $actor = Auth::user();
+
+        // Evita que NO-superadmin actualice usuarios superadmin
+        $user = User::query()->visibleFor($actor)->findOrFail($id);
+
         $validatedData = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email,' . $id,
             'area'     => 'nullable|string|max:30',
             'role'     => 'required|exists:roles,name',
-            'password' => 'nullable|min:6|confirmed', // Si se ingresa, debe tener confirmación
+            'password' => 'nullable|min:6|confirmed',
         ]);
 
-        try {
-            // Buscar el usuario
-            $user = User::findOrFail($id);
+        // Bloqueo: si no es Superadmin, no puede asignar Superadmin
+        if (!$actor->hasRole('Superadmin') && $validatedData['role'] === 'Superadmin') {
+            abort(403, 'No autorizado.');
+        }
 
-            // Actualizar los datos comunes
+        // Bloqueo: no permitir dejar el sistema sin Superadmin
+        // Si el usuario actual es Superadmin y se intenta quitar ese rol, valida que no sea el último
+        if ($user->hasRole('Superadmin') && $validatedData['role'] !== 'Superadmin') {
+            $superadmins = User::role('Superadmin')->count();
+            if ($superadmins <= 1) {
+                throw ValidationException::withMessages([
+                    'role' => 'No puedes dejar el sistema sin Superadmin.',
+                ]);
+            }
+        }
+
+        try {
             $user->update([
                 'name'  => $validatedData['name'],
                 'email' => $validatedData['email'],
                 'area'  => $validatedData['area'] ?? null,
             ]);
 
-            // Actualizar la contraseña solo si se ingresó un valor
             if (!empty($validatedData['password'])) {
                 $user->password = Hash::make($validatedData['password']);
                 $user->save();
             }
 
-            // Actualizar los roles del usuario
+            // Sync de rol (solo 1 rol)
             $user->syncRoles([$validatedData['role']]);
 
             Log::info("Usuario actualizado exitosamente: {$user->name}");
 
             return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
+        } catch (ValidationException $e) {
+            // Para devolver error en el formulario sin romper el flujo
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput();
         } catch (\Exception $e) {
             Log::error("Error al actualizar el usuario: " . $e->getMessage());
             return redirect()->back()->withErrors('Hubo un error al actualizar el usuario. Inténtelo nuevamente.');
@@ -112,13 +165,29 @@ class UserController extends Controller
 
     public function destroy($id)
     {
+        $actor = Auth::user();
+
         try {
-            $user = User::findOrFail($id);
+            // Evita que NO-superadmin elimine usuarios superadmin (porque ni los ve con visibleFor)
+            $user = User::query()->visibleFor($actor)->findOrFail($id);
+
+            // Bloqueo: no permitir eliminar al último Superadmin
+            if ($user->hasRole('Superadmin')) {
+                $superadmins = User::role('Superadmin')->count();
+                if ($superadmins <= 1) {
+                    throw ValidationException::withMessages([
+                        'user' => 'No puedes eliminar al último Superadmin.',
+                    ]);
+                }
+            }
+
             $user->delete();
 
             Log::info("Usuario eliminado exitosamente: {$user->name}");
 
             return redirect()->route('users.index')->with('success', 'Usuario eliminado correctamente.');
+        } catch (ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors());
         } catch (\Exception $e) {
             Log::error("Error al eliminar el usuario: " . $e->getMessage());
             return redirect()->back()->withErrors('Hubo un error al eliminar el usuario. Inténtelo nuevamente.');

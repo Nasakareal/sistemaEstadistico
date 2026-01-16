@@ -1,16 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Models",
     "\\database",
-    "\\database\\seeders",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\mapa",
-    "\\routes"
+    "\\database\\seeders"
   ],
+  "SelectedNode": "\\database\\seeders\\RolesAndPermissionsSeeder.php",
   "PreviewInSolutionExplorer": false
 }

@@ -19,6 +19,6 @@ class UsersSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        $user->assignRole('Administrador');
+        $user->assignRole('Superadmin');
     }
 }

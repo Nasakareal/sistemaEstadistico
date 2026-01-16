@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
@@ -10,6 +13,9 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run()
     {
+        // Si usas cache de spatie
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
         // Todos los permisos
         $permissions = [
             // Configuraciones y usuarios
@@ -81,14 +87,17 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver mapa',
         ];
 
-        // Crear permisos si no existen
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // Definición de roles y permisos asignados
         $roles = [
+            // Superadmin: SIEMPRE TODO
+            'Superadmin' => $permissions,
+
             'Administrador' => $permissions,
+
             'Subdirector' => [
                 'ver configuraciones',
                 'ver hechos',
@@ -109,13 +118,30 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
         ];
 
-        // Crear roles y asignar permisos
-        foreach ($roles as $roleName => $rolePermissions) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
+        DB::transaction(function () use ($roles) {
 
-            // Obtener permisos y sincronizarlos con el rol
-            $permissionsToAssign = Permission::whereIn('name', $rolePermissions)->get();
-            $role->syncPermissions($permissionsToAssign);
-        }
+            foreach ($roles as $roleName => $rolePermissions) {
+                $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+
+                $permissionsToAssign = Permission::whereIn('name', $rolePermissions)->get();
+                $role->syncPermissions($permissionsToAssign);
+            }
+
+            // ====== HARD RULE: el sistema no puede quedarse sin superadmins ======
+            // Si ya existe al menos 1 usuario con rol Superadmin, ok.
+            // Si NO existe, promovemos al primer usuario (por id) a Superadmin.
+            $superadminRole = Role::where('name', 'Superadmin')->first();
+            if ($superadminRole) {
+                $count = User::role('Superadmin')->count();
+
+                if ($count === 0) {
+                    $firstUser = User::orderBy('id')->first();
+
+                    if ($firstUser) {
+                        $firstUser->assignRole('Superadmin');
+                    }
+                }
+            }
+        });
     }
 }

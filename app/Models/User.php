@@ -14,9 +14,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * Campos asignables
      */
     protected $fillable = [
         'name',
@@ -28,9 +26,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
+     * Campos ocultos
      */
     protected $hidden = [
         'password',
@@ -38,11 +34,76 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Casts
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    /* =====================================================
+     | HELPERS DE ROLES
+     ===================================================== */
+
+    /**
+     * ¿Es Superadmin?
+     */
+    public function isSuperadmin(): bool
+    {
+        return $this->hasRole('Superadmin');
+    }
+
+    /**
+     * ¿Es Administrador (pero no Superadmin)?
+     */
+    public function isAdministrador(): bool
+    {
+        return $this->hasRole('Administrador') && !$this->isSuperadmin();
+    }
+
+    /* =====================================================
+     | SCOPES DE VISIBILIDAD
+     ===================================================== */
+
+    /**
+     * Scope: usuarios visibles según quién consulta
+     *
+     * - Superadmin ve todo
+     * - Cualquier otro NO ve usuarios Superadmin
+     */
+    public function scopeVisibleFor($query, ?self $actor)
+    {
+        if ($actor && $actor->isSuperadmin()) {
+            return $query;
+        }
+
+        return $query->whereDoesntHave('roles', function ($q) {
+            $q->where('name', 'Superadmin');
+        });
+    }
+
+    /* =====================================================
+     | PROTECCIÓN LÓGICA (APOYO A CONTROLLERS)
+     ===================================================== */
+
+    /**
+     * ¿Este usuario puede ser degradado de Superadmin?
+     * (no se permite si es el último)
+     */
+    public function canBeDemotedFromSuperadmin(): bool
+    {
+        if (!$this->isSuperadmin()) {
+            return true;
+        }
+
+        return self::role('Superadmin')->count() > 1;
+    }
+
+    /**
+     * ¿Este usuario puede ser eliminado?
+     * (no se permite si es el último Superadmin)
+     */
+    public function canBeDeleted(): bool
+    {
+        return $this->canBeDemotedFromSuperadmin();
+    }
 }

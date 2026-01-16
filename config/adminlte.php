@@ -6,14 +6,7 @@ return [
     |--------------------------------------------------------------------------
     | Title
     |--------------------------------------------------------------------------
-    |
-    | Here you can change the default title of your admin panel.
-    |
-    | For detailed instructions you can look the title section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'title' => 'Sistema Estadistico',
     'title_prefix' => '',
     'title_postfix' => '',
@@ -22,14 +15,7 @@ return [
     |--------------------------------------------------------------------------
     | Favicon
     |--------------------------------------------------------------------------
-    |
-    | Here you can activate the favicon.
-    |
-    | For detailed instructions you can look the favicon section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'use_ico_only' => true,
     'use_full_favicon' => false,
 
@@ -37,16 +23,7 @@ return [
     |--------------------------------------------------------------------------
     | Google Fonts
     |--------------------------------------------------------------------------
-    |
-    | Here you can allow or not the use of external google fonts. Disabling the
-    | google fonts may be useful if your admin panel internet access is
-    | restricted somehow.
-    |
-    | For detailed instructions you can look the google fonts section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'google_fonts' => [
         'allowed' => true,
     ],
@@ -55,15 +32,8 @@ return [
     |--------------------------------------------------------------------------
     | Admin Panel Logo
     |--------------------------------------------------------------------------
-    |
-    | Here you can change the logo of your admin panel.
-    |
-    | For detailed instructions you can look the logo section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
-    'logo' => '<b style="color:white;">Sistema Estadistico</b>',
+    'logo' => '<b style="color:white;">Seguridad Vial</b>',
     'logo_img' => 'vialidad.png',
     'logo_img_class' => 'brand-image img-circle elevation-3',
     'logo_img_xl' => null,
@@ -74,15 +44,7 @@ return [
     |--------------------------------------------------------------------------
     | Authentication Logo
     |--------------------------------------------------------------------------
-    |
-    | Here you can setup an alternative logo to use on your login and register
-    | screens. When disabled, the admin panel logo will be used instead.
-    |
-    | For detailed instructions you can look the auth logo section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'auth_logo' => [
         'enabled' => false,
         'img' => [
@@ -98,17 +60,7 @@ return [
     |--------------------------------------------------------------------------
     | Preloader Animation
     |--------------------------------------------------------------------------
-    |
-    | Here you can change the preloader animation configuration. Currently, two
-    | modes are supported: 'fullscreen' for a fullscreen preloader animation
-    | and 'cwrapper' to attach the preloader animation into the content-wrapper
-    | element and avoid overlapping it with the sidebars and the top navbar.
-    |
-    | For detailed instructions you can look the preloader section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'preloader' => [
         'enabled' => true,
         'mode' => 'fullscreen',
@@ -126,14 +78,7 @@ return [
     |--------------------------------------------------------------------------
     | User Menu
     |--------------------------------------------------------------------------
-    |
-    | Here you can activate and change the user menu.
-    |
-    | For detailed instructions you can look the user menu section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'usermenu_enabled' => true,
     'usermenu_header' => false,
     'usermenu_header_class' => 'bg-primary',
@@ -145,14 +90,7 @@ return [
     |--------------------------------------------------------------------------
     | Layout
     |--------------------------------------------------------------------------
-    |
-    | Here we change the layout of your admin panel.
-    |
-    | For detailed instructions you can look the layout section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
     */
-
     'layout_topnav' => null,
     'layout_boxed' => null,
     'layout_fixed_sidebar' => null,
@@ -164,14 +102,7 @@ return [
     |--------------------------------------------------------------------------
     | Authentication Views Classes
     |--------------------------------------------------------------------------
-    |
-    | Here you can change the look and behavior of the authentication views.
-    |
-    | For detailed instructions you can look the auth classes section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
     */
-
     'classes_auth_card' => 'card-outline card-primary',
     'classes_auth_header' => '',
     'classes_auth_body' => '',
@@ -183,14 +114,7 @@ return [
     |--------------------------------------------------------------------------
     | Admin Panel Classes
     |--------------------------------------------------------------------------
-    |
-    | Here you can change the look and behavior of the admin panel.
-    |
-    | For detailed instructions you can look the admin panel classes here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
     */
-
     'classes_body' => '',
     'classes_brand' => '',
     'classes_brand_text' => '',
@@ -207,14 +131,7 @@ return [
     |--------------------------------------------------------------------------
     | Sidebar
     |--------------------------------------------------------------------------
-    |
-    | Here we can modify the sidebar of the admin panel.
-    |
-    | For detailed instructions you can look the sidebar section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
     */
-
     'sidebar_mini' => 'lg',
     'sidebar_collapse' => false,
     'sidebar_collapse_auto_size' => false,
@@ -229,14 +146,7 @@ return [
     |--------------------------------------------------------------------------
     | Control Sidebar (Right Sidebar)
     |--------------------------------------------------------------------------
-    |
-    | Here we can modify the right sidebar aka control sidebar of the admin panel.
-    |
-    | For detailed instructions you can look the right sidebar section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
-    |
     */
-
     'right_sidebar' => false,
     'right_sidebar_icon' => 'fas fa-cogs',
     'right_sidebar_theme' => 'dark',
@@ -249,14 +159,7 @@ return [
     |--------------------------------------------------------------------------
     | URLs
     |--------------------------------------------------------------------------
-    |
-    | Here we can modify the url settings of the admin panel.
-    |
-    | For detailed instructions you can look the urls section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
-    |
     */
-
     'use_route_url' => false,
     'dashboard_url' => 'home',
     'logout_url' => 'logout',
@@ -271,18 +174,7 @@ return [
     |--------------------------------------------------------------------------
     | Laravel Asset Bundling
     |--------------------------------------------------------------------------
-    |
-    | Here we can enable the Laravel Asset Bundling option for the admin panel.
-    | Currently, the next modes are supported: 'mix', 'vite' and 'vite_js_only'.
-    | When using 'vite_js_only', it's expected that your CSS is imported using
-    | JavaScript. Typically, in your application's 'resources/js/app.js' file.
-    | If you are not using any of these, leave it as 'false'.
-    |
-    | For detailed instructions you can look the asset bundling section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Other-Configuration
-    |
     */
-
     'laravel_asset_bundling' => false,
     'laravel_css_path' => 'css/app.css',
     'laravel_js_path' => 'js/app.js',
@@ -291,14 +183,7 @@ return [
     |--------------------------------------------------------------------------
     | Menu Items
     |--------------------------------------------------------------------------
-    |
-    | Here we can modify the sidebar/top navigation of the admin panel.
-    |
-    | For detailed instructions you can look here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Menu-Configuration
-    |
     */
-
     'menu' => [
         // Navbar items:
         [
@@ -310,293 +195,275 @@ return [
             'type' => 'link',
             'text' => 'Scan',
             'url' => '#',
-            'topnav_right' => true, 
+            'topnav_right' => true,
             'icon' => 'fa-solid fa-qrcode',
         ],
         [
             'type' => 'fullscreen-widget',
             'topnav_right' => true,
         ],
-
         [
-            // Enlace para "Perfil"
-            'text'         => 'Perfil',
-            'route'        => 'profile',  // <-- Apunta a la ruta "profile"
-            'icon'         => 'fas fa-fw fa-user',
-            'topnav_user'  => true,       // <-- Indica que va en el menú de usuario
+            'text'        => 'Perfil',
+            'route'       => 'profile',
+            'icon'        => 'fas fa-fw fa-user',
+            'topnav_user' => true,
         ],
         [
-            // Enlace para "Cambiar Contraseña"
-            'text'         => 'Cambiar Contraseña',
-            'route'        => 'password.change', // <-- Apunta a la ruta "password.change"
-            'icon'         => 'fas fa-fw fa-lock',
-            'topnav_user'  => true,
+            'text'        => 'Cambiar Contraseña',
+            'route'       => 'password.change',
+            'icon'        => 'fas fa-fw fa-lock',
+            'topnav_user' => true,
         ],
 
-
-        /* Sidebar items:
-        [
-            'type' => 'sidebar-menu-search',
-            'text' => 'search',
-        ], */
-        [
-            'text' => 'blog',
-            'url' => 'admin/blog',
-            'can' => 'manage-blog',
-        ],
-       /* [
-            'text' => 'pages',
-            'url' => 'admin/pages',
-            'icon' => 'far fa-fw fa-file',
-            'label' => 4,
-            'label_color' => 'success',
-        ],
-        ['header' => 'account_settings'], */
+        // ===================== SIDEBAR =====================
 
         [
-            'text' => 'Accidentes',
-            'icon' => 'fa-solid fa-car-side',
+            'text'    => 'Accidentes',
+            'icon'    => 'fa-solid fa-car-side',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver hechos',
+            'submenu' => [
+                [
+                    'text'    => 'Listado de Accidentes',
+                    'icon'    => 'fa-solid fa-car-side',
+                    'classes' => 'text-white',
+                    'url'     => 'hechos',
+                    'can'     => 'ver hechos',
+                ],
+                [
+                    'text'    => 'Añadir un accidente',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'hechos/create',
+                    'can'     => 'crear hechos',
+                ],
+                [
+                    'text'    => 'Búsqueda',
+                    'icon'    => 'fas fa-search',
+                    'classes' => 'text-white',
+                    'url'     => 'busqueda',
+                    'can'     => 'ver hechos',
+                ],
+            ],
+        ],
+
+        [
+            'text'    => 'Pase de Lista',
+            'icon'    => 'fas fa-user-check',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver listas',
+            'submenu' => [
+                [
+                    'text'    => 'Pases de lista',
+                    'icon'    => 'fa-solid fa-clipboard-list',
+                    'classes' => 'text-white',
+                    'url'     => 'listas',
+                    'can'     => 'ver listas',
+                ],
+                [
+                    'text'    => 'Añadir un Pase',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'listas/create',
+                    'can'     => 'crear listas',
+                ],
+            ],
+        ],
+
+        [
+            'text'    => 'Dictamenes',
+            'icon'    => 'fas fa-gavel',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver dictamenes',
+            'submenu' => [
+                [
+                    'text'    => 'Listado de Dictamenes',
+                    'icon'    => 'fas fa-gavel',
+                    'classes' => 'text-white',
+                    'url'     => 'dictamenes',
+                    'can'     => 'ver dictamenes',
+                ],
+                [
+                    'text'    => 'Solicitar número Dictamen',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'dictamenes/create',
+                    'can'     => 'crear dictamenes',
+                ],
+            ],
+        ],
+
+        [
+            'text'    => 'Actividades',
+            'icon'    => 'fas fa-tasks',
             'classes' => 'bg-blue text-white',
             'submenu' => [
                 [
-                    'text' => 'Listado de Accidentes',
-                    'icon' => 'fa-solid fa-car-side',
+                    'text'    => 'Listado de Actividades',
+                    'icon'    => 'fas fa-tasks',
                     'classes' => 'text-white',
-                    'url' => 'hechos',
+                    'url'     => '#',
                 ],
-
                 [
-                    'text' => 'Añadir un accidente',
-                    'icon' => 'fa-solid fa-plus',
+                    'text'    => 'Añadir Actividad',
+                    'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
-                    'url' => 'hechos/create',
-                ],
-                
-                [
-                    'text' => 'Búsqueda',
-                    'icon' => 'fas fa-search',
-                    'classes' => 'text-white',
-                    'url' => 'busqueda',
+                    'url'     => '#',
                 ],
             ],
         ],
 
         [
-            'text' => 'Pase de Lista',
-            'icon' => 'fas fa-user-check',
+            'text'    => 'Grúas',
+            'icon'    => 'fa-solid fa-truck-moving',
             'classes' => 'bg-blue text-white',
+            'can'     => 'ver gruas',
             'submenu' => [
                 [
-                    'text' => 'Pases de lista',
-                    'icon' => 'fa-solid fa-clipboard-list',
+                    'text'    => 'Listado de Grúas',
+                    'icon'    => 'fa-solid fa-truck-moving',
                     'classes' => 'text-white',
-                    'url' => 'listas',
+                    'url'     => 'gruas',
+                    'can'     => 'ver gruas',
                 ],
-                
                 [
-                    'text' => 'Añadir un Pase',
-                    'icon' => 'fa-solid fa-plus',
+                    'text'    => 'Ver Gráfico de Servicios',
+                    'icon'    => 'fa-solid fa-chart-line',
                     'classes' => 'text-white',
-                    'url' => 'listas/create',
+                    'url'     => 'servicios/grafico',
+                    'can'     => 'ver gruas',
                 ],
             ],
         ],
 
         [
-            'text' => 'Dictamenes',
-            'icon' => 'fas fa-gavel',
+            'text'    => 'Formatos',
+            'icon'    => 'fas fa-file-alt',
             'classes' => 'bg-blue text-white',
+            'can'     => 'ver formatos',
             'submenu' => [
                 [
-                    'text' => 'Listado de Dictamenes',
-                    'icon' => 'fas fa-gavel',
+                    'text'    => 'Listado de Formatos',
+                    'icon'    => 'fas fa-file-alt',
                     'classes' => 'text-white',
-                    'url' => 'dictamenes',
+                    'url'     => 'formatos',
+                    'can'     => 'ver formatos',
+                ],
+                [
+                    'text'    => 'Subir Formato',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'formatos/create',
+                    'can'     => 'crear formatos',
                 ],
             ],
         ],
 
         [
-            'text' => 'Actividades',
-            'icon' => 'fas fa-tasks',
+            'text'    => 'Oficios',
+            'icon'    => 'fas fa-envelope-open-text',
             'classes' => 'bg-blue text-white',
+            'can'     => 'ver oficios',
             'submenu' => [
                 [
-                    'text' => 'Listado de Actividades',
-                    'icon' => 'fas fa-tasks',
+                    'text'    => 'Listado de Oficios',
+                    'icon'    => 'fas fa-envelope-open-text',
                     'classes' => 'text-white',
-                    'url' => '#',
+                    'url'     => 'oficios',
+                    'can'     => 'ver oficios',
                 ],
-                
                 [
-                    'text' => 'Añadir Actividad',
-                    'icon' => 'fa-solid fa-plus',
+                    'text'    => 'Subir Oficio',
+                    'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
-                    'url' => '#',
+                    'url'     => 'oficios/create',
+                    'can'     => 'crear oficios',
                 ],
             ],
         ],
 
         [
-            'text' => 'Grúas',
-            'icon' => 'fa-solid fa-truck-moving',
+            'text'    => 'Estadísticas',
+            'icon'    => 'fa-solid fa-chart-pie',
             'classes' => 'bg-blue text-white',
+            'can'     => 'ver estadisticas',
             'submenu' => [
                 [
-                    'text' => 'Listado de Grúas',
-                    'icon' => 'fa-solid fa-truck-moving',
+                    'text'    => 'Listado de Estadisticas',
+                    'icon'    => 'fa-solid fa-chart-pie',
                     'classes' => 'text-white',
-                    'url' => 'gruas',
+                    'url'     => 'admin/settings/estadisticas',
+                    'can'     => 'ver estadisticas',
                 ],
-
                 [
-                    'text' => 'Ver Gráfico de Servicios',
-                    'icon' => 'fa-solid fa-chart-line',
+                    'text'    => 'Parte de Novedades',
+                    'icon'    => 'fa-solid fa-file-word',
                     'classes' => 'text-white',
-                    'url' => 'servicios/grafico',
+                    'route'   => 'estadisticas.parteNovedades',
+                    'can'     => 'ver estadisticas',
+                ],
+                [
+                    'text'    => 'Mini Parte',
+                    'icon'    => 'fa-solid fa-file-word',
+                    'classes' => 'text-white',
+                    'route'   => 'estadisticas.miniParte',
+                    'can'     => 'ver estadisticas',
                 ],
             ],
         ],
 
         [
-            'text' => 'Formatos',
-            'icon' => 'fas fa-file-alt',
+            'text'    => 'Mapa',
+            'icon'    => 'fa-solid fa-map-location-dot',
             'classes' => 'bg-blue text-white',
+            'can'     => 'ver mapa',
             'submenu' => [
                 [
-                    'text' => 'Listado de Formatos',
-                    'icon' => 'fas fa-file-alt',
+                    'text'    => 'Mapa Patrullas',
+                    'icon'    => 'fa-solid fa-map-location-dot',
                     'classes' => 'text-white',
-                    'url' => 'formatos',
+                    'url'     => 'mapa',
+                    'can'     => 'ver mapa',
                 ],
             ],
         ],
 
         [
-            'text' => 'Oficios',
-            'icon' => 'fas fa-envelope-open-text',
+            'text'    => 'Configuraciones',
+            'icon'    => 'fas fa-fw fa-gear',
             'classes' => 'bg-blue text-white',
+            'can'     => 'ver configuraciones',
             'submenu' => [
                 [
-                    'text' => 'Listado de Oficios',
-                    'icon' => 'fas fa-envelope-open-text',
+                    'text'    => 'Listado de Configuraciones',
+                    'icon'    => 'fas fa-fw fa-gear',
                     'classes' => 'text-white',
-                    'url' => 'oficios',
+                    'url'     => 'admin/settings',
+                    'can'     => 'ver configuraciones',
                 ],
-
                 [
-                    'text' => 'Subir Oficio',
-                    'icon' => 'ffa-solid fa-plus',
+                    'text'    => 'Listado de Usuarios',
+                    'icon'    => 'fa-solid fa-user',
                     'classes' => 'text-white',
-                    'url' => 'oficios/create',
+                    'url'     => 'admin/settings/users',
+                    'can'     => 'ver usuarios',
+                ],
+                [
+                    'text'    => 'Listado de Roles',
+                    'icon'    => 'fa-regular fa-flag',
+                    'classes' => 'text-white',
+                    'url'     => 'admin/settings/roles',
+                    'can'     => 'ver roles',
                 ],
             ],
         ],
-
-        [
-            'text' => 'Configuraciones',
-            'icon' => 'fas fa-fw fa-gear',
-            'classes' => 'bg-blue text-white',
-            'submenu' => [
-                [
-                    'text' => 'Listado de Configuraciones',
-                    'icon' => 'fas fa-fw fa-gear',
-                    'classes' => 'text-white',
-                    'url' => 'admin/settings',
-                ],
-                
-                [
-                    'text' => 'Listado de Usuarios',
-                    'icon' => 'fa-solid fa-user',
-                    'classes' => 'text-white',
-                    'url' => 'admin/settings/users',
-                ],
-
-                [
-                    'text' => 'Listado de Roles',
-                    'icon' => 'fa-regular fa-flag',
-                    'classes' => 'text-white',
-                    'url' => 'admin/settings/roles',
-                ],
-
-                [
-                    'text' => 'Listado de Estadisticas',
-                    'icon' => 'fa-solid fa-chart-pie',
-                    'classes' => 'text-white',
-                    'url' => '#',
-                ],
-            ],
-        ],
-
-
-        /* [
-            'text' => 'multilevel',
-            'icon' => 'fas fa-fw fa-share',
-            'submenu' => [
-                [
-                    'text' => 'level_one',
-                    'url' => '#',
-                ],
-                [
-                    'text' => 'level_one',
-                    'url' => '#',
-                    'submenu' => [
-                        [
-                            'text' => 'level_two',
-                            'url' => '#',
-                        ],
-                        [
-                            'text' => 'level_two',
-                            'url' => '#',
-                            'submenu' => [
-                                [
-                                    'text' => 'level_three',
-                                    'url' => '#',
-                                ],
-                                [
-                                    'text' => 'level_three',
-                                    'url' => '#',
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-                [
-                    'text' => 'level_one',
-                    'url' => '#',
-                ],
-            ],
-        ], */
-        /* ['header' => 'labels'],
-        [
-            'text' => 'important',
-            'icon_color' => 'red',
-            'url' => '#',
-        ],
-        [
-            'text' => 'warning',
-            'icon_color' => 'yellow',
-            'url' => '#',
-        ],
-        [
-            'text' => 'information',
-            'icon_color' => 'cyan',
-            'url' => '#',
-        ], */
     ],
 
     /*
     |--------------------------------------------------------------------------
     | Menu Filters
     |--------------------------------------------------------------------------
-    |
-    | Here we can modify the menu filters of the admin panel.
-    |
-    | For detailed instructions you can look the menu filters section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Menu-Configuration
-    |
     */
-
     'filters' => [
         JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
@@ -611,25 +478,19 @@ return [
     |--------------------------------------------------------------------------
     | Plugins Initialization
     |--------------------------------------------------------------------------
-    |
-    | Here we can modify the plugins used inside the admin panel.
-    |
-    | For detailed instructions you can look the plugins section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Plugins-Configuration
-    |
     */
-
     'plugins' => [
         'FontAwesome' => [
-	        'active' => true,
-	        'files' => [
-		        [
-			        'type' => 'css',
-			        'asset' => true,
-			        'location' => 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css',
-		        ],
-	        ],
-    ],
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css',
+                ],
+            ],
+        ],
+
         'Datatables' => [
             'active' => false,
             'files' => [
@@ -650,6 +511,7 @@ return [
                 ],
             ],
         ],
+
         'Select2' => [
             'active' => false,
             'files' => [
@@ -665,6 +527,7 @@ return [
                 ],
             ],
         ],
+
         'Chartjs' => [
             'active' => false,
             'files' => [
@@ -675,22 +538,23 @@ return [
                 ],
             ],
         ],
+
         'Sweetalert2' => [
             'active' => true,
             'files' => [
                 [
-	                'type' => 'js',
-	                'asset' => true,
-	                'location' => 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js',
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js',
                 ],
                 [
-	                'type' => 'css',
-	                'asset' => true,
-	                'location' => 	'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.ss',
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css',
                 ],
-	
             ],
         ],
+
         'Pace' => [
             'active' => false,
             'files' => [
@@ -712,15 +576,7 @@ return [
     |--------------------------------------------------------------------------
     | IFrame
     |--------------------------------------------------------------------------
-    |
-    | Here we change the IFrame mode configuration. Note these changes will
-    | only apply to the view that extends and enable the IFrame mode.
-    |
-    | For detailed instructions you can look the iframe mode section here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/IFrame-Mode-Configuration
-    |
     */
-
     'iframe' => [
         'default_tab' => [
             'url' => null,
@@ -745,13 +601,6 @@ return [
     |--------------------------------------------------------------------------
     | Livewire
     |--------------------------------------------------------------------------
-    |
-    | Here we can enable the Livewire support.
-    |
-    | For detailed instructions you can look the livewire here:
-    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Other-Configuration
-    |
     */
-
     'livewire' => false,
 ];

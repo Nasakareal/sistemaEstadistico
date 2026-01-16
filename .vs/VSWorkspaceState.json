@@ -1,12 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\contacto",
-    "\\resources\\views\\licencias",
-    "\\resources\\views\\servicios"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models",
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\contacto\\index.blade.php",
+  "SelectedNode": "\\app\\Models\\Grua.php",
   "PreviewInSolutionExplorer": false
 }

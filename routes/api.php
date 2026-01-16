@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\HechoController;
 use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\LesionadoController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\GruaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- AUTH ---
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get ('/me',     [AuthController::class, 'me']);
+
+    // --- GRÚAS (para dropdown en Android) ---
+    // GET /api/gruas => { data: [ {id, nombre}, ... ] }
+    Route::get('/gruas', [GruaController::class, 'index']);
 
     // --- HECHOS ---
     Route::get   ('/hechos',         [HechoController::class, 'index']);
@@ -61,7 +66,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Consultar última ubicación de una patrulla específica (mapa/admin)
     Route::get('/users/{user}/location/last', [LocationController::class, 'lastByUser']);
 
-    // >>> LISTADO DE TODAS LAS PATRULLAS CON SU ÚLTIMA UBICACIÓN <<<
-    // (para mapa web y para elegir la más cercana)
+    // Listado de todas las patrullas con su última ubicación
     Route::get('/locations', [LocationController::class, 'index']);
 });

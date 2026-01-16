@@ -5,162 +5,419 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Costos de Licencia</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            font-family: 'Nunito', sans-serif;
-            background-color: #f7fafc;
-            color: #333;
+        :root{
+            --bg0:#070B14;
+            --bg1:#0B1224;
+            --text: rgba(234,240,255,.92);
+            --muted: rgba(234,240,255,.70);
+            --stroke: rgba(255,255,255,.12);
+            --cardA: rgba(255,255,255,.10);
+            --cardB: rgba(255,255,255,.05);
+            --shadow: 0 18px 55px rgba(0,0,0,.45);
+            --shadow2: 0 12px 35px rgba(0,0,0,.35);
+            --radius: 22px;
+            --brand: rgba(45,168,255,.30);
+            --brand2: rgba(124,92,255,.26);
+            --chip: rgba(0,0,0,.14);
         }
-        .navbar-fixed {
+
+        *{ box-sizing: border-box; }
+        html, body{ height: 100%; margin:0; padding:0; }
+
+        body{
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 900px at 20% 10%, rgba(45,168,255,.25), transparent 60%),
+                radial-gradient(1000px 800px at 80% 20%, rgba(124,92,255,.22), transparent 55%),
+                radial-gradient(900px 650px at 60% 85%, rgba(25,211,140,.12), transparent 60%),
+                linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #050813);
+            display:flex;
+            flex-direction: column;
+        }
+
+        /* NAVBAR */
+        .navbar-fixed{
             position: sticky;
             top: 0;
-            background-color: #fff;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-around;
             z-index: 1000;
+            padding: 12px 14px;
+            display:flex;
+            align-items:center;
+            justify-content: center;
+            background: linear-gradient(180deg, rgba(7,11,20,.90), rgba(7,11,20,.58));
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(255,255,255,.10);
         }
-        .navbar-fixed a {
-            color: #004a87;
-            font-weight: bold;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 4px;
+        .nav-inner{
+            width: min(1100px, 100%);
+            display:flex;
+            align-items:center;
+            justify-content: space-between;
+            gap: 14px;
         }
-        .navbar-fixed a:hover {
-            background-color: #004a87;
-            color: white;
+        .brand{
+            display:flex;
+            align-items:center;
+            gap: 10px;
+            text-decoration:none;
+            color: rgba(234,240,255,.95);
+            font-weight: 900;
+            white-space: nowrap;
         }
-        .content {
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
+        .brand .badge{
+            width: 36px;
+            height: 36px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            display:grid;
+            place-items:center;
+            box-shadow: var(--shadow2);
         }
-        h1, h2 {
-            text-align: center;
-            color: #004a87;
+        .nav-links{
+            display:flex;
+            align-items:center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
-        h1 {
-            font-size: 2rem;
+        .nav-links a{
+            text-decoration:none;
+            color: rgba(234,240,255,.82);
+            font-weight: 800;
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.14);
+            transition: .18s ease;
         }
-        h2 {
-            font-size: 1.5rem;
-            margin-top: 30px;
+        .nav-links a:hover{
+            transform: translateY(-1px);
+            border-color: rgba(45,168,255,.35);
+            background: linear-gradient(135deg, rgba(45,168,255,.18), rgba(124,92,255,.14));
+            color: rgba(234,240,255,.95);
         }
-        table {
+
+        /* MAIN */
+        .wrap{
+            width: min(1100px, 100%);
+            margin: 18px auto 28px;
+            padding: 0 14px;
+            flex: 1;
+        }
+
+        /* HERO */
+        .hero{
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.12);
+            background:
+                radial-gradient(700px 280px at 20% 30%, rgba(45,168,255,.20), transparent 60%),
+                radial-gradient(700px 280px at 80% 30%, rgba(124,92,255,.18), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+            box-shadow: var(--shadow);
+            overflow:hidden;
+            padding: 18px 18px 16px;
+            text-align:center;
+        }
+        .pill{
+            display:inline-flex;
+            align-items:center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(0,0,0,.18);
+            border: 1px solid rgba(255,255,255,.10);
+            color: rgba(234,240,255,.85);
+            font-weight: 900;
+            font-size: 12px;
+            letter-spacing: .35px;
+        }
+        .dot{
+            width: 8px; height: 8px;
+            border-radius: 999px;
+            background: #19D38C;
+            box-shadow: 0 0 0 5px rgba(25,211,140,.14);
+        }
+        .hero h1{
+            margin: 10px 0 6px;
+            font-size: clamp(22px, 2.2vw, 30px);
+            font-weight: 950;
+            letter-spacing: -.6px;
+            color: rgba(234,240,255,.95);
+        }
+        .hero p{
+            margin: 0;
+            color: var(--muted);
+            font-weight: 650;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        /* SECTION CARD */
+        .section{
+            margin-top: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--stroke);
+            background: linear-gradient(180deg, var(--cardA), var(--cardB));
+            box-shadow: var(--shadow2);
+            padding: 16px;
+        }
+
+        .section-title{
+            display:flex;
+            align-items:center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .section-title h2{
+            margin: 0;
+            font-size: 16px;
+            font-weight: 950;
+            letter-spacing: -.2px;
+            color: rgba(234,240,255,.95);
+            display:flex;
+            align-items:center;
+            gap: 10px;
+        }
+        .hint{
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: var(--chip);
+            font-weight: 850;
+            font-size: 12px;
+            color: rgba(234,240,255,.78);
+            white-space: nowrap;
+        }
+
+        /* TABLE */
+        .table-wrap{
+            overflow:auto;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.12);
+        }
+
+        table{
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 720px; /* para que se vea bien en móvil con scroll */
         }
-        th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
-            text-align: center;
+
+        thead th{
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            text-align:center;
+            padding: 12px 10px;
+            font-size: 12px;
+            letter-spacing: .3px;
+            font-weight: 950;
+            color: rgba(234,240,255,.92);
+            background: linear-gradient(135deg, rgba(45,168,255,.22), rgba(124,92,255,.18));
+            border-bottom: 1px solid rgba(255,255,255,.10);
+            backdrop-filter: blur(10px);
         }
-        th {
-            background-color: #004a87;
-            color: white;
+
+        tbody td{
+            text-align:center;
+            padding: 12px 10px;
+            font-weight: 750;
+            color: rgba(234,240,255,.82);
+            border-bottom: 1px solid rgba(255,255,255,.08);
         }
-        .footer {
-            text-align: center;
-            padding: 20px;
-            background-color: #004a87;
-            color: white;
+
+        tbody tr:hover td{
+            background: rgba(255,255,255,.04);
+        }
+
+        tbody td:first-child{
+            text-align:left;
+            font-weight: 950;
+            color: rgba(234,240,255,.92);
+            white-space: nowrap;
+        }
+
+        .muted{
+            color: rgba(234,240,255,.55);
+            font-weight: 800;
+        }
+
+        /* LINKS */
+        .links{
+            margin-top: 14px;
+            text-align:center;
+        }
+        .links a{
+            color: rgba(234,240,255,.82);
+            font-weight: 850;
+            text-decoration:none;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.14);
+            display:inline-block;
+            transition: .18s ease;
+        }
+        .links a:hover{
+            transform: translateY(-1px);
+            border-color: rgba(45,168,255,.35);
+            background: linear-gradient(135deg, rgba(45,168,255,.18), rgba(124,92,255,.14));
+            color: rgba(234,240,255,.95);
+        }
+
+        /* FOOTER */
+        .footer{
+            text-align:center;
+            padding: 18px 10px;
+            color: rgba(234,240,255,.70);
+            border-top: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.16);
+        }
+
+        @media (max-width: 950px){
+            .nav-inner{ flex-direction: column; align-items: stretch; }
+            .nav-links{ justify-content: center; }
         }
     </style>
 </head>
+
 <body>
-    <!-- Barra fija de navegación -->
+
+    {{-- NAVBAR --}}
     <div class="navbar-fixed">
-        <a href="{{ route('apoyo.index') }}">Servicios</a>
-        <a href="{{ route('licencias.requisitos') }}">Ver Requisitos</a>
-        <a href="{{ route('licencias.ubicaciones') }}">Ver Ubicaciones</a>
-        <a href="{{ route('login') }}">Iniciar Sesión</a>
-    </div>
+        <div class="nav-inner">
+            <a class="brand" href="{{ url('/') }}">
+                <span class="badge"><i class="fa-solid fa-dollar-sign"></i></span>
+                <span>Licencias · Costos</span>
+            </a>
 
-    <!-- Contenido principal: tabla de costos (sin multas) -->
-    <div class="content">
-        <h1>Costos para Tramitar la Licencia</h1>
-
-        @php
-            // Extraer la sección de multas y eliminarla del arreglo principal
-            $multas = [];
-            if(isset($costos['Multas'])) {
-                $multas = $costos['Multas'];
-                unset($costos['Multas']);
-            }
-
-            // Extraer las duraciones únicas de los demás costos
-            $duraciones = [];
-            foreach ($costos as $item) {
-                foreach ($item as $duracion => $valor) {
-                    $duraciones[$duracion] = $duracion;
-                }
-            }
-            ksort($duraciones);
-        @endphp
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Tipo de Trámite</th>
-                    @foreach ($duraciones as $duracion)
-                        <th>{{ $duracion }}</th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($costos as $tipo => $valores)
-                    <tr>
-                        <td>{{ $tipo }}</td>
-                        @foreach ($duraciones as $duracion)
-                            <td>{{ $valores[$duracion] ?? '-' }}</td>
-                        @endforeach
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-
-        <!-- Botón para regresar -->
-        <div class="links" style="margin-top: 20px; text-align: center;">
-            <a href="{{ url('/') }}">Regresar al Inicio</a>
+            <div class="nav-links">
+                <a href="{{ route('apoyo.index') }}"><i class="fa-solid fa-handshake-angle"></i> Servicios</a>
+                <a href="{{ route('licencias.requisitos') }}"><i class="fa-solid fa-clipboard-check"></i> Ver Requisitos</a>
+                <a href="{{ route('licencias.ubicaciones') }}"><i class="fa-solid fa-location-dot"></i> Ver Ubicaciones</a>
+                <a href="{{ route('login') }}"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</a>
+            </div>
         </div>
     </div>
 
-    <!-- Div para Multas -->
-    @if(!empty($multas))
-    <div class="content">
-        <h2>Multas</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Tiempo</th>
-                    <th>Costo</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($multas as $tiempo => $costo)
-                    <tr>
-                        <td>{{ $tiempo }}</td>
-                        <td>{{ $costo }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-    @endif
+    <div class="wrap">
 
-    <!-- Pie de página -->
+        {{-- HERO --}}
+        <div class="hero">
+            <div class="pill">
+                <span class="dot"></span>
+                <span>Costos</span>
+            </div>
+            <h1>Costos para Tramitar la Licencia</h1>
+            <p>Consulta los importes por tipo de trámite y duración.</p>
+        </div>
+
+        {{-- TABLA PRINCIPAL (sin multas) --}}
+        <div class="section">
+            @php
+                // Extraer la sección de multas y eliminarla del arreglo principal
+                $multas = [];
+                if(isset($costos['Multas'])) {
+                    $multas = $costos['Multas'];
+                    unset($costos['Multas']);
+                }
+
+                // Extraer las duraciones únicas de los demás costos
+                $duraciones = [];
+                foreach ($costos as $item) {
+                    foreach ($item as $duracion => $valor) {
+                        $duraciones[$duracion] = $duracion;
+                    }
+                }
+                ksort($duraciones);
+            @endphp
+
+            <div class="section-title">
+                <h2><i class="fa-solid fa-table"></i> Tabla de costos</h2>
+                <div class="hint"><i class="fa-solid fa-circle-info"></i> Desliza horizontal si estás en móvil</div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo de Trámite</th>
+                            @foreach ($duraciones as $duracion)
+                                <th>{{ $duracion }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($costos as $tipo => $valores)
+                            <tr>
+                                <td>{{ $tipo }}</td>
+                                @foreach ($duraciones as $duracion)
+                                    @php $val = $valores[$duracion] ?? null; @endphp
+                                    <td class="{{ $val ? '' : 'muted' }}">
+                                        {{ $val ?? '-' }}
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="links">
+                <a href="{{ url('/') }}"><i class="fa-solid fa-house"></i> Regresar al Inicio</a>
+            </div>
+        </div>
+
+        {{-- MULTAS --}}
+        @if(!empty($multas))
+            <div class="section">
+                <div class="section-title">
+                    <h2><i class="fa-solid fa-triangle-exclamation"></i> Multas</h2>
+                    <div class="hint"><i class="fa-solid fa-scale-balanced"></i> Importes informativos</div>
+                </div>
+
+                <div class="table-wrap">
+                    <table style="min-width: 520px;">
+                        <thead>
+                            <tr>
+                                <th>Tiempo</th>
+                                <th>Costo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($multas as $tiempo => $costo)
+                                <tr>
+                                    <td style="text-align:left;font-weight:950;color:rgba(234,240,255,.92)">{{ $tiempo }}</td>
+                                    <td>{{ $costo }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
+    </div>
+
     <div class="footer">
         &copy; 2025 Coordinación del Agrupamiento de Seguridad Vial. Todos los derechos reservados.
     </div>
+
 </body>
 </html>

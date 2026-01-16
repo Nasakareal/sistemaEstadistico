@@ -1,181 +1,326 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <link rel="icon" href="{{ asset('Favicons.ico') }}" type="image/x-icon">
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
+    <link rel="icon" href="{{ asset('Favicons.ico') }}" type="image/x-icon">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Campañas - Seguridad Vial</title>
+    <title>Campañas - Seguridad Vial</title>
 
-        <!-- Fonts -->
-        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-        <!-- Styles -->
-        <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        :root{
+            --bg0:#070B14;
+            --bg1:#0B1224;
+            --text: rgba(234,240,255,.92);
+            --muted: rgba(234,240,255,.70);
+            --muted2: rgba(234,240,255,.55);
+            --stroke: rgba(255,255,255,.12);
+            --cardA: rgba(255,255,255,.10);
+            --cardB: rgba(255,255,255,.05);
+            --shadow: 0 18px 55px rgba(0,0,0,.45);
+            --shadow2: 0 12px 35px rgba(0,0,0,.35);
+            --radius: 22px;
+            --brand: rgba(45,168,255,.30);
+            --brand2: rgba(124,92,255,.26);
         }
 
-        body {
-            display: flex;
+        *{ box-sizing: border-box; }
+        html, body{ height: 100%; margin:0; padding:0; }
+
+        body{
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 900px at 20% 10%, rgba(45,168,255,.25), transparent 60%),
+                radial-gradient(1000px 800px at 80% 20%, rgba(124,92,255,.22), transparent 55%),
+                radial-gradient(900px 650px at 60% 85%, rgba(25,211,140,.12), transparent 60%),
+                linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #050813);
+            display:flex;
             flex-direction: column;
-            font-family: 'Nunito', sans-serif;
-            background-color: #f7fafc;
-            color: #333;
         }
 
-        .header {
-            background-color: #004a87;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            position: relative;
-        }
-
-        .navbar-fixed {
+        /* NAVBAR */
+        .navbar-fixed{
             position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
-            background-color: white;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            border-bottom: 1px solid #ddd;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
             z-index: 1000;
+            padding: 12px 14px;
+            display:flex;
+            align-items:center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(180deg, rgba(7,11,20,.90), rgba(7,11,20,.58));
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(255,255,255,.10);
+        }
+        .nav-inner{
+            width: min(1100px, 100%);
+            display:flex;
+            align-items:center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+        .brand{
+            display:flex;
+            align-items:center;
+            gap: 10px;
+            text-decoration:none;
+            color: rgba(234,240,255,.95);
+            font-weight: 900;
+            letter-spacing: .2px;
+            white-space: nowrap;
+        }
+        .brand .badge{
+            width: 36px;
+            height: 36px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            display:grid;
+            place-items:center;
+            box-shadow: var(--shadow2);
+        }
+        .brand .badge i{ color: rgba(255,255,255,.95); }
+
+        .nav-links{
+            display:flex;
+            align-items:center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .nav-links a{
+            text-decoration:none;
+            color: rgba(234,240,255,.82);
+            font-weight: 800;
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.14);
+            transition: .18s ease;
+        }
+        .nav-links a:hover{
+            transform: translateY(-1px);
+            border-color: rgba(45,168,255,.35);
+            background: linear-gradient(135deg, rgba(45,168,255,.18), rgba(124,92,255,.14));
+            color: rgba(234,240,255,.95);
         }
 
-        .navbar-fixed a {
-            color: #004a87;
-            font-weight: bold;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 4px;
-        }
-
-        .navbar-fixed a:hover {
-            background-color: #004a87;
-            color: white;
-        }
-
-        .content {
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
+        /* MAIN */
+        .wrap{
+            width: min(1100px, 100%);
+            margin: 18px auto 28px;
+            padding: 0 14px;
             flex: 1;
         }
 
-        .content h1 {
-            font-size: 2rem;
-            text-align: center;
-            color: #004a87;
+        /* HERO */
+        .hero{
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.12);
+            background:
+                radial-gradient(700px 280px at 20% 30%, rgba(45,168,255,.20), transparent 60%),
+                radial-gradient(700px 280px at 80% 30%, rgba(124,92,255,.18), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+            box-shadow: var(--shadow);
+            overflow:hidden;
+            padding: 18px 18px 16px;
+            text-align:center;
+        }
+        .pill{
+            display:inline-flex;
+            align-items:center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(0,0,0,.18);
+            border: 1px solid rgba(255,255,255,.10);
+            color: rgba(234,240,255,.85);
+            font-weight: 900;
+            font-size: 12px;
+            letter-spacing: .35px;
+        }
+        .dot{
+            width: 8px; height: 8px;
+            border-radius: 999px;
+            background: #19D38C;
+            box-shadow: 0 0 0 5px rgba(25,211,140,.14);
+        }
+        .hero h1{
+            margin: 10px 0 6px;
+            font-size: clamp(22px, 2.2vw, 30px);
+            font-weight: 950;
+            letter-spacing: -.6px;
+            color: rgba(234,240,255,.95);
+        }
+        .hero p{
+            margin: 0;
+            color: var(--muted);
+            font-weight: 650;
+            font-size: 13px;
+            line-height: 1.55;
         }
 
-        .content p {
-            font-size: 1rem;
-            line-height: 1.5;
-            margin-top: 20px;
-            text-align: justify;
+        /* SECTION CARD */
+        .section{
+            margin-top: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--stroke);
+            background: linear-gradient(180deg, var(--cardA), var(--cardB));
+            box-shadow: var(--shadow2);
+            padding: 16px;
         }
 
-        .row {
-            display: flex;
+        .rowx{
+            display:grid;
+            grid-template-columns: 1.05fr .95fr;
+            gap: 16px;
             align-items: center;
-            justify-content: space-around;
-            margin: 40px 0;
+            margin-top: 6px;
+        }
+        @media (max-width: 900px){
+            .rowx{ grid-template-columns: 1fr; }
+            .nav-inner{ flex-direction: column; align-items: stretch; }
+            .nav-links{ justify-content: center; }
         }
 
-        .row img {
-            width: 300px;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        .media{
+            border-radius: 22px;
+            overflow:hidden;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(0,0,0,.18);
+            box-shadow: 0 10px 28px rgba(0,0,0,.25);
+        }
+        .media img{
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+            display:block;
+            filter: saturate(1.05) contrast(1.02);
+        }
+        @media (max-width: 900px){
+            .media img{ height: 240px; }
         }
 
-        .row .description {
-            max-width: 400px;
-            padding: 20px;
+        .content{
+            padding: 10px 10px 10px 2px;
         }
-
-        .description h2 {
-            font-size: 1.5rem;
-            color: #004a87;
-            margin-bottom: 10px;
+        .content h2{
+            margin: 0 0 8px;
+            font-size: 18px;
+            font-weight: 950;
+            letter-spacing: -.2px;
+            color: rgba(234,240,255,.95);
         }
-
-        .description p {
-            font-size: 1rem;
-            line-height: 1.5;
+        .content p{
+            margin: 0;
+            color: var(--muted);
+            font-weight: 650;
+            line-height: 1.6;
+            font-size: 13.5px;
             text-align: justify;
         }
 
-        .links {
-            margin-top: 30px;
-            text-align: center;
+        .links{
+            margin-top: 14px;
+            text-align:center;
+        }
+        .links a{
+            color: rgba(234,240,255,.82);
+            font-weight: 850;
+            text-decoration:none;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.14);
+            display:inline-block;
+            transition: .18s ease;
+        }
+        .links a:hover{
+            transform: translateY(-1px);
+            border-color: rgba(45,168,255,.35);
+            background: linear-gradient(135deg, rgba(45,168,255,.18), rgba(124,92,255,.14));
+            color: rgba(234,240,255,.95);
         }
 
-        .links a {
-            margin: 0 15px;
-            color: #004a87;
-            font-weight: bold;
-            text-decoration: none;
+        /* FOOTER */
+        .footer{
+            text-align:center;
+            padding: 18px 10px;
+            color: rgba(234,240,255,.70);
+            border-top: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.16);
         }
+    </style>
+</head>
 
-        .links a:hover {
-            text-decoration: underline;
-        }
+<body>
 
-        .footer {
-            text-align: center;
-            padding: 20px;
-            background-color: #004a87;
-            color: white;
-        }
-        </style>
-    </head>
-    <body>
+    {{-- NAVBAR --}}
+    <div class="navbar-fixed">
+        <div class="nav-inner">
+            <a class="brand" href="{{ url('/') }}">
+                <span class="badge"><i class="fa-solid fa-shield-halved"></i></span>
+                <span>Seguridad Vial · Michoacán</span>
+            </a>
 
-        <!-- Barra fija de navegación -->
-        <div class="navbar-fixed">
-            <a href="{{ route('apoyo.index') }}">Servicios</a>
-            <a href="{{ route('campanas.index') }}">Campañas</a>
-            <a href="{{ url('/contacto') }}">Contáctanos</a>
-            <a href="{{ route('login') }}">Iniciar Sesión</a>
+            <div class="nav-links">
+                <a href="{{ route('apoyo.index') }}"><i class="fa-solid fa-handshake-angle"></i> Servicios</a>
+                <a href="{{ route('campanas.index') }}"><i class="fa-solid fa-bullhorn"></i> Campañas</a>
+                <a href="{{ url('/contacto') }}"><i class="fa-solid fa-envelope"></i> Contáctanos</a>
+                <a href="{{ route('login') }}"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</a>
+            </div>
         </div>
+    </div>
 
-        <div class="content">
+    <div class="wrap">
+
+        {{-- HERO --}}
+        <div class="hero">
+            <div class="pill">
+                <span class="dot"></span>
+                <span>Campañas</span>
+            </div>
             <h1>Bienvenido a la sección de Campañas</h1>
             <p>
                 Conoce nuestras campañas enfocadas en promover la seguridad vial. Estamos comprometidos con el bienestar de todos los ciudadanos.
             </p>
+        </div>
 
-            <!-- Fila con imagen y descripción de la campaña -->
-            <div class="row">
-                <img src="{{ asset('img/vac1.jpg') }}" alt="Campaña Vacaciones Seguras">
-                <div class="description">
+        {{-- CAMPAÑA --}}
+        <div class="section">
+            <div class="rowx">
+                <div class="media">
+                    <img src="{{ asset('img/vac1.jpg') }}" alt="Campaña Vacaciones Seguras">
+                </div>
+                <div class="content">
                     <h2>Campaña Vacaciones Seguras</h2>
                     <p>
-                        La campaña "Vacaciones Seguras" tiene como objetivo concienciar a los conductores sobre la importancia de manejar con precaución durante los periodos vacacionales. 
-                        A través de esta iniciativa, promovemos medidas de prevención para reducir accidentes en carreteras.
+                        La campaña "Vacaciones Seguras" tiene como objetivo concienciar a los conductores sobre la importancia de manejar con precaución
+                        durante los periodos vacacionales. A través de esta iniciativa, promovemos medidas de prevención para reducir accidentes en carreteras.
                     </p>
+
+                    <div class="links" style="margin-top:16px;">
+                        <a href="{{ url('/') }}"><i class="fa-solid fa-house"></i> Regresar al Inicio</a>
+                    </div>
                 </div>
             </div>
-
-            <!-- Botón opcional para regresar al inicio -->
-            <div class="links">
-                <a href="{{ url('/') }}">Regresar al Inicio</a>
-            </div>
         </div>
 
-        <div class="footer">
-            &copy; 2025 Coordinación del Agrupamiento de Seguridad Vial. Todos los derechos reservados.
-        </div>
-    </body>
+    </div>
+
+    <div class="footer">
+        &copy; 2025 Coordinación del Agrupamiento de Seguridad Vial. Todos los derechos reservados.
+    </div>
+
+</body>
 </html>

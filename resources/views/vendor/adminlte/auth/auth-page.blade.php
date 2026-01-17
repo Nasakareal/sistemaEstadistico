@@ -26,7 +26,7 @@
 @section('body')
     <div class="{{ $auth_type ?? 'login' }}-box">
 
-    <center><img src="{{asset('img/vialidad.png')}}" width="60%" alt=""></center>
+    <center><img src="{{asset('img/guardiacivil.png')}}" width="60%" alt=""></center>
 
     <br>
 

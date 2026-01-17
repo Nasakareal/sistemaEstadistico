@@ -55,17 +55,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put   ('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'update']);
     Route::delete('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'destroy']);
 
-    // --- UBICACIÓN PATRULLA (tipo FlashRide) ---
+    // --- UBICACIÓN PATRULLA ---
 
-    // Enviar ubicación de la patrulla autenticada
     Route::post('/location', [LocationController::class, 'store']);
-
-    // Consultar MI última ubicación
     Route::get('/location/last', [LocationController::class, 'last']);
-
-    // Consultar última ubicación de una patrulla específica (mapa/admin)
     Route::get('/users/{user}/location/last', [LocationController::class, 'lastByUser']);
-
-    // Listado de todas las patrullas con su última ubicación
     Route::get('/locations', [LocationController::class, 'index']);
 });

@@ -34,7 +34,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'logo' => '<b style="color:white;">Seguridad Vial</b>',
-    'logo_img' => 'vialidad.png',
+    'logo_img' => 'guardiacivil.png',
     'logo_img_class' => 'brand-image img-circle elevation-3',
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
@@ -65,7 +65,7 @@ return [
         'enabled' => true,
         'mode' => 'fullscreen',
         'img' => [
-            'path' => 'vialidad.png',
+            'path' => 'guardiacivil.png',
             'alt' => 'Sistema Estadistico',
             'effect' => 'animation__shake',
             'class' => 'custom-preloader-img',

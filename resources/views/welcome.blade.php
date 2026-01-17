@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="{{ asset('Favicons.ico') }}" type="image/x-icon">
+  <link rel="icon" href="{{ asset('icon.ico') }}" type="image/x-icon">
   <title>Seguridad Vial - Michoacán</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -494,7 +494,7 @@
       <div class="topbar-inner">
         <div class="brand">
           <div class="brand-badge" aria-hidden="true">
-            <img src="{{ asset('Favicons.ico') }}" alt="">
+            <img src="{{ asset('icon.ico') }}" alt="">
           </div>
           <div class="brand-text">
             <div class="title">Coordinación del Agrupamiento de Seguridad Vial</div>

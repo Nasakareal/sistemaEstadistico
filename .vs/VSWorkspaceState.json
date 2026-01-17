@@ -1,13 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models",
-    "\\routes"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\layouts",
+    "\\resources\\views\\vendor",
+    "\\resources\\views\\vendor\\adminlte",
+    "\\resources\\views\\vendor\\adminlte\\auth"
   ],
-  "SelectedNode": "\\app\\Models\\Grua.php",
+  "SelectedNode": "\\resources\\views\\vendor\\adminlte\\auth\\login.blade.php",
   "PreviewInSolutionExplorer": false
 }

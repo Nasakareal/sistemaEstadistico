@@ -182,31 +182,6 @@
 </style>
 @stop
 
-@section('auth_header')
-    <div style="text-align:center; padding: 18px 0 10px;">
-        <div style="display:flex; align-items:center; justify-content:center; gap: 12px;">
-            <div style="
-                width: 44px; height: 44px; border-radius: 14px;
-                background: radial-gradient(circle at 30% 20%, rgba(45,168,255,.9), rgba(124,92,255,.75));
-                display:grid; place-items:center;
-                border: 1px solid rgba(255,255,255,.18);
-                box-shadow: 0 10px 30px rgba(45,168,255,.18);
-                overflow:hidden;
-            ">
-                <img src="{{ asset('Favicons.ico') }}" alt="Logo" style="width:30px; height:30px; object-fit:contain;">
-            </div>
-        </div>
-
-        <div class="sv-kicker"><span class="sv-dot"></span> Acceso · Operativo · Seguro</div>
-
-        <div style="font-weight: 900; font-size: 16px; letter-spacing: .2px;">
-            Sistema Estadístico
-        </div>
-        <div style="margin-top: 4px; color: rgba(234,240,255,.65); font-weight: 600; font-size: 12.5px;">
-            Coordinación del Agrupamiento de Seguridad Vial · Michoacán
-        </div>
-    </div>
-@stop
 
 @section('auth_body')
     <form action="{{ $login_url }}" method="POST">
@@ -278,21 +253,4 @@
             </div>
         </div>
     </form>
-@stop
-
-@section('auth_footer')
-    <div style="display:flex; justify-content:space-between; gap: 10px; flex-wrap:wrap;">
-        @if($password_reset_url)
-            <a href="{{ $password_reset_url }}">
-                {{ __('adminlte::adminlte.i_forgot_my_password') }}
-            </a>
-        @endif
-
-        {{-- Si NO quieres registro público, puedes borrar esto o dejarlo oculto --}}
-        @if($register_url)
-            <a href="{{ $register_url }}" style="opacity:.9;">
-                {{ __('adminlte::adminlte.register_a_new_membership') }}
-            </a>
-        @endif
-    </div>
 @stop

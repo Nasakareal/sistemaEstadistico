@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Hechos;
 use App\Models\Vehiculo;
 use App\Models\Conductor;
+use App\Models\Grua;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +23,15 @@ class VehiculoController extends Controller
     public function store(Request $request, Hechos $hecho)
     {
         $validated = $this->validateRequest($request);
-
         $validated = $this->normalize($request, $validated);
+
+        $validated['grua'] = 'N/A';
+        if (!empty($validated['grua_id'])) {
+            $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
+            if (!empty($tmp)) {
+                $validated['grua'] = strtoupper($tmp);
+            }
+        }
 
         if ($this->hayDuplicados($hecho, $validated)) {
             return response()->json([
@@ -34,10 +42,8 @@ class VehiculoController extends Controller
         return DB::transaction(function () use ($validated, $hecho) {
 
             $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
-
             $hecho->vehiculos()->attach($vehiculo->id);
 
-            // Servicio de grúa (solo si viene grua_id)
             if (!empty($validated['grua_id'])) {
                 DB::table('servicios')->insert([
                     'vehiculo_id'   => $vehiculo->id,
@@ -49,7 +55,6 @@ class VehiculoController extends Controller
                 ]);
             }
 
-            // Conductor (si viene algo de conductor)
             if ($this->hayDatosConductor($validated)) {
                 $conductor = Conductor::create($this->onlyConductor($validated));
                 $vehiculo->conductores()->attach($conductor->id);
@@ -61,6 +66,7 @@ class VehiculoController extends Controller
             ], 201);
         });
     }
+
 
     public function show(Hechos $hecho, Vehiculo $vehiculo)
     {
@@ -80,8 +86,15 @@ class VehiculoController extends Controller
         }
 
         $validated = $this->validateRequest($request, $vehiculo->id);
-
         $validated = $this->normalize($request, $validated);
+
+        $validated['grua'] = 'N/A';
+        if (!empty($validated['grua_id'])) {
+            $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
+            if (!empty($tmp)) {
+                $validated['grua'] = strtoupper($tmp);
+            }
+        }
 
         if ($this->hayDuplicados($hecho, $validated, $vehiculo->id)) {
             return response()->json([
@@ -93,9 +106,6 @@ class VehiculoController extends Controller
 
             $vehiculo->update($this->onlyVehiculo($validated));
 
-            // Servicio grúa:
-            // - si viene grua_id => upsert
-            // - si no viene grua_id => eliminar si existe
             if (!empty($validated['grua_id'])) {
                 DB::table('servicios')->updateOrInsert(
                     ['vehiculo_id' => $vehiculo->id],
@@ -111,8 +121,6 @@ class VehiculoController extends Controller
                 DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
             }
 
-            // Conductor: si hay datos => crear/actualizar
-            // si NO hay datos => no toca (no borro nada automáticamente)
             if ($this->hayDatosConductor($validated)) {
                 $conductor = $vehiculo->conductores()->first();
 
@@ -131,6 +139,7 @@ class VehiculoController extends Controller
         });
     }
 
+
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
         if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
@@ -139,20 +148,11 @@ class VehiculoController extends Controller
 
         return DB::transaction(function () use ($hecho, $vehiculo) {
 
-            // Quitar relación hecho-vehículo
             $hecho->vehiculos()->detach($vehiculo->id);
 
-            // Eliminar servicio si existe
             DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
 
-            // Conductores asociados: DETACH (y borrar solo si tú así lo quieres)
-            // Si tu modelo de negocio es "conductor solo existe para este vehículo", entonces sí bórralos.
-            // Para no cagarla si en el futuro se reutilizan, aquí solo los detach.
             $vehiculo->conductores()->detach();
-
-            // Si estás seguro que son exclusivos, descomenta:
-            // foreach ($vehiculo->conductores as $c) { $c->delete(); }
-
             $vehiculo->delete();
 
             return response()->json([
@@ -302,6 +302,7 @@ class VehiculoController extends Controller
             'capacidad_personas'         => $v['capacidad_personas'] ?? 0,
             'tipo_servicio'              => $v['tipo_servicio'] ?? null,
             'tarjeta_circulacion_nombre' => $v['tarjeta_circulacion_nombre'] ?? null,
+            'grua'                       => $v['grua'] ?? 'N/A',
             'corralon'                   => $v['corralon'] ?? null,
             'aseguradora'                => $v['aseguradora'] ?? null,
             'monto_danos'                => $v['monto_danos'] ?? 0,

@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\resources\\views\\vehiculos",
+  "SelectedNode": "\\database\\migrations\\2026_01_13_045709_alter_vehiculos_make_serie_and_tarjeta_nullable.php",
   "PreviewInSolutionExplorer": false
 }

@@ -208,17 +208,18 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
         Route::get('/', [App\Http\Controllers\EstadisticasController::class, 'index'])->name('estadisticas.index');
 
-        //Parte de Novedades
         Route::get('/parte-novedades', [App\Http\Controllers\EstadisticasController::class, 'parteNovedades'])->name('estadisticas.parteNovedades');
         Route::get('/parte-novedades/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarParte'])->name('estadisticas.parteNovedades.descargar');
 
-        // Mini Parte
         Route::get('/mini-parte', [App\Http\Controllers\EstadisticasController::class, 'miniParte'])->name('estadisticas.miniParte');
         Route::get('/mini-parte/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarMiniParte'])->name('estadisticas.miniParte.descargar');
 
-        Route::get('/settings/estadisticas/dictamen', [App\Http\Controllers\EstadisticasController::class, 'dictamen'])->name('estadisticas.dictamen');
-        Route::get('/settings/estadisticas/dictamen/{id}', [App\Http\Controllers\EstadisticasController::class, 'dictamenShow'])->name('estadisticas.dictamen.show');
-        Route::get('/settings/estadisticas/dictamen/{id}/docx', [App\Http\Controllers\EstadisticasController::class, 'dictamenDocx'])->name('estadisticas.dictamen.docx');
+        Route::get('/dictamen', [App\Http\Controllers\EstadisticasController::class, 'dictamen'])->name('estadisticas.dictamen');
+        Route::get('/dictamen/{id}', [App\Http\Controllers\EstadisticasController::class, 'dictamenShow'])->name('estadisticas.dictamen.show');
+        Route::get('/dictamen/{id}/docx', [App\Http\Controllers\EstadisticasController::class, 'dictamenDocx'])->name('estadisticas.dictamen.docx');
+
+        Route::get('/bitacora', [App\Http\Controllers\EstadisticasController::class, 'bitacora'])->name('estadisticas.bitacora');
+        Route::get('/bitacora/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarBitacora'])->name('estadisticas.bitacora.descargar');
     });
 });
 

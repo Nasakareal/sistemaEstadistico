@@ -1,13 +1,16 @@
 {
   "ExpandedNodes": [
     "",
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\layouts",
-    "\\resources\\views\\vendor",
-    "\\resources\\views\\vendor\\adminlte",
-    "\\resources\\views\\vendor\\adminlte\\auth"
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\estadisticas",
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\vendor\\adminlte\\auth\\login.blade.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas\\bitacora.blade.php",
   "PreviewInSolutionExplorer": false
 }

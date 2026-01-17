@@ -44,7 +44,6 @@ class EstadisticasController extends Controller
         $inicio = Carbon::parse($fecha)->setTime(18, 0)->subDay();
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
 
-        // Relaciones necesarias
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
             ->whereBetween('created_at', [$inicio, $fin])
             ->get();
@@ -783,6 +782,211 @@ class EstadisticasController extends Controller
         return response()->download($tempPath)->deleteFileAfterSend(true);
     }
 
+    public function bitacora(Request $request)
+    {
+        $fecha = $request->input('fecha') ?? now()->format('Y-m-d');
+
+        $inicio = Carbon::parse($fecha)->setTime(18, 0)->subDay();
+        $fin    = Carbon::parse($fecha)->setTime(18, 0);
+
+        $hechos = Hechos::with(['vehiculos', 'lesionados'])
+            ->whereBetween('created_at', [$inicio, $fin])
+            ->orderBy('hora')
+            ->get();
+
+        return view('admin.settings.estadisticas.bitacora', compact('hechos', 'fecha'));
+    }
+
+    public function descargarBitacora(Request $request)
+    {
+        $fecha  = $request->input('fecha') ?? now()->format('Y-m-d');
+        $inicio = Carbon::parse($fecha)->setTime(18, 0)->subDay();
+        $fin    = Carbon::parse($fecha)->setTime(18, 0);
+
+        $hechos = Hechos::with(['vehiculos', 'lesionados'])
+            ->whereBetween('created_at', [$inicio, $fin])
+            ->orderBy('hora')
+            ->get();
+
+        $phpWord = new PhpWord();
+        $phpWord->setDefaultFontName('Arial');
+        $phpWord->setDefaultFontSize(10);
+
+        $section = $phpWord->addSection([
+            'pageSizeW'    => 18720,
+            'pageSizeH'    => 12240,
+            'marginTop'    => 250,
+            'marginRight'  => 600,
+            'marginBottom' => 250,
+            'marginLeft'   => 600,
+        ]);
+
+        $pCenter0 = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 0, 'lineHeight' => 1.0];
+        $pLeft0   = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT,   'spaceBefore' => 0, 'spaceAfter' => 0, 'lineHeight' => 1.0];
+        $pRight0  = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::RIGHT,  'spaceBefore' => 0, 'spaceAfter' => 0, 'lineHeight' => 1.0];
+
+        $phpWord->addTableStyle('EncabezadoTablaBitacora', [
+            'borderSize'  => 0,
+            'borderColor' => 'FFFFFF',
+            'cellMargin'  => 0,
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\JcTable::CENTER,
+        ]);
+
+        $tEnc = $section->addTable('EncabezadoTablaBitacora');
+
+        $tEnc->addRow(420);
+        $tEnc->addCell(9000, ['valign' => 'center'])->addImage(public_path('ssp.jpg'), [
+            'width'     => 140,
+            'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::LEFT
+        ]);
+        $tEnc->addCell(9000, ['valign' => 'center'])->addImage(public_path('vialidad.png'), [
+            'width'     => 70,
+            'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::RIGHT
+        ]);
+
+        $tEnc->addRow(420);
+        $cTitulo = $tEnc->addCell(18000, ['gridSpan' => 2, 'valign' => 'center']);
+        $trTitulo = $cTitulo->addTextRun($pCenter0);
+        $trTitulo->addText('BITÁCORA', ['bold' => true, 'size' => 12]);
+        $trTitulo->addText('    ', ['size' => 12]);
+        $trTitulo->addText('UNIDAD DE ATENCIÓN A SINIESTROS', ['bold' => true, 'size' => 12]);
+
+        $dia  = Carbon::parse($fecha)->format('d');
+        $mes  = strtoupper(Carbon::parse($fecha)->translatedFormat('F'));
+        $anio = Carbon::parse($fecha)->format('Y');
+
+        $phpWord->addTableStyle('FechaDerechaTabla', [
+            'borderSize'  => 0,
+            'borderColor' => 'FFFFFF',
+            'cellMargin'  => 0,
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\JcTable::CENTER,
+        ]);
+
+        $tFecha = $section->addTable('FechaDerechaTabla');
+
+        $tFecha->addRow(260);
+        $tFecha->addCell(12000, ['valign' => 'center'])->addText('', ['size' => 10], $pCenter0);
+        $tFecha->addCell(1500,  ['valign' => 'center'])->addText($dia,  ['bold' => true, 'size' => 10], $pCenter0);
+        $tFecha->addCell(2500,  ['valign' => 'center'])->addText($mes,  ['bold' => true, 'size' => 10], $pCenter0);
+        $tFecha->addCell(1500,  ['valign' => 'center'])->addText($anio, ['bold' => true, 'size' => 10], $pCenter0);
+
+        $phpWord->addTableStyle('BitacoraTabla', [
+            'borderSize'  => 8,
+            'borderColor' => '000000',
+            'cellMargin'  => 20,
+            'alignment'   => \PhpOffice\PhpWord\SimpleType\JcTable::CENTER,
+        ]);
+        $table = $section->addTable('BitacoraTabla');
+
+        $headerCell = ['bgColor' => 'D9D9D9', 'valign' => 'center'];
+        $cell       = ['valign' => 'center'];
+
+        $wNo     = 650;
+        $wHora   = 1200;
+        $wUnidad = 1150;
+        $wPerito = 3600;
+        $wLugar  = 5200;
+        $wGrua   = 1500;
+        $wLes    = 2000;
+        $wTipo   = 2400;
+        $wObs    = 2500;
+
+        $table->addRow(320);
+        $table->addCell($wNo,     $headerCell)->addText('N°', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wHora,   $headerCell)->addText('HORA DE SALIDA', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wUnidad, $headerCell)->addText('UNIDAD', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wPerito, $headerCell)->addText('PERITO(S) NOMBRE', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wLugar,  $headerCell)->addText('LUGAR DE LOS HECHOS', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wGrua,   $headerCell)->addText('GRUA', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wLes,    $headerCell)->addText('PERSONAS LESIONADAS', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wTipo,   $headerCell)->addText('TIPO DE HECHO', ['bold' => true, 'size' => 10], $pCenter0);
+        $table->addCell($wObs,    $headerCell)->addText('OBSERVACIÓN / ESTATUS', ['bold' => true, 'size' => 10], $pCenter0);
+
+        $n = 1;
+        foreach ($hechos as $hecho) {
+            $hora = !empty($hecho->hora)
+                ? Carbon::parse($hecho->hora)->format('H:i')
+                : Carbon::parse($hecho->created_at)->format('H:i');
+
+            $unidad = (string)($hecho->unidad ?? '');
+            $perito = strtoupper((string)($hecho->perito ?? ''));
+
+            $lugar = trim((string)($hecho->calle ?? ''));
+            if (!empty($hecho->colonia))   $lugar .= ($lugar !== '' ? ', ' : '') . 'COL. ' . $hecho->colonia;
+            if (!empty($hecho->municipio)) $lugar .= ($lugar !== '' ? ', ' : '') . $hecho->municipio;
+
+            $grua = 'NO';
+            if ($hecho->vehiculos && $hecho->vehiculos->count() > 0) {
+                $vConGrua = $hecho->vehiculos->first(function ($v) {
+                    return $v->grua !== null && trim((string)$v->grua) !== '' && strtolower(trim((string)$v->grua)) !== 'n/a';
+                });
+                if ($vConGrua) $grua = strtoupper(trim((string)$vConGrua->grua));
+            }
+
+            $personasLes = ($hecho->lesionados && $hecho->lesionados->count() > 0)
+                ? ($hecho->lesionados->count() . ' PERSONA(S)')
+                : 'NO';
+
+            $tipoHecho  = strtoupper((string)($hecho->tipo_hecho ?? ''));
+            $estatus    = strtoupper((string)($hecho->situacion ?? ''));
+            $obsEstatus = trim($estatus);
+
+            $table->addRow(300);
+            $table->addCell($wNo,     $cell)->addText((string)$n, ['size' => 10], $pCenter0);
+            $table->addCell($wHora,   $cell)->addText($hora !== '' ? $hora : '-', ['size' => 10], $pCenter0);
+            $table->addCell($wUnidad, $cell)->addText($unidad !== '' ? $unidad : '-', ['size' => 10], $pCenter0);
+            $table->addCell($wPerito, $cell)->addText($perito !== '' ? $perito : '-', ['size' => 10], $pLeft0);
+            $table->addCell($wLugar,  $cell)->addText($lugar !== '' ? $lugar : '-', ['size' => 10], $pLeft0);
+            $table->addCell($wGrua,   $cell)->addText($grua, ['size' => 10], $pCenter0);
+            $table->addCell($wLes,    $cell)->addText($personasLes, ['size' => 10], $pCenter0);
+            $table->addCell($wTipo,   $cell)->addText($tipoHecho !== '' ? $tipoHecho : '-', ['size' => 10], $pCenter0);
+            $table->addCell($wObs,    $cell)->addText($obsEstatus !== '' ? $obsEstatus : '-', ['size' => 10], $pCenter0);
+
+            $n++;
+        }
+
+        // =====================================
+        // ===== BLOQUE DE FIRMAS (AL FINAL) ====
+        // =====================================
+
+        // Día seleccionado (del filtro), no de un hecho
+        $diaNum = (int) Carbon::parse($fecha)->format('d');
+
+        // IMPAR = JORGE, PAR = FERNANDO
+        $nombreFirma = ($diaNum % 2 === 1)
+            ? 'JORGE ARMANDO MORALES PEREZ'
+            : 'FERNANDO RUBALCAVA RIVERA';
+
+        $section->addTextBreak(3);
+
+        $section->addText(
+            'ATENTAMENTE.',
+            ['bold' => true, 'size' => 10],
+            ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 0]
+        );
+
+        $section->addText(
+            'COMANDANTE DE TURNO.',
+            ['bold' => true, 'size' => 10],
+            ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 0]
+        );
+
+        $section->addTextBreak(3);
+
+        $section->addText(
+            $nombreFirma,
+            ['bold' => true, 'size' => 10],
+            ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 0]
+        );
+
+
+        $filename = "bitacora_{$fecha}.docx";
+        $tempPath = storage_path("app/public/{$filename}");
+        IOFactory::createWriter($phpWord, 'Word2007')->save($tempPath);
+
+        return response()->download($tempPath)->deleteFileAfterSend(true);
+    }
+
     public function dictamen(Request $request)
     {
         $q = trim((string) $request->input('q', ''));
@@ -821,7 +1025,6 @@ class EstadisticasController extends Controller
 
         return view('admin.settings.estadisticas.dictamen', compact('q', 'modo', 'resultados'));
     }
-
 
     public function dictamenShow($id)
     {
@@ -6724,6 +6927,4 @@ class EstadisticasController extends Controller
 
         return response()->download($tempPath)->deleteFileAfterSend(true);
     }
-
-
 }

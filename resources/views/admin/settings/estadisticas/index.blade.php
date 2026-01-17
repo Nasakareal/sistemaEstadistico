@@ -40,6 +40,16 @@
                             </tr>
 
                             <tr>
+                                <td><strong>Bitácora</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.bitacora') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-clipboard-list"></i> Ver Bitácora
+                                    </a>
+                                </td>
+                            </tr>
+
+
+                            <tr>
                                 <td><strong>Mini Parte</strong></td>
                                 <td>
                                     <a href="{{ route('estadisticas.miniParte') }}" class="btn btn-outline-primary btn-sm">

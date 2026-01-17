@@ -441,12 +441,56 @@
 @stop
 
 @section('css')
-    <style>
-        .form-group label {
-            font-weight: bold;
-        }
-    </style>
+<style>
+    /* ===== Labels ===== */
+    .form-group label {
+        font-weight: bold;
+        color: #eaf0ff;
+    }
+
+    /* ===== Select normal (AdminLTE / modo oscuro) ===== */
+    select,
+    select.form-control {
+        color: #eaf0ff; /* texto cuando está cerrado */
+        background-color: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 12px;
+    }
+
+    /* ===== Opciones del dropdown ===== */
+    select option {
+        color: #111 !important;      /* texto visible */
+        background-color: #ffffff !important;
+    }
+
+    /* ===== Optgroup (si llegas a usarlo) ===== */
+    select optgroup {
+        color: #111 !important;
+        background-color: #ffffff !important;
+        font-weight: bold;
+    }
+
+    /* ===== Opción seleccionada ===== */
+    select option:checked {
+        background-color: #dbeafe !important;
+        color: #0b1220 !important;
+    }
+
+    /* ===== Hover / navegación teclado ===== */
+    select option:hover {
+        background-color: #bfdbfe !important;
+        color: #0b1220 !important;
+    }
+
+    /* ===== FIX AdminLTE (focus) ===== */
+    select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(45,168,255,.35);
+        border-color: rgba(45,168,255,.55);
+    }
+</style>
 @stop
+
 
 @section('js')
     <script>

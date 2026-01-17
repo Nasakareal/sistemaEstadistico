@@ -1,16 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
     "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\estadisticas",
-    "\\routes"
+    "\\resources\\views"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas\\bitacora.blade.php",
+  "SelectedNode": "\\resources\\views\\vehiculos",
   "PreviewInSolutionExplorer": false
 }

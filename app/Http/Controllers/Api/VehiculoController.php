@@ -10,6 +10,7 @@ use App\Models\Grua;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class VehiculoController extends Controller
 {
@@ -40,7 +41,6 @@ class VehiculoController extends Controller
         }
 
         return DB::transaction(function () use ($validated, $hecho) {
-
             $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
             $hecho->vehiculos()->attach($vehiculo->id);
 
@@ -66,7 +66,6 @@ class VehiculoController extends Controller
             ], 201);
         });
     }
-
 
     public function show(Hechos $hecho, Vehiculo $vehiculo)
     {
@@ -103,7 +102,6 @@ class VehiculoController extends Controller
         }
 
         return DB::transaction(function () use ($validated, $vehiculo) {
-
             $vehiculo->update($this->onlyVehiculo($validated));
 
             if (!empty($validated['grua_id'])) {
@@ -139,7 +137,6 @@ class VehiculoController extends Controller
         });
     }
 
-
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
         if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
@@ -147,6 +144,9 @@ class VehiculoController extends Controller
         }
 
         return DB::transaction(function () use ($hecho, $vehiculo) {
+            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                Storage::disk('public')->delete($vehiculo->fotos);
+            }
 
             $hecho->vehiculos()->detach($vehiculo->id);
 
@@ -161,7 +161,78 @@ class VehiculoController extends Controller
         });
     }
 
-    /* ===================== HELPERS ===================== */
+    public function foto(Hechos $hecho, Vehiculo $vehiculo)
+    {
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => [
+                'vehiculo_id' => $vehiculo->id,
+                'fotos'       => $vehiculo->fotos,
+                'url'         => $vehiculo->fotos ? asset('storage/' . $vehiculo->fotos) : null,
+            ]
+        ]);
+    }
+
+    public function fotoUpdate(Request $request, Hechos $hecho, Vehiculo $vehiculo)
+    {
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
+
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        return DB::transaction(function () use ($request, $vehiculo) {
+            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                Storage::disk('public')->delete($vehiculo->fotos);
+            }
+
+            $path = $request->file('foto')->store('vehiculos', 'public');
+
+            $vehiculo->update([
+                'fotos' => $path,
+            ]);
+
+            return response()->json([
+                'message' => 'Foto guardada',
+                'data' => [
+                    'vehiculo_id' => $vehiculo->id,
+                    'fotos'       => $vehiculo->fotos,
+                    'url'         => asset('storage/' . $vehiculo->fotos),
+                ]
+            ], 201);
+        });
+    }
+
+    public function fotoDestroy(Hechos $hecho, Vehiculo $vehiculo)
+    {
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
+
+        return DB::transaction(function () use ($vehiculo) {
+            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                Storage::disk('public')->delete($vehiculo->fotos);
+            }
+
+            $vehiculo->update([
+                'fotos' => null,
+            ]);
+
+            return response()->json([
+                'message' => 'Foto eliminada',
+                'data' => [
+                    'vehiculo_id' => $vehiculo->id,
+                    'fotos'       => null,
+                    'url'         => null,
+                ]
+            ]);
+        });
+    }
 
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
@@ -182,21 +253,15 @@ class VehiculoController extends Controller
             'placas'                     => ['required','string','max:15',$uniquePlacas],
             'estado_placas'              => 'nullable|string|max:15',
             'serie'                      => ['nullable','string','max:17',$uniqueSerie],
-
             'capacidad_personas'         => 'required|integer|min:0',
             'tipo_servicio'              => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
-
             'grua_id'                    => 'nullable|exists:gruas,id',
             'corralon'                   => 'nullable|string|max:50',
             'aseguradora'                => 'nullable|string|max:100',
-
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
-
             'antecedente_vehiculo'       => 'sometimes|boolean',
-
-            // conductor
             'conductor_nombre'           => 'nullable|string|max:255',
             'telefono'                   => 'nullable|digits:10',
             'domicilio'                  => 'nullable|string|max:255',
@@ -207,7 +272,6 @@ class VehiculoController extends Controller
             'estado_licencia'            => 'nullable|string|max:100',
             'vigencia_licencia'          => 'nullable|date',
             'numero_licencia'            => 'nullable|string|max:50',
-
             'permanente'                 => 'sometimes|boolean',
             'cinturon'                   => 'sometimes|boolean',
             'antecedente_conductor'      => 'sometimes|boolean',
@@ -232,18 +296,15 @@ class VehiculoController extends Controller
             }
         }
 
-        // placas y serie sin guiones
         if (isset($data['placas'])) {
             $data['placas'] = strtoupper(str_replace('-', '', $data['placas']));
         }
 
-        // IMPORTANTÍSIMO: si serie viene vacía, que sea NULL (no '')
         if (array_key_exists('serie', $data)) {
             $serie = strtoupper(str_replace('-', '', (string)($data['serie'] ?? '')));
             $data['serie'] = ($serie !== '') ? $serie : null;
         }
 
-        // booleans correctos para JSON
         $data['antecedente_vehiculo']    = $request->boolean('antecedente_vehiculo');
         $data['permanente']              = $request->boolean('permanente');
         $data['cinturon']                = $request->boolean('cinturon');
@@ -259,7 +320,6 @@ class VehiculoController extends Controller
     {
         $q = $hecho->vehiculos();
         if ($ignoreId) $q->where('vehiculos.id', '!=', $ignoreId);
-
         $dupPlaca = $q->where('placas', $v['placas'])->exists();
 
         $dupSerie = false;
@@ -283,9 +343,7 @@ class VehiculoController extends Controller
 
     private function hayDatosConductor(array $v): bool
     {
-        return !empty($v['conductor_nombre'])
-            || !empty($v['telefono'])
-            || !empty($v['domicilio']);
+        return !empty($v['conductor_nombre']) || !empty($v['telefono']) || !empty($v['domicilio']);
     }
 
     private function onlyVehiculo(array $v): array
@@ -308,6 +366,7 @@ class VehiculoController extends Controller
             'monto_danos'                => $v['monto_danos'] ?? 0,
             'partes_danadas'             => $v['partes_danadas'] ?? null,
             'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
+            'fotos'                      => $v['fotos'] ?? null,
         ];
     }
 
@@ -322,7 +381,7 @@ class VehiculoController extends Controller
             'edad'                    => $v['edad'] ?? null,
             'tipo_licencia'           => $v['tipo_licencia'] ?? null,
             'estado_licencia'         => $v['estado_licencia'] ?? null,
-            'vigencia_licencia'       => $v['permanente'] ? null : ($v['vigencia_licencia'] ?? null),
+            'vigencia_licencia'       => ($v['permanente'] ?? false) ? null : ($v['vigencia_licencia'] ?? null),
             'numero_licencia'         => $v['numero_licencia'] ?? null,
             'permanente'              => $v['permanente'] ?? false,
             'cinturon'                => $v['cinturon'] ?? false,

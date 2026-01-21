@@ -48,6 +48,12 @@
                                             <a href="{{ route('vehiculos.edit', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}" class="btn btn-success btn-sm">
                                                 <i class="fa-solid fa-pencil"></i> Editar
                                             </a>
+
+                                            <a href="{{ route('vehiculos.foto', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}" class="btn btn-info btn-sm">
+                                                <i class="fa-solid fa-camera"></i>
+                                                {{ $vehiculo->fotos ? 'Ver/Editar Foto' : 'Subir Foto' }}
+                                            </a>
+
                                             <form action="{{ route('vehiculos.destroy', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}" method="POST" style="display: inline-block;">
                                                 @csrf
                                                 @method('DELETE')

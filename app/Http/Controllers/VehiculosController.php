@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Grua;
 use App\Models\Servicios;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class VehiculosController extends Controller
 {
@@ -446,19 +447,74 @@ class VehiculosController extends Controller
 
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
-        // Elimina TODOS los conductores asociados a este vehículo (solo esos registros)
-        foreach ($vehiculo->conductores as $conductor) {
-            // Eliminar relación
-            $vehiculo->conductores()->detach($conductor->id);
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404, 'El vehículo no pertenece a este hecho.');
+        }
 
-            // Borrar ese registro de conductor (aunque haya otros con el mismo nombre en otros hechos)
+        if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+            Storage::disk('public')->delete($vehiculo->fotos);
+        }
+
+        foreach ($vehiculo->conductores as $conductor) {
+            $vehiculo->conductores()->detach($conductor->id);
             $conductor->delete();
         }
 
-        // Eliminar el vehículo
+        $vehiculo->hechos()->detach();
         $vehiculo->delete();
 
         return back()->with('success', 'Vehículo y conductor(es) eliminados correctamente.');
     }
 
+    public function foto(Hechos $hecho, Vehiculo $vehiculo)
+    {
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404, 'El vehículo no pertenece a este hecho.');
+        }
+
+        return view('vehiculos.foto', compact('hecho', 'vehiculo'));
+    }
+
+    public function fotoUpdate(Request $request, Hechos $hecho, Vehiculo $vehiculo)
+    {
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404, 'El vehículo no pertenece a este hecho.');
+        }
+
+        $validated = $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+            Storage::disk('public')->delete($vehiculo->fotos);
+        }
+
+        $path = $request->file('foto')->store('vehiculos', 'public');
+        $vehiculo->update([
+            'fotos' => $path,
+        ]);
+
+        return redirect()
+            ->route('vehiculos.foto', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id])
+            ->with('success', 'Foto guardada correctamente.');
+    }
+
+    public function fotoDestroy(Hechos $hecho, Vehiculo $vehiculo)
+    {
+        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404, 'El vehículo no pertenece a este hecho.');
+        }
+
+        if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+            Storage::disk('public')->delete($vehiculo->fotos);
+        }
+
+        $vehiculo->update([
+            'fotos' => null,
+        ]);
+
+        return redirect()
+            ->route('vehiculos.foto', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id])
+            ->with('success', 'Foto eliminada correctamente.');
+    }
 }

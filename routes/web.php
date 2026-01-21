@@ -158,6 +158,9 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
         Route::get('/{vehiculo}/edit', [App\Http\Controllers\VehiculosController::class, 'edit'])->middleware('can:editar vehiculos')->name('vehiculos.edit');
         Route::put('/{vehiculo}', [App\Http\Controllers\VehiculosController::class, 'update'])->middleware('can:editar vehiculos')->name('vehiculos.update');
         Route::delete('/{vehiculo}', [App\Http\Controllers\VehiculosController::class, 'destroy'])->middleware('can:eliminar vehiculos')->name('vehiculos.destroy');
+        Route::get('/{vehiculo}/foto', [App\Http\Controllers\VehiculosController::class, 'foto'])->middleware('can:editar vehiculos')->name('vehiculos.foto');
+        Route::post('/{vehiculo}/foto', [App\Http\Controllers\VehiculosController::class, 'fotoUpdate'])->middleware('can:editar vehiculos')->name('vehiculos.foto.update');
+        Route::delete('/{vehiculo}/foto', [App\Http\Controllers\VehiculosController::class, 'fotoDestroy'])->middleware('can:editar vehiculos')->name('vehiculos.foto.destroy');
     });
 
     // Rutas anidadas para Lesionados

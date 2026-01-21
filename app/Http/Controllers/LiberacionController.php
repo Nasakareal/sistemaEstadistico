@@ -15,8 +15,6 @@ use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 
-
-
 class LiberacionController extends Controller
 {
     public function publica(Vehiculo $vehiculo)
@@ -38,10 +36,8 @@ class LiberacionController extends Controller
         return view('liberaciones.publica', compact('vehiculo', 'liberacion'));
     }
 
-    // Vista accesible desde el QR con token único
     public function desdeToken($token)
     {
-        // Buscar la liberación por token
         $liberacion = Liberacion::where('token_unico', $token)->firstOrFail();
         $vehiculo = $liberacion->vehiculo;
 
@@ -53,7 +49,6 @@ class LiberacionController extends Controller
             }
         }
 
-        // Usuario no autenticado: vista pública
         return view('liberaciones.publica', compact('vehiculo', 'liberacion'));
     }
 
@@ -82,7 +77,6 @@ class LiberacionController extends Controller
         return $pdf->download('acuse_liberacion_vehiculo_' . $vehiculo->id . '.pdf');
     }
 
-    // Crear liberación
     public function create(Vehiculo $vehiculo)
     {
         $fechaActual = Carbon::now()->format('Y-m-d');
@@ -110,10 +104,11 @@ class LiberacionController extends Controller
         $folioAnual = "{$folioFormateado}/{$anio}";
 
         $hecho = $vehiculo->hechos()->first();
+        $hechoId = $hecho ? $hecho->id : null;
 
         $liberacion = Liberacion::create([
             'vehiculo_id' => $vehiculo->id,
-            'hecho_id' => $hecho?->id,
+            'hecho_id' => $hechoId,
             'token_unico' => Str::uuid(),
             'fecha_liberacion' => $request->fecha_liberacion,
             'personas_autorizadas' => $request->personas_autorizadas,
@@ -123,11 +118,9 @@ class LiberacionController extends Controller
             'creado_por' => Auth::id(),
         ]);
 
-        return redirect()->route('liberacion.detalles', $vehiculo->id)
-            ->with('success', 'Liberación registrada correctamente.');
+        return redirect()->route('liberacion.detalles', $vehiculo->id)->with('success', 'Liberación registrada correctamente.');
     }
 
-    // Editar liberación
     public function edit(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
@@ -154,18 +147,15 @@ class LiberacionController extends Controller
         $liberacion->motivo_liberacion = $request->motivo_liberacion;
         $liberacion->save();
 
-        return redirect()->route('liberacion.detalles', $vehiculo->id)
-            ->with('success', 'Liberación actualizada correctamente.');
+        return redirect()->route('liberacion.detalles', $vehiculo->id)->with('success', 'Liberación actualizada correctamente.');
     }
 
-    // Vista de detalles para usuarios autenticados que no son grúas
     public function detalles(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
         return view('liberaciones.detalles', compact('vehiculo', 'liberacion'));
     }
 
-    // Vista y carga de PDF por parte del área de grúas
     public function verParaGruas(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();

@@ -5,8 +5,11 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\MapaPatrullasController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DocumentoHechoController.php",
   "PreviewInSolutionExplorer": false
 }

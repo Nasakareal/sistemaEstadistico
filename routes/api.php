@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\GruaController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MapaPatrullasController;
+use App\Http\Controllers\Api\DocumentoHechoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,4 +67,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/gruas-hoy', [DashboardController::class, 'gruasHoy']);
 
     Route::get('/mapa/patrullas', [MapaPatrullasController::class, 'data']);
+
+    Route::get('/hechos/{hecho}/reporte-doc', [DocumentoHechoController::class, 'descargarDoc']);
 });

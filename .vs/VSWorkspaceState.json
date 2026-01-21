@@ -4,8 +4,9 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\LiberacionController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\MapaPatrullasController.php",
   "PreviewInSolutionExplorer": false
 }

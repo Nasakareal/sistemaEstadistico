@@ -65,5 +65,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/accidentes-hoy', [DashboardController::class, 'accidentesHoy']);
     Route::get('/dashboard/gruas-hoy', [DashboardController::class, 'gruasHoy']);
 
-    Route::get('/mapa/patrullas', [ApiMapaPatrullasController::class, 'data']);
+    Route::get('/mapa/patrullas', [MapaPatrullasController::class, 'data']);
 });

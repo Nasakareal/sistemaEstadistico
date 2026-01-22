@@ -3,41 +3,52 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vehiculo;
+use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
-class VehiculosController extends Controller
+class HechoController extends Controller
 {
     /**
-     * Lista (opcional, por si lo ocupas).
+     * GET /hechos
+     * Listado (con búsqueda opcional)
      */
     public function index(Request $request)
     {
         try {
-            $q = trim((string)$request->query('q', ''));
+            $q = trim((string) $request->query('q', ''));
 
-            $vehiculos = Vehiculo::query()
+            $hechos = Hechos::query()
                 ->when($q !== '', function ($query) use ($q) {
-                    $query->where(function ($qq) use ($q) {
-                        $qq->where('niv', 'like', "%{$q}%")
-                           ->orWhere('placas', 'like', "%{$q}%");
+                    $qq = $this->normalizeString($q);
+
+                    $query->where(function ($w) use ($qq) {
+                        $w->where('folio_c5i', 'like', "%{$qq}%")
+                          ->orWhere('perito', 'like', "%{$qq}%")
+                          ->orWhere('unidad', 'like', "%{$qq}%")
+                          ->orWhere('sector', 'like', "%{$qq}%")
+                          ->orWhere('municipio', 'like', "%{$qq}%")
+                          ->orWhere('tipo_hecho', 'like', "%{$qq}%")
+                          ->orWhere('situacion', 'like', "%{$qq}%");
                     });
                 })
                 ->orderByDesc('id')
                 ->paginate(20);
 
-            return $this->ok('Listado de vehículos.', $vehiculos);
+            return $this->ok('Listado de hechos.', $hechos);
         } catch (Throwable $e) {
-            return $this->fail('Ocurrió un error al cargar los vehículos.', 500);
+            return $this->fail('Ocurrió un error al cargar los hechos.', 500);
         }
     }
 
     /**
-     * Crear vehículo
+     * POST /hechos
+     * Crear hecho
      */
     public function store(Request $request)
     {
@@ -46,7 +57,7 @@ class VehiculosController extends Controller
 
             $validator = Validator::make(
                 $data,
-                $this->rules(null),
+                $this->rulesStore(),
                 $this->messages(),
                 $this->attributes()
             );
@@ -55,46 +66,58 @@ class VehiculosController extends Controller
                 return $this->validationFailed($validator->errors()->toArray());
             }
 
-            $vehiculo = Vehiculo::create($data);
+            // Normaliza strings como en tu versión web
+            $data = $this->normalizePayloadStrings($validator->validated());
 
-            return $this->created('Vehículo registrado correctamente.', $vehiculo);
+            // Boolean checkbox
+            $data['checaron_antecedentes'] = (bool) ($request->input('checaron_antecedentes') ?? false);
 
+            // Auditoría
+            $user = $request->user();
+            if ($user) {
+                $data['created_by'] = $user->id;
+            }
+
+            $hecho = Hechos::create($data);
+
+            return $this->created('Hecho creado exitosamente.', $hecho);
         } catch (QueryException $e) {
-            // Aquí evitamos soltar el SQL crudo al cliente.
-            return $this->fail('No se pudo guardar el vehículo. Verifica los datos e intenta de nuevo.', 500);
+            return $this->fail('No se pudo guardar el hecho. Verifica los datos e intenta de nuevo.', 500);
         } catch (Throwable $e) {
-            return $this->fail('Ocurrió un error inesperado al registrar el vehículo.', 500);
+            return $this->fail('Ocurrió un error inesperado al registrar el hecho.', 500);
         }
     }
 
     /**
-     * Ver 1 vehículo
+     * GET /hechos/{hecho}
+     * Ver 1 hecho
      */
-    public function show($id)
+    public function show($hecho)
     {
         try {
-            $vehiculo = Vehiculo::findOrFail($id);
-            return $this->ok('Vehículo encontrado.', $vehiculo);
+            $h = Hechos::with(['vehiculos', 'lesionados'])->findOrFail($hecho);
+            return $this->ok('Hecho encontrado.', $h);
         } catch (ModelNotFoundException $e) {
-            return $this->fail('No se encontró el vehículo solicitado.', 404);
+            return $this->fail('No se encontró el hecho solicitado.', 404);
         } catch (Throwable $e) {
-            return $this->fail('Ocurrió un error al consultar el vehículo.', 500);
+            return $this->fail('Ocurrió un error al consultar el hecho.', 500);
         }
     }
 
     /**
-     * Actualizar vehículo
+     * PUT /hechos/{hecho}
+     * Actualizar hecho
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $hecho)
     {
         try {
-            $vehiculo = Vehiculo::findOrFail($id);
+            $h = Hechos::findOrFail($hecho);
 
             $data = $this->sanitize($request->all());
 
             $validator = Validator::make(
                 $data,
-                $this->rules($vehiculo->id),
+                $this->rulesUpdate($h->id),
                 $this->messages(),
                 $this->attributes()
             );
@@ -103,69 +126,180 @@ class VehiculosController extends Controller
                 return $this->validationFailed($validator->errors()->toArray());
             }
 
-            $vehiculo->fill($data);
-            $vehiculo->save();
+            $data = $this->normalizePayloadStrings($validator->validated());
 
-            return $this->ok('Vehículo actualizado correctamente.', $vehiculo);
+            // Boolean checkbox
+            $data['checaron_antecedentes'] = (bool) ($request->input('checaron_antecedentes') ?? false);
 
+            // Auditoría
+            $user = $request->user();
+            if ($user) {
+                $data['updated_by'] = $user->id;
+            }
+
+            $h->update($data);
+
+            return $this->ok('Hecho actualizado exitosamente.', $h->fresh());
         } catch (ModelNotFoundException $e) {
-            return $this->fail('No se encontró el vehículo a actualizar.', 404);
+            return $this->fail('No se encontró el hecho a actualizar.', 404);
         } catch (QueryException $e) {
-            return $this->fail('No se pudo actualizar el vehículo. Verifica los datos e intenta de nuevo.', 500);
+            return $this->fail('No se pudo actualizar el hecho. Verifica los datos e intenta de nuevo.', 500);
         } catch (Throwable $e) {
-            return $this->fail('Ocurrió un error inesperado al actualizar el vehículo.', 500);
+            return $this->fail('Ocurrió un error inesperado al actualizar el hecho.', 500);
         }
     }
 
     /**
-     * Eliminar vehículo (si aplica)
+     * DELETE /hechos/{hecho}
+     * Eliminar hecho
      */
-    public function destroy($id)
+    public function destroy(Request $request, $hecho)
     {
         try {
-            $vehiculo = Vehiculo::findOrFail($id);
-            $vehiculo->delete();
+            $h = Hechos::findOrFail($hecho);
 
-            return $this->ok('Vehículo eliminado correctamente.', null);
+            // Si quieres lógica extra de roles, hazlo aquí.
+            // Ahorita lo controla tu middleware can:eliminar hechos
 
+            $h->delete();
+
+            return $this->ok('Hecho eliminado exitosamente.', null);
         } catch (ModelNotFoundException $e) {
-            return $this->fail('No se encontró el vehículo a eliminar.', 404);
+            return $this->fail('No se encontró el hecho a eliminar.', 404);
         } catch (Throwable $e) {
-            return $this->fail('Ocurrió un error al eliminar el vehículo.', 500);
+            return $this->fail('Ocurrió un error al eliminar el hecho.', 500);
         }
     }
 
     /**
-     * Reglas de validación
-     * - NIV: requerido, max 17
-     * - Si hay placas: estado_placas requerido
-     * - Si no hay placas: estado_placas puede ir null
+     * POST /hechos/{hecho}/descargo
+     * Subir descargo (archivo)
+     * Campo esperado: descargo (file)
      */
-    private function rules(?int $vehiculoId): array
+    public function subirDescargo(Request $request, $hecho)
     {
-        // Ajusta/añade reglas según tus columnas reales.
+        try {
+            $h = Hechos::findOrFail($hecho);
+
+            $validator = Validator::make(
+                $request->all(),
+                [
+                    'descargo' => ['required', 'file', 'max:10240'], // 10MB
+                ],
+                [
+                    'descargo.required' => 'Debes adjuntar el archivo de descargo.',
+                    'descargo.file' => 'El descargo debe ser un archivo.',
+                    'descargo.max' => 'El archivo excede el tamaño máximo permitido.',
+                ]
+            );
+
+            if ($validator->fails()) {
+                return $this->validationFailed($validator->errors()->toArray());
+            }
+
+            $file = $request->file('descargo');
+
+            // Guarda en storage/app/public/hechos/descargos
+            $path = $file->store('hechos/descargos', 'public');
+
+            // Si ya tenía descargo, bórralo
+            if (!empty($h->descargo)) {
+                try {
+                    Storage::disk('public')->delete($h->descargo);
+                } catch (Throwable $e) {
+                    // no truenes por esto
+                }
+            }
+
+            $h->descargo = $path;
+
+            $user = $request->user();
+            if ($user) {
+                $h->updated_by = $user->id;
+            }
+
+            $h->save();
+
+            return $this->ok('Descargo subido correctamente.', [
+                'descargo' => $path,
+                'descargo_url' => Storage::disk('public')->url($path),
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return $this->fail('No se encontró el hecho para subir el descargo.', 404);
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al subir el descargo.', 500);
+        }
+    }
+
+    /* =========================
+       VALIDACIONES
+    ========================== */
+
+    private function rulesStore(): array
+    {
         return [
-            // NIV / VIN
-            'niv' => ['required', 'string', 'max:17'],
-
-            // Placas (opcional)
-            'placas' => ['nullable', 'string', 'max:15'],
-
-            // Estado placas: obligatorio si hay placas
-            'estado_placas' => ['nullable', 'string', 'max:60', 'required_with:placas'],
-
-            // Ejemplos comunes (ajusta a tu DB real)
-            'marca' => ['nullable', 'string', 'max:60'],
-            'submarca' => ['nullable', 'string', 'max:60'],
-            'modelo' => ['nullable', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
-            'color' => ['nullable', 'string', 'max:60'],
-            'tipo' => ['nullable', 'string', 'max:60'],
+            'folio_c5i' => ['required', 'string', 'max:20', 'unique:hechos,folio_c5i'],
+            'perito' => ['required', 'string', 'max:255'],
+            'autorizacion_practico' => ['nullable', 'string', 'max:255'],
+            'unidad' => ['required', 'string', 'max:50'],
+            'hora' => ['required', 'date_format:H:i'],
+            'fecha' => ['required', 'date'],
+            'sector' => ['required', 'string', 'in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO'],
+            'calle' => ['required', 'string', 'max:255'],
+            'colonia' => ['required', 'string', 'max:255'],
+            'entre_calles' => ['nullable', 'string', 'max:255'],
+            'municipio' => ['required', 'string', 'max:100'],
+            'tipo_hecho' => ['required', 'string', 'max:255'],
+            'superficie_via' => ['required', 'string', 'max:50'],
+            'tiempo' => ['required', 'string', 'in:Día,Noche,Amanecer,Atardecer'],
+            'clima' => ['required', 'string', 'in:Bueno,Malo,Nublado,Lluvioso'],
+            'condiciones' => ['required', 'string', 'in:Bueno,Regular,Malo'],
+            'control_transito' => ['required', 'string', 'max:50'],
+            'checaron_antecedentes' => ['nullable', 'boolean'],
+            'causas' => ['required', 'string', 'max:255'],
+            'colision_camino' => ['required', 'string', 'max:255'],
+            'situacion' => ['required', 'string', 'in:RESUELTO,PENDIENTE,TURNADO,REPORTE'],
+            'oficio_mp' => ['nullable', 'string', 'max:255', 'required_if:situacion,TURNADO'],
+            'vehiculos_mp' => ['required', 'integer', 'min:0'],
+            'personas_mp' => ['required', 'integer', 'min:0'],
         ];
     }
 
-    /**
-     * Mensajes claros (lo que verá Flutter).
-     */
+    private function rulesUpdate(int $hechoId): array
+    {
+        return [
+            'folio_c5i' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hechoId),
+            ],
+            'perito' => ['required', 'string', 'max:255'],
+            'autorizacion_practico' => ['nullable', 'string', 'max:255'],
+            'unidad' => ['required', 'string', 'max:50'],
+            'hora' => ['required', 'date_format:H:i'],
+            'fecha' => ['required', 'date'],
+            'sector' => ['required', 'string', 'in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO'],
+            'calle' => ['required', 'string', 'max:255'],
+            'colonia' => ['required', 'string', 'max:255'],
+            'entre_calles' => ['nullable', 'string', 'max:255'],
+            'municipio' => ['required', 'string', 'max:100'],
+            'tipo_hecho' => ['required', 'string', 'max:255'],
+            'superficie_via' => ['required', 'string', 'max:50'],
+            'tiempo' => ['required', 'string', 'in:Día,Noche,Amanecer,Atardecer'],
+            'clima' => ['required', 'string', 'in:Bueno,Malo,Nublado,Lluvioso'],
+            'condiciones' => ['required', 'string', 'in:Bueno,Regular,Malo'],
+            'control_transito' => ['required', 'string', 'max:50'],
+            'checaron_antecedentes' => ['nullable', 'boolean'],
+            'causas' => ['required', 'string', 'max:255'],
+            'colision_camino' => ['required', 'string', 'max:255'],
+            'situacion' => ['required', 'string', 'in:RESUELTO,PENDIENTE,TURNADO,REPORTE'],
+            'oficio_mp' => ['nullable', 'string', 'max:255', 'required_if:situacion,TURNADO'],
+            'vehiculos_mp' => ['required', 'integer', 'min:0'],
+            'personas_mp' => ['required', 'integer', 'min:0'],
+        ];
+    }
+
     private function messages(): array
     {
         return [
@@ -174,36 +308,53 @@ class VehiculosController extends Controller
             'integer' => 'Este campo debe ser un número entero.',
             'max' => 'Este campo no debe exceder :max caracteres.',
             'min' => 'Este campo debe ser al menos :min.',
-            'required_with' => 'Este campo es obligatorio cuando se captura :values.',
+            'unique' => 'Este valor ya existe.',
+            'in' => 'Valor inválido.',
+            'date' => 'Fecha inválida.',
+            'date_format' => 'Formato inválido.',
+            'required_if' => 'Este campo es obligatorio en esta condición.',
 
-            // Mensajes específicos
-            'niv.required' => 'El NIV es obligatorio.',
-            'niv.max' => 'El NIV no debe superar 17 caracteres.',
-            'estado_placas.required_with' => 'Si capturas placas, también debes capturar el estado de placas.',
+            'folio_c5i.required' => 'El folio C5i es obligatorio.',
+            'folio_c5i.unique' => 'Ese folio C5i ya existe.',
+            'perito.required' => 'El perito es obligatorio.',
+            'oficio_mp.required_if' => 'Si la situación es TURNADO, el oficio MP es obligatorio.',
         ];
     }
 
-    /**
-     * Nombres “humanos” de campos (para que no salga "estado_placas" feo).
-     */
     private function attributes(): array
     {
         return [
-            'niv' => 'NIV',
-            'placas' => 'placas',
-            'estado_placas' => 'estado de placas',
-            'marca' => 'marca',
-            'submarca' => 'submarca',
-            'modelo' => 'modelo',
-            'color' => 'color',
-            'tipo' => 'tipo',
+            'folio_c5i' => 'folio C5i',
+            'perito' => 'perito',
+            'autorizacion_practico' => 'autorización práctico',
+            'unidad' => 'unidad',
+            'hora' => 'hora',
+            'fecha' => 'fecha',
+            'sector' => 'sector',
+            'calle' => 'calle',
+            'colonia' => 'colonia',
+            'entre_calles' => 'entre calles',
+            'municipio' => 'municipio',
+            'tipo_hecho' => 'tipo de hecho',
+            'superficie_via' => 'superficie de la vía',
+            'tiempo' => 'tiempo',
+            'clima' => 'clima',
+            'condiciones' => 'condiciones',
+            'control_transito' => 'control de tránsito',
+            'checaron_antecedentes' => 'checaron antecedentes',
+            'causas' => 'causas',
+            'colision_camino' => 'colisión/camino',
+            'situacion' => 'situación',
+            'oficio_mp' => 'oficio MP',
+            'vehiculos_mp' => 'vehículos MP',
+            'personas_mp' => 'personas MP',
         ];
     }
 
-    /**
-     * Limpia strings (trim) y normaliza vacíos a null.
-     * Esto ayuda MUCHO a que required_with funcione bien.
-     */
+    /* =========================
+       HELPERS
+    ========================== */
+
     private function sanitize(array $data): array
     {
         foreach ($data as $k => $v) {
@@ -215,9 +366,42 @@ class VehiculosController extends Controller
         return $data;
     }
 
-    /**
-     * Respuesta estándar OK
-     */
+    private function normalizePayloadStrings(array $data): array
+    {
+        foreach ($data as $k => $v) {
+            if (is_string($v)) {
+                $data[$k] = $this->normalizeString($v);
+            }
+        }
+        return $data;
+    }
+
+    private function normalizeString(string $value): string
+    {
+        return strtoupper($this->removeAccents($value));
+    }
+
+    private function removeAccents(string $string): string
+    {
+        $unwanted_array = [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
+            'À' => 'A', 'È' => 'E', 'Ì' => 'I', 'Ò' => 'O', 'Ù' => 'U',
+            'Â' => 'A', 'Ê' => 'E', 'Î' => 'I', 'Ô' => 'O', 'Û' => 'U',
+            'Ä' => 'A', 'Ë' => 'E', 'Ï' => 'I', 'Ö' => 'O', 'Ü' => 'U',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U',
+            'à' => 'A', 'è' => 'E', 'ì' => 'I', 'ò' => 'I', 'ù' => 'U',
+            'â' => 'A', 'ê' => 'E', 'î' => 'I', 'ô' => 'O', 'û' => 'U',
+            'ä' => 'A', 'ë' => 'E', 'ï' => 'I', 'ö' => 'O', 'ü' => 'U',
+            'Ñ' => 'N', 'ñ' => 'N',
+            'Ç' => 'C', 'ç' => 'C'
+        ];
+        return strtr($string, $unwanted_array);
+    }
+
+    /* =========================
+       RESPUESTAS JSON
+    ========================== */
+
     private function ok(string $message, $data)
     {
         return response()->json([
@@ -227,9 +411,6 @@ class VehiculosController extends Controller
         ], 200);
     }
 
-    /**
-     * Respuesta estándar CREATED
-     */
     private function created(string $message, $data)
     {
         return response()->json([
@@ -239,9 +420,6 @@ class VehiculosController extends Controller
         ], 201);
     }
 
-    /**
-     * Respuesta estándar para validación (422)
-     */
     private function validationFailed(array $errors)
     {
         return response()->json([
@@ -251,9 +429,6 @@ class VehiculosController extends Controller
         ], 422);
     }
 
-    /**
-     * Respuesta estándar de error
-     */
     private function fail(string $message, int $status)
     {
         return response()->json([

@@ -23,13 +23,13 @@ class HechoController extends Controller
     }
 
     /**
-     * GET /api/hechos/buscar?q=ABC&per_page=20
-     * Busca por folio del hecho, calle/colonia/municipio, placa/serie del vehículo y nombre del conductor.
+     * GET /api/hechos/buscar?q=ABC&per_page=20&page=1
+     * Busca por campos del hecho + vehiculos (placas/serie) + conductores (nombre).
      * Recomendación: coloca la ruta /hechos/buscar ANTES de /hechos/{hecho}.
      */
     public function buscar(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
+        $q = trim((string)$request->query('q', ''));
         $perPage = (int)($request->query('per_page', 20));
         $perPage = $perPage > 0 ? min($perPage, 50) : 20;
 
@@ -46,15 +46,15 @@ class HechoController extends Controller
             ]);
         }
 
-        // Normaliza el término igual que guardas (MAYÚSCULAS SIN ACENTOS)
+        // Normaliza igual que guardas en hechos (MAYÚSCULAS SIN ACENTOS)
         $qNorm = strtoupper($this->removeAccents($q));
         $like  = '%' . str_replace(['%', '_'], ['\%', '\_'], $qNorm) . '%';
 
         $results = Hechos::query()
             ->with(['vehiculos.conductores'])
             ->where(function ($w) use ($like) {
-                // Campos del hecho
-                $w->orWhere('folio_c5i', 'like', $like)
+                // ===== Campos del hecho =====
+                $w->where('folio_c5i', 'like', $like)
                   ->orWhere('perito', 'like', $like)
                   ->orWhere('unidad', 'like', $like)
                   ->orWhere('sector', 'like', $like)
@@ -65,22 +65,16 @@ class HechoController extends Controller
                   ->orWhere('causas', 'like', $like)
                   ->orWhere('colision_camino', 'like', $like);
 
-                // Vehículos y conductores
+                // ===== Vehículos (columnas reales: placas / serie) =====
                 $w->orWhereHas('vehiculos', function ($v) use ($like) {
                     $v->where(function ($vv) use ($like) {
-                        // Ajusta aquí si tu campo se llama "placas" en vez de "placa"
-                        $vv->orWhere('placa', 'like', $like)
+                        $vv->where('placas', 'like', $like)
                            ->orWhere('serie', 'like', $like);
                     });
 
+                    // ===== Conductores (columna real usada: nombre) =====
                     $v->orWhereHas('conductores', function ($c) use ($like) {
-                        // Ajusta a tus columnas reales (estos son nombres comunes)
-                        $c->where(function ($cc) use ($like) {
-                            $cc->orWhere('nombre', 'like', $like)
-                               ->orWhere('apellido_paterno', 'like', $like)
-                               ->orWhere('apellido_materno', 'like', $like)
-                               ->orWhere('nombre_completo', 'like', $like);
-                        });
+                        $c->where('nombre', 'like', $like);
                     });
                 });
             })
@@ -144,7 +138,7 @@ class HechoController extends Controller
 
         return response()->json([
             'message' => 'Hecho creado exitosamente',
-            'data'    => $hecho->load(['vehiculos.conductores', 'lesionados'])
+            'data'    => $hecho->load(['vehiculos.conductores', 'lesionados']),
         ], 201);
     }
 
@@ -153,7 +147,7 @@ class HechoController extends Controller
         $hecho->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
-            'data' => $hecho
+            'data' => $hecho,
         ]);
     }
 
@@ -163,7 +157,7 @@ class HechoController extends Controller
 
         $validated = $request->validate([
             'folio_c5i' => [
-                'required','string','max:20',
+                'required', 'string', 'max:20',
                 Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
             ],
             'perito'                => 'required|string|max:255',
@@ -205,7 +199,7 @@ class HechoController extends Controller
 
         return response()->json([
             'message' => 'Hecho actualizado exitosamente',
-            'data'    => $hecho->fresh()->load(['vehiculos.conductores', 'lesionados'])
+            'data'    => $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']),
         ]);
     }
 
@@ -222,7 +216,7 @@ class HechoController extends Controller
 
         return response()->json([
             'message' => 'Descargo subido correctamente',
-            'path'    => Storage::url($path)
+            'path'    => Storage::url($path),
         ]);
     }
 
@@ -231,7 +225,7 @@ class HechoController extends Controller
         $hecho->delete();
 
         return response()->json([
-            'message' => 'Hecho eliminado'
+            'message' => 'Hecho eliminado',
         ]);
     }
 

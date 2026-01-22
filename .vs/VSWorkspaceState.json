@@ -11,6 +11,6 @@
     "\\resources\\views\\hechos",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\GruaController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\PersonalController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -5,18 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PersonalController extends Controller
 {
     /**
      * GET /api/mi-personal
-     * Lista el personal del mismo turno del jefe (y misma unidad base).
-     * (No incluye al propio jefe por defecto)
      */
     public function index(Request $request)
     {
         $actor = $request->user();
-
         $q = trim((string)$request->query('q'));
 
         $personal = User::query()
@@ -54,8 +52,9 @@ class PersonalController extends Controller
 
     /**
      * POST /api/mi-personal/{user}/ubicacion
-     * Enciende / apaga compartir ubicación de un usuario del mismo turno del jefe.
-     * Body: { "enabled": true|false }  (si no viene, hace toggle)
+     * Body: { "enabled": true|false }  (si no viene, toggle)
+     *
+     * ✅ Cuando enabled=false => BORRA user_locations de ese usuario
      */
     public function toggleUbicacion(Request $request, User $user)
     {
@@ -78,28 +77,37 @@ class PersonalController extends Controller
             'enabled' => 'nullable|boolean',
         ]);
 
-        if (array_key_exists('enabled', $validated)) {
-            $enabled = (bool)$validated['enabled'];
-        } else {
-            $enabled = !$user->compartir_ubicacion;
-        }
+        $enabled = array_key_exists('enabled', $validated)
+            ? (bool)$validated['enabled']
+            : !$user->compartir_ubicacion;
 
         $user->compartir_ubicacion = $enabled ? 1 : 0;
         $user->save();
+
+        $deleted = 0;
+
+        // ✅ Limpia ubicaciones guardadas si se apaga
+        if (!$enabled) {
+            $deleted = DB::table('user_locations')
+                ->where('user_id', $user->id)
+                ->delete();
+        }
 
         return response()->json([
             'message' => $enabled ? 'Ubicación activada' : 'Ubicación desactivada',
             'data' => [
                 'user_id' => $user->id,
                 'compartir_ubicacion' => (int)$user->compartir_ubicacion,
+                'deleted_locations' => (int)$deleted,
             ],
         ]);
     }
 
     /**
      * POST /api/mi-personal/ubicacion/todos
-     * Activa o desactiva compartir ubicación a TODO su personal del mismo turno.
      * Body: { "enabled": true|false }
+     *
+     * ✅ Si enabled=false => BORRA user_locations de todos los afectados
      */
     public function toggleUbicacionTodos(Request $request)
     {
@@ -120,15 +128,92 @@ class PersonalController extends Controller
                 $q->where('turno_id', $actor->turno_id);
             });
 
-        $updated = $query->update([
+        // IDs afectados (para borrar locations)
+        $ids = $query->pluck('id')->toArray();
+
+        $updated = User::query()->whereIn('id', $ids)->update([
             'compartir_ubicacion' => $enabled ? 1 : 0,
         ]);
+
+        $deleted = 0;
+
+        if (!$enabled && !empty($ids)) {
+            $deleted = DB::table('user_locations')
+                ->whereIn('user_id', $ids)
+                ->delete();
+        }
 
         return response()->json([
             'message' => $enabled ? 'Ubicación activada para el personal' : 'Ubicación desactivada para el personal',
             'data' => [
                 'updated' => (int)$updated,
                 'enabled' => $enabled,
+                'deleted_locations' => (int)$deleted,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/mi-personal/{user}/ubicacion/limpiar
+     * ✅ Borra user_locations manualmente (por si lo necesitas desde UI)
+     */
+    public function limpiarUbicacionUsuario(Request $request, User $user)
+    {
+        $actor = $request->user();
+
+        if ($actor->unidad_id && $user->unidad_id !== $actor->unidad_id) {
+            abort(403, 'No autorizado.');
+        }
+        if ($actor->turno_id && $user->turno_id !== $actor->turno_id) {
+            abort(403, 'No autorizado.');
+        }
+        if ($user->id === $actor->id) {
+            abort(422, 'No puedes limpiar tu propia ubicación desde este endpoint.');
+        }
+
+        $deleted = DB::table('user_locations')
+            ->where('user_id', $user->id)
+            ->delete();
+
+        return response()->json([
+            'message' => 'Ubicaciones eliminadas',
+            'data' => [
+                'user_id' => $user->id,
+                'deleted_locations' => (int)$deleted,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/mi-personal/ubicacion/limpiar-todos
+     * ✅ Borra user_locations de todo tu personal
+     */
+    public function limpiarUbicacionTodos(Request $request)
+    {
+        $actor = $request->user();
+
+        $q = User::query()
+            ->whereKeyNot($actor->id)
+            ->when($actor->unidad_id, function ($qq) use ($actor) {
+                $qq->where('unidad_id', $actor->unidad_id);
+            })
+            ->when($actor->turno_id, function ($qq) use ($actor) {
+                $qq->where('turno_id', $actor->turno_id);
+            });
+
+        $ids = $q->pluck('id')->toArray();
+
+        $deleted = 0;
+        if (!empty($ids)) {
+            $deleted = DB::table('user_locations')
+                ->whereIn('user_id', $ids)
+                ->delete();
+        }
+
+        return response()->json([
+            'message' => 'Ubicaciones eliminadas del personal',
+            'data' => [
+                'deleted_locations' => (int)$deleted,
             ],
         ]);
     }

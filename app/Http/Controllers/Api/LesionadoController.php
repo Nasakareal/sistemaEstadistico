@@ -6,130 +6,107 @@ use App\Http\Controllers\Controller;
 use App\Models\Hechos;
 use App\Models\Lesionado;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class LesionadoController extends Controller
 {
+    /**
+     * GET /api/hechos/{hecho}/lesionados
+     */
     public function index(Hechos $hecho)
     {
+        $lesionados = $hecho->lesionados()->orderByDesc('id')->get();
+
         return response()->json([
-            'data' => $hecho->lesionados()->orderByDesc('id')->get()
+            'data' => $lesionados,
         ]);
     }
 
+    /**
+     * POST /api/hechos/{hecho}/lesionados
+     */
     public function store(Request $request, Hechos $hecho)
     {
-        $validated = $request->validate($this->rules());
-
-        $validated = $this->normalize($validated);
+        $validated = $this->validatePayload($request);
 
         $lesionado = $hecho->lesionados()->create($validated);
 
         return response()->json([
-            'message' => 'Lesionado creado',
-            'data'    => $lesionado
+            'message' => 'Lesionado agregado correctamente.',
+            'data' => $lesionado,
         ], 201);
     }
 
+    /**
+     * GET /api/hechos/{hecho}/lesionados/{lesionado}
+     */
     public function show(Hechos $hecho, Lesionado $lesionado)
     {
-        if (!$hecho->lesionados()->where('lesionados.id', $lesionado->id)->exists()) {
-            abort(404);
-        }
+        $this->ensureBelongsToHecho($hecho, $lesionado);
 
         return response()->json([
-            'data' => $lesionado
+            'data' => $lesionado,
         ]);
     }
 
+    /**
+     * PUT /api/hechos/{hecho}/lesionados/{lesionado}
+     */
     public function update(Request $request, Hechos $hecho, Lesionado $lesionado)
     {
-        if (!$hecho->lesionados()->where('lesionados.id', $lesionado->id)->exists()) {
-            abort(404);
-        }
+        $this->ensureBelongsToHecho($hecho, $lesionado);
 
-        $validated = $request->validate($this->rules($lesionado->id));
-
-        $validated = $this->normalize($validated);
+        $validated = $this->validatePayload($request);
 
         $lesionado->update($validated);
 
         return response()->json([
-            'message' => 'Lesionado actualizado',
-            'data'    => $lesionado->fresh()
+            'message' => 'Lesionado actualizado correctamente.',
+            'data' => $lesionado->fresh(),
         ]);
     }
 
+    /**
+     * DELETE /api/hechos/{hecho}/lesionados/{lesionado}
+     */
     public function destroy(Hechos $hecho, Lesionado $lesionado)
     {
-        if (!$hecho->lesionados()->where('lesionados.id', $lesionado->id)->exists()) {
-            abort(404);
-        }
+        $this->ensureBelongsToHecho($hecho, $lesionado);
 
         $lesionado->delete();
 
         return response()->json([
-            'message' => 'Lesionado eliminado'
+            'message' => 'Lesionado eliminado correctamente.',
         ]);
     }
 
     /* ===================== HELPERS ===================== */
 
-    private function rules(?int $ignoreId = null): array
+    private function ensureBelongsToHecho(Hechos $hecho, Lesionado $lesionado): void
     {
-        // Ajusta estos campos a tu tabla real si cambian nombres.
-        // Si tienes campos extra en lesionados (ej. hospital, traslado, etc.), me los pegas y lo amplío.
-
-        $uniqueCurp = Rule::unique('lesionados', 'curp');
-        if ($ignoreId) $uniqueCurp->ignore($ignoreId);
-
-        return [
-            'nombre'            => 'required|string|max:255',
-            'edad'              => 'nullable|integer|min:0|max:120',
-            'sexo'              => 'nullable|string|in:MASCULINO,FEMENINO,OTRO',
-            'domicilio'         => 'nullable|string|max:255',
-            'telefono'          => 'nullable|digits:10',
-            'curp'              => ['nullable','string','max:18',$uniqueCurp],
-
-            'tipo_lesion'       => 'nullable|string|max:255',
-            'gravedad'          => 'nullable|string|max:50',
-            'traslado'          => 'nullable|boolean',
-            'hospital'          => 'nullable|string|max:255',
-            'observaciones'     => 'nullable|string',
-
-            // Si tu tabla tiene campo para "responsable" o "acompañante", lo agregamos.
-        ];
+        if ((int)$lesionado->hecho_id !== (int)$hecho->id) {
+            abort(404, 'El lesionado no pertenece a este hecho.');
+        }
     }
 
-    private function normalize(array $data): array
+    private function validatePayload(Request $request): array
     {
-        $upper = [
-            'nombre','sexo','domicilio','curp',
-            'tipo_lesion','gravedad','hospital','observaciones'
-        ];
-
-        foreach ($upper as $k) {
-            if (array_key_exists($k, $data) && is_string($data[$k])) {
-                $data[$k] = strtoupper($this->removeAccents($data[$k]));
-            }
-        }
-
-        // booleans correctos para JSON
-        if (array_key_exists('traslado', $data)) {
-            $data['traslado'] = (bool)$data['traslado'];
-        }
-
-        return $data;
-    }
-
-    private function removeAccents(string $s): string
-    {
-        return strtr($s, [
-            'Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U',
-            'á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U',
-            'À'=>'A','È'=>'E','Ì'=>'I','Ò'=>'O','Ù'=>'U',
-            'à'=>'A','è'=>'E','ì'=>'I','ò'=>'O','ù'=>'U',
-            'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'edad' => 'nullable|integer|min:0',
+            'sexo' => 'nullable|string|in:Masculino,Femenino,Otro',
+            'tipo_lesion' => 'required|string|in:Leve,Moderada,Grave,Fallecido',
+            'hospitalizado' => 'required|boolean',
+            'hospital' => 'nullable|string|max:255',
+            'atencion_en_sitio' => 'required|boolean',
+            'ambulancia' => 'nullable|string|max:255',
+            'paramedico' => 'nullable|string|max:255',
+            'observaciones' => 'nullable|string',
         ]);
+
+        // Asegura booleanos consistentes aunque Flutter mande "true"/"false"/1/0/"1"/"0"
+        $validated['hospitalizado'] = (bool)($validated['hospitalizado'] ?? false);
+        $validated['atencion_en_sitio'] = (bool)($validated['atencion_en_sitio'] ?? false);
+
+        return $validated;
     }
 }

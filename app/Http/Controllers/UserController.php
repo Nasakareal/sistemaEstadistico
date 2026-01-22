@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Unidad;
+use App\Models\Turno;
+use App\Models\Patrulla;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Log;
@@ -16,9 +19,9 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        // Si no es Superadmin, NO verá usuarios Superadmin
         $users = User::query()
             ->visibleFor($actor)
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades'])
             ->get();
 
         return view('admin.settings.users.index', compact('users'));
@@ -28,51 +31,68 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        // Si no es Superadmin, NO verá el rol Superadmin
         $roles = Role::query()
             ->when(!$actor->hasRole('Superadmin'), function ($q) {
                 $q->where('name', '!=', 'Superadmin');
             })
             ->get();
 
-        return view('admin.settings.users.create', compact('roles'));
+        $unidades = Unidad::query()->orderBy('nombre')->get();
+        $turnos = Turno::query()->orderBy('nombre')->get();
+        $patrullas = Patrulla::query()->orderBy('numero_economico')->get();
+
+        return view('admin.settings.users.create', compact('roles', 'unidades', 'turnos', 'patrullas'));
     }
 
     public function store(Request $request)
     {
         $actor = Auth::user();
 
-        // Validar los datos del formulario
         $validatedData = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6|confirmed',
-            'area'     => 'nullable|string|max:30',
-            'role'     => 'required|exists:roles,name',
+            'area' => 'nullable|string|max:30',
+            'role' => 'required|exists:roles,name',
+
+            'unidad_id' => 'nullable|exists:unidades,id',
+            'turno_id' => 'nullable|exists:turnos,id',
+            'patrulla_id' => 'nullable|exists:patrullas,id',
+
+            'unidades_ids' => 'nullable|array',
+            'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
-        // Bloqueo: si no es Superadmin, no puede asignar Superadmin
         if (!$actor->hasRole('Superadmin') && $validatedData['role'] === 'Superadmin') {
             abort(403, 'No autorizado.');
         }
 
         try {
             $user = User::create([
-                'name'     => $validatedData['name'],
-                'email'    => $validatedData['email'],
+                'name' => $validatedData['name'],
+                'email' => $validatedData['email'],
                 'password' => bcrypt($validatedData['password']),
-                'estado'   => 'Activo',
-                'area'     => $validatedData['area'] ?? null,
+                'estado' => 'Activo',
+                'area' => $validatedData['area'] ?? null,
+
+                'unidad_id' => $validatedData['unidad_id'] ?? null,
+                'turno_id' => $validatedData['turno_id'] ?? null,
+                'patrulla_id' => $validatedData['patrulla_id'] ?? null,
             ]);
 
             $user->assignRole($validatedData['role']);
+
+            $unidadesExtra = $validatedData['unidades_ids'] ?? [];
+            if (!empty($unidadesExtra)) {
+                $user->unidades()->sync($unidadesExtra);
+            }
 
             Log::info("Usuario creado exitosamente: {$user->name}");
 
             return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
         } catch (\Exception $e) {
             Log::error("Error al crear el usuario: " . $e->getMessage());
-            return redirect()->back()->withErrors('Hubo un error al crear el usuario. Inténtelo nuevamente.');
+            return redirect()->back()->withErrors('Hubo un error al crear el usuario. Inténtelo nuevamente.')->withInput();
         }
     }
 
@@ -80,8 +100,10 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        // Evita que NO-superadmin vea usuarios superadmin
-        $user = User::query()->visibleFor($actor)->findOrFail($id);
+        $user = User::query()
+            ->visibleFor($actor)
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades'])
+            ->findOrFail($id);
 
         return view('admin.settings.users.show', compact('user'));
     }
@@ -90,41 +112,54 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        // Evita que NO-superadmin edite usuarios superadmin
-        $user = User::query()->visibleFor($actor)->findOrFail($id);
+        $user = User::query()
+            ->visibleFor($actor)
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades'])
+            ->findOrFail($id);
 
-        // Evita que NO-superadmin vea el rol superadmin en el combo
         $roles = Role::query()
             ->when(!$actor->hasRole('Superadmin'), function ($q) {
                 $q->where('name', '!=', 'Superadmin');
             })
             ->get();
 
-        return view('admin.settings.users.edit', compact('user', 'roles'));
+        $unidades = Unidad::query()->orderBy('nombre')->get();
+        $turnos = Turno::query()->orderBy('nombre')->get();
+        $patrullas = Patrulla::query()->orderBy('numero_economico')->get();
+
+        $unidadesExtraSeleccionadas = $user->unidades->pluck('id')->all();
+
+        return view('admin.settings.users.edit', compact('user', 'roles', 'unidades', 'turnos', 'patrullas', 'unidadesExtraSeleccionadas'));
     }
 
     public function update(Request $request, $id)
     {
         $actor = Auth::user();
 
-        // Evita que NO-superadmin actualice usuarios superadmin
-        $user = User::query()->visibleFor($actor)->findOrFail($id);
+        $user = User::query()
+            ->visibleFor($actor)
+            ->with('roles')
+            ->findOrFail($id);
 
         $validatedData = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email,' . $id,
-            'area'     => 'nullable|string|max:30',
-            'role'     => 'required|exists:roles,name',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $id,
+            'area' => 'nullable|string|max:30',
+            'role' => 'required|exists:roles,name',
             'password' => 'nullable|min:6|confirmed',
+
+            'unidad_id' => 'nullable|exists:unidades,id',
+            'turno_id' => 'nullable|exists:turnos,id',
+            'patrulla_id' => 'nullable|exists:patrullas,id',
+
+            'unidades_ids' => 'nullable|array',
+            'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
-        // Bloqueo: si no es Superadmin, no puede asignar Superadmin
         if (!$actor->hasRole('Superadmin') && $validatedData['role'] === 'Superadmin') {
             abort(403, 'No autorizado.');
         }
 
-        // Bloqueo: no permitir dejar el sistema sin Superadmin
-        // Si el usuario actual es Superadmin y se intenta quitar ese rol, valida que no sea el último
         if ($user->hasRole('Superadmin') && $validatedData['role'] !== 'Superadmin') {
             $superadmins = User::role('Superadmin')->count();
             if ($superadmins <= 1) {
@@ -136,9 +171,13 @@ class UserController extends Controller
 
         try {
             $user->update([
-                'name'  => $validatedData['name'],
+                'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
-                'area'  => $validatedData['area'] ?? null,
+                'area' => $validatedData['area'] ?? null,
+
+                'unidad_id' => $validatedData['unidad_id'] ?? null,
+                'turno_id' => $validatedData['turno_id'] ?? null,
+                'patrulla_id' => $validatedData['patrulla_id'] ?? null,
             ]);
 
             if (!empty($validatedData['password'])) {
@@ -146,20 +185,19 @@ class UserController extends Controller
                 $user->save();
             }
 
-            // Sync de rol (solo 1 rol)
             $user->syncRoles([$validatedData['role']]);
+
+            $unidadesExtra = $validatedData['unidades_ids'] ?? [];
+            $user->unidades()->sync($unidadesExtra);
 
             Log::info("Usuario actualizado exitosamente: {$user->name}");
 
             return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
         } catch (ValidationException $e) {
-            // Para devolver error en el formulario sin romper el flujo
-            return redirect()->back()
-                ->withErrors($e->errors())
-                ->withInput();
+            return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             Log::error("Error al actualizar el usuario: " . $e->getMessage());
-            return redirect()->back()->withErrors('Hubo un error al actualizar el usuario. Inténtelo nuevamente.');
+            return redirect()->back()->withErrors('Hubo un error al actualizar el usuario. Inténtelo nuevamente.')->withInput();
         }
     }
 
@@ -168,10 +206,8 @@ class UserController extends Controller
         $actor = Auth::user();
 
         try {
-            // Evita que NO-superadmin elimine usuarios superadmin (porque ni los ve con visibleFor)
             $user = User::query()->visibleFor($actor)->findOrFail($id);
 
-            // Bloqueo: no permitir eliminar al último Superadmin
             if ($user->hasRole('Superadmin')) {
                 $superadmins = User::role('Superadmin')->count();
                 if ($superadmins <= 1) {
@@ -209,7 +245,7 @@ class UserController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password'         => 'required|min:6|confirmed',
+            'password' => 'required|min:6|confirmed',
         ]);
 
         $user = Auth::user();

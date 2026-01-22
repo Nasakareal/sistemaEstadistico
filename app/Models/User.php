@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -23,6 +22,14 @@ class User extends Authenticatable
         'estado',
         'foto_perfil',
         'area',
+
+        // Organización SSP
+        'unidad_id',
+        'turno_id',
+        'patrulla_id',
+
+        // 🔴 Control de ubicación (clave para jefes de grupo)
+        'compartir_ubicacion',
     ];
 
     /**
@@ -37,24 +44,55 @@ class User extends Authenticatable
      * Casts
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'email_verified_at'   => 'datetime',
+        'compartir_ubicacion' => 'boolean',
     ];
+
+    /* =====================================================
+     | RELACIONES ORGANIZACIONALES
+     ===================================================== */
+
+    /**
+     * Unidad base del usuario
+     */
+    public function unidad()
+    {
+        return $this->belongsTo(Unidad::class);
+    }
+
+    /**
+     * Unidades adicionales (Coordinador)
+     */
+    public function unidades()
+    {
+        return $this->belongsToMany(Unidad::class, 'unidad_user')->withTimestamps();
+    }
+
+    /**
+     * Turno del usuario
+     */
+    public function turno()
+    {
+        return $this->belongsTo(Turno::class);
+    }
+
+    /**
+     * Patrulla asignada
+     */
+    public function patrulla()
+    {
+        return $this->belongsTo(Patrulla::class);
+    }
 
     /* =====================================================
      | HELPERS DE ROLES
      ===================================================== */
 
-    /**
-     * ¿Es Superadmin?
-     */
     public function isSuperadmin(): bool
     {
         return $this->hasRole('Superadmin');
     }
 
-    /**
-     * ¿Es Administrador (pero no Superadmin)?
-     */
     public function isAdministrador(): bool
     {
         return $this->hasRole('Administrador') && !$this->isSuperadmin();
@@ -65,10 +103,7 @@ class User extends Authenticatable
      ===================================================== */
 
     /**
-     * Scope: usuarios visibles según quién consulta
-     *
-     * - Superadmin ve todo
-     * - Cualquier otro NO ve usuarios Superadmin
+     * Usuarios visibles según el actor
      */
     public function scopeVisibleFor($query, ?self $actor)
     {
@@ -82,13 +117,9 @@ class User extends Authenticatable
     }
 
     /* =====================================================
-     | PROTECCIÓN LÓGICA (APOYO A CONTROLLERS)
+     | PROTECCIÓN LÓGICA
      ===================================================== */
 
-    /**
-     * ¿Este usuario puede ser degradado de Superadmin?
-     * (no se permite si es el último)
-     */
     public function canBeDemotedFromSuperadmin(): bool
     {
         if (!$this->isSuperadmin()) {
@@ -98,10 +129,6 @@ class User extends Authenticatable
         return self::role('Superadmin')->count() > 1;
     }
 
-    /**
-     * ¿Este usuario puede ser eliminado?
-     * (no se permite si es el último Superadmin)
-     */
     public function canBeDeleted(): bool
     {
         return $this->canBeDemotedFromSuperadmin();

@@ -14,7 +14,13 @@ class Hechos extends Model
         'folio_c5i',
         'perito',
         'autorizacion_practico',
+
+        // OJO: "unidad" aquí es el número económico, lo dejas tal cual
         'unidad',
+
+        // ✅ NUEVO: unidad organizacional (Siniestros/Delegaciones/etc.)
+        'unidad_org_id',
+
         'hora',
         'fecha',
         'sector',
@@ -49,7 +55,7 @@ class Hechos extends Model
     public function vehiculos()
     {
         return $this->belongsToMany(Vehiculo::class, 'hecho_vehiculo', 'hecho_id', 'vehiculo_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function lesionados()
@@ -65,5 +71,13 @@ class Hechos extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    /**
+     * Unidad organizacional del hecho (Siniestros/Delegaciones/etc.)
+     */
+    public function unidadOrganizacional(): BelongsTo
+    {
+        return $this->belongsTo(Unidad::class, 'unidad_org_id');
     }
 }

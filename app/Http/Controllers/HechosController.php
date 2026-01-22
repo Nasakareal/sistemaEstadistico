@@ -79,7 +79,7 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador')) {
+        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin')) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
@@ -90,8 +90,8 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador')) {
-            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para modificar este hecho.');
+        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin')) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
         $validated = $request->validate([

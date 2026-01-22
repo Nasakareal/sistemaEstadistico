@@ -11,231 +11,268 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
+use Throwable;
 
 class VehiculoController extends Controller
 {
     public function index(Hechos $hecho)
     {
-        return response()->json([
-            'data' => $hecho->vehiculos()->with('conductores')->get()
-        ]);
+        try {
+            return $this->ok('Vehículos del hecho.', $hecho->vehiculos()->with('conductores')->get());
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al cargar los vehículos.', 500);
+        }
     }
 
     public function store(Request $request, Hechos $hecho)
     {
-        $validated = $this->validateRequest($request);
-        $validated = $this->normalize($request, $validated);
+        try {
+            $validated = $this->validateRequest($request);
+            $validated = $this->normalize($request, $validated);
 
-        $validated['grua'] = 'N/A';
-        if (!empty($validated['grua_id'])) {
-            $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
-            if (!empty($tmp)) {
-                $validated['grua'] = strtoupper($tmp);
-            }
-        }
-
-        if ($this->hayDuplicados($hecho, $validated)) {
-            return response()->json([
-                'message' => 'Placas, serie o conductor ya registrados en este hecho'
-            ], 409);
-        }
-
-        return DB::transaction(function () use ($validated, $hecho) {
-            $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
-            $hecho->vehiculos()->attach($vehiculo->id);
-
+            $validated['grua'] = 'N/A';
             if (!empty($validated['grua_id'])) {
-                DB::table('servicios')->insert([
-                    'vehiculo_id'   => $vehiculo->id,
-                    'grua_id'       => $validated['grua_id'],
-                    'tipo_vehiculo' => $validated['tipo'],
-                    'aseguradora'   => $validated['aseguradora'] ?? '',
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
-                ]);
+                $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
+                if (!empty($tmp)) {
+                    $validated['grua'] = strtoupper($tmp);
+                }
             }
 
-            if ($this->hayDatosConductor($validated)) {
-                $conductor = Conductor::create($this->onlyConductor($validated));
-                $vehiculo->conductores()->attach($conductor->id);
+            if ($this->hayDuplicados($hecho, $validated)) {
+                return $this->fail('Placas, NIV/serie o conductor ya registrados en este hecho.', 409);
             }
 
-            return response()->json([
-                'message' => 'Vehículo creado',
-                'data'    => $vehiculo->load('conductores')
-            ], 201);
-        });
+            return DB::transaction(function () use ($validated, $hecho) {
+                $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
+                $hecho->vehiculos()->attach($vehiculo->id);
+
+                if (!empty($validated['grua_id'])) {
+                    DB::table('servicios')->insert([
+                        'vehiculo_id'   => $vehiculo->id,
+                        'grua_id'       => $validated['grua_id'],
+                        'tipo_vehiculo' => $validated['tipo'],
+                        'aseguradora'   => $validated['aseguradora'] ?? '',
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+                }
+
+                if ($this->hayDatosConductor($validated)) {
+                    $conductor = Conductor::create($this->onlyConductor($validated));
+                    $vehiculo->conductores()->attach($conductor->id);
+                }
+
+                return $this->created('Vehículo creado correctamente.', $vehiculo->load('conductores'));
+            });
+
+        } catch (QueryException $e) {
+            return $this->fail('No se pudo guardar el vehículo. Verifica los datos e intenta de nuevo.', 500);
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error inesperado al crear el vehículo.', 500);
+        }
     }
 
     public function show(Hechos $hecho, Vehiculo $vehiculo)
     {
-        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
-            abort(404);
-        }
+        try {
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
+            }
 
-        return response()->json([
-            'data' => $vehiculo->load('conductores')
-        ]);
+            return $this->ok('Vehículo encontrado.', $vehiculo->load('conductores'));
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al consultar el vehículo.', 500);
+        }
     }
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
-        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
-            abort(404);
-        }
-
-        $validated = $this->validateRequest($request, $vehiculo->id);
-        $validated = $this->normalize($request, $validated);
-
-        $validated['grua'] = 'N/A';
-        if (!empty($validated['grua_id'])) {
-            $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
-            if (!empty($tmp)) {
-                $validated['grua'] = strtoupper($tmp);
+        try {
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
-        }
 
-        if ($this->hayDuplicados($hecho, $validated, $vehiculo->id)) {
-            return response()->json([
-                'message' => 'Duplicado dentro del hecho'
-            ], 409);
-        }
+            $validated = $this->validateRequest($request, $vehiculo->id);
+            $validated = $this->normalize($request, $validated);
 
-        return DB::transaction(function () use ($validated, $vehiculo) {
-            $vehiculo->update($this->onlyVehiculo($validated));
-
+            $validated['grua'] = 'N/A';
             if (!empty($validated['grua_id'])) {
-                DB::table('servicios')->updateOrInsert(
-                    ['vehiculo_id' => $vehiculo->id],
-                    [
-                        'grua_id'       => $validated['grua_id'],
-                        'tipo_vehiculo' => $validated['tipo'],
-                        'aseguradora'   => $validated['aseguradora'] ?? '',
-                        'updated_at'    => now(),
-                        'created_at'    => now(),
-                    ]
-                );
-            } else {
-                DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
-            }
-
-            if ($this->hayDatosConductor($validated)) {
-                $conductor = $vehiculo->conductores()->first();
-
-                if ($conductor) {
-                    $conductor->update($this->onlyConductor($validated));
-                } else {
-                    $conductor = Conductor::create($this->onlyConductor($validated));
-                    $vehiculo->conductores()->attach($conductor->id);
+                $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
+                if (!empty($tmp)) {
+                    $validated['grua'] = strtoupper($tmp);
                 }
             }
 
-            return response()->json([
-                'message' => 'Vehículo actualizado',
-                'data'    => $vehiculo->fresh()->load('conductores')
-            ]);
-        });
+            if ($this->hayDuplicados($hecho, $validated, $vehiculo->id)) {
+                return $this->fail('Duplicado dentro del hecho (placas / NIV/serie / conductor).', 409);
+            }
+
+            return DB::transaction(function () use ($validated, $vehiculo) {
+                $vehiculo->update($this->onlyVehiculo($validated));
+
+                if (!empty($validated['grua_id'])) {
+                    DB::table('servicios')->updateOrInsert(
+                        ['vehiculo_id' => $vehiculo->id],
+                        [
+                            'grua_id'       => $validated['grua_id'],
+                            'tipo_vehiculo' => $validated['tipo'],
+                            'aseguradora'   => $validated['aseguradora'] ?? '',
+                            'updated_at'    => now(),
+                            'created_at'    => now(),
+                        ]
+                    );
+                } else {
+                    DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
+                }
+
+                if ($this->hayDatosConductor($validated)) {
+                    $conductor = $vehiculo->conductores()->first();
+
+                    if ($conductor) {
+                        $conductor->update($this->onlyConductor($validated));
+                    } else {
+                        $conductor = Conductor::create($this->onlyConductor($validated));
+                        $vehiculo->conductores()->attach($conductor->id);
+                    }
+                }
+
+                return $this->ok('Vehículo actualizado correctamente.', $vehiculo->fresh()->load('conductores'));
+            });
+
+        } catch (QueryException $e) {
+            return $this->fail('No se pudo actualizar el vehículo. Verifica los datos e intenta de nuevo.', 500);
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error inesperado al actualizar el vehículo.', 500);
+        }
     }
 
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
-        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
-            abort(404);
-        }
-
-        return DB::transaction(function () use ($hecho, $vehiculo) {
-            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                Storage::disk('public')->delete($vehiculo->fotos);
+        try {
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
 
-            $hecho->vehiculos()->detach($vehiculo->id);
+            return DB::transaction(function () use ($hecho, $vehiculo) {
+                if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                    Storage::disk('public')->delete($vehiculo->fotos);
+                }
 
-            DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
+                $hecho->vehiculos()->detach($vehiculo->id);
 
-            $vehiculo->conductores()->detach();
-            $vehiculo->delete();
+                DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
 
-            return response()->json([
-                'message' => 'Vehículo eliminado'
-            ]);
-        });
+                $vehiculo->conductores()->detach();
+                $vehiculo->delete();
+
+                return $this->ok('Vehículo eliminado correctamente.', null);
+            });
+
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al eliminar el vehículo.', 500);
+        }
     }
 
     public function foto(Hechos $hecho, Vehiculo $vehiculo)
     {
-        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
-            abort(404);
-        }
+        try {
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
+            }
 
-        return response()->json([
-            'data' => [
+            return $this->ok('Foto del vehículo.', [
                 'vehiculo_id' => $vehiculo->id,
                 'fotos'       => $vehiculo->fotos,
                 'url'         => $vehiculo->fotos ? asset('storage/' . $vehiculo->fotos) : null,
-            ]
-        ]);
+            ]);
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al consultar la foto.', 500);
+        }
     }
 
     public function fotoUpdate(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
-        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
-            abort(404);
-        }
-
-        $request->validate([
-            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
-        ]);
-
-        return DB::transaction(function () use ($request, $vehiculo) {
-            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                Storage::disk('public')->delete($vehiculo->fotos);
+        try {
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
 
-            $path = $request->file('foto')->store('vehiculos', 'public');
+            $data = $this->sanitize($request->all());
 
-            $vehiculo->update([
-                'fotos' => $path,
-            ]);
+            $validator = Validator::make(
+                $data,
+                ['foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048'],
+                [
+                    'foto.required' => 'Debes seleccionar una imagen.',
+                    'foto.image'    => 'El archivo debe ser una imagen válida.',
+                    'foto.mimes'    => 'La imagen debe ser JPG, JPEG, PNG o WEBP.',
+                    'foto.max'      => 'La imagen no debe pesar más de 2 MB.',
+                ],
+                ['foto' => 'foto']
+            );
 
-            return response()->json([
-                'message' => 'Foto guardada',
-                'data' => [
+            if ($validator->fails()) {
+                return $this->validationFailed($validator->errors()->toArray(), 'Datos inválidos. Revisa la foto.');
+            }
+
+            return DB::transaction(function () use ($request, $vehiculo) {
+                if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                    Storage::disk('public')->delete($vehiculo->fotos);
+                }
+
+                $path = $request->file('foto')->store('vehiculos', 'public');
+
+                $vehiculo->update([
+                    'fotos' => $path,
+                ]);
+
+                return $this->created('Foto guardada correctamente.', [
                     'vehiculo_id' => $vehiculo->id,
                     'fotos'       => $vehiculo->fotos,
                     'url'         => asset('storage/' . $vehiculo->fotos),
-                ]
-            ], 201);
-        });
+                ]);
+            });
+
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al guardar la foto.', 500);
+        }
     }
 
     public function fotoDestroy(Hechos $hecho, Vehiculo $vehiculo)
     {
-        if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
-            abort(404);
-        }
-
-        return DB::transaction(function () use ($vehiculo) {
-            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                Storage::disk('public')->delete($vehiculo->fotos);
+        try {
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
 
-            $vehiculo->update([
-                'fotos' => null,
-            ]);
+            return DB::transaction(function () use ($vehiculo) {
+                if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                    Storage::disk('public')->delete($vehiculo->fotos);
+                }
 
-            return response()->json([
-                'message' => 'Foto eliminada',
-                'data' => [
+                $vehiculo->update([
+                    'fotos' => null,
+                ]);
+
+                return $this->ok('Foto eliminada correctamente.', [
                     'vehiculo_id' => $vehiculo->id,
                     'fotos'       => null,
                     'url'         => null,
-                ]
-            ]);
-        });
+                ]);
+            });
+
+        } catch (Throwable $e) {
+            return $this->fail('Ocurrió un error al eliminar la foto.', 500);
+        }
     }
 
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
+        $data = $this->sanitize($request->all());
+
         $uniquePlacas = Rule::unique('vehiculos', 'placas');
         $uniqueSerie  = Rule::unique('vehiculos', 'serie');
 
@@ -244,15 +281,22 @@ class VehiculoController extends Controller
             $uniqueSerie->ignore($vehiculoId);
         }
 
-        return $request->validate([
+        // OJO:
+        // - Mantengo placas como required como tú lo tienes.
+        // - Pero agrego que si hay placas, estado_placas sea obligatorio (required_with).
+        $rules = [
             'marca'                      => 'required|string|max:50',
             'modelo'                     => 'nullable|string|max:10',
             'tipo'                       => 'required|string|max:50',
             'linea'                      => 'required|string|max:50',
             'color'                      => 'required|string|max:30',
+
             'placas'                     => ['required','string','max:15',$uniquePlacas],
-            'estado_placas'              => 'nullable|string|max:15',
+            'estado_placas'              => 'nullable|string|max:15|required_with:placas',
+
+            // Serie = NIV (máx 17)
             'serie'                      => ['nullable','string','max:17',$uniqueSerie],
+
             'capacidad_personas'         => 'required|integer|min:0',
             'tipo_servicio'              => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
@@ -261,7 +305,9 @@ class VehiculoController extends Controller
             'aseguradora'                => 'nullable|string|max:100',
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
+
             'antecedente_vehiculo'       => 'sometimes|boolean',
+
             'conductor_nombre'           => 'nullable|string|max:255',
             'telefono'                   => 'nullable|digits:10',
             'domicilio'                  => 'nullable|string|max:255',
@@ -272,13 +318,31 @@ class VehiculoController extends Controller
             'estado_licencia'            => 'nullable|string|max:100',
             'vigencia_licencia'          => 'nullable|date',
             'numero_licencia'            => 'nullable|string|max:50',
+
             'permanente'                 => 'sometimes|boolean',
             'cinturon'                   => 'sometimes|boolean',
             'antecedente_conductor'      => 'sometimes|boolean',
             'certificado_lesiones'       => 'sometimes|boolean',
             'certificado_alcoholemia'    => 'sometimes|boolean',
             'aliento_etilico'            => 'sometimes|boolean',
-        ]);
+        ];
+
+        $messages = $this->validationMessages();
+        $attributes = $this->validationAttributes();
+
+        $validator = Validator::make($data, $rules, $messages, $attributes);
+
+        if ($validator->fails()) {
+            // 422 con JSON consistente
+            // (Flutter ya puede mostrar message + errors)
+            abort(response()->json([
+                'ok'      => false,
+                'message' => 'Datos inválidos. Revisa los campos marcados.',
+                'errors'  => $validator->errors()->toArray(),
+            ], 422));
+        }
+
+        return $validator->validated();
     }
 
     private function normalize(Request $request, array $data): array
@@ -401,5 +465,127 @@ class VehiculoController extends Controller
             'à'=>'A','è'=>'E','ì'=>'I','ò'=>'O','ù'=>'U',
             'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
         ]);
+    }
+
+    /**
+     * Normaliza strings: trim y "" -> null
+     * Esto ayuda a que required_with funcione bien.
+     */
+    private function sanitize(array $data): array
+    {
+        foreach ($data as $k => $v) {
+            if (is_string($v)) {
+                $v = trim($v);
+                $data[$k] = ($v === '') ? null : $v;
+            }
+        }
+        return $data;
+    }
+
+    private function vehiculoPerteneceAlHecho(Hechos $hecho, Vehiculo $vehiculo): bool
+    {
+        return $hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists();
+    }
+
+    /**
+     * Mensajes claros para validación
+     */
+    private function validationMessages(): array
+    {
+        return [
+            'required' => 'Este campo es obligatorio.',
+            'string' => 'Este campo debe ser texto.',
+            'integer' => 'Este campo debe ser un número entero.',
+            'numeric' => 'Este campo debe ser numérico.',
+            'max' => 'No debe exceder :max caracteres.',
+            'min' => 'Debe ser mínimo :min.',
+            'digits' => 'Debe tener exactamente :digits dígitos.',
+            'in' => 'El valor no es válido.',
+            'date' => 'La fecha no es válida.',
+            'exists' => 'El valor seleccionado no existe.',
+            'unique' => 'Este valor ya está registrado.',
+            'required_with' => 'Este campo es obligatorio cuando se captura :values.',
+
+            // Específicos importantes
+            'serie.max' => 'El NIV/serie no debe superar 17 caracteres.',
+            'estado_placas.required_with' => 'Si capturas placas, también debes capturar el estado de placas.',
+            'placas.unique' => 'Estas placas ya están registradas.',
+            'serie.unique' => 'Este NIV/serie ya está registrado.',
+            'telefono.digits' => 'El teléfono debe tener 10 dígitos.',
+        ];
+    }
+
+    /**
+     * Nombres bonitos para que no se vea "estado_placas"
+     */
+    private function validationAttributes(): array
+    {
+        return [
+            'marca' => 'marca',
+            'modelo' => 'modelo',
+            'tipo' => 'tipo',
+            'linea' => 'línea',
+            'color' => 'color',
+            'placas' => 'placas',
+            'estado_placas' => 'estado de placas',
+            'serie' => 'NIV/serie',
+            'capacidad_personas' => 'capacidad de personas',
+            'tipo_servicio' => 'tipo de servicio',
+            'tarjeta_circulacion_nombre' => 'nombre en tarjeta de circulación',
+            'grua_id' => 'grúa',
+            'corralon' => 'corralón',
+            'aseguradora' => 'aseguradora',
+            'monto_danos' => 'monto de daños',
+            'partes_danadas' => 'partes dañadas',
+
+            'conductor_nombre' => 'nombre del conductor',
+            'telefono' => 'teléfono',
+            'domicilio' => 'domicilio',
+            'sexo' => 'sexo',
+            'ocupacion' => 'ocupación',
+            'edad' => 'edad',
+            'tipo_licencia' => 'tipo de licencia',
+            'estado_licencia' => 'estado de licencia',
+            'vigencia_licencia' => 'vigencia de licencia',
+            'numero_licencia' => 'número de licencia',
+        ];
+    }
+
+    /**
+     * Respuestas JSON consistentes
+     */
+    private function ok(string $message, $data)
+    {
+        return response()->json([
+            'ok' => true,
+            'message' => $message,
+            'data' => $data
+        ], 200);
+    }
+
+    private function created(string $message, $data)
+    {
+        return response()->json([
+            'ok' => true,
+            'message' => $message,
+            'data' => $data
+        ], 201);
+    }
+
+    private function validationFailed(array $errors, string $message = 'Datos inválidos. Revisa los campos marcados.')
+    {
+        return response()->json([
+            'ok' => false,
+            'message' => $message,
+            'errors' => $errors
+        ], 422);
+    }
+
+    private function fail(string $message, int $status)
+    {
+        return response()->json([
+            'ok' => false,
+            'message' => $message
+        ], $status);
     }
 }

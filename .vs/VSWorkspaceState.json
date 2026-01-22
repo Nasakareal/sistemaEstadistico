@@ -11,6 +11,6 @@
     "\\resources\\views\\hechos",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\PersonalController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
   "PreviewInSolutionExplorer": false
 }

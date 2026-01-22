@@ -17,6 +17,7 @@ class GruaController extends Controller
     public function index(Request $request)
     {
         $gruas = Grua::query()
+            ->withCount('servicios as total_servicios')
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at'])
             ->orderBy('nombre')
             ->get();

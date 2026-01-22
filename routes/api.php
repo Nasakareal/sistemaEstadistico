@@ -3,14 +3,15 @@
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DocumentoHechoController;
+use App\Http\Controllers\Api\GruaController;
 use App\Http\Controllers\Api\HechoController;
-use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\LesionadoController;
 use App\Http\Controllers\Api\LocationController;
-use App\Http\Controllers\Api\GruaController;
-use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MapaPatrullasController;
-use App\Http\Controllers\Api\DocumentoHechoController;
+use App\Http\Controllers\Api\PersonalController;
+use App\Http\Controllers\Api\VehiculoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,7 @@ Route::post('/login', [AuthController::class, 'login']);
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
@@ -59,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'show'])->middleware('can:ver vehiculos');
     Route::put('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'update'])->middleware('can:editar vehiculos');
     Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'destroy'])->middleware('can:eliminar vehiculos');
+
     Route::get('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'foto'])->middleware('can:editar vehiculos');
     Route::post('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoUpdate'])->middleware('can:editar vehiculos');
     Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoDestroy'])->middleware('can:editar vehiculos');
@@ -106,9 +109,13 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::get('/hechos/{hecho}/reporte-doc', [DocumentoHechoController::class, 'descargarDoc'])->middleware('can:ver hechos');
 
-
-    Route::get('/mi-personal', [\App\Http\Controllers\Api\PersonalController::class, 'index'])->middleware('can:ver personal turno');
-    Route::post('/mi-personal/{user}/ubicacion', [\App\Http\Controllers\Api\PersonalController::class, 'toggleUbicacion'])->middleware('can:gestionar ubicaciones turno');
-    Route::post('/mi-personal/ubicacion/todos', [\App\Http\Controllers\Api\PersonalController::class, 'toggleUbicacionTodos'])->middleware('can:gestionar ubicaciones turno');
+    /*
+    |--------------------------------------------------------------------------
+    | MI PERSONAL (JEFE TURNO)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');
+    Route::post('/mi-personal/{user}/ubicacion', [PersonalController::class, 'toggleUbicacion'])->middleware('can:gestionar ubicaciones turno');
+    Route::post('/mi-personal/ubicacion/todos', [PersonalController::class, 'toggleUbicacionTodos'])->middleware('can:gestionar ubicaciones turno');
 
 });

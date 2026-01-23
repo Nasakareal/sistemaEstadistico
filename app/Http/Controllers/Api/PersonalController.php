@@ -11,6 +11,11 @@ class PersonalController extends Controller
 {
     /**
      * GET /api/mi-personal
+     * Reglas:
+     * - subdirector: mismo unidad_id, ignora turno
+     * - jefe: unidad_id + turno_id
+     *
+     * NO manda unidad_id/area.
      */
     public function index(Request $request)
     {
@@ -22,7 +27,7 @@ class PersonalController extends Controller
             ->when($actor->unidad_id, function ($query) use ($actor) {
                 $query->where('unidad_id', $actor->unidad_id);
             })
-            ->when($actor->turno_id, function ($query) use ($actor) {
+            ->when(!$actor->hasRole('subdirector') && $actor->turno_id, function ($query) use ($actor) {
                 $query->where('turno_id', $actor->turno_id);
             })
             ->when($q !== '', function ($query) use ($q) {
@@ -36,10 +41,8 @@ class PersonalController extends Controller
                 'name',
                 'email',
                 'estado',
-                'area',
-                'unidad_id',
-                'turno_id',
                 'patrulla_id',
+                'turno_id', // si NO quieres mandarlo tampoco, lo quitamos; pero suele servir para UI
                 'compartir_ubicacion',
             ])
             ->orderBy('name')
@@ -60,15 +63,11 @@ class PersonalController extends Controller
     {
         $actor = $request->user();
 
-        // Seguridad: solo sobre personal de su misma unidad/turno
-        if ($actor->unidad_id && $user->unidad_id !== $actor->unidad_id) {
-            abort(403, 'No autorizado.');
-        }
-        if ($actor->turno_id && $user->turno_id !== $actor->turno_id) {
+        if (!$this->canManageUser($actor, $user)) {
             abort(403, 'No autorizado.');
         }
 
-        // No permitir que el jefe se apague a sí mismo desde aquí
+        // No permitir que se modifique a sí mismo desde aquí
         if ($user->id === $actor->id) {
             abort(422, 'No puedes modificar tu propia ubicación desde este endpoint.');
         }
@@ -79,28 +78,35 @@ class PersonalController extends Controller
 
         $enabled = array_key_exists('enabled', $validated)
             ? (bool)$validated['enabled']
-            : !$user->compartir_ubicacion;
+            : !((bool)$user->compartir_ubicacion);
 
-        $user->compartir_ubicacion = $enabled ? 1 : 0;
-        $user->save();
+        DB::beginTransaction();
+        try {
+            $user->compartir_ubicacion = $enabled ? 1 : 0;
+            $user->save();
 
-        $deleted = 0;
+            $deleted = 0;
 
-        // ✅ Limpia ubicaciones guardadas si se apaga
-        if (!$enabled) {
-            $deleted = DB::table('user_locations')
-                ->where('user_id', $user->id)
-                ->delete();
+            if (!$enabled) {
+                $deleted = DB::table('user_locations')
+                    ->where('user_id', $user->id)
+                    ->delete();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => $enabled ? 'Ubicación activada' : 'Ubicación desactivada',
+                'data' => [
+                    'user_id' => $user->id,
+                    'compartir_ubicacion' => (int)$user->compartir_ubicacion,
+                    'deleted_locations' => (int)$deleted,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            abort(500, 'Error al actualizar la ubicación.');
         }
-
-        return response()->json([
-            'message' => $enabled ? 'Ubicación activada' : 'Ubicación desactivada',
-            'data' => [
-                'user_id' => $user->id,
-                'compartir_ubicacion' => (int)$user->compartir_ubicacion,
-                'deleted_locations' => (int)$deleted,
-            ],
-        ]);
     }
 
     /**
@@ -124,49 +130,57 @@ class PersonalController extends Controller
             ->when($actor->unidad_id, function ($q) use ($actor) {
                 $q->where('unidad_id', $actor->unidad_id);
             })
-            ->when($actor->turno_id, function ($q) use ($actor) {
+            ->when(!$actor->hasRole('subdirector') && $actor->turno_id, function ($q) use ($actor) {
                 $q->where('turno_id', $actor->turno_id);
             });
 
-        // IDs afectados (para borrar locations)
         $ids = $query->pluck('id')->toArray();
 
-        $updated = User::query()->whereIn('id', $ids)->update([
-            'compartir_ubicacion' => $enabled ? 1 : 0,
-        ]);
+        DB::beginTransaction();
+        try {
+            $updated = 0;
+            $deleted = 0;
 
-        $deleted = 0;
+            if (!empty($ids)) {
+                $updated = User::query()->whereIn('id', $ids)->update([
+                    'compartir_ubicacion' => $enabled ? 1 : 0,
+                ]);
 
-        if (!$enabled && !empty($ids)) {
-            $deleted = DB::table('user_locations')
-                ->whereIn('user_id', $ids)
-                ->delete();
+                if (!$enabled) {
+                    $deleted = DB::table('user_locations')
+                        ->whereIn('user_id', $ids)
+                        ->delete();
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => $enabled ? 'Ubicación activada para el personal' : 'Ubicación desactivada para el personal',
+                'data' => [
+                    'updated' => (int)$updated,
+                    'enabled' => $enabled,
+                    'deleted_locations' => (int)$deleted,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            abort(500, 'Error al actualizar la ubicación del personal.');
         }
-
-        return response()->json([
-            'message' => $enabled ? 'Ubicación activada para el personal' : 'Ubicación desactivada para el personal',
-            'data' => [
-                'updated' => (int)$updated,
-                'enabled' => $enabled,
-                'deleted_locations' => (int)$deleted,
-            ],
-        ]);
     }
 
     /**
      * POST /api/mi-personal/{user}/ubicacion/limpiar
-     * ✅ Borra user_locations manualmente (por si lo necesitas desde UI)
+     * ✅ Borra user_locations manualmente
      */
     public function limpiarUbicacionUsuario(Request $request, User $user)
     {
         $actor = $request->user();
 
-        if ($actor->unidad_id && $user->unidad_id !== $actor->unidad_id) {
+        if (!$this->canManageUser($actor, $user)) {
             abort(403, 'No autorizado.');
         }
-        if ($actor->turno_id && $user->turno_id !== $actor->turno_id) {
-            abort(403, 'No autorizado.');
-        }
+
         if ($user->id === $actor->id) {
             abort(422, 'No puedes limpiar tu propia ubicación desde este endpoint.');
         }
@@ -197,7 +211,7 @@ class PersonalController extends Controller
             ->when($actor->unidad_id, function ($qq) use ($actor) {
                 $qq->where('unidad_id', $actor->unidad_id);
             })
-            ->when($actor->turno_id, function ($qq) use ($actor) {
+            ->when(!$actor->hasRole('subdirector') && $actor->turno_id, function ($qq) use ($actor) {
                 $qq->where('turno_id', $actor->turno_id);
             });
 
@@ -216,5 +230,27 @@ class PersonalController extends Controller
                 'deleted_locations' => (int)$deleted,
             ],
         ]);
+    }
+
+    /**
+     * Regla EXACTA:
+     * - subdirector: misma unidad_id, ignora turno
+     * - jefe: misma unidad_id + mismo turno_id
+     */
+    private function canManageUser(User $actor, User $target): bool
+    {
+        if ($actor->unidad_id && (int)$target->unidad_id !== (int)$actor->unidad_id) {
+            return false;
+        }
+
+        if ($actor->hasRole('subdirector')) {
+            return true;
+        }
+
+        if ($actor->turno_id && (int)$target->turno_id !== (int)$actor->turno_id) {
+            return false;
+        }
+
+        return true;
     }
 }

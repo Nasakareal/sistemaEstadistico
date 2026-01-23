@@ -12,7 +12,7 @@ class LocationController extends Controller
     /**
      * POST /api/location
      * Guarda (upsert) la última ubicación del usuario autenticado.
-     * OJO: si compartir_ubicacion está apagado por jefe/admin, se ignora.
+     * Si compartir_ubicacion está apagado por jefe/admin, se ignora.
      */
     public function store(Request $request)
     {
@@ -62,77 +62,130 @@ class LocationController extends Controller
         $location = UserLocation::where('user_id', $user->id)->first();
 
         return response()->json([
-            'data' => $location
+            'data' => $location,
         ]);
     }
 
     /**
      * GET /api/users/{user}/location/last
      * Regresa la última ubicación de un usuario específico.
-     *
-     * Protección mínima:
-     * - Si NO tienes permiso "ver mapa", te limita a tu misma unidad y turno.
-     * - Si sí tienes permiso, lo deja pasar (Admin/Coordinador/etc).
+     * Reglas:
+     * - subdirector: misma unidad_id, sin importar turno
+     * - jefe: misma unidad_id + mismo turno_id
      */
     public function lastByUser(Request $request, User $user)
     {
         $actor = $request->user();
 
-        if (!$actor->can('ver mapa')) {
-            if ($actor->unidad_id && $user->unidad_id !== $actor->unidad_id) {
-                abort(403, 'No autorizado.');
-            }
-            if ($actor->turno_id && $user->turno_id !== $actor->turno_id) {
-                abort(403, 'No autorizado.');
-            }
+        if (!$this->canManageUser($actor, $user)) {
+            abort(403, 'No autorizado.');
+        }
+
+        // Si el usuario NO comparte ubicación, no expongas nada
+        if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
+            return response()->json([
+                'data' => null,
+                'message' => 'La ubicación de este usuario está desactivada.',
+            ], 200);
         }
 
         $location = UserLocation::where('user_id', $user->id)->first();
 
         return response()->json([
-            'data' => $location
+            'data' => $location,
         ]);
     }
 
     /**
      * GET /api/locations
-     * (Tú ya tienes la ruta apuntando a index, pero no estaba el método en tu controller original)
-     * Si no lo usas aún, puedes borrar la ruta o dejar esto listo.
-     *
      * Regresa todas las ubicaciones visibles para el actor:
-     * - Si puede "ver mapa": regresa todas
-     * - Si no: solo su unidad + turno
+     * - subdirector: todos los de su unidad_id (sin filtrar turno)
+     * - jefe: su unidad_id + turno_id
+     *
+     * Solo devuelve ubicaciones de usuarios con compartir_ubicacion=1.
+     * Devuelve solo la última ubicación por usuario.
      */
     public function index(Request $request)
     {
         $actor = $request->user();
 
-        $query = UserLocation::query()
-            ->select([
+        $usersQuery = User::query()
+            ->where('compartir_ubicacion', 1);
+
+        // scope por rol (SIN adivinar: subdirector ignora turno)
+        if ($actor->hasRole('subdirector')) {
+            if ($actor->unidad_id) {
+                $usersQuery->where('unidad_id', $actor->unidad_id);
+            } else {
+                // si un subdirector no tiene unidad_id, no debe ver nada
+                $usersQuery->whereRaw('1=0');
+            }
+        } else {
+            // jefe: unidad + turno
+            if ($actor->unidad_id) {
+                $usersQuery->where('unidad_id', $actor->unidad_id);
+            }
+            if ($actor->turno_id) {
+                $usersQuery->where('turno_id', $actor->turno_id);
+            }
+        }
+
+        $userIds = $usersQuery->pluck('id');
+
+        // subquery: última captured_at por user_id
+        $latest = UserLocation::query()
+            ->selectRaw('user_id, MAX(captured_at) AS max_captured_at')
+            ->whereIn('user_id', $userIds)
+            ->groupBy('user_id');
+
+        $data = UserLocation::query()
+            ->joinSub($latest, 'ul', function ($join) {
+                $join->on('user_locations.user_id', '=', 'ul.user_id')
+                     ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
+            })
+            ->join('users', 'users.id', '=', 'user_locations.user_id')
+            ->orderByDesc('user_locations.captured_at')
+            ->get([
                 'user_locations.id',
                 'user_locations.user_id',
+                'users.name',
+                'users.email',
+                'users.patrulla_id',
                 'user_locations.lat',
                 'user_locations.lng',
                 'user_locations.accuracy',
                 'user_locations.speed',
                 'user_locations.heading',
                 'user_locations.captured_at',
-            ])
-            ->join('users', 'users.id', '=', 'user_locations.user_id');
-
-        if (!$actor->can('ver mapa')) {
-            if ($actor->unidad_id) {
-                $query->where('users.unidad_id', $actor->unidad_id);
-            }
-            if ($actor->turno_id) {
-                $query->where('users.turno_id', $actor->turno_id);
-            }
-        }
-
-        $data = $query->orderByDesc('user_locations.captured_at')->get();
+            ]);
 
         return response()->json([
             'data' => $data,
         ]);
+    }
+
+    /**
+     * Reglas de visibilidad/gestión:
+     * - subdirector: misma unidad_id, sin importar turno
+     * - jefe: misma unidad_id + mismo turno_id
+     */
+    private function canManageUser(User $actor, User $target): bool
+    {
+        // no toques a alguien de otra unidad
+        if ($actor->unidad_id && (int)$target->unidad_id !== (int)$actor->unidad_id) {
+            return false;
+        }
+
+        // subdirector ignora turno
+        if ($actor->hasRole('subdirector')) {
+            return true;
+        }
+
+        // jefe requiere mismo turno
+        if ($actor->turno_id && (int)$target->turno_id !== (int)$actor->turno_id) {
+            return false;
+        }
+
+        return true;
     }
 }

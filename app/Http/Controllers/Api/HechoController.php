@@ -24,7 +24,16 @@ class HechoController extends Controller
 
     /**
      * GET /api/hechos/buscar?q=ABC&per_page=20&page=1
-     * Busca por campos del hecho + vehiculos (placas/serie) + conductores (nombre).
+     * ✅ SOLO busca en:
+     * - hechos.id
+     * - hechos.folio_c5i
+     * - hechos.calle
+     * - hechos.colonia
+     * - vehiculos.placas
+     * - vehiculos.serie
+     * - conductores.nombre
+     * - lesionados.nombre
+     *
      * Recomendación: coloca la ruta /hechos/buscar ANTES de /hechos/{hecho}.
      */
     public function buscar(Request $request)
@@ -35,7 +44,6 @@ class HechoController extends Controller
 
         if ($q === '' || mb_strlen($q) < 2) {
             return response()->json([
-                'q'    => $q,
                 'data' => [],
                 'meta' => [
                     'current_page' => 1,
@@ -43,46 +51,71 @@ class HechoController extends Controller
                     'total'        => 0,
                     'last_page'    => 1,
                 ],
-            ]);
+            ], 200);
         }
 
-        // Normaliza igual que guardas en hechos (MAYÚSCULAS SIN ACENTOS)
+        // Normaliza (mayúsculas sin acentos) y escapa LIKE
         $qNorm = strtoupper($this->removeAccents($q));
-        $like  = '%' . str_replace(['%', '_'], ['\%', '\_'], $qNorm) . '%';
+        $like  = '%' . addcslashes($qNorm, "%_\\") . '%';
 
-        $results = Hechos::query()
-            ->with(['vehiculos.conductores'])
-            ->where(function ($w) use ($like) {
-                // ===== Campos del hecho =====
-                $w->where('folio_c5i', 'like', $like)
-                  ->orWhere('perito', 'like', $like)
-                  ->orWhere('unidad', 'like', $like)
-                  ->orWhere('sector', 'like', $like)
-                  ->orWhere('calle', 'like', $like)
-                  ->orWhere('colonia', 'like', $like)
-                  ->orWhere('municipio', 'like', $like)
-                  ->orWhere('tipo_hecho', 'like', $like)
-                  ->orWhere('causas', 'like', $like)
-                  ->orWhere('colision_camino', 'like', $like);
+        $query = Hechos::query()
+            // ✅ Regresa solo lo necesario para la lista (evita “campos que no queremos”)
+            ->select([
+                'hechos.id',
+                'hechos.folio_c5i',
+                'hechos.fecha',
+                'hechos.calle',
+                'hechos.colonia',
+                'hechos.municipio',
+            ])
+            ->with([
+                'vehiculos' => function ($v) {
+                    $v->select(['vehiculos.id', 'vehiculos.placas', 'vehiculos.serie'])
+                      ->with([
+                          'conductores' => function ($c) {
+                              $c->select(['conductores.id', 'conductores.nombre']);
+                          }
+                      ]);
+                },
+                'lesionados' => function ($l) {
+                    $l->select(['lesionados.id', 'lesionados.hecho_id', 'lesionados.nombre']);
+                },
+            ])
+            ->where(function ($w) use ($q, $like) {
 
-                // ===== Vehículos (columnas reales: placas / serie) =====
+                // 1) ID exacto si el usuario escribió número
+                if (ctype_digit($q)) {
+                    $w->orWhere('hechos.id', (int)$q);
+                }
+
+                // 2) Hechos: folio, calle, colonia
+                $w->orWhere('hechos.folio_c5i', 'like', $like)
+                  ->orWhere('hechos.calle', 'like', $like)
+                  ->orWhere('hechos.colonia', 'like', $like);
+
+                // 3) Vehículos: placas / serie
                 $w->orWhereHas('vehiculos', function ($v) use ($like) {
                     $v->where(function ($vv) use ($like) {
-                        $vv->where('placas', 'like', $like)
-                           ->orWhere('serie', 'like', $like);
-                    });
-
-                    // ===== Conductores (columna real usada: nombre) =====
-                    $v->orWhereHas('conductores', function ($c) use ($like) {
-                        $c->where('nombre', 'like', $like);
+                        $vv->where('vehiculos.placas', 'like', $like)
+                           ->orWhere('vehiculos.serie', 'like', $like);
                     });
                 });
+
+                // 4) Conductores: nombre (vía vehículos)
+                $w->orWhereHas('vehiculos.conductores', function ($c) use ($like) {
+                    $c->where('conductores.nombre', 'like', $like);
+                });
+
+                // 5) Lesionados: nombre
+                $w->orWhereHas('lesionados', function ($l) use ($like) {
+                    $l->where('lesionados.nombre', 'like', $like);
+                });
             })
-            ->orderByDesc('id')
-            ->paginate($perPage);
+            ->orderByDesc('hechos.id');
+
+        $results = $query->paginate($perPage);
 
         return response()->json([
-            'q'    => $qNorm,
             'data' => $results->items(),
             'meta' => [
                 'current_page' => $results->currentPage(),
@@ -90,7 +123,7 @@ class HechoController extends Controller
                 'total'        => $results->total(),
                 'last_page'    => $results->lastPage(),
             ],
-        ]);
+        ], 200);
     }
 
     public function store(Request $request)
@@ -148,7 +181,7 @@ class HechoController extends Controller
 
         return response()->json([
             'data' => $hecho,
-        ]);
+        ], 200);
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -200,7 +233,7 @@ class HechoController extends Controller
         return response()->json([
             'message' => 'Hecho actualizado exitosamente',
             'data'    => $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']),
-        ]);
+        ], 200);
     }
 
     public function subirDescargo(Request $request, Hechos $hecho)
@@ -217,7 +250,7 @@ class HechoController extends Controller
         return response()->json([
             'message' => 'Descargo subido correctamente',
             'path'    => Storage::url($path),
-        ]);
+        ], 200);
     }
 
     public function destroy(Hechos $hecho)
@@ -226,7 +259,7 @@ class HechoController extends Controller
 
         return response()->json([
             'message' => 'Hecho eliminado',
-        ]);
+        ], 200);
     }
 
     private function removeAccents(string $string): string

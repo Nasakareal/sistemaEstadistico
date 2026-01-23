@@ -124,7 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | VERSION DED LA APP
+    | VERSION DE LA APP
     |--------------------------------------------------------------------------
     */
     Route::get('/app/version', [AppVersionController::class, 'show']);

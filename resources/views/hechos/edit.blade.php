@@ -19,16 +19,16 @@
                     <form action="{{ route('hechos.update', $hecho->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
-                        
+
                         <!-- FILA 1: Folio de C5i, Perito, N° Autorización de Práctico, Unidad -->
                         <div class="row">
                             <!-- Folio de C5i -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="folio_c5i">Folio de C5i</label>
-                                    <input type="text" name="folio_c5i" id="folio_c5i" 
-                                           class="form-control @error('folio_c5i') is-invalid @enderror" 
-                                           value="{{ old('folio_c5i', $hecho->folio_c5i) }}" 
+                                    <input type="text" name="folio_c5i" id="folio_c5i"
+                                           class="form-control @error('folio_c5i') is-invalid @enderror"
+                                           value="{{ old('folio_c5i', $hecho->folio_c5i) }}"
                                            placeholder="Ingrese el folio de C5i" required>
                                     @error('folio_c5i')
                                         <span class="invalid-feedback" role="alert">
@@ -37,14 +37,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Perito -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="perito">Perito</label>
-                                    <input type="text" name="perito" id="perito" 
-                                           class="form-control @error('perito') is-invalid @enderror" 
-                                           value="{{ old('perito', $hecho->perito) }}" 
+                                    <input type="text" name="perito" id="perito"
+                                           class="form-control @error('perito') is-invalid @enderror"
+                                           value="{{ old('perito', $hecho->perito) }}"
                                            placeholder="Nombre del perito" required>
                                     @error('perito')
                                         <span class="invalid-feedback" role="alert">
@@ -53,14 +53,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- N° Autorización de Práctico -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="autorizacion_practico">N° Autorización de Práctico</label>
-                                    <input type="text" name="autorizacion_practico" id="autorizacion_practico" 
-                                           class="form-control @error('autorizacion_practico') is-invalid @enderror" 
-                                           value="{{ old('autorizacion_practico', $hecho->autorizacion_practico) }}" 
+                                    <input type="text" name="autorizacion_practico" id="autorizacion_practico"
+                                           class="form-control @error('autorizacion_practico') is-invalid @enderror"
+                                           value="{{ old('autorizacion_practico', $hecho->autorizacion_practico) }}"
                                            placeholder="Ingrese el número de autorización" required>
                                     @error('autorizacion_practico')
                                         <span class="invalid-feedback" role="alert">
@@ -69,14 +69,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Unidad -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="unidad">Unidad</label>
-                                    <input type="text" name="unidad" id="unidad" 
-                                           class="form-control @error('unidad') is-invalid @enderror" 
-                                           value="{{ old('unidad', $hecho->unidad) }}" 
+                                    <input type="text" name="unidad" id="unidad"
+                                           class="form-control @error('unidad') is-invalid @enderror"
+                                           value="{{ old('unidad', $hecho->unidad) }}"
                                            placeholder="Ingrese la unidad" required>
                                     @error('unidad')
                                         <span class="invalid-feedback" role="alert">
@@ -86,16 +86,28 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- FILA 2: Hora, Fecha, Sector, Municipio -->
                         <div class="row">
                             <!-- Hora -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="hora">Hora</label>
-                                    <input type="time" name="hora" id="hora" 
-                                           class="form-control @error('hora') is-invalid @enderror" 
-                                           value="{{ old('hora', $hecho->hora) }}" required>
+
+                                    {{-- Firefox en escritorio no muestra reloj nativo para <input type="time">.
+                                         Se usa flatpickr para que SIEMPRE haya selector de hora. --}}
+                                    <input
+                                        type="text"
+                                        name="hora"
+                                        id="hora"
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        class="form-control @error('hora') is-invalid @enderror"
+                                        value="{{ old('hora', substr((string)($hecho->hora ?? ''), 0, 5)) }}"
+                                        placeholder="HH:MM"
+                                        required
+                                    >
+
                                     @error('hora')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -103,13 +115,13 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Fecha -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="fecha">Fecha</label>
-                                    <input type="date" name="fecha" id="fecha" 
-                                           class="form-control @error('fecha') is-invalid @enderror" 
+                                    <input type="date" name="fecha" id="fecha"
+                                           class="form-control @error('fecha') is-invalid @enderror"
                                            value="{{ old('fecha', $hecho->fecha) }}" required>
                                     @error('fecha')
                                         <span class="invalid-feedback" role="alert">
@@ -118,12 +130,12 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Sector -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="sector">Sector</label>
-                                    <select name="sector" id="sector" 
+                                    <select name="sector" id="sector"
                                             class="form-control @error('sector') is-invalid @enderror" required>
                                         <option value="" disabled>Seleccione un sector</option>
                                         <option value="REVOLUCIÓN" {{ old('sector', $hecho->sector) == 'REVOLUCIÓN' ? 'selected' : '' }}>REVOLUCIÓN</option>
@@ -139,14 +151,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Municipio -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="municipio">Municipio</label>
-                                    <input type="text" name="municipio" id="municipio" 
-                                           class="form-control @error('municipio') is-invalid @enderror" 
-                                           value="{{ old('municipio', $hecho->municipio) }}" 
+                                    <input type="text" name="municipio" id="municipio"
+                                           class="form-control @error('municipio') is-invalid @enderror"
+                                           value="{{ old('municipio', $hecho->municipio) }}"
                                            placeholder="Ingrese el municipio" required>
                                     @error('municipio')
                                         <span class="invalid-feedback" role="alert">
@@ -156,16 +168,16 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- FILA 3: Calle, Colonia, Entre Calles -->
                         <div class="row">
                             <!-- Calle -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="calle">Calle</label>
-                                    <input type="text" name="calle" id="calle" 
-                                           class="form-control @error('calle') is-invalid @enderror" 
-                                           value="{{ old('calle', $hecho->calle) }}" 
+                                    <input type="text" name="calle" id="calle"
+                                           class="form-control @error('calle') is-invalid @enderror"
+                                           value="{{ old('calle', $hecho->calle) }}"
                                            placeholder="Ingrese la calle" required>
                                     @error('calle')
                                         <span class="invalid-feedback" role="alert">
@@ -174,14 +186,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Colonia -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="colonia">Colonia</label>
-                                    <input type="text" name="colonia" id="colonia" 
-                                           class="form-control @error('colonia') is-invalid @enderror" 
-                                           value="{{ old('colonia', $hecho->colonia) }}" 
+                                    <input type="text" name="colonia" id="colonia"
+                                           class="form-control @error('colonia') is-invalid @enderror"
+                                           value="{{ old('colonia', $hecho->colonia) }}"
                                            placeholder="Ingrese la colonia" required>
                                     @error('colonia')
                                         <span class="invalid-feedback" role="alert">
@@ -190,14 +202,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Entre Calles -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="entre_calles">Entre Calles</label>
-                                    <input type="text" name="entre_calles" id="entre_calles" 
-                                           class="form-control @error('entre_calles') is-invalid @enderror" 
-                                           value="{{ old('entre_calles', $hecho->entre_calles) }}" 
+                                    <input type="text" name="entre_calles" id="entre_calles"
+                                           class="form-control @error('entre_calles') is-invalid @enderror"
+                                           value="{{ old('entre_calles', $hecho->entre_calles) }}"
                                            placeholder="Ingrese entre calles">
                                     @error('entre_calles')
                                         <span class="invalid-feedback" role="alert">
@@ -207,14 +219,14 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- FILA 4: Tipo de Hecho, Superficie de la Vía, Tiempo, Clima y Condiciones -->
                         <div class="row">
                             <!-- Tipo de Hecho de Tránsito -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="tipo_hecho">Tipo de Hecho de Tránsito</label>
-                                    <select name="tipo_hecho" id="tipo_hecho" 
+                                    <select name="tipo_hecho" id="tipo_hecho"
                                             class="form-control @error('tipo_hecho') is-invalid @enderror" required>
                                         <option value="" disabled>Seleccione el tipo de hecho</option>
                                         <option value="VOLCADURA" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'VOLCADURA' ? 'selected' : '' }}>VOLCADURA</option>
@@ -242,14 +254,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Superficie de la Vía -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="superficie_via">Superficie de la Vía</label>
-                                    <input type="text" name="superficie_via" id="superficie_via" 
-                                           class="form-control @error('superficie_via') is-invalid @enderror" 
-                                           value="{{ old('superficie_via', $hecho->superficie_via) }}" 
+                                    <input type="text" name="superficie_via" id="superficie_via"
+                                           class="form-control @error('superficie_via') is-invalid @enderror"
+                                           value="{{ old('superficie_via', $hecho->superficie_via) }}"
                                            placeholder="Ingrese la superficie de la vía" required>
                                     @error('superficie_via')
                                         <span class="invalid-feedback" role="alert">
@@ -258,12 +270,12 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Tiempo -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="tiempo">Tiempo</label>
-                                    <select name="tiempo" id="tiempo" 
+                                    <select name="tiempo" id="tiempo"
                                             class="form-control @error('tiempo') is-invalid @enderror" required>
                                         <option value="" disabled>Seleccione el tiempo</option>
                                         <option value="Día" {{ old('tiempo', $hecho->tiempo) == 'Día' ? 'selected' : '' }}>DÍA</option>
@@ -278,12 +290,12 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Clima -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="clima">Clima</label>
-                                    <select name="clima" id="clima" 
+                                    <select name="clima" id="clima"
                                             class="form-control @error('clima') is-invalid @enderror" required>
                                         <option value="" disabled>Seleccione el clima</option>
                                         <option value="Bueno" {{ old('clima', $hecho->clima) == 'Bueno' ? 'selected' : '' }}>BUENO</option>
@@ -298,12 +310,12 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Condiciones -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="condiciones">Condiciones</label>
-                                    <select name="condiciones" id="condiciones" 
+                                    <select name="condiciones" id="condiciones"
                                             class="form-control @error('condiciones') is-invalid @enderror" required>
                                         <option value="" disabled>Seleccione las condiciones</option>
                                         <option value="Bueno" {{ old('condiciones', $hecho->condiciones) == 'Bueno' ? 'selected' : '' }}>BUENO</option>
@@ -318,14 +330,14 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- FILA 5: Situación, Control de Tránsito, Colisión sobre el Camino -->
                         <div class="row">
                             <!-- Situación -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="situacion">Situación</label>
-                                    <select name="situacion" id="situacion" 
+                                    <select name="situacion" id="situacion"
                                             class="form-control @error('situacion') is-invalid @enderror" required>
                                         <option value="" disabled>Seleccione la situación</option>
                                         <option value="RESUELTO" {{ old('situacion', $hecho->situacion) == 'RESUELTO' ? 'selected' : '' }}>RESUELTO</option>
@@ -340,14 +352,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Control de Tránsito -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="control_transito">Control de Tránsito</label>
-                                    <input type="text" name="control_transito" id="control_transito" 
-                                           class="form-control @error('control_transito') is-invalid @enderror" 
-                                           value="{{ old('control_transito', $hecho->control_transito) }}" 
+                                    <input type="text" name="control_transito" id="control_transito"
+                                           class="form-control @error('control_transito') is-invalid @enderror"
+                                           value="{{ old('control_transito', $hecho->control_transito) }}"
                                            placeholder="Ingrese el control de tránsito" required>
                                     @error('control_transito')
                                         <span class="invalid-feedback" role="alert">
@@ -356,14 +368,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Colisión sobre el Camino -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="colision_camino">Colisión sobre el Camino</label>
-                                    <input type="text" name="colision_camino" id="colision_camino" 
-                                           class="form-control @error('colision_camino') is-invalid @enderror" 
-                                           value="{{ old('colision_camino', $hecho->colision_camino) }}" 
+                                    <input type="text" name="colision_camino" id="colision_camino"
+                                           class="form-control @error('colision_camino') is-invalid @enderror"
+                                           value="{{ old('colision_camino', $hecho->colision_camino) }}"
                                            placeholder="Ingrese la colisión sobre el camino" required>
                                     @error('colision_camino')
                                         <span class="invalid-feedback" role="alert">
@@ -373,7 +385,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- FILA 6: Se checaron antecedentes?, Causas -->
                         <div class="row">
                             <!-- Se checaron antecedentes? -->
@@ -386,14 +398,14 @@
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <!-- Causas -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="causas">Causas</label>
-                                    <input type="text" name="causas" id="causas" 
-                                           class="form-control @error('causas') is-invalid @enderror" 
-                                           value="{{ old('causas', $hecho->causas) }}" 
+                                    <input type="text" name="causas" id="causas"
+                                           class="form-control @error('causas') is-invalid @enderror"
+                                           value="{{ old('causas', $hecho->causas) }}"
                                            placeholder="Ingrese las causas" required>
                                     @error('causas')
                                         <span class="invalid-feedback" role="alert">
@@ -403,16 +415,16 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- FILA 7: Oficio MP (sólo si situación es TURNADO), Vehículos y Personas presentados al MP -->
                         <div class="row">
                             <!-- Oficio MP (Visible solo si situación es TURNADO) -->
                             <div class="col-md-4" id="oficio_mp_group" style="display: none;">
                                 <div class="form-group">
                                     <label for="oficio_mp">Oficio MP</label>
-                                    <input type="text" name="oficio_mp" id="oficio_mp" 
-                                           class="form-control @error('oficio_mp') is-invalid @enderror" 
-                                           value="{{ old('oficio_mp', $hecho->oficio_mp) }}" 
+                                    <input type="text" name="oficio_mp" id="oficio_mp"
+                                           class="form-control @error('oficio_mp') is-invalid @enderror"
+                                           value="{{ old('oficio_mp', $hecho->oficio_mp) }}"
                                            placeholder="Ingrese el número de oficio">
                                     @error('oficio_mp')
                                         <span class="invalid-feedback" role="alert">
@@ -421,14 +433,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Vehículos presentados al MP -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="vehiculos_mp">Vehículos presentados al MP</label>
-                                    <input type="number" name="vehiculos_mp" id="vehiculos_mp" 
-                                           class="form-control @error('vehiculos_mp') is-invalid @enderror" 
-                                           value="{{ old('vehiculos_mp', $hecho->vehiculos_mp) }}" 
+                                    <input type="number" name="vehiculos_mp" id="vehiculos_mp"
+                                           class="form-control @error('vehiculos_mp') is-invalid @enderror"
+                                           value="{{ old('vehiculos_mp', $hecho->vehiculos_mp) }}"
                                            min="0" required>
                                     @error('vehiculos_mp')
                                         <span class="invalid-feedback" role="alert">
@@ -437,14 +449,14 @@
                                     @enderror
                                 </div>
                             </div>
-                            
+
                             <!-- Personas presentadas al MP -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="personas_mp">Personas presentadas al MP</label>
-                                    <input type="number" name="personas_mp" id="personas_mp" 
-                                           class="form-control @error('personas_mp') is-invalid @enderror" 
-                                           value="{{ old('personas_mp', $hecho->personas_mp) }}" 
+                                    <input type="number" name="personas_mp" id="personas_mp"
+                                           class="form-control @error('personas_mp') is-invalid @enderror"
+                                           value="{{ old('personas_mp', $hecho->personas_mp) }}"
                                            min="0" required>
                                     @error('personas_mp')
                                         <span class="invalid-feedback" role="alert">
@@ -465,10 +477,8 @@
                                     <i class="fa-solid fa-user-injured"></i> Listado de Lesionados
                                 </a>
                             </div>
-
-
                         </div>
-                        
+
                         <!-- BOTONES: Actualizar y Cancelar -->
                         <hr>
                         <div class="row">
@@ -485,7 +495,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                     </form>
                 </div>
             </div>
@@ -494,61 +504,77 @@
 @stop
 
 @section('css')
-<style>
-    /* ===== Labels ===== */
-    .form-group label {
-        font-weight: bold;
-        color: #eaf0ff;
-    }
+    {{-- Flatpickr (selector de hora cross-browser, incluyendo Firefox) --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-    /* ===== Inputs y selects (modo oscuro AdminLTE) ===== */
-    .form-control,
-    select.form-control {
-        color: #eaf0ff;
-        background-color: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.12);
-        border-radius: 12px;
-    }
+    <style>
+        /* ===== Labels ===== */
+        .form-group label {
+            font-weight: bold;
+            color: #eaf0ff;
+        }
 
-    /* ===== Placeholder ===== */
-    .form-control::placeholder {
-        color: rgba(234,240,255,.55);
-    }
+        /* ===== Inputs y selects (modo oscuro AdminLTE) ===== */
+        .form-control,
+        select.form-control {
+            color: #eaf0ff;
+            background-color: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 12px;
+        }
 
-    /* ===== Dropdown nativo ===== */
-    select option {
-        color: #111 !important;
-        background-color: #ffffff !important;
-    }
+        /* ===== Placeholder ===== */
+        .form-control::placeholder {
+            color: rgba(234,240,255,.55);
+        }
 
-    select optgroup {
-        color: #111 !important;
-        background-color: #ffffff !important;
-        font-weight: bold;
-    }
+        /* ===== Dropdown nativo ===== */
+        select option {
+            color: #111 !important;
+            background-color: #ffffff !important;
+        }
 
-    /* ===== Selección / hover ===== */
-    select option:checked {
-        background-color: #dbeafe !important;
-        color: #0b1220 !important;
-    }
+        select optgroup {
+            color: #111 !important;
+            background-color: #ffffff !important;
+            font-weight: bold;
+        }
 
-    select option:hover {
-        background-color: #bfdbfe !important;
-        color: #0b1220 !important;
-    }
+        /* ===== Selección / hover ===== */
+        select option:checked {
+            background-color: #dbeafe !important;
+            color: #0b1220 !important;
+        }
 
-    /* ===== Focus ===== */
-    .form-control:focus,
-    select:focus {
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(45,168,255,.35);
-        border-color: rgba(45,168,255,.55);
-    }
-</style>
+        select option:hover {
+            background-color: #bfdbfe !important;
+            color: #0b1220 !important;
+        }
+
+        /* ===== Focus ===== */
+        .form-control:focus,
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(45,168,255,.35);
+            border-color: rgba(45,168,255,.55);
+        }
+
+        /* ===== Flatpickr: que se vea bien en modo oscuro ===== */
+        .flatpickr-calendar {
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .flatpickr-time input,
+        .flatpickr-time .flatpickr-am-pm {
+            font-size: 16px;
+        }
+    </style>
 @stop
 
 @section('js')
+    {{-- Flatpickr --}}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const situacionSelect = document.getElementById('situacion');
@@ -568,6 +594,24 @@
 
             // Escuchar cambios en el select de situación
             situacionSelect.addEventListener('change', toggleOficioMp);
+
+            // ===== Hora (Firefox/Chrome/Edge): selector consistente =====
+            const horaInput = document.getElementById('hora');
+
+            // Normaliza valor a HH:MM si viene con segundos
+            if (horaInput && horaInput.value) {
+                horaInput.value = String(horaInput.value).substring(0, 5);
+            }
+
+            if (horaInput && window.flatpickr) {
+                flatpickr(horaInput, {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: "H:i",
+                    time_24hr: true,
+                    allowInput: true
+                });
+            }
         });
 
         @if ($errors->any())

@@ -90,7 +90,7 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin')) {
+        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin') && !$usuario->hasRole('Administrativo')) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 

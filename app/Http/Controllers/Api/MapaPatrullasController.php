@@ -8,15 +8,6 @@ use App\Models\UserLocation;
 
 class MapaPatrullasController extends Controller
 {
-    /**
-     * GET /api/mapa-patrullas/data  (ejemplo)
-     * Devuelve última ubicación por usuario, solo de quienes comparten ubicación.
-     * Reglas:
-     * - subdirector: mismos unidad_id, ignora turno
-     * - jefe: unidad_id + turno_id
-     *
-     * No manda unidad_id/area.
-     */
     public function data()
     {
         $actor = request()->user();
@@ -41,7 +32,6 @@ class MapaPatrullasController extends Controller
 
         $userIds = $usersQuery->pluck('id');
 
-        // última captured_at por usuario
         $latest = UserLocation::query()
             ->selectRaw('user_id, MAX(captured_at) AS max_captured_at')
             ->whereIn('user_id', $userIds)

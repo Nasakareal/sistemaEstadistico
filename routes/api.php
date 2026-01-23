@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\MapaPatrullasController;
 use App\Http\Controllers\Api\PersonalController;
 use App\Http\Controllers\Api\VehiculoController;
+use App\Http\Controllers\Api\AppVersionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -118,7 +119,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');
     Route::post('/mi-personal/{user}/ubicacion', [PersonalController::class, 'toggleUbicacion'])->middleware('can:gestionar ubicaciones turno');
     Route::post('/mi-personal/ubicacion/todos', [PersonalController::class, 'toggleUbicacionTodos'])->middleware('can:gestionar ubicaciones turno');
-
     Route::post('/mi-personal/{user}/ubicacion/limpiar', [PersonalController::class, 'limpiarUbicacionUsuario'])->middleware('can:gestionar ubicaciones turno');
     Route::post('/mi-personal/ubicacion/limpiar-todos', [PersonalController::class, 'limpiarUbicacionTodos'])->middleware('can:gestionar ubicaciones turno');
+
+    /*
+    |--------------------------------------------------------------------------
+    | VERSION DED LA APP
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/app/version', [AppVersionController::class, 'show']);
 });

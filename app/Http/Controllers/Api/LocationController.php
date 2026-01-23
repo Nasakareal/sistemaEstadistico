@@ -9,11 +9,6 @@ use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
-    /**
-     * POST /api/location
-     * Guarda (upsert) la última ubicación del usuario autenticado.
-     * Si compartir_ubicacion está apagado por jefe/admin, se ignora.
-     */
     public function store(Request $request)
     {
         $user = $request->user();
@@ -51,10 +46,6 @@ class LocationController extends Controller
         ], 201);
     }
 
-    /**
-     * GET /api/location/last
-     * Regresa la última ubicación del usuario autenticado.
-     */
     public function last(Request $request)
     {
         $user = $request->user();
@@ -66,13 +57,6 @@ class LocationController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/users/{user}/location/last
-     * Regresa la última ubicación de un usuario específico.
-     * Reglas:
-     * - subdirector: misma unidad_id, sin importar turno
-     * - jefe: misma unidad_id + mismo turno_id
-     */
     public function lastByUser(Request $request, User $user)
     {
         $actor = $request->user();
@@ -81,7 +65,6 @@ class LocationController extends Controller
             abort(403, 'No autorizado.');
         }
 
-        // Si el usuario NO comparte ubicación, no expongas nada
         if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return response()->json([
                 'data' => null,
@@ -96,15 +79,6 @@ class LocationController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/locations
-     * Regresa todas las ubicaciones visibles para el actor:
-     * - subdirector: todos los de su unidad_id (sin filtrar turno)
-     * - jefe: su unidad_id + turno_id
-     *
-     * Solo devuelve ubicaciones de usuarios con compartir_ubicacion=1.
-     * Devuelve solo la última ubicación por usuario.
-     */
     public function index(Request $request)
     {
         $actor = $request->user();
@@ -112,16 +86,13 @@ class LocationController extends Controller
         $usersQuery = User::query()
             ->where('compartir_ubicacion', 1);
 
-        // scope por rol (SIN adivinar: subdirector ignora turno)
         if ($actor->hasRole('subdirector')) {
             if ($actor->unidad_id) {
                 $usersQuery->where('unidad_id', $actor->unidad_id);
             } else {
-                // si un subdirector no tiene unidad_id, no debe ver nada
                 $usersQuery->whereRaw('1=0');
             }
         } else {
-            // jefe: unidad + turno
             if ($actor->unidad_id) {
                 $usersQuery->where('unidad_id', $actor->unidad_id);
             }
@@ -132,7 +103,6 @@ class LocationController extends Controller
 
         $userIds = $usersQuery->pluck('id');
 
-        // subquery: última captured_at por user_id
         $latest = UserLocation::query()
             ->selectRaw('user_id, MAX(captured_at) AS max_captured_at')
             ->whereIn('user_id', $userIds)
@@ -164,24 +134,16 @@ class LocationController extends Controller
         ]);
     }
 
-    /**
-     * Reglas de visibilidad/gestión:
-     * - subdirector: misma unidad_id, sin importar turno
-     * - jefe: misma unidad_id + mismo turno_id
-     */
     private function canManageUser(User $actor, User $target): bool
     {
-        // no toques a alguien de otra unidad
         if ($actor->unidad_id && (int)$target->unidad_id !== (int)$actor->unidad_id) {
             return false;
         }
 
-        // subdirector ignora turno
         if ($actor->hasRole('subdirector')) {
             return true;
         }
 
-        // jefe requiere mismo turno
         if ($actor->turno_id && (int)$target->turno_id !== (int)$actor->turno_id) {
             return false;
         }

@@ -9,14 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 class PersonalController extends Controller
 {
-    /**
-     * GET /api/mi-personal
-     * Reglas:
-     * - subdirector: mismo unidad_id, ignora turno
-     * - jefe: unidad_id + turno_id
-     *
-     * NO manda unidad_id/area.
-     */
     public function index(Request $request)
     {
         $actor = $request->user();
@@ -42,7 +34,7 @@ class PersonalController extends Controller
                 'email',
                 'estado',
                 'patrulla_id',
-                'turno_id', // si NO quieres mandarlo tampoco, lo quitamos; pero suele servir para UI
+                'turno_id',
                 'compartir_ubicacion',
             ])
             ->orderBy('name')
@@ -53,12 +45,6 @@ class PersonalController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/mi-personal/{user}/ubicacion
-     * Body: { "enabled": true|false }  (si no viene, toggle)
-     *
-     * ✅ Cuando enabled=false => BORRA user_locations de ese usuario
-     */
     public function toggleUbicacion(Request $request, User $user)
     {
         $actor = $request->user();
@@ -67,7 +53,6 @@ class PersonalController extends Controller
             abort(403, 'No autorizado.');
         }
 
-        // No permitir que se modifique a sí mismo desde aquí
         if ($user->id === $actor->id) {
             abort(422, 'No puedes modificar tu propia ubicación desde este endpoint.');
         }
@@ -109,12 +94,6 @@ class PersonalController extends Controller
         }
     }
 
-    /**
-     * POST /api/mi-personal/ubicacion/todos
-     * Body: { "enabled": true|false }
-     *
-     * ✅ Si enabled=false => BORRA user_locations de todos los afectados
-     */
     public function toggleUbicacionTodos(Request $request)
     {
         $actor = $request->user();
@@ -169,10 +148,6 @@ class PersonalController extends Controller
         }
     }
 
-    /**
-     * POST /api/mi-personal/{user}/ubicacion/limpiar
-     * ✅ Borra user_locations manualmente
-     */
     public function limpiarUbicacionUsuario(Request $request, User $user)
     {
         $actor = $request->user();
@@ -198,10 +173,6 @@ class PersonalController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/mi-personal/ubicacion/limpiar-todos
-     * ✅ Borra user_locations de todo tu personal
-     */
     public function limpiarUbicacionTodos(Request $request)
     {
         $actor = $request->user();
@@ -232,11 +203,6 @@ class PersonalController extends Controller
         ]);
     }
 
-    /**
-     * Regla EXACTA:
-     * - subdirector: misma unidad_id, ignora turno
-     * - jefe: misma unidad_id + mismo turno_id
-     */
     private function canManageUser(User $actor, User $target): bool
     {
         if ($actor->unidad_id && (int)$target->unidad_id !== (int)$actor->unidad_id) {

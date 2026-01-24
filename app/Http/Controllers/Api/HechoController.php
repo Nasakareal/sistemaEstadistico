@@ -10,6 +10,13 @@ use Illuminate\Support\Facades\Storage;
 
 class HechoController extends Controller
 {
+    // ======== Catálogos NORMALIZADOS (SIN ACENTOS / EN MAYÚSCULAS) ========
+    private const SECTORES = ['REVOLUCION','NUEVA ESPANA','INDEPENDENCIA','REPUBLICA','CENTRO'];
+    private const TIEMPOS  = ['DIA','NOCHE','AMANECER','ATARDecer']; // ojo: abajo normalizamos a MAYUS, así que ATARDECER queda OK
+    private const CLIMAS   = ['BUENO','MALO','NUBLADO','LLUVIOSO'];
+    private const COND     = ['BUENO','REGULAR','MALO'];
+    private const SITUAS   = ['RESUELTO','PENDIENTE','TURNADO','REPORTE'];
+
     public function index(Request $request)
     {
         $perPage = (int)($request->query('per_page', 20));
@@ -24,15 +31,6 @@ class HechoController extends Controller
 
     /**
      * GET /api/hechos/buscar?q=ABC&per_page=20&page=1
-     * ✅ SOLO busca en:
-     * - hechos.id
-     * - hechos.folio_c5i
-     * - hechos.calle
-     * - hechos.colonia
-     * - vehiculos.placas
-     * - vehiculos.serie
-     * - conductores.nombre
-     * - lesionados.nombre
      */
     public function buscar(Request $request)
     {
@@ -130,6 +128,9 @@ class HechoController extends Controller
     {
         $user = $request->user();
 
+        // ✅ Normaliza valores tipo catálogo ANTES de validar (acepta con acento o sin acento)
+        $this->normalizeCatalogFields($request);
+
         $validated = $request->validate([
             'folio_c5i'             => 'required|string|max:20|unique:hechos,folio_c5i',
             'perito'                => 'required|string|max:255',
@@ -137,21 +138,21 @@ class HechoController extends Controller
             'unidad'                => 'required|string|max:50',
             'hora'                  => 'required|date_format:H:i',
             'fecha'                 => 'required|date',
-            'sector'                => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
+            'sector'                => ['required','string', Rule::in(self::SECTORES)],
             'calle'                 => 'required|string|max:255',
             'colonia'               => 'required|string|max:255',
             'entre_calles'          => 'nullable|string|max:255',
             'municipio'             => 'required|string|max:100',
             'tipo_hecho'            => 'required|string|max:255',
             'superficie_via'        => 'required|string|max:50',
-            'tiempo'                => 'required|string|in:Día,Noche,Amanecer,Atardecer',
-            'clima'                 => 'required|string|in:Bueno,Malo,Nublado,Lluvioso',
-            'condiciones'           => 'required|string|in:Bueno,Regular,Malo',
+            'tiempo'                => ['required','string', Rule::in(['DIA','NOCHE','AMANECER','ATARDecer','ATARDECER'])],
+            'clima'                 => ['required','string', Rule::in(self::CLIMAS)],
+            'condiciones'           => ['required','string', Rule::in(self::COND)],
             'control_transito'      => 'required|string|max:50',
             'checaron_antecedentes' => 'nullable|boolean',
             'causas'                => 'required|string|max:255',
             'colision_camino'       => 'required|string|max:255',
-            'situacion'             => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
+            'situacion'             => ['required','string', Rule::in(self::SITUAS)],
             'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
@@ -159,6 +160,7 @@ class HechoController extends Controller
             'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
+        // Si situacion exige foto_situacion en creación, sí la pedimos aquí
         $situacion = (string)($validated['situacion'] ?? '');
         if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $request->validate([
@@ -168,6 +170,7 @@ class HechoController extends Controller
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
 
+        // Normaliza strings (sin acento, mayúsculas) para guardar consistente
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
@@ -213,47 +216,66 @@ class HechoController extends Controller
     {
         $user = $request->user();
 
+        // ✅ Normaliza catálogos ANTES de validar
+        $this->normalizeCatalogFields($request);
+
+        // ✅ Update parcial: permite subir fotos sin mandar todo
         $validated = $request->validate([
             'folio_c5i' => [
-                'required', 'string', 'max:20',
+                'sometimes', 'required', 'string', 'max:20',
                 Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
             ],
-            'perito'                => 'required|string|max:255',
-            'autorizacion_practico' => 'nullable|string|max:255',
-            'unidad'                => 'required|string|max:50',
-            'hora'                  => 'required|date_format:H:i',
-            'fecha'                 => 'required|date',
-            'sector'                => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
-            'calle'                 => 'required|string|max:255',
-            'colonia'               => 'required|string|max:255',
-            'entre_calles'          => 'nullable|string|max:255',
-            'municipio'             => 'required|string|max:100',
-            'tipo_hecho'            => 'required|string|max:255',
-            'superficie_via'        => 'required|string|max:50',
-            'tiempo'                => 'required|string|in:Día,Noche,Amanecer,Atardecer',
-            'clima'                 => 'required|string|in:Bueno,Malo,Nublado,Lluvioso',
-            'condiciones'           => 'required|string|in:Bueno,Regular,Malo',
-            'control_transito'      => 'required|string|max:50',
-            'checaron_antecedentes' => 'nullable|boolean',
-            'causas'                => 'required|string|max:255',
-            'colision_camino'       => 'required|string|max:255',
-            'situacion'             => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
-            'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
-            'vehiculos_mp'          => 'required|integer|min:0',
-            'personas_mp'           => 'required|integer|min:0',
-            'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'perito'                => 'sometimes|required|string|max:255',
+            'autorizacion_practico' => 'sometimes|nullable|string|max:255',
+            'unidad'                => 'sometimes|required|string|max:50',
+            'hora'                  => 'sometimes|required|date_format:H:i',
+            'fecha'                 => 'sometimes|required|date',
+            'sector'                => ['sometimes','required','string', Rule::in(self::SECTORES)],
+            'calle'                 => 'sometimes|required|string|max:255',
+            'colonia'               => 'sometimes|required|string|max:255',
+            'entre_calles'          => 'sometimes|nullable|string|max:255',
+            'municipio'             => 'sometimes|required|string|max:100',
+            'tipo_hecho'            => 'sometimes|required|string|max:255',
+            'superficie_via'        => 'sometimes|required|string|max:50',
+            'tiempo'                => ['sometimes','required','string', Rule::in(['DIA','NOCHE','AMANECER','ATARDecer','ATARDECER'])],
+            'clima'                 => ['sometimes','required','string', Rule::in(self::CLIMAS)],
+            'condiciones'           => ['sometimes','required','string', Rule::in(self::COND)],
+            'control_transito'      => 'sometimes|required|string|max:50',
+            'checaron_antecedentes' => 'sometimes|nullable|boolean',
+            'causas'                => 'sometimes|required|string|max:255',
+            'colision_camino'       => 'sometimes|required|string|max:255',
+            'situacion'             => ['sometimes','required','string', Rule::in(self::SITUAS)],
+            'oficio_mp'             => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
+            'vehiculos_mp'          => 'sometimes|required|integer|min:0',
+            'personas_mp'           => 'sometimes|required|integer|min:0',
+            'foto_lugar'            => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion'        => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        $situacion = (string)($validated['situacion'] ?? '');
-        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
-            $request->validate([
-                'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-            ]);
+        // ✅ Regla de foto_situacion: SOLO si situacion lo exige Y no hay foto previa Y no viene archivo nuevo
+        $situacionNueva = $request->has('situacion')
+            ? strtoupper($this->removeAccents((string)$request->input('situacion')))
+            : null;
+
+        $situacionEfectiva = $situacionNueva ?? strtoupper((string)($hecho->situacion ?? ''));
+
+        if (in_array($situacionEfectiva, ['RESUELTO', 'TURNADO'], true)) {
+            $yaTieneFoto = !empty($hecho->foto_situacion);
+            $vieneArchivo = $request->hasFile('foto_situacion');
+
+            if (!$yaTieneFoto && !$vieneArchivo) {
+                $request->validate([
+                    'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+                ]);
+            }
         }
 
-        $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        // boolean
+        if ($request->has('checaron_antecedentes')) {
+            $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        }
 
+        // Normaliza strings para guardar consistente
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
@@ -262,6 +284,7 @@ class HechoController extends Controller
 
         $validated['updated_by'] = $user->id;
 
+        // Archivos
         if ($request->hasFile('foto_lugar')) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
                 Storage::disk('public')->delete($hecho->foto_lugar);
@@ -276,6 +299,7 @@ class HechoController extends Controller
             $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
         }
 
+        // ✅ Si solo venían fotos, esto no truena porque validated puede traer solo foto_* y updated_by
         $hecho->update($validated);
 
         $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
@@ -309,6 +333,35 @@ class HechoController extends Controller
         $data['foto_lugar_url'] = !empty($hecho->foto_lugar) ? Storage::disk('public')->url($hecho->foto_lugar) : null;
         $data['foto_situacion_url'] = !empty($hecho->foto_situacion) ? Storage::disk('public')->url($hecho->foto_situacion) : null;
         return $data;
+    }
+
+    /**
+     * Normaliza campos de catálogo en el Request para que el validator (Rule::in)
+     * funcione aunque Flutter/web manden con acentos o minúsculas.
+     */
+    private function normalizeCatalogFields(Request $request): void
+    {
+        $map = [];
+
+        if ($request->has('sector')) {
+            $map['sector'] = strtoupper($this->removeAccents((string)$request->input('sector')));
+        }
+        if ($request->has('tiempo')) {
+            $map['tiempo'] = strtoupper($this->removeAccents((string)$request->input('tiempo')));
+        }
+        if ($request->has('clima')) {
+            $map['clima'] = strtoupper($this->removeAccents((string)$request->input('clima')));
+        }
+        if ($request->has('condiciones')) {
+            $map['condiciones'] = strtoupper($this->removeAccents((string)$request->input('condiciones')));
+        }
+        if ($request->has('situacion')) {
+            $map['situacion'] = strtoupper($this->removeAccents((string)$request->input('situacion')));
+        }
+
+        if (!empty($map)) {
+            $request->merge($map);
+        }
     }
 
     private function removeAccents(string $string): string

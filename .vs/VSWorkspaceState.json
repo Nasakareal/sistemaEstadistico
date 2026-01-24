@@ -10,6 +10,6 @@
     "\\resources\\views",
     "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\edit.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -14,13 +14,8 @@ class Hechos extends Model
         'folio_c5i',
         'perito',
         'autorizacion_practico',
-
-        // OJO: "unidad" aquí es el número económico, lo dejas tal cual
         'unidad',
-
-        // ✅ NUEVO: unidad organizacional (Siniestros/Delegaciones/etc.)
         'unidad_org_id',
-
         'hora',
         'fecha',
         'sector',
@@ -44,6 +39,9 @@ class Hechos extends Model
         'danos_patrimoniales',
         'propiedades_afectadas',
         'monto_danos_patrimoniales',
+        'foto_lugar',
+        'foto_situacion',
+
         'created_by',
         'updated_by',
     ];

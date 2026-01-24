@@ -368,6 +368,49 @@
                             </div>
                         </div>
 
+                        <!-- ✅ NUEVAS FOTOS -->
+                        <div class="row">
+                            <!-- Foto del lugar -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foto_lugar">Foto del lugar (opcional)</label>
+                                    <input type="file"
+                                           name="foto_lugar"
+                                           id="foto_lugar"
+                                           accept="image/*"
+                                           class="form-control @error('foto_lugar') is-invalid @enderror">
+                                    @error('foto_lugar')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small id="foto_lugar_name" class="help-muted"></small>
+                                </div>
+                            </div>
+
+                            <!-- Foto situación (condicionada) -->
+                            <div class="col-md-6" id="foto_situacion_group" style="display:none;">
+                                <div class="form-group">
+                                    <label for="foto_situacion">
+                                        Foto de la situación <span id="foto_situacion_required" style="color:red; display:none;">*</span>
+                                    </label>
+                                    <input type="file"
+                                           name="foto_situacion"
+                                           id="foto_situacion"
+                                           accept="image/*"
+                                           class="form-control @error('foto_situacion') is-invalid @enderror">
+                                    @error('foto_situacion')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
+                                    <small id="foto_situacion_hint" class="help-muted"></small><br>
+                                    <small id="foto_situacion_name" class="help-muted"></small>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Antecedentes, Causas -->
                         <div class="row">
                             <div class="col-md-4">
@@ -472,6 +515,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <style>
+        .help-muted { color: rgba(234,240,255,.65); }
+
         /* ===== Labels ===== */
         .form-group label {
             font-weight: bold;
@@ -542,20 +587,64 @@
             const situacionSelect = document.getElementById('situacion');
             const oficioMpGroup = document.getElementById('oficio_mp_group');
 
+            const fotoSituacionGroup = document.getElementById('foto_situacion_group');
+            const fotoSituacionInput = document.getElementById('foto_situacion');
+            const fotoSituacionRequired = document.getElementById('foto_situacion_required');
+            const fotoSituacionHint = document.getElementById('foto_situacion_hint');
+
+            const fotoLugarInput = document.getElementById('foto_lugar');
+            const fotoLugarName = document.getElementById('foto_lugar_name');
+            const fotoSituacionName = document.getElementById('foto_situacion_name');
+
             function toggleOficioMp() {
                 if (situacionSelect.value === 'TURNADO') {
                     oficioMpGroup.style.display = 'block';
                 } else {
                     oficioMpGroup.style.display = 'none';
-                    document.getElementById('oficio_mp').value = '';
+                    const oficio = document.getElementById('oficio_mp');
+                    if (oficio) oficio.value = '';
+                }
+            }
+
+            function toggleFotoSituacion() {
+                const val = situacionSelect.value;
+
+                // Solo aplica en RESUELTO y TURNADO
+                const mustShow = (val === 'RESUELTO' || val === 'TURNADO');
+
+                if (mustShow) {
+                    fotoSituacionGroup.style.display = 'block';
+                    fotoSituacionRequired.style.display = 'inline';
+
+                    // HTML required (además de validación backend)
+                    fotoSituacionInput.required = true;
+
+                    if (val === 'RESUELTO') {
+                        fotoSituacionHint.textContent = 'Obligatoria: foto del convenio (RESUELTO).';
+                    } else {
+                        fotoSituacionHint.textContent = 'Obligatoria: foto de la puesta (TURNADO).';
+                    }
+                } else {
+                    fotoSituacionGroup.style.display = 'none';
+                    fotoSituacionRequired.style.display = 'none';
+                    fotoSituacionHint.textContent = '';
+
+                    // Quitar required y limpiar archivo seleccionado
+                    fotoSituacionInput.required = false;
+                    fotoSituacionInput.value = '';
+                    fotoSituacionName.textContent = '';
                 }
             }
 
             // Inicializar en carga
             toggleOficioMp();
+            toggleFotoSituacion();
 
             // Escuchar cambios
-            situacionSelect.addEventListener('change', toggleOficioMp);
+            situacionSelect.addEventListener('change', function () {
+                toggleOficioMp();
+                toggleFotoSituacion();
+            });
 
             // ===== Hora (Firefox/Chrome/Edge): selector consistente =====
             const horaInput = document.getElementById('hora');
@@ -572,6 +661,21 @@
                     dateFormat: "H:i",
                     time_24hr: true,
                     allowInput: true
+                });
+            }
+
+            // Mostrar nombre de archivo seleccionado
+            if (fotoLugarInput) {
+                fotoLugarInput.addEventListener('change', function () {
+                    const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
+                    fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
+                });
+            }
+
+            if (fotoSituacionInput) {
+                fotoSituacionInput.addEventListener('change', function () {
+                    const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
+                    fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
         });

@@ -33,8 +33,6 @@ class HechoController extends Controller
      * - vehiculos.serie
      * - conductores.nombre
      * - lesionados.nombre
-     *
-     * Recomendación: coloca la ruta /hechos/buscar ANTES de /hechos/{hecho}.
      */
     public function buscar(Request $request)
     {
@@ -54,12 +52,10 @@ class HechoController extends Controller
             ], 200);
         }
 
-        // Normaliza (mayúsculas sin acentos) y escapa LIKE
         $qNorm = strtoupper($this->removeAccents($q));
         $like  = '%' . addcslashes($qNorm, "%_\\") . '%';
 
         $query = Hechos::query()
-            // ✅ Regresa solo lo necesario para la lista (evita “campos que no queremos”)
             ->select([
                 'hechos.id',
                 'hechos.folio_c5i',
@@ -67,6 +63,9 @@ class HechoController extends Controller
                 'hechos.calle',
                 'hechos.colonia',
                 'hechos.municipio',
+                'hechos.situacion',
+                'hechos.foto_lugar',
+                'hechos.foto_situacion',
             ])
             ->with([
                 'vehiculos' => function ($v) {
@@ -83,17 +82,14 @@ class HechoController extends Controller
             ])
             ->where(function ($w) use ($q, $like) {
 
-                // 1) ID exacto si el usuario escribió número
                 if (ctype_digit($q)) {
                     $w->orWhere('hechos.id', (int)$q);
                 }
 
-                // 2) Hechos: folio, calle, colonia
                 $w->orWhere('hechos.folio_c5i', 'like', $like)
                   ->orWhere('hechos.calle', 'like', $like)
                   ->orWhere('hechos.colonia', 'like', $like);
 
-                // 3) Vehículos: placas / serie
                 $w->orWhereHas('vehiculos', function ($v) use ($like) {
                     $v->where(function ($vv) use ($like) {
                         $vv->where('vehiculos.placas', 'like', $like)
@@ -101,12 +97,10 @@ class HechoController extends Controller
                     });
                 });
 
-                // 4) Conductores: nombre (vía vehículos)
                 $w->orWhereHas('vehiculos.conductores', function ($c) use ($like) {
                     $c->where('conductores.nombre', 'like', $like);
                 });
 
-                // 5) Lesionados: nombre
                 $w->orWhereHas('lesionados', function ($l) use ($like) {
                     $l->where('lesionados.nombre', 'like', $like);
                 });
@@ -115,8 +109,14 @@ class HechoController extends Controller
 
         $results = $query->paginate($perPage);
 
+        $data = array_map(function ($row) {
+            $row['foto_lugar_url'] = !empty($row['foto_lugar']) ? Storage::disk('public')->url($row['foto_lugar']) : null;
+            $row['foto_situacion_url'] = !empty($row['foto_situacion']) ? Storage::disk('public')->url($row['foto_situacion']) : null;
+            return $row;
+        }, $results->items());
+
         return response()->json([
-            'data' => $results->items(),
+            'data' => $data,
             'meta' => [
                 'current_page' => $results->currentPage(),
                 'per_page'     => $results->perPage(),
@@ -155,7 +155,16 @@ class HechoController extends Controller
             'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
+            'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
+
+        $situacion = (string)($validated['situacion'] ?? '');
+        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+            $request->validate([
+                'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            ]);
+        }
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
 
@@ -169,9 +178,25 @@ class HechoController extends Controller
 
         $hecho = Hechos::create($validated);
 
+        $updates = [];
+
+        if ($request->hasFile('foto_lugar')) {
+            $updates['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+        }
+
+        if ($request->hasFile('foto_situacion')) {
+            $updates['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+        }
+
+        if (!empty($updates)) {
+            $hecho->update($updates);
+        }
+
+        $hecho->load(['vehiculos.conductores', 'lesionados']);
+
         return response()->json([
             'message' => 'Hecho creado exitosamente',
-            'data'    => $hecho->load(['vehiculos.conductores', 'lesionados']),
+            'data'    => $this->withFotoUrls($hecho),
         ], 201);
     }
 
@@ -180,7 +205,7 @@ class HechoController extends Controller
         $hecho->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
-            'data' => $hecho,
+            'data' => $this->withFotoUrls($hecho),
         ], 200);
     }
 
@@ -216,7 +241,16 @@ class HechoController extends Controller
             'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
+            'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
+
+        $situacion = (string)($validated['situacion'] ?? '');
+        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+            $request->validate([
+                'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            ]);
+        }
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
 
@@ -228,11 +262,27 @@ class HechoController extends Controller
 
         $validated['updated_by'] = $user->id;
 
+        if ($request->hasFile('foto_lugar')) {
+            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
+                Storage::disk('public')->delete($hecho->foto_lugar);
+            }
+            $validated['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+        }
+
+        if ($request->hasFile('foto_situacion')) {
+            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
+                Storage::disk('public')->delete($hecho->foto_situacion);
+            }
+            $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+        }
+
         $hecho->update($validated);
+
+        $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
             'message' => 'Hecho actualizado exitosamente',
-            'data'    => $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']),
+            'data'    => $this->withFotoUrls($hecho),
         ], 200);
     }
 
@@ -253,13 +303,12 @@ class HechoController extends Controller
         ], 200);
     }
 
-    public function destroy(Hechos $hecho)
+    private function withFotoUrls(Hechos $hecho): array
     {
-        $hecho->delete();
-
-        return response()->json([
-            'message' => 'Hecho eliminado',
-        ], 200);
+        $data = $hecho->toArray();
+        $data['foto_lugar_url'] = !empty($hecho->foto_lugar) ? Storage::disk('public')->url($hecho->foto_lugar) : null;
+        $data['foto_situacion_url'] = !empty($hecho->foto_situacion) ? Storage::disk('public')->url($hecho->foto_situacion) : null;
+        return $data;
     }
 
     private function removeAccents(string $string): string

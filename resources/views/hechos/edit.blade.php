@@ -14,11 +14,23 @@
                 <div class="card-header">
                     <h3 class="card-title">Edite los Datos</h3>
                 </div>
+
                 <div class="card-body">
-                    <!-- La acción del formulario apunta a la ruta de actualización con el id del hecho -->
                     <form action="{{ route('hechos.update', $hecho->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
+
+                        @php
+                            /**
+                             * ✅ AJUSTA ESTOS CAMPOS SI TUS COLUMNAS SE LLAMAN DIFERENTE
+                             * Ej: $hecho->foto_lugar, $hecho->foto_situacion, etc.
+                             */
+                            $fotoLugarPath     = $hecho->foto_lugar_path     ?? null;
+                            $fotoSituacionPath = $hecho->foto_situacion_path ?? null;
+
+                            $fotoLugarUrl     = $fotoLugarPath ? Storage::url($fotoLugarPath) : null;
+                            $fotoSituacionUrl = $fotoSituacionPath ? Storage::url($fotoSituacionPath) : null;
+                        @endphp
 
                         <!-- FILA 1: Folio de C5i, Perito, N° Autorización de Práctico, Unidad -->
                         <div class="row">
@@ -61,7 +73,7 @@
                                     <input type="text" name="autorizacion_practico" id="autorizacion_practico"
                                            class="form-control @error('autorizacion_practico') is-invalid @enderror"
                                            value="{{ old('autorizacion_practico', $hecho->autorizacion_practico) }}"
-                                           placeholder="Ingrese el número de autorización" required>
+                                           placeholder="Ingrese el número de autorización">
                                     @error('autorizacion_practico')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -94,8 +106,6 @@
                                 <div class="form-group">
                                     <label for="hora">Hora</label>
 
-                                    {{-- Firefox en escritorio no muestra reloj nativo para <input type="time">.
-                                         Se usa flatpickr para que SIEMPRE haya selector de hora. --}}
                                     <input
                                         type="text"
                                         name="hora"
@@ -386,6 +396,83 @@
                             </div>
                         </div>
 
+                        <!-- ✅ FOTOS (MISMA REGLA QUE CREATE) -->
+                        <div class="row">
+                            <!-- Foto del lugar -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foto_lugar">Foto del lugar (opcional)</label>
+                                    <input type="file"
+                                           name="foto_lugar"
+                                           id="foto_lugar"
+                                           accept="image/*"
+                                           class="form-control @error('foto_lugar') is-invalid @enderror">
+                                    @error('foto_lugar')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
+                                    @if ($fotoLugarUrl)
+                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                            <img src="{{ $fotoLugarUrl }}" alt="Foto lugar"
+                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
+                                            <a class="btn btn-sm btn-info" href="{{ $fotoLugarUrl }}" target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> Ver
+                                            </a>
+
+                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_lugar">
+                                                <i class="fa-solid fa-trash"></i> Quitar
+                                            </button>
+                                            <input type="hidden" name="quitar_foto_lugar" id="quitar_foto_lugar" value="0">
+                                        </div>
+                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
+                                    @endif
+
+                                    <small id="foto_lugar_name" class="help-muted"></small>
+                                </div>
+                            </div>
+
+                            <!-- Foto situación (condicionada) -->
+                            <div class="col-md-6" id="foto_situacion_group" style="display:none;">
+                                <div class="form-group">
+                                    <label for="foto_situacion">
+                                        Foto de la situación <span id="foto_situacion_required" style="color:red; display:none;">*</span>
+                                    </label>
+                                    <input type="file"
+                                           name="foto_situacion"
+                                           id="foto_situacion"
+                                           accept="image/*"
+                                           class="form-control @error('foto_situacion') is-invalid @enderror">
+                                    @error('foto_situacion')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
+                                    <small id="foto_situacion_hint" class="help-muted"></small>
+
+                                    @if ($fotoSituacionUrl)
+                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                            <img src="{{ $fotoSituacionUrl }}" alt="Foto situación"
+                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
+                                            <a class="btn btn-sm btn-info" href="{{ $fotoSituacionUrl }}" target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> Ver
+                                            </a>
+
+                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_situacion">
+                                                <i class="fa-solid fa-trash"></i> Quitar
+                                            </button>
+                                            <input type="hidden" name="quitar_foto_situacion" id="quitar_foto_situacion" value="0">
+                                        </div>
+                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
+                                    @endif
+
+                                    <small id="foto_situacion_name" class="help-muted d-block mt-1"></small>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- FILA 6: Se checaron antecedentes?, Causas -->
                         <div class="row">
                             <!-- Se checaron antecedentes? -->
@@ -393,8 +480,8 @@
                                 <div class="form-group">
                                     <label for="checaron_antecedentes">Se checaron antecedentes?</label>
                                     <select name="checaron_antecedentes" id="checaron_antecedentes" class="form-control">
-                                        <option value="0" {{ old('checaron_antecedentes', $hecho->checaron_antecedentes) == '0' ? 'selected' : '' }}>No</option>
-                                        <option value="1" {{ old('checaron_antecedentes', $hecho->checaron_antecedentes) == '1' ? 'selected' : '' }}>Sí</option>
+                                        <option value="0" {{ old('checaron_antecedentes', (string)($hecho->checaron_antecedentes ?? '0')) == '0' ? 'selected' : '' }}>No</option>
+                                        <option value="1" {{ old('checaron_antecedentes', (string)($hecho->checaron_antecedentes ?? '0')) == '1' ? 'selected' : '' }}>Sí</option>
                                     </select>
                                 </div>
                             </div>
@@ -416,7 +503,7 @@
                             </div>
                         </div>
 
-                        <!-- FILA 7: Oficio MP (sólo si situación es TURNADO), Vehículos y Personas presentados al MP -->
+                        <!-- FILA 7: Oficio MP, Vehículos y Personas presentados al MP + botones -->
                         <div class="row">
                             <!-- Oficio MP (Visible solo si situación es TURNADO) -->
                             <div class="col-md-4" id="oficio_mp_group" style="display: none;">
@@ -466,15 +553,15 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-2" style="display:flex; align-items:end;">
                                 <a href="{{ route('vehiculos.index', $hecho->id) }}" class="btn btn-success btn-lg w-100">
-                                    <i class="fa-solid fa-car-side"></i> Listado de Vehículos
+                                    <i class="fa-solid fa-car-side"></i> Vehículos
                                 </a>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-2" style="display:flex; align-items:end;">
                                 <a href="{{ route('lesionados.index', $hecho->id) }}" class="btn btn-primary btn-lg w-100">
-                                    <i class="fa-solid fa-user-injured"></i> Listado de Lesionados
+                                    <i class="fa-solid fa-user-injured"></i> Lesionados
                                 </a>
                             </div>
                         </div>
@@ -484,7 +571,6 @@
                         <div class="row">
                             <div class="col-md-12 text-center">
                                 <div class="form-group">
-                                    <!-- Botón de actualizar en color success (verde) -->
                                     <button type="submit" class="btn btn-success">
                                         <i class="fa-solid fa-check"></i> Actualizar
                                     </button>
@@ -504,17 +590,16 @@
 @stop
 
 @section('css')
-    {{-- Flatpickr (selector de hora cross-browser, incluyendo Firefox) --}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <style>
-        /* ===== Labels ===== */
+        .help-muted { color: rgba(234,240,255,.65); }
+
         .form-group label {
             font-weight: bold;
             color: #eaf0ff;
         }
 
-        /* ===== Inputs y selects (modo oscuro AdminLTE) ===== */
         .form-control,
         select.form-control {
             color: #eaf0ff;
@@ -523,12 +608,10 @@
             border-radius: 12px;
         }
 
-        /* ===== Placeholder ===== */
         .form-control::placeholder {
             color: rgba(234,240,255,.55);
         }
 
-        /* ===== Dropdown nativo ===== */
         select option {
             color: #111 !important;
             background-color: #ffffff !important;
@@ -540,7 +623,6 @@
             font-weight: bold;
         }
 
-        /* ===== Selección / hover ===== */
         select option:checked {
             background-color: #dbeafe !important;
             color: #0b1220 !important;
@@ -551,7 +633,6 @@
             color: #0b1220 !important;
         }
 
-        /* ===== Focus ===== */
         .form-control:focus,
         select:focus {
             outline: none;
@@ -559,7 +640,6 @@
             border-color: rgba(45,168,255,.55);
         }
 
-        /* ===== Flatpickr: que se vea bien en modo oscuro ===== */
         .flatpickr-calendar {
             border-radius: 14px;
             overflow: hidden;
@@ -572,7 +652,6 @@
 @stop
 
 @section('js')
-    {{-- Flatpickr --}}
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script>
@@ -580,29 +659,66 @@
             const situacionSelect = document.getElementById('situacion');
             const oficioMpGroup = document.getElementById('oficio_mp_group');
 
+            const fotoSituacionGroup = document.getElementById('foto_situacion_group');
+            const fotoSituacionInput = document.getElementById('foto_situacion');
+            const fotoSituacionRequired = document.getElementById('foto_situacion_required');
+            const fotoSituacionHint = document.getElementById('foto_situacion_hint');
+
+            const fotoLugarInput = document.getElementById('foto_lugar');
+            const fotoLugarName = document.getElementById('foto_lugar_name');
+
+            const fotoSituacionName = document.getElementById('foto_situacion_name');
+
             function toggleOficioMp() {
                 if (situacionSelect.value === 'TURNADO') {
                     oficioMpGroup.style.display = 'block';
                 } else {
                     oficioMpGroup.style.display = 'none';
-                    document.getElementById('oficio_mp').value = '';
+                    const oficio = document.getElementById('oficio_mp');
+                    if (oficio) oficio.value = '';
                 }
             }
 
-            // Inicializar al cargar la página
+            function toggleFotoSituacion() {
+                const val = situacionSelect.value;
+                const mustShow = (val === 'RESUELTO' || val === 'TURNADO');
+
+                if (mustShow) {
+                    fotoSituacionGroup.style.display = 'block';
+                    fotoSituacionRequired.style.display = 'inline';
+                    fotoSituacionInput.required = true;
+
+                    if (val === 'RESUELTO') {
+                        fotoSituacionHint.textContent = 'Obligatoria: foto del convenio (RESUELTO).';
+                    } else {
+                        fotoSituacionHint.textContent = 'Obligatoria: foto de la puesta (TURNADO).';
+                    }
+                } else {
+                    fotoSituacionGroup.style.display = 'none';
+                    fotoSituacionRequired.style.display = 'none';
+                    fotoSituacionHint.textContent = '';
+                    fotoSituacionInput.required = false;
+                    // No borramos el valor si ya existe foto guardada, solo limpiamos el file input
+                    fotoSituacionInput.value = '';
+                    if (fotoSituacionName) fotoSituacionName.textContent = '';
+                }
+            }
+
+            // Inicializar al cargar
             toggleOficioMp();
+            toggleFotoSituacion();
 
-            // Escuchar cambios en el select de situación
-            situacionSelect.addEventListener('change', toggleOficioMp);
+            // Cambios en situación
+            situacionSelect.addEventListener('change', function () {
+                toggleOficioMp();
+                toggleFotoSituacion();
+            });
 
-            // ===== Hora (Firefox/Chrome/Edge): selector consistente =====
+            // Flatpickr hora
             const horaInput = document.getElementById('hora');
-
-            // Normaliza valor a HH:MM si viene con segundos
             if (horaInput && horaInput.value) {
                 horaInput.value = String(horaInput.value).substring(0, 5);
             }
-
             if (horaInput && window.flatpickr) {
                 flatpickr(horaInput, {
                     enableTime: true,
@@ -610,6 +726,62 @@
                     dateFormat: "H:i",
                     time_24hr: true,
                     allowInput: true
+                });
+            }
+
+            // Mostrar nombre de archivo seleccionado
+            if (fotoLugarInput) {
+                fotoLugarInput.addEventListener('change', function () {
+                    const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
+                    fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
+                });
+            }
+
+            if (fotoSituacionInput) {
+                fotoSituacionInput.addEventListener('change', function () {
+                    const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
+                    fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
+                });
+            }
+
+            // Quitar fotos (solo marca hidden = 1 y limpia file input)
+            const btnQuitarLugar = document.getElementById('btn_quitar_foto_lugar');
+            if (btnQuitarLugar) {
+                btnQuitarLugar.addEventListener('click', function () {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Quitar foto',
+                        text: 'Se quitará la foto del lugar al guardar cambios.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, quitar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((r) => {
+                        if (r.isConfirmed) {
+                            const h = document.getElementById('quitar_foto_lugar');
+                            if (h) h.value = '1';
+                            if (fotoLugarInput) fotoLugarInput.value = '';
+                        }
+                    });
+                });
+            }
+
+            const btnQuitarSituacion = document.getElementById('btn_quitar_foto_situacion');
+            if (btnQuitarSituacion) {
+                btnQuitarSituacion.addEventListener('click', function () {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Quitar foto',
+                        text: 'Se quitará la foto de la situación al guardar cambios.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, quitar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((r) => {
+                        if (r.isConfirmed) {
+                            const h = document.getElementById('quitar_foto_situacion');
+                            if (h) h.value = '1';
+                            if (fotoSituacionInput) fotoSituacionInput.value = '';
+                        }
+                    });
                 });
             }
         });

@@ -5,13 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class HechosController extends Controller
 {
     public function index()
     {
         $hechos = Hechos::all();
-
         return view('hechos.index', compact('hechos'));
     }
 
@@ -49,12 +49,19 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
+            'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        // Se marca como verdadero si se envía la opción
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
-        // Recorrer y transformar cada valor de tipo string: quitar acentos y pasar a mayúsculas
+        $situacion = (string)($validated['situacion'] ?? '');
+        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+            $request->validate([
+                'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            ]);
+        }
+
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
@@ -65,7 +72,22 @@ class HechosController extends Controller
 
         $hecho = Hechos::create($validated);
 
-        // Redirigir al formulario de edición del hecho recien creado
+        $updates = [];
+
+        if ($request->hasFile('foto_lugar')) {
+            $path = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+            $updates['foto_lugar'] = $path;
+        }
+
+        if ($request->hasFile('foto_situacion')) {
+            $path = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+            $updates['foto_situacion'] = $path;
+        }
+
+        if (!empty($updates)) {
+            $hecho->update($updates);
+        }
+
         return redirect()->route('hechos.edit', $hecho->id)->with('success', 'Hecho creado exitosamente.');
     }
 
@@ -79,7 +101,12 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin') && !$usuario->hasRole('Administrativo')) {
+        if (
+            $usuario->id !== $hecho->created_by
+            && !$usuario->hasRole('Administrador')
+            && !$usuario->hasRole('Superadmin')
+            && !$usuario->hasRole('Administrativo')
+        ) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
@@ -90,7 +117,12 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $hecho->created_by && !$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin') && !$usuario->hasRole('Administrativo')) {
+        if (
+            $usuario->id !== $hecho->created_by
+            && !$usuario->hasRole('Administrador')
+            && !$usuario->hasRole('Superadmin')
+            && !$usuario->hasRole('Administrativo')
+        ) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
@@ -101,6 +133,10 @@ class HechosController extends Controller
                 'max:255',
                 Rule::unique('hechos')->ignore($hecho->id),
             ],
+            'perito' => 'required|string|max:255',
+            'autorizacion_practico' => 'nullable|string|max:255',
+            'unidad' => 'required|string|max:50',
+
             'hora' => 'required|date_format:H:i',
             'fecha' => 'required|date',
             'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
@@ -121,9 +157,19 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
+            'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        // Transformar los valores de tipo string: quitar acentos y pasar a mayúsculas
+        $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
+
+        $situacion = (string)($validated['situacion'] ?? '');
+        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+            $request->validate([
+                'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            ]);
+        }
+
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
@@ -131,6 +177,31 @@ class HechosController extends Controller
         }
 
         $validated['updated_by'] = $usuario->id;
+
+        if ($request->hasFile('foto_lugar')) {
+            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
+                Storage::disk('public')->delete($hecho->foto_lugar);
+            }
+            $validated['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+        }
+
+        if ($request->hasFile('foto_situacion')) {
+            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
+                Storage::disk('public')->delete($hecho->foto_situacion);
+            }
+            $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+        } else {
+            // Si cambia a PENDIENTE/REPORTE, permitimos quedarlo en null opcionalmente.
+            // Si quieres que al pasar a PENDIENTE se borre la foto_situacion existente, descomenta esto:
+            /*
+            if (in_array($situacion, ['PENDIENTE', 'REPORTE'], true)) {
+                if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
+                    Storage::disk('public')->delete($hecho->foto_situacion);
+                }
+                $validated['foto_situacion'] = null;
+            }
+            */
+        }
 
         $hecho->update($validated);
 
@@ -141,15 +212,37 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if (!$usuario->hasRole('Administrador')) {
+        if (!$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin')) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para eliminar este hecho.');
         }
 
-        $hecho->delete();
+        try {
+            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
+                Storage::disk('public')->delete($hecho->foto_lugar);
+            }
+            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
+                Storage::disk('public')->delete($hecho->foto_situacion);
+            }
 
-        return redirect()->route('hechos.index')->with('success', 'Hecho eliminado exitosamente.');
+            if (method_exists($hecho, 'vehiculos')) {
+                $hecho->vehiculos()->detach();
+            }
+
+            if (method_exists($hecho, 'lesionados')) {
+                $hecho->lesionados()->delete();
+            }
+
+            $hecho->delete();
+
+            return redirect()->route('hechos.index')->with('success', 'Hecho eliminado exitosamente.');
+        } catch (\Throwable $e) {
+            return redirect()->route('hechos.index')->with(
+                'error',
+                'No se pudo eliminar el hecho. Revisa relaciones/llaves foráneas relacionadas. Error: ' . $e->getMessage()
+            );
+        }
     }
-    
+
     private function removeAccents($string)
     {
         $unwanted_array = [
@@ -164,6 +257,7 @@ class HechosController extends Controller
             'Ñ' => 'N', 'ñ' => 'N',
             'Ç' => 'C', 'ç' => 'C'
         ];
+
         return strtr($string, $unwanted_array);
     }
 }

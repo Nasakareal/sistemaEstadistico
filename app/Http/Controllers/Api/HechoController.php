@@ -108,8 +108,9 @@ class HechoController extends Controller
         $results = $query->paginate($perPage);
 
         $data = array_map(function ($row) {
-            $row['foto_lugar_url'] = !empty($row['foto_lugar']) ? Storage::disk('public')->url($row['foto_lugar']) : null;
-            $row['foto_situacion_url'] = !empty($row['foto_situacion']) ? Storage::disk('public')->url($row['foto_situacion']) : null;
+            $row['foto_lugar_url']     = $this->publicStoragePath($row['foto_lugar'] ?? null);
+            $row['foto_situacion_url'] = $this->publicStoragePath($row['foto_situacion'] ?? null);
+
             return $row;
         }, $results->items());
 
@@ -330,10 +331,14 @@ class HechoController extends Controller
     private function withFotoUrls(Hechos $hecho): array
     {
         $data = $hecho->toArray();
-        $data['foto_lugar_url'] = !empty($hecho->foto_lugar) ? Storage::disk('public')->url($hecho->foto_lugar) : null;
-        $data['foto_situacion_url'] = !empty($hecho->foto_situacion) ? Storage::disk('public')->url($hecho->foto_situacion) : null;
+
+        // OJO: regresamos RUTA RELATIVA /storage/... (no absoluta)
+        $data['foto_lugar_url']     = $this->publicStoragePath($hecho->foto_lugar);
+        $data['foto_situacion_url'] = $this->publicStoragePath($hecho->foto_situacion);
+
         return $data;
     }
+
 
     /**
      * Normaliza campos de catálogo en el Request para que el validator (Rule::in)
@@ -380,4 +385,24 @@ class HechoController extends Controller
 
         return strtr($string, $unwanted_array);
     }
+
+    private function publicStoragePath(?string $storedPath): ?string
+    {
+        if (empty($storedPath)) return null;
+
+        // Genera URL según config (puede salir con host malo)
+        $u = Storage::disk('public')->url($storedPath);
+
+        // Fuerza a "solo path": /storage/...
+        $p = parse_url($u);
+        if (is_array($p) && !empty($p['path'])) {
+            $out = $p['path'];
+            if (!empty($p['query'])) $out .= '?' . $p['query'];
+            return $out;
+        }
+
+        // Fallback
+        return $u;
+    }
+
 }

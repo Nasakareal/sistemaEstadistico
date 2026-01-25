@@ -10,9 +10,8 @@ use Illuminate\Support\Facades\Storage;
 
 class HechoController extends Controller
 {
-    // ======== Catálogos NORMALIZADOS (SIN ACENTOS / EN MAYÚSCULAS) ========
     private const SECTORES = ['REVOLUCION','NUEVA ESPANA','INDEPENDENCIA','REPUBLICA','CENTRO'];
-    private const TIEMPOS  = ['DIA','NOCHE','AMANECER','ATARDecer']; // ojo: abajo normalizamos a MAYUS, así que ATARDECER queda OK
+    private const TIEMPOS  = ['DIA','NOCHE','AMANECER','ATARDecer'];
     private const CLIMAS   = ['BUENO','MALO','NUBLADO','LLUVIOSO'];
     private const COND     = ['BUENO','REGULAR','MALO'];
     private const SITUAS   = ['RESUELTO','PENDIENTE','TURNADO','REPORTE'];
@@ -22,16 +21,17 @@ class HechoController extends Controller
         $perPage = (int)($request->query('per_page', 20));
         $perPage = $perPage > 0 ? min($perPage, 100) : 20;
 
-        $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        $query = Hechos::with(['vehiculos.conductores', 'lesionados']);
+
+        if ($request->filled('fecha')) {
+            $query->whereDate('fecha', $request->query('fecha'));
+        }
+
+        $hechos = $query->orderByDesc('id')->paginate($perPage);
 
         return response()->json($hechos);
     }
 
-    /**
-     * GET /api/hechos/buscar?q=ABC&per_page=20&page=1
-     */
     public function buscar(Request $request)
     {
         $q = trim((string)$request->query('q', ''));

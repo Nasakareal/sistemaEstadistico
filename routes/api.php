@@ -113,6 +113,42 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | ESTADÍSTICAS GLOBALES (API / FLUTTER)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('estadisticas-globales')->middleware('can:ver estadisticas globales')->group(function () {
+
+        // KPIs generales
+        Route::get('/kpis', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'kpis']);
+
+        // Series por tiempo
+        Route::get('/series/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesHechos']);
+        Route::get('/series/lesionados', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesLesionados']);
+
+        // Distribuciones
+        Route::get('/series/tipo-hecho', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesTipoHecho']);
+        Route::get('/series/sector', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesSector']);
+        Route::get('/series/municipio', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesMunicipio']);
+        Route::get('/series/tiempo', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesTiempo']);
+        Route::get('/series/clima', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesClima']);
+        Route::get('/series/condiciones', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesCondiciones']);
+        Route::get('/series/control-transito', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesControlTransito']);
+
+        // Vehículos
+        Route::get('/series/vehiculos/tipo', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosTipo']);
+        Route::get('/series/vehiculos/marca', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosMarca']);
+        Route::get('/series/vehiculos/modelo', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosModelo']);
+
+        // Drilldown (listado de hechos filtrado)
+        Route::get('/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'hechos']);
+
+        // Export (opcional, Flutter puede descargar el archivo)
+        Route::get('/export/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'exportHechos']);
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
     | MI PERSONAL (JEFE TURNO)
     |--------------------------------------------------------------------------
     */

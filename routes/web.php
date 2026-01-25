@@ -2,9 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('welcome');
+Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 // --- MAPA (Patrullas / Ubicaciones) ---
 Route::middleware(['auth', 'can:ver mapa'])->group(function () {
@@ -12,12 +10,9 @@ Route::middleware(['auth', 'can:ver mapa'])->group(function () {
     Route::get('/mapa-patrullas/data', [App\Http\Controllers\MapaPatrullasController::class, 'data'])->name('mapa.patrullas.data');
 });
 
-
 // Ruta pública para ver la liberación
 Route::get('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'publica'])->name('liberacion.publica');
-
 Route::get('liberacion/qr/{token}', [App\Http\Controllers\LiberacionController::class, 'desdeToken'])->name('liberacion.publica.token');
-
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [App\Http\Controllers\UserController::class, 'profile'])->name('profile');
@@ -35,26 +30,17 @@ Route::middleware(['auth', 'can:subir liberacion grua'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/liberacion/{vehiculo}/crear', [App\Http\Controllers\LiberacionController::class, 'create'])->name('liberacion.create');
     Route::post('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'store'])->name('liberacion.store');
-
     Route::get('/liberacion/{vehiculo}/editar', [App\Http\Controllers\LiberacionController::class, 'edit'])->name('liberacion.edit');
     Route::put('/liberacion/{vehiculo}', [App\Http\Controllers\LiberacionController::class, 'update'])->name('liberacion.update');
-
     Route::get('/liberacion/{vehiculo}/detalles', [App\Http\Controllers\LiberacionController::class, 'detalles'])->name('liberacion.detalles');
-
     Route::get('/liberacion/{vehiculo}/acuse', [App\Http\Controllers\LiberacionController::class, 'generarAcuse'])->name('liberacion.descargar');
 });
-
 
 // Búsqueda
 Route::get('/busqueda', [App\Http\Controllers\BusquedaController::class, 'index'])->name('busqueda.index');
 
 // Campañas
 Route::get('/campanas', [App\Http\Controllers\CampanaController::class, 'index'])->name('campanas.index');
-
-// Contacto
-// Route::get('/contacto', [App\Http\Controllers\ContactoController::class, 'index'])->name('contacto.index');
-// Route::post('/contacto/enviar', [ContactoController::class, 'enviarMensaje'])->name('contacto.enviar');
-
 
 // Apoyos
 Route::get('/apoyo', [App\Http\Controllers\ApoyoController::class, 'index'])->name('apoyo.index');
@@ -66,12 +52,43 @@ Route::prefix('licencias')->group(function () {
     Route::get('/ubicaciones', [App\Http\Controllers\LicenciaController::class, 'ubicaciones'])->name('licencias.ubicaciones');
 });
 
-
 Auth::routes();
-
 
 // Home
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+// ============================================================
+// ============================================================
+Route::prefix('estadisticas-globales')->middleware(['auth', 'can:ver estadisticas globales'])->group(function () {
+    Route::get('/', [App\Http\Controllers\EstadisticasGlobalesController::class, 'index'])->name('estadisticas_globales.index');
+
+    // KPIs generales (contadores)
+    Route::get('/kpis', [App\Http\Controllers\EstadisticasGlobalesController::class, 'kpis'])->name('estadisticas_globales.kpis');
+
+    // Series por tiempo (línea / barras por día/mes)
+    Route::get('/series/hechos', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesHechos'])->name('estadisticas_globales.series.hechos');
+    Route::get('/series/lesionados', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesLesionados'])->name('estadisticas_globales.series.lesionados');
+
+    // Distribuciones (pastel / barras)
+    Route::get('/series/tipo-hecho', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesTipoHecho'])->name('estadisticas_globales.series.tipo_hecho');
+    Route::get('/series/sector', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesSector'])->name('estadisticas_globales.series.sector');
+    Route::get('/series/municipio', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesMunicipio'])->name('estadisticas_globales.series.municipio');
+    Route::get('/series/tiempo', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesTiempo'])->name('estadisticas_globales.series.tiempo');
+    Route::get('/series/clima', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesClima'])->name('estadisticas_globales.series.clima');
+    Route::get('/series/condiciones', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesCondiciones'])->name('estadisticas_globales.series.condiciones');
+    Route::get('/series/control-transito', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesControlTransito'])->name('estadisticas_globales.series.control_transito');
+
+    // Vehículos (aquí entra: motos, sedanes, etc.)
+    Route::get('/series/vehiculos/tipo', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesVehiculosTipo'])->name('estadisticas_globales.series.vehiculos_tipo');
+    Route::get('/series/vehiculos/marca', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesVehiculosMarca'])->name('estadisticas_globales.series.vehiculos_marca');
+    Route::get('/series/vehiculos/modelo', [App\Http\Controllers\EstadisticasGlobalesController::class, 'seriesVehiculosModelo'])->name('estadisticas_globales.series.vehiculos_modelo');
+
+    // Drilldown: listado de hechos ya filtrado (para tabla)
+    Route::get('/hechos', [App\Http\Controllers\EstadisticasGlobalesController::class, 'hechos'])->name('estadisticas_globales.hechos');
+
+    // Export opcional
+    Route::get('/export/hechos', [App\Http\Controllers\EstadisticasGlobalesController::class, 'exportHechos'])->name('estadisticas_globales.export.hechos');
+});
 
 // Rutas para Oficios
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
@@ -127,7 +144,6 @@ Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
     Route::put('/{grua}', [App\Http\Controllers\GruaController::class, 'update'])->middleware('can:editar gruas')->name('gruas.update');
     Route::delete('/{grua}', [App\Http\Controllers\GruaController::class, 'destroy'])->middleware('can:eliminar gruas')->name('gruas.destroy');
 
-    // Rutas para Servicios relacionados a Grúas
     Route::prefix('/{grua}/servicios')->group(function () {
         Route::get('/', [App\Http\Controllers\ServicioController::class, 'index'])->name('servicios.index');
         Route::get('/create', [App\Http\Controllers\ServicioController::class, 'create'])->name('servicios.create');
@@ -150,7 +166,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::delete('/{hecho}', [App\Http\Controllers\HechosController::class, 'destroy'])->middleware('can:eliminar hechos')->name('hechos.destroy');
     Route::get('/{hecho}/descargar', [App\Http\Controllers\DocumentoHechoController::class, 'descargarDocx'])->name('hechos.descargar');
 
-    // Rutas anidadas para Vehículos
+    // Vehículos
     Route::prefix('/{hecho}/vehiculos')->middleware('can:ver vehiculos')->group(function () {
         Route::get('/', [App\Http\Controllers\VehiculosController::class, 'index'])->name('vehiculos.index');
         Route::get('/create', [App\Http\Controllers\VehiculosController::class, 'create'])->middleware('can:crear vehiculos')->name('vehiculos.create');
@@ -163,7 +179,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
         Route::delete('/{vehiculo}/foto', [App\Http\Controllers\VehiculosController::class, 'fotoDestroy'])->middleware('can:editar vehiculos')->name('vehiculos.foto.destroy');
     });
 
-    // Rutas anidadas para Lesionados
+    // Lesionados
     Route::prefix('/{hecho}/lesionados')->middleware('can:ver lesionados')->group(function () {
         Route::get('/', [App\Http\Controllers\LesionadoController::class, 'index'])->name('lesionados.index');
         Route::get('/create', [App\Http\Controllers\LesionadoController::class, 'create'])->middleware('can:crear lesionados')->name('lesionados.create');
@@ -174,15 +190,12 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     });
 });
 
-
 Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class, 'grafico'])->name('servicios.grafico');
 
 // Configuraciones generales
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
-    // Configuración general
     Route::get('/', [App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
 
-    // Usuarios
     Route::prefix('users')->middleware('can:ver usuarios')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index'])->name('users.index');
         Route::get('/create', [App\Http\Controllers\UserController::class, 'create'])->middleware('can:crear usuarios')->name('users.create');
@@ -193,8 +206,6 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{user}', [App\Http\Controllers\UserController::class, 'destroy'])->middleware('can:eliminar usuarios')->name('users.destroy');
     });
 
-
-    // Roles
     Route::prefix('roles')->middleware('can:ver roles')->group(function () {
         Route::get('/', [App\Http\Controllers\RoleController::class, 'index'])->name('roles.index');
         Route::get('/create', [App\Http\Controllers\RoleController::class, 'create'])->middleware('can:crear roles')->name('roles.create');
@@ -207,26 +218,19 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::post('/{role}/permissions', [App\Http\Controllers\RoleController::class, 'assignPermissions'])->middleware('can:editar roles')->name('roles.assignPermissions');
     });
 
-    // Estadísticas
+    // Estadísticas (SE QUEDA IGUAL)
     Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
         Route::get('/', [App\Http\Controllers\EstadisticasController::class, 'index'])->name('estadisticas.index');
-
         Route::get('/parte-novedades', [App\Http\Controllers\EstadisticasController::class, 'parteNovedades'])->name('estadisticas.parteNovedades');
         Route::get('/parte-novedades/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarParte'])->name('estadisticas.parteNovedades.descargar');
-
         Route::get('/mini-parte', [App\Http\Controllers\EstadisticasController::class, 'miniParte'])->name('estadisticas.miniParte');
         Route::get('/mini-parte/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarMiniParte'])->name('estadisticas.miniParte.descargar');
-
         Route::get('/dictamen', [App\Http\Controllers\EstadisticasController::class, 'dictamen'])->name('estadisticas.dictamen');
         Route::get('/dictamen/{id}', [App\Http\Controllers\EstadisticasController::class, 'dictamenShow'])->name('estadisticas.dictamen.show');
         Route::get('/dictamen/{id}/docx', [App\Http\Controllers\EstadisticasController::class, 'dictamenDocx'])->name('estadisticas.dictamen.docx');
-
         Route::get('/bitacora', [App\Http\Controllers\EstadisticasController::class, 'bitacora'])->name('estadisticas.bitacora');
         Route::get('/bitacora/descargar', [App\Http\Controllers\EstadisticasController::class, 'descargarBitacora'])->name('estadisticas.bitacora.descargar');
     });
 });
 
-Route::get('/prueba-404', function () {
-    return response()->view('errors.404', [], 404);
-});
-
+Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

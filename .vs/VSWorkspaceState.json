@@ -5,10 +5,8 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\routes"
   ],
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

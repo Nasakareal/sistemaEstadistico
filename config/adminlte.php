@@ -413,6 +413,23 @@ return [
         ],
 
         [
+            'text'    => 'Estadísticas Globales',
+            'icon'    => 'fa-solid fa-chart-column',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver estadisticas globales',
+            'submenu' => [
+                [
+                    'text'    => 'Panel Global',
+                    'icon'    => 'fa-solid fa-chart-line',
+                    'classes' => 'text-white',
+                    'url'     => 'estadisticas-globales',
+                    'can'     => 'ver estadisticas globales',
+                ],
+            ],
+        ],
+
+
+        [
             'text'    => 'Mapa',
             'icon'    => 'fa-solid fa-map-location-dot',
             'classes' => 'bg-blue text-white',

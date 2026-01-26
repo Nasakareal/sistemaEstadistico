@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/gruas', [GruaController::class, 'index'])->middleware('can:ver gruas');
     Route::get('/gruas/listado', [GruaController::class, 'listado'])->middleware('can:ver gruas');
     Route::get('/gruas/grafica-semanal', [GruaController::class, 'graficaSemanal'])->middleware('can:ver estadisticas');
+    Route::get('/gruas/resumen-semanal', [GruaController::class, 'resumenSemanal'])->middleware('can:ver estadisticas');
 
     /*
     |--------------------------------------------------------------------------

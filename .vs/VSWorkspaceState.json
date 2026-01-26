@@ -12,6 +12,6 @@
     "\\resources\\views\\dictamenes",
     "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\dictamenes\\edit.blade.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

@@ -12,7 +12,6 @@ class GruaController extends Controller
 {
     /**
      * GET /api/gruas
-     * Listado básico
      */
     public function index(Request $request)
     {
@@ -28,9 +27,7 @@ class GruaController extends Controller
     }
 
     /**
-     * GET /api/gruas/listado
-     * Listado con búsqueda
-     *   ?q=algo
+     * GET /api/gruas/listado?q=...
      */
     public function listado(Request $request)
     {
@@ -54,15 +51,10 @@ class GruaController extends Controller
     }
 
     /**
-     * GET /api/gruas/grafica-semanal
-     *
-     * Params:
-     *  - from=YYYY-MM-DD (opcional)
-     *  - to=YYYY-MM-DD   (opcional)
-     *  - gruas[]=1&gruas[]=2 (opcional, IDs)
+     * GET /api/gruas/grafica-semanal?from=YYYY-MM-DD&to=YYYY-MM-DD&gruas[]=1
      *
      * Respuesta:
-     *  { meta:{from,to}, data:[{id,nombre,servicios_count,fecha_ultimo_servicio}] }
+     * { meta:{from,to}, data:[{id,nombre,servicios_count,fecha_ultimo_servicio}] }
      */
     public function graficaSemanal(Request $request)
     {
@@ -118,21 +110,14 @@ class GruaController extends Controller
     }
 
     /**
-     * GET /api/gruas/resumen-semanal
+     * GET /api/gruas/resumen-semanal?from=YYYY-MM-DD&to=YYYY-MM-DD&gruas[]=1
      *
      * Devuelve por grúa (semana):
-     * - servicios_count (tabla servicios)
-     * - fecha_ultimo_servicio (tabla servicios)
-     * - tipo_vehiculo_top (tabla vehiculos.tipo) por match exacto:
-     *     vehiculos.grua == gruas.nombre
-     *
-     * Params:
-     *  - from=YYYY-MM-DD (opcional)
-     *  - to=YYYY-MM-DD   (opcional)
-     *  - gruas[]=1&gruas[]=2 (opcional, IDs)
+     * - servicios_count y fecha_ultimo_servicio (desde servicios por grua_id)
+     * - tipo_vehiculo_top (desde vehiculos.tipo por match exacto vehiculos.grua == gruas.nombre)
      *
      * Respuesta:
-     *  { meta:{from,to}, data:[{id,nombre,servicios_count,fecha_ultimo_servicio,tipo_vehiculo_top}] }
+     * { meta:{from,to}, data:[{id,nombre,servicios_count,fecha_ultimo_servicio,tipo_vehiculo_top}] }
      */
     public function resumenSemanal(Request $request)
     {
@@ -153,71 +138,97 @@ class GruaController extends Controller
             $toDate   = Carbon::parse($to)->endOfDay();
         }
 
-        // Servicios por grúa (semana) usando relación real (grua_id)
-        $serviciosSub = DB::table('servicios')
+        // 1) Grúas base
+        $gruas = Grua::query()
+            ->select(['id', 'nombre'])
+            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
+                $q->whereIn('id', $gruasIds);
+            })
+            ->orderBy('nombre')
+            ->get();
+
+        // 2) Conteo semanal de servicios por grua_id
+        $servicios = DB::table('servicios')
             ->select([
                 'grua_id',
                 DB::raw('COUNT(*) as servicios_count'),
                 DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
-            ->groupBy('grua_id');
+            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
+                $q->whereIn('grua_id', $gruasIds);
+            })
+            ->groupBy('grua_id')
+            ->get();
 
-        // Top tipo por grúa (semana) usando match exacto por NOMBRE (vehiculos.grua)
-        // Nota: aquí usamos el created_at del vehículo como referencia de "semana".
-        // Si quieres por servicios, habría que tener FK servicios->vehiculo y tomar el tipo desde ahí.
-        $tiposTopSub = DB::table('vehiculos as v')
+        $byGruaId = [];
+        foreach ($servicios as $s) {
+            $byGruaId[(int) $s->grua_id] = [
+                'servicios_count' => (int) $s->servicios_count,
+                'fecha_ultimo_servicio' => $s->fecha_ultimo_servicio,
+            ];
+        }
+
+        // 3) Tipos top por grúa (desde vehiculos, match exacto por nombre)
+        // OJO: aquí uso vehiculos.created_at dentro del rango (como lo pediste: coincide exacto por nombre)
+        $tipos = DB::table('vehiculos')
             ->select([
-                'v.grua as grua_nombre',
-                'v.tipo as tipo_vehiculo_top',
+                'grua',
+                'tipo',
                 DB::raw('COUNT(*) as c'),
             ])
-            ->whereNotNull('v.grua')
-            ->where('v.grua', '<>', '')
-            ->whereNotNull('v.tipo')
-            ->where('v.tipo', '<>', '')
-            ->whereBetween('v.created_at', [$fromDate, $toDate])
-            ->groupBy('v.grua', 'v.tipo');
-
-        // Elegir el tipo con mayor COUNT por grúa (y desempate alfabético)
-        $tiposWinnerSub = DB::query()
-            ->fromSub($tiposTopSub, 'tt')
-            ->select([
-                'tt.grua_nombre',
-                'tt.tipo_vehiculo_top',
-                'tt.c',
-                DB::raw(
-                    'ROW_NUMBER() OVER (PARTITION BY tt.grua_nombre ORDER BY tt.c DESC, tt.tipo_vehiculo_top ASC) as rn'
-                ),
-            );
-
-        $rows = Grua::query()
-            ->leftJoinSub($serviciosSub, 'ss', function ($join) {
-                $join->on('gruas.id', '=', 'ss.grua_id');
-            })
-            ->leftJoinSub($tiposWinnerSub, 'tw', function ($join) {
-                $join->on('gruas.nombre', '=', 'tw.grua_nombre')
-                     ->where('tw.rn', '=', 1);
-            })
-            ->select([
-                'gruas.id',
-                'gruas.nombre',
-                DB::raw('COALESCE(ss.servicios_count, 0) as servicios_count'),
-                DB::raw('ss.fecha_ultimo_servicio as fecha_ultimo_servicio'),
-                DB::raw('tw.tipo_vehiculo_top as tipo_vehiculo_top'),
-            ])
-            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
-                $q->whereIn('gruas.id', $gruasIds);
-            })
-            ->orderBy('gruas.nombre')
+            ->whereBetween('created_at', [$fromDate, $toDate])
+            ->whereNotNull('grua')
+            ->where('grua', '<>', '')
+            ->whereNotNull('tipo')
+            ->where('tipo', '<>', '')
+            ->groupBy('grua', 'tipo')
+            ->orderBy('grua')
+            ->orderByDesc('c')
             ->get();
+
+        // Elegir el tipo con mayor count por cada grúa (en PHP, sin window functions)
+        $topTipoByNombre = [];
+        foreach ($tipos as $t) {
+            $nombreGrua = (string) $t->grua;
+            $tipo = (string) $t->tipo;
+            $c = (int) $t->c;
+
+            if (!isset($topTipoByNombre[$nombreGrua])) {
+                $topTipoByNombre[$nombreGrua] = ['tipo' => $tipo, 'c' => $c];
+                continue;
+            }
+
+            // si hay empate, dejo el que ya quedó (o puedes cambiar a orden alfabético)
+            if ($c > $topTipoByNombre[$nombreGrua]['c']) {
+                $topTipoByNombre[$nombreGrua] = ['tipo' => $tipo, 'c' => $c];
+            }
+        }
+
+        // 4) Merge final
+        $data = [];
+        foreach ($gruas as $g) {
+            $id = (int) $g->id;
+            $nombre = (string) $g->nombre;
+
+            $serv = $byGruaId[$id] ?? ['servicios_count' => 0, 'fecha_ultimo_servicio' => null];
+            $tipoTop = $topTipoByNombre[$nombre]['tipo'] ?? null;
+
+            $data[] = [
+                'id' => $id,
+                'nombre' => $nombre,
+                'servicios_count' => (int) $serv['servicios_count'],
+                'fecha_ultimo_servicio' => $serv['fecha_ultimo_servicio'],
+                'tipo_vehiculo_top' => $tipoTop,
+            ];
+        }
 
         return response()->json([
             'meta' => [
                 'from' => $fromDate->toDateString(),
                 'to'   => $toDate->toDateString(),
             ],
-            'data' => $rows,
+            'data' => $data,
         ]);
     }
 }

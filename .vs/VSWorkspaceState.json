@@ -12,6 +12,6 @@
     "\\resources\\views\\dictamenes",
     "\\routes"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\GruaController.php",
   "PreviewInSolutionExplorer": false
 }

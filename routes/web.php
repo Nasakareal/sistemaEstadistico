@@ -8,6 +8,10 @@ Route::get('/', function () { return view('welcome'); })->name('welcome');
 Route::middleware(['auth', 'can:ver mapa'])->group(function () {
     Route::get('/mapa', [App\Http\Controllers\MapaPatrullasController::class, 'index'])->name('mapa.index');
     Route::get('/mapa-patrullas/data', [App\Http\Controllers\MapaPatrullasController::class, 'data'])->name('mapa.patrullas.data');
+
+    Route::get('/mapa/mi-personal', [App\Http\Controllers\MapaPatrullasController::class, 'miPersonal'])->name('mapa.mi_personal');
+    Route::post('/mapa/mi-personal/{user}/ubicacion', [App\Http\Controllers\MapaPatrullasController::class, 'toggleUbicacionUsuario'])->name('mapa.mi_personal.toggle');
+    Route::post('/mapa/mi-personal/ubicacion/todos', [App\Http\Controllers\MapaPatrullasController::class, 'toggleUbicacionTodos'])->name('mapa.mi_personal.toggle_all');
 });
 
 // Ruta pública para ver la liberación
@@ -218,7 +222,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::post('/{role}/permissions', [App\Http\Controllers\RoleController::class, 'assignPermissions'])->middleware('can:editar roles')->name('roles.assignPermissions');
     });
 
-    // Estadísticas (SE QUEDA IGUAL)
+    // Estadísticasss
     Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
         Route::get('/', [App\Http\Controllers\EstadisticasController::class, 'index'])->name('estadisticas.index');
         Route::get('/parte-novedades', [App\Http\Controllers\EstadisticasController::class, 'parteNovedades'])->name('estadisticas.parteNovedades');

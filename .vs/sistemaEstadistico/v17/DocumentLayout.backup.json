@@ -3,8 +3,16 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\HechoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\HechoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\estadisticas_globales\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\estadisticas_globales\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -19,14 +27,39 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "HechoController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\HechoController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\HechoController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\HechoController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\Api\\HechoController.php",
-              "ViewState": "AgIAAFMAAAAAAAAAAAAjwG8AAAAMAAAAAAAAAA==",
+              "Title": "index.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\estadisticas_globales\\index.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\estadisticas_globales\\index.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\estadisticas_globales\\index.blade.php",
+              "RelativeToolTip": "resources\\views\\estadisticas_globales\\index.blade.php",
+              "ViewState": "AgIAANMBAAAAAAAAAAAAwAgCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-01-24T20:38:05.774Z",
+              "WhenOpened": "2026-01-25T20:33:56.226Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "api.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
+              "RelativeDocumentMoniker": "routes\\api.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
+              "RelativeToolTip": "routes\\api.php",
+              "ViewState": "AgIAADYAAAAAAAAAAAAAwKcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-01-25T20:16:14.246Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "EstadisticasGlobalesController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAALsBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-01-25T20:12:39.985Z",
               "EditorCaption": ""
             }
           ]

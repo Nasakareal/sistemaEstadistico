@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Dictamen;
 use Illuminate\Http\Request;
+use App\Models\Unidad;
 
 class DictamenController extends Controller
 {
@@ -24,64 +25,72 @@ class DictamenController extends Controller
         $anioActual = now()->year;
         $usuario = auth()->user();
 
-        $rolUsuario = $usuario->roles->first()->name ?? 'Usuario';
-        $areaUsuario = $rolUsuario === 'Administrador' ? null : $usuario->area;
+        $unidadNombre = null;
+        if ($usuario->unidad_id) {
+            $unidadNombre = Unidad::where('id',$usuario->unidad_id)->value('nombre');
+        }
 
-        $areasDisponibles = User::select('area')->distinct()->pluck('area');
-
-        $ultimoDictamen = Dictamen::where('anio', $anioActual)
-                                  ->orderBy('numero_dictamen', 'desc')
-                                  ->first();
+        $ultimoDictamen = Dictamen::where('anio',$anioActual)
+            ->orderBy('numero_dictamen','desc')
+            ->first();
 
         $numeroSiguiente = $ultimoDictamen ? $ultimoDictamen->numero_dictamen + 1 : 1;
 
-        return view('dictamenes.create', compact('numeroSiguiente', 'rolUsuario', 'areaUsuario', 'areasDisponibles'));
+        return view('dictamenes.create',compact(
+            'numeroSiguiente',
+            'unidadNombre'
+        ));
     }
 
     public function store(Request $request)
     {
         $usuario = auth()->user();
-        $rolUsuario = $usuario->roles->first()->name ?? 'Usuario';
-        $areaUsuario = $rolUsuario === 'Administrador' ? $request->input('area') : $usuario->area;
-        $anioActual = $request->input('anio');
+
+        $unidadNombre = null;
+        if ($usuario->unidad_id) {
+            $unidadNombre = \App\Models\Unidad::where('id',$usuario->unidad_id)->value('nombre');
+        }
+        if (!$unidadNombre) {
+            $unidadNombre = 'SIN ASIGNAR';
+        }
 
         $request->merge([
-            'nombre_policia' => strtoupper($request->input('nombre_policia')),
-            'nombre_mp' => strtoupper($request->input('nombre_mp')),
-            'area' => strtoupper($request->input('area')),
+            'nombre_policia'=>strtoupper($request->input('nombre_policia')),
+            'nombre_mp'=>strtoupper($request->input('nombre_mp')),
         ]);
 
         $request->validate([
-            'nombre_policia' => 'required|string|max:100',
-            'nombre_mp' => 'required|string|max:100',
-            'area' => 'required|string|max:100',
-            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+            'nombre_policia'=>'required|string|max:100',
+            'nombre_mp'=>'required|string|max:100',
+            'archivo_dictamen'=>'nullable|file|mimes:pdf|max:10240',
         ]);
 
         $archivoDictamen = null;
         if ($request->hasFile('archivo_dictamen')) {
-            $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
+            $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes','public');
         }
 
-        $ultimoDictamen = Dictamen::where('anio', $anioActual)
-                                  ->orderBy('numero_dictamen', 'desc')
-                                  ->first();
+        $anioActual = now()->year;
+
+        $ultimoDictamen = Dictamen::where('anio',$anioActual)
+            ->orderBy('numero_dictamen','desc')
+            ->first();
 
         $numeroSiguiente = $ultimoDictamen ? $ultimoDictamen->numero_dictamen + 1 : 1;
 
         Dictamen::create([
-            'numero_dictamen' => $numeroSiguiente,
-            'anio' => $anioActual,
-            'nombre_policia' => $request->input('nombre_policia'),
-            'nombre_mp' => $request->input('nombre_mp'),
-            'area' => $areaUsuario,
-            'archivo_dictamen' => $archivoDictamen,
-            'created_by' => $usuario->id,
+            'numero_dictamen'=>$numeroSiguiente,
+            'anio'=>$anioActual,
+            'nombre_policia'=>$request->nombre_policia,
+            'nombre_mp'=>$request->nombre_mp,
+            'area'=>$unidadNombre,
+            'archivo_dictamen'=>$archivoDictamen,
+            'created_by'=>$usuario->id,
         ]);
 
-        return redirect()->route('dictamenes.index')
-                         ->with('success', 'Dictamen creado exitosamente.');
+        return redirect()->route('dictamenes.index')->with('success','Dictamen creado exitosamente.');
     }
+
 
     public function edit(Dictamen $dictamen)
     {

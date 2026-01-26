@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MapaPatrullasController;
 use App\Http\Controllers\Api\PersonalController;
 use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\AppVersionController;
+use App\Http\Controllers\Api\DictamenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +31,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | DICTÁMENES
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/dictamenes/buscar', [DictamenController::class, 'buscar'])->middleware('can:ver dictamenes');
+    Route::get('/dictamenes', [DictamenController::class, 'index'])->middleware('can:ver dictamenes');
+    Route::post('/dictamenes', [DictamenController::class, 'store'])->middleware('can:crear dictamenes');
+    Route::get('/dictamenes/{dictamen}', [DictamenController::class, 'show'])->middleware('can:ver dictamenes');
+    Route::put('/dictamenes/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes');
+    Route::delete('/dictamenes/{dictamen}', [DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes');
 
     /*
     |--------------------------------------------------------------------------

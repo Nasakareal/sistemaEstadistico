@@ -185,12 +185,12 @@ return [
     |--------------------------------------------------------------------------
     */
     'menu' => [
-        // Navbar items:
+        /* Navbar items:
         [
             'type' => 'navbar-search',
             'text' => 'search',
             'topnav_right' => true,
-        ],
+        ], */
         [
             'type' => 'link',
             'text' => 'Scan',

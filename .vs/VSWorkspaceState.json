@@ -5,8 +5,13 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models",
+    "\\app\\Providers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\dictamenes",
     "\\routes"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DictamenController.php",
   "PreviewInSolutionExplorer": false
 }

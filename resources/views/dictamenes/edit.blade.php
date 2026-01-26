@@ -26,17 +26,35 @@
             <div class="form-row">
                 <div class="form-group col-md-3">
                     <label>Número de dictamen</label>
-                    <input type="text" class="form-control" value="{{ $dictamen->numero_dictamen }}" readonly>
+                    <input
+                        type="text"
+                        name="numero_dictamen"
+                        class="form-control"
+                        value="{{ old('numero_dictamen', $dictamen->numero_dictamen) }}"
+                        readonly
+                    >
                 </div>
 
                 <div class="form-group col-md-3">
                     <label>Año</label>
-                    <input type="text" class="form-control" value="{{ $dictamen->anio }}" readonly>
+                    <input
+                        type="text"
+                        name="anio"
+                        class="form-control"
+                        value="{{ old('anio', $dictamen->anio) }}"
+                        readonly
+                    >
                 </div>
 
                 <div class="form-group col-md-6">
                     <label>Área</label>
-                    <input type="text" class="form-control" value="{{ $dictamen->area }}" readonly>
+                    <input
+                        type="text"
+                        name="area"
+                        class="form-control"
+                        value="{{ old('area', $dictamen->area) }}"
+                        readonly
+                    >
                 </div>
             </div>
 
@@ -97,6 +115,7 @@
                 </button>
             </div>
         </form>
+
     </div>
 </div>
 @stop

@@ -5,13 +5,10 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models",
-    "\\app\\Providers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\dictamenes",
-    "\\routes"
+    "\\resources\\views\\vehiculos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\GruaController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
   "PreviewInSolutionExplorer": false
 }

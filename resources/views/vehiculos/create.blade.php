@@ -717,7 +717,7 @@
 
             const carrocerias = {
                 automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
-                camion: ['Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
+                camion: ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
                 camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
                 motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
                 bicicleta: ['Montaña', 'Ruta', 'BMX'],

@@ -56,6 +56,7 @@ class HechoController extends Controller
         $query = Hechos::query()
             ->select([
                 'hechos.id',
+                'hechos.perito',
                 'hechos.folio_c5i',
                 'hechos.fecha',
                 'hechos.calle',

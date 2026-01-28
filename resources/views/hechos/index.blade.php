@@ -19,7 +19,6 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <!-- Filtro por Fecha -->
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="fecha_filtro">Filtrar por fecha:</label>
@@ -33,6 +32,7 @@
                                 <th><center>Folio</center></th>
                                 <th><center>Fecha y Hora</center></th>
                                 <th><center>Ubicación</center></th>
+                                <th><center>Foto Lugar</center></th>
                                 <th><center>Estado</center></th>
                                 <th><center>Creado por</center></th>
                                 <th><center>Acciones</center></th>
@@ -44,8 +44,24 @@
                                     <td>{{ $hecho->folio_c5i }}</td>
                                     <td data-fecha="{{ $hecho->fecha }}">{{ $hecho->fecha }} {{ $hecho->hora }}</td>
                                     <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
-                                    <td>{{ $hecho->situacion }}</td> <!-- Muestra el estado del hecho -->
-                                    <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td> <!-- Muestra el nombre del usuario que creó el hecho -->
+
+                                    <td>
+                                        @php
+                                            $foto = $hecho->foto_lugar;
+                                            $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
+                                        @endphp
+
+                                        @if ($urlFoto)
+                                            <a href="{{ $urlFoto }}" target="_blank" rel="noopener">
+                                                <img src="{{ $urlFoto }}" alt="foto_lugar" class="foto-thumb">
+                                            </a>
+                                        @else
+                                            <span class="text-muted">Sin foto</span>
+                                        @endif
+                                    </td>
+
+                                    <td>{{ $hecho->situacion }}</td>
+                                    <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
                                     <td style="text-align: center">
                                         <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">
                                             <i class="fa-regular fa-eye"></i>
@@ -81,6 +97,15 @@
             text-align: center;
             vertical-align: middle;
         }
+
+        .foto-thumb{
+            width: 72px;
+            height: 52px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid rgba(0,0,0,.12);
+            background: #f8f9fa;
+        }
     </style>
 @stop
 
@@ -112,13 +137,11 @@
                 "autoWidth": false,
             });
 
-            // Filtro de fecha
             $('#fecha_filtro').on('change', function () {
                 var selectedDate = $(this).val();
                 table.columns(1).search(selectedDate).draw();
             });
 
-            // Pre-filtrar con la fecha actual
             $('#fecha_filtro').trigger('change');
         });
 
@@ -133,4 +156,3 @@
         @endif
     </script>
 @stop
-

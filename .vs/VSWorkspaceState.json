@@ -6,8 +6,8 @@
     "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\resources\\views\\mapa"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\MapaPatrullasController.php",
   "PreviewInSolutionExplorer": false
 }

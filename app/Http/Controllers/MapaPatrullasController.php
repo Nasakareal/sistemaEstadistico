@@ -48,37 +48,48 @@ class MapaPatrullasController extends Controller
 
         $userIds = $usersQuery->pluck('id');
 
-        $latest = UserLocation::query()->selectRaw('user_id, MAX(captured_at) AS max_captured_at')->whereIn('user_id',$userIds)->groupBy('user_id');
+        $latest = UserLocation::query()
+            ->selectRaw('user_id, MAX(captured_at) AS max_captured_at')
+            ->whereIn('user_id',$userIds)
+            ->groupBy('user_id');
 
-        return UserLocation::query()->joinSub($latest,'ul',function($join){
-            $join->on('user_locations.user_id','=','ul.user_id')->on('user_locations.captured_at','=','ul.max_captured_at');
-        })->with('user:id,name,email,patrulla_id')->orderByDesc('user_locations.captured_at')->get()->map(function($loc){
-            return [
-                'user_id'=>$loc->user_id,
-                'name'=>optional($loc->user)->name,
-                'email'=>optional($loc->user)->email,
-                'patrulla_id'=>optional($loc->user)->patrulla_id,
-                'lat'=>(float)$loc->lat,
-                'lng'=>(float)$loc->lng,
-                'captured_at'=>$loc->captured_at? $loc->captured_at->toDateTimeString():null
-            ];
-        });
+        return UserLocation::query()
+            ->joinSub($latest,'ul',function($join){
+                $join->on('user_locations.user_id','=','ul.user_id')
+                     ->on('user_locations.captured_at','=','ul.max_captured_at');
+            })
+            ->with('user:id,name,email,patrulla_id,numero_economico') // ✅ agregado
+            ->orderByDesc('user_locations.captured_at')
+            ->get()
+            ->map(function($loc){
+                return [
+                    'user_id'          => $loc->user_id,
+                    'name'             => optional($loc->user)->name,
+                    'email'            => optional($loc->user)->email,
+                    'patrulla_id'      => optional($loc->user)->patrulla_id,
+                    'numero_economico' => optional($loc->user)->numero_economico, // ✅ agregado
+                    'lat'              => (float)$loc->lat,
+                    'lng'              => (float)$loc->lng,
+                    'captured_at'      => $loc->captured_at ? $loc->captured_at->toDateTimeString() : null,
+                ];
+            });
     }
 
     public function miPersonal()
     {
         $actor = request()->user();
 
-        $q = User::query()->select('id','name','email','patrulla_id','compartir_ubicacion','unidad_id','turno_id');
+        $q = User::query()->select('id','name','email','patrulla_id','numero_economico','compartir_ubicacion','unidad_id','turno_id');
         $q = $this->applyVisibility($actor,$q);
 
         return response()->json([
             'data'=>$q->orderBy('name')->get()->map(function($u){
                 return [
-                    'id'=>$u->id,
-                    'name'=>$u->name,
-                    'email'=>$u->email,
-                    'patrulla_id'=>$u->patrulla_id,
+                    'id'               => $u->id,
+                    'name'             => $u->name,
+                    'email'            => $u->email,
+                    'patrulla_id'      => $u->patrulla_id,
+                    'numero_economico' => $u->numero_economico,
                     'compartir_ubicacion'=>(int)$u->compartir_ubicacion
                 ];
             })

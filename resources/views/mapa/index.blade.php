@@ -254,11 +254,12 @@
         return diffMin >= STALE_MINUTES;
     }
 
+    // ✅ YA NO USAR ID COMO LABEL: prioriza numero_economico
     function patrullaLabelFromLoc(loc){
-        const n = (loc && loc.patrulla_numero != null && String(loc.patrulla_numero).trim() !== '')
-            ? String(loc.patrulla_numero)
-            : (loc && loc.patrulla_id != null ? String(loc.patrulla_id) : '');
-        return n;
+        const ne = (loc && loc.numero_economico != null && String(loc.numero_economico).trim() !== '')
+            ? String(loc.numero_economico)
+            : null;
+        return ne; // si no hay, regresamos null y el UI mostrará N/D
     }
 
     function mergePersonalWithMap(personalList, mapList){
@@ -273,7 +274,7 @@
                 last_lat: (loc?.lat ?? null),
                 last_lng: (loc?.lng ?? null),
                 stale: loc ? isStale(loc.captured_at) : true,
-                patrulla_numero: loc ? patrullaLabelFromLoc(loc) : (u.patrulla_numero ?? null),
+                numero_economico: loc?.numero_economico ?? (u.numero_economico ?? null),
             };
         });
     }
@@ -288,7 +289,7 @@
     }
 
     function buildMarkerHtml({ label, stale }){
-        const safeLabel = (label && String(label).trim() !== '') ? String(label) : '-';
+        const safeLabel = (label && String(label).trim() !== '') ? String(label) : 'N/D';
         const bubbleClass = stale ? 'patrulla-bubble stale' : 'patrulla-bubble';
         const carUrl = @json(asset('car.png'));
 
@@ -311,7 +312,7 @@
 
         const popup = `
             <strong>${loc.name ?? ''}</strong><br>
-            Patrulla: ${label || 'N/D'}<br>
+            Núm. Económico: ${(label && label.trim() !== '') ? label : 'N/D'}<br>
             Última: ${loc.captured_at ?? ''}
         `;
 
@@ -366,16 +367,17 @@
             li.className = 'list-group-item personal-item ' + (stale && enabled ? 'is-stale' : '');
 
             const timeTxt = timeFromCapturedAt(p.last_captured_at);
-            const patrullaTxt = (p.patrulla_numero != null && String(p.patrulla_numero).trim() !== '')
-                ? String(p.patrulla_numero)
-                : (p.patrulla_id ?? 'N/D');
+
+            const neTxt = (p.numero_economico != null && String(p.numero_economico).trim() !== '')
+                ? String(p.numero_economico)
+                : 'N/D';
 
             li.innerHTML = `
                 <div class="rowline">
                     <span class="dot ${dot}"></span>
                     <div class="info">
                         <strong>${p.name}</strong>
-                        <small>Patrulla: ${patrullaTxt} · ${enabled ? (stale ? 'Sin señal reciente' : 'En línea') : 'Ubicación desactivada'}</small>
+                        <small>Núm. Económico: ${neTxt} · ${enabled ? (stale ? 'Sin señal reciente' : 'En línea') : 'Ubicación desactivada'}</small>
                     </div>
                     <span class="badge badge-secondary badge-time">${timeTxt}</span>
                     ${canToggle ? `
@@ -457,8 +459,8 @@
             name: x.name ?? '',
             email: x.email ?? '',
             patrulla_id: x.patrulla_id ?? null,
+            numero_economico: x.numero_economico ?? null, // ✅
             compartir_ubicacion: x.compartir_ubicacion ?? 0,
-            patrulla_numero: x.patrulla_numero ?? null,
         }));
     }
 

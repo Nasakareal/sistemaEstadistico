@@ -23,19 +23,19 @@ class MapaPatrullasController extends Controller
         if ($this->roleIs($actor,'Superadmin') || $this->roleIs($actor,'Administrador')) return $query;
 
         if ($this->roleIs($actor,'Subdirector')) {
-            if ($actor->unidad_id) $query->where('unidad_id',$actor->unidad_id);
+            if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
             else $query->whereRaw('1=0');
             return $query;
         }
 
         if ($this->roleIs($actor,'Jefe de Grupo')) {
-            if ($actor->unidad_id) $query->where('unidad_id',$actor->unidad_id);
-            if ($actor->turno_id) $query->where('turno_id',$actor->turno_id);
+            if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
+            if ($actor->turno_id) $query->where('users.turno_id',$actor->turno_id);
             return $query;
         }
 
-        if ($actor->unidad_id) $query->where('unidad_id',$actor->unidad_id);
-        if ($actor->turno_id) $query->where('turno_id',$actor->turno_id);
+        if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
+        if ($actor->turno_id) $query->where('users.turno_id',$actor->turno_id);
         return $query;
     }
 
@@ -43,34 +43,49 @@ class MapaPatrullasController extends Controller
     {
         $actor = request()->user();
 
-        $usersQuery = User::query()->where('compartir_ubicacion',1);
-        $usersQuery = $this->applyVisibility($actor,$usersQuery);
+        // ✅ users visibles con ubicacion compartida, con join a patrullas para numero_economico
+        $usersQuery = User::query()
+            ->from('users')
+            ->leftJoin('patrullas', 'patrullas.id', '=', 'users.patrulla_id')
+            ->where('users.compartir_ubicacion', 1);
 
-        $userIds = $usersQuery->pluck('id');
+        $usersQuery = $this->applyVisibility($actor, $usersQuery);
+
+        $userIds = $usersQuery->pluck('users.id');
 
         $latest = UserLocation::query()
             ->selectRaw('user_id, MAX(captured_at) AS max_captured_at')
-            ->whereIn('user_id',$userIds)
+            ->whereIn('user_id', $userIds)
             ->groupBy('user_id');
 
         return UserLocation::query()
-            ->joinSub($latest,'ul',function($join){
+            ->joinSub($latest, 'ul', function($join){
                 $join->on('user_locations.user_id','=','ul.user_id')
                      ->on('user_locations.captured_at','=','ul.max_captured_at');
             })
-            ->with('user:id,name,email,patrulla_id,numero_economico') // ✅ agregado
+            ->join('users', 'users.id', '=', 'user_locations.user_id')
+            ->leftJoin('patrullas', 'patrullas.id', '=', 'users.patrulla_id')
             ->orderByDesc('user_locations.captured_at')
-            ->get()
-            ->map(function($loc){
+            ->get([
+                'user_locations.user_id',
+                'users.name',
+                'users.email',
+                'users.patrulla_id',
+                'patrullas.numero_economico as numero_economico',
+                'user_locations.lat',
+                'user_locations.lng',
+                'user_locations.captured_at',
+            ])
+            ->map(function($row){
                 return [
-                    'user_id'          => $loc->user_id,
-                    'name'             => optional($loc->user)->name,
-                    'email'            => optional($loc->user)->email,
-                    'patrulla_id'      => optional($loc->user)->patrulla_id,
-                    'numero_economico' => optional($loc->user)->numero_economico, // ✅ agregado
-                    'lat'              => (float)$loc->lat,
-                    'lng'              => (float)$loc->lng,
-                    'captured_at'      => $loc->captured_at ? $loc->captured_at->toDateTimeString() : null,
+                    'user_id'          => (int)$row->user_id,
+                    'name'             => $row->name,
+                    'email'            => $row->email,
+                    'patrulla_id'      => $row->patrulla_id,
+                    'numero_economico' => $row->numero_economico,
+                    'lat'              => (float)$row->lat,
+                    'lng'              => (float)$row->lng,
+                    'captured_at'      => $row->captured_at ? \Carbon\Carbon::parse($row->captured_at)->toDateTimeString() : null,
                 ];
             });
     }
@@ -79,18 +94,31 @@ class MapaPatrullasController extends Controller
     {
         $actor = request()->user();
 
-        $q = User::query()->select('id','name','email','patrulla_id','numero_economico','compartir_ubicacion','unidad_id','turno_id');
-        $q = $this->applyVisibility($actor,$q);
+        $q = User::query()
+            ->from('users')
+            ->leftJoin('patrullas', 'patrullas.id', '=', 'users.patrulla_id')
+            ->select([
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.patrulla_id',
+                'users.compartir_ubicacion',
+                'users.unidad_id',
+                'users.turno_id',
+                'patrullas.numero_economico as numero_economico',
+            ]);
+
+        $q = $this->applyVisibility($actor, $q);
 
         return response()->json([
-            'data'=>$q->orderBy('name')->get()->map(function($u){
+            'data' => $q->orderBy('users.name')->get()->map(function($u){
                 return [
-                    'id'               => $u->id,
+                    'id'               => (int)$u->id,
                     'name'             => $u->name,
                     'email'            => $u->email,
                     'patrulla_id'      => $u->patrulla_id,
                     'numero_economico' => $u->numero_economico,
-                    'compartir_ubicacion'=>(int)$u->compartir_ubicacion
+                    'compartir_ubicacion' => (int)$u->compartir_ubicacion,
                 ];
             })
         ]);

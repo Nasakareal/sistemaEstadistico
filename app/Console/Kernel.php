@@ -9,12 +9,14 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('users:detect-disconnected')->everyMinute();
+        $schedule->command('users:detect-disconnected --minutes=5')
+            ->everyMinute()
+            ->withoutOverlapping();
     }
 
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }

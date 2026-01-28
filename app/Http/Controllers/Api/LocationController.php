@@ -12,10 +12,6 @@ class LocationController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        $user->last_seen_at = now();
-        $user->connection_status = 'connected';
-        $user->disconnected_alert_sent_at = null;
-        $user->save();
 
         if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return response()->json([
@@ -32,6 +28,8 @@ class LocationController extends Controller
             'captured_at' => 'nullable|date',
         ]);
 
+        $capturedAt = $validated['captured_at'] ?? now();
+
         $location = UserLocation::updateOrCreate(
             ['user_id' => $user->id],
             [
@@ -40,9 +38,14 @@ class LocationController extends Controller
                 'accuracy'    => $validated['accuracy'] ?? null,
                 'speed'       => $validated['speed'] ?? null,
                 'heading'     => $validated['heading'] ?? null,
-                'captured_at' => $validated['captured_at'] ?? now(),
+                'captured_at' => $capturedAt,
             ]
         );
+
+        $user->last_seen_at = $capturedAt;
+        $user->connection_status = 'online';
+        $user->disconnected_alert_sent_at = null;
+        $user->save();
 
         return response()->json([
             'message' => 'Ubicación guardada',
@@ -118,7 +121,7 @@ class LocationController extends Controller
         $data = UserLocation::query()
             ->joinSub($latest, 'ul', function ($join) {
                 $join->on('user_locations.user_id', '=', 'ul.user_id')
-                    ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
+                     ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
             })
             ->join('users', 'users.id', '=', 'user_locations.user_id')
             ->orderByDesc('user_locations.captured_at')
@@ -128,6 +131,8 @@ class LocationController extends Controller
                 'users.name',
                 'users.email',
                 'users.patrulla_id',
+                'users.unidad_id',
+                'users.turno_id',
                 'user_locations.lat',
                 'user_locations.lng',
                 'user_locations.accuracy',

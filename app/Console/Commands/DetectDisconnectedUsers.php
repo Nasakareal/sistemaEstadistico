@@ -5,13 +5,12 @@ namespace App\Console\Commands;
 use App\Models\Alert;
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 
 class DetectDisconnectedUsers extends Command
 {
     protected $signature = 'users:detect-disconnected {--minutes=5 : Minutos sin reportar para considerar desconectado}';
 
-    protected $description = 'Detecta usuarios que dejaron de reportar (last_seen_at) y genera alertas por unidad y turno (Jefe de Grupo) y por unidad (Subdirector).';
+    protected $description = 'Detecta usuarios que dejaron de reportar (last_seen_at) y genera alertas por unidad+turno (Jefe de Grupo) y por unidad (Subdirector).';
 
     public function handle()
     {
@@ -19,10 +18,6 @@ class DetectDisconnectedUsers extends Command
         if ($minutes <= 0) { $minutes = 5; }
 
         $threshold = now()->subMinutes($minutes);
-
-        // =========================
-        // 1) Receptores (por roles)
-        // =========================
 
         $subdirectores = User::query()
             ->whereHas('roles', fn($q) => $q->where('name', 'Subdirector'))
@@ -32,38 +27,23 @@ class DetectDisconnectedUsers extends Command
             ->whereHas('roles', fn($q) => $q->where('name', 'Jefe de Grupo'))
             ->get(['id', 'name', 'unidad_id', 'turno_id']);
 
-        $subdirectoresPorUnidad = $subdirectores->groupBy(function (User $u) {
-            return (string)($u->unidad_id ?? 'null');
-        });
+        $subdirectoresPorUnidad = $subdirectores->groupBy(fn(User $u) => (string)($u->unidad_id ?? 'null'));
 
         $jefesPorUnidadTurno = $jefes->groupBy(function (User $u) {
             return (string)($u->unidad_id ?? 'null') . ':' . (string)($u->turno_id ?? 'null');
         });
 
-        // =====================================
-        // 2) Usuarios que se van a marcar offline
-        // =====================================
-
         $disconnectedUsers = User::query()
-            ->where(function ($q) {
-                $q->whereNull('estado')->orWhere('estado', 'Activo');
-            })
+            ->where('compartir_ubicacion', 1)
             ->whereNotNull('last_seen_at')
             ->where('last_seen_at', '<=', $threshold)
             ->whereNull('disconnected_alert_sent_at')
-            ->get(['id', 'name', 'email', 'unidad_id', 'turno_id', 'last_seen_at']);
+            ->get(['id', 'name', 'email', 'unidad_id', 'turno_id', 'last_seen_at', 'connection_status']);
 
-        $count = 0;
+        $marked = 0;
+        $alertsCreated = 0;
 
         foreach ($disconnectedUsers as $u) {
-
-            $u->connection_status = 'disconnected';
-            $u->disconnected_alert_sent_at = now();
-            $u->save();
-
-            // =====================================
-            // 3) Determinar receptores por tu regla
-            // =====================================
 
             $unidadKey = (string)($u->unidad_id ?? 'null');
             $unidadTurnoKey = $unidadKey . ':' . (string)($u->turno_id ?? 'null');
@@ -80,14 +60,16 @@ class DetectDisconnectedUsers extends Command
 
             $recipients = $recipients->unique('id')->values();
 
+            $u->connection_status = 'offline';
+            $u->disconnected_alert_sent_at = now();
+            $u->save();
+            $marked++;
+
             if ($recipients->isEmpty()) {
-                $count++;
                 continue;
             }
 
-            // =====================================
-            // 4) Crear alerts (una por receptor)
-            // =====================================
+            $lastSeenStr = optional($u->last_seen_at)->format('Y-m-d H:i:s');
 
             foreach ($recipients as $r) {
                 Alert::create([
@@ -95,7 +77,7 @@ class DetectDisconnectedUsers extends Command
                     'from_user_id' => null,
                     'type'         => 'ELEMENTO_DESCONECTADO',
                     'title'        => 'Elemento desconectado',
-                    'message'      => $u->name . ' dejó de reportar hace más de ' . $minutes . ' min. Último reporte: ' . optional($u->last_seen_at)->format('Y-m-d H:i:s'),
+                    'message'      => $u->name . ' dejó de reportar hace más de ' . $minutes . ' min. Último reporte: ' . $lastSeenStr,
                     'data'         => [
                         'user_id'      => $u->id,
                         'name'         => $u->name,
@@ -106,12 +88,12 @@ class DetectDisconnectedUsers extends Command
                         'last_seen_at' => optional($u->last_seen_at)->toISOString(),
                     ],
                 ]);
-            }
 
-            $count++;
+                $alertsCreated++;
+            }
         }
 
-        $this->info("OK. Usuarios marcados desconectados en esta corrida: {$count}");
+        $this->info("OK. Usuarios marcados offline: {$marked} | Alertas creadas: {$alertsCreated}");
 
         return Command::SUCCESS;
     }

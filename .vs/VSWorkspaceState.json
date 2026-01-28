@@ -2,9 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\app",
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Notifications"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\app\\Console\\Kernel.php",
   "PreviewInSolutionExplorer": false
 }

@@ -3,16 +3,8 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\VehiculosController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\VehiculosController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GruaController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\GruaController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\ServicioController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\ServicioController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Kernel.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Console\\Kernel.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -27,40 +19,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "VehiculosController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\VehiculosController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\VehiculosController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\VehiculosController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\VehiculosController.php",
-              "ViewState": "AgIAADsBAAAAAAAAAAAAAEsBAAAAAAAAAAAAAA==",
+              "Title": "Kernel.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Kernel.php",
+              "RelativeDocumentMoniker": "app\\Console\\Kernel.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Kernel.php",
+              "RelativeToolTip": "app\\Console\\Kernel.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-01-28T16:06:10.94Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "GruaController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GruaController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\GruaController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GruaController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\GruaController.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-01-28T16:06:03.503Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "ServicioController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\ServicioController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\ServicioController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\ServicioController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\ServicioController.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-01-28T16:06:01.808Z",
+              "WhenOpened": "2026-01-28T17:22:31.969Z",
               "EditorCaption": ""
             }
           ]

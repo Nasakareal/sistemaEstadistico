@@ -383,36 +383,6 @@ return [
         ],
 
         [
-            'text'    => 'Estadísticas',
-            'icon'    => 'fa-solid fa-chart-pie',
-            'classes' => 'bg-blue text-white',
-            'can'     => 'ver estadisticas',
-            'submenu' => [
-                [
-                    'text'    => 'Listado de Estadisticas',
-                    'icon'    => 'fa-solid fa-chart-pie',
-                    'classes' => 'text-white',
-                    'url'     => 'admin/settings/estadisticas',
-                    'can'     => 'ver estadisticas',
-                ],
-                [
-                    'text'    => 'Parte de Novedades',
-                    'icon'    => 'fa-solid fa-file-word',
-                    'classes' => 'text-white',
-                    'route'   => 'estadisticas.parteNovedades',
-                    'can'     => 'ver estadisticas',
-                ],
-                [
-                    'text'    => 'Mini Parte',
-                    'icon'    => 'fa-solid fa-file-word',
-                    'classes' => 'text-white',
-                    'route'   => 'estadisticas.miniParte',
-                    'can'     => 'ver estadisticas',
-                ],
-            ],
-        ],
-
-        [
             'text'    => 'Estadísticas Globales',
             'icon'    => 'fa-solid fa-chart-column',
             'classes' => 'bg-blue text-white',

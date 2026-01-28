@@ -16,7 +16,6 @@ class MapaPatrullasController extends Controller
             ->where('compartir_ubicacion', 1);
 
         if ($actor->hasRole('Superadmin') || $actor->hasRole('Administrador')) {
-            // ver todos, sin filtros
         } elseif ($actor->hasRole('Subdirector')) {
             if ($actor->unidad_id) {
                 $usersQuery->where('unidad_id', $actor->unidad_id);
@@ -51,21 +50,37 @@ class MapaPatrullasController extends Controller
                 $join->on('user_locations.user_id', '=', 'ul.user_id')
                      ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
             })
-            ->with('user:id,name,email,patrulla_id,compartir_ubicacion')
+            ->with([
+                'user:id,name,email,patrulla_id,unidad_id,turno_id,compartir_ubicacion,connection_status,last_seen_at',
+                'user.patrulla:id,numero_economico',
+            ])
             ->orderByDesc('user_locations.captured_at')
             ->get()
             ->map(function ($loc) {
+                $user = $loc->user;
+
                 return [
-                    'user_id'     => $loc->user_id,
-                    'name'        => optional($loc->user)->name ?? ('User '.$loc->user_id),
-                    'email'       => optional($loc->user)->email,
-                    'patrulla_id' => optional($loc->user)->patrulla_id,
-                    'lat'         => (float) $loc->lat,
-                    'lng'         => (float) $loc->lng,
-                    'accuracy'    => $loc->accuracy !== null ? (float)$loc->accuracy : null,
-                    'speed'       => $loc->speed !== null ? (float)$loc->speed : null,
-                    'heading'     => $loc->heading !== null ? (float)$loc->heading : null,
-                    'captured_at' => $loc->captured_at ? $loc->captured_at->toDateTimeString() : null,
+                    'user_id'         => $loc->user_id,
+                    'name'            => optional($user)->name ?? ('User '.$loc->user_id),
+                    'email'           => optional($user)->email,
+
+                    'patrulla_id'     => optional($user)->patrulla_id,
+                    'patrulla_numero' => optional(optional($user)->patrulla)->numero_economico,
+
+                    'unidad_id'       => optional($user)->unidad_id,
+                    'turno_id'        => optional($user)->turno_id,
+
+                    'connection_status' => optional($user)->connection_status,
+                    'last_seen_at'       => optional($user)->last_seen_at
+                        ? optional($user)->last_seen_at->toDateTimeString()
+                        : null,
+
+                    'lat'            => (float) $loc->lat,
+                    'lng'            => (float) $loc->lng,
+                    'accuracy'       => $loc->accuracy !== null ? (float)$loc->accuracy : null,
+                    'speed'          => $loc->speed !== null ? (float)$loc->speed : null,
+                    'heading'        => $loc->heading !== null ? (float)$loc->heading : null,
+                    'captured_at'    => $loc->captured_at ? $loc->captured_at->toDateTimeString() : null,
                 ];
             });
 

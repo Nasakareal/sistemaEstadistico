@@ -200,6 +200,21 @@ Route::get('/servicios/grafico', [App\Http\Controllers\ServicioController::class
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
     Route::get('/', [App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
 
+    /*
+    |--------------------------------------------------------------------------
+    | PATRULLAS
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('patrullas')->middleware('can:ver patrullas')->group(function () {
+        Route::get('/', [App\Http\Controllers\PatrullaController::class, 'index'])->name('patrullas.index');
+        Route::get('/create', [App\Http\Controllers\PatrullaController::class, 'create'])->middleware('can:crear patrullas')->name('patrullas.create');
+        Route::post('/', [App\Http\Controllers\PatrullaController::class, 'store'])->middleware('can:crear patrullas')->name('patrullas.store');
+        Route::get('/{patrulla}', [App\Http\Controllers\PatrullaController::class, 'show'])->middleware('can:ver patrullas')->name('patrullas.show');
+        Route::get('/{patrulla}/edit', [App\Http\Controllers\PatrullaController::class, 'edit'])->middleware('can:editar patrullas')->name('patrullas.edit');
+        Route::put('/{patrulla}', [App\Http\Controllers\PatrullaController::class, 'update'])->middleware('can:editar patrullas')->name('patrullas.update');
+        Route::delete('/{patrulla}', [App\Http\Controllers\PatrullaController::class, 'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.destroy');
+    });
+
     Route::prefix('users')->middleware('can:ver usuarios')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index'])->name('users.index');
         Route::get('/create', [App\Http\Controllers\UserController::class, 'create'])->middleware('can:crear usuarios')->name('users.create');

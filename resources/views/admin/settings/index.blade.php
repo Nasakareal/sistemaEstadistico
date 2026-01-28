@@ -72,16 +72,16 @@
             </div>
         </div>
 
-        {{-- VACIAR BD --}}
+        {{-- PATRULLAS --}}
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">
-                <div class="sv-card__icon bg-danger">
-                    <i class="fa-solid fa-dumpster"></i>
+                <div class="sv-card__icon bg-success">
+                    <i class="fa fa-car" aria-hidden="true"></i>
                 </div>
                 <div class="sv-card__body">
-                    <div class="sv-card__title">Vaciar Base de Datos</div>
-                    <div class="sv-card__desc">Herramienta de mantenimiento (con cuidado).</div>
-                    <a href="{{ url('/admin/vaciados') }}" class="btn sv-btn">
+                    <div class="sv-card__title">Patrullas</div>
+                    <div class="sv-card__desc">Listado, Creación y análisis.</div>
+                    <a href="{{ url('/admin/settings/patrullas') }}" class="btn sv-btn">
                         <i class="fas fa-arrow-right"></i> Acceder
                     </a>
                 </div>

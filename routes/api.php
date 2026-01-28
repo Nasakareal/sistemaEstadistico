@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\PersonalController;
 use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\DictamenController;
+use App\Http\Controllers\Api\AlertController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | ALERTAS
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/alerts', [AlertController::class, 'index']);
+    Route::post('/alerts/{alert}/read', [AlertController::class, 'markRead']);
+    Route::post('/alerts/read-all', [AlertController::class, 'markReadAll']);
 
     /*
     |--------------------------------------------------------------------------

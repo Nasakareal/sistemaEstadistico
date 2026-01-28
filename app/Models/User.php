@@ -12,9 +12,6 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
-    /**
-     * Campos asignables
-     */
     protected $fillable = [
         'name',
         'email',
@@ -22,30 +19,22 @@ class User extends Authenticatable
         'estado',
         'foto_perfil',
         'area',
-
-        // Organización SSP
         'unidad_id',
         'turno_id',
         'patrulla_id',
-
-        // 🔴 Control de ubicación (clave para jefes de grupo)
         'compartir_ubicacion',
     ];
 
-    /**
-     * Campos ocultos
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Casts
-     */
     protected $casts = [
-        'email_verified_at'   => 'datetime',
-        'compartir_ubicacion' => 'boolean',
+        'email_verified_at'            => 'datetime',
+        'compartir_ubicacion'          => 'boolean',
+        'last_seen_at'                 => 'datetime',
+        'disconnected_alert_sent_at'   => 'datetime',
     ];
 
     /* =====================================================

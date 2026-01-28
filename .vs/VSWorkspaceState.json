@@ -3,12 +3,8 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
   "PreviewInSolutionExplorer": false
 }

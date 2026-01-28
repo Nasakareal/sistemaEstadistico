@@ -130,7 +130,6 @@ class HechoController extends Controller
     {
         $user = $request->user();
 
-        // ✅ Normaliza valores tipo catálogo ANTES de validar (acepta con acento o sin acento)
         $this->normalizeCatalogFields($request);
 
         $validated = $request->validate([

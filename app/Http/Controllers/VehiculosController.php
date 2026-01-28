@@ -221,7 +221,6 @@ class VehiculosController extends Controller
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
-        // (Opcional pero recomendable) asegurar que el vehículo pertenezca al hecho
         if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
             abort(404, 'El vehículo no pertenece a este hecho.');
         }
@@ -331,7 +330,17 @@ class VehiculosController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $vehiculo, $hecho, $nombreGrua) {
+        $fechaServicio = null;
+        if (!empty($hecho->fecha)) {
+            // si hay hora en el hecho, la usamos; si no, fijamos 12:00:00
+            $hora = !empty($hecho->hora) ? $hecho->hora : '12:00:00';
+            $fechaServicio = $hecho->fecha . ' ' . $hora;
+        } else {
+            // fallback (raro), pero evita null
+            $fechaServicio = now()->format('Y-m-d H:i:s');
+        }
+
+        DB::transaction(function () use ($validated, $vehiculo, $hecho, $nombreGrua, $fechaServicio) {
 
             // 6) Actualizar vehículo
             $vehiculo->update([
@@ -405,15 +414,17 @@ class VehiculosController extends Controller
                 $vehiculo->conductores()->attach($conductor->id);
             }
 
-            // 8) Servicio (servicios.grua_id)
+            // 8) Servicio (servicios.grua_id) ✅ created_at basado en hecho
             $servicio = DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->first();
 
             if (!empty($validated['grua_id'])) {
+
                 if ($servicio) {
                     DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->update([
                         'grua_id'       => $validated['grua_id'],
                         'tipo_vehiculo' => $validated['tipo'],
                         'aseguradora'   => $validated['aseguradora'],
+                        'created_at'    => $fechaServicio,
                         'updated_at'    => now(),
                     ]);
                 } else {
@@ -422,10 +433,11 @@ class VehiculosController extends Controller
                         'grua_id'       => $validated['grua_id'],
                         'tipo_vehiculo' => $validated['tipo'],
                         'aseguradora'   => $validated['aseguradora'],
-                        'created_at'    => now(),
+                        'created_at'    => $fechaServicio,
                         'updated_at'    => now(),
                     ]);
                 }
+
             } else {
                 if ($servicio) {
                     DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
@@ -444,6 +456,7 @@ class VehiculosController extends Controller
             ->route('vehiculos.index', $hecho->id)
             ->with('success', 'Vehículo actualizado correctamente.');
     }
+
 
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {

@@ -56,7 +56,7 @@ class HechosController extends Controller
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
         $situacion = (string)($validated['situacion'] ?? '');
-        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+        if (in_array($situacion, ['RESUELTO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             ]);
@@ -164,7 +164,7 @@ class HechosController extends Controller
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
         $situacion = (string)($validated['situacion'] ?? '');
-        if (in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+        if (in_array($situacion, ['RESUELTO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             ]);

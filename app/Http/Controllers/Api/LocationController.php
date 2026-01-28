@@ -12,6 +12,10 @@ class LocationController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+        $user->last_seen_at = now();
+        $user->connection_status = 'connected';
+        $user->disconnected_alert_sent_at = null;
+        $user->save();
 
         if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return response()->json([
@@ -50,7 +54,9 @@ class LocationController extends Controller
     {
         $user = $request->user();
 
-        $location = UserLocation::where('user_id', $user->id)->first();
+        $location = UserLocation::where('user_id', $user->id)
+            ->latest('captured_at')
+            ->first();
 
         return response()->json([
             'data' => $location,
@@ -72,7 +78,9 @@ class LocationController extends Controller
             ], 200);
         }
 
-        $location = UserLocation::where('user_id', $user->id)->first();
+        $location = UserLocation::where('user_id', $user->id)
+            ->latest('captured_at')
+            ->first();
 
         return response()->json([
             'data' => $location,
@@ -83,10 +91,9 @@ class LocationController extends Controller
     {
         $actor = $request->user();
 
-        $usersQuery = User::query()
-            ->where('compartir_ubicacion', 1);
+        $usersQuery = User::query()->where('compartir_ubicacion', 1);
 
-        if ($actor->hasRole('subdirector')) {
+        if ($actor->hasRole('Subdirector')) {
             if ($actor->unidad_id) {
                 $usersQuery->where('unidad_id', $actor->unidad_id);
             } else {
@@ -111,7 +118,7 @@ class LocationController extends Controller
         $data = UserLocation::query()
             ->joinSub($latest, 'ul', function ($join) {
                 $join->on('user_locations.user_id', '=', 'ul.user_id')
-                     ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
+                    ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
             })
             ->join('users', 'users.id', '=', 'user_locations.user_id')
             ->orderByDesc('user_locations.captured_at')
@@ -140,7 +147,7 @@ class LocationController extends Controller
             return false;
         }
 
-        if ($actor->hasRole('subdirector')) {
+        if ($actor->hasRole('Subdirector')) {
             return true;
         }
 

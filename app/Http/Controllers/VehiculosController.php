@@ -29,7 +29,6 @@ class VehiculosController extends Controller
 
     public function store(Request $request, Hechos $hecho)
     {
-        // 1) Validación
         $validated = $request->validate([
             'marca'                      => 'required|string|max:50',
             'modelo'                     => 'nullable|string|max:10',
@@ -69,15 +68,10 @@ class VehiculosController extends Controller
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
-        // 2) Normalizar ANTES de checar duplicados
         $validated['placas']           = strtoupper(str_replace('-', '', $validated['placas']));
         $validated['serie']            = strtoupper(str_replace('-', '', (string)($validated['serie'] ?? '')));
         $validated['conductor_nombre'] = strtoupper((string)($validated['conductor_nombre'] ?? ''));
-
-        // Para evitar broncas si llega null/vacío (sin cambiar tu lógica de captura)
         $validated['tarjeta_circulacion_nombre'] = (string)($validated['tarjeta_circulacion_nombre'] ?? '');
-
-        // 3) Mapear checkboxes a booleanos
         $validated['antecedente_vehiculo']    = $request->has('antecedente_vehiculo');
         $validated['cinturon']                = $request->has('cinturon');
         $validated['antecedente_conductor']   = $request->has('antecedente_conductor');
@@ -86,21 +80,9 @@ class VehiculosController extends Controller
         $validated['aliento_etilico']         = $request->has('aliento_etilico');
         $validated['permanente']              = $request->boolean('permanente');
 
-        // 4) Duplicados dentro del mismo hecho
-        $placaRepetida = $hecho->vehiculos()
-            ->where('placas', $validated['placas'])
-            ->exists();
-
-        $serieRepetida = $validated['serie'] !== '' &&
-            $hecho->vehiculos()
-                ->where('serie', $validated['serie'])
-                ->exists();
-
-        $conductorRepetido = $validated['conductor_nombre'] !== '' &&
-            $hecho->vehiculos()
-                ->whereHas('conductores', function ($q) use ($validated) {
-                    $q->where('nombre', $validated['conductor_nombre']);
-                })->exists();
+        $placaRepetida = $hecho->vehiculos()->where('placas', $validated['placas'])->exists();
+        $serieRepetida = $validated['serie'] !== '' && $hecho->vehiculos()->where('serie', $validated['serie'])->exists();
+        $conductorRepetido = $validated['conductor_nombre'] !== '' && $hecho->vehiculos()->whereHas('conductores', function ($q) use ($validated) {$q->where('nombre', $validated['conductor_nombre']);})->exists();
 
         if ($placaRepetida || $serieRepetida || $conductorRepetido) {
             $errors = [];
@@ -110,7 +92,6 @@ class VehiculosController extends Controller
             return back()->withErrors($errors)->withInput();
         }
 
-        // 5) Formateos finales
         $validated['marca']                      = ucfirst(strtolower($validated['marca']));
         $validated['tipo']                       = ucfirst(strtolower($validated['tipo']));
         $validated['linea']                      = ucfirst(strtolower($validated['linea']));
@@ -122,7 +103,6 @@ class VehiculosController extends Controller
         $validated['aseguradora']                = strtoupper((string)($validated['aseguradora'] ?? ''));
         $validated['partes_danadas']             = strtoupper($validated['partes_danadas']);
 
-        // 5.1) grua_id -> NOMBRE y ese nombre va a vehiculos.grua
         $nombreGrua = 'N/A';
         if (!empty($validated['grua_id'])) {
             $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
@@ -131,7 +111,6 @@ class VehiculosController extends Controller
             }
         }
 
-        // 6) Crear Vehículo (GUARDANDO EL NOMBRE DE LA GRÚA EN vehiculos.grua)
         $vehiculo = Vehiculo::create([
             'marca'                      => $validated['marca'],
             'modelo'                     => $validated['modelo'] ? strtoupper($validated['modelo']) : null,
@@ -155,7 +134,6 @@ class VehiculosController extends Controller
 
         $hecho->vehiculos()->attach($vehiculo->id);
 
-        // 7) Servicio de grúa (AQUÍ SÍ VA EL ID)
         if (!empty($validated['grua_id'])) {
             DB::table('servicios')->insert([
                 'vehiculo_id'   => $vehiculo->id,
@@ -167,7 +145,6 @@ class VehiculosController extends Controller
             ]);
         }
 
-        // 8) Conductor (si hay datos)
         if (
             !empty($validated['conductor_nombre']) ||
             !empty($validated['telefono']) ||
@@ -195,7 +172,6 @@ class VehiculosController extends Controller
             $vehiculo->conductores()->attach($conductor->id);
         }
 
-        // 9) Daños en el hecho
         $hecho->update([
             'danos_patrimoniales'       => strtoupper((string)($validated['danos_patrimoniales'] ?? '')),
             'propiedades_afectadas'     => strtoupper((string)($validated['propiedad'] ?? '')),
@@ -225,7 +201,6 @@ class VehiculosController extends Controller
             abort(404, 'El vehículo no pertenece a este hecho.');
         }
 
-        // 1) Validación
         $validated = $request->validate([
             'marca'                      => 'required|string|max:50',
             'modelo'                     => 'nullable|string|max:10',
@@ -268,12 +243,9 @@ class VehiculosController extends Controller
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
-        // 2) Normalizar antes de duplicados
         $validated['placas']           = strtoupper(str_replace('-', '', $validated['placas']));
         $validated['serie']            = strtoupper(str_replace('-', '', (string)($validated['serie'] ?? '')));
         $validated['conductor_nombre'] = strtoupper((string)($validated['conductor_nombre'] ?? ''));
-
-        // 3) Checkboxes
         $validated['antecedente_vehiculo']    = $request->has('antecedente_vehiculo');
         $validated['cinturon']                = $request->has('cinturon');
         $validated['antecedente_conductor']   = $request->has('antecedente_conductor');
@@ -282,7 +254,6 @@ class VehiculosController extends Controller
         $validated['aliento_etilico']         = $request->has('aliento_etilico');
         $validated['permanente']              = $request->boolean('permanente');
 
-        // 4) Duplicados (excluye este vehículo)
         $placaRepetida = $hecho->vehiculos()
             ->where('placas', $validated['placas'])
             ->where('vehiculos.id', '!=', $vehiculo->id)
@@ -309,7 +280,6 @@ class VehiculosController extends Controller
             return back()->withErrors($errors)->withInput();
         }
 
-        // 5) Formateos
         $validated['marca']                      = ucfirst(strtolower($validated['marca']));
         $validated['tipo']                       = ucfirst(strtolower($validated['tipo']));
         $validated['linea']                      = ucfirst(strtolower((string)($validated['linea'] ?? '')));
@@ -321,7 +291,6 @@ class VehiculosController extends Controller
         $validated['aseguradora']                = strtoupper((string)($validated['aseguradora'] ?? ''));
         $validated['partes_danadas']             = strtoupper($validated['partes_danadas']);
 
-        // 5.1) grua_id -> nombre (vehiculos.grua es TEXTO)
         $nombreGrua = 'N/A';
         if (!empty($validated['grua_id'])) {
             $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
@@ -332,17 +301,14 @@ class VehiculosController extends Controller
 
         $fechaServicio = null;
         if (!empty($hecho->fecha)) {
-            // si hay hora en el hecho, la usamos; si no, fijamos 12:00:00
             $hora = !empty($hecho->hora) ? $hecho->hora : '12:00:00';
             $fechaServicio = $hecho->fecha . ' ' . $hora;
         } else {
-            // fallback (raro), pero evita null
             $fechaServicio = now()->format('Y-m-d H:i:s');
         }
 
         DB::transaction(function () use ($validated, $vehiculo, $hecho, $nombreGrua, $fechaServicio) {
 
-            // 6) Actualizar vehículo
             $vehiculo->update([
                 'marca'                      => $validated['marca'],
                 'modelo'                     => $validated['modelo'] ? strtoupper($validated['modelo']) : null,
@@ -363,7 +329,6 @@ class VehiculosController extends Controller
                 'antecedente_vehiculo'       => $validated['antecedente_vehiculo'],
             ]);
 
-            // 7) Conductor
             $hayDatosConductor = (
                 $validated['conductor_nombre'] !== '' ||
                 !empty($validated['telefono']) ||
@@ -414,7 +379,6 @@ class VehiculosController extends Controller
                 $vehiculo->conductores()->attach($conductor->id);
             }
 
-            // 8) Servicio (servicios.grua_id) ✅ created_at basado en hecho
             $servicio = DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->first();
 
             if (!empty($validated['grua_id'])) {
@@ -444,7 +408,6 @@ class VehiculosController extends Controller
                 }
             }
 
-            // 9) Daños en el hecho
             $hecho->update([
                 'danos_patrimoniales'       => strtoupper((string)($validated['danos_patrimoniales'] ?? '')),
                 'propiedades_afectadas'     => strtoupper((string)($validated['propiedad'] ?? '')),
@@ -456,7 +419,6 @@ class VehiculosController extends Controller
             ->route('vehiculos.index', $hecho->id)
             ->with('success', 'Vehículo actualizado correctamente.');
     }
-
 
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {

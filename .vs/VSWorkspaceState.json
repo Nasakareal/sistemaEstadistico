@@ -4,10 +4,8 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\mapa"
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\MapaPatrullasController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\VehiculosController.php",
   "PreviewInSolutionExplorer": false
 }

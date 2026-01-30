@@ -8,11 +8,9 @@ use App\Models\Vehiculo;
 use App\Models\Conductor;
 use App\Models\Grua;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Throwable;
 
@@ -37,16 +35,17 @@ class VehiculoController extends Controller
             if (!empty($validated['grua_id'])) {
                 $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
                 if (!empty($tmp)) {
-                    $validated['grua'] = strtoupper($tmp);
+                    $validated['grua'] = strtoupper($this->removeAccents($tmp));
                 }
             }
 
-            if ($this->hayDuplicados($hecho, $validated)) {
-                return $this->fail('Placas, NIV/serie o conductor ya registrados en este hecho.', 409);
+            $dupErrors = $this->duplicadosDentroDelHecho($hecho, $validated);
+            if (!empty($dupErrors)) {
+                return $this->validationFailed($dupErrors, 'Duplicado dentro del hecho. Revisa los campos marcados.', 409);
             }
 
             return DB::transaction(function () use ($validated, $hecho) {
-                $vehiculo = Vehiculo::create($this->onlyVehiculo($validated));
+                $vehiculo = Vehiculo::create($this->onlyVehiculoForCreate($validated));
                 $hecho->vehiculos()->attach($vehiculo->id);
 
                 if (!empty($validated['grua_id'])) {
@@ -69,6 +68,9 @@ class VehiculoController extends Controller
             });
 
         } catch (QueryException $e) {
+            if ($this->isDuplicateKey($e)) {
+                return $this->fail('No se pudo guardar: ya existe un registro con esos datos (placas o NIV/serie).', 409);
+            }
             return $this->fail('No se pudo guardar el vehículo. Verifica los datos e intenta de nuevo.', 500);
         } catch (Throwable $e) {
             return $this->fail('Ocurrió un error inesperado al crear el vehículo.', 500);
@@ -102,16 +104,18 @@ class VehiculoController extends Controller
             if (!empty($validated['grua_id'])) {
                 $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
                 if (!empty($tmp)) {
-                    $validated['grua'] = strtoupper($tmp);
+                    $validated['grua'] = strtoupper($this->removeAccents($tmp));
                 }
             }
 
-            if ($this->hayDuplicados($hecho, $validated, $vehiculo->id)) {
-                return $this->fail('Duplicado dentro del hecho (placas / NIV/serie / conductor).', 409);
+            $dupErrors = $this->duplicadosDentroDelHecho($hecho, $validated, $vehiculo->id);
+            if (!empty($dupErrors)) {
+                return $this->validationFailed($dupErrors, 'Duplicado dentro del hecho. Revisa los campos marcados.', 409);
             }
 
             return DB::transaction(function () use ($validated, $vehiculo) {
-                $vehiculo->update($this->onlyVehiculo($validated));
+                $payload = $this->onlyVehiculoForUpdate($validated);
+                $vehiculo->update($payload);
 
                 if (!empty($validated['grua_id'])) {
                     DB::table('servicios')->updateOrInsert(
@@ -143,6 +147,9 @@ class VehiculoController extends Controller
             });
 
         } catch (QueryException $e) {
+            if ($this->isDuplicateKey($e)) {
+                return $this->fail('No se pudo actualizar: ya existe un registro con esos datos (placas o NIV/serie).', 409);
+            }
             return $this->fail('No se pudo actualizar el vehículo. Verifica los datos e intenta de nuevo.', 500);
         } catch (Throwable $e) {
             return $this->fail('Ocurrió un error inesperado al actualizar el vehículo.', 500);
@@ -157,6 +164,7 @@ class VehiculoController extends Controller
             }
 
             return DB::transaction(function () use ($hecho, $vehiculo) {
+
                 if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
                     Storage::disk('public')->delete($vehiculo->fotos);
                 }
@@ -273,17 +281,6 @@ class VehiculoController extends Controller
     {
         $data = $this->sanitize($request->all());
 
-        $uniquePlacas = Rule::unique('vehiculos', 'placas');
-        $uniqueSerie  = Rule::unique('vehiculos', 'serie');
-
-        if ($vehiculoId) {
-            $uniquePlacas->ignore($vehiculoId);
-            $uniqueSerie->ignore($vehiculoId);
-        }
-
-        // OJO:
-        // - Mantengo placas como required como tú lo tienes.
-        // - Pero agrego que si hay placas, estado_placas sea obligatorio (required_with).
         $rules = [
             'marca'                      => 'required|string|max:50',
             'modelo'                     => 'nullable|string|max:10',
@@ -291,15 +288,15 @@ class VehiculoController extends Controller
             'linea'                      => 'required|string|max:50',
             'color'                      => 'required|string|max:30',
 
-            'placas'                     => ['required','string','max:15',$uniquePlacas],
+            'placas'                     => ['required','string','max:15'],
             'estado_placas'              => 'nullable|string|max:15|required_with:placas',
 
-            // Serie = NIV (máx 17)
-            'serie'                      => ['nullable','string','max:17',$uniqueSerie],
+            'serie'                      => ['nullable','string','max:17'],
 
             'capacidad_personas'         => 'required|integer|min:0',
             'tipo_servicio'              => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
+
             'grua_id'                    => 'nullable|exists:gruas,id',
             'corralon'                   => 'nullable|string|max:50',
             'aseguradora'                => 'nullable|string|max:100',
@@ -327,19 +324,13 @@ class VehiculoController extends Controller
             'aliento_etilico'            => 'sometimes|boolean',
         ];
 
-        $messages = $this->validationMessages();
+        $messages   = $this->validationMessages();
         $attributes = $this->validationAttributes();
 
         $validator = Validator::make($data, $rules, $messages, $attributes);
 
         if ($validator->fails()) {
-            // 422 con JSON consistente
-            // (Flutter ya puede mostrar message + errors)
-            abort(response()->json([
-                'ok'      => false,
-                'message' => 'Datos inválidos. Revisa los campos marcados.',
-                'errors'  => $validator->errors()->toArray(),
-            ], 422));
+            $this->throwValidation($validator->errors()->toArray());
         }
 
         return $validator->validated();
@@ -361,11 +352,14 @@ class VehiculoController extends Controller
         }
 
         if (isset($data['placas'])) {
-            $data['placas'] = strtoupper(str_replace('-', '', $data['placas']));
+            $placa = strtoupper($this->removeAccents((string)$data['placas']));
+            $placa = str_replace(['-',' '], '', $placa);
+            $data['placas'] = $placa;
         }
 
         if (array_key_exists('serie', $data)) {
-            $serie = strtoupper(str_replace('-', '', (string)($data['serie'] ?? '')));
+            $serie = strtoupper($this->removeAccents((string)($data['serie'] ?? '')));
+            $serie = str_replace(['-',' '], '', $serie);
             $data['serie'] = ($serie !== '') ? $serie : null;
         }
 
@@ -380,29 +374,40 @@ class VehiculoController extends Controller
         return $data;
     }
 
-    private function hayDuplicados(Hechos $hecho, array $v, ?int $ignoreId = null): bool
+    private function duplicadosDentroDelHecho(Hechos $hecho, array $v, ?int $ignoreId = null): array
     {
-        $q = $hecho->vehiculos();
-        if ($ignoreId) $q->where('vehiculos.id', '!=', $ignoreId);
-        $dupPlaca = $q->where('placas', $v['placas'])->exists();
+        $errors = [];
 
-        $dupSerie = false;
+        if (!empty($v['placas'])) {
+            $q = $hecho->vehiculos()->where('placas', $v['placas']);
+            if ($ignoreId) $q->where('vehiculos.id', '!=', $ignoreId);
+            if ($q->exists()) {
+                $errors['placas'] = ['Ya existe un vehículo con estas placas en este hecho.'];
+            }
+        }
+
         if (!empty($v['serie'])) {
-            $q2 = $hecho->vehiculos();
-            if ($ignoreId) $q2->where('vehiculos.id', '!=', $ignoreId);
-            $dupSerie = $q2->where('serie', $v['serie'])->exists();
+            $q = $hecho->vehiculos()->where('serie', $v['serie']);
+            if ($ignoreId) $q->where('vehiculos.id', '!=', $ignoreId);
+            if ($q->exists()) {
+                $errors['serie'] = ['Ya existe un vehículo con este NIV/serie en este hecho.'];
+            }
         }
 
-        $dupConductor = false;
         if (!empty($v['conductor_nombre'])) {
-            $q3 = $hecho->vehiculos();
-            if ($ignoreId) $q3->where('vehiculos.id', '!=', $ignoreId);
-            $dupConductor = $q3->whereHas('conductores', function ($q) use ($v) {
-                $q->where('nombre', $v['conductor_nombre']);
+            $q = $hecho->vehiculos();
+            if ($ignoreId) $q->where('vehiculos.id', '!=', $ignoreId);
+
+            $exists = $q->whereHas('conductores', function ($qq) use ($v) {
+                $qq->where('nombre', $v['conductor_nombre']);
             })->exists();
+
+            if ($exists) {
+                $errors['conductor_nombre'] = ['Este conductor ya está registrado en este hecho.'];
+            }
         }
 
-        return $dupPlaca || $dupSerie || $dupConductor;
+        return $errors;
     }
 
     private function hayDatosConductor(array $v): bool
@@ -410,7 +415,7 @@ class VehiculoController extends Controller
         return !empty($v['conductor_nombre']) || !empty($v['telefono']) || !empty($v['domicilio']);
     }
 
-    private function onlyVehiculo(array $v): array
+    private function onlyVehiculoForCreate(array $v): array
     {
         return [
             'marca'                      => $v['marca'] ?? null,
@@ -431,6 +436,29 @@ class VehiculoController extends Controller
             'partes_danadas'             => $v['partes_danadas'] ?? null,
             'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
             'fotos'                      => $v['fotos'] ?? null,
+        ];
+    }
+
+    private function onlyVehiculoForUpdate(array $v): array
+    {
+        return [
+            'marca'                      => $v['marca'] ?? null,
+            'modelo'                     => $v['modelo'] ?? null,
+            'tipo'                       => $v['tipo'] ?? null,
+            'linea'                      => $v['linea'] ?? null,
+            'color'                      => $v['color'] ?? null,
+            'placas'                     => $v['placas'] ?? null,
+            'estado_placas'              => $v['estado_placas'] ?? null,
+            'serie'                      => $v['serie'] ?? null,
+            'capacidad_personas'         => $v['capacidad_personas'] ?? 0,
+            'tipo_servicio'              => $v['tipo_servicio'] ?? null,
+            'tarjeta_circulacion_nombre' => $v['tarjeta_circulacion_nombre'] ?? null,
+            'grua'                       => $v['grua'] ?? 'N/A',
+            'corralon'                   => $v['corralon'] ?? null,
+            'aseguradora'                => $v['aseguradora'] ?? null,
+            'monto_danos'                => $v['monto_danos'] ?? 0,
+            'partes_danadas'             => $v['partes_danadas'] ?? null,
+            'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
         ];
     }
 
@@ -463,14 +491,14 @@ class VehiculoController extends Controller
             'á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U',
             'À'=>'A','È'=>'E','Ì'=>'I','Ò'=>'O','Ù'=>'U',
             'à'=>'A','è'=>'E','ì'=>'I','ò'=>'O','ù'=>'U',
+            'Â'=>'A','Ê'=>'E','Î'=>'I','Ô'=>'O','Û'=>'U',
+            'â'=>'A','ê'=>'E','î'=>'I','ô'=>'O','û'=>'U',
+            'Ä'=>'A','Ë'=>'E','Ï'=>'I','Ö'=>'O','Ü'=>'U',
+            'ä'=>'A','ë'=>'E','ï'=>'I','ö'=>'O','ü'=>'U',
             'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
         ]);
     }
 
-    /**
-     * Normaliza strings: trim y "" -> null
-     * Esto ayuda a que required_with funcione bien.
-     */
     private function sanitize(array $data): array
     {
         foreach ($data as $k => $v) {
@@ -487,9 +515,14 @@ class VehiculoController extends Controller
         return $hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists();
     }
 
-    /**
-     * Mensajes claros para validación
-     */
+    private function isDuplicateKey(QueryException $e): bool
+    {
+        $msg = strtolower((string)$e->getMessage());
+        return str_contains($msg, 'duplicate entry')
+            || str_contains($msg, 'unique constraint')
+            || str_contains($msg, 'integrity constraint violation');
+    }
+
     private function validationMessages(): array
     {
         return [
@@ -503,21 +536,13 @@ class VehiculoController extends Controller
             'in' => 'El valor no es válido.',
             'date' => 'La fecha no es válida.',
             'exists' => 'El valor seleccionado no existe.',
-            'unique' => 'Este valor ya está registrado.',
             'required_with' => 'Este campo es obligatorio cuando se captura :values.',
-
-            // Específicos importantes
             'serie.max' => 'El NIV/serie no debe superar 17 caracteres.',
             'estado_placas.required_with' => 'Si capturas placas, también debes capturar el estado de placas.',
-            'placas.unique' => 'Estas placas ya están registradas.',
-            'serie.unique' => 'Este NIV/serie ya está registrado.',
             'telefono.digits' => 'El teléfono debe tener 10 dígitos.',
         ];
     }
 
-    /**
-     * Nombres bonitos para que no se vea "estado_placas"
-     */
     private function validationAttributes(): array
     {
         return [
@@ -537,7 +562,6 @@ class VehiculoController extends Controller
             'aseguradora' => 'aseguradora',
             'monto_danos' => 'monto de daños',
             'partes_danadas' => 'partes dañadas',
-
             'conductor_nombre' => 'nombre del conductor',
             'telefono' => 'teléfono',
             'domicilio' => 'domicilio',
@@ -551,9 +575,6 @@ class VehiculoController extends Controller
         ];
     }
 
-    /**
-     * Respuestas JSON consistentes
-     */
     private function ok(string $message, $data)
     {
         return response()->json([
@@ -572,13 +593,19 @@ class VehiculoController extends Controller
         ], 201);
     }
 
-    private function validationFailed(array $errors, string $message = 'Datos inválidos. Revisa los campos marcados.')
+    private function validationFailed(array $errors, string $message = 'Datos inválidos. Revisa los campos marcados.', int $status = 422)
     {
+        $first = null;
+        foreach ($errors as $field => $msgs) {
+            if (is_array($msgs) && !empty($msgs[0])) { $first = $msgs[0]; break; }
+            if (is_string($msgs)) { $first = $msgs; break; }
+        }
+
         return response()->json([
             'ok' => false,
-            'message' => $message,
+            'message' => $first ?: $message,
             'errors' => $errors
-        ], 422);
+        ], $status);
     }
 
     private function fail(string $message, int $status)
@@ -587,5 +614,14 @@ class VehiculoController extends Controller
             'ok' => false,
             'message' => $message
         ], $status);
+    }
+
+    private function throwValidation(array $errors): void
+    {
+        abort(response()->json([
+            'ok' => false,
+            'message' => 'Datos inválidos. Revisa los campos marcados.',
+            'errors' => $errors,
+        ], 422));
     }
 }

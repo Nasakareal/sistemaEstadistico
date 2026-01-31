@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\DictamenController;
 use App\Http\Controllers\Api\AlertController;
+use App\Http\Controllers\Api\ActividadController;
+use App\Http\Controllers\Api\FeedController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +34,29 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | FEED RED SOCIAL
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | ACTIVIDADES
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware(['auth:sanctum'])->prefix('actividades')->group(function () {
+        Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->name('api.actividades.subcategorias');
+        Route::get('/', [ActividadController::class, 'index'])->name('api.actividades.index');
+        Route::post('/', [ActividadController::class, 'store'])->middleware('can:crear actividades')->name('api.actividades.store');
+        Route::get('/{actividad}', [ActividadController::class, 'show'])->name('api.actividades.show');
+        Route::put('/{actividad}', [ActividadController::class, 'update'])->middleware('can:editar actividades')->name('api.actividades.update');
+        Route::delete('/{actividad}', [ActividadController::class, 'destroy'])->middleware('can:eliminar actividades')->name('api.actividades.destroy');
+    });
 
     /*
     |--------------------------------------------------------------------------

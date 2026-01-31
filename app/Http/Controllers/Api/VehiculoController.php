@@ -84,7 +84,28 @@ class VehiculoController extends Controller
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
 
-            return $this->ok('Vehículo encontrado.', $vehiculo->load('conductores'));
+            $vehiculo->load('conductores');
+
+            $servicio = DB::table('servicios as s')
+                ->leftJoin('gruas as g', 'g.id', '=', 's.grua_id')
+                ->where('s.vehiculo_id', $vehiculo->id)
+                ->select([
+                    's.grua_id',
+                    's.corralon',
+                    's.aseguradora',
+                    'g.nombre as grua_nombre',
+                ])
+                ->first();
+
+            return $this->ok('Vehículo encontrado.', [
+                'vehiculo' => $vehiculo,
+                'servicio' => [
+                    'grua_id'      => $servicio->grua_id ?? null,
+                    'grua_nombre'  => $servicio->grua_nombre ?? null,
+                    'corralon'     => $servicio->corralon ?? null,
+                    'aseguradora'  => $servicio->aseguradora ?? null,
+                ],
+            ]);
         } catch (Throwable $e) {
             return $this->fail('Ocurrió un error al consultar el vehículo.', 500);
         }

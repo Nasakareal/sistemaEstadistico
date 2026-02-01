@@ -23,16 +23,32 @@ class AuthController extends Controller
 
         $user = Auth::user();
 
+        $role = $user->roles()->pluck('name')->first();
+
+        $permissions = $user->getAllPermissions()->pluck('name')->values();
+
         return response()->json([
             'token' => $user->createToken('mobile')->plainTextToken,
-            'user'  => $user,
+
+            'role' => $role,
+            'permissions' => $permissions,
+
+            'user' => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+            ],
         ]);
     }
 
     public function me(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
-            'user' => $request->user(),
+            'user' => $user,
+            'role' => $user->roles()->pluck('name')->first(),
+            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         ]);
     }
 

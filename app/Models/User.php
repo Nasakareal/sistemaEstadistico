@@ -22,6 +22,8 @@ class User extends Authenticatable
         'unidad_id',
         'turno_id',
         'patrulla_id',
+        'delegacion_id',
+
         'compartir_ubicacion',
     ];
 
@@ -41,36 +43,30 @@ class User extends Authenticatable
      | RELACIONES ORGANIZACIONALES
      ===================================================== */
 
-    /**
-     * Unidad base del usuario
-     */
     public function unidad()
     {
         return $this->belongsTo(Unidad::class);
     }
 
-    /**
-     * Unidades adicionales (Coordinador)
-     */
     public function unidades()
     {
         return $this->belongsToMany(Unidad::class, 'unidad_user')->withTimestamps();
     }
 
-    /**
-     * Turno del usuario
-     */
     public function turno()
     {
         return $this->belongsTo(Turno::class);
     }
 
-    /**
-     * Patrulla asignada
-     */
     public function patrulla()
     {
         return $this->belongsTo(Patrulla::class);
+    }
+
+    // ✅ Delegación fija del usuario (cuando aplique)
+    public function delegacion()
+    {
+        return $this->belongsTo(Delegacion::class, 'delegacion_id');
     }
 
     /* =====================================================
@@ -91,9 +87,6 @@ class User extends Authenticatable
      | SCOPES DE VISIBILIDAD
      ===================================================== */
 
-    /**
-     * Usuarios visibles según el actor
-     */
     public function scopeVisibleFor($query, ?self $actor)
     {
         if ($actor && $actor->isSuperadmin()) {

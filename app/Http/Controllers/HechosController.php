@@ -11,7 +11,11 @@ class HechosController extends Controller
 {
     public function index()
     {
-        $hechos = Hechos::all();
+        $hechos = Hechos::query()
+            ->orderByDesc('fecha')
+            ->orderByDesc('created_at')
+            ->get();
+
         return view('hechos.index', compact('hechos'));
     }
 
@@ -62,11 +66,17 @@ class HechosController extends Controller
             ]);
         }
 
+        // Normalización de strings
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
+
+        // Delegación automática y FIJA al crear:
+        // - Si el usuario tiene delegacion_id => se guarda
+        // - Si no tiene => null (Morelia / estatal)
+        $validated['delegacion_id'] = $usuario->delegacion_id ?? null;
 
         $validated['created_by'] = $usuario->id;
 
@@ -190,17 +200,6 @@ class HechosController extends Controller
                 Storage::disk('public')->delete($hecho->foto_situacion);
             }
             $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
-        } else {
-            // Si cambia a PENDIENTE/REPORTE, permitimos quedarlo en null opcionalmente.
-            // Si quieres que al pasar a PENDIENTE se borre la foto_situacion existente, descomenta esto:
-            /*
-            if (in_array($situacion, ['PENDIENTE', 'REPORTE'], true)) {
-                if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
-                    Storage::disk('public')->delete($hecho->foto_situacion);
-                }
-                $validated['foto_situacion'] = null;
-            }
-            */
         }
 
         $hecho->update($validated);

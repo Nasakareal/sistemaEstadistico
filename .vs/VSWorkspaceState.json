@@ -3,14 +3,12 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\database",
-    "\\database\\migrations",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\dictamenes",
-    "\\routes"
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\users"
   ],
-  "SelectedNode": "\\database\\migrations\\2026_01_31_193818_make_nombre_mp_nullable_on_dictamens_table.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\users\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

@@ -22,7 +22,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="name">Nombre del Usuario</label>
-                                    <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror"
+                                    <input type="text" name="name" id="name"
+                                           class="form-control @error('name') is-invalid @enderror"
                                            value="{{ old('name') }}" placeholder="Ingrese el nombre" required>
                                     @error('name')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -34,7 +35,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="email">Email</label>
-                                    <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror"
+                                    <input type="email" name="email" id="email"
+                                           class="form-control @error('email') is-invalid @enderror"
                                            value="{{ old('email') }}" placeholder="Ingrese el correo electrónico" required>
                                     @error('email')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -46,7 +48,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="area">Área</label>
-                                    <input type="text" name="area" id="area" class="form-control @error('area') is-invalid @enderror"
+                                    <input type="text" name="area" id="area"
+                                           class="form-control @error('area') is-invalid @enderror"
                                            value="{{ old('area') }}" placeholder="Ingrese el área">
                                     @error('area')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -60,7 +63,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="role">Rol</label>
-                                    <select name="role" id="role" class="form-control @error('role') is-invalid @enderror" required>
+                                    <select name="role" id="role"
+                                            class="form-control @error('role') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione un rol</option>
                                         @foreach ($roles as $role)
                                             <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
@@ -79,7 +83,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="password">Contraseña</label>
-                                    <input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror"
+                                    <input type="password" name="password" id="password"
+                                           class="form-control @error('password') is-invalid @enderror"
                                            placeholder="Ingrese la contraseña" required>
                                     @error('password')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -91,7 +96,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="password_confirmation">Repetir Contraseña</label>
-                                    <input type="password" name="password_confirmation" id="password_confirmation" class="form-control"
+                                    <input type="password" name="password_confirmation" id="password_confirmation"
+                                           class="form-control"
                                            placeholder="Confirme la contraseña" required>
                                 </div>
                             </div>
@@ -104,7 +110,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad (principal)</label>
-                                    <select name="unidad_id" id="unidad_id" class="form-control @error('unidad_id') is-invalid @enderror">
+                                    <select name="unidad_id" id="unidad_id"
+                                            class="form-control @error('unidad_id') is-invalid @enderror">
                                         <option value="" selected>Sin unidad</option>
                                         @foreach ($unidades as $u)
                                             <option value="{{ $u->id }}" {{ old('unidad_id') == $u->id ? 'selected' : '' }}>
@@ -123,7 +130,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="turno_id">Turno</label>
-                                    <select name="turno_id" id="turno_id" class="form-control @error('turno_id') is-invalid @enderror">
+                                    <select name="turno_id" id="turno_id"
+                                            class="form-control @error('turno_id') is-invalid @enderror">
                                         <option value="" selected>Sin turno</option>
                                         @foreach ($turnos as $t)
                                             <option value="{{ $t->id }}" {{ old('turno_id') == $t->id ? 'selected' : '' }}>
@@ -142,7 +150,8 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="patrulla_id">Patrulla (número económico)</label>
-                                    <select name="patrulla_id" id="patrulla_id" class="form-control @error('patrulla_id') is-invalid @enderror">
+                                    <select name="patrulla_id" id="patrulla_id"
+                                            class="form-control @error('patrulla_id') is-invalid @enderror">
                                         <option value="" selected>Sin patrulla</option>
                                         @foreach ($patrullas as $p)
                                             <option value="{{ $p->id }}" {{ old('patrulla_id') == $p->id ? 'selected' : '' }}>
@@ -158,12 +167,37 @@
                             </div>
                         </div>
 
+                        {{-- ✅ Delegación: SOLO si la Unidad es "DELEGACIONES" --}}
+                        <div class="row" id="box_delegacion" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="delegacion_id">Delegación</label>
+                                    <select name="delegacion_id" id="delegacion_id"
+                                            class="form-control @error('delegacion_id') is-invalid @enderror">
+                                        <option value="" disabled selected>Seleccione una delegación</option>
+                                        @foreach ($delegaciones as $d)
+                                            <option value="{{ $d->id }}" {{ old('delegacion_id') == $d->id ? 'selected' : '' }}>
+                                                {{ $d->nombre }}@if(!empty($d->clave)) ({{ $d->clave }}) @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('delegacion_id')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="text-muted">
+                                        Solo aplica si la unidad principal es DELEGACIONES. Si cambias la unidad, se limpia automáticamente.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row" id="box_unidades_extra" style="display:none;">
                             <!-- Unidades extra (Coordinador) -->
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="unidades_ids">Unidades adicionales (solo Coordinador)</label>
-                                    <select name="unidades_ids[]" id="unidades_ids" class="form-control @error('unidades_ids') is-invalid @enderror" multiple>
+                                    <select name="unidades_ids[]" id="unidades_ids"
+                                            class="form-control @error('unidades_ids') is-invalid @enderror" multiple>
                                         @foreach ($unidades as $u)
                                             <option value="{{ $u->id }}" {{ collect(old('unidades_ids', []))->contains($u->id) ? 'selected' : '' }}>
                                                 {{ $u->nombre }}
@@ -212,17 +246,41 @@
 @section('js')
     <script>
         (function () {
+            const UNIDAD_DELEGACIONES_ID = @json($unidadDelegacionesId);
+
             function toggleUnidadesExtra() {
-                const role = document.getElementById('role').value || '';
+                const role = (document.getElementById('role')?.value || '');
                 const box = document.getElementById('box_unidades_extra');
                 if (!box) return;
                 box.style.display = (role === 'Coordinador') ? '' : 'none';
             }
 
+            function toggleDelegacion() {
+                const unidadSel = document.getElementById('unidad_id');
+                const box = document.getElementById('box_delegacion');
+                const delegSel = document.getElementById('delegacion_id');
+
+                if (!unidadSel || !box || !delegSel) return;
+
+                const unidadId = unidadSel.value ? parseInt(unidadSel.value, 10) : null;
+                const show = (UNIDAD_DELEGACIONES_ID !== null && unidadId === parseInt(UNIDAD_DELEGACIONES_ID, 10));
+
+                box.style.display = show ? '' : 'none';
+
+                if (!show) {
+                    delegSel.value = '';
+                }
+            }
+
             document.addEventListener('DOMContentLoaded', function () {
                 const roleSel = document.getElementById('role');
                 if (roleSel) roleSel.addEventListener('change', toggleUnidadesExtra);
+
+                const unidadSel = document.getElementById('unidad_id');
+                if (unidadSel) unidadSel.addEventListener('change', toggleDelegacion);
+
                 toggleUnidadesExtra();
+                toggleDelegacion();
             });
         })();
 

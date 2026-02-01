@@ -10,6 +10,8 @@ class Hechos extends Model
 {
     use HasFactory;
 
+    protected $table = 'hechos';
+
     protected $fillable = [
         'folio_c5i',
         'perito',
@@ -41,6 +43,7 @@ class Hechos extends Model
         'monto_danos_patrimoniales',
         'foto_lugar',
         'foto_situacion',
+        'delegacion_id',
 
         'created_by',
         'updated_by',
@@ -77,5 +80,13 @@ class Hechos extends Model
     public function unidadOrganizacional(): BelongsTo
     {
         return $this->belongsTo(Unidad::class, 'unidad_org_id');
+    }
+
+    /**
+     * Delegación del hecho (cuando aplique)
+     */
+    public function delegacion(): BelongsTo
+    {
+        return $this->belongsTo(Delegacion::class, 'delegacion_id');
     }
 }

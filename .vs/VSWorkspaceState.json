@@ -4,8 +4,11 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models",
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\AuthController.php",
+  "SelectedNode": "\\database\\migrations\\2026_01_31_212252_add_delegacion_id_to_users_table.php",
   "PreviewInSolutionExplorer": false
 }

@@ -21,9 +21,9 @@ class ActividadController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = (int) $request->query('per_page', 50);
+        $perPage = (int) $request->query('per_page', 20);
         if ($perPage < 1) $perPage = 1;
-        if ($perPage > 50) $perPage = 50;
+        if ($perPage > 20) $perPage = 20;
 
         $date = $request->query('date');
         $tz = config('app.timezone', 'America/Mexico_City');

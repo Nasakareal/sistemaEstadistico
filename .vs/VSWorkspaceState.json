@@ -5,9 +5,8 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DictamenController.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

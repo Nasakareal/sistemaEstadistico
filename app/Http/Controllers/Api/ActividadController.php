@@ -265,6 +265,19 @@ class ActividadController extends Controller
         });
     }
 
+    public function categorias()
+    {
+        $items = ActividadCategoria::query()
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $items,
+        ]);
+    }
+
     public function subcategorias(ActividadCategoria $categoria)
     {
         $items = ActividadSubcategoria::query()

@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware(['auth:sanctum'])->prefix('actividades')->group(function () {
+        Route::get('/categorias', [ActividadController::class, 'categorias'])->name('api.actividades.categorias');
         Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->name('api.actividades.subcategorias');
         Route::get('/', [ActividadController::class, 'index'])->name('api.actividades.index');
         Route::post('/', [ActividadController::class, 'store'])->middleware('can:crear actividades')->name('api.actividades.store');

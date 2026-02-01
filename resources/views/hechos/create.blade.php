@@ -15,12 +15,15 @@
                 </div>
 
                 <div class="card-body">
-                    <form action="{{ route('hechos.store') }}" method="POST" enctype="multipart/form-data">
+                    <form id="form_hecho" action="{{ route('hechos.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
-                        <!-- Folio de C5i, Perito, N° Autorización de Práctico, Unidad -->
+                        <input type="hidden" name="lat" id="lat" value="{{ old('lat') }}">
+                        <input type="hidden" name="lng" id="lng" value="{{ old('lng') }}">
+                        <input type="hidden" name="precision_m" id="precision_m" value="{{ old('precision_m') }}">
+                        <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion') }}">
+
                         <div class="row">
-                            <!-- Folio de C5i -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="folio_c5i">Folio de C5i<span style="color: red">*</span></label>
@@ -28,14 +31,11 @@
                                            class="form-control @error('folio_c5i') is-invalid @enderror"
                                            value="{{ old('folio_c5i') }}" placeholder="Ingrese el folio de C5i" required>
                                     @error('folio_c5i')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Perito -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="perito">Perito<span style="color: red">*</span></label>
@@ -43,14 +43,11 @@
                                            class="form-control @error('perito') is-invalid @enderror"
                                            value="{{ old('perito') }}" placeholder="Nombre del perito" required>
                                     @error('perito')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- N° Autorización de Práctico -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="autorizacion_practico">N° Autorización de Práctico</label>
@@ -58,14 +55,11 @@
                                            class="form-control @error('autorizacion_practico') is-invalid @enderror"
                                            value="{{ old('autorizacion_practico') }}" placeholder="Ingrese el número de autorización">
                                     @error('autorizacion_practico')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Unidad -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="unidad">Unidad<span style="color: red">*</span></label>
@@ -73,44 +67,31 @@
                                            class="form-control @error('unidad') is-invalid @enderror"
                                            value="{{ old('unidad') }}" placeholder="Ingrese la unidad" required>
                                     @error('unidad')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Hora, Fecha, Sector, Municipio -->
                         <div class="row">
-                            <!-- Hora -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="hora">Hora<span style="color: red">*</span></label>
-
-                                    {{-- Firefox no muestra reloj nativo para <input type="time">.
-                                         Usamos flatpickr para tener selector de hora siempre. --}}
-                                    <input
-                                        type="text"
-                                        name="hora"
-                                        id="hora"
-                                        inputmode="numeric"
-                                        autocomplete="off"
-                                        class="form-control @error('hora') is-invalid @enderror"
-                                        value="{{ old('hora') }}"
-                                        placeholder="HH:MM"
-                                        required
-                                    >
-
+                                    <input type="text"
+                                           name="hora"
+                                           id="hora"
+                                           inputmode="numeric"
+                                           autocomplete="off"
+                                           class="form-control @error('hora') is-invalid @enderror"
+                                           value="{{ old('hora') }}"
+                                           placeholder="HH:MM"
+                                           required>
                                     @error('hora')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Fecha -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="fecha">Fecha <span style="color: red">*</span></label>
@@ -119,14 +100,11 @@
                                            value="{{ old('fecha', \Carbon\Carbon::now()->toDateString()) }}"
                                            readonly required>
                                     @error('fecha')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Sector -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="sector">Sector<span style="color: red">*</span></label>
@@ -139,14 +117,11 @@
                                         <option value="CENTRO" {{ old('sector') == 'CENTRO' ? 'selected' : '' }}>CENTRO</option>
                                     </select>
                                     @error('sector')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Municipio -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="municipio">Municipio<span style="color: red">*</span></label>
@@ -154,17 +129,13 @@
                                            class="form-control @error('municipio') is-invalid @enderror"
                                            value="{{ old('municipio') }}" placeholder="Ingrese el municipio" required>
                                     @error('municipio')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Calle, Colonia, Entre Calles -->
                         <div class="row">
-                            <!-- Calle -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="calle">Calle<span style="color: red">*</span></label>
@@ -172,14 +143,11 @@
                                            class="form-control @error('calle') is-invalid @enderror"
                                            value="{{ old('calle') }}" placeholder="Ingrese la calle" required>
                                     @error('calle')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Colonia -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="colonia">Colonia<span style="color: red">*</span></label>
@@ -187,14 +155,11 @@
                                            class="form-control @error('colonia') is-invalid @enderror"
                                            value="{{ old('colonia') }}" placeholder="Ingrese la colonia" required>
                                     @error('colonia')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Entre Calles -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="entre_calles">Entre Calles</label>
@@ -202,17 +167,44 @@
                                            class="form-control @error('entre_calles') is-invalid @enderror"
                                            value="{{ old('entre_calles') }}" placeholder="Ingrese entre calles">
                                     @error('entre_calles')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Tipo de Hecho, Superficie, Tiempo, Clima, Condiciones -->
                         <div class="row">
-                            <!-- Tipo de Hecho de Tránsito -->
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>Ubicación (coordenadas) <span style="color:red">*</span></label>
+
+                                    <div class="d-flex align-items-center" style="gap:10px; flex-wrap:wrap;">
+                                        <button type="button" class="btn btn-outline-info" id="btn_geo">
+                                            <i class="fa-solid fa-location-crosshairs"></i> Usar mi ubicación
+                                        </button>
+
+                                        <span id="geo_status" class="help-muted">
+                                            @if(old('lat') && old('lng'))
+                                                OK: {{ old('lat') }}, {{ old('lng') }}
+                                                @if(old('precision_m')) (±{{ old('precision_m') }} m) @endif
+                                            @else
+                                                Sin coordenadas
+                                            @endif
+                                        </span>
+
+                                        <button type="button" class="btn btn-outline-danger btn-sm" id="btn_geo_clear" style="display:none;">
+                                            <i class="fa-solid fa-trash"></i> Quitar
+                                        </button>
+                                    </div>
+
+                                    <small class="help-muted">
+                                        Es obligatorio capturar lat/lng. Si el navegador pregunta permisos, acepta.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="tipo_hecho">Tipo de Hecho de Tránsito<span style="color: red">*</span></label>
@@ -237,14 +229,11 @@
                                         <option value="Otro" {{ old('tipo_hecho') == 'Otro' ? 'selected' : '' }}>Otro</option>
                                     </select>
                                     @error('tipo_hecho')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Superficie de la Vía -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="superficie_via">Superficie de la Vía<span style="color: red">*</span></label>
@@ -252,14 +241,11 @@
                                            class="form-control @error('superficie_via') is-invalid @enderror"
                                            value="{{ old('superficie_via') }}" placeholder="Ingrese la superficie de la vía" required>
                                     @error('superficie_via')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Tiempo -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="tiempo">Tiempo<span style="color: red">*</span></label>
@@ -271,14 +257,11 @@
                                         <option value="Atardecer" {{ old('tiempo') == 'Atardecer' ? 'selected' : '' }}>ATARDECER</option>
                                     </select>
                                     @error('tiempo')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Clima -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="clima">Clima<span style="color: red">*</span></label>
@@ -290,14 +273,11 @@
                                         <option value="Lluvioso" {{ old('clima') == 'Lluvioso' ? 'selected' : '' }}>LLUVIOSO</option>
                                     </select>
                                     @error('clima')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Condiciones -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="condiciones">Condiciones<span style="color: red">*</span></label>
@@ -308,17 +288,13 @@
                                         <option value="Malo" {{ old('condiciones') == 'Malo' ? 'selected' : '' }}>MALO</option>
                                     </select>
                                     @error('condiciones')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Situación, Control de Tránsito, Colisión -->
                         <div class="row">
-                            <!-- Situación -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="situacion">Situación<span style="color: red">*</span></label>
@@ -330,14 +306,11 @@
                                         <option value="REPORTE" {{ old('situacion') == 'REPORTE' ? 'selected' : '' }}>REPORTE</option>
                                     </select>
                                     @error('situacion')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Control de Tránsito -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="control_transito">Control de Tránsito<span style="color: red">*</span></label>
@@ -345,14 +318,11 @@
                                            class="form-control @error('control_transito') is-invalid @enderror"
                                            value="{{ old('control_transito') }}" placeholder="Ingrese el control de tránsito" required>
                                     @error('control_transito')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Colisión -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="colision_camino">Colisión sobre el Camino<span style="color: red">*</span></label>
@@ -360,17 +330,13 @@
                                            class="form-control @error('colision_camino') is-invalid @enderror"
                                            value="{{ old('colision_camino') }}" placeholder="Ingrese la colisión sobre el camino" required>
                                     @error('colision_camino')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- ✅ NUEVAS FOTOS -->
                         <div class="row">
-                            <!-- Foto del lugar -->
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="foto_lugar">Foto del lugar (opcional)</label>
@@ -380,15 +346,12 @@
                                            accept="image/*"
                                            class="form-control @error('foto_lugar') is-invalid @enderror">
                                     @error('foto_lugar')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                     <small id="foto_lugar_name" class="help-muted"></small>
                                 </div>
                             </div>
 
-                            <!-- Foto situación (condicionada) -->
                             <div class="col-md-6" id="foto_situacion_group" style="display:none;">
                                 <div class="form-group">
                                     <label for="foto_situacion">
@@ -400,9 +363,7 @@
                                            accept="image/*"
                                            class="form-control @error('foto_situacion') is-invalid @enderror">
                                     @error('foto_situacion')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
 
                                     <small id="foto_situacion_hint" class="help-muted"></small><br>
@@ -411,7 +372,6 @@
                             </div>
                         </div>
 
-                        <!-- Antecedentes, Causas -->
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -423,7 +383,6 @@
                                 </div>
                             </div>
 
-                            <!-- Causas -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="causas">Causas<span style="color: red">*</span></label>
@@ -431,17 +390,13 @@
                                            class="form-control @error('causas') is-invalid @enderror"
                                            value="{{ old('causas') }}" placeholder="Ingrese las causas" required>
                                     @error('causas')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Oficio MP, Vehículos y Personas presentados al MP -->
                         <div class="row">
-                            <!-- Oficio MP -->
                             <div class="col-md-4" id="oficio_mp_group" style="display: none;">
                                 <div class="form-group">
                                     <label for="oficio_mp">Oficio MP<span style="color: red">*</span></label>
@@ -449,14 +404,11 @@
                                            class="form-control @error('oficio_mp') is-invalid @enderror"
                                            value="{{ old('oficio_mp') }}" placeholder="Ingrese el número de oficio">
                                     @error('oficio_mp')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Vehículos presentados al MP -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="vehiculos_mp">Vehículos presentados al MP</label>
@@ -464,14 +416,11 @@
                                            class="form-control @error('vehiculos_mp') is-invalid @enderror"
                                            value="{{ old('vehiculos_mp', 0) }}" min="0" required>
                                     @error('vehiculos_mp')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <!-- Personas presentadas al MP -->
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="personas_mp">Personas presentadas al MP</label>
@@ -479,20 +428,17 @@
                                            class="form-control @error('personas_mp') is-invalid @enderror"
                                            value="{{ old('personas_mp', 0) }}" min="0" required>
                                     @error('personas_mp')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Submit y Cancelar -->
                         <hr>
                         <div class="row">
                             <div class="col-md-12 text-center">
                                 <div class="form-group">
-                                    <button type="submit" class="btn btn-primary">
+                                    <button id="btn_submit" type="submit" class="btn btn-primary">
                                         <i class="fa-solid fa-check"></i> Registrar
                                     </button>
 
@@ -500,6 +446,9 @@
                                         <i class="fa-solid fa-ban"></i> Cancelar
                                     </a>
                                 </div>
+                                <small id="geo_required_hint" class="help-muted" style="display:none;">
+                                    Captura la ubicación para poder registrar.
+                                </small>
                             </div>
                         </div>
 
@@ -511,19 +460,16 @@
 @stop
 
 @section('css')
-    {{-- Flatpickr (selector de hora cross-browser, incluyendo Firefox) --}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <style>
         .help-muted { color: rgba(234,240,255,.65); }
 
-        /* ===== Labels ===== */
         .form-group label {
             font-weight: bold;
             color: #eaf0ff;
         }
 
-        /* ===== Inputs / selects (modo oscuro AdminLTE) ===== */
         .form-control,
         select.form-control {
             color: #eaf0ff;
@@ -536,7 +482,6 @@
             color: rgba(234,240,255,.55);
         }
 
-        /* ===== Opciones del dropdown ===== */
         select option {
             color: #111 !important;
             background-color: #ffffff !important;
@@ -558,7 +503,6 @@
             color: #0b1220 !important;
         }
 
-        /* ===== Focus ===== */
         .form-control:focus,
         select:focus {
             outline: none;
@@ -566,7 +510,6 @@
             border-color: rgba(45,168,255,.55);
         }
 
-        /* ===== Flatpickr: que se vea bien en modo oscuro ===== */
         .flatpickr-calendar {
             border-radius: 14px;
             overflow: hidden;
@@ -579,11 +522,14 @@
 @stop
 
 @section('js')
-    {{-- Flatpickr --}}
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('form_hecho');
+            const btnSubmit = document.getElementById('btn_submit');
+            const geoRequiredHint = document.getElementById('geo_required_hint');
+
             const situacionSelect = document.getElementById('situacion');
             const oficioMpGroup = document.getElementById('oficio_mp_group');
 
@@ -595,6 +541,15 @@
             const fotoLugarInput = document.getElementById('foto_lugar');
             const fotoLugarName = document.getElementById('foto_lugar_name');
             const fotoSituacionName = document.getElementById('foto_situacion_name');
+
+            const btnGeo = document.getElementById('btn_geo');
+            const btnGeoClear = document.getElementById('btn_geo_clear');
+            const geoStatus = document.getElementById('geo_status');
+
+            const latInput = document.getElementById('lat');
+            const lngInput = document.getElementById('lng');
+            const precisionInput = document.getElementById('precision_m');
+            const fuenteInput = document.getElementById('fuente_ubicacion');
 
             function toggleOficioMp() {
                 if (situacionSelect.value === 'TURNADO') {
@@ -608,15 +563,11 @@
 
             function toggleFotoSituacion() {
                 const val = situacionSelect.value;
-
-                // Solo aplica en RESUELTO y TURNADO
                 const mustShow = (val === 'RESUELTO' || val === 'TURNADO');
 
                 if (mustShow) {
                     fotoSituacionGroup.style.display = 'block';
                     fotoSituacionRequired.style.display = 'inline';
-
-                    // HTML required (además de validación backend)
                     fotoSituacionInput.required = true;
 
                     if (val === 'RESUELTO') {
@@ -628,32 +579,56 @@
                     fotoSituacionGroup.style.display = 'none';
                     fotoSituacionRequired.style.display = 'none';
                     fotoSituacionHint.textContent = '';
-
-                    // Quitar required y limpiar archivo seleccionado
                     fotoSituacionInput.required = false;
                     fotoSituacionInput.value = '';
                     fotoSituacionName.textContent = '';
                 }
             }
 
-            // Inicializar en carga
+            function setGeoUI() {
+                const lat = latInput.value;
+                const lng = lngInput.value;
+                const prec = precisionInput.value;
+
+                if (lat && lng) {
+                    geoStatus.textContent = `OK: ${lat}, ${lng}` + (prec ? ` (±${prec} m)` : '');
+                    btnGeoClear.style.display = 'inline-block';
+                    if (btnSubmit) btnSubmit.disabled = false;
+                    if (geoRequiredHint) geoRequiredHint.style.display = 'none';
+                } else {
+                    geoStatus.textContent = 'Sin coordenadas';
+                    btnGeoClear.style.display = 'none';
+                    if (btnSubmit) btnSubmit.disabled = true;
+                    if (geoRequiredHint) geoRequiredHint.style.display = 'block';
+                }
+            }
+
+            function toastError(msg) {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'error', title: 'Ubicación', text: msg });
+                } else {
+                    alert(msg);
+                }
+            }
+
+            function toastOk(msg) {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'success', title: 'Ubicación', text: msg, timer: 1600, showConfirmButton: false });
+                }
+            }
+
             toggleOficioMp();
             toggleFotoSituacion();
 
-            // Escuchar cambios
             situacionSelect.addEventListener('change', function () {
                 toggleOficioMp();
                 toggleFotoSituacion();
             });
 
-            // ===== Hora (Firefox/Chrome/Edge): selector consistente =====
             const horaInput = document.getElementById('hora');
-
-            // Normaliza valor a HH:MM si viene con segundos
             if (horaInput && horaInput.value) {
                 horaInput.value = String(horaInput.value).substring(0, 5);
             }
-
             if (horaInput && window.flatpickr) {
                 flatpickr(horaInput, {
                     enableTime: true,
@@ -664,7 +639,6 @@
                 });
             }
 
-            // Mostrar nombre de archivo seleccionado
             if (fotoLugarInput) {
                 fotoLugarInput.addEventListener('change', function () {
                     const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
@@ -676,6 +650,68 @@
                 fotoSituacionInput.addEventListener('change', function () {
                     const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
                     fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
+                });
+            }
+
+            setGeoUI();
+
+            if (btnGeo) {
+                btnGeo.addEventListener('click', function () {
+                    if (!navigator.geolocation) {
+                        toastError('Tu navegador no soporta geolocalización.');
+                        return;
+                    }
+
+                    geoStatus.textContent = 'Obteniendo ubicación...';
+
+                    navigator.geolocation.getCurrentPosition(
+                        function (pos) {
+                            const lat = pos.coords.latitude;
+                            const lng = pos.coords.longitude;
+                            const acc = pos.coords.accuracy;
+
+                            latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
+                            lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
+                            precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
+                            fuenteInput.value = 'GPS_WEB';
+
+                            setGeoUI();
+                            toastOk('Coordenadas capturadas.');
+                        },
+                        function (err) {
+                            let msg = 'No se pudo obtener la ubicación.';
+                            if (err && err.code === 1) msg = 'Permiso denegado. Activa la ubicación y permite el acceso.';
+                            if (err && err.code === 2) msg = 'Ubicación no disponible.';
+                            if (err && err.code === 3) msg = 'Tiempo de espera agotado. Intenta otra vez.';
+                            setGeoUI();
+                            toastError(msg);
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 12000,
+                            maximumAge: 0
+                        }
+                    );
+                });
+            }
+
+            if (btnGeoClear) {
+                btnGeoClear.addEventListener('click', function () {
+                    latInput.value = '';
+                    lngInput.value = '';
+                    precisionInput.value = '';
+                    fuenteInput.value = '';
+                    setGeoUI();
+                });
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    if (!latInput.value || !lngInput.value) {
+                        e.preventDefault();
+                        setGeoUI();
+                        toastError('Captura la ubicación antes de registrar.');
+                    }
                 });
             }
         });

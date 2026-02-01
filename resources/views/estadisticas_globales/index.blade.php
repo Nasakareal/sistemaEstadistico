@@ -114,6 +114,13 @@
                                 <i class="fa-solid fa-file-csv"></i> Export CSV
                             </a>
                         </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <a class="btn sv-btn w-100" id="btn_export_mensual" href="#" target="_blank">
+                                <i class="fa-solid fa-file-excel"></i> Excel mensual
+                            </a>
+                        </div>
                     </div>
 
                     <div class="sv-hint">
@@ -231,7 +238,6 @@
         </div>
     </div>
 @stop
-s
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-dashboard.css') }}">
@@ -263,8 +269,6 @@ s
         const q = val('f_q');
         const veh_placas = val('f_veh_placas');
         const veh_serie = val('f_veh_serie');
-
-        // puede no existir
         const con_lesionados = val('f_con_lesionados');
 
         if (desde) params.set('desde', desde);
@@ -304,12 +308,42 @@ s
         return await res.json();
     }
 
-    function setExportLink(){
-        const a = el('btn_export');
-        if (!a) return;
+    function monthFromFilters(){
+        const desde = val('f_desde');
+        const hasta = val('f_hasta');
 
+        if (hasta) {
+            const h = new Date(hasta + 'T00:00:00');
+            return { anio: h.getFullYear(), mes: h.getMonth() + 1 };
+        }
+
+        if (desde) {
+            const d = new Date(desde + 'T00:00:00');
+            return { anio: d.getFullYear(), mes: d.getMonth() + 1 };
+        }
+
+        const now = new Date();
+        return { anio: now.getFullYear(), mes: now.getMonth() + 1 };
+    }
+
+    function setExportLinks(){
         const qs = qsFromFilters();
-        a.href = qs ? `${base}/export/hechos?${qs}` : `${base}/export/hechos`;
+
+        // CSV (ya existe)
+        const aCsv = el('btn_export');
+        if (aCsv){
+            aCsv.href = qs ? `${base}/export/hechos?${qs}` : `${base}/export/hechos`;
+        }
+
+        // Excel mensual (nuevo)
+        const aXls = el('btn_export_mensual');
+        if (aXls){
+            const mm = monthFromFilters();
+            const params = new URLSearchParams(qs ? qs : '');
+            params.set('anio', String(mm.anio));
+            params.set('mes', String(mm.mes));
+            aXls.href = `${base}/export/mensual?${params.toString()}`;
+        }
     }
 
     // ---------- Charts ----------
@@ -328,10 +362,7 @@ s
 
         return new Chart(canvas, {
             type,
-            data: {
-                labels,
-                datasets: [{ label: 'Total', data }]
-            },
+            data: { labels, datasets: [{ label: 'Total', data }] },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -407,7 +438,7 @@ s
     }
 
     async function loadAll(){
-        setExportLink();
+        setExportLinks();
 
         // KPIs
         const k = await getJson('kpis');
@@ -415,7 +446,7 @@ s
         if (el('k_lesionados')) el('k_lesionados').textContent = (k.totales?.lesionados ?? 0);
         if (el('k_vehiculos')) el('k_vehiculos').textContent = (k.totales?.vehiculos ?? 0);
 
-        // Selects (SIN municipio)
+        // Selects
         const distSector = await getJson('series/sector');
         fillSelect('f_sector', distSector.series || []);
 
@@ -461,10 +492,8 @@ s
     // Controls
     const btnAplicar = el('btn_aplicar');
     if (btnAplicar){
-        btnAplicar.setAttribute('type', 'button');
         btnAplicar.addEventListener('click', async function(e){
             e.preventDefault();
-            e.stopPropagation();
             page = 1;
             await loadAll();
         });
@@ -517,4 +546,3 @@ s
 })();
 </script>
 @stop
-

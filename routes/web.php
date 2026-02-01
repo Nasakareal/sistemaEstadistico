@@ -105,6 +105,7 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/series/vehiculos/modelo',[EstadisticasGlobalesController::class,'seriesVehiculosModelo'])->name('estadisticas_globales.series.vehiculos_modelo');
     Route::get('/hechos',[EstadisticasGlobalesController::class,'hechos'])->name('estadisticas_globales.hechos');
     Route::get('/export/hechos',[EstadisticasGlobalesController::class,'exportHechos'])->name('estadisticas_globales.export.hechos');
+    Route::get('/export/mensual', [EstadisticasGlobalesController::class, 'exportMensual'])->name('estadisticas_globales.export.mensual');
 });
 
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {

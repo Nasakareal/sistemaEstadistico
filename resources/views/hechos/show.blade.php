@@ -6,7 +6,6 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap">
         <h1 class="mb-0">Detalles del Hecho</h1>
 
-        {{-- LÁPIZ PARA EDITAR EL HECHO --}}
         @can('editar hechos')
             <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-warning btn-sm">
                 <i class="fa-solid fa-pen-to-square"></i> Editar hecho
@@ -51,6 +50,11 @@
         if (is_bool($v)) return $v ? 'Sí' : 'No';
         return (string) $v;
     };
+
+    // ✅ Coordenadas (ajusta si tus columnas se llaman diferente)
+    $lat = old('lat', $hecho->lat ?? null);
+    $lng = old('lng', $hecho->lng ?? null);
+    $precision = old('precision_m', $hecho->precision_m ?? null);
 @endphp
 
 <div class="row justify-content-center">
@@ -61,7 +65,6 @@
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h3 class="card-title mb-0">Información Registrada</h3>
 
-                {{-- LÁPIZ (solo icono) --}}
                 @can('editar hechos')
                     <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar hecho">
                         <i class="fa-solid fa-pen-to-square"></i>
@@ -72,7 +75,7 @@
             <div class="card-body">
                 <div class="row">
                     @foreach($campos as $field => $label)
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-3">
                             <div class="form-group">
                                 <label>{{ $label }}</label>
                                 <p class="form-control-static">{{ $fmt(data_get($hecho, $field)) }}</p>
@@ -81,7 +84,70 @@
                     @endforeach
                 </div>
 
-                {{-- ===== RESPONSABLE + EVIDENCIA (si existe en tu modelo/relación) ===== --}}
+                {{-- ===== MAPA (SI HAY COORDENADAS) ===== --}}
+                <hr>
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card card-outline card-primary mb-0">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <h3 class="card-title mb-0">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicación
+                                </h3>
+
+                                @if(!empty($lat) && !empty($lng))
+                                    <div class="d-flex" style="gap:8px; flex-wrap:wrap;">
+                                        <a class="btn btn-outline-info btn-sm"
+                                           href="https://www.google.com/maps?q={{ $lat }},{{ $lng }}"
+                                           target="_blank" rel="noopener">
+                                            <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
+                                        </a>
+
+                                        <a class="btn btn-outline-secondary btn-sm"
+                                           href="https://www.openstreetmap.org/?mlat={{ $lat }}&mlon={{ $lng }}#map=18/{{ $lat }}/{{ $lng }}"
+                                           target="_blank" rel="noopener">
+                                            <i class="fa-solid fa-up-right-from-square"></i> Abrir en OSM
+                                        </a>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div class="card-body">
+                                @if(!empty($lat) && !empty($lng))
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>Latitud</label>
+                                                <p class="form-control-static">{{ $lat }}</p>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Longitud</label>
+                                                <p class="form-control-static">{{ $lng }}</p>
+                                            </div>
+                                            @if(!empty($precision))
+                                                <div class="form-group">
+                                                    <label>Precisión</label>
+                                                    <p class="form-control-static">± {{ $precision }} m</p>
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        <div class="col-md-8">
+                                            <div id="map_hecho" style="width:100%; height:340px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.12);"></div>
+                                            <small class="text-muted d-block mt-2">
+                                                El marcador indica el punto recibido por coordenadas.
+                                            </small>
+                                        </div>
+                                    </div>
+                                @else
+                                    <p class="mb-0">No hay coordenadas registradas para este hecho.</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ===== RESPONSABLE + EVIDENCIA ===== --}}
                 <hr>
 
                 <div class="row">
@@ -96,7 +162,7 @@
                         <div class="form-group">
                             <label>Evidencia Adjunta</label>
                             @if (!empty($hecho->evidencia))
-                                <a href="{{ asset('storage/' . $hecho->evidencia) }}" class="btn btn-info btn-sm" target="_blank">
+                                <a href="{{ asset('storage/' . $hecho->evidencia) }}" class="btn btn-info btn-sm" target="_blank" rel="noopener">
                                     <i class="fa-solid fa-paperclip"></i> Ver evidencia
                                 </a>
                             @else
@@ -123,7 +189,6 @@
                                                     {{ $vehiculo->marca ?? 'SIN MARCA' }} - {{ $vehiculo->modelo ?? 'SIN MODELO' }}
                                                 </strong>
 
-                                                {{-- LÁPIZ PARA EDITAR VEHÍCULO (RUTA ANIDADA) --}}
                                                 @can('editar vehiculos')
                                                     <a href="{{ route('vehiculos.edit', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}"
                                                        class="btn btn-success btn-sm"
@@ -179,57 +244,96 @@
 @stop
 
 @section('css')
+    {{-- ✅ Leaflet CSS (mapa) --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
 <style>
-  /* Fuerza legibilidad en campos dentro del form (AdminLTE + temas oscuros) */
   .content-wrapper .form-control,
   .content-wrapper .custom-select,
   .content-wrapper select.form-control,
   .content-wrapper textarea.form-control {
       background-color: #ffffff !important;
-      color: #111827 !important;          /* texto */
+      color: #111827 !important;
       border: 1px solid rgba(17,24,39,.25) !important;
       box-shadow: none !important;
   }
 
-  /* Placeholder visible */
   .content-wrapper .form-control::placeholder,
   .content-wrapper textarea.form-control::placeholder {
       color: rgba(17,24,39,.55) !important;
       opacity: 1 !important;
   }
 
-  /* Si están readonly/disabled que también se lea */
   .content-wrapper .form-control[readonly],
   .content-wrapper .form-control:disabled,
   .content-wrapper select.form-control:disabled,
   .content-wrapper textarea.form-control:disabled {
       background-color: #f3f4f6 !important;
       color: #111827 !important;
-      -webkit-text-fill-color: #111827 !important; /* Android/Chrome */
+      -webkit-text-fill-color: #111827 !important;
       opacity: 1 !important;
   }
 
-  /* Focus decente */
   .content-wrapper .form-control:focus,
   .content-wrapper .custom-select:focus {
       border-color: rgba(59,130,246,.65) !important;
       box-shadow: 0 0 0 .2rem rgba(59,130,246,.15) !important;
   }
 
-  /* Labels legibles en fondo oscuro */
   .content-wrapper .form-group label {
       color: #e5e7eb !important;
       font-weight: 700;
   }
 
-  /* Si usas <p class="form-control-static"> */
   .content-wrapper .form-control-static {
       color: #e5e7eb !important;
+  }
+
+  /* ✅ Leaflet en tema oscuro: que no se vea “lavado” */
+  .leaflet-container {
+      background: #0b1220;
+      border-radius: 14px;
   }
 </style>
 @stop
 
-
 @section('js')
-<script>console.log("Vista de detalles del hecho cargada correctamente.");</script>
+    {{-- ✅ Leaflet JS --}}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log("Vista de detalles del hecho cargada correctamente.");
+
+        const lat = @json($lat);
+        const lng = @json($lng);
+
+        if (lat && lng) {
+            const map = L.map('map_hecho', {
+                zoomControl: true,
+                scrollWheelZoom: true
+            }).setView([parseFloat(lat), parseFloat(lng)], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 20,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            const marker = L.marker([parseFloat(lat), parseFloat(lng)]).addTo(map);
+
+            marker.bindPopup(`
+                <div style="min-width:180px;">
+                    <strong>Punto recibido</strong><br>
+                    Lat: ${lat}<br>
+                    Lng: ${lng}
+                </div>
+            `);
+
+            // Abre el popup de una vez
+            marker.openPopup();
+        }
+    });
+</script>
 @stop

@@ -70,7 +70,7 @@
                                             <i class="fa-solid fa-pencil"></i>
                                         </a>
                                         <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
-                                            <i class="fas fa-download"></i> Descargar
+                                            <i class="fas fa-download"></i>
                                         </a>
 
                                         <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display: inline-block;">

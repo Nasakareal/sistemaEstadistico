@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Hechos extends Model
 {
@@ -45,21 +47,31 @@ class Hechos extends Model
         'foto_situacion',
         'delegacion_id',
 
+        'lat',
+        'lng',
+        'calidad_geo',
+        'nota_geo',
+        'fuente_ubicacion',
+        'ubicacion_formateada',
+        'place_id',
+
         'created_by',
         'updated_by',
     ];
 
     protected $casts = [
         'checaron_antecedentes' => 'boolean',
+        'lat' => 'decimal:7',
+        'lng' => 'decimal:7',
     ];
 
-    public function vehiculos()
+    public function vehiculos(): BelongsToMany
     {
         return $this->belongsToMany(Vehiculo::class, 'hecho_vehiculo', 'hecho_id', 'vehiculo_id')
             ->withTimestamps();
     }
 
-    public function lesionados()
+    public function lesionados(): HasMany
     {
         return $this->hasMany(Lesionado::class, 'hecho_id');
     }

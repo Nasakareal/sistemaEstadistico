@@ -6,9 +6,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Services\Exports\EstadisticaMensualExporter;
 
 class EstadisticasGlobalesController extends Controller
 {
+    private bool $vehiculosJoined = false;
+
     public function index(Request $request)
     {
         return view('estadisticas_globales.index');
@@ -16,29 +19,21 @@ class EstadisticasGlobalesController extends Controller
 
     public function kpis(Request $request)
     {
-        return $this->cached($request, 'kpis', function () use ($request) {
+        return $this->cachedJson($request, 'kpis', function () use ($request) {
 
-            // === Base hechos (solo filtros propios de hechos) ===
             $baseHechos = $this->baseHechosQuery($request);
-
-            // filtros extra (q + vehiculos + con/sin lesionados)
             $this->applySearchFilter($baseHechos, $request);
             $this->applyVehiculoFiltersToHechos($baseHechos, $request);
             $this->applyLesionadosFilterToHechos($baseHechos, $request);
 
-            // === IMPORTANTE: usar subquery de IDs para NO duplicar por joins ===
-            $hechosIdsSub = (clone $baseHechos)
-                ->select('hechos.id')
-                ->distinct('hechos.id');
+            $hechosIdsSub = (clone $baseHechos)->select('hechos.id')->distinct();
 
             $totalHechos = (clone $hechosIdsSub)->count('hechos.id');
 
-            // ===== Vehículos participantes (respeta TODO) =====
             $vehQ = DB::table('hecho_vehiculo')
                 ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id')
                 ->whereIn('hecho_vehiculo.hecho_id', $hechosIdsSub);
 
-            // mismos params que ya usas
             $vehTipo   = trim((string)$request->query('veh_tipo', ''));
             $vehMarca  = trim((string)$request->query('veh_marca', ''));
             $vehModelo = trim((string)$request->query('veh_modelo', ''));
@@ -57,7 +52,6 @@ class EstadisticasGlobalesController extends Controller
 
             $totalVehiculos = (clone $vehQ)->distinct('vehiculos.id')->count('vehiculos.id');
 
-            // ===== Lesionados (respeta TODO sin duplicar por joins) =====
             $totalLesionados = 0;
             if ($this->hasTable('lesionados')) {
                 $totalLesionados = (int) DB::table('lesionados')
@@ -78,7 +72,7 @@ class EstadisticasGlobalesController extends Controller
                 ->orderByDesc('total')
                 ->get();
 
-            return response()->json([
+            return [
                 'totales' => [
                     'hechos' => (int)$totalHechos,
                     'lesionados' => (int)$totalLesionados,
@@ -88,17 +82,16 @@ class EstadisticasGlobalesController extends Controller
                     'tipo_hecho' => $porTipoHecho,
                     'situacion' => $porSituacion,
                 ],
-            ]);
+            ];
         });
     }
 
     public function seriesHechos(Request $request)
     {
-        return $this->cached($request, 'seriesHechos', function () use ($request) {
+        return $this->cachedJson($request, 'seriesHechos', function () use ($request) {
             $group = $this->grouping($request);
-            $q = $this->baseHechosQuery($request);
 
-            // filtros extra (q + vehiculos + lesionados)
+            $q = $this->baseHechosQuery($request);
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
@@ -115,28 +108,28 @@ class EstadisticasGlobalesController extends Controller
                     ->get();
             }
 
-            return response()->json(['group' => $group, 'series' => $rows]);
+            return ['group' => $group, 'series' => $rows];
         });
     }
 
     public function seriesLesionados(Request $request)
     {
-        return $this->cached($request, 'seriesLesionados', function () use ($request) {
+        return $this->cachedJson($request, 'seriesLesionados', function () use ($request) {
             if (!$this->hasTable('lesionados')) {
-                return response()->json(['group' => $this->grouping($request), 'series' => []]);
+                return ['group' => $this->grouping($request), 'series' => []];
             }
 
             $group = $this->grouping($request);
 
-            // OJO: baseLesionadosQuery usa applyHechosFilters (sin municipio) + joins hechos
             $q = $this->baseLesionadosQuery($request);
 
-            // también debe respetar q + vehiculos + con_lesionados
-            // (con_lesionados aplicado sobre hechos no es necesario aquí porque ya estás contando lesionados,
-            //  pero si piden "solo sin lesionados" debe regresar 0)
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
+            $val = trim((string)$request->query('con_lesionados', ''));
+            if ($val === '0') {
+                return ['group' => $group, 'series' => []];
+            }
 
             if ($group === 'month') {
                 $rows = $q->selectRaw("DATE_FORMAT(hechos.fecha, '%Y-%m-01') as x, COUNT(lesionados.id) as y")
@@ -150,26 +143,21 @@ class EstadisticasGlobalesController extends Controller
                     ->get();
             }
 
-            return response()->json(['group' => $group, 'series' => $rows]);
+            return ['group' => $group, 'series' => $rows];
         });
     }
 
-    // =========================
-    // Distribuciones hechos (SIN municipio)
-    // =========================
     public function seriesTipoHecho(Request $request) { return $this->distributionHechos($request, 'tipo_hecho'); }
     public function seriesSector(Request $request) { return $this->distributionHechos($request, 'sector'); }
     public function seriesTiempo(Request $request) { return $this->distributionHechos($request, 'tiempo'); }
     public function seriesClima(Request $request) { return $this->distributionHechos($request, 'clima'); }
     public function seriesCondiciones(Request $request) { return $this->distributionHechos($request, 'condiciones'); }
     public function seriesControlTransito(Request $request) { return $this->distributionHechos($request, 'control_transito'); }
+    public function seriesMunicipio(Request $request) { return $this->distributionHechos($request, 'municipio'); }
 
-    // =========================
-    // Vehículos
-    // =========================
     public function seriesVehiculosTipo(Request $request)
     {
-        return $this->cached($request, 'seriesVehiculosTipo', function () use ($request) {
+        return $this->cachedJson($request, 'seriesVehiculosTipo', function () use ($request) {
             $q = $this->baseVehiculosQuery($request);
 
             $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT vehiculos.id) as total")
@@ -178,13 +166,13 @@ class EstadisticasGlobalesController extends Controller
                 ->limit(50)
                 ->get();
 
-            return response()->json(['field' => 'vehiculos.tipo', 'series' => $rows]);
+            return ['field' => 'vehiculos.tipo', 'series' => $rows];
         });
     }
 
     public function seriesVehiculosMarca(Request $request)
     {
-        return $this->cached($request, 'seriesVehiculosMarca', function () use ($request) {
+        return $this->cachedJson($request, 'seriesVehiculosMarca', function () use ($request) {
             $q = $this->baseVehiculosQuery($request);
 
             $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.marca), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT vehiculos.id) as total")
@@ -193,13 +181,13 @@ class EstadisticasGlobalesController extends Controller
                 ->limit(50)
                 ->get();
 
-            return response()->json(['field' => 'vehiculos.marca', 'series' => $rows]);
+            return ['field' => 'vehiculos.marca', 'series' => $rows];
         });
     }
 
     public function seriesVehiculosModelo(Request $request)
     {
-        return $this->cached($request, 'seriesVehiculosModelo', function () use ($request) {
+        return $this->cachedJson($request, 'seriesVehiculosModelo', function () use ($request) {
             $q = $this->baseVehiculosQuery($request);
 
             $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.modelo), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT vehiculos.id) as total")
@@ -208,38 +196,30 @@ class EstadisticasGlobalesController extends Controller
                 ->limit(50)
                 ->get();
 
-            return response()->json(['field' => 'vehiculos.modelo', 'series' => $rows]);
+            return ['field' => 'vehiculos.modelo', 'series' => $rows];
         });
     }
 
-    // =========================
-    // Tabla drilldown (filtrada)
-    // =========================
     public function hechos(Request $request)
     {
-        return $this->cached($request, 'hechos', function () use ($request) {
+        return $this->cachedJson($request, 'hechos', function () use ($request) {
             $per = (int)$request->query('per', 25);
             $per = max(1, min(200, $per));
 
             $q = $this->baseHechosQuery($request);
-
-            // filtros extra (q + vehiculos + lesionados)
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
 
             $q->select('hechos.*')
-              ->distinct('hechos.id')
+              ->distinct()
               ->orderByDesc('hechos.fecha')
               ->orderByDesc('hechos.id');
 
-            return response()->json($q->paginate($per));
+            return $q->paginate($per)->toArray();
         });
     }
 
-    // =========================
-    // Export CSV (FILTRADO DE VERDAD) - SIN municipio
-    // =========================
     public function exportHechos(Request $request)
     {
         $q = $this->baseHechosQuery($request);
@@ -254,6 +234,7 @@ class EstadisticasGlobalesController extends Controller
             'hechos.fecha',
             'hechos.hora',
             'hechos.sector',
+            'hechos.municipio',
             'hechos.tipo_hecho',
             'hechos.situacion',
             'hechos.perito',
@@ -262,7 +243,7 @@ class EstadisticasGlobalesController extends Controller
             'hechos.colonia',
             'hechos.entre_calles',
         ])
-        ->distinct('hechos.id')
+        ->distinct()
         ->orderByDesc('hechos.fecha')
         ->orderByDesc('hechos.id');
 
@@ -271,10 +252,8 @@ class EstadisticasGlobalesController extends Controller
         return new StreamedResponse(function () use ($q) {
             $out = fopen('php://output', 'w');
 
-            // BOM para Excel (acentos/ñ)
             fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            fputcsv($out, ['id','folio_c5i','fecha','hora','sector','tipo_hecho','situacion','perito','unidad','calle','colonia','entre_calles']);
+            fputcsv($out, ['id','folio_c5i','fecha','hora','sector','municipio','tipo_hecho','situacion','perito','unidad','calle','colonia','entre_calles']);
 
             $q->chunk(1000, function ($rows) use ($out) {
                 foreach ($rows as $r) {
@@ -284,6 +263,7 @@ class EstadisticasGlobalesController extends Controller
                         $r->fecha,
                         $r->hora,
                         $r->sector,
+                        $r->municipio,
                         $r->tipo_hecho,
                         $r->situacion,
                         $r->perito,
@@ -302,22 +282,35 @@ class EstadisticasGlobalesController extends Controller
         ]);
     }
 
-    // =========================
-    // Helpers
-    // =========================
+    public function exportMensual(Request $request, EstadisticaMensualExporter $exporter)
+    {
+        @ini_set('memory_limit', '1024M');
+        @set_time_limit(0);
+
+        if (class_exists(\Barryvdh\Debugbar\Facade::class)) {
+            \Barryvdh\Debugbar\Facade::disable();
+        }
+
+        $anio = (int)$request->query('anio', now()->year);
+        $mes  = (int)$request->query('mes', now()->month);
+
+        if ($anio < 2000 || $anio > 2100) return back()->with('error', 'Año inválido.');
+        if ($mes < 1 || $mes > 12) return back()->with('error', 'Mes inválido.');
+
+        return $exporter->download($request, $anio, $mes);
+    }
+
     private function distributionHechos(Request $request, string $field)
     {
-        return $this->cached($request, "dist_$field", function () use ($request, $field) {
+        return $this->cachedJson($request, "dist_$field", function () use ($request, $field) {
 
-            // SIN municipio
-            $allowed = ['tipo_hecho','sector','tiempo','clima','condiciones','control_transito','situacion'];
+            $allowed = ['tipo_hecho','sector','tiempo','clima','condiciones','control_transito','situacion','municipio'];
             if (!in_array($field, $allowed, true)) {
-                return response()->json(['message' => 'Campo no permitido.'], 422);
+                return ['message' => 'Campo no permitido.'];
             }
 
             $q = $this->baseHechosQuery($request);
 
-            // respeta filtros extra
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
@@ -328,12 +321,14 @@ class EstadisticasGlobalesController extends Controller
                 ->limit(50)
                 ->get();
 
-            return response()->json(['field' => "hechos.$field", 'series' => $rows]);
+            return ['field' => "hechos.$field", 'series' => $rows];
         });
     }
 
     private function baseHechosQuery(Request $request)
     {
+        $this->vehiculosJoined = false;
+
         $q = DB::table('hechos');
         $this->applyHechosFilters($q, $request);
         return $q;
@@ -389,10 +384,10 @@ class EstadisticasGlobalesController extends Controller
             $q->whereDate('hechos.fecha', '<=', $hasta);
         }
 
-        // SIN municipio
         $map = [
             'tipo_hecho' => 'hechos.tipo_hecho',
             'sector' => 'hechos.sector',
+            'municipio' => 'hechos.municipio',
             'tiempo' => 'hechos.tiempo',
             'clima' => 'hechos.clima',
             'condiciones' => 'hechos.condiciones',
@@ -409,7 +404,6 @@ class EstadisticasGlobalesController extends Controller
         }
     }
 
-    // ========= q (búsqueda libre) - SIN municipio =========
     private function applySearchFilter($q, Request $request)
     {
         $search = trim((string)$request->query('q', ''));
@@ -423,11 +417,11 @@ class EstadisticasGlobalesController extends Controller
                ->orWhere('hechos.colonia', 'like', "%$search%")
                ->orWhere('hechos.entre_calles', 'like', "%$search%")
                ->orWhere('hechos.tipo_hecho', 'like', "%$search%")
-               ->orWhere('hechos.sector', 'like', "%$search%");
+               ->orWhere('hechos.sector', 'like', "%$search%")
+               ->orWhere('hechos.municipio', 'like', "%$search%");
         });
     }
 
-    // ========= filtros de vehículo aplicados a HECHOS =========
     private function applyVehiculoFiltersToHechos($q, Request $request)
     {
         $vehTipo   = trim((string)$request->query('veh_tipo', ''));
@@ -441,8 +435,11 @@ class EstadisticasGlobalesController extends Controller
         $need = ($vehTipo !== '' || $vehMarca !== '' || $vehModelo !== '' || $vehPlacas !== '' || $vehSerie !== '' || $vehLinea !== '' || $vehColor !== '');
         if (!$need) return;
 
-        $q->join('hecho_vehiculo', 'hecho_vehiculo.hecho_id', '=', 'hechos.id')
-          ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id');
+        if (!$this->vehiculosJoined) {
+            $q->join('hecho_vehiculo', 'hecho_vehiculo.hecho_id', '=', 'hechos.id')
+              ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id');
+            $this->vehiculosJoined = true;
+        }
 
         if ($vehTipo !== '')   $q->where('vehiculos.tipo', $vehTipo);
         if ($vehMarca !== '')  $q->where('vehiculos.marca', $vehMarca);
@@ -453,7 +450,6 @@ class EstadisticasGlobalesController extends Controller
         if ($vehSerie !== '')  $q->where('vehiculos.serie', 'like', "%$vehSerie%");
     }
 
-    // ========= con/sin lesionados =========
     private function applyLesionadosFilterToHechos($q, Request $request)
     {
         $val = trim((string)$request->query('con_lesionados', ''));
@@ -481,19 +477,23 @@ class EstadisticasGlobalesController extends Controller
         return in_array($g, ['day', 'month'], true) ? $g : 'day';
     }
 
-    private function cached(Request $request, string $key, \Closure $fn)
+    private function cachedJson(Request $request, string $key, \Closure $fn)
     {
         $ttl = (int)$request->query('cache_ttl', 60);
         $ttl = max(0, min(600, $ttl));
 
-        if ($ttl === 0) return $fn();
+        if ($ttl === 0) {
+            return response()->json($fn());
+        }
 
         $hash = sha1($request->fullUrl());
         $cacheKey = "estadisticas_globales:$key:$hash";
 
-        return Cache::remember($cacheKey, $ttl, function () use ($fn) {
+        $data = Cache::remember($cacheKey, $ttl, function () use ($fn) {
             return $fn();
         });
+
+        return response()->json($data);
     }
 
     private function hasTable(string $table)

@@ -6,6 +6,7 @@ use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Unidad;
 
 class HechosController extends Controller
 {
@@ -27,6 +28,12 @@ class HechosController extends Controller
     public function store(Request $request)
     {
         $usuario = auth()->user();
+
+        $unidadNombre = null;
+        if (!empty($usuario->unidad_id)) {
+            $u = Unidad::query()->find($usuario->unidad_id);
+            $unidadNombre = $u ? $u->nombre : null;
+        }
 
         $validated = $request->validate([
             'folio_c5i' => 'required|string|max:20|unique:hechos,folio_c5i',
@@ -53,6 +60,15 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
+
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'calidad_geo' => 'nullable|string|max:20',
+            'nota_geo' => 'nullable|string|max:1000',
+            'fuente_ubicacion' => 'nullable|string|max:20',
+            'ubicacion_formateada' => 'nullable|string|max:2000',
+            'place_id' => 'nullable|string|max:128',
+
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -66,19 +82,26 @@ class HechosController extends Controller
             ]);
         }
 
-        // Normalización de strings
+        $validated['delegacion_id'] = $usuario->delegacion_id ?? null;
+
+        $validated['created_by'] = $usuario->id;
+
+        $validated['unidad_org_id'] = $usuario->unidad_id ?? null;
+
+        if (!empty($unidadNombre)) {
+            $validated['unidad'] = $unidadNombre;
+        }
+
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
-        // Delegación automática y FIJA al crear:
-        // - Si el usuario tiene delegacion_id => se guarda
-        // - Si no tiene => null (Morelia / estatal)
-        $validated['delegacion_id'] = $usuario->delegacion_id ?? null;
-
-        $validated['created_by'] = $usuario->id;
+        $hasCoords = isset($request->lat, $request->lng) && $request->lat !== null && $request->lng !== null;
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_WEB';
+        }
 
         $hecho = Hechos::create($validated);
 
@@ -167,6 +190,15 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
+
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'calidad_geo' => 'nullable|string|max:20',
+            'nota_geo' => 'nullable|string|max:1000',
+            'fuente_ubicacion' => 'nullable|string|max:20',
+            'ubicacion_formateada' => 'nullable|string|max:2000',
+            'place_id' => 'nullable|string|max:128',
+
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -180,13 +212,22 @@ class HechosController extends Controller
             ]);
         }
 
+        $validated['updated_by'] = $usuario->id;
+
+        if (!empty($hecho->unidad_org_id) && empty($validated['unidad_org_id'])) {
+            $validated['unidad_org_id'] = $hecho->unidad_org_id;
+        }
+
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
-        $validated['updated_by'] = $usuario->id;
+        $hasCoords = isset($request->lat, $request->lng) && $request->lat !== null && $request->lng !== null;
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_WEB';
+        }
 
         if ($request->hasFile('foto_lugar')) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
@@ -223,13 +264,8 @@ class HechosController extends Controller
                 Storage::disk('public')->delete($hecho->foto_situacion);
             }
 
-            if (method_exists($hecho, 'vehiculos')) {
-                $hecho->vehiculos()->detach();
-            }
-
-            if (method_exists($hecho, 'lesionados')) {
-                $hecho->lesionados()->delete();
-            }
+            $hecho->vehiculos()->detach();
+            $hecho->lesionados()->delete();
 
             $hecho->delete();
 
@@ -252,7 +288,7 @@ class HechosController extends Controller
             'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U',
             'à' => 'A', 'è' => 'E', 'ì' => 'I', 'ò' => 'O', 'ù' => 'U',
             'â' => 'A', 'ê' => 'E', 'î' => 'I', 'ô' => 'O', 'û' => 'U',
-            'ä' => 'A', 'ë' => 'E', 'ï' => 'I', 'ö' => 'O', 'ü' => 'U',
+            'ä' => 'A', 'ë' => 'A', 'ï' => 'I', 'ö' => 'O', 'ü' => 'U',
             'Ñ' => 'N', 'ñ' => 'N',
             'Ç' => 'C', 'ç' => 'C'
         ];

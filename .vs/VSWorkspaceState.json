@@ -4,11 +4,8 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models",
-    "\\database",
-    "\\database\\migrations"
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\database\\migrations\\2026_01_31_212252_add_delegacion_id_to_users_table.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
   "PreviewInSolutionExplorer": false
 }

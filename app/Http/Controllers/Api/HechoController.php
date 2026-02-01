@@ -12,10 +12,7 @@ use Illuminate\Support\Facades\Validator;
 class HechoController extends Controller
 {
     private const SECTORES = ['REVOLUCION','NUEVA ESPANA','INDEPENDENCIA','REPUBLICA','CENTRO'];
-
-    // Normalizado: ATARDECER (sin typo raro)
     private const TIEMPOS  = ['DIA','NOCHE','AMANECER','ATARDECER'];
-
     private const CLIMAS   = ['BUENO','MALO','NUBLADO','LLUVIOSO'];
     private const COND     = ['BUENO','REGULAR','MALO'];
     private const SITUAS   = ['RESUELTO','PENDIENTE','TURNADO','REPORTE'];
@@ -160,6 +157,15 @@ class HechoController extends Controller
             'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
+
+            'lat'                   => 'required|numeric|between:-90,90',
+            'lng'                   => 'required|numeric|between:-180,180',
+            'calidad_geo'           => 'nullable|string|max:20',
+            'nota_geo'              => 'nullable|string|max:1000',
+            'fuente_ubicacion'      => 'nullable|string|max:20',
+            'ubicacion_formateada'  => 'nullable|string|max:2000',
+            'place_id'              => 'nullable|string|max:128',
+
             'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
@@ -168,7 +174,6 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        // Regla especial: si RESUELTO, foto_situacion requerida
         $validator->after(function ($v) use ($request) {
             $situacion = strtoupper($this->removeAccents((string)$request->input('situacion', '')));
             if ($situacion === 'RESUELTO' && !$request->hasFile('foto_situacion')) {
@@ -184,11 +189,15 @@ class HechoController extends Controller
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
 
-        // Normaliza strings (sin acento, mayúsculas) para guardar consistente
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
+        }
+
+        $hasCoords = $request->filled('lat') && $request->filled('lng');
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_APP';
         }
 
         $validated['created_by'] = $user->id;
@@ -260,6 +269,15 @@ class HechoController extends Controller
             'oficio_mp'             => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp'          => 'sometimes|required|integer|min:0',
             'personas_mp'           => 'sometimes|required|integer|min:0',
+
+            'lat'                   => 'sometimes|required|numeric|between:-90,90',
+            'lng'                   => 'sometimes|required|numeric|between:-180,180',
+            'calidad_geo'           => 'sometimes|nullable|string|max:20',
+            'nota_geo'              => 'sometimes|nullable|string|max:1000',
+            'fuente_ubicacion'      => 'sometimes|nullable|string|max:20',
+            'ubicacion_formateada'  => 'sometimes|nullable|string|max:2000',
+            'place_id'              => 'sometimes|nullable|string|max:128',
+
             'foto_lugar'            => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion'        => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
@@ -268,7 +286,6 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        // Regla especial: RESUELTO requiere foto_situacion si no existía y no viene archivo nuevo
         $validator->after(function ($v) use ($request, $hecho) {
 
             $situacionNueva = $request->has('situacion')
@@ -293,21 +310,23 @@ class HechoController extends Controller
 
         $validated = $validator->validated();
 
-        // boolean
         if ($request->has('checaron_antecedentes')) {
             $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
         }
 
-        // Normaliza strings para guardar consistente
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
+        $hasCoords = $request->filled('lat') && $request->filled('lng');
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_APP';
+        }
+
         $validated['updated_by'] = $user->id;
 
-        // Archivos
         if ($request->hasFile('foto_lugar')) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
                 Storage::disk('public')->delete($hecho->foto_lugar);
@@ -363,12 +382,8 @@ class HechoController extends Controller
         return $data;
     }
 
-    /**
-     * Respuesta uniforme y “humana” para Flutter.
-     */
     private function validationErrorResponse(array $errors)
     {
-        // Aplana para un "message" útil, pero conserva errors por campo.
         $first = null;
         foreach ($errors as $field => $msgs) {
             if (!empty($msgs[0])) {
@@ -383,9 +398,6 @@ class HechoController extends Controller
         ], 422);
     }
 
-    /**
-     * Mensajes en español más claros.
-     */
     private function messages(): array
     {
         return [
@@ -396,13 +408,14 @@ class HechoController extends Controller
             'date'     => 'Escribe una fecha válida.',
             'date_format' => 'La hora debe tener formato HH:MM (ej. 08:30).',
             'integer'  => 'Solo se permiten números (sin letras).',
+            'numeric'  => 'Solo se permiten números.',
             'boolean'  => 'Valor inválido.',
             'unique'   => 'Ese valor ya existe, usa uno diferente.',
             'image'    => 'El archivo debe ser una imagen.',
             'mimes'    => 'Formato no permitido. Usa: :values.',
             'file'     => 'Archivo inválido.',
+            'between'  => 'El valor está fuera de rango.',
 
-            // Específicos por campo (para que suene “humano” en Flutter)
             'folio_c5i.required' => 'Falta el folio C5i.',
             'folio_c5i.unique'   => 'Ese folio C5i ya está registrado.',
             'perito.required'    => 'Falta el nombre del perito.',
@@ -420,15 +433,16 @@ class HechoController extends Controller
 
             'oficio_mp.required_if' => 'Si la situación es TURNADO, debes capturar el oficio del MP.',
 
+            'lat.required'  => 'Falta la ubicación (latitud).',
+            'lng.required'  => 'Falta la ubicación (longitud).',
+            'lat.between'   => 'Latitud inválida.',
+            'lng.between'   => 'Longitud inválida.',
+
             'foto_lugar.max'        => 'La foto del lugar es muy pesada (máximo 5 MB).',
             'foto_situacion.max'    => 'La foto de situación es muy pesada (máximo 5 MB).',
         ];
     }
 
-    /**
-     * Normaliza campos de catálogo en el Request para que el validator (Rule::in)
-     * funcione aunque Flutter/web manden con acentos o minúsculas.
-     */
     private function normalizeCatalogFields(Request $request): void
     {
         $map = [];
@@ -438,8 +452,6 @@ class HechoController extends Controller
         }
         if ($request->has('tiempo')) {
             $map['tiempo'] = strtoupper($this->removeAccents((string)$request->input('tiempo')));
-
-            // si llega "ATARDECER" con variantes raras (por si acaso)
             if ($map['tiempo'] === 'ATARDECER' || $map['tiempo'] === 'ATARDECER ') {
                 $map['tiempo'] = 'ATARDECER';
             }

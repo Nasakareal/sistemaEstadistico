@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\VehiculoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\VehiculoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\ActividadController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\ActividadController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
@@ -22,11 +26,24 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
+              "Title": "VehiculoController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\VehiculoController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\VehiculoController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\VehiculoController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Api\\VehiculoController.php",
+              "ViewState": "AgIAAGwBAAAAAAAAAAAwwHMCAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-02-01T00:47:35.167Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "api.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
               "RelativeDocumentMoniker": "routes\\api.php",
@@ -34,12 +51,11 @@
               "RelativeToolTip": "routes\\api.php",
               "ViewState": "AgIAABgAAAAAAAAAAAAAADwAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-01T00:41:08.625Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-01T00:41:08.625Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "ActividadController.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\ActividadController.php",
               "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\ActividadController.php",
@@ -52,7 +68,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "FeedController.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\FeedController.php",
               "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\FeedController.php",
@@ -60,8 +76,7 @@
               "RelativeToolTip": "app\\Http\\Controllers\\Api\\FeedController.php",
               "ViewState": "AgIAADcAAAAAAAAAAAAwwGgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-01T00:35:22.818Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-01T00:35:22.818Z"
             }
           ]
         }

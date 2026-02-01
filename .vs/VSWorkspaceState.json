@@ -4,9 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
+    "\\database",
+    "\\database\\migrations",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\dictamenes",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\VehiculoController.php",
+  "SelectedNode": "\\database\\migrations\\2026_01_31_193818_make_nombre_mp_nullable_on_dictamens_table.php",
   "PreviewInSolutionExplorer": false
 }

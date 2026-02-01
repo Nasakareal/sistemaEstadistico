@@ -158,13 +158,17 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
 
-            'lat'                   => 'required|numeric|between:-90,90',
-            'lng'                   => 'required|numeric|between:-180,180',
+            // HOY: puede venir NULL (no requerido)
+            'lat'                   => 'nullable|numeric|between:-90,90',
+            'lng'                   => 'nullable|numeric|between:-180,180',
             'calidad_geo'           => 'nullable|string|max:20',
             'nota_geo'              => 'nullable|string|max:1000',
             'fuente_ubicacion'      => 'nullable|string|max:20',
             'ubicacion_formateada'  => 'nullable|string|max:2000',
             'place_id'              => 'nullable|string|max:128',
+
+            // Si mandan una coordenada, deben mandar ambas (si no, error claro)
+            'coords_pair'           => 'nullable',
 
             'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -178,6 +182,14 @@ class HechoController extends Controller
             $situacion = strtoupper($this->removeAccents((string)$request->input('situacion', '')));
             if ($situacion === 'RESUELTO' && !$request->hasFile('foto_situacion')) {
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
+            }
+
+            // Pares de coordenadas: o vienen las 2 o no viene ninguna
+            $hasLat = $request->filled('lat');
+            $hasLng = $request->filled('lng');
+            if ($hasLat xor $hasLng) {
+                $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
+                $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
             }
         });
 
@@ -199,6 +211,10 @@ class HechoController extends Controller
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_APP';
         }
+
+        // Si vinieron vacíos, guárdalos como NULL real (por si llega '' desde forms)
+        if (!$request->filled('lat')) $validated['lat'] = null;
+        if (!$request->filled('lng')) $validated['lng'] = null;
 
         $validated['created_by'] = $user->id;
 
@@ -270,8 +286,9 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'sometimes|required|integer|min:0',
             'personas_mp'           => 'sometimes|required|integer|min:0',
 
-            'lat'                   => 'sometimes|required|numeric|between:-90,90',
-            'lng'                   => 'sometimes|required|numeric|between:-180,180',
+            // HOY: si vienen, se validan; si no vienen, se permiten NULL
+            'lat'                   => 'sometimes|nullable|numeric|between:-90,90',
+            'lng'                   => 'sometimes|nullable|numeric|between:-180,180',
             'calidad_geo'           => 'sometimes|nullable|string|max:20',
             'nota_geo'              => 'sometimes|nullable|string|max:1000',
             'fuente_ubicacion'      => 'sometimes|nullable|string|max:20',
@@ -302,6 +319,14 @@ class HechoController extends Controller
                     $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
                 }
             }
+
+            // Pares de coordenadas: si mandan una, deben mandar la otra
+            $hasLat = $request->filled('lat');
+            $hasLng = $request->filled('lng');
+            if ($hasLat xor $hasLng) {
+                $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
+                $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
+            }
         });
 
         if ($validator->fails()) {
@@ -324,6 +349,10 @@ class HechoController extends Controller
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_APP';
         }
+
+        // Si mandaron '' desde el cliente, conviértelo a NULL real
+        if ($request->has('lat') && !$request->filled('lat')) $validated['lat'] = null;
+        if ($request->has('lng') && !$request->filled('lng')) $validated['lng'] = null;
 
         $validated['updated_by'] = $user->id;
 
@@ -433,8 +462,6 @@ class HechoController extends Controller
 
             'oficio_mp.required_if' => 'Si la situación es TURNADO, debes capturar el oficio del MP.',
 
-            'lat.required'  => 'Falta la ubicación (latitud).',
-            'lng.required'  => 'Falta la ubicación (longitud).',
             'lat.between'   => 'Latitud inválida.',
             'lng.between'   => 'Longitud inválida.',
 

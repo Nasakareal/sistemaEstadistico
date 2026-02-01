@@ -329,13 +329,11 @@
     function setExportLinks(){
         const qs = qsFromFilters();
 
-        // CSV (ya existe)
         const aCsv = el('btn_export');
         if (aCsv){
             aCsv.href = qs ? `${base}/export/hechos?${qs}` : `${base}/export/hechos`;
         }
 
-        // Excel mensual (nuevo)
         const aXls = el('btn_export_mensual');
         if (aXls){
             const mm = monthFromFilters();
@@ -344,6 +342,24 @@
             params.set('mes', String(mm.mes));
             aXls.href = `${base}/export/mensual?${params.toString()}`;
         }
+    }
+
+    function wireExportLinkUpdates(){
+        const ids = [
+            'f_desde','f_hasta','f_sector','f_tipo_hecho','f_veh_tipo','f_con_lesionados',
+            'f_q','f_veh_placas','f_veh_serie','f_group'
+        ];
+
+        ids.forEach(id => {
+            const n = el(id);
+            if (!n) return;
+
+            n.addEventListener('change', setExportLinks);
+
+            if (n.tagName === 'INPUT' && (n.type === 'text' || n.type === 'search')){
+                n.addEventListener('keyup', setExportLinks);
+            }
+        });
     }
 
     // ---------- Charts ----------
@@ -440,13 +456,11 @@
     async function loadAll(){
         setExportLinks();
 
-        // KPIs
         const k = await getJson('kpis');
         if (el('k_hechos')) el('k_hechos').textContent = (k.totales?.hechos ?? 0);
         if (el('k_lesionados')) el('k_lesionados').textContent = (k.totales?.lesionados ?? 0);
         if (el('k_vehiculos')) el('k_vehiculos').textContent = (k.totales?.vehiculos ?? 0);
 
-        // Selects
         const distSector = await getJson('series/sector');
         fillSelect('f_sector', distSector.series || []);
 
@@ -456,7 +470,6 @@
         const distVehTipo = await getJson('series/vehiculos/tipo');
         fillSelect('f_veh_tipo', distVehTipo.series || []);
 
-        // Charts
         const time = await getJson('series/hechos');
         chTime = mountOrUpdateChart(
             'ch_hechos_time',
@@ -484,12 +497,10 @@
             vehTipo.slice(0, 10).map(r => Number(r.total || 0))
         );
 
-        // Table
         const hechos = await getJson('hechos', { page });
         renderHechosTable(hechos);
     }
 
-    // Controls
     const btnAplicar = el('btn_aplicar');
     if (btnAplicar){
         btnAplicar.addEventListener('click', async function(e){
@@ -521,7 +532,6 @@
         });
     }
 
-    // Defaults: último mes
     function setDefaultDates(){
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -542,6 +552,8 @@
     }
 
     setDefaultDates();
+    wireExportLinkUpdates();
+    setExportLinks();
     loadAll().catch(err => console.error('SV DASH ERROR:', err));
 })();
 </script>

@@ -12,15 +12,29 @@ class EstadisticaMensualExporter
 {
     public function download(Request $request, int $anio, int $mes)
     {
-        $desde = sprintf('%04d-%02d-01', $anio, $mes);
-        $hasta = date('Y-m-t', strtotime($desde));
+        $reqDesde = trim((string)$request->query('desde', ''));
+        $reqHasta = trim((string)$request->query('hasta', ''));
+
+        if ($reqDesde !== '' && $reqHasta !== '') {
+            $desde = $reqDesde;
+            $hasta = $reqHasta;
+        } elseif ($reqDesde !== '') {
+            $desde = $reqDesde;
+            $hasta = $reqDesde;
+        } elseif ($reqHasta !== '') {
+            $desde = $reqHasta;
+            $hasta = $reqHasta;
+        } else {
+            $desde = sprintf('%04d-%02d-01', $anio, $mes);
+            $hasta = date('Y-m-t', strtotime($desde));
+        }
+
+        $filename = "estadistica_{$desde}_{$hasta}.xlsx";
 
         $hechosQuery = DB::table('hechos')
             ->whereBetween('fecha', [$desde, $hasta])
             ->orderBy('fecha')
             ->orderBy('id');
-
-        $filename = "estadistica_mensual_{$anio}_" . str_pad((string)$mes, 2, '0', STR_PAD_LEFT) . ".xlsx";
 
         return new StreamedResponse(function () use ($hechosQuery) {
 
@@ -165,9 +179,7 @@ class EstadisticaMensualExporter
             $row = 2;
             foreach ($hechoVehiculos as $hv) {
                 $v = $vehiculos->get($hv->vehiculo_id);
-                if (!$v) {
-                    continue;
-                }
+                if (!$v) continue;
 
                 $c = null;
                 $links = $vehiculoConductores->get($v->id, collect());
@@ -260,7 +272,7 @@ class EstadisticaMensualExporter
 
         }, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Disposition' => 'attachment; filename="estadistica.xlsx"',
             'Cache-Control' => 'max-age=0',
         ]);
     }

@@ -4,7 +4,12 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Services",
+    "\\app\\Services\\Exports",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\estadisticas_globales"
   ],
   "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
   "PreviewInSolutionExplorer": false

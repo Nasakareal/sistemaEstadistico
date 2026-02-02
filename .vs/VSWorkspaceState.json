@@ -11,6 +11,6 @@
     "\\resources\\views",
     "\\resources\\views\\estadisticas_globales"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DictamenController.php",
   "PreviewInSolutionExplorer": false
 }

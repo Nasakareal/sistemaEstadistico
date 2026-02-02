@@ -83,7 +83,7 @@ class DictamenController extends Controller
 
         $request->validate([
             'nombre_policia'   => 'required|string|max:100',
-            'nombre_mp'        => 'required|string|max:100',
+            'nombre_mp'        => 'nullable|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
@@ -140,7 +140,7 @@ class DictamenController extends Controller
             ],
             'anio' => 'required|digits:4',
             'nombre_policia' => 'required|string|max:100',
-            'nombre_mp' => 'required|string|max:100',
+            'nombre_mp' => 'nullable|string|max:100',
             'area' => 'required|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ]);

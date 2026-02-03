@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class GruaController extends Controller
 {
-    /**
-     * GET /api/gruas
-     */
     public function index(Request $request)
     {
         $gruas = Grua::query()
@@ -26,9 +23,6 @@ class GruaController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/gruas/listado?q=...
-     */
     public function listado(Request $request)
     {
         $q = trim((string) $request->query('q'));
@@ -50,12 +44,6 @@ class GruaController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/gruas/grafica-semanal?from=YYYY-MM-DD&to=YYYY-MM-DD&gruas[]=1
-     *
-     * Respuesta:
-     * { meta:{from,to}, data:[{id,nombre,servicios_count,fecha_ultimo_servicio}] }
-     */
     public function graficaSemanal(Request $request)
     {
         $from = $request->query('from');
@@ -66,7 +54,6 @@ class GruaController extends Controller
             $gruasIds = [$gruasIds];
         }
 
-        // Default: últimos 7 días (incluyendo hoy)
         if (!$from || !$to) {
             $toDate   = Carbon::today()->endOfDay();
             $fromDate = Carbon::today()->subDays(6)->startOfDay();
@@ -109,16 +96,6 @@ class GruaController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/gruas/resumen-semanal?from=YYYY-MM-DD&to=YYYY-MM-DD&gruas[]=1
-     *
-     * Devuelve por grúa (semana):
-     * - servicios_count y fecha_ultimo_servicio (desde servicios por grua_id)
-     * - tipo_vehiculo_top (desde vehiculos.tipo por match exacto vehiculos.grua == gruas.nombre)
-     *
-     * Respuesta:
-     * { meta:{from,to}, data:[{id,nombre,servicios_count,fecha_ultimo_servicio,tipo_vehiculo_top}] }
-     */
     public function resumenSemanal(Request $request)
     {
         $from = $request->query('from');
@@ -129,7 +106,6 @@ class GruaController extends Controller
             $gruasIds = [$gruasIds];
         }
 
-        // Default: últimos 7 días (incluyendo hoy)
         if (!$from || !$to) {
             $toDate   = Carbon::today()->endOfDay();
             $fromDate = Carbon::today()->subDays(6)->startOfDay();
@@ -138,7 +114,6 @@ class GruaController extends Controller
             $toDate   = Carbon::parse($to)->endOfDay();
         }
 
-        // 1) Grúas base
         $gruas = Grua::query()
             ->select(['id', 'nombre'])
             ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
@@ -147,7 +122,6 @@ class GruaController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        // 2) Conteo semanal de servicios por grua_id
         $servicios = DB::table('servicios')
             ->select([
                 'grua_id',
@@ -169,8 +143,6 @@ class GruaController extends Controller
             ];
         }
 
-        // 3) Tipos top por grúa (desde vehiculos, match exacto por nombre)
-        // OJO: aquí uso vehiculos.created_at dentro del rango (como lo pediste: coincide exacto por nombre)
         $tipos = DB::table('vehiculos')
             ->select([
                 'grua',
@@ -179,6 +151,7 @@ class GruaController extends Controller
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
             ->whereNotNull('grua')
+            ->where('grua', '<>', 'N/A')
             ->where('grua', '<>', '')
             ->whereNotNull('tipo')
             ->where('tipo', '<>', '')
@@ -187,7 +160,6 @@ class GruaController extends Controller
             ->orderByDesc('c')
             ->get();
 
-        // Elegir el tipo con mayor count por cada grúa (en PHP, sin window functions)
         $topTipoByNombre = [];
         foreach ($tipos as $t) {
             $nombreGrua = (string) $t->grua;
@@ -199,13 +171,11 @@ class GruaController extends Controller
                 continue;
             }
 
-            // si hay empate, dejo el que ya quedó (o puedes cambiar a orden alfabético)
             if ($c > $topTipoByNombre[$nombreGrua]['c']) {
                 $topTipoByNombre[$nombreGrua] = ['tipo' => $tipo, 'c' => $c];
             }
         }
 
-        // 4) Merge final
         $data = [];
         foreach ($gruas as $g) {
             $id = (int) $g->id;
@@ -220,6 +190,129 @@ class GruaController extends Controller
                 'servicios_count' => (int) $serv['servicios_count'],
                 'fecha_ultimo_servicio' => $serv['fecha_ultimo_servicio'],
                 'tipo_vehiculo_top' => $tipoTop,
+            ];
+        }
+
+        return response()->json([
+            'meta' => [
+                'from' => $fromDate->toDateString(),
+                'to'   => $toDate->toDateString(),
+            ],
+            'data' => $data,
+        ]);
+    }
+
+    public function resumenSemanalDetallado(Request $request)
+    {
+        $from = $request->query('from');
+        $to   = $request->query('to');
+
+        $gruasIds = $request->query('gruas', []);
+        if (!is_array($gruasIds)) {
+            $gruasIds = [$gruasIds];
+        }
+
+        if (!$from || !$to) {
+            $toDate   = Carbon::today()->endOfDay();
+            $fromDate = Carbon::today()->subDays(6)->startOfDay();
+        } else {
+            $fromDate = Carbon::parse($from)->startOfDay();
+            $toDate   = Carbon::parse($to)->endOfDay();
+        }
+
+        $gruas = Grua::query()
+            ->select(['id', 'nombre'])
+            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
+                $q->whereIn('id', $gruasIds);
+            })
+            ->orderBy('nombre')
+            ->get();
+
+        $serviciosAgg = DB::table('servicios')
+            ->select([
+                'grua_id',
+                DB::raw('COUNT(*) as servicios_count'),
+                DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
+            ])
+            ->whereBetween('created_at', [$fromDate, $toDate])
+            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
+                $q->whereIn('grua_id', $gruasIds);
+            })
+            ->groupBy('grua_id')
+            ->get();
+
+        $byGruaId = [];
+        foreach ($serviciosAgg as $s) {
+            $byGruaId[(int) $s->grua_id] = [
+                'servicios_count' => (int) $s->servicios_count,
+                'fecha_ultimo_servicio' => $s->fecha_ultimo_servicio,
+            ];
+        }
+
+        $detalle = DB::table('servicios as s')
+            ->leftJoin('vehiculos as v', 'v.id', '=', 's.vehiculo_id')
+            ->select([
+                's.grua_id',
+                's.id as servicio_id',
+                's.created_at as fecha_servicio',
+                's.vehiculo_id',
+                's.tipo_vehiculo',
+                's.aseguradora',
+                'v.placas',
+                'v.marca',
+                'v.linea',
+                'v.modelo',
+                'v.color',
+            ])
+            ->whereBetween('s.created_at', [$fromDate, $toDate])
+            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
+                $q->whereIn('s.grua_id', $gruasIds);
+            })
+            ->orderBy('s.grua_id')
+            ->orderByDesc('s.created_at')
+            ->get();
+
+        $vehiculosByGrua = [];
+        foreach ($detalle as $d) {
+            $gid = (int) $d->grua_id;
+            if (!isset($vehiculosByGrua[$gid])) {
+                $vehiculosByGrua[$gid] = [];
+            }
+
+            $aseg = trim((string) $d->aseguradora);
+            $asegUpper = mb_strtoupper($aseg, 'UTF-8');
+            $sinSeguro = ($asegUpper === '' || $asegUpper === 'SIN SEGURO' || $asegUpper === 'NO' || $asegUpper === 'N/A' || $asegUpper === 'NULL');
+
+            $vehiculosByGrua[$gid][] = [
+                'servicio_id' => (int) $d->servicio_id,
+                'fecha_servicio' => $d->fecha_servicio,
+                'vehiculo_id' => $d->vehiculo_id ? (int) $d->vehiculo_id : null,
+                'placas' => $d->placas,
+                'marca' => $d->marca,
+                'linea' => $d->linea,
+                'modelo' => $d->modelo,
+                'color' => $d->color,
+                'tipo_vehiculo' => $d->tipo_vehiculo,
+                'aseguradora' => $d->aseguradora,
+                'tiene_seguro' => $sinSeguro ? 0 : 1,
+            ];
+        }
+
+        $data = [];
+        foreach ($gruas as $g) {
+            $id = (int) $g->id;
+
+            $serv = $byGruaId[$id] ?? [
+                'servicios_count' => 0,
+                'fecha_ultimo_servicio' => null,
+            ];
+
+            $data[] = [
+                'id' => $id,
+                'nombre' => (string) $g->nombre,
+                'servicios_count' => (int) $serv['servicios_count'],
+                'fecha_ultimo_servicio' => $serv['fecha_ultimo_servicio'],
+                'vehiculos' => $vehiculosByGrua[$id] ?? [],
             ];
         }
 

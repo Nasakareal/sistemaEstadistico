@@ -10,8 +10,9 @@
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\actividades",
-    "\\resources\\views\\estadisticas_globales"
+    "\\resources\\views\\estadisticas_globales",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\VehiculoController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\GruaController.php",
   "PreviewInSolutionExplorer": false
 }

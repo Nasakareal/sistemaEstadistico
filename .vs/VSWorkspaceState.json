@@ -13,6 +13,6 @@
     "\\resources\\views\\estadisticas_globales",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\GruaController.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

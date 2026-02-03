@@ -9,8 +9,9 @@
     "\\app\\Services\\Exports",
     "\\resources",
     "\\resources\\views",
+    "\\resources\\views\\actividades",
     "\\resources\\views\\estadisticas_globales"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DictamenController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\VehiculoController.php",
   "PreviewInSolutionExplorer": false
 }

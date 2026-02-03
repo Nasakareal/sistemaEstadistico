@@ -84,11 +84,32 @@ class VehiculoController extends Controller
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
 
-            return $this->ok('Vehículo encontrado.', $vehiculo->load('conductores'));
+            // 🔥 La grúa REAL está en servicios
+            $servicio = DB::table('servicios')
+                ->where('vehiculo_id', $vehiculo->id)
+                ->first();
+
+            $gruaId = $servicio->grua_id ?? null;
+
+            $gruaNombre = null;
+            if (!empty($gruaId)) {
+                $gruaNombre = Grua::where('id', $gruaId)->value('nombre');
+                $gruaNombre = $gruaNombre ? strtoupper($this->removeAccents($gruaNombre)) : null;
+            }
+
+            $data = $vehiculo->load('conductores')->toArray();
+
+            // ✅ anexamos campos para la app
+            $data['grua_id'] = $gruaId;
+            $data['grua_nombre'] = $gruaNombre;
+
+            return $this->ok('Vehículo encontrado.', $data);
+
         } catch (Throwable $e) {
             return $this->fail('Ocurrió un error al consultar el vehículo.', 500);
         }
     }
+
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {

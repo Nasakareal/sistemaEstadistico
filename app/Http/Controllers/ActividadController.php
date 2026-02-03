@@ -20,8 +20,18 @@ class ActividadController extends Controller
 
     public function index(Request $request)
     {
+        $tz = 'America/Mexico_City';
+
+        $fechaSeleccionada = $request->filled('fecha')
+            ? $request->input('fecha')
+            : now($tz)->toDateString();
+
+        $inicioDia = \Carbon\Carbon::parse($fechaSeleccionada, $tz)->startOfDay();
+        $finDia    = \Carbon\Carbon::parse($fechaSeleccionada, $tz)->endOfDay();
+
         $query = Actividad::query()
             ->with(['categoria', 'subcategoria'])
+            ->whereBetween('created_at', [$inicioDia, $finDia])
             ->orderByDesc('created_at');
 
         if ($request->filled('actividad_categoria_id')) {
@@ -44,8 +54,9 @@ class ActividadController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        return view('actividades.index', compact('actividades', 'categorias'));
+        return view('actividades.index', compact('actividades', 'categorias', 'fechaSeleccionada'));
     }
+
 
     public function create()
     {

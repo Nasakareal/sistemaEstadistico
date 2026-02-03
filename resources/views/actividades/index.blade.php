@@ -13,7 +13,12 @@
         <div class="col-md-12">
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Actividades</h3>
+                    <h3 class="card-title">
+                        Actividades
+                        <span class="text-muted" style="font-weight: normal;">
+                            ({{ \Carbon\Carbon::parse($fechaSeleccionada, 'America/Mexico_City')->format('d/m/Y') }})
+                        </span>
+                    </h3>
 
                     <div class="card-tools">
                         @can('crear actividades')
@@ -25,22 +30,89 @@
                 </div>
 
                 <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label for="categoria_filtro">Filtrar por categoría:</label>
-                            <select id="categoria_filtro" class="form-control">
-                                <option value="">Todas</option>
-                                @foreach ($categorias as $c)
-                                    <option value="{{ $c->id }}">{{ $c->nombre }}</option>
-                                @endforeach
-                            </select>
+
+                    {{-- FILTROS (GET) --}}
+                    <form method="GET" action="{{ route('actividades.index') }}" id="filtrosForm">
+                        <div class="row mb-3">
+                            {{-- Fecha --}}
+                            <div class="col-md-3">
+                                <label for="fecha_filtro">Día:</label>
+                                <input
+                                    type="date"
+                                    id="fecha_filtro"
+                                    name="fecha"
+                                    class="form-control"
+                                    value="{{ $fechaSeleccionada }}"
+                                >
+                            </div>
+
+                            {{-- Categoría (server-side) --}}
+                            <div class="col-md-3">
+                                <label for="categoria_filtro">Filtrar por categoría:</label>
+                                <select id="categoria_filtro" name="actividad_categoria_id" class="form-control">
+                                    <option value="">Todas</option>
+                                    @foreach ($categorias as $c)
+                                        <option value="{{ $c->id }}" {{ (string)request('actividad_categoria_id') === (string)$c->id ? 'selected' : '' }}>
+                                            {{ $c->nombre }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Subcategoría (opcional server-side) --}}
+                            <div class="col-md-3">
+                                <label for="subcategoria_filtro">Filtrar por subcategoría:</label>
+                                <select id="subcategoria_filtro" name="actividad_subcategoria_id" class="form-control">
+                                    <option value="">Todas</option>
+                                    @php
+                                        $subcats = collect();
+                                        foreach ($actividades as $a) {
+                                            if ($a->subcategoria) { $subcats->push($a->subcategoria); }
+                                        }
+                                        $subcats = $subcats->unique('id')->sortBy('nombre');
+                                    @endphp
+
+                                    @foreach ($subcats as $sc)
+                                        <option value="{{ $sc->id }}" {{ (string)request('actividad_subcategoria_id') === (string)$sc->id ? 'selected' : '' }}>
+                                            {{ $sc->nombre }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">
+                                    Si no aparece una subcategoría aquí, no hay registros con esa subcategoría en el día seleccionado.
+                                </small>
+                            </div>
+
+                            {{-- Buscar (server-side) --}}
+                            <div class="col-md-3">
+                                <label for="q_filtro">Buscar por nombre:</label>
+                                <input
+                                    type="text"
+                                    id="q_filtro"
+                                    name="q"
+                                    class="form-control"
+                                    placeholder="Escriba para buscar..."
+                                    value="{{ request('q') }}"
+                                >
+                            </div>
                         </div>
 
-                        <div class="col-md-4">
-                            <label for="q_filtro">Buscar por nombre:</label>
-                            <input type="text" id="q_filtro" class="form-control" placeholder="Escriba para buscar...">
+                        <div class="row mb-3">
+                            <div class="col-12 d-flex" style="gap:8px; flex-wrap: wrap;">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-filter"></i> Aplicar filtros
+                                </button>
+
+                                <a href="{{ route('actividades.index', ['fecha' => now('America/Mexico_City')->toDateString()]) }}" class="btn btn-outline-secondary">
+                                    <i class="fa-solid fa-calendar-day"></i> Hoy
+                                </a>
+
+                                <a href="{{ route('actividades.index') }}" class="btn btn-outline-danger">
+                                    <i class="fa-solid fa-broom"></i> Limpiar
+                                </a>
+                            </div>
                         </div>
-                    </div>
+                    </form>
 
                     <table id="actividades" class="table table-striped table-bordered table-hover table-sm">
                         <thead>
@@ -61,7 +133,7 @@
                                 <tr>
                                     <td>{{ $a->id }}</td>
                                     <td>{{ $a->nombre }}</td>
-                                    <td data-categoria-id="{{ $a->actividad_categoria_id }}">
+                                    <td>
                                         {{ $a->categoria ? $a->categoria->nombre : 'Sin categoría' }}
                                     </td>
                                     <td>
@@ -84,7 +156,7 @@
                                         @endif
                                     </td>
 
-                                    <td>{{ optional($a->created_at)->format('Y-m-d H:i') }}</td>
+                                    <td>{{ optional($a->created_at)->timezone('America/Mexico_City')->format('Y-m-d H:i') }}</td>
 
                                     <td style="text-align:center;">
                                         <a href="{{ route('actividades.show', $a->id) }}" class="btn btn-info btn-sm">
@@ -111,6 +183,12 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    @if($actividades->isEmpty())
+                        <div class="alert alert-info mt-3 mb-0">
+                            No hay actividades registradas para el día seleccionado.
+                        </div>
+                    @endif
 
                 </div>
             </div>
@@ -139,6 +217,8 @@
 @section('js')
     <script>
         $(function () {
+
+            // DataTable (solo UX: paginación/orden/búsqueda interna si quieres)
             var table = $('#actividades').DataTable({
                 "pageLength": 10,
                 "order": [[0, "desc"]],
@@ -164,44 +244,29 @@
                 "autoWidth": false,
             });
 
-            $('#categoria_filtro').on('change', function () {
-                var selectedCat = $(this).val();
-
-                if (!selectedCat) {
-                    table.column(2).search('').draw();
-                    return;
-                }
-
-                table.column(2).search('^' + selectedCat + '$', true, false).draw();
+            // Si cambian filtros, puedes auto-enviar el GET (sin botón), si lo prefieres.
+            // Déjalo activado para UX tipo "selecciono día y se recarga".
+            $('#fecha_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {
+                $('#filtrosForm').submit();
             });
 
-            // para que el filtro por categoría funcione, filtramos con un regex usando el data-categoria-id
-            // hack simple: al dibujar, reemplazamos la búsqueda de columna con el valor del atributo data
-            // DataTables busca texto, así que metemos el id al texto oculto
-            $('#actividades tbody tr').each(function () {
-                var td = $(this).find('td').eq(2);
-                var catId = td.data('categoria-id');
-                if (catId) {
-                    td.prepend('<span class="d-none">' + catId + '</span>');
+            // Enter en búsqueda => submit del GET (server-side)
+            $('#q_filtro').on('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    $('#filtrosForm').submit();
                 }
             });
 
-            $('#q_filtro').on('keyup change', function () {
-                table.search($(this).val()).draw();
-            });
-
-            // inicializa
-            $('#categoria_filtro').trigger('change');
+            @if (session('success'))
+                Swal.fire({
+                    position: 'center',
+                    icon: 'success',
+                    title: '{{ session('success') }}',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            @endif
         });
-
-        @if (session('success'))
-            Swal.fire({
-                position: 'center',
-                icon: 'success',
-                title: '{{ session('success') }}',
-                showConfirmButton: false,
-                timer: 3000
-            });
-        @endif
     </script>
 @stop

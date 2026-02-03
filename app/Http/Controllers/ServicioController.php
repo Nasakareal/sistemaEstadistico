@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Servicio;
 use App\Models\Grua;
+use Carbon\Carbon;
 
 class ServicioController extends Controller
 {
@@ -30,7 +31,6 @@ class ServicioController extends Controller
 
         $data = $request->all();
 
-        // Subir la foto si se proporciona
         if ($request->hasFile('foto_vehiculo')) {
             $data['foto_vehiculo'] = $request->file('foto_vehiculo')->store('fotos_vehiculos', 'public');
         }
@@ -61,7 +61,6 @@ class ServicioController extends Controller
 
         $data = $request->all();
 
-        // Subir una nueva foto si se proporciona
         if ($request->hasFile('foto_vehiculo')) {
             $data['foto_vehiculo'] = $request->file('foto_vehiculo')->store('fotos_vehiculos', 'public');
         }
@@ -73,37 +72,91 @@ class ServicioController extends Controller
 
     public function grafico(Request $request)
     {
-        // Obtener filtros desde el request
-        $fechaInicio = $request->input('fecha_inicio');
-        $fechaFin = $request->input('fecha_fin');
-        $gruasSeleccionadas = $request->input('gruas');
+        $anchor = $request->query('anchor');
 
-        // Consulta base con la relación de servicios
-        $query = Grua::with(['servicios' => function ($q) use ($fechaInicio, $fechaFin) {
-            if ($fechaInicio && $fechaFin) {
-                $q->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
-            }
-        }]);
-
-        // Filtrar por grúas si se seleccionaron
-        if (!empty($gruasSeleccionadas)) {
-            $query->whereIn('nombre', $gruasSeleccionadas);
+        if ($anchor) {
+            $a = Carbon::parse($anchor, 'America/Mexico_City')->startOfDay();
+        } else {
+            $a = Carbon::now('America/Mexico_City')->startOfDay();
         }
 
-        // Obtener las grúas con conteo de servicios y la fecha del último servicio
+        $from = $a->copy()->startOfWeek(Carbon::MONDAY);
+        $to = $from->copy()->addDays(6)->endOfDay();
+
+        $gruasSeleccionadas = $request->input('gruas');
+        if (is_string($gruasSeleccionadas)) {
+            $gruasSeleccionadas = array_filter(array_map('trim', explode(',', $gruasSeleccionadas)));
+        }
+        if (!is_array($gruasSeleccionadas)) {
+            $gruasSeleccionadas = [];
+        }
+
+        $gruasCatalogo = Grua::query()
+            ->select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get();
+
+        $query = Grua::query()
+            ->select('id', 'nombre')
+            ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
+                $q->whereIn('nombre', $gruasSeleccionadas);
+            })
+            ->with(['servicios' => function ($q) use ($from, $to) {
+                $q->select('id', 'vehiculo_id', 'grua_id', 'tipo_vehiculo', 'aseguradora', 'created_at')
+                    ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
+                    ->with(['vehiculo' => function ($v) {
+                        $v->select('id', 'marca', 'modelo', 'tipo', 'linea', 'color', 'placas', 'aseguradora');
+                    }]);
+            }]);
+
         $gruasServicios = $query->get()->map(function ($grua) {
+            $servicios = $grua->servicios ?? collect();
+
+            $vehiculos = $servicios->map(function ($s) {
+                $veh = $s->vehiculo;
+
+                $aseg = trim((string)($s->aseguradora ?? ''));
+                if ($aseg === '' && $veh) {
+                    $aseg = trim((string)($veh->aseguradora ?? ''));
+                }
+
+                $asegUpper = mb_strtoupper($aseg, 'UTF-8');
+                $sinSeguro = ['SIN SEGURO', 'NO', 'N/A', 'NA', 'NINGUNO', 'NULL', ''];
+                $tieneSeguro = ($asegUpper === '' || in_array($asegUpper, $sinSeguro, true)) ? 0 : 1;
+
+                return [
+                    'placas' => $veh ? $veh->placas : null,
+                    'marca' => $veh ? $veh->marca : null,
+                    'linea' => $veh ? $veh->linea : null,
+                    'modelo' => $veh ? $veh->modelo : null,
+                    'color' => $veh ? $veh->color : null,
+                    'tipo_vehiculo' => $s->tipo_vehiculo,
+                    'tipo' => $veh ? $veh->tipo : null,
+                    'aseguradora' => $aseg !== '' ? $aseg : null,
+                    'tiene_seguro' => $tieneSeguro,
+                    'servicio_id' => $s->id,
+                    'fecha_servicio' => optional($s->created_at)->toDateTimeString(),
+                ];
+            })->values();
+
             return [
+                'id' => $grua->id,
                 'nombre' => $grua->nombre,
-                'servicios_count' => $grua->servicios->count(),
-                'fecha_ultimo_servicio' => $grua->servicios->max('created_at'), // Obtener la fecha más reciente
+                'servicios_count' => $servicios->count(),
+                'fecha_ultimo_servicio' => optional($servicios->max('created_at'))->toDateTimeString(),
+                'vehiculos' => $vehiculos,
             ];
         });
 
-        // Enviar datos a la vista
-        return view('servicios.grafico', compact('gruasServicios'));
+        return view('servicios.grafico', [
+            'gruasCatalogo' => $gruasCatalogo,
+            'gruasServicios' => $gruasServicios,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'anchor' => $a->toDateString(),
+            'gruasSeleccionadas' => $gruasSeleccionadas,
+        ]);
     }
-
-
 
     public function destroy(Grua $grua, Servicio $servicio)
     {

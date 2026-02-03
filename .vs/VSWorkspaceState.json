@@ -2,17 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
     "\\app\\Services",
     "\\app\\Services\\Exports",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\actividades",
-    "\\resources\\views\\estadisticas_globales",
+    "\\resources\\views\\gruas",
+    "\\resources\\views\\gruas\\servicios",
+    "\\resources\\views\\servicios",
     "\\routes"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\ServicioController.php",
   "PreviewInSolutionExplorer": false
 }

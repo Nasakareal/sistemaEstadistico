@@ -1,9 +1,17 @@
 {
   "ExpandedNodes": [
     "",
+    "\\app",
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models",
     "\\database",
-    "\\database\\migrations"
+    "\\database\\migrations",
+    "\\routes"
   ],
-  "SelectedNode": "\\database\\migrations\\2026_02_04_121504_fix_unique_foto_hash_on_actividades_table.php",
+  "SelectedNode": "\\app\\Models\\DeviceToken.php",
   "PreviewInSolutionExplorer": false
 }

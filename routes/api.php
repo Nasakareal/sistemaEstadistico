@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\DictamenController;
 use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ActividadController;
 use App\Http\Controllers\Api\FeedController;
+use App\Http\Controllers\Api\DeviceTokenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,9 @@ Route::post('/login', [AuthController::class, 'login']);
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
+
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);

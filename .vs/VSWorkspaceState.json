@@ -4,14 +4,9 @@
     "\\app",
     "\\app\\Console",
     "\\app\\Console\\Commands",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models",
-    "\\database",
-    "\\database\\migrations",
-    "\\routes"
+    "\\app\\Services",
+    "\\app\\Services\\Firebase"
   ],
-  "SelectedNode": "\\app\\Models\\DeviceToken.php",
+  "SelectedNode": "\\app\\Console\\Commands\\NotificarHechosPendientes.php",
   "PreviewInSolutionExplorer": false
 }

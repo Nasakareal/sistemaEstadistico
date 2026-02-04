@@ -27,10 +27,10 @@ class DeviceTokenController extends Controller
         $user = $request->user();
 
         DeviceToken::query()->updateOrCreate(
-            ['token' => $request->input('token')],
+            ['token' => (string) $request->input('token')],
             [
-                'user_id' => $user->id,
-                'platform' => $request->input('platform'),
+                'user_id' => (int) $user->id,
+                'platform' => $request->input('platform') ? (string) $request->input('platform') : null,
                 'last_seen_at' => Carbon::now('America/Mexico_City'),
             ]
         );

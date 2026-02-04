@@ -1,16 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\Exports",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\gruas",
-    "\\resources\\views\\gruas\\servicios",
-    "\\resources\\views\\servicios",
-    "\\routes"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ServicioController.php",
+  "SelectedNode": "\\database\\migrations\\2026_02_04_121504_fix_unique_foto_hash_on_actividades_table.php",
   "PreviewInSolutionExplorer": false
 }

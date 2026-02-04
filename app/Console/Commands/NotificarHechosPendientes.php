@@ -14,8 +14,6 @@ class NotificarHechosPendientes extends Command
     protected $signature = 'hechos:notificar-pendientes';
     protected $description = 'Notifica al creador del hecho cuando pasan 48h/72h y sigue PENDIENTE (y recordatorios tras 72h).';
 
-    private ?string $cachedAccessToken = null;
-
     public function handle(): int
     {
         $now = Carbon::now('America/Mexico_City');
@@ -159,7 +157,9 @@ class NotificarHechosPendientes extends Command
             return;
         }
 
-        $accessToken = $this->getCachedGoogleAccessToken($clientEmail, $privateKey);
+        $privateKey = str_replace("\\n", "\n", $privateKey);
+
+        $accessToken = $this->getGoogleAccessToken($clientEmail, $privateKey);
         if ($accessToken === null) {
             return;
         }
@@ -170,7 +170,6 @@ class NotificarHechosPendientes extends Command
             try {
                 $res = Http::withToken($accessToken)
                     ->acceptJson()
-                    ->timeout(15)
                     ->post($url, [
                         'message' => [
                             'token' => $token,
@@ -180,13 +179,13 @@ class NotificarHechosPendientes extends Command
                             ],
                             'data' => array_map('strval', (array) ($payload['data'] ?? [])),
                             'android' => [
-                                'priority' => 'HIGH',
+                                'priority' => 'high',
                             ],
                         ],
                     ]);
 
                 if (!$res->ok()) {
-                    Log::warning('FCM respondió error', [
+                    Log::warning('FCM respondio error', [
                         'user_id' => $userId,
                         'status' => $res->status(),
                         'body' => $res->body(),
@@ -201,40 +200,23 @@ class NotificarHechosPendientes extends Command
         }
     }
 
-    private function getCachedGoogleAccessToken(string $clientEmail, string $privateKeyEnv): ?string
-    {
-        if (is_string($this->cachedAccessToken) && $this->cachedAccessToken !== '') {
-            return $this->cachedAccessToken;
-        }
-
-        $privateKey = str_replace("\\n", "\n", $privateKeyEnv);
-        $token = $this->getGoogleAccessToken($clientEmail, $privateKey);
-
-        if ($token !== null) {
-            $this->cachedAccessToken = $token;
-        }
-
-        return $token;
-    }
-
     private function getGoogleAccessToken(string $clientEmail, string $privateKey): ?string
     {
         try {
             $now = time();
-
-            $header = $this->base64UrlEncode(json_encode(['alg' => 'RS256', 'typ' => 'JWT'], JSON_UNESCAPED_SLASHES));
-            $claims = $this->base64UrlEncode(json_encode([
+            $header = $this->base64UrlEncode((string) json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+            $claims = $this->base64UrlEncode((string) json_encode([
                 'iss' => $clientEmail,
                 'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
                 'aud' => 'https://oauth2.googleapis.com/token',
                 'iat' => $now,
                 'exp' => $now + 3600,
-            ], JSON_UNESCAPED_SLASHES));
+            ]));
 
             $toSign = $header . '.' . $claims;
 
             $signature = '';
-            $ok = openssl_sign($toSign, $signature, $privateKey, 'sha256');
+            $ok = openssl_sign($toSign, $signature, $privateKey, 'SHA256');
 
             if (!$ok) {
                 Log::warning('No se pudo firmar JWT (openssl_sign)');
@@ -243,12 +225,10 @@ class NotificarHechosPendientes extends Command
 
             $jwt = $toSign . '.' . $this->base64UrlEncode($signature);
 
-            $res = Http::asForm()
-                ->timeout(15)
-                ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                    'assertion' => $jwt,
-                ]);
+            $res = Http::asForm()->post('https://oauth2.googleapis.com/token', [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt,
+            ]);
 
             if (!$res->ok()) {
                 Log::warning('OAuth token fallo', [

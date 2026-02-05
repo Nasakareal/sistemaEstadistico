@@ -6,8 +6,9 @@
     "\\app\\Http\\Controllers",
     "\\database",
     "\\resources",
-    "\\resources\\views"
+    "\\resources\\views",
+    "\\resources\\views\\actividades"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ActividadController.php",
+  "SelectedNode": "\\resources\\views\\actividades\\informe.blade.php",
   "PreviewInSolutionExplorer": false
 }

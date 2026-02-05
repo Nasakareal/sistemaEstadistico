@@ -69,6 +69,8 @@ class NotificarHechosPendientes extends Command
 
     private function procesar72h(Carbon $now): void
     {
+        $reminderMinutes = 5;
+
         $hechos = Hechos::query()
             ->where('situacion', 'PENDIENTE')
             ->where('created_at', '<=', $now->copy()->subHours(72))
@@ -103,7 +105,7 @@ class NotificarHechosPendientes extends Command
                     $deboNotificar = true;
                 } else {
                     $ultima = Carbon::parse($hecho->ultimo_recordatorio_72_at, 'America/Mexico_City');
-                    if ($ultima->lte($now->copy()->subHours(2))) {
+                    if ($ultima->lte($now->copy()->subMinutes($reminderMinutes))) {
                         $deboNotificar = true;
                     }
                 }
@@ -175,11 +177,18 @@ class NotificarHechosPendientes extends Command
                             'token' => $token,
                             'notification' => [
                                 'title' => (string) ($payload['title'] ?? ''),
-                                'body' => (string) ($payload['body'] ?? ''),
+                                'body'  => (string) ($payload['body'] ?? ''),
                             ],
                             'data' => array_map('strval', (array) ($payload['data'] ?? [])),
                             'android' => [
                                 'priority' => 'high',
+                                'notification' => [
+                                    'channel_id' => 'hechos_alertas',
+                                    'sound' => 'default',
+                                    'default_sound' => true,
+                                    'default_vibrate_timings' => true,
+                                    'notification_priority' => 'PRIORITY_MAX',
+                                ],
                             ],
                         ],
                     ]);

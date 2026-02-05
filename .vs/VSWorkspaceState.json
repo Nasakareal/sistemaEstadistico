@@ -4,10 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\database",
+    "\\config",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\actividades"
+    "\\resources\\views\\hechos",
+    "\\resources\\views\\hechos\\pendientes_cortes",
+    "\\routes"
   ],
+  "SelectedNode": "\\resources\\views\\hechos\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

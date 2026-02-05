@@ -51,7 +51,6 @@
         return (string) $v;
     };
 
-    // ✅ Coordenadas (ajusta si tus columnas se llaman diferente)
     $lat = old('lat', $hecho->lat ?? null);
     $lng = old('lng', $hecho->lng ?? null);
     $precision = old('precision_m', $hecho->precision_m ?? null);
@@ -60,7 +59,6 @@
 <div class="row justify-content-center">
     <div class="col-md-10">
 
-        {{-- ===== CARD DATOS DEL HECHO ===== --}}
         <div class="card card-outline card-info">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h3 class="card-title mb-0">Información Registrada</h3>
@@ -75,16 +73,21 @@
             <div class="card-body">
                 <div class="row">
                     @foreach($campos as $field => $label)
+                        @php
+                            $isGreen = in_array($field, ['id', 'situacion'], true);
+                        @endphp
+
                         <div class="col-12 col-md-3">
                             <div class="form-group">
                                 <label>{{ $label }}</label>
-                                <p class="form-control-static">{{ $fmt(data_get($hecho, $field)) }}</p>
+                                <p class="form-control-static {{ $isGreen ? 'sv-green' : '' }}">
+                                    {{ $fmt(data_get($hecho, $field)) }}
+                                </p>
                             </div>
                         </div>
                     @endforeach
                 </div>
 
-                {{-- ===== MAPA (SI HAY COORDENADAS) ===== --}}
                 <hr>
 
                 <div class="row">
@@ -147,7 +150,6 @@
                     </div>
                 </div>
 
-                {{-- ===== RESPONSABLE + EVIDENCIA ===== --}}
                 <hr>
 
                 <div class="row">
@@ -172,7 +174,6 @@
                     </div>
                 </div>
 
-                {{-- ===== VEHÍCULOS ===== --}}
                 <hr>
 
                 <div class="row">
@@ -244,7 +245,6 @@
 @stop
 
 @section('css')
-    {{-- ✅ Leaflet CSS (mapa) --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
@@ -290,7 +290,11 @@
       color: #e5e7eb !important;
   }
 
-  /* ✅ Leaflet en tema oscuro: que no se vea “lavado” */
+  .content-wrapper .form-control-static.sv-green {
+      color: #22c55e !important;
+      font-weight: 800 !important;
+  }
+
   .leaflet-container {
       background: #0b1220;
       border-radius: 14px;
@@ -299,14 +303,11 @@
 @stop
 
 @section('js')
-    {{-- ✅ Leaflet JS --}}
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        console.log("Vista de detalles del hecho cargada correctamente.");
-
         const lat = @json($lat);
         const lng = @json($lng);
 
@@ -331,7 +332,6 @@
                 </div>
             `);
 
-            // Abre el popup de una vez
             marker.openPopup();
         }
     });

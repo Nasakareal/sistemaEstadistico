@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Hechos;
+use App\Models\PendientesCorte;
+use App\Models\PendientesCorteDetalle;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+
+class PendientesCortesController extends Controller
+{
+    public function index(Request $request)
+    {
+        $cortes = PendientesCorte::orderByDesc('corte_fecha')->paginate(30);
+
+        return view('hechos.pendientes_cortes.index', compact('cortes'));
+    }
+
+    public function show(Request $request, PendientesCorte $corte)
+    {
+        $tz = 'America/Mexico_City';
+        $prevDate = Carbon::parse($corte->corte_fecha, $tz)->subWeek()->toDateString();
+        $prev = PendientesCorte::where('corte_fecha', $prevDate)->first();
+
+        $idsPrev = $prev
+            ? PendientesCorteDetalle::where('pendientes_corte_id', $prev->id)->pluck('hecho_id')->unique()->values()->all()
+            : [];
+
+        $idsNow = PendientesCorteDetalle::where('pendientes_corte_id', $corte->id)->pluck('hecho_id')->unique()->values()->all();
+
+        $hechosPrev = count($idsPrev)
+            ? Hechos::whereIn('id', $idsPrev)->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])->get()->keyBy('id')
+            : collect();
+
+        $hechosNow = count($idsNow)
+            ? Hechos::whereIn('id', $idsNow)->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])->get()
+            : collect();
+
+        $resueltos = [];
+        $turnados = [];
+        $siguen = [];
+        $otros = [];
+
+        foreach ($idsPrev as $id) {
+            $h = $hechosPrev->get($id);
+            if (!$h) {
+                continue;
+            }
+
+            if ($h->situacion === 'RESUELTO') {
+                $resueltos[] = $h;
+            } elseif ($h->situacion === 'TURNADO') {
+                $turnados[] = $h;
+            } elseif ($h->situacion === 'PENDIENTE') {
+                $siguen[] = $h;
+            } else {
+                $otros[] = $h;
+            }
+        }
+
+        $setPrev = array_fill_keys($idsPrev, true);
+        $nuevos = $hechosNow->filter(function ($h) use ($setPrev) {
+            return !isset($setPrev[$h->id]);
+        })->values();
+
+        $totales = [
+            'previos' => count($idsPrev),
+            'resueltos' => count($resueltos),
+            'turnados' => count($turnados),
+            'siguen_pendiente' => count($siguen),
+            'otros' => count($otros),
+            'nuevos_pendientes' => $nuevos->count(),
+        ];
+
+        return view('hechos.pendientes_cortes.show', compact(
+            'corte',
+            'prev',
+            'totales',
+            'resueltos',
+            'turnados',
+            'siguen',
+            'otros',
+            'nuevos'
+        ));
+    }
+}

@@ -27,6 +27,7 @@ use App\Http\Controllers\VehiculosController;
 use App\Http\Controllers\LesionadoController;
 use App\Http\Controllers\ActividadController;
 use App\Http\Controllers\DictamenController;
+use App\Http\Controllers\PendientesCortesController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -198,6 +199,11 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
         Route::get('/{lesionado}/edit',[LesionadoController::class,'edit'])->middleware('can:editar lesionados')->name('lesionados.edit');
         Route::put('/{lesionado}',[LesionadoController::class,'update'])->middleware('can:editar lesionados')->name('lesionados.update');
         Route::delete('/{lesionado}',[LesionadoController::class,'destroy'])->middleware('can:eliminar lesionados')->name('lesionados.destroy');
+    });
+
+    Route::prefix('pendientes')->group(function () {
+        Route::get('/cortes', [PendientesCortesController::class, 'index'])->name('hechos.pendientes.cortes.index');
+        Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->name('hechos.pendientes.cortes.show');
     });
 });
 

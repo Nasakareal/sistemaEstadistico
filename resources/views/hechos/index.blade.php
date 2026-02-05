@@ -54,7 +54,7 @@
                     <table id="hechos" class="table table-striped table-bordered table-hover table-sm">
                         <thead>
                             <tr>
-                                <th><center>Folio</center></th>
+                                <th><center>ID</center></th>
                                 <th><center>Fecha y Hora</center></th>
                                 <th><center>Ubicación</center></th>
                                 <th><center>Foto Lugar</center></th>
@@ -67,7 +67,7 @@
                         <tbody>
                             @foreach ($hechos as $hecho)
                                 <tr>
-                                    <td>{{ $hecho->folio_c5i }}</td>
+                                    <td>{{ $hecho->id }}</td>
                                     <td>{{ $hecho->fecha }} {{ $hecho->hora }}</td>
                                     <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
 

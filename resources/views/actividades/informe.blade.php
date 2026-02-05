@@ -26,7 +26,8 @@
     $fechaTexto = $fecha->format('d') . ' de ' . ($meses[(int)$fecha->format('n')] ?? $fecha->format('m')) . ' de ' . $fecha->format('Y');
 
     $items = $actividades->values();
-    $pages = $items->chunk(2);
+    // UNA FOTO POR PÁGINA
+    $pages = $items->chunk(1);
 @endphp
 
 <!doctype html>
@@ -39,6 +40,10 @@
 
         .header { position: relative; min-height: 120px; padding-right: 120px; }
         .logo { position: absolute; top: 0; right: 0; width: 96px; height: auto; }
+
+        /* BAJAR "TARJETA INFORMATIVA" */
+        .header-inner { padding-top: 48px; } /* antes: 14px; súbelo/bájalo aquí si quieres más */
+
         .titulo { font-weight: 700; font-size: 13px; margin: 0; }
         .fecha { text-align: right; font-size: 12px; margin: 10px 0 0 0; }
 
@@ -57,19 +62,34 @@
 
         .photos-title { margin-top: 16px; font-weight: 700; }
 
-        .photo-box { border: 1px solid #e2e2e2; padding: 8px; border-radius: 6px; margin-top: 10px; }
-        .photo-img { width: 100%; height: 240px; object-fit: cover; display: block; }
+        /* FIRMA */
+        .firma {
+            margin-top: 18px;
+            text-align: center;
+            font-weight: 700;
+            line-height: 1.6;
+        }
+        .firma .spacer { height: 24px; }
 
-        .cap { margin-top: 6px; font-size: 11px; }
+        /* FOTO FULL PAGE */
+        .photo-page { margin-top: 10px; }
+        .photo-img-full {
+            width: 100%;
+            height: 650px; /* ajusta si quieres más/menos alto */
+            object-fit: cover;
+            display: block;
+        }
+
+        .photo-meta { margin-top: 8px; font-size: 11px; }
         .small { font-size: 10px; color: #444; margin-top: 3px; }
 
         .placeholder {
             width: 100%;
-            height: 240px;
+            height: 650px;
             border: 1px dashed #bbb;
             display: block;
             text-align: center;
-            line-height: 240px;
+            line-height: 650px;
             color: #666;
             font-size: 12px;
         }
@@ -84,7 +104,7 @@
             <img class="logo" src="{{ $logoRel }}" alt="logo">
         @endif
 
-        <div style="padding-top: 14px;">
+        <div class="header-inner">
             <p class="titulo">TARJETA INFORMATIVA</p>
             <p class="fecha">Morelia, Michoacán, a {{ $fechaTexto }}.</p>
         </div>
@@ -117,7 +137,19 @@ seguridad a la ciudadanía.</div>
 
     <div class="nota">Se anexan gráficas ilustrativas de la operatividad realizada.</div>
 
-    <div class="hr"></div>
+    <!-- AQUI VA LO QUE PEDISTE, CENTRADO Y JUSTO DESPUÉS DE LA NOTA -->
+    <div class="firma">
+        RESPETUOSAMENTE<br>
+        ENCARGADO DE LA UNIDAD DE<br>
+        ATENCIÓN A SINIESTROS.<br>
+
+        <div class="spacer"></div>
+
+        LIC. JULIO ERNESTO BAUTISTA JIMENEZ.
+    </div>
+
+    <!-- SALTO DE PÁGINA DESPUÉS DEL NOMBRE -->
+    <div class="page-break"></div>
 
     <div class="photos-title">Anexos fotográficos ({{ $fecha->format('d/m/Y') }})</div>
 
@@ -143,14 +175,14 @@ seguridad a la ciudadanía.</div>
                 }
             @endphp
 
-            <div class="photo-box">
+            <div class="photo-page">
                 @if($srcRel)
-                    <img class="photo-img" src="{{ $srcRel }}" alt="foto">
+                    <img class="photo-img-full" src="{{ $srcRel }}" alt="foto">
                 @else
                     <div class="placeholder">Sin imagen disponible</div>
                 @endif
 
-                <div class="cap"><b>Subcategoría:</b> {{ $sub }}</div>
+                <div class="photo-meta"><b>Subcategoría:</b> {{ $sub }}</div>
                 <div class="small"><b>Categoría:</b> {{ $cat }} &nbsp; | &nbsp; <b>Hora:</b> {{ $hora }} &nbsp; | &nbsp; <b>ID:</b> {{ $a->id }}</div>
             </div>
         @endforeach

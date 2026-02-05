@@ -244,6 +244,13 @@ return [
                     'url'     => 'busqueda',
                     'can'     => 'ver hechos',
                 ],
+                [
+                    'text'    => 'Cortes de Pendientes',
+                    'icon'    => 'fa-solid fa-clipboard-list',
+                    'classes' => 'text-white',
+                    'url'     => 'hechos/pendientes/cortes',
+                    'can'     => 'ver hechos',
+                ],
             ],
         ],
 

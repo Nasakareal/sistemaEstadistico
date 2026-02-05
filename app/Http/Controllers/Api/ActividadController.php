@@ -79,7 +79,7 @@ class ActividadController extends Controller
 
         $validated = $request->validate([
             'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
-            'actividad_subcategoria_id' => 'nullable|exists:actividad_subcategorias,id',
+            'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'foto'                      => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
@@ -164,7 +164,7 @@ class ActividadController extends Controller
 
         $validated = $request->validate([
             'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
-            'actividad_subcategoria_id' => 'nullable|exists:actividad_subcategorias,id',
+            'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'foto'                      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 

@@ -4,13 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\config",
+    "\\app\\Http\\Controllers\\Api",
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\hechos",
     "\\resources\\views\\hechos\\pendientes_cortes",
     "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ActividadController.php",
   "PreviewInSolutionExplorer": false
 }

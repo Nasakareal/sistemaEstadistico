@@ -4,11 +4,10 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Models",
+    "\\database",
     "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\actividades"
+    "\\resources\\views"
   ],
-  "SelectedNode": "\\app\\Models\\ActividadSubcategoria.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\ActividadController.php",
   "PreviewInSolutionExplorer": false
 }

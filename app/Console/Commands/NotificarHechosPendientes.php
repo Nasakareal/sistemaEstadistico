@@ -69,7 +69,7 @@ class NotificarHechosPendientes extends Command
 
     private function procesar72h(Carbon $now): void
     {
-        $reminderMinutes = 5;
+        $reminderMinutes = 60;
 
         $hechos = Hechos::query()
             ->where('situacion', 'PENDIENTE')
@@ -147,6 +147,7 @@ class NotificarHechosPendientes extends Command
             ->all();
 
         if (empty($tokens)) {
+            Log::info('FCM: sin tokens para usuario', ['user_id' => $userId]);
             return;
         }
 
@@ -163,6 +164,7 @@ class NotificarHechosPendientes extends Command
 
         $accessToken = $this->getGoogleAccessToken($clientEmail, $privateKey);
         if ($accessToken === null) {
+            Log::warning('FCM: no se pudo obtener access token');
             return;
         }
 
@@ -180,8 +182,10 @@ class NotificarHechosPendientes extends Command
                                 'body'  => (string) ($payload['body'] ?? ''),
                             ],
                             'data' => array_map('strval', (array) ($payload['data'] ?? [])),
+
                             'android' => [
-                                'priority' => 'high',
+                                'priority' => 'HIGH',
+                                'ttl' => '3600s',
                                 'notification' => [
                                     'channel_id' => 'hechos_alertas',
                                     'sound' => 'default',
@@ -199,6 +203,11 @@ class NotificarHechosPendientes extends Command
                         'status' => $res->status(),
                         'body' => $res->body(),
                     ]);
+
+                    $body = (string) $res->body();
+                    if (str_contains($body, 'UNREGISTERED') || str_contains($body, 'NOT_FOUND')) {
+                        DB::table('device_tokens')->where('token', $token)->delete();
+                    }
                 }
             } catch (\Throwable $e) {
                 Log::warning('FCM fallo send', [

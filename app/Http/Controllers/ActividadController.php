@@ -72,9 +72,16 @@ class ActividadController extends Controller
         $actividades = $this->buildQuery($request, $inicioDia, $finDia)->get();
 
         $actividades->transform(function ($a) {
-            $a->foto_pdf_path = $this->getOrCreatePdfImage($a->foto_path);
+            $rel = $this->getOrCreatePdfImage($a->foto_path);
+            $a->foto_pdf_path = $rel;
+
+            $a->foto_pdf_abs = $rel
+                ? public_path('storage/' . ltrim($rel, '/'))
+                : null;
+
             return $a;
         });
+
 
         $pdfFacade = null;
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {

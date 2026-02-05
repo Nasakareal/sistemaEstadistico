@@ -10,7 +10,7 @@ class DetectDisconnectedUsers extends Command
 {
     protected $signature = 'users:detect-disconnected {--minutes=5 : Minutos sin reportar para considerar desconectado}';
 
-    protected $description = 'Detecta usuarios que dejaron de reportar (last_seen_at) y genera alertas por unidad+turno (Jefe de Grupo) y por unidad (Subdirector).';
+    protected $description = 'Detecta usuarios que dejaron de reportar (last_seen_at) y genera alertas SOLO a Jefe de Grupo del mismo grupo (unidad+turno).';
 
     public function handle()
     {
@@ -19,18 +19,14 @@ class DetectDisconnectedUsers extends Command
 
         $threshold = now()->subMinutes($minutes);
 
-        $subdirectores = User::query()
-            ->whereHas('roles', fn($q) => $q->where('name', 'Subdirector'))
-            ->get(['id', 'name', 'unidad_id', 'turno_id']);
-
         $jefes = User::query()
             ->whereHas('roles', fn($q) => $q->where('name', 'Jefe de Grupo'))
+            ->whereNotNull('unidad_id')
+            ->whereNotNull('turno_id')
             ->get(['id', 'name', 'unidad_id', 'turno_id']);
 
-        $subdirectoresPorUnidad = $subdirectores->groupBy(fn(User $u) => (string)($u->unidad_id ?? 'null'));
-
         $jefesPorUnidadTurno = $jefes->groupBy(function (User $u) {
-            return (string)($u->unidad_id ?? 'null') . ':' . (string)($u->turno_id ?? 'null');
+            return (string)$u->unidad_id . ':' . (string)$u->turno_id;
         });
 
         $disconnectedUsers = User::query()
@@ -45,20 +41,25 @@ class DetectDisconnectedUsers extends Command
 
         foreach ($disconnectedUsers as $u) {
 
-            $unidadKey = (string)($u->unidad_id ?? 'null');
-            $unidadTurnoKey = $unidadKey . ':' . (string)($u->turno_id ?? 'null');
+            if (empty($u->unidad_id) || empty($u->turno_id)) {
+                $u->connection_status = 'offline';
+                $u->disconnected_alert_sent_at = now();
+                $u->save();
+                $marked++;
+                continue;
+            }
+
+            $unidadTurnoKey = (string)$u->unidad_id . ':' . (string)$u->turno_id;
 
             $recipients = collect();
-
-            if ($subdirectoresPorUnidad->has($unidadKey)) {
-                $recipients = $recipients->merge($subdirectoresPorUnidad->get($unidadKey));
-            }
 
             if ($jefesPorUnidadTurno->has($unidadTurnoKey)) {
                 $recipients = $recipients->merge($jefesPorUnidadTurno->get($unidadTurnoKey));
             }
 
-            $recipients = $recipients->unique('id')->values();
+            $recipients = $recipients->reject(fn(User $r) => (int)$r->id === (int)$u->id)
+                ->unique('id')
+                ->values();
 
             $u->connection_status = 'offline';
             $u->disconnected_alert_sent_at = now();

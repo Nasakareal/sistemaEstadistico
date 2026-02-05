@@ -118,7 +118,7 @@
                         <div class="sv-field">
                             <label>&nbsp;</label>
                             <a class="btn sv-btn w-100" id="btn_export_mensual" href="#" target="_blank">
-                                <i class="fa-solid fa-file-excel"></i> Excel mensual
+                                <i class="fa-solid fa-file-excel"></i> INEGI
                             </a>
                         </div>
                     </div>

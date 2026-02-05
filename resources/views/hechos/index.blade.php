@@ -18,13 +18,38 @@
                         </a>
                     </div>
                 </div>
+
                 <div class="card-body">
-                    <div class="row mb-3">
+
+                    {{-- FILTRO REAL (SERVER-SIDE) --}}
+                    <form method="GET" action="{{ route('hechos.index') }}" class="row mb-3" autocomplete="off">
                         <div class="col-md-4">
                             <label for="fecha_filtro">Filtrar por fecha:</label>
-                            <input type="date" id="fecha_filtro" class="form-control" value="{{ now()->format('Y-m-d') }}">
+                            <input
+                                type="date"
+                                id="fecha_filtro"
+                                name="fecha"
+                                class="form-control"
+                                value="{{ $fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d') }}"
+                            >
                         </div>
-                    </div>
+                        <div class="col-md-8 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary mr-2">
+                                <i class="fa-solid fa-filter"></i> Filtrar
+                            </button>
+
+                            <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
+                                <i class="fa-solid fa-rotate-left"></i> Hoy
+                            </a>
+                        </div>
+                    </form>
+
+                    {{-- Mensaje vacío FUERA de la tabla (para que DataTables no se queje) --}}
+                    @if ($hechos->count() === 0)
+                        <div class="alert alert-info">
+                            No hay hechos para la fecha seleccionada.
+                        </div>
+                    @endif
 
                     <table id="hechos" class="table table-striped table-bordered table-hover table-sm">
                         <thead>
@@ -38,11 +63,12 @@
                                 <th><center>Acciones</center></th>
                             </tr>
                         </thead>
+
                         <tbody>
                             @foreach ($hechos as $hecho)
                                 <tr>
                                     <td>{{ $hecho->folio_c5i }}</td>
-                                    <td data-fecha="{{ $hecho->fecha }}">{{ $hecho->fecha }} {{ $hecho->hora }}</td>
+                                    <td>{{ $hecho->fecha }} {{ $hecho->hora }}</td>
                                     <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
 
                                     <td>
@@ -62,13 +88,16 @@
 
                                     <td>{{ $hecho->situacion }}</td>
                                     <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
+
                                     <td style="text-align: center">
                                         <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
+
                                         <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
                                             <i class="fa-solid fa-pencil"></i>
                                         </a>
+
                                         <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                             <i class="fas fa-download"></i>
                                         </a>
@@ -76,7 +105,8 @@
                                         <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display: inline-block;">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este hecho?');">
+                                            <button type="submit" class="btn btn-danger btn-sm"
+                                                onclick="return confirm('¿Estás seguro de eliminar este hecho?');">
                                                 <i class="fa-solid fa-trash"></i>
                                             </button>
                                         </form>
@@ -85,6 +115,11 @@
                             @endforeach
                         </tbody>
                     </table>
+
+                    {{-- PAGINACIÓN LARAVEL (si $hechos es paginate()) --}}
+                    <div class="mt-3">
+                        {{ $hechos->links() }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -112,37 +147,21 @@
 @section('js')
     <script>
         $(function () {
-            var table = $('#hechos').DataTable({
-                "pageLength": 10,
-                "order": [[1, "asc"]],
-                "language": {
-                    "emptyTable": "No hay información disponible",
-                    "info": "",
-                    "infoEmpty": "",
-                    "infoFiltered": "",
-                    "lengthMenu": "Mostrar _MENU_ Hechos",
-                    "loadingRecords": "Cargando...",
-                    "processing": "Procesando...",
-                    "search": "Buscar:",
-                    "zeroRecords": "No se encontraron resultados",
-                    "paginate": {
-                        "first": "Primero",
-                        "last": "Último",
-                        "next": "Siguiente",
-                        "previous": "Anterior"
-                    }
+            $('#hechos').DataTable({
+                paging: false,
+                info: false,
+                order: [[1, "asc"]],
+                language: {
+                    emptyTable: "No hay información disponible",
+                    loadingRecords: "Cargando...",
+                    processing: "Procesando...",
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
                 },
-                "responsive": true,
-                "lengthChange": true,
-                "autoWidth": false,
+                responsive: true,
+                lengthChange: false,
+                autoWidth: false,
             });
-
-            $('#fecha_filtro').on('change', function () {
-                var selectedDate = $(this).val();
-                table.columns(1).search(selectedDate).draw();
-            });
-
-            $('#fecha_filtro').trigger('change');
         });
 
         @if (session('success'))

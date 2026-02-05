@@ -10,14 +10,24 @@ use App\Models\Unidad;
 
 class HechosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $hechos = Hechos::query()
-            ->orderByDesc('fecha')
-            ->orderByDesc('created_at')
-            ->get();
+        $tz = 'America/Mexico_City';
 
-        return view('hechos.index', compact('hechos'));
+        $fechaSeleccionada = (string) $request->query('fecha', now($tz)->toDateString());
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaSeleccionada)) {
+            $fechaSeleccionada = now($tz)->toDateString();
+        }
+
+        $hechos = Hechos::query()
+            ->whereDate('fecha', $fechaSeleccionada)
+            ->orderByDesc('hora')
+            ->orderByDesc('created_at')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('hechos.index', compact('hechos', 'fechaSeleccionada'));
     }
 
     public function create()

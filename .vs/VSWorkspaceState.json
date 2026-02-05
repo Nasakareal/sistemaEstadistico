@@ -4,9 +4,10 @@
     "\\app",
     "\\app\\Console",
     "\\app\\Console\\Commands",
-    "\\app\\Services",
-    "\\app\\Services\\Firebase"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models"
   ],
-  "SelectedNode": "\\app\\Console\\Commands\\NotificarHechosPendientes.php",
   "PreviewInSolutionExplorer": false
 }

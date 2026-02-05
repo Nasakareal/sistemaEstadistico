@@ -14,7 +14,7 @@ class DeviceTokenController extends Controller
     {
         $v = Validator::make($request->all(), [
             'token' => ['required', 'string', 'min:10', 'max:255'],
-            'platform' => ['nullable', 'string', 'max:20'],
+            'platform' => ['required', 'string', 'max:20'],
         ]);
 
         if ($v->fails()) {
@@ -27,10 +27,12 @@ class DeviceTokenController extends Controller
         $user = $request->user();
 
         DeviceToken::query()->updateOrCreate(
-            ['token' => (string) $request->input('token')],
             [
                 'user_id' => (int) $user->id,
-                'platform' => $request->input('platform') ? (string) $request->input('platform') : null,
+                'platform' => (string) $request->input('platform'),
+            ],
+            [
+                'token' => (string) $request->input('token'),
                 'last_seen_at' => Carbon::now('America/Mexico_City'),
             ]
         );

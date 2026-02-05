@@ -21,6 +21,10 @@
                     </h3>
 
                     <div class="card-tools">
+                        <a href="{{ route('actividades.informe.diario', request()->only(['fecha','actividad_categoria_id','actividad_subcategoria_id','q'])) }}" class="btn btn-danger">
+                            <i class="fa-solid fa-file-pdf"></i> Generar informe
+                        </a>
+
                         @can('crear actividades')
                             <a href="{{ route('actividades.create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Añadir nueva actividad
@@ -218,7 +222,6 @@
     <script>
         $(function () {
 
-            // DataTable (solo UX: paginación/orden/búsqueda interna si quieres)
             var table = $('#actividades').DataTable({
                 "pageLength": 10,
                 "order": [[0, "desc"]],
@@ -244,13 +247,10 @@
                 "autoWidth": false,
             });
 
-            // Si cambian filtros, puedes auto-enviar el GET (sin botón), si lo prefieres.
-            // Déjalo activado para UX tipo "selecciono día y se recarga".
             $('#fecha_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {
                 $('#filtrosForm').submit();
             });
 
-            // Enter en búsqueda => submit del GET (server-side)
             $('#q_filtro').on('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();

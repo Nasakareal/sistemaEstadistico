@@ -76,11 +76,12 @@ Auth::routes();
 Route::get('/home',[HomeController::class,'index'])->name('home');
 
 Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(function () {
-
     Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->name('actividades.subcategorias');
     Route::get('/',[ActividadController::class,'index'])->name('actividades.index');
     Route::get('/create',[ActividadController::class,'create'])->middleware('can:crear actividades')->name('actividades.create');
     Route::post('/',[ActividadController::class,'store'])->middleware('can:crear actividades')->name('actividades.store');
+    Route::get('/informe/diario',[ActividadController::class,'informeDiario'])->name('actividades.informe.diario');
+    Route::get('/informe/fecha/{fecha}',[ActividadController::class,'informeFecha'])->name('actividades.informe.fecha');
     Route::get('/{actividad}',[ActividadController::class,'show'])->name('actividades.show');
     Route::get('/{actividad}/edit',[ActividadController::class,'edit'])->middleware('can:editar actividades')->name('actividades.edit');
     Route::put('/{actividad}',[ActividadController::class,'update'])->middleware('can:editar actividades')->name('actividades.update');

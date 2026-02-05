@@ -4,7 +4,6 @@
     $tz = $tz ?? 'America/Mexico_City';
     $fecha = Carbon::parse($fechaSeleccionada, $tz);
 
-    // Logo: mejor en ruta relativa dentro de public/ (respeta chroot)
     $logoRel = null;
     $logoAbs = public_path('vialidad.png');
     if (is_file($logoAbs)) {
@@ -26,7 +25,6 @@
     ];
     $fechaTexto = $fecha->format('d') . ' de ' . ($meses[(int)$fecha->format('n')] ?? $fecha->format('m')) . ' de ' . $fecha->format('Y');
 
-    // Agrupar para 2 fotos por página (1 arriba de la otra)
     $items = $actividades->values();
     $pages = $items->chunk(2);
 @endphp
@@ -39,12 +37,12 @@
         @page { margin: 28px 36px; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #111; }
 
-        .header { position: relative; min-height: 86px; }
+        .header { position: relative; min-height: 120px; padding-right: 120px; }
         .logo { position: absolute; top: 0; right: 0; width: 96px; height: auto; }
         .titulo { font-weight: 700; font-size: 13px; margin: 0; }
-        .fecha { text-align: right; font-size: 12px; margin: 0; margin-top: 4px; }
+        .fecha { text-align: right; font-size: 12px; margin: 10px 0 0 0; }
 
-        .parrafo { line-height: 1.55; text-align: justify; white-space: pre-line; margin-top: 10px; }
+        .parrafo { line-height: 1.55; text-align: justify; white-space: pre-line; margin-top: 14px; }
         .section-title { margin-top: 18px; font-weight: 700; }
 
         table.resumen { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -85,8 +83,11 @@
         @if($logoRel)
             <img class="logo" src="{{ $logoRel }}" alt="logo">
         @endif
-        <p class="titulo">TARJETA INFORMATIVA</p>
-        <p class="fecha">Morelia, Michoacán, a {{ $fechaTexto }}.</p>
+
+        <div style="padding-top: 14px;">
+            <p class="titulo">TARJETA INFORMATIVA</p>
+            <p class="fecha">Morelia, Michoacán, a {{ $fechaTexto }}.</p>
+        </div>
     </div>
 
     <div class="parrafo">Por este conducto se hace de su conocimiento el plan de actividades correspondientes al día de la fecha, en esta
@@ -127,19 +128,13 @@ seguridad a la ciudadanía.</div>
                 $cat = $a->categoria ? (string)$a->categoria->nombre : 'Sin categoría';
                 $hora = optional($a->created_at)->timezone($tz)->format('H:i');
 
-                // Preferir cache si existe
                 $rel = $a->foto_pdf_path ?: $a->foto_path;
 
-                // OJO: DomPDF con chroot(public_path()) funciona mejor con ruta RELATIVA a public/
-                // nuestras fotos están en public/storage/...
                 $srcRel = null;
-
                 if ($rel) {
                     $ext = strtolower(pathinfo($rel, PATHINFO_EXTENSION));
-
-                    // HEIC/HEIF no soportado por DomPDF
                     if (!in_array($ext, ['heic','heif'], true)) {
-                        $candidate = 'storage/' . ltrim($rel, '/'); // <- relativo a public/
+                        $candidate = 'storage/' . ltrim($rel, '/');
                         $abs = public_path($candidate);
                         if (is_file($abs)) {
                             $srcRel = $candidate;

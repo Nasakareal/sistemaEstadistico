@@ -105,7 +105,7 @@ class ActividadController extends Controller
               'dpi' => 96,
               'defaultFont' => 'DejaVu Sans',
               'isRemoteEnabled' => true,
-              'chroot' => public_path(),
+              'chroot' => base_path(),
           ]);
 
         return $pdf->download($nombreArchivo);

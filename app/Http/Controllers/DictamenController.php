@@ -131,7 +131,16 @@ class DictamenController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $dictamen->created_by && !$usuario->hasRole('Administrador')) {
+        if ($usuario->hasRole('Administrador')) {
+        } elseif ($usuario->hasRole('Perito')) {
+
+            if ($usuario->id !== $dictamen->created_by || !$usuario->can('editar dictamenes')) {
+                return redirect()->route('dictamenes.index')
+                    ->with('error', 'No tienes permiso para modificar este dictamen.');
+            }
+
+        } elseif (!$usuario->can('editar dictamenes')) {
+
             return redirect()->route('dictamenes.index')
                 ->with('error', 'No tienes permiso para modificar este dictamen.');
         }
@@ -169,6 +178,7 @@ class DictamenController extends Controller
         return redirect()->route('dictamenes.index')
             ->with('success', 'Dictamen actualizado exitosamente.');
     }
+
 
     public function show(Dictamen $dictamen)
     {

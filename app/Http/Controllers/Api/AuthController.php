@@ -24,14 +24,22 @@ class AuthController extends Controller
         $user = Auth::user();
 
         $role = $user->roles()->pluck('name')->first();
-
         $permissions = $user->getAllPermissions()->pluck('name')->values();
+
+        $isSubdirector = $user->hasRole('Subdirector');
+        $isJefeGrupo = $user->hasRole('Jefe de Grupo');
 
         return response()->json([
             'token' => $user->createToken('mobile')->plainTextToken,
 
             'role' => $role,
             'permissions' => $permissions,
+
+            'flags' => [
+                'is_subdirector' => $isSubdirector,
+                'is_jefe_grupo' => $isJefeGrupo,
+                'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
+            ],
 
             'user' => [
                 'id'    => $user->id,
@@ -45,10 +53,22 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        $role = $user->roles()->pluck('name')->first();
+        $permissions = $user->getAllPermissions()->pluck('name')->values();
+
+        $isSubdirector = $user->hasRole('Subdirector');
+        $isJefeGrupo = $user->hasRole('Jefe de Grupo');
+
         return response()->json([
             'user' => $user,
-            'role' => $user->roles()->pluck('name')->first(),
-            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+            'role' => $role,
+            'permissions' => $permissions,
+
+            'flags' => [
+                'is_subdirector' => $isSubdirector,
+                'is_jefe_grupo' => $isJefeGrupo,
+                'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
+            ],
         ]);
     }
 

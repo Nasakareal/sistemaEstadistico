@@ -13,7 +13,6 @@ class LocationController extends Controller
     {
         $user = $request->user();
 
-        // Si el usuario tiene desactivado compartir ubicación, no guardes ni marques online
         if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return response()->json([
                 'message' => 'Tu ubicación está desactivada por tu jefe o por administración. No se guardó tu ubicación.',
@@ -43,9 +42,8 @@ class LocationController extends Controller
             ]
         );
 
-        // Marcar conectado
         $user->last_seen_at = $capturedAt;
-        $user->connection_status = 'connected'; // usa el mismo string que tu command espera
+        $user->connection_status = 'connected';
         $user->disconnected_alert_sent_at = null;
         $user->save();
 
@@ -96,12 +94,8 @@ class LocationController extends Controller
     {
         $actor = $request->user();
 
-        // Solo usuarios que comparten ubicación
         $usersQuery = User::query()->where('compartir_ubicacion', 1);
 
-        // Regla de visibilidad:
-        // - Subdirector: por unidad
-        // - Otros (jefe grupo, etc): por unidad y turno
         if ($actor->hasRole('Subdirector')) {
             if ($actor->unidad_id) {
                 $usersQuery->where('unidad_id', $actor->unidad_id);
@@ -119,13 +113,11 @@ class LocationController extends Controller
 
         $userIds = $usersQuery->pluck('id');
 
-        // Subquery: última ubicación por usuario
         $latest = UserLocation::query()
             ->selectRaw('user_id, MAX(captured_at) AS max_captured_at')
             ->whereIn('user_id', $userIds)
             ->groupBy('user_id');
 
-        // Traer la última ubicación + datos del usuario + patrulla.numero_economico
         $data = UserLocation::query()
             ->joinSub($latest, 'ul', function ($join) {
                 $join->on('user_locations.user_id', '=', 'ul.user_id')
@@ -160,8 +152,18 @@ class LocationController extends Controller
                 'user_locations.captured_at',
             ]);
 
+        $isSubdirector = $actor->hasRole('Subdirector');
+        $isJefeGrupo = $actor->hasRole('Jefe de Grupo');
+
         return response()->json([
             'data' => $data,
+            'meta' => [
+                'flags' => [
+                    'is_subdirector' => $isSubdirector,
+                    'is_jefe_grupo' => $isJefeGrupo,
+                    'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
+                ],
+            ],
         ]);
     }
 

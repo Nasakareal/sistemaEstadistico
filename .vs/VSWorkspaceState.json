@@ -2,15 +2,14 @@
   "ExpandedNodes": [
     "",
     "\\app",
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos",
-    "\\resources\\views\\hechos\\pendientes_cortes",
-    "\\routes"
+    "\\app\\Services",
+    "\\app\\Services\\Firebase"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ActividadController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\AuthController.php",
   "PreviewInSolutionExplorer": false
 }

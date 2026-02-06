@@ -106,7 +106,7 @@
   @endphp
   <h2>Morelia, Michoacán a {{ $fechaFormateada }}</h2>
   <br><br><br><br>
-
+  <h1>C. ENCARGADO DEL CORRALÓN DE GRÚAS {{ $nombreGrua }} </H1>
   <h1>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</h1>
   <br>
   <h1>EL VEHÍCULO DE LAS SIGUIENTES CARACTERÍSTICAS:</h1>
@@ -136,6 +136,7 @@
   {{-- Firma autorizador --}}
   <div class="firma">
     <strong>ATENTAMENTE<br><br><br></strong>
+    <strong>COMANDANTE DE TURNO<br><br><br></strong>
     <strong>{{ $liberacion->autoriza ?? 'Ninguno' }}</strong><br>
     ___________________________
   </div>

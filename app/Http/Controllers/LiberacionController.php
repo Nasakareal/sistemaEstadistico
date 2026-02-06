@@ -67,15 +67,28 @@ class LiberacionController extends Controller
 
         $hecho = $liberacion->hecho;
 
+        $servicio = $vehiculo->servicios()
+            ->with('grua')
+            ->latest()
+            ->first();
+
+        $nombreGrua = ($servicio && $servicio->grua)
+            ? $servicio->grua->nombre
+            : 'NO ESPECIFICADO';
+
+
         $pdf = Pdf::loadView('liberaciones.acuse_pdf', [
-            'vehiculo'   => $vehiculo,
-            'liberacion' => $liberacion,
-            'qrBase64'   => $qrBase64,
-            'hecho'      => $hecho
+            'vehiculo'     => $vehiculo,
+            'liberacion'   => $liberacion,
+            'qrBase64'     => $qrBase64,
+            'hecho'        => $hecho,
+
+            'nombreGrua'   => $nombreGrua,
         ]);
 
         return $pdf->download('acuse_liberacion_vehiculo_' . $vehiculo->id . '.pdf');
     }
+
 
     public function create(Vehiculo $vehiculo)
     {

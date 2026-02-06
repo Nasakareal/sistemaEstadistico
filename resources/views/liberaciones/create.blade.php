@@ -50,9 +50,10 @@
                                 <select name="motivo_liberacion" id="motivo_liberacion"
                                     class="form-control @error('motivo_liberacion') is-invalid @enderror" required>
                                     <option value="">Seleccione una opción</option>
-                                    <option value="Convenio, entregó documentación" {{ old('Convenio, entregó documentación') == 'Convenio, entregó documentación' ? 'selected' : '' }}>Convenio, entregó documentación</option>
-                                    <option value="Pago de multa" {{ old('motivo_liberacion') == 'Pago de multa' ? 'selected' : '' }}>Pago de multa</option>
+                                    <option value="Convenio entre particulares" {{ old('Convenio entre particulares') == 'Convenio entre particulares' ? 'selected' : '' }}>Convenio, entregó documentación</option>
                                     <option value="Error de detención" {{ old('motivo_liberacion') == 'Error de detención' ? 'selected' : '' }}>Error de detención</option>
+                                    <option value="Acreditó propiedad" {{ old('motivo_liberacion') == 'Acreditó propiedad' ? 'selected' : '' }}>Acreditó propiedad</option>
+                                    <option value="Orden del Ministerio Público" {{ old('motivo_liberacion') == 'Orden del Ministerio Público' ? 'selected' : '' }}>Orden del Ministerio Público</option>
                                     <option value="Otro" {{ old('motivo_liberacion') == 'Otro' ? 'selected' : '' }}>Otro</option>
                                 </select>
                                 @error('motivo_liberacion')

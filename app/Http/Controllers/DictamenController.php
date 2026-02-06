@@ -101,12 +101,30 @@ class DictamenController extends Controller
     {
         $usuario = auth()->user();
 
-        if ($usuario->id !== $dictamen->created_by && !$usuario->hasRole('Administrador')) {
-            return redirect()->route('dictamenes.index')
-                ->with('error', 'No tienes permiso para editar este dictamen.');
+        if ($usuario->hasRole('Administrador')) {
+            return view('dictamenes.edit', compact('dictamen'));
         }
 
-        return view('dictamenes.edit', compact('dictamen'));
+        if ($usuario->hasRole('Perito')) {
+            if ($usuario->id !== $dictamen->created_by) {
+                return redirect()->route('dictamenes.index')
+                    ->with('error', 'No tienes permiso para editar este dictamen.');
+            }
+
+            if (!$usuario->can('editar dictamenes')) {
+                return redirect()->route('dictamenes.index')
+                    ->with('error', 'No tienes permiso para editar dictámenes.');
+            }
+
+            return view('dictamenes.edit', compact('dictamen'));
+        }
+
+        if ($usuario->can('editar dictamenes')) {
+            return view('dictamenes.edit', compact('dictamen'));
+        }
+
+        return redirect()->route('dictamenes.index')
+            ->with('error', 'No tienes permiso para editar dictámenes.');
     }
 
     public function update(Request $request, Dictamen $dictamen)

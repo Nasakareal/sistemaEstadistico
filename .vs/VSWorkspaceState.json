@@ -1,15 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\app\\Services\\Firebase"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\AuthController.php",
+  "SelectedNode": "\\resources\\views\\hechos\\reporte_docx.blade.php",
   "PreviewInSolutionExplorer": false
 }

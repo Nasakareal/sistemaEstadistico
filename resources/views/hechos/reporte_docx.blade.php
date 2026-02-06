@@ -60,6 +60,7 @@
   </style>
 </head>
 <body>
+<br><br>
   <!-- Encabezado centrado -->
   <div class="header">
     <img src="{{ asset('Favicons.ico') }}" alt="Favicon" class="favicon" width="50" height="50">

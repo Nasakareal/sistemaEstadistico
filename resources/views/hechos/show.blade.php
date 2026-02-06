@@ -183,6 +183,17 @@
                         @if($hecho->vehiculos->count())
                             <div class="row g-3">
                                 @foreach($hecho->vehiculos as $vehiculo)
+                                    @php
+                                        // 1) Se usó grúa si existe al menos 1 servicio con grua_id
+                                        $tieneGrua = false;
+                                        if (isset($vehiculo->servicios) && $vehiculo->servicios->count()) {
+                                            $tieneGrua = $vehiculo->servicios->whereNotNull('grua_id')->count() > 0;
+                                        }
+
+                                        // 2) Resguardado si corralon NO es null
+                                        $estaResguardado = $vehiculo->corralon !== null;
+                                    @endphp
+
                                     <div class="col-sm-6 col-md-4">
                                         <div class="card h-100">
                                             <div class="card-header d-flex align-items-center justify-content-between">
@@ -208,7 +219,30 @@
                                                     <p class="text-muted">No hay foto disponible.</p>
                                                 @endif
 
-                                                @if ($vehiculo->corralon !== null)
+                                                {{-- Badges: GRÚA / RESGUARDADO --}}
+                                                <div class="d-flex justify-content-center flex-wrap" style="gap:8px;">
+                                                    @if($tieneGrua)
+                                                        <span class="badge badge-warning" style="padding:.45rem .65rem; font-size:.85rem;">
+                                                            <i class="fa-solid fa-truck-pickup"></i> GRÚA: SÍ
+                                                        </span>
+                                                    @else
+                                                        <span class="badge badge-secondary" style="padding:.45rem .65rem; font-size:.85rem;">
+                                                            <i class="fa-solid fa-truck-pickup"></i> GRÚA: NO
+                                                        </span>
+                                                    @endif
+
+                                                    @if($estaResguardado)
+                                                        <span class="badge badge-danger" style="padding:.45rem .65rem; font-size:.85rem;">
+                                                            <i class="fa-solid fa-warehouse"></i> RESGUARDADO
+                                                        </span>
+                                                    @else
+                                                        <span class="badge badge-success" style="padding:.45rem .65rem; font-size:.85rem;">
+                                                            <i class="fa-solid fa-warehouse"></i> NO RESGUARDADO
+                                                        </span>
+                                                    @endif
+                                                </div>
+
+                                                @if ($estaResguardado)
                                                     <a href="{{ route('liberacion.publica', $vehiculo->id) }}"
                                                        class="btn btn-outline-primary btn-block mt-2 btn-liberacion">
                                                         <i class="fa-solid fa-file-lines"></i> Ver Liberación

@@ -42,4 +42,9 @@ class Vehiculo extends Model
     {
         return $this->belongsToMany(Conductor::class, 'vehiculo_conductor', 'vehiculo_id', 'conductor_id')->withTimestamps();
     }
+
+    public function servicios()
+    {
+        return $this->hasMany(Servicio::class, 'vehiculo_id');
+    }
 }

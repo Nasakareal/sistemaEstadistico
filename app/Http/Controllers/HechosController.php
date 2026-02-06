@@ -136,9 +136,14 @@ class HechosController extends Controller
 
     public function show(Hechos $hecho)
     {
-        $hecho->load('vehiculos');
+        $hecho->load([
+            'vehiculos',
+            'vehiculos.servicios',
+        ]);
+
         return view('hechos.show', compact('hecho'));
     }
+
 
     public function edit(Hechos $hecho)
     {

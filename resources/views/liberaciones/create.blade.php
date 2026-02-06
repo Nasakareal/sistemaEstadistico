@@ -68,7 +68,7 @@
                                 <select name="autoriza" id="autoriza"
                                     class="form-control @error('autoriza') is-invalid @enderror" required>
                                     <option value="">Seleccione un comandante</option>
-                                    <option value="Julio Ernesto Bautista Jimenez" {{ old('autoriza') == 'Julio Ernesto Bautista Jimenez' ? 'selected' : '' }}>Julio Ernesto Bautista Jimenez</option>
+                                    <option value="Jorge Armando Morales Pérez" {{ old('autoriza') == 'Jorge Armando Morales Pérez' ? 'selected' : '' }}>Jorge Armando Morales Pérez</option>
                                     <option value="Fernando Rubalcava Rivera" {{ old('autoriza') == 'Fernando Rubalcava Rivera' ? 'selected' : '' }}>Fernando Rubalcava Rivera</option>
                                 </select>
                                 @error('autoriza')

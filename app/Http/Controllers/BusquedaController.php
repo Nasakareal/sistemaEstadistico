@@ -32,11 +32,17 @@ class BusquedaController extends Controller
             ->get();
 
         // Buscar en Hechos
-        $hechos = Hechos::where('folio_c5i', 'LIKE', "%$query%")
-            ->orWhere('calle', 'LIKE', "%$query%")
-            ->orWhere('colonia', 'LIKE', "%$query%")
-            ->orWhere('municipio', 'LIKE', "%$query%")
-            ->get();
+        $hechos = Hechos::query()
+
+        ->when(is_numeric($query), function ($q) use ($query) {
+            $q->orWhere('id', $query);
+        })
+
+        ->orWhere('folio_c5i', 'LIKE', "%$query%")
+        ->orWhere('calle', 'LIKE', "%$query%")
+        ->orWhere('colonia', 'LIKE', "%$query%")
+        ->orWhere('municipio', 'LIKE', "%$query%")
+        ->get();
 
         return view('busqueda.index', compact('conductores', 'vehiculos', 'hechos', 'query'));
     }

@@ -2,12 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\dictamenes",
-    "\\routes"
+    "\\app\\Console",
+    "\\app\\Console\\Commands"
   ],
+  "SelectedNode": "\\app\\Console\\Commands\\ReportePendientesCorte.php",
   "PreviewInSolutionExplorer": false
 }

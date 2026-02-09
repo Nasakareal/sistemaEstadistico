@@ -34,8 +34,7 @@
               "RelativeToolTip": "routes\\web.php",
               "ViewState": "AgIAAH4AAAAAAAAAAAAAAI4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-06T23:07:03.97Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-06T23:07:03.97Z"
             },
             {
               "$type": "Document",
@@ -47,8 +46,7 @@
               "RelativeToolTip": "resources\\views\\dictamenes\\edit.blade.php",
               "ViewState": "AgIAAEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-06T23:07:00.001Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-06T23:07:00.001Z"
             },
             {
               "$type": "Document",
@@ -58,7 +56,7 @@
               "RelativeDocumentMoniker": "app\\Http\\Controllers\\DictamenController.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php",
               "RelativeToolTip": "app\\Http\\Controllers\\DictamenController.php",
-              "ViewState": "AgIAAGMAAAAAAAAAAAAwwGYAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAIEAAAAAAAAAAAAAAIEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-06T23:05:08.96Z",
               "EditorCaption": ""

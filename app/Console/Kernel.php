@@ -18,11 +18,13 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping();
 
         $schedule->command('hechos:corte-pendientes')
-            ->weeklyOn(1, '18:05')
+            ->sundays()
+            ->at('18:05')
             ->withoutOverlapping();
 
         $schedule->command('hechos:reporte-pendientes --json')
-            ->weeklyOn(1, '18:06')
+            ->sundays()
+            ->at('18:06')
             ->withoutOverlapping();
     }
 

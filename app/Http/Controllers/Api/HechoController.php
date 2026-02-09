@@ -66,8 +66,6 @@ class HechoController extends Controller
                 'hechos.situacion',
                 'hechos.foto_lugar',
                 'hechos.foto_situacion',
-
-                // ✅ DAÑOS PATRIMONIALES (ESTÁN EN HECHOS)
                 'hechos.danos_patrimoniales',
                 'hechos.propiedades_afectadas',
                 'hechos.monto_danos_patrimoniales',
@@ -86,7 +84,6 @@ class HechoController extends Controller
                 },
             ])
             ->where(function ($w) use ($q, $like) {
-
                 if (ctype_digit($q)) {
                     $w->orWhere('hechos.id', (int)$q);
                 }
@@ -163,12 +160,10 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
 
-            // ✅ DAÑOS PATRIMONIALES (EN HECHOS)
             'danos_patrimoniales'        => 'nullable|boolean',
             'propiedades_afectadas'      => 'nullable|string|max:2000',
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
 
-            // HOY: puede venir NULL (no requerido)
             'lat'                   => 'nullable|numeric|between:-90,90',
             'lng'                   => 'nullable|numeric|between:-180,180',
             'calidad_geo'           => 'nullable|string|max:20',
@@ -177,7 +172,6 @@ class HechoController extends Controller
             'ubicacion_formateada'  => 'nullable|string|max:2000',
             'place_id'              => 'nullable|string|max:128',
 
-            // Si mandan una coordenada, deben mandar ambas (si no, error claro)
             'coords_pair'           => 'nullable',
 
             'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -194,23 +188,11 @@ class HechoController extends Controller
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
             }
 
-            // Pares de coordenadas: o vienen las 2 o no viene ninguna
             $hasLat = $request->filled('lat');
             $hasLng = $request->filled('lng');
             if ($hasLat xor $hasLng) {
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
-            }
-
-            // ✅ Daños patrimoniales: si es 1, debe venir al menos monto o propiedades
-            $dp = $request->boolean('danos_patrimoniales');
-            if ($dp) {
-                $hasMonto = $request->filled('monto_danos_patrimoniales');
-                $hasProps = trim((string)$request->input('propiedades_afectadas', '')) !== '';
-                if (!$hasMonto && !$hasProps) {
-                    $v->errors()->add('monto_danos_patrimoniales', 'Si hay daños patrimoniales, captura el monto o describe las propiedades afectadas.');
-                    $v->errors()->add('propiedades_afectadas', 'Si hay daños patrimoniales, describe las propiedades afectadas o captura el monto.');
-                }
             }
         });
 
@@ -234,11 +216,9 @@ class HechoController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_APP';
         }
 
-        // Si vinieron vacíos, guárdalos como NULL real (por si llega '' desde forms)
         if (!$request->filled('lat')) $validated['lat'] = null;
         if (!$request->filled('lng')) $validated['lng'] = null;
 
-        // ✅ daños: si no viene, NULL / 0 controlado
         if (!$request->has('danos_patrimoniales')) $validated['danos_patrimoniales'] = 0;
         if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
             $validated['monto_danos_patrimoniales'] = null;
@@ -317,12 +297,10 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'sometimes|required|integer|min:0',
             'personas_mp'           => 'sometimes|required|integer|min:0',
 
-            // ✅ DAÑOS PATRIMONIALES (EN HECHOS)
             'danos_patrimoniales'        => 'sometimes|nullable|boolean',
             'propiedades_afectadas'      => 'sometimes|nullable|string|max:2000',
             'monto_danos_patrimoniales'  => 'sometimes|nullable|numeric|min:0',
 
-            // HOY: si vienen, se validan; si no vienen, se permiten NULL
             'lat'                   => 'sometimes|nullable|numeric|between:-90,90',
             'lng'                   => 'sometimes|nullable|numeric|between:-180,180',
             'calidad_geo'           => 'sometimes|nullable|string|max:20',
@@ -340,7 +318,6 @@ class HechoController extends Controller
         $validator = Validator::make($request->all(), $rules, $messages);
 
         $validator->after(function ($v) use ($request, $hecho) {
-
             $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string)$request->input('situacion')))
                 : null;
@@ -356,25 +333,11 @@ class HechoController extends Controller
                 }
             }
 
-            // Pares de coordenadas: si mandan una, deben mandar la otra
             $hasLat = $request->filled('lat');
             $hasLng = $request->filled('lng');
             if ($hasLat xor $hasLng) {
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
-            }
-
-            // ✅ Daños patrimoniales: si se pone a 1, debe venir al menos monto o propiedades
-            if ($request->has('danos_patrimoniales')) {
-                $dp = $request->boolean('danos_patrimoniales');
-                if ($dp) {
-                    $hasMonto = $request->filled('monto_danos_patrimoniales');
-                    $hasProps = trim((string)$request->input('propiedades_afectadas', '')) !== '';
-                    if (!$hasMonto && !$hasProps) {
-                        $v->errors()->add('monto_danos_patrimoniales', 'Si hay daños patrimoniales, captura el monto o describe las propiedades afectadas.');
-                        $v->errors()->add('propiedades_afectadas', 'Si hay daños patrimoniales, describe las propiedades afectadas o captura el monto.');
-                    }
-                }
             }
         });
 
@@ -403,11 +366,9 @@ class HechoController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_APP';
         }
 
-        // Si mandaron '' desde el cliente, conviértelo a NULL real
         if ($request->has('lat') && !$request->filled('lat')) $validated['lat'] = null;
         if ($request->has('lng') && !$request->filled('lng')) $validated['lng'] = null;
 
-        // ✅ daños: si mandan campos vacíos, conviértelos a NULL real
         if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
             $validated['monto_danos_patrimoniales'] = null;
         }
@@ -526,7 +487,6 @@ class HechoController extends Controller
             'lat.between'   => 'Latitud inválida.',
             'lng.between'   => 'Longitud inválida.',
 
-            // ✅ mensajes daños
             'monto_danos_patrimoniales.numeric' => 'En “Monto daños patrimoniales” solo se permiten números.',
             'monto_danos_patrimoniales.min'     => 'El monto no puede ser negativo.',
             'propiedades_afectadas.max'         => 'Máximo 2000 caracteres en “Propiedades afectadas”.',

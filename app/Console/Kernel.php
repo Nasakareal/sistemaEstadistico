@@ -9,10 +9,6 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('users:detect-disconnected --minutes=5')
-            ->everyMinute()
-            ->withoutOverlapping();
-
         $schedule->command('hechos:notificar-pendientes')
             ->everyFiveMinutes()
             ->withoutOverlapping();

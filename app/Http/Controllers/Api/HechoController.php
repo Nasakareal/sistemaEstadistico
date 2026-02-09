@@ -66,6 +66,11 @@ class HechoController extends Controller
                 'hechos.situacion',
                 'hechos.foto_lugar',
                 'hechos.foto_situacion',
+
+                // ✅ DAÑOS PATRIMONIALES (ESTÁN EN HECHOS)
+                'hechos.danos_patrimoniales',
+                'hechos.propiedades_afectadas',
+                'hechos.monto_danos_patrimoniales',
             ])
             ->with([
                 'vehiculos' => function ($v) {
@@ -158,6 +163,11 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'required|integer|min:0',
             'personas_mp'           => 'required|integer|min:0',
 
+            // ✅ DAÑOS PATRIMONIALES (EN HECHOS)
+            'danos_patrimoniales'        => 'nullable|boolean',
+            'propiedades_afectadas'      => 'nullable|string|max:2000',
+            'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
+
             // HOY: puede venir NULL (no requerido)
             'lat'                   => 'nullable|numeric|between:-90,90',
             'lng'                   => 'nullable|numeric|between:-180,180',
@@ -191,6 +201,17 @@ class HechoController extends Controller
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
             }
+
+            // ✅ Daños patrimoniales: si es 1, debe venir al menos monto o propiedades
+            $dp = $request->boolean('danos_patrimoniales');
+            if ($dp) {
+                $hasMonto = $request->filled('monto_danos_patrimoniales');
+                $hasProps = trim((string)$request->input('propiedades_afectadas', '')) !== '';
+                if (!$hasMonto && !$hasProps) {
+                    $v->errors()->add('monto_danos_patrimoniales', 'Si hay daños patrimoniales, captura el monto o describe las propiedades afectadas.');
+                    $v->errors()->add('propiedades_afectadas', 'Si hay daños patrimoniales, describe las propiedades afectadas o captura el monto.');
+                }
+            }
         });
 
         if ($validator->fails()) {
@@ -200,6 +221,7 @@ class HechoController extends Controller
         $validated = $validator->validated();
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        $validated['danos_patrimoniales']   = $request->boolean('danos_patrimoniales');
 
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
@@ -215,6 +237,15 @@ class HechoController extends Controller
         // Si vinieron vacíos, guárdalos como NULL real (por si llega '' desde forms)
         if (!$request->filled('lat')) $validated['lat'] = null;
         if (!$request->filled('lng')) $validated['lng'] = null;
+
+        // ✅ daños: si no viene, NULL / 0 controlado
+        if (!$request->has('danos_patrimoniales')) $validated['danos_patrimoniales'] = 0;
+        if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
+            $validated['monto_danos_patrimoniales'] = null;
+        }
+        if ($request->has('propiedades_afectadas') && trim((string)$request->input('propiedades_afectadas')) === '') {
+            $validated['propiedades_afectadas'] = null;
+        }
 
         $validated['created_by'] = $user->id;
 
@@ -286,6 +317,11 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'sometimes|required|integer|min:0',
             'personas_mp'           => 'sometimes|required|integer|min:0',
 
+            // ✅ DAÑOS PATRIMONIALES (EN HECHOS)
+            'danos_patrimoniales'        => 'sometimes|nullable|boolean',
+            'propiedades_afectadas'      => 'sometimes|nullable|string|max:2000',
+            'monto_danos_patrimoniales'  => 'sometimes|nullable|numeric|min:0',
+
             // HOY: si vienen, se validan; si no vienen, se permiten NULL
             'lat'                   => 'sometimes|nullable|numeric|between:-90,90',
             'lng'                   => 'sometimes|nullable|numeric|between:-180,180',
@@ -327,6 +363,19 @@ class HechoController extends Controller
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
             }
+
+            // ✅ Daños patrimoniales: si se pone a 1, debe venir al menos monto o propiedades
+            if ($request->has('danos_patrimoniales')) {
+                $dp = $request->boolean('danos_patrimoniales');
+                if ($dp) {
+                    $hasMonto = $request->filled('monto_danos_patrimoniales');
+                    $hasProps = trim((string)$request->input('propiedades_afectadas', '')) !== '';
+                    if (!$hasMonto && !$hasProps) {
+                        $v->errors()->add('monto_danos_patrimoniales', 'Si hay daños patrimoniales, captura el monto o describe las propiedades afectadas.');
+                        $v->errors()->add('propiedades_afectadas', 'Si hay daños patrimoniales, describe las propiedades afectadas o captura el monto.');
+                    }
+                }
+            }
         });
 
         if ($validator->fails()) {
@@ -337,6 +386,10 @@ class HechoController extends Controller
 
         if ($request->has('checaron_antecedentes')) {
             $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        }
+
+        if ($request->has('danos_patrimoniales')) {
+            $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
         }
 
         foreach ($validated as $key => $value) {
@@ -353,6 +406,14 @@ class HechoController extends Controller
         // Si mandaron '' desde el cliente, conviértelo a NULL real
         if ($request->has('lat') && !$request->filled('lat')) $validated['lat'] = null;
         if ($request->has('lng') && !$request->filled('lng')) $validated['lng'] = null;
+
+        // ✅ daños: si mandan campos vacíos, conviértelos a NULL real
+        if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
+            $validated['monto_danos_patrimoniales'] = null;
+        }
+        if ($request->has('propiedades_afectadas') && trim((string)$request->input('propiedades_afectadas')) === '') {
+            $validated['propiedades_afectadas'] = null;
+        }
 
         $validated['updated_by'] = $user->id;
 
@@ -465,6 +526,11 @@ class HechoController extends Controller
             'lat.between'   => 'Latitud inválida.',
             'lng.between'   => 'Longitud inválida.',
 
+            // ✅ mensajes daños
+            'monto_danos_patrimoniales.numeric' => 'En “Monto daños patrimoniales” solo se permiten números.',
+            'monto_danos_patrimoniales.min'     => 'El monto no puede ser negativo.',
+            'propiedades_afectadas.max'         => 'Máximo 2000 caracteres en “Propiedades afectadas”.',
+
             'foto_lugar.max'        => 'La foto del lugar es muy pesada (máximo 5 MB).',
             'foto_situacion.max'    => 'La foto de situación es muy pesada (máximo 5 MB).',
         ];
@@ -508,7 +574,7 @@ class HechoController extends Controller
             'á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U',
             'à'=>'A','è'=>'E','ì'=>'I','ò'=>'O','ù'=>'U',
             'â'=>'A','ê'=>'E','î'=>'I','ô'=>'O','û'=>'U',
-            'ä'=>'A','ë'=>'E','ï'=>'I','ö'=>'O','ü'=>'U',
+            'ä'=>'A','ë'=>'A','ï'=>'I','ö'=>'O','ü'=>'U',
             'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
         ];
 

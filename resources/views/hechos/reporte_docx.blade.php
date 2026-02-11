@@ -4,7 +4,6 @@
   <title>Reporte del Hecho</title>
   <style>
       @page {
-        /* Tamaño oficio: 216mm x 356mm (aproximadamente 8.5" x 14") */
         size: 216mm 356mm;
         margin: 10mm;
       }
@@ -13,7 +12,6 @@
         margin: 0;
         padding: 20px;
       }
-      /* Encabezado centrado */
       .header {
         display: flex;
         flex-direction: column;
@@ -37,11 +35,8 @@
         margin: 0;
         margin-top: 5px;
       }
-
-      /* Estilos para tablas */
       .boxes-table {
         border-collapse: collapse;
-        /* Se redujo de 20px a 10px */
         margin-top: 10px;
         table-layout: fixed;
         width: 100%;
@@ -57,11 +52,27 @@
         line-height: 1;
         margin: 0;
       }
+      .vehiculo-title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 12px;
+        background: #e9ecef;
+      }
+      .section-title {
+        background: #e9ecef;
+        font-weight: bold;
+      }
+      .id-big {
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.05;
+        display: inline-block;
+        margin-top: 2px;
+      }
   </style>
 </head>
 <body>
 <br><br>
-  <!-- Encabezado centrado -->
   <div class="header">
     <img src="{{ asset('Favicons.ico') }}" alt="Favicon" class="favicon" width="50" height="50">
     <div class="header-text">
@@ -70,17 +81,15 @@
     </div>
   </div>
 
-  <!-- Datos generales -->
   <table class="boxes-table">
     <tr>
       <td><strong>Fecha</strong><br>{{ $hecho->fecha }}</td>
       <td><strong>Hora</strong><br>{{ $hecho->hora }}</td>
       <td><strong>Folio C5i</strong><br>{{ $hecho->folio_c5i }}</td>
-      <td><strong>ID</strong><br>{{ $hecho->id }}</td>
+      <td><strong>ID</strong><br><span class="id-big">{{ $hecho->id }}</span></td>
     </tr>
   </table>
 
-  <!-- Perito, Unidad, Autorización -->
   <table class="boxes-table">
     <tr>
       <td><strong>Perito</strong><br>{{ $hecho->perito }}</td>
@@ -89,7 +98,6 @@
     </tr>
   </table>
 
-  <!-- Ubicación del Hecho -->
   <table class="boxes-table">
     <tr>
       <td><strong>Calle</strong><br>{{ $hecho->calle }}</td>
@@ -101,10 +109,11 @@
 
   <br>
 
-  <!-- Detalle de Vehículos y Conductores -->
   @foreach($hecho->vehiculos as $vehiculo)
-      <!-- Datos del vehículo -->
       <table class="boxes-table">
+        <tr>
+          <th colspan="6" class="vehiculo-title">Vehículo ({{ $loop->iteration }})</th>
+        </tr>
         <tr>
           <td><strong>Placas</strong><br>{{ $vehiculo->placas }}</td>
           <td><strong>Marca</strong><br>{{ $vehiculo->marca }}</td>
@@ -124,7 +133,6 @@
         </tr>
       </table>
 
-      <!-- Datos de Conductores -->
       @foreach($vehiculo->conductores as $conductor)
         <table class="boxes-table">
           <tr>
@@ -166,7 +174,6 @@
       <br>
   @endforeach
 
-  <!-- Lesionados involucrados -->
   @if($hecho->lesionados->isNotEmpty())
     <table class="boxes-table">
       <tr>
@@ -209,14 +216,15 @@
 
   <br>
 
-  <!-- Situación del Hecho -->
   <table class="boxes-table">
     <tr>
-      <td><strong>Situación</strong><br>{{ $hecho->situacion }}</td>
+      <td class="section-title"><strong>Estatus</strong></td>
+    </tr>
+    <tr>
+      <td>{{ $hecho->situacion }}</td>
     </tr>
   </table>
 
-  <!-- Tipo de hecho, tiempo, control de tránsito, superficie de la vía -->
   <table class="boxes-table">
     <tr>
       <td><strong>Tipo de Hecho</strong><br>{{ $hecho->tipo_hecho }}</td>
@@ -226,14 +234,12 @@
     </tr>
   </table>
 
-  <!-- Causas -->
   <table class="boxes-table">
     <tr>
       <td><strong>Causas</strong><br>{{ $hecho->causas }}</td>
     </tr>
   </table>
 
-  <!-- Resumen de Daños Vehiculares (una fila por vehículo con daños) -->
   @php
     $vehiculosConDanos = $hecho->vehiculos->filter(function($vehiculo) {
       return $vehiculo->monto_danos || $vehiculo->partes_danadas;
@@ -264,7 +270,6 @@
     </table>
   @endif
 
-  <!-- Daños Patrimoniales -->
   @if($hecho->danos_patrimoniales || $hecho->propiedades_afectadas || $hecho->monto_danos_patrimoniales)
     <br>
     <table class="boxes-table">
@@ -286,7 +291,7 @@
     </table>
   @endif
 
-  <!-- CROQUIS DEL LUGAR DEL HECHO -->
+  <br>
   <div style="margin-top: 20px; text-align: center; border: 2px solid #000; padding: 20px;">
     <h2 style="margin: 0; font-size: 24px;">CROQUIS DEL LUGAR DEL HECHO</h2>
   </div>

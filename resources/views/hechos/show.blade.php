@@ -3,14 +3,45 @@
 @section('title', 'Detalles del Hecho')
 
 @section('content_header')
-    <div class="d-flex align-items-center justify-content-between flex-wrap">
-        <h1 class="mb-0">Detalles del Hecho</h1>
+    <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
+        <div class="d-flex align-items-center" style="gap:10px;">
+            <h1 class="mb-0">Detalles del Hecho</h1>
+            <span class="badge badge-light" style="font-size:.9rem; padding:.4rem .6rem;">
+                Folio: {{ $hecho->folio_c5i ?? 'No especificado' }}
+            </span>
+        </div>
 
-        @can('editar hechos')
-            <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-warning btn-sm">
-                <i class="fa-solid fa-pen-to-square"></i> Editar hecho
+        <div class="d-flex align-items-center" style="gap:8px; flex-wrap:wrap;">
+            @can('editar hechos')
+                <a href="{{ route('hechos.edit', $hecho->id) }}"
+                   class="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                   style="width:36px;height:36px;padding:0;"
+                   title="Editar hecho">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </a>
+            @endcan
+
+            <a href="{{ route('hechos.descargar', $hecho->id) }}"
+               class="btn btn-warning btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+               style="width:36px;height:36px;padding:0;"
+               title="Descargar informe">
+                <i class="fas fa-download"></i>
             </a>
-        @endcan
+
+            @can('borrar hechos')
+                <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                            class="btn btn-danger btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                            style="width:36px;height:36px;padding:0;"
+                            title="Eliminar hecho"
+                            onclick="return confirm('¿Estás seguro de eliminar este hecho?');">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </form>
+            @endcan
+        </div>
     </div>
 @stop
 
@@ -42,7 +73,7 @@
         'oficio_mp' => 'Oficio MP',
         'vehiculos_mp' => 'Vehículos MP',
         'personas_mp' => 'Personas MP',
-        'situacion' => 'Situación',
+        'situacion' => 'Estatus',
     ];
 
     $fmt = function ($v) {
@@ -57,179 +88,245 @@
 @endphp
 
 <div class="row justify-content-center">
-    <div class="col-md-10">
+    <div class="col-lg-11 col-xl-10">
 
-        <div class="card card-outline card-info">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h3 class="card-title mb-0">Información Registrada</h3>
-
-                @can('editar hechos')
-                    <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar hecho">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
-                @endcan
-            </div>
-
-            <div class="card-body">
-                <div class="row">
-                    @foreach($campos as $field => $label)
+        <div class="sv-shell">
+            <div class="card sv-card mb-3">
+                <div class="card-header sv-card-header d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center" style="gap:10px;">
+                        <h3 class="card-title mb-0">Información Registrada</h3>
                         @php
-                            $isGreen = in_array($field, ['id', 'situacion'], true);
+                            $estatus = $fmt(data_get($hecho, 'situacion'));
+                            $estatusClass = 'badge-secondary';
+                            if (stripos($estatus, 'resuelto') !== false) $estatusClass = 'badge-success';
+                            if (stripos($estatus, 'pendiente') !== false) $estatusClass = 'badge-warning';
                         @endphp
+                        <span class="badge {{ $estatusClass }}" style="font-size:.9rem; padding:.35rem .6rem;">
+                            {{ $estatus }}
+                        </span>
+                    </div>
 
-                        <div class="col-12 col-md-3">
-                            <div class="form-group">
-                                <label>{{ $label }}</label>
-                                <p class="form-control-static {{ $isGreen ? 'sv-green' : '' }}">
-                                    {{ $fmt(data_get($hecho, $field)) }}
-                                </p>
-                            </div>
-                        </div>
-                    @endforeach
+                    <div class="d-none d-md-flex align-items-center" style="gap:8px;">
+                        <span class="sv-meta">
+                            <i class="fa-regular fa-calendar"></i> {{ $fmt($hecho->fecha ?? null) }}
+                        </span>
+                        <span class="sv-meta">
+                            <i class="fa-regular fa-clock"></i> {{ $fmt($hecho->hora ?? null) }}
+                        </span>
+                    </div>
                 </div>
 
-                <hr>
+                <div class="card-body">
+                    <div class="row">
+                        @foreach($campos as $field => $label)
+                            @php
+                                $isGreen = in_array($field, ['id', 'situacion'], true);
+                            @endphp
 
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card card-outline card-primary mb-0">
-                            <div class="card-header d-flex align-items-center justify-content-between">
-                                <h3 class="card-title mb-0">
-                                    <i class="fa-solid fa-map-location-dot"></i> Ubicación
-                                </h3>
-
-                                @if(!empty($lat) && !empty($lng))
-                                    <div class="d-flex" style="gap:8px; flex-wrap:wrap;">
-                                        <a class="btn btn-outline-info btn-sm"
-                                           href="https://www.google.com/maps?q={{ $lat }},{{ $lng }}"
-                                           target="_blank" rel="noopener">
-                                            <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
-                                        </a>
-
-                                        <a class="btn btn-outline-secondary btn-sm"
-                                           href="https://www.openstreetmap.org/?mlat={{ $lat }}&mlon={{ $lng }}#map=18/{{ $lat }}/{{ $lng }}"
-                                           target="_blank" rel="noopener">
-                                            <i class="fa-solid fa-up-right-from-square"></i> Abrir en OSM
-                                        </a>
+                            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                                <div class="sv-kv">
+                                    <div class="sv-k">{{ $label }}</div>
+                                    <div class="sv-v {{ $isGreen ? 'sv-green' : '' }}">
+                                        {{ $fmt(data_get($hecho, $field)) }}
                                     </div>
-                                @endif
+                                </div>
                             </div>
+                        @endforeach
+                    </div>
 
-                            <div class="card-body">
-                                @if(!empty($lat) && !empty($lng))
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Latitud</label>
-                                                <p class="form-control-static">{{ $lat }}</p>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Longitud</label>
-                                                <p class="form-control-static">{{ $lng }}</p>
-                                            </div>
-                                            @if(!empty($precision))
-                                                <div class="form-group">
-                                                    <label>Precisión</label>
-                                                    <p class="form-control-static">± {{ $precision }} m</p>
+                    <div class="sv-divider"></div>
+
+                    <div class="row">
+                        <div class="col-12 col-lg-7 mb-3 mb-lg-0">
+                            <div class="sv-subcard">
+                                <div class="sv-subcard-header">
+                                    <div class="d-flex align-items-center" style="gap:8px;">
+                                        <i class="fa-solid fa-map-location-dot"></i>
+                                        <strong>Ubicación</strong>
+                                    </div>
+
+                                    @if(!empty($lat) && !empty($lng))
+                                        <div class="d-flex" style="gap:8px; flex-wrap:wrap;">
+                                            <a class="btn btn-outline-info btn-sm"
+                                               href="https://www.google.com/maps?q={{ $lat }},{{ $lng }}"
+                                               target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> Google Maps
+                                            </a>
+
+                                            <a class="btn btn-outline-secondary btn-sm"
+                                               href="https://www.openstreetmap.org/?mlat={{ $lat }}&mlon={{ $lng }}#map=18/{{ $lat }}/{{ $lng }}"
+                                               target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> OSM
+                                            </a>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="sv-subcard-body">
+                                    @if(!empty($lat) && !empty($lng))
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="sv-kv mb-2">
+                                                    <div class="sv-k">Latitud</div>
+                                                    <div class="sv-v">{{ $lat }}</div>
                                                 </div>
+                                                <div class="sv-kv mb-2">
+                                                    <div class="sv-k">Longitud</div>
+                                                    <div class="sv-v">{{ $lng }}</div>
+                                                </div>
+                                                @if(!empty($precision))
+                                                    <div class="sv-kv">
+                                                        <div class="sv-k">Precisión</div>
+                                                        <div class="sv-v">± {{ $precision }} m</div>
+                                                    </div>
+                                                @endif
+                                            </div>
+
+                                            <div class="col-md-8">
+                                                <div id="map_hecho" class="sv-map"></div>
+                                                <small class="text-muted d-block mt-2">
+                                                    El marcador indica el punto recibido por coordenadas.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="sv-empty">
+                                            No hay coordenadas registradas para este hecho.
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-5">
+                            <div class="sv-subcard">
+                                <div class="sv-subcard-header">
+                                    <div class="d-flex align-items-center" style="gap:8px;">
+                                        <i class="fa-solid fa-user-shield"></i>
+                                        <strong>Responsable y Evidencia</strong>
+                                    </div>
+                                </div>
+
+                                <div class="sv-subcard-body">
+                                    <div class="sv-kv mb-3">
+                                        <div class="sv-k">Responsable</div>
+                                        <div class="sv-v">{{ $hecho->responsable->nombre ?? 'No asignado' }}</div>
+                                    </div>
+
+                                    <div class="sv-kv">
+                                        <div class="sv-k">Evidencia Adjunta</div>
+                                        <div class="sv-v">
+                                            @if (!empty($hecho->evidencia))
+                                                <a href="{{ asset('storage/' . $hecho->evidencia) }}"
+                                                   class="btn btn-info btn-sm"
+                                                   target="_blank" rel="noopener">
+                                                    <i class="fa-solid fa-paperclip"></i> Ver evidencia
+                                                </a>
+                                            @else
+                                                No hay evidencia adjunta.
                                             @endif
                                         </div>
-
-                                        <div class="col-md-8">
-                                            <div id="map_hecho" style="width:100%; height:340px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.12);"></div>
-                                            <small class="text-muted d-block mt-2">
-                                                El marcador indica el punto recibido por coordenadas.
-                                            </small>
-                                        </div>
                                     </div>
-                                @else
-                                    <p class="mb-0">No hay coordenadas registradas para este hecho.</p>
-                                @endif
+                                </div>
+                            </div>
+
+                            <div class="sv-subcard mt-3">
+                                <div class="sv-subcard-header">
+                                    <div class="d-flex align-items-center" style="gap:8px;">
+                                        <i class="fa-solid fa-car-burst"></i>
+                                        <strong>Acciones rápidas</strong>
+                                    </div>
+                                </div>
+                                <div class="sv-subcard-body">
+                                    <div class="d-flex flex-wrap" style="gap:10px;">
+                                        @can('editar hechos')
+                                            <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
+                                                <i class="fa-solid fa-pen-to-square"></i> Editar hecho
+                                            </a>
+                                        @endcan
+                                        <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-download"></i> Descargar informe
+                                        </a>
+                                        <a href="{{ route('hechos.index') }}" class="btn btn-secondary btn-sm">
+                                            <i class="fa-solid fa-arrow-left"></i> Volver
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <hr>
+                    <div class="sv-divider"></div>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Responsable</label>
-                            <p class="form-control-static">{{ $hecho->responsable->nombre ?? 'No asignado' }}</p>
-                        </div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
+                        <h3 class="mb-0">Vehículos Asociados</h3>
+                        <span class="badge badge-light" style="font-size:.9rem; padding:.35rem .6rem;">
+                            Total: {{ $hecho->vehiculos->count() }}
+                        </span>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Evidencia Adjunta</label>
-                            @if (!empty($hecho->evidencia))
-                                <a href="{{ asset('storage/' . $hecho->evidencia) }}" class="btn btn-info btn-sm" target="_blank" rel="noopener">
-                                    <i class="fa-solid fa-paperclip"></i> Ver evidencia
-                                </a>
-                            @else
-                                <p class="form-control-static">No hay evidencia adjunta.</p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <hr>
-
-                <div class="row">
-                    <div class="col-12">
-                        <h3 class="mb-3">Vehículos Asociados</h3>
-
+                    <div class="mt-3">
                         @if($hecho->vehiculos->count())
-                            <div class="row g-3">
+                            <div class="row">
                                 @foreach($hecho->vehiculos as $vehiculo)
                                     @php
-                                        // 1) Se usó grúa si existe al menos 1 servicio con grua_id
                                         $tieneGrua = false;
                                         if (isset($vehiculo->servicios) && $vehiculo->servicios->count()) {
                                             $tieneGrua = $vehiculo->servicios->whereNotNull('grua_id')->count() > 0;
                                         }
 
-                                        // 2) Resguardado si corralon NO es null
                                         $estaResguardado = $vehiculo->corralon !== null;
+
+                                        $corralonNombre = null;
+                                        if (is_object($vehiculo->corralon)) {
+                                            $corralonNombre = $vehiculo->corralon->nombre ?? (string)($vehiculo->corralon->id ?? null);
+                                        } else {
+                                            $corralonNombre = $vehiculo->corralon;
+                                        }
+                                        $corralonNombre = $corralonNombre ?: 'No especificado';
+
+                                        $placas = $vehiculo->placas ?? null;
+                                        $placasFmt = (!empty($placas) && trim((string)$placas) !== '') ? $placas : 'SIN PLACAS';
                                     @endphp
 
-                                    <div class="col-sm-6 col-md-4">
-                                        <div class="card h-100">
-                                            <div class="card-header d-flex align-items-center justify-content-between">
-                                                <strong class="text-truncate" style="max-width: 80%;">
-                                                    {{ $vehiculo->marca ?? 'SIN MARCA' }} - {{ $vehiculo->modelo ?? 'SIN MODELO' }}
-                                                </strong>
+                                    <div class="col-md-6 col-xl-4 mb-3">
+                                        <div class="sv-veh-card h-100">
+                                            <div class="sv-veh-head">
+                                                <div class="sv-veh-title">
+                                                    <div class="sv-veh-name text-truncate">
+                                                        {{ $vehiculo->marca ?? 'SIN MARCA' }} · {{ $vehiculo->modelo ?? 'SIN MODELO' }}
+                                                    </div>
+                                                    <div class="sv-veh-plates">
+                                                        <span class="badge badge-light" style="font-size:.85rem; padding:.35rem .55rem;">
+                                                            <i class="fa-solid fa-id-card"></i> {{ $placasFmt }}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
                                                 @can('editar vehiculos')
                                                     <a href="{{ route('vehiculos.edit', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}"
-                                                       class="btn btn-success btn-sm"
+                                                       class="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                       style="width:34px;height:34px;padding:0;"
                                                        title="Editar vehículo">
                                                         <i class="fa-solid fa-pen-to-square"></i>
                                                     </a>
                                                 @endcan
                                             </div>
 
-                                            <div class="card-body d-flex flex-column justify-content-between text-center">
+                                            <div class="sv-veh-body">
                                                 @if(!empty($vehiculo->fotos))
-                                                    <img src="{{ asset('storage/' . $vehiculo->fotos) }}"
-                                                         class="img-thumbnail mb-2"
-                                                         style="width:100%; height:auto;">
+                                                    <img src="{{ asset('storage/' . $vehiculo->fotos) }}" class="sv-veh-img" alt="Foto del vehículo">
                                                 @else
-                                                    <p class="text-muted">No hay foto disponible.</p>
+                                                    <div class="sv-veh-noimg">
+                                                        <i class="fa-regular fa-image"></i>
+                                                        <span>No hay foto disponible</span>
+                                                    </div>
                                                 @endif
 
-                                                {{-- Badges: GRÚA / RESGUARDADO --}}
-                                                <div class="d-flex justify-content-center flex-wrap" style="gap:8px;">
-                                                    @if($tieneGrua)
-                                                        <span class="badge badge-warning" style="padding:.45rem .65rem; font-size:.85rem;">
-                                                            <i class="fa-solid fa-truck-pickup"></i> GRÚA: SÍ
-                                                        </span>
-                                                    @else
-                                                        <span class="badge badge-secondary" style="padding:.45rem .65rem; font-size:.85rem;">
-                                                            <i class="fa-solid fa-truck-pickup"></i> GRÚA: NO
-                                                        </span>
-                                                    @endif
+                                                <div class="sv-veh-badges">
+                                                    <span class="badge {{ $tieneGrua ? 'badge-warning' : 'badge-secondary' }}" style="padding:.45rem .65rem; font-size:.85rem;">
+                                                        <i class="fa-solid fa-truck-pickup"></i> GRÚA: {{ $tieneGrua ? 'SÍ' : 'NO' }}
+                                                    </span>
 
                                                     @if($estaResguardado)
                                                         <span class="badge badge-danger" style="padding:.45rem .65rem; font-size:.85rem;">
@@ -242,13 +339,26 @@
                                                     @endif
                                                 </div>
 
+                                                <div class="sv-veh-meta">
+                                                    <div class="sv-veh-meta-row">
+                                                        <span class="sv-veh-meta-k">Corralón</span>
+                                                        <span class="sv-veh-meta-v">
+                                                            @if($estaResguardado)
+                                                                {{ $corralonNombre }}
+                                                            @else
+                                                                Sin corralón
+                                                            @endif
+                                                        </span>
+                                                    </div>
+                                                </div>
+
                                                 @if ($estaResguardado)
                                                     <a href="{{ route('liberacion.publica', $vehiculo->id) }}"
-                                                       class="btn btn-outline-primary btn-block mt-2 btn-liberacion">
+                                                       class="btn btn-outline-primary btn-block mt-2">
                                                         <i class="fa-solid fa-file-lines"></i> Ver Liberación
                                                     </a>
                                                 @else
-                                                    <p class="text-muted mt-2 mb-0">No está en corralón</p>
+                                                    <div class="sv-hint mt-2">No está en corralón</div>
                                                 @endif
                                             </div>
                                         </div>
@@ -256,21 +366,19 @@
                                 @endforeach
                             </div>
                         @else
-                            <p>No hay vehículos asociados a este hecho.</p>
+                            <div class="sv-empty">
+                                No hay vehículos asociados a este hecho.
+                            </div>
                         @endif
                     </div>
+
                 </div>
+            </div>
 
-                <hr>
-
-                <div class="row">
-                    <div class="col-md-12 text-center">
-                        <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
-                            <i class="fa-solid fa-arrow-left"></i> Volver
-                        </a>
-                    </div>
-                </div>
-
+            <div class="text-center mt-3">
+                <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left"></i> Volver
+                </a>
             </div>
         </div>
 
@@ -283,56 +391,218 @@
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
 <style>
-  .content-wrapper .form-control,
-  .content-wrapper .custom-select,
-  .content-wrapper select.form-control,
-  .content-wrapper textarea.form-control {
-      background-color: #ffffff !important;
-      color: #111827 !important;
-      border: 1px solid rgba(17,24,39,.25) !important;
-      box-shadow: none !important;
-  }
+    .sv-shell {
+        border-radius: 18px;
+        padding: 0;
+    }
 
-  .content-wrapper .form-control::placeholder,
-  .content-wrapper textarea.form-control::placeholder {
-      color: rgba(17,24,39,.55) !important;
-      opacity: 1 !important;
-  }
+    .sv-card {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.12);
+        background: radial-gradient(1200px 600px at 20% 0%, rgba(59,130,246,.20), transparent 60%),
+                    radial-gradient(900px 500px at 90% 10%, rgba(168,85,247,.18), transparent 65%),
+                    rgba(17,24,39,.65);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 18px 40px rgba(0,0,0,.30);
+    }
 
-  .content-wrapper .form-control[readonly],
-  .content-wrapper .form-control:disabled,
-  .content-wrapper select.form-control:disabled,
-  .content-wrapper textarea.form-control:disabled {
-      background-color: #f3f4f6 !important;
-      color: #111827 !important;
-      -webkit-text-fill-color: #111827 !important;
-      opacity: 1 !important;
-  }
+    .sv-card-header {
+        border-bottom: 1px solid rgba(255,255,255,.10);
+        background: rgba(0,0,0,.18);
+    }
 
-  .content-wrapper .form-control:focus,
-  .content-wrapper .custom-select:focus {
-      border-color: rgba(59,130,246,.65) !important;
-      box-shadow: 0 0 0 .2rem rgba(59,130,246,.15) !important;
-  }
+    .sv-meta {
+        color: rgba(229,231,235,.85);
+        font-weight: 600;
+        font-size: .95rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: .25rem .5rem;
+        border-radius: 10px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.08);
+    }
 
-  .content-wrapper .form-group label {
-      color: #e5e7eb !important;
-      font-weight: 700;
-  }
+    .sv-divider {
+        height: 1px;
+        background: rgba(255,255,255,.10);
+        margin: 18px 0;
+    }
 
-  .content-wrapper .form-control-static {
-      color: #e5e7eb !important;
-  }
+    .sv-kv {
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.08);
+        min-height: 72px;
+    }
 
-  .content-wrapper .form-control-static.sv-green {
-      color: #22c55e !important;
-      font-weight: 800 !important;
-  }
+    .sv-k {
+        color: rgba(229,231,235,.85);
+        font-weight: 700;
+        font-size: .88rem;
+        margin-bottom: 6px;
+        letter-spacing: .2px;
+    }
 
-  .leaflet-container {
-      background: #0b1220;
-      border-radius: 14px;
-  }
+    .sv-v {
+        color: #f3f4f6;
+        font-weight: 600;
+        font-size: .98rem;
+        line-height: 1.2;
+        word-break: break-word;
+    }
+
+    .sv-green {
+        color: #22c55e !important;
+        font-weight: 900 !important;
+    }
+
+    .sv-subcard {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(0,0,0,.16);
+    }
+
+    .sv-subcard-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: rgba(243,244,246,.95);
+    }
+
+    .sv-subcard-body {
+        padding: 14px;
+        color: rgba(243,244,246,.95);
+    }
+
+    .sv-map {
+        width: 100%;
+        height: 320px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.12);
+        background: #0b1220;
+    }
+
+    .sv-empty {
+        padding: 14px;
+        border-radius: 14px;
+        background: rgba(255,255,255,.06);
+        border: 1px dashed rgba(255,255,255,.16);
+        color: rgba(243,244,246,.90);
+        font-weight: 600;
+    }
+
+    .sv-hint {
+        color: rgba(229,231,235,.75);
+        font-weight: 600;
+        font-size: .95rem;
+    }
+
+    .sv-veh-card {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(0,0,0,.18);
+        box-shadow: 0 12px 28px rgba(0,0,0,.25);
+    }
+
+    .sv-veh-head {
+        padding: 12px 12px;
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+        background: rgba(255,255,255,.04);
+    }
+
+    .sv-veh-title {
+        min-width: 0;
+    }
+
+    .sv-veh-name {
+        color: rgba(243,244,246,.95);
+        font-weight: 800;
+        font-size: 1.0rem;
+        line-height: 1.15;
+        margin-bottom: 8px;
+    }
+
+    .sv-veh-body {
+        padding: 12px;
+        text-align: center;
+    }
+
+    .sv-veh-img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,.10);
+        margin-bottom: 10px;
+    }
+
+    .sv-veh-noimg {
+        height: 150px;
+        border-radius: 14px;
+        border: 1px dashed rgba(255,255,255,.18);
+        background: rgba(255,255,255,.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        color: rgba(229,231,235,.75);
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+
+    .sv-veh-badges {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .sv-veh-meta {
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.08);
+        text-align: left;
+    }
+
+    .sv-veh-meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .sv-veh-meta-k {
+        color: rgba(229,231,235,.82);
+        font-weight: 800;
+        font-size: .92rem;
+    }
+
+    .sv-veh-meta-v {
+        color: rgba(243,244,246,.95);
+        font-weight: 700;
+        font-size: .92rem;
+        text-align: right;
+        word-break: break-word;
+    }
 </style>
 @stop
 

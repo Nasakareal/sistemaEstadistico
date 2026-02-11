@@ -2,10 +2,11 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\busqueda",
+    "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
+  "SelectedNode": "\\resources\\views\\hechos\\reporte_docx.blade.php",
   "PreviewInSolutionExplorer": false
 }

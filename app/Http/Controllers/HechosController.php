@@ -33,7 +33,6 @@ class HechosController extends Controller
 
     public function create()
     {
-        // ✅ ESTO era lo que faltaba para que tu create.blade.php sirva
         $dictamenesDisponibles = Dictamen::query()
             ->whereNull('hecho_id')
             ->orderByDesc('anio')

@@ -19,7 +19,6 @@
                         @csrf
                         @method('PUT')
 
-                        {{-- ✅ GEO (COORDENADAS) --}}
                         <input type="hidden" name="lat" id="lat" value="{{ old('lat', $hecho->lat) }}">
                         <input type="hidden" name="lng" id="lng" value="{{ old('lng', $hecho->lng) }}">
                         <input type="hidden" name="precision_m" id="precision_m" value="{{ old('precision_m', $hecho->precision_m) }}">
@@ -323,6 +322,45 @@
                                 </div>
                             </div>
 
+                            {{-- ✅ Dictamen (solo si situacion = TURNADO) --}}
+                            <div class="col-md-4" id="dictamen_group" style="display:none;">
+                                <div class="form-group">
+                                    <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
+
+                                    <select name="dictamen_id" id="dictamen_id"
+                                            class="form-control @error('dictamen_id') is-invalid @enderror">
+                                        <option value="" disabled {{ old('dictamen_id', optional($dictamenActual)->id) ? '' : 'selected' }}>
+                                            Seleccione un dictamen
+                                        </option>
+
+                                        @if(isset($dictamenesDisponibles))
+                                            @foreach($dictamenesDisponibles as $d)
+                                                @php
+                                                    $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
+                                                    $selectedId = (string) old('dictamen_id', optional($dictamenActual)->id);
+                                                @endphp
+
+                                                <option value="{{ $d->id }}"
+                                                        data-oficio="{{ $oficio }}"
+                                                        {{ $selectedId === (string)$d->id ? 'selected' : '' }}>
+                                                    {{ $oficio }}
+                                                </option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+
+                                    @error('dictamen_id')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+
+                                    <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos (y el actual si ya tiene).</small>
+                                </div>
+                            </div>
+
+                            {{-- ✅ Oficio MP (NO editable, se autollenará) --}}
+                            <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp', $hecho->oficio_mp) }}">
+
+
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="control_transito">Control de Tránsito<span style="color: red">*</span></label>
@@ -438,18 +476,6 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-4" id="oficio_mp_group" style="display: none;">
-                                <div class="form-group">
-                                    <label for="oficio_mp">Oficio MP<span style="color: red">*</span></label>
-                                    <input type="text" name="oficio_mp" id="oficio_mp"
-                                           class="form-control @error('oficio_mp') is-invalid @enderror"
-                                           value="{{ old('oficio_mp', $hecho->oficio_mp) }}"
-                                           placeholder="Ingrese el número de oficio">
-                                    @error('oficio_mp')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
 
                             <div class="col-md-2">
                                 <div class="form-group">
@@ -574,64 +600,72 @@
     </style>
 @stop
 
- @section('js')
+@section('js')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const situacionSelect = document.getElementById('situacion');
-            const oficioMpGroup = document.getElementById('oficio_mp_group');
 
-            const fotoSituacionGroup = document.getElementById('foto_situacion_group');
-            const fotoSituacionInput = document.getElementById('foto_situacion');
+            const situacionSelect = document.getElementById('situacion');
+
+            const dictamenGroup  = document.getElementById('dictamen_group');
+            const dictamenSelect = document.getElementById('dictamen_id');
+            const oficioInput    = document.getElementById('oficio_mp');
+
+            const fotoSituacionGroup    = document.getElementById('foto_situacion_group');
+            const fotoSituacionInput    = document.getElementById('foto_situacion');
             const fotoSituacionRequired = document.getElementById('foto_situacion_required');
-            const fotoSituacionHint = document.getElementById('foto_situacion_hint');
+            const fotoSituacionHint     = document.getElementById('foto_situacion_hint');
+            const fotoSituacionName     = document.getElementById('foto_situacion_name');
 
             const fotoLugarInput = document.getElementById('foto_lugar');
-            const fotoLugarName = document.getElementById('foto_lugar_name');
+            const fotoLugarName  = document.getElementById('foto_lugar_name');
 
-            const fotoSituacionName = document.getElementById('foto_situacion_name');
-
-            const btnGeo = document.getElementById('btn_geo');
+            const btnGeo      = document.getElementById('btn_geo');
             const btnGeoClear = document.getElementById('btn_geo_clear');
-            const geoStatus = document.getElementById('geo_status');
+            const geoStatus   = document.getElementById('geo_status');
 
-            const latInput = document.getElementById('lat');
-            const lngInput = document.getElementById('lng');
+            const latInput       = document.getElementById('lat');
+            const lngInput       = document.getElementById('lng');
             const precisionInput = document.getElementById('precision_m');
-            const fuenteInput = document.getElementById('fuente_ubicacion');
+            const fuenteInput    = document.getElementById('fuente_ubicacion');
 
-            function isValidSituacion(v) {
-                return ['RESUELTO', 'PENDIENTE', 'TURNADO', 'REPORTE'].includes(String(v || '').toUpperCase());
+            function toastError(msg) {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'error', title: 'Ubicación', text: msg });
+                } else {
+                    alert(msg);
+                }
             }
 
-            function inferSituacion() {
-                const oficio = document.getElementById('oficio_mp');
-                const oficioVal = oficio ? String(oficio.value || '').trim() : '';
-                if (oficioVal.length > 0) return 'TURNADO';
-                return 'PENDIENTE';
+            function toastOk(msg) {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'success', title: 'Ubicación', text: msg, timer: 1600, showConfirmButton: false });
+                }
             }
 
-            function autollenarSituacionSiAplica() {
+            function fillOficioFromDictamen() {
+                if (!oficioInput) return;
+                if (!dictamenSelect || !dictamenSelect.value) return;
+
+                const opt = dictamenSelect.options[dictamenSelect.selectedIndex];
+                const oficio = opt && opt.dataset && opt.dataset.oficio ? String(opt.dataset.oficio).trim() : '';
+                if (oficio) oficioInput.value = oficio;
+            }
+
+            function toggleTurnado() {
                 if (!situacionSelect) return;
 
-                const actual = String(situacionSelect.value || '').toUpperCase();
+                const isTurnado = (situacionSelect.value === 'TURNADO');
 
-                if (isValidSituacion(actual)) return;
+                if (dictamenGroup) dictamenGroup.style.display = isTurnado ? 'block' : 'none';
+                if (dictamenSelect) dictamenSelect.required = isTurnado;
 
-                const sugerida = inferSituacion();
-                situacionSelect.value = sugerida;
-
-                situacionSelect.dispatchEvent(new Event('change'));
-            }
-
-            function toggleOficioMp() {
-                if (!situacionSelect || !oficioMpGroup) return;
-
-                if (situacionSelect.value === 'TURNADO') {
-                    oficioMpGroup.style.display = 'block';
+                if (isTurnado) {
+                    fillOficioFromDictamen();
                 } else {
-                    oficioMpGroup.style.display = 'none';
+                    if (dictamenSelect) dictamenSelect.value = '';
+                    if (oficioInput) oficioInput.value = '';
                 }
             }
 
@@ -683,29 +717,27 @@
                 }
             }
 
-            function toastError(msg) {
-                if (window.Swal) {
-                    Swal.fire({ icon: 'error', title: 'Ubicación', text: msg });
-                } else {
-                    alert(msg);
-                }
-            }
-
-            function toastOk(msg) {
-                if (window.Swal) {
-                    Swal.fire({ icon: 'success', title: 'Ubicación', text: msg, timer: 1600, showConfirmButton: false });
-                }
-            }
-
-            autollenarSituacionSiAplica();
-            toggleOficioMp();
+            toggleTurnado();
             toggleFotoSituacion();
             setGeoUI();
+            fillOficioFromDictamen();
 
             if (situacionSelect) {
                 situacionSelect.addEventListener('change', function () {
-                    toggleOficioMp();
+                    toggleTurnado();
                     toggleFotoSituacion();
+                });
+            }
+
+            if (dictamenSelect) {
+                dictamenSelect.addEventListener('change', function () {
+                    fillOficioFromDictamen();
+
+                    if (situacionSelect && dictamenSelect.value) {
+                        situacionSelect.value = 'TURNADO';
+                        toggleTurnado();
+                        toggleFotoSituacion();
+                    }
                 });
             }
 
@@ -836,6 +868,7 @@
                     });
                 });
             }
+
         });
 
         @if ($errors->any())
@@ -854,4 +887,3 @@
         @endif
     </script>
 @stop
-

@@ -6,9 +6,8 @@
     "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\dictamenes",
     "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\DictamenController.php",
+  "SelectedNode": "\\resources\\views\\hechos\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

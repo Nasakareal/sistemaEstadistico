@@ -23,6 +23,18 @@ class GruaController extends Controller
         ]);
     }
 
+    public function show(Request $request, int $id)
+    {
+        $grua = Grua::query()
+            ->withCount('servicios as total_servicios')
+            ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at', 'updated_at'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'data' => $grua,
+        ]);
+    }
+
     public function listado(Request $request)
     {
         $q = trim((string) $request->query('q'));
@@ -46,20 +58,11 @@ class GruaController extends Controller
 
     public function graficaSemanal(Request $request)
     {
-        $from = $request->query('from');
-        $to   = $request->query('to');
+        [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $request->query('gruas', []);
         if (!is_array($gruasIds)) {
             $gruasIds = [$gruasIds];
-        }
-
-        if (!$from || !$to) {
-            $toDate   = Carbon::today()->endOfDay();
-            $fromDate = Carbon::today()->subDays(6)->startOfDay();
-        } else {
-            $fromDate = Carbon::parse($from)->startOfDay();
-            $toDate   = Carbon::parse($to)->endOfDay();
         }
 
         $serviciosSub = DB::table('servicios')
@@ -98,20 +101,11 @@ class GruaController extends Controller
 
     public function resumenSemanal(Request $request)
     {
-        $from = $request->query('from');
-        $to   = $request->query('to');
+        [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $request->query('gruas', []);
         if (!is_array($gruasIds)) {
             $gruasIds = [$gruasIds];
-        }
-
-        if (!$from || !$to) {
-            $toDate   = Carbon::today()->endOfDay();
-            $fromDate = Carbon::today()->subDays(6)->startOfDay();
-        } else {
-            $fromDate = Carbon::parse($from)->startOfDay();
-            $toDate   = Carbon::parse($to)->endOfDay();
         }
 
         $gruas = Grua::query()
@@ -204,20 +198,11 @@ class GruaController extends Controller
 
     public function resumenSemanalDetallado(Request $request)
     {
-        $from = $request->query('from');
-        $to   = $request->query('to');
+        [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $request->query('gruas', []);
         if (!is_array($gruasIds)) {
             $gruasIds = [$gruasIds];
-        }
-
-        if (!$from || !$to) {
-            $toDate   = Carbon::today()->endOfDay();
-            $fromDate = Carbon::today()->subDays(6)->startOfDay();
-        } else {
-            $fromDate = Carbon::parse($from)->startOfDay();
-            $toDate   = Carbon::parse($to)->endOfDay();
         }
 
         $gruas = Grua::query()
@@ -323,5 +308,27 @@ class GruaController extends Controller
             ],
             'data' => $data,
         ]);
+    }
+
+    private function resolveDateRange(Request $request): array
+    {
+        $day  = trim((string) $request->query('day'));
+        $from = $request->query('from');
+        $to   = $request->query('to');
+
+        if ($day !== '') {
+            $d = Carbon::parse($day);
+            return [$d->copy()->startOfDay(), $d->copy()->endOfDay()];
+        }
+
+        if (!$from || !$to) {
+            $toDate   = Carbon::today()->endOfDay();
+            $fromDate = Carbon::today()->subDays(6)->startOfDay();
+            return [$fromDate, $toDate];
+        }
+
+        $fromDate = Carbon::parse($from)->startOfDay();
+        $toDate   = Carbon::parse($to)->endOfDay();
+        return [$fromDate, $toDate];
     }
 }

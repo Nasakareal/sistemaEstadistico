@@ -4,10 +4,8 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\resources",
-    "\\resources\\views"
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\resources\\views\\home.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\GruaController.php",
   "PreviewInSolutionExplorer": false
 }

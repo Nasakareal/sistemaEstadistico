@@ -2,25 +2,6 @@
 
 @section('title', 'Sistema Estadistico')
 
-@section('content_header')
-    <div class="sv-hero">
-        <div class="sv-hero__inner">
-            <div class="sv-hero__badge">
-                <span class="sv-dot"></span>
-                <span>Operativo · Prevención · Respuesta</span>
-            </div>
-
-            <div class="sv-hero__title">
-                Sistema Estadístico
-            </div>
-
-            <div class="sv-hero__subtitle">
-                Coordinación del Agrupamiento de Seguridad Vial · Michoacán
-            </div>
-        </div>
-    </div>
-@stop
-
 @section('content')
     <div class="row">
 

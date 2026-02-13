@@ -109,7 +109,7 @@
                                 <div class="form-group">
                                     <label for="sector">Sector<span style="color: red">*</span></label>
                                     <select name="sector" id="sector" class="form-control @error('sector') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione un sector</option>
+                                        <option value="" disabled {{ old('sector') ? '' : 'selected' }}>Seleccione un sector</option>
                                         <option value="REVOLUCIÓN" {{ old('sector') == 'REVOLUCIÓN' ? 'selected' : '' }}>REVOLUCIÓN</option>
                                         <option value="NUEVA ESPAÑA" {{ old('sector') == 'NUEVA ESPAÑA' ? 'selected' : '' }}>NUEVA ESPAÑA</option>
                                         <option value="INDEPENDENCIA" {{ old('sector') == 'INDEPENDENCIA' ? 'selected' : '' }}>INDEPENDENCIA</option>
@@ -209,7 +209,7 @@
                                 <div class="form-group">
                                     <label for="tipo_hecho">Tipo de Hecho de Tránsito<span style="color: red">*</span></label>
                                     <select name="tipo_hecho" id="tipo_hecho" class="form-control @error('tipo_hecho') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione el tipo de hecho</option>
+                                        <option value="" disabled {{ old('tipo_hecho') ? '' : 'selected' }}>Seleccione el tipo de hecho</option>
                                         <option value="VOLCADURA" {{ old('tipo_hecho') == 'VOLCADURA' ? 'selected' : '' }}>VOLCADURA</option>
                                         <option value="SALIDA DE SUPERFICIE DE RODAMIENTO" {{ old('tipo_hecho') == 'SALIDA DE SUPERFICIE DE RODAMIENTO' ? 'selected' : '' }}>SALIDA DE SUPERFICIE DE RODAMIENTO</option>
                                         <option value="SUBIDA AL CAMELLÓN" {{ old('tipo_hecho') == 'SUBIDA AL CAMELLÓN' ? 'selected' : '' }}>SUBIDA AL CAMELLÓN</option>
@@ -250,7 +250,7 @@
                                 <div class="form-group">
                                     <label for="tiempo">Tiempo<span style="color: red">*</span></label>
                                     <select name="tiempo" id="tiempo" class="form-control @error('tiempo') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione el tiempo</option>
+                                        <option value="" disabled {{ old('tiempo') ? '' : 'selected' }}>Seleccione el tiempo</option>
                                         <option value="Día" {{ old('tiempo') == 'Día' ? 'selected' : '' }}>DÍA</option>
                                         <option value="Noche" {{ old('tiempo') == 'Noche' ? 'selected' : '' }}>NOCHE</option>
                                         <option value="Amanecer" {{ old('tiempo') == 'Amanecer' ? 'selected' : '' }}>AMANECER</option>
@@ -266,7 +266,7 @@
                                 <div class="form-group">
                                     <label for="clima">Clima<span style="color: red">*</span></label>
                                     <select name="clima" id="clima" class="form-control @error('clima') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione el clima</option>
+                                        <option value="" disabled {{ old('clima') ? '' : 'selected' }}>Seleccione el clima</option>
                                         <option value="Bueno" {{ old('clima') == 'Bueno' ? 'selected' : '' }}>BUENO</option>
                                         <option value="Malo" {{ old('clima') == 'Malo' ? 'selected' : '' }}>MALO</option>
                                         <option value="Nublado" {{ old('clima') == 'Nublado' ? 'selected' : '' }}>NUBLADO</option>
@@ -282,7 +282,7 @@
                                 <div class="form-group">
                                     <label for="condiciones">Condiciones<span style="color: red">*</span></label>
                                     <select name="condiciones" id="condiciones" class="form-control @error('condiciones') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione las condiciones</option>
+                                        <option value="" disabled {{ old('condiciones') ? '' : 'selected' }}>Seleccione las condiciones</option>
                                         <option value="Bueno" {{ old('condiciones') == 'Bueno' ? 'selected' : '' }}>BUENO</option>
                                         <option value="Regular" {{ old('condiciones') == 'Regular' ? 'selected' : '' }}>REGULAR</option>
                                         <option value="Malo" {{ old('condiciones') == 'Malo' ? 'selected' : '' }}>MALO</option>
@@ -299,7 +299,7 @@
                                 <div class="form-group">
                                     <label for="situacion">Situación<span style="color: red">*</span></label>
                                     <select name="situacion" id="situacion" class="form-control @error('situacion') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione la situación</option>
+                                        <option value="" disabled {{ old('situacion') ? '' : 'selected' }}>Seleccione la situación</option>
                                         <option value="RESUELTO" {{ old('situacion') == 'RESUELTO' ? 'selected' : '' }}>RESUELTO</option>
                                         <option value="PENDIENTE" {{ old('situacion') == 'PENDIENTE' ? 'selected' : '' }}>PENDIENTE</option>
                                         <option value="TURNADO" {{ old('situacion') == 'TURNADO' ? 'selected' : '' }}>TURNADO</option>
@@ -311,6 +311,39 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-4" id="dictamen_group" style="display:none;">
+                                <div class="form-group">
+                                    <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
+                                    <select name="dictamen_id" id="dictamen_id"
+                                            class="form-control @error('dictamen_id') is-invalid @enderror">
+                                        <option value="" disabled {{ old('dictamen_id') ? '' : 'selected' }}>Seleccione un dictamen</option>
+
+                                        @if(isset($dictamenesDisponibles))
+                                            @foreach($dictamenesDisponibles as $d)
+                                                @php
+                                                    $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
+                                                @endphp
+
+                                                <option value="{{ $d->id }}"
+                                                    data-oficio="{{ $oficio }}"
+                                                    {{ (string)old('dictamen_id') === (string)$d->id ? 'selected' : '' }}>
+                                                    {{ $oficio }}
+                                                </option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    @error('dictamen_id')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos.</small>
+                                </div>
+                            </div>
+
+                            {{-- Oficio MP: se autollenará con el dictamen seleccionado (NO editable) --}}
+                            <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp') }}">
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="control_transito">Control de Tránsito<span style="color: red">*</span></label>
@@ -330,6 +363,30 @@
                                            class="form-control @error('colision_camino') is-invalid @enderror"
                                            value="{{ old('colision_camino') }}" placeholder="Ingrese la colisión sobre el camino" required>
                                     @error('colision_camino')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="vehiculos_mp">Vehículos presentados al MP</label>
+                                    <input type="number" name="vehiculos_mp" id="vehiculos_mp"
+                                           class="form-control @error('vehiculos_mp') is-invalid @enderror"
+                                           value="{{ old('vehiculos_mp', 0) }}" min="0" required>
+                                    @error('vehiculos_mp')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label for="personas_mp">Personas presentadas al MP</label>
+                                    <input type="number" name="personas_mp" id="personas_mp"
+                                           class="form-control @error('personas_mp') is-invalid @enderror"
+                                           value="{{ old('personas_mp', 0) }}" min="0" required>
+                                    @error('personas_mp')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
@@ -390,44 +447,6 @@
                                            class="form-control @error('causas') is-invalid @enderror"
                                            value="{{ old('causas') }}" placeholder="Ingrese las causas" required>
                                     @error('causas')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4" id="oficio_mp_group" style="display: none;">
-                                <div class="form-group">
-                                    <label for="oficio_mp">Oficio MP<span style="color: red">*</span></label>
-                                    <input type="text" name="oficio_mp" id="oficio_mp"
-                                           class="form-control @error('oficio_mp') is-invalid @enderror"
-                                           value="{{ old('oficio_mp') }}" placeholder="Ingrese el número de oficio">
-                                    @error('oficio_mp')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="vehiculos_mp">Vehículos presentados al MP</label>
-                                    <input type="number" name="vehiculos_mp" id="vehiculos_mp"
-                                           class="form-control @error('vehiculos_mp') is-invalid @enderror"
-                                           value="{{ old('vehiculos_mp', 0) }}" min="0" required>
-                                    @error('vehiculos_mp')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="personas_mp">Personas presentadas al MP</label>
-                                    <input type="number" name="personas_mp" id="personas_mp"
-                                           class="form-control @error('personas_mp') is-invalid @enderror"
-                                           value="{{ old('personas_mp', 0) }}" min="0" required>
-                                    @error('personas_mp')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
@@ -520,7 +539,6 @@
         }
     </style>
 @stop
-
 @section('js')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
@@ -531,7 +549,9 @@
             const geoRequiredHint = document.getElementById('geo_required_hint');
 
             const situacionSelect = document.getElementById('situacion');
-            const oficioMpGroup = document.getElementById('oficio_mp_group');
+
+            const dictamenGroup = document.getElementById('dictamen_group');
+            const dictamenSelect = document.getElementById('dictamen_id');
 
             const fotoSituacionGroup = document.getElementById('foto_situacion_group');
             const fotoSituacionInput = document.getElementById('foto_situacion');
@@ -551,53 +571,89 @@
             const precisionInput = document.getElementById('precision_m');
             const fuenteInput = document.getElementById('fuente_ubicacion');
 
-            function toggleOficioMp() {
-                if (situacionSelect.value === 'TURNADO') {
-                    oficioMpGroup.style.display = 'block';
+            function fillOficioFromDictamen() {
+                const oficioInput = document.getElementById('oficio_mp');
+                if (!oficioInput) return;
+
+                if (!dictamenSelect) {
+                    oficioInput.value = '';
+                    return;
+                }
+
+                const selectedOption = dictamenSelect.options[dictamenSelect.selectedIndex];
+                const oficio = selectedOption && selectedOption.dataset && selectedOption.dataset.oficio
+                    ? String(selectedOption.dataset.oficio).trim()
+                    : '';
+
+                oficioInput.value = oficio;
+
+                if (situacionSelect && oficio && situacionSelect.value !== 'TURNADO') {
+                    situacionSelect.value = 'TURNADO';
+                }
+            }
+
+            function toggleTurnado() {
+                if (situacionSelect && situacionSelect.value === 'TURNADO') {
+                    if (dictamenGroup) dictamenGroup.style.display = 'block';
+                    if (dictamenSelect) dictamenSelect.required = true;
+
+                    fillOficioFromDictamen();
                 } else {
-                    oficioMpGroup.style.display = 'none';
-                    const oficio = document.getElementById('oficio_mp');
-                    if (oficio) oficio.value = '';
+                    if (dictamenGroup) dictamenGroup.style.display = 'none';
+
+                    if (dictamenSelect) {
+                        dictamenSelect.required = false;
+                        dictamenSelect.value = '';
+                    }
+
+                    const oficioInput = document.getElementById('oficio_mp');
+                    if (oficioInput) oficioInput.value = '';
                 }
             }
 
             function toggleFotoSituacion() {
+                if (!situacionSelect) return;
+
                 const val = situacionSelect.value;
                 const mustShow = (val === 'RESUELTO' || val === 'TURNADO');
 
                 if (mustShow) {
-                    fotoSituacionGroup.style.display = 'block';
-                    fotoSituacionRequired.style.display = 'inline';
-                    fotoSituacionInput.required = true;
+                    if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'block';
+                    if (fotoSituacionRequired) fotoSituacionRequired.style.display = 'inline';
 
-                    if (val === 'RESUELTO') {
-                        fotoSituacionHint.textContent = 'Obligatoria: foto del convenio (RESUELTO).';
-                    } else {
-                        fotoSituacionHint.textContent = 'Obligatoria: foto de la puesta (TURNADO).';
+                    if (fotoSituacionInput) fotoSituacionInput.required = true;
+
+                    if (fotoSituacionHint) {
+                        fotoSituacionHint.textContent = (val === 'RESUELTO')
+                            ? 'Obligatoria: foto del convenio (RESUELTO).'
+                            : 'Obligatoria: foto de la puesta (TURNADO).';
                     }
                 } else {
-                    fotoSituacionGroup.style.display = 'none';
-                    fotoSituacionRequired.style.display = 'none';
-                    fotoSituacionHint.textContent = '';
-                    fotoSituacionInput.required = false;
-                    fotoSituacionInput.value = '';
-                    fotoSituacionName.textContent = '';
+                    if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'none';
+                    if (fotoSituacionRequired) fotoSituacionRequired.style.display = 'none';
+                    if (fotoSituacionHint) fotoSituacionHint.textContent = '';
+
+                    if (fotoSituacionInput) {
+                        fotoSituacionInput.required = false;
+                        fotoSituacionInput.value = '';
+                    }
+                    if (fotoSituacionName) fotoSituacionName.textContent = '';
                 }
             }
 
             function setGeoUI() {
-                const lat = latInput.value;
-                const lng = lngInput.value;
-                const prec = precisionInput.value;
+                const lat = latInput ? latInput.value : '';
+                const lng = lngInput ? lngInput.value : '';
+                const prec = precisionInput ? precisionInput.value : '';
 
                 if (lat && lng) {
-                    geoStatus.textContent = `OK: ${lat}, ${lng}` + (prec ? ` (±${prec} m)` : '');
-                    btnGeoClear.style.display = 'inline-block';
+                    if (geoStatus) geoStatus.textContent = `OK: ${lat}, ${lng}` + (prec ? ` (±${prec} m)` : '');
+                    if (btnGeoClear) btnGeoClear.style.display = 'inline-block';
                     if (btnSubmit) btnSubmit.disabled = false;
                     if (geoRequiredHint) geoRequiredHint.style.display = 'none';
                 } else {
-                    geoStatus.textContent = 'Sin coordenadas';
-                    btnGeoClear.style.display = 'none';
+                    if (geoStatus) geoStatus.textContent = 'Sin coordenadas';
+                    if (btnGeoClear) btnGeoClear.style.display = 'none';
                     if (btnSubmit) btnSubmit.disabled = true;
                     if (geoRequiredHint) geoRequiredHint.style.display = 'block';
                 }
@@ -617,13 +673,28 @@
                 }
             }
 
-            toggleOficioMp();
+            toggleTurnado();
             toggleFotoSituacion();
+            setGeoUI();
 
-            situacionSelect.addEventListener('change', function () {
-                toggleOficioMp();
-                toggleFotoSituacion();
-            });
+            if (situacionSelect) {
+                situacionSelect.addEventListener('change', function () {
+                    toggleTurnado();
+                    toggleFotoSituacion();
+                });
+            }
+
+            if (dictamenSelect) {
+                dictamenSelect.addEventListener('change', function () {
+                    fillOficioFromDictamen();
+
+                    if (situacionSelect && dictamenSelect.value) {
+                        situacionSelect.value = 'TURNADO';
+                        toggleTurnado();
+                        toggleFotoSituacion();
+                    }
+                });
+            }
 
             const horaInput = document.getElementById('hora');
             if (horaInput && horaInput.value) {
@@ -642,18 +713,16 @@
             if (fotoLugarInput) {
                 fotoLugarInput.addEventListener('change', function () {
                     const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
-                    fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
+                    if (fotoLugarName) fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
             if (fotoSituacionInput) {
                 fotoSituacionInput.addEventListener('change', function () {
                     const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
-                    fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
+                    if (fotoSituacionName) fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
-
-            setGeoUI();
 
             if (btnGeo) {
                 btnGeo.addEventListener('click', function () {
@@ -662,7 +731,7 @@
                         return;
                     }
 
-                    geoStatus.textContent = 'Obteniendo ubicación...';
+                    if (geoStatus) geoStatus.textContent = 'Obteniendo ubicación...';
 
                     navigator.geolocation.getCurrentPosition(
                         function (pos) {
@@ -670,10 +739,10 @@
                             const lng = pos.coords.longitude;
                             const acc = pos.coords.accuracy;
 
-                            latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
-                            lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
-                            precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
-                            fuenteInput.value = 'GPS_WEB';
+                            if (latInput) latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
+                            if (lngInput) lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
+                            if (precisionInput) precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
+                            if (fuenteInput) fuenteInput.value = 'GPS_WEB';
 
                             setGeoUI();
                             toastOk('Coordenadas capturadas.');
@@ -697,23 +766,25 @@
 
             if (btnGeoClear) {
                 btnGeoClear.addEventListener('click', function () {
-                    latInput.value = '';
-                    lngInput.value = '';
-                    precisionInput.value = '';
-                    fuenteInput.value = '';
+                    if (latInput) latInput.value = '';
+                    if (lngInput) lngInput.value = '';
+                    if (precisionInput) precisionInput.value = '';
+                    if (fuenteInput) fuenteInput.value = '';
                     setGeoUI();
                 });
             }
 
             if (form) {
                 form.addEventListener('submit', function (e) {
-                    if (!latInput.value || !lngInput.value) {
+                    if (!latInput || !lngInput || !latInput.value || !lngInput.value) {
                         e.preventDefault();
                         setGeoUI();
                         toastError('Captura la ubicación antes de registrar.');
                     }
                 });
             }
+
+            fillOficioFromDictamen();
         });
 
         @if ($errors->any())

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hechos;
+use App\Models\Dictamen;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +33,14 @@ class HechosController extends Controller
 
     public function create()
     {
-        return view('hechos.create');
+        // ✅ ESTO era lo que faltaba para que tu create.blade.php sirva
+        $dictamenesDisponibles = Dictamen::query()
+            ->whereNull('hecho_id')
+            ->orderByDesc('anio')
+            ->orderByDesc('numero_dictamen')
+            ->get();
+
+        return view('hechos.create', compact('dictamenesDisponibles'));
     }
 
     public function store(Request $request)
@@ -71,6 +79,8 @@ class HechosController extends Controller
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
 
+            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
             'calidad_geo' => 'nullable|string|max:20',
@@ -93,9 +103,7 @@ class HechosController extends Controller
         }
 
         $validated['delegacion_id'] = $usuario->delegacion_id ?? null;
-
         $validated['created_by'] = $usuario->id;
-
         $validated['unidad_org_id'] = $usuario->unidad_id ?? null;
 
         if (!empty($unidadNombre)) {
@@ -112,6 +120,9 @@ class HechosController extends Controller
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_WEB';
         }
+
+        $dictamenId = $validated['dictamen_id'] ?? null;
+        unset($validated['dictamen_id']);
 
         $hecho = Hechos::create($validated);
 
@@ -131,6 +142,19 @@ class HechosController extends Controller
             $hecho->update($updates);
         }
 
+        if ($situacion === 'TURNADO' && $dictamenId) {
+            $dictamen = Dictamen::query()->findOrFail($dictamenId);
+
+            if (!empty($dictamen->hecho_id) && (int)$dictamen->hecho_id !== (int)$hecho->id) {
+                return redirect()->route('hechos.edit', $hecho->id)
+                    ->withErrors(['dictamen_id' => 'Ese dictamen ya está ligado a otro hecho.'])
+                    ->withInput();
+            }
+
+            $dictamen->hecho_id = $hecho->id;
+            $dictamen->save();
+        }
+
         return redirect()->route('hechos.edit', $hecho->id)->with('success', 'Hecho creado exitosamente.');
     }
 
@@ -139,11 +163,11 @@ class HechosController extends Controller
         $hecho->load([
             'vehiculos',
             'vehiculos.servicios',
+            'dictamen',
         ]);
 
         return view('hechos.show', compact('hecho'));
     }
-
 
     public function edit(Hechos $hecho)
     {
@@ -158,7 +182,24 @@ class HechosController extends Controller
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
-        return view('hechos.edit', compact('hecho'));
+        $dictamenActual = $hecho->dictamen;
+
+        $dictamenesDisponibles = Dictamen::query()
+            ->whereNull('hecho_id')
+            ->orderByDesc('anio')
+            ->orderByDesc('numero_dictamen')
+            ->get();
+
+        if ($dictamenActual) {
+            $dictamenesDisponibles = $dictamenesDisponibles->prepend($dictamenActual);
+        }
+
+        $dictamenLabel = null;
+        if ($dictamenActual) {
+            $dictamenLabel = $dictamenActual->numero_dictamen . '/' . $dictamenActual->anio . ' ' . $dictamenActual->nombre_mp;
+        }
+
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -205,6 +246,8 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
+
+            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
 
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
@@ -258,7 +301,35 @@ class HechosController extends Controller
             $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
         }
 
+        $dictamenId = $validated['dictamen_id'] ?? null;
+        unset($validated['dictamen_id']);
+
         $hecho->update($validated);
+
+        $dictamenActual = $hecho->dictamen;
+
+        if ($situacion === 'TURNADO' && $dictamenId) {
+            if ($dictamenActual && (int)$dictamenActual->id !== (int)$dictamenId) {
+                $dictamenActual->hecho_id = null;
+                $dictamenActual->save();
+            }
+
+            $nuevo = Dictamen::query()->findOrFail($dictamenId);
+
+            if (!empty($nuevo->hecho_id) && (int)$nuevo->hecho_id !== (int)$hecho->id) {
+                return redirect()->route('hechos.edit', $hecho->id)
+                    ->withErrors(['dictamen_id' => 'Ese dictamen ya está ligado a otro hecho.'])
+                    ->withInput();
+            }
+
+            $nuevo->hecho_id = $hecho->id;
+            $nuevo->save();
+        } else {
+            if ($dictamenActual) {
+                $dictamenActual->hecho_id = null;
+                $dictamenActual->save();
+            }
+        }
 
         return redirect()->route('hechos.index')->with('success', 'Hecho actualizado exitosamente.');
     }
@@ -277,6 +348,12 @@ class HechosController extends Controller
             }
             if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
                 Storage::disk('public')->delete($hecho->foto_situacion);
+            }
+
+            $dictamenActual = $hecho->dictamen;
+            if ($dictamenActual) {
+                $dictamenActual->hecho_id = null;
+                $dictamenActual->save();
             }
 
             $hecho->vehiculos()->detach();

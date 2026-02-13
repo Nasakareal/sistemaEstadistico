@@ -26,10 +26,6 @@
                         <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion', $hecho->fuente_ubicacion) }}">
 
                         @php
-                            /**
-                             * ✅ AJUSTA ESTOS CAMPOS SI TUS COLUMNAS SE LLAMAN DIFERENTE
-                             * (no te cambio nombres, solo lo dejo centralizado)
-                             */
                             $fotoLugarPath     = $hecho->foto_lugar_path     ?? ($hecho->foto_lugar ?? null);
                             $fotoSituacionPath = $hecho->foto_situacion_path ?? ($hecho->foto_situacion ?? null);
 
@@ -315,7 +311,7 @@
                                 <div class="form-group">
                                     <label for="situacion">Situación<span style="color: red">*</span></label>
                                     <select name="situacion" id="situacion" class="form-control @error('situacion') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione la situación</option>
+                                        <option value="" disabled {{ old('situacion', $hecho->situacion) ? '' : 'selected' }}>Seleccione la situación</option>
                                         <option value="RESUELTO" {{ old('situacion', $hecho->situacion) == 'RESUELTO' ? 'selected' : '' }}>RESUELTO</option>
                                         <option value="PENDIENTE" {{ old('situacion', $hecho->situacion) == 'PENDIENTE' ? 'selected' : '' }}>PENDIENTE</option>
                                         <option value="TURNADO" {{ old('situacion', $hecho->situacion) == 'TURNADO' ? 'selected' : '' }}>TURNADO</option>
@@ -578,7 +574,7 @@
     </style>
 @stop
 
-@section('js')
+ @section('js')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script>
@@ -596,7 +592,6 @@
 
             const fotoSituacionName = document.getElementById('foto_situacion_name');
 
-            // ===== GEO =====
             const btnGeo = document.getElementById('btn_geo');
             const btnGeoClear = document.getElementById('btn_geo_clear');
             const geoStatus = document.getElementById('geo_status');
@@ -606,17 +601,43 @@
             const precisionInput = document.getElementById('precision_m');
             const fuenteInput = document.getElementById('fuente_ubicacion');
 
+            function isValidSituacion(v) {
+                return ['RESUELTO', 'PENDIENTE', 'TURNADO', 'REPORTE'].includes(String(v || '').toUpperCase());
+            }
+
+            function inferSituacion() {
+                const oficio = document.getElementById('oficio_mp');
+                const oficioVal = oficio ? String(oficio.value || '').trim() : '';
+                if (oficioVal.length > 0) return 'TURNADO';
+                return 'PENDIENTE';
+            }
+
+            function autollenarSituacionSiAplica() {
+                if (!situacionSelect) return;
+
+                const actual = String(situacionSelect.value || '').toUpperCase();
+
+                if (isValidSituacion(actual)) return;
+
+                const sugerida = inferSituacion();
+                situacionSelect.value = sugerida;
+
+                situacionSelect.dispatchEvent(new Event('change'));
+            }
+
             function toggleOficioMp() {
+                if (!situacionSelect || !oficioMpGroup) return;
+
                 if (situacionSelect.value === 'TURNADO') {
                     oficioMpGroup.style.display = 'block';
                 } else {
                     oficioMpGroup.style.display = 'none';
-                    const oficio = document.getElementById('oficio_mp');
-                    if (oficio) oficio.value = '';
                 }
             }
 
             function toggleFotoSituacion() {
+                if (!situacionSelect || !fotoSituacionGroup || !fotoSituacionRequired || !fotoSituacionHint || !fotoSituacionInput) return;
+
                 const val = situacionSelect.value;
                 const mustShow = (val === 'RESUELTO' || val === 'TURNADO');
 
@@ -624,7 +645,6 @@
                     fotoSituacionGroup.style.display = 'block';
                     fotoSituacionRequired.style.display = 'inline';
 
-                    // Si ya hay foto guardada, no forzamos required (solo si NO hay guardada)
                     const hayGuardada = {{ $fotoSituacionUrl ? 'true' : 'false' }};
                     fotoSituacionInput.required = !hayGuardada;
 
@@ -648,6 +668,8 @@
             }
 
             function setGeoUI() {
+                if (!geoStatus || !btnGeoClear || !latInput || !lngInput || !precisionInput) return;
+
                 const lat = latInput.value;
                 const lng = lngInput.value;
                 const prec = precisionInput.value;
@@ -675,17 +697,18 @@
                 }
             }
 
-            // Inicializar
+            autollenarSituacionSiAplica();
             toggleOficioMp();
             toggleFotoSituacion();
             setGeoUI();
 
-            situacionSelect.addEventListener('change', function () {
-                toggleOficioMp();
-                toggleFotoSituacion();
-            });
+            if (situacionSelect) {
+                situacionSelect.addEventListener('change', function () {
+                    toggleOficioMp();
+                    toggleFotoSituacion();
+                });
+            }
 
-            // Flatpickr hora
             const horaInput = document.getElementById('hora');
             if (horaInput && horaInput.value) {
                 horaInput.value = String(horaInput.value).substring(0, 5);
@@ -700,22 +723,20 @@
                 });
             }
 
-            // Mostrar nombres de archivo
             if (fotoLugarInput) {
                 fotoLugarInput.addEventListener('change', function () {
                     const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
-                    fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
+                    if (fotoLugarName) fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
             if (fotoSituacionInput) {
                 fotoSituacionInput.addEventListener('change', function () {
                     const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
-                    fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
+                    if (fotoSituacionName) fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
-            // GEO: capturar
             if (btnGeo) {
                 btnGeo.addEventListener('click', function () {
                     if (!navigator.geolocation) {
@@ -723,7 +744,7 @@
                         return;
                     }
 
-                    geoStatus.textContent = 'Obteniendo ubicación...';
+                    if (geoStatus) geoStatus.textContent = 'Obteniendo ubicación...';
 
                     navigator.geolocation.getCurrentPosition(
                         function (pos) {
@@ -731,10 +752,10 @@
                             const lng = pos.coords.longitude;
                             const acc = pos.coords.accuracy;
 
-                            latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
-                            lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
-                            precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
-                            fuenteInput.value = 'GPS_WEB';
+                            if (latInput) latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
+                            if (lngInput) lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
+                            if (precisionInput) precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
+                            if (fuenteInput) fuenteInput.value = 'GPS_WEB';
 
                             setGeoUI();
                             toastOk('Coordenadas capturadas.');
@@ -758,15 +779,14 @@
 
             if (btnGeoClear) {
                 btnGeoClear.addEventListener('click', function () {
-                    latInput.value = '';
-                    lngInput.value = '';
-                    precisionInput.value = '';
-                    fuenteInput.value = '';
+                    if (latInput) latInput.value = '';
+                    if (lngInput) lngInput.value = '';
+                    if (precisionInput) precisionInput.value = '';
+                    if (fuenteInput) fuenteInput.value = '';
                     setGeoUI();
                 });
             }
 
-            // Quitar fotos (marca hidden=1)
             const btnQuitarLugar = document.getElementById('btn_quitar_foto_lugar');
             if (btnQuitarLugar) {
                 btnQuitarLugar.addEventListener('click', function () {
@@ -804,7 +824,8 @@
                             if (h) h.value = '1';
                             if (fotoSituacionInput) fotoSituacionInput.value = '';
                             if (fotoSituacionName) fotoSituacionName.textContent = '';
-                            const val = situacionSelect.value;
+
+                            const val = situacionSelect ? situacionSelect.value : '';
                             if (val === 'RESUELTO' || val === 'TURNADO') {
                                 fotoSituacionInput.required = true;
                                 fotoSituacionHint.textContent = (val === 'RESUELTO')
@@ -833,3 +854,4 @@
         @endif
     </script>
 @stop
+

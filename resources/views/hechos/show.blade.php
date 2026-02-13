@@ -12,6 +12,16 @@
         </div>
 
         <div class="d-flex align-items-center" style="gap:8px; flex-wrap:wrap;">
+            {{-- NUEVO: botón ver dictamen (solo si existe) --}}
+            @if($hecho->dictamen)
+                <a href="{{ route('dictamenes.show', $hecho->dictamen->id) }}"
+                   class="btn btn-primary btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                   style="width:36px;height:36px;padding:0;"
+                   title="Ver dictamen">
+                    <i class="fa-solid fa-file-lines"></i>
+                </a>
+            @endif
+
             @can('editar hechos')
                 <a href="{{ route('hechos.edit', $hecho->id) }}"
                    class="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
@@ -85,6 +95,8 @@
     $lat = old('lat', $hecho->lat ?? null);
     $lng = old('lng', $hecho->lng ?? null);
     $precision = old('precision_m', $hecho->precision_m ?? null);
+
+    $dictamen = $hecho->dictamen ?? null;
 @endphp
 
 <div class="row justify-content-center">
@@ -239,18 +251,32 @@
                                 </div>
                                 <div class="sv-subcard-body">
                                     <div class="d-flex flex-wrap" style="gap:10px;">
+                                        {{-- NUEVO: botón dictamen --}}
+                                        @if($dictamen)
+                                            <a href="{{ route('dictamenes.show', $dictamen->id) }}" class="btn btn-primary btn-sm">
+                                                <i class="fa-solid fa-file-lines"></i> Ver dictamen
+                                            </a>
+                                        @endif
+
                                         @can('editar hechos')
                                             <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
                                                 <i class="fa-solid fa-pen-to-square"></i> Editar hecho
                                             </a>
                                         @endcan
+
                                         <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                             <i class="fas fa-download"></i> Descargar informe
                                         </a>
+
                                         <a href="{{ route('hechos.index') }}" class="btn btn-secondary btn-sm">
                                             <i class="fa-solid fa-arrow-left"></i> Volver
                                         </a>
                                     </div>
+
+                                    {{-- si quieres mostrar un hint cuando NO hay dictamen --}}
+                                    @if(!$dictamen)
+                                        <div class="sv-hint mt-2">Este hecho no tiene dictamen</div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -391,10 +417,7 @@
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
 <style>
-    .sv-shell {
-        border-radius: 18px;
-        padding: 0;
-    }
+    .sv-shell { border-radius: 18px; padding: 0; }
 
     .sv-card {
         border-radius: 18px;
@@ -426,11 +449,7 @@
         border: 1px solid rgba(255,255,255,.08);
     }
 
-    .sv-divider {
-        height: 1px;
-        background: rgba(255,255,255,.10);
-        margin: 18px 0;
-    }
+    .sv-divider { height: 1px; background: rgba(255,255,255,.10); margin: 18px 0; }
 
     .sv-kv {
         border-radius: 14px;
@@ -456,10 +475,7 @@
         word-break: break-word;
     }
 
-    .sv-green {
-        color: #22c55e !important;
-        font-weight: 900 !important;
-    }
+    .sv-green { color: #22c55e !important; font-weight: 900 !important; }
 
     .sv-subcard {
         border-radius: 16px;
@@ -479,10 +495,7 @@
         color: rgba(243,244,246,.95);
     }
 
-    .sv-subcard-body {
-        padding: 14px;
-        color: rgba(243,244,246,.95);
-    }
+    .sv-subcard-body { padding: 14px; color: rgba(243,244,246,.95); }
 
     .sv-map {
         width: 100%;
@@ -502,11 +515,7 @@
         font-weight: 600;
     }
 
-    .sv-hint {
-        color: rgba(229,231,235,.75);
-        font-weight: 600;
-        font-size: .95rem;
-    }
+    .sv-hint { color: rgba(229,231,235,.75); font-weight: 600; font-size: .95rem; }
 
     .sv-veh-card {
         border-radius: 18px;
@@ -526,9 +535,7 @@
         background: rgba(255,255,255,.04);
     }
 
-    .sv-veh-title {
-        min-width: 0;
-    }
+    .sv-veh-title { min-width: 0; }
 
     .sv-veh-name {
         color: rgba(243,244,246,.95);
@@ -538,10 +545,7 @@
         margin-bottom: 8px;
     }
 
-    .sv-veh-body {
-        padding: 12px;
-        text-align: center;
-    }
+    .sv-veh-body { padding: 12px; text-align: center; }
 
     .sv-veh-img {
         width: 100%;
@@ -590,11 +594,7 @@
         gap: 10px;
     }
 
-    .sv-veh-meta-k {
-        color: rgba(229,231,235,.82);
-        font-weight: 800;
-        font-size: .92rem;
-    }
+    .sv-veh-meta-k { color: rgba(229,231,235,.82); font-weight: 800; font-size: .92rem; }
 
     .sv-veh-meta-v {
         color: rgba(243,244,246,.95);

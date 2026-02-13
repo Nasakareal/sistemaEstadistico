@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Hechos extends Model
 {
@@ -86,19 +87,18 @@ class Hechos extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
-    /**
-     * Unidad organizacional del hecho (Siniestros/Delegaciones/etc.)
-     */
     public function unidadOrganizacional(): BelongsTo
     {
         return $this->belongsTo(Unidad::class, 'unidad_org_id');
     }
 
-    /**
-     * Delegación del hecho (cuando aplique)
-     */
     public function delegacion(): BelongsTo
     {
         return $this->belongsTo(Delegacion::class, 'delegacion_id');
+    }
+
+    public function dictamen(): HasOne
+    {
+        return $this->hasOne(Dictamen::class, 'hecho_id');
     }
 }

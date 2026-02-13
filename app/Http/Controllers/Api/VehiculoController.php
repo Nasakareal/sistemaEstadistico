@@ -84,7 +84,6 @@ class VehiculoController extends Controller
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
 
-            // 🔥 La grúa REAL está en servicios
             $servicio = DB::table('servicios')
                 ->where('vehiculo_id', $vehiculo->id)
                 ->first();
@@ -99,7 +98,6 @@ class VehiculoController extends Controller
 
             $data = $vehiculo->load('conductores')->toArray();
 
-            // ✅ anexamos campos para la app
             $data['grua_id'] = $gruaId;
             $data['grua_nombre'] = $gruaNombre;
 

@@ -234,13 +234,25 @@ class GruaController extends Controller
             ];
         }
 
+        // === AQUÍ ESTÁ EL ARREGLO: sacar hecho_id desde hecho_vehiculo ===
+        $hvSub = DB::table('hecho_vehiculo')
+            ->select([
+                'vehiculo_id',
+                DB::raw('MAX(hecho_id) as hecho_id'),
+            ])
+            ->groupBy('vehiculo_id');
+
         $detalle = DB::table('servicios as s')
             ->leftJoin('vehiculos as v', 'v.id', '=', 's.vehiculo_id')
+            ->leftJoinSub($hvSub, 'hv', function ($join) {
+                $join->on('hv.vehiculo_id', '=', 's.vehiculo_id');
+            })
             ->select([
                 's.grua_id',
                 's.id as servicio_id',
                 's.created_at as fecha_servicio',
                 's.vehiculo_id',
+                'hv.hecho_id as hecho_id',
                 's.tipo_vehiculo',
                 's.aseguradora',
                 'v.placas',
@@ -272,6 +284,7 @@ class GruaController extends Controller
                 'servicio_id' => (int) $d->servicio_id,
                 'fecha_servicio' => $d->fecha_servicio,
                 'vehiculo_id' => $d->vehiculo_id ? (int) $d->vehiculo_id : null,
+                'hecho_id' => $d->hecho_id ? (int) $d->hecho_id : null,
                 'placas' => $d->placas,
                 'marca' => $d->marca,
                 'linea' => $d->linea,

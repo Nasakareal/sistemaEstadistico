@@ -24,200 +24,48 @@
 @section('content')
     <div class="row">
 
-        {{-- HECHOS --}}
-        @can('ver hechos')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-navy">
-                    <i class="fa-solid fa-car-side"></i>
+        <div class="col-lg-12">
+            <div class="sv-feed">
+                <div class="sv-feed__title">Feed</div>
+
+                <div id="svFeedList">
+                    @foreach(($feed_items ?? []) as $item)
+                        <div class="sv-post" data-type="{{ $item['type'] }}" data-id="{{ $item['id'] }}">
+                            <div class="sv-post__head">
+                                <div class="sv-post__who">
+                                    <div class="sv-post__avatar">{{ mb_substr($item['user_name'], 0, 1) }}</div>
+                                    <div class="sv-post__meta">
+                                        <div class="sv-post__name">{{ $item['user_name'] }}</div>
+                                        <div class="sv-post__time">{{ $item['created_at'] }}</div>
+                                    </div>
+                                </div>
+                                <div class="sv-post__badge sv-post__badge--{{ strtolower($item['type']) }}">{{ $item['type'] }}</div>
+                            </div>
+
+                            <div class="sv-post__body">
+                                <div class="sv-post__text">{{ $item['resumen'] }}</div>
+
+                                @if(!empty($item['foto_url']))
+                                    <div class="sv-post__imgwrap">
+                                        <img src="{{ $item['foto_url'] }}" class="sv-post__img" alt="foto">
+                                    </div>
+                                @endif
+
+                                <div class="sv-post__actions">
+                                    <a href="{{ $item['show_url'] }}" class="btn sv-btn sv-btn--mini">
+                                        <i class="fas fa-arrow-right"></i> Ver
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Listado de Accidentes</div>
-                    <div class="sv-card__desc">Consulta, crea y administra hechos.</div>
-                    <a href="{{ url('hechos') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
+
+                <div id="svFeedLoading" class="sv-feed__loading" style="display:none;">Cargando...</div>
+                <div id="svFeedEnd" class="sv-feed__end" style="display:none;">No hay más elementos.</div>
+                <div id="svFeedSentinel" style="height:1px;"></div>
             </div>
         </div>
-        @endcan
-
-        {{-- LISTAS --}}
-        @can('ver listas')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-teal">
-                    <i class="fas fa-user-check"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Pase de Lista</div>
-                    <div class="sv-card__desc">Control de asistencias y registros.</div>
-                    <a href="{{ url('listas') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- ACTIVIDADES (EN DESARROLLO) --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card sv-card--disabled" title="En desarrollo">
-                <div class="sv-card__icon bg-lime">
-                    <i class="fas fa-tasks"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Actividades</div>
-                    <div class="sv-card__desc">Módulo en desarrollo.</div>
-                    <a href="{{ url('#') }}" class="btn sv-btn sv-btn--ghost" onclick="return false;">
-                        <i class="fas fa-clock"></i> Próximamente
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {{-- GRAFICO SERVICIOS --}}
-        @can('ver gruas')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-teal">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Gráfico de Servicios</div>
-                    <div class="sv-card__desc">Estadísticas de servicios por grúa.</div>
-                    <a href="{{ url('servicios/grafico') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- GRUAS --}}
-        @can('ver gruas')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-maroon">
-                    <i class="fa-solid fa-truck-moving"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Grúas</div>
-                    <div class="sv-card__desc">Catálogo y control de grúas.</div>
-                    <a href="{{ url('gruas') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- FORMATOS --}}
-        @can('ver formatos')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-info">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Formatos</div>
-                    <div class="sv-card__desc">Plantillas y documentos oficiales.</div>
-                    <a href="{{ url('formatos') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- DICTAMENES (crear) --}}
-        @can('crear dictamenes')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-warning">
-                    <i class="fas fa-gavel"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Solicitar Dictamen</div>
-                    <div class="sv-card__desc">Genera un folio / número de dictamen.</div>
-                    <a href="{{ url('dictamenes/create') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- OFICIOS --}}
-        @can('ver oficios')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-fuchsia">
-                    <i class="fas fa-envelope-open-text"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Oficios</div>
-                    <div class="sv-card__desc">Sube y consulta oficios generados.</div>
-                    <a href="{{ url('oficios') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- ESTADISTICAS --}}
-        @can('ver estadisticas')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-success">
-                    <i class="fa-solid fa-table-cells"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Estadísticas</div>
-                    <div class="sv-card__desc">Reportes y exportaciones.</div>
-                    <a href="{{ url('admin/settings/estadisticas') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
-        {{-- BUSQUEDA --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-indigo">
-                    <i class="fas fa-search"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Búsqueda</div>
-                    <div class="sv-card__desc">Localiza registros por filtros.</div>
-                    <a href="{{ url('busqueda') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {{-- MAPA --}}
-        @can('ver mapa')
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-primary">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Mapa Patrullas</div>
-                    <div class="sv-card__desc">Ubicación operativa en tiempo real.</div>
-                    <a href="{{ url('mapa') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-        @endcan
-
     </div>
 @stop
 
@@ -233,7 +81,6 @@
         --sv-radius: 22px;
     }
 
-    /* Hero */
     .sv-hero{
         margin: 10px 0 12px;
         border-radius: 26px;
@@ -277,7 +124,6 @@
         color: var(--sv-muted);
     }
 
-    /* Cards */
     .sv-card{
         display:flex;
         gap: 14px;
@@ -356,9 +202,227 @@
     .sv-card--disabled{
         opacity: .78;
     }
+
+    .sv-feed{
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+        box-shadow: 0 10px 35px rgba(0,0,0,.22);
+        padding: 14px;
+        margin-bottom: 16px;
+    }
+    .sv-feed__title{
+        font-weight: 950;
+        color: var(--sv-text);
+        letter-spacing: -.3px;
+        margin: 2px 2px 12px;
+    }
+
+    .sv-post{
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(0,0,0,.16);
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,.18);
+    }
+    .sv-post__head{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+    .sv-post__who{
+        display:flex;
+        align-items:center;
+        gap: 10px;
+        min-width: 0;
+    }
+    .sv-post__avatar{
+        width: 36px; height: 36px;
+        border-radius: 999px;
+        display:grid; place-items:center;
+        font-weight: 950;
+        border: 1px solid rgba(255,255,255,.14);
+        background: rgba(45,168,255,.18);
+        color: rgba(234,240,255,.95);
+        flex: 0 0 auto;
+    }
+    .sv-post__meta{ min-width:0; }
+    .sv-post__name{
+        font-weight: 900;
+        color: var(--sv-text);
+        line-height: 1.05;
+    }
+    .sv-post__time{
+        font-size: 12px;
+        color: var(--sv-muted);
+        margin-top: 2px;
+    }
+    .sv-post__badge{
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .35px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.14);
+        color: rgba(234,240,255,.95);
+        background: rgba(0,0,0,.18);
+        flex: 0 0 auto;
+    }
+    .sv-post__badge--hecho{ background: rgba(25,211,140,.14); border-color: rgba(25,211,140,.22); }
+    .sv-post__badge--actividad{ background: rgba(255,193,7,.14); border-color: rgba(255,193,7,.22); }
+
+    .sv-post__text{
+        font-weight: 700;
+        color: rgba(234,240,255,.88);
+        line-height: 1.25;
+    }
+    .sv-post__imgwrap{
+        margin-top: 10px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(0,0,0,.18);
+    }
+    .sv-post__img{
+        display:block;
+        width: 100%;
+        height: auto;
+    }
+    .sv-post__actions{
+        display:flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .sv-btn--mini{
+        padding: 7px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-top: 0;
+    }
+    .sv-feed__loading,
+    .sv-feed__end{
+        text-align:center;
+        font-weight: 800;
+        color: var(--sv-muted);
+        padding: 10px 6px 4px;
+    }
 </style>
 @stop
 
 @section('js')
-    <script> console.log("¿Alguien Lee esto?"); </script>
+<script>
+(function () {
+    const list = document.getElementById('svFeedList');
+    const loadingEl = document.getElementById('svFeedLoading');
+    const endEl = document.getElementById('svFeedEnd');
+    const sentinel = document.getElementById('svFeedSentinel');
+
+    let loading = false;
+    let ended = false;
+
+    let cursorCreatedAt = @json($feed_next_cursor['cursor_created_at'] ?? null);
+    let cursorId = @json($feed_next_cursor['cursor_id'] ?? null);
+    const limit = @json($feed_limit ?? 12);
+
+    function esc(s){
+        return String(s ?? '')
+            .replaceAll('&','&amp;')
+            .replaceAll('<','&lt;')
+            .replaceAll('>','&gt;')
+            .replaceAll('"','&quot;')
+            .replaceAll("'","&#039;");
+    }
+
+    function postHtml(item){
+        const badgeClass = String(item.type || '').toLowerCase();
+        const avatar = (item.user_name || 'U').trim().substring(0,1);
+
+        const img = item.foto_url
+            ? `<div class="sv-post__imgwrap"><img src="${esc(item.foto_url)}" class="sv-post__img" alt="foto"></div>`
+            : '';
+
+        return `
+            <div class="sv-post" data-type="${esc(item.type)}" data-id="${esc(item.id)}">
+                <div class="sv-post__head">
+                    <div class="sv-post__who">
+                        <div class="sv-post__avatar">${esc(avatar)}</div>
+                        <div class="sv-post__meta">
+                            <div class="sv-post__name">${esc(item.user_name)}</div>
+                            <div class="sv-post__time">${esc(item.created_at)}</div>
+                        </div>
+                    </div>
+                    <div class="sv-post__badge sv-post__badge--${esc(badgeClass)}">${esc(item.type)}</div>
+                </div>
+
+                <div class="sv-post__body">
+                    <div class="sv-post__text">${esc(item.resumen)}</div>
+                    ${img}
+                    <div class="sv-post__actions">
+                        <a href="${esc(item.show_url)}" class="btn sv-btn sv-btn--mini">
+                            <i class="fas fa-arrow-right"></i> Ver
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function fetchMore(){
+        if (loading || ended) return;
+        if (!cursorCreatedAt || !cursorId) {
+            ended = true;
+            endEl.style.display = 'block';
+            return;
+        }
+
+        loading = true;
+        loadingEl.style.display = 'block';
+
+        try{
+            const params = new URLSearchParams();
+            params.set('limit', limit);
+            params.set('cursor_created_at', cursorCreatedAt);
+            params.set('cursor_id', cursorId);
+
+            const res = await fetch(`/home/feed?${params.toString()}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+
+            const json = await res.json();
+
+            if (Array.isArray(json.data) && json.data.length){
+                list.insertAdjacentHTML('beforeend', json.data.map(postHtml).join(''));
+
+                if (json.next_cursor){
+                    cursorCreatedAt = json.next_cursor.cursor_created_at;
+                    cursorId = json.next_cursor.cursor_id;
+                } else {
+                    ended = true;
+                    endEl.style.display = 'block';
+                }
+            } else {
+                ended = true;
+                endEl.style.display = 'block';
+            }
+        }catch(e){
+            console.error(e);
+        }finally{
+            loading = false;
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    const io = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) fetchMore();
+    }, { threshold: 0.1 });
+
+    io.observe(sentinel);
+})();
+</script>
 @stop

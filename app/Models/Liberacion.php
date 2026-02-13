@@ -9,7 +9,7 @@ use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 
-use App\Models\Hechos; // ✅ Importar el modelo con el nombre correcto
+use App\Models\Hechos;
 
 class Liberacion extends Model
 {
@@ -19,7 +19,7 @@ class Liberacion extends Model
 
     protected $fillable = [
         'vehiculo_id',
-        'hecho_id', // ✅ ya lo estás guardando correctamente
+        'hecho_id',
         'token_unico',
         'fecha_liberacion',
         'personas_autorizadas',
@@ -58,9 +58,9 @@ class Liberacion extends Model
                     ->data($url)
                     ->encoding(new Encoding('UTF-8'))
                     ->errorCorrectionLevel(new ErrorCorrectionLevelHigh())
-                    ->size(300)
+                    ->size(200)
                     ->margin(10)
-                    ->logoPath(public_path('logofondo.png'))
+                    ->logoPath(public_path('guardiacivil.png'))
                     ->logoResizeToWidth(100)
                     ->build();
 

@@ -9,14 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    /**
-     * GET /api/dashboard/accidentes-hoy
-     * {
-     *   "date":"YYYY-MM-DD",
-     *   "total":12,
-     *   "by_hour":[{"hour":0,"count":0},...{"hour":23,"count":1}]
-     * }
-     */
     public function accidentesHoy(Request $request)
     {
         $tz = config('app.timezone', 'America/Mexico_City');
@@ -28,7 +20,6 @@ class DashboardController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->count();
 
-        // Agrupa por hora usando la zona horaria de la app
         $rows = DB::table('hechos')
             ->selectRaw('HOUR(CONVERT_TZ(created_at, "+00:00", ?)) as hour, COUNT(*) as count', [$tz])
             ->whereBetween('created_at', [$start, $end])
@@ -53,17 +44,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/dashboard/gruas-hoy
-     * {
-     *   "date":"YYYY-MM-DD",
-     *   "total":5,
-     *   "by_grua":[{"name":"DANNYS","count":2},{"name":"MUÑOZ","count":3}]
-     * }
-     *
-     * Fuente real:
-     * hechos -> hecho_vehiculo -> vehiculos.grua (string)
-     */
     public function gruasHoy(Request $request)
     {
         $tz = config('app.timezone', 'America/Mexico_City');
@@ -71,7 +51,6 @@ class DashboardController extends Controller
         $start = Carbon::now($tz)->startOfDay();
         $end   = Carbon::now($tz)->endOfDay();
 
-        // Cuenta por nombre de grúa (vehiculos.grua)
         $rows = DB::table('hechos as h')
             ->join('hecho_vehiculo as hv', 'hv.hecho_id', '=', 'h.id')
             ->join('vehiculos as v', 'v.id', '=', 'hv.vehiculo_id')

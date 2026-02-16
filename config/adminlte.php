@@ -419,8 +419,16 @@ return [
                     'url'     => 'mapa',
                     'can'     => 'ver mapa',
                 ],
+                [
+                    'text'    => 'Mapa Incidencias',
+                    'icon'    => 'fa-solid fa-fire',
+                    'classes' => 'text-white',
+                    'url'     => 'mapa-incidencias',
+                    'can'     => 'ver mapa',
+                ],
             ],
         ],
+
 
         [
             'text'    => 'Configuraciones',

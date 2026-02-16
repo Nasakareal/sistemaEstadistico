@@ -17,6 +17,7 @@ use App\Http\Controllers\LiberacionController;
 use App\Http\Controllers\LicenciaController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\MapaPatrullasController;
+use App\Http\Controllers\MapaIncidenciasController;
 use App\Http\Controllers\OficioController;
 use App\Http\Controllers\PatrullaController;
 use App\Http\Controllers\RoleController;
@@ -39,6 +40,12 @@ Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::post('/mapa/mi-personal/{user}/ubicacion',[MapaPatrullasController::class,'toggleUbicacionUsuario'])->name('mapa.mi_personal.toggle');
     Route::post('/mapa/mi-personal/ubicacion/todos',[MapaPatrullasController::class,'toggleUbicacionTodos'])->name('mapa.mi_personal.toggle_all');
 });
+
+Route::middleware(['auth','can:ver mapa'])->group(function () {
+    Route::get('/mapa-incidencias', [MapaIncidenciasController::class,'index'])->name('mapa.incidencias.index');
+    Route::get('/mapa-incidencias/data', [MapaIncidenciasController::class,'data'])->name('mapa.incidencias.data');
+});
+
 
 Route::get('/liberacion/{vehiculo}',[LiberacionController::class,'publica'])->name('liberacion.publica');
 Route::get('liberacion/qr/{token}',[LiberacionController::class,'desdeToken'])->name('liberacion.publica.token');

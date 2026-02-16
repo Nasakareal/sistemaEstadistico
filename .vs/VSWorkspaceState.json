@@ -2,12 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Services"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\edit.blade.php",
+  "SelectedNode": "\\app\\Console\\Kernel.php",
   "PreviewInSolutionExplorer": false
 }

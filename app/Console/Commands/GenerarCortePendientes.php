@@ -19,13 +19,19 @@ class GenerarCortePendientes extends Command
         $tz = 'America/Mexico_City';
         $now = Carbon::now($tz);
 
-        $corte = $now->copy()->startOfWeek(Carbon::MONDAY)->subDay()->setTime(18, 0, 0);
+        $corte = $now->copy()->previous(Carbon::SUNDAY)->setTime(18, 0, 0);
 
-        if ($now->lt($corte)) {
-            $corte = $corte->subWeek();
+        if ($now->dayOfWeek === Carbon::SUNDAY) {
+            $domingoHoy1800 = $now->copy()->setTime(18, 0, 0);
+            if ($now->gte($domingoHoy1800)) {
+                $corte = $domingoHoy1800;
+            }
         }
 
         $corteFecha = $corte->toDateString();
+
+        $this->info("NOW  ({$tz}): " . $now->toDateTimeString());
+        $this->info("CORTE({$tz}): " . $corte->toDateTimeString());
 
         $existe = PendientesCorte::where('corte_fecha', $corteFecha)->first();
 

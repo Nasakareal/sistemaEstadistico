@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\ApoyoController;
 use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\CampanaController;
@@ -261,3 +262,22 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });
 
 Route::view('/privacy-policy', 'privacy_policy')->name('privacy.policy');
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::get('/backups-sql/{file}', function ($file) {
+
+        if (!preg_match('/^[A-Za-z0-9._-]+\.(sql|sql\.gz)$/', $file)) {
+            abort(404);
+        }
+
+        $path = storage_path('app/backups_sql/' . $file);
+
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->download($path);
+    })->name('backups_sql.download');
+
+});

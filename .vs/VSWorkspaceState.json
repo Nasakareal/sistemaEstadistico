@@ -1,11 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos",
-    "\\resources\\views\\hechos\\pendientes_cortes"
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\pendientes_cortes\\show.blade.php",
+  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

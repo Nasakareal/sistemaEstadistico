@@ -80,9 +80,11 @@
         'danos_patrimoniales' => 'Daños patrimoniales',
         'propiedades_afectadas' => 'Propiedades afectadas',
         'monto_danos_patrimoniales' => 'Monto daños patrimoniales',
+
         'oficio_mp' => 'Oficio MP',
         'vehiculos_mp' => 'Vehículos MP',
         'personas_mp' => 'Personas MP',
+
         'situacion' => 'Estatus',
     ];
 
@@ -97,7 +99,13 @@
     $precision = old('precision_m', $hecho->precision_m ?? null);
 
     $dictamen = $hecho->dictamen ?? null;
+
+    $sitRaw = (string) data_get($hecho, 'situacion', '');
+    $sit = strtoupper(trim($sitRaw));
+    $soloTurnado = ($sit === 'TURNADO'); // <- Regla exacta: solo TURNADO, nada más
+    $camposMP = ['oficio_mp', 'vehiculos_mp', 'personas_mp'];
 @endphp
+
 
 <div class="row justify-content-center">
     <div class="col-lg-11 col-xl-10">
@@ -132,6 +140,10 @@
                     <div class="row">
                         @foreach($campos as $field => $label)
                             @php
+                                if (in_array($field, $camposMP, true) && !$soloTurnado) {
+                                    continue;
+                                }
+
                                 $isGreen = in_array($field, ['id', 'situacion'], true);
                             @endphp
 
@@ -210,37 +222,47 @@
                             </div>
                         </div>
 
-                        <div class="col-12 col-lg-5">
-                            <div class="sv-subcard">
-                                <div class="sv-subcard-header">
-                                    <div class="d-flex align-items-center" style="gap:8px;">
-                                        <i class="fa-solid fa-user-shield"></i>
-                                        <strong>Responsable y Evidencia</strong>
-                                    </div>
-                                </div>
-
-                                <div class="sv-subcard-body">
-                                    <div class="sv-kv mb-3">
-                                        <div class="sv-k">Responsable</div>
-                                        <div class="sv-v">{{ $hecho->responsable->nombre ?? 'No asignado' }}</div>
-                                    </div>
-
-                                    <div class="sv-kv">
-                                        <div class="sv-k">Evidencia Adjunta</div>
-                                        <div class="sv-v">
-                                            @if (!empty($hecho->evidencia))
-                                                <a href="{{ asset('storage/' . $hecho->evidencia) }}"
-                                                   class="btn btn-info btn-sm"
-                                                   target="_blank" rel="noopener">
-                                                    <i class="fa-solid fa-paperclip"></i> Ver evidencia
-                                                </a>
-                                            @else
-                                                No hay evidencia adjunta.
-                                            @endif
+                        <div class="sv-kv mt-3">
+                            <div class="sv-k">Fotos del hecho</div>
+                            <div class="sv-v">
+                                <div class="row">
+                                    {{-- FOTO LUGAR --}}
+                                    <div class="col-12 mb-3">
+                                        <div class="sv-photo-title">
+                                            <i class="fa-regular fa-image"></i> Foto del lugar
                                         </div>
+
+                                        @if(!empty($hecho->foto_lugar))
+                                            <a href="{{ asset('storage/' . $hecho->foto_lugar) }}" target="_blank" rel="noopener">
+                                                <img src="{{ asset('storage/' . $hecho->foto_lugar) }}"
+                                                     class="sv-photo-img"
+                                                     alt="Foto del lugar">
+                                            </a>
+                                        @else
+                                            <div class="sv-empty">No hay foto del lugar.</div>
+                                        @endif
+                                    </div>
+
+                                    {{-- FOTO SITUACION --}}
+                                    <div class="col-12">
+                                        <div class="sv-photo-title">
+                                            <i class="fa-regular fa-image"></i> Foto de la situación
+                                        </div>
+
+                                        @if(!empty($hecho->foto_situacion))
+                                            <a href="{{ asset('storage/' . $hecho->foto_situacion) }}" target="_blank" rel="noopener">
+                                                <img src="{{ asset('storage/' . $hecho->foto_situacion) }}"
+                                                     class="sv-photo-img"
+                                                     alt="Foto de la situación">
+                                            </a>
+                                        @else
+                                            <div class="sv-empty">No hay foto de la situación.</div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
 
                             <div class="sv-subcard mt-3">
                                 <div class="sv-subcard-header">

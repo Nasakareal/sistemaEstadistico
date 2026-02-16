@@ -28,6 +28,7 @@
         };
     @endphp
 
+    {{-- TARJETAS --}}
     <div class="row">
         <div class="col-12 col-md-6 col-lg-3">
             <div class="small-box bg-info">
@@ -103,6 +104,7 @@
             </div>
         </div>
 
+        {{-- INFO --}}
         <div class="col-12 col-lg-6">
             <div class="card card-outline card-primary">
                 <div class="card-header">
@@ -111,33 +113,23 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Corte actual</label>
-                                <p class="form-control-static">{{ $corte->corte_fecha }}</p>
-                            </div>
+                            <label>Corte actual</label>
+                            <p>{{ $corte->corte_fecha }}</p>
                         </div>
 
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Corte previo</label>
-                                <p class="form-control-static">{{ $prev ? $prev->corte_fecha : 'No disponible' }}</p>
-                            </div>
+                            <label>Corte previo</label>
+                            <p>{{ $prev ? $prev->corte_fecha : 'No disponible' }}</p>
                         </div>
 
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Generado</label>
-                                <p class="form-control-static">
-                                    {{ $corte->created_at ? $corte->created_at->format('Y-m-d H:i') : '' }}
-                                </p>
-                            </div>
+                            <label>Generado</label>
+                            <p>{{ $corte->created_at ? $corte->created_at->format('Y-m-d H:i') : '' }}</p>
                         </div>
 
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Observaciones</label>
-                                <p class="form-control-static">{{ $fmt($corte->observaciones ?? null) }}</p>
-                            </div>
+                            <label>Observaciones</label>
+                            <p>{{ $fmt($corte->observaciones ?? null) }}</p>
                         </div>
                     </div>
                 </div>
@@ -145,32 +137,25 @@
         </div>
     </div>
 
-    @php
-        $renderTable = function ($id, $rows) {
-            return $rows && count($rows) > 0;
-        };
-    @endphp
-
+    {{-- ===================== --}}
+    {{-- TABLA RESUELTOS --}}
+    {{-- ===================== --}}
     <div class="row">
         <div class="col-12">
-            <div class="card card-outline card-success">
-                <div class="card-header">
-                    <h3 class="card-title mb-0">Resueltos</h3>
-                </div>
+            <div class="tabla-header bg-success">
+                <i class="fa-solid fa-circle-check"></i> Resueltos
+            </div>
+
+            <div class="card">
                 <div class="card-body">
-                    @if (count($resueltos) === 0)
+                    @if(count($resueltos) === 0)
                         <div class="alert alert-info mb-0">No hay registros.</div>
                     @else
                         <table id="tbl_resueltos" class="table table-striped table-bordered table-hover table-sm">
-                            <thead>
+                            <thead class="thead-success">
                                 <tr>
-                                    <th><center>ID</center></th>
-                                    <th><center>Folio</center></th>
-                                    <th><center>Fecha</center></th>
-                                    <th><center>Sector</center></th>
-                                    <th><center>Unidad</center></th>
-                                    <th><center>Situación</center></th>
-                                    <th><center>Acciones</center></th>
+                                    <th>ID</th><th>Folio</th><th>Fecha</th>
+                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -182,8 +167,8 @@
                                         <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
-                                        <td style="text-align:center;">
-                                            <a href="{{ route('hechos.show', $h->id) }}" class="btn btn-info btn-sm">
+                                        <td>
+                                            <a href="{{ route('hechos.show',$h->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
                                         </td>
@@ -197,26 +182,25 @@
         </div>
     </div>
 
+    {{-- ===================== --}}
+    {{-- TABLA TURNADOS --}}
+    {{-- ===================== --}}
     <div class="row">
         <div class="col-12">
-            <div class="card card-outline card-warning">
-                <div class="card-header">
-                    <h3 class="card-title mb-0">Turnados</h3>
-                </div>
+            <div class="tabla-header bg-warning text-dark">
+                <i class="fa-solid fa-share"></i> Turnados
+            </div>
+
+            <div class="card">
                 <div class="card-body">
-                    @if (count($turnados) === 0)
+                    @if(count($turnados) === 0)
                         <div class="alert alert-info mb-0">No hay registros.</div>
                     @else
                         <table id="tbl_turnados" class="table table-striped table-bordered table-hover table-sm">
-                            <thead>
+                            <thead class="thead-warning">
                                 <tr>
-                                    <th><center>ID</center></th>
-                                    <th><center>Folio</center></th>
-                                    <th><center>Fecha</center></th>
-                                    <th><center>Sector</center></th>
-                                    <th><center>Unidad</center></th>
-                                    <th><center>Situación</center></th>
-                                    <th><center>Acciones</center></th>
+                                    <th>ID</th><th>Folio</th><th>Fecha</th>
+                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -228,8 +212,8 @@
                                         <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
-                                        <td style="text-align:center;">
-                                            <a href="{{ route('hechos.show', $h->id) }}" class="btn btn-info btn-sm">
+                                        <td>
+                                            <a href="{{ route('hechos.show',$h->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
                                         </td>
@@ -243,26 +227,25 @@
         </div>
     </div>
 
+    {{-- ===================== --}}
+    {{-- TABLA SIGUEN --}}
+    {{-- ===================== --}}
     <div class="row">
         <div class="col-12">
-            <div class="card card-outline card-danger">
-                <div class="card-header">
-                    <h3 class="card-title mb-0">Siguen PENDIENTE</h3>
-                </div>
+            <div class="tabla-header bg-danger">
+                <i class="fa-solid fa-triangle-exclamation"></i> Siguen PENDIENTE
+            </div>
+
+            <div class="card">
                 <div class="card-body">
-                    @if (count($siguen) === 0)
+                    @if(count($siguen) === 0)
                         <div class="alert alert-info mb-0">No hay registros.</div>
                     @else
                         <table id="tbl_siguen" class="table table-striped table-bordered table-hover table-sm">
-                            <thead>
+                            <thead class="thead-danger">
                                 <tr>
-                                    <th><center>ID</center></th>
-                                    <th><center>Folio</center></th>
-                                    <th><center>Fecha</center></th>
-                                    <th><center>Sector</center></th>
-                                    <th><center>Unidad</center></th>
-                                    <th><center>Situación</center></th>
-                                    <th><center>Acciones</center></th>
+                                    <th>ID</th><th>Folio</th><th>Fecha</th>
+                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -274,8 +257,8 @@
                                         <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
-                                        <td style="text-align:center;">
-                                            <a href="{{ route('hechos.show', $h->id) }}" class="btn btn-info btn-sm">
+                                        <td>
+                                            <a href="{{ route('hechos.show',$h->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
                                         </td>
@@ -289,26 +272,25 @@
         </div>
     </div>
 
+    {{-- ===================== --}}
+    {{-- TABLA OTROS --}}
+    {{-- ===================== --}}
     <div class="row">
         <div class="col-12">
-            <div class="card card-outline card-secondary">
-                <div class="card-header">
-                    <h3 class="card-title mb-0">Otros estados</h3>
-                </div>
+            <div class="tabla-header bg-secondary">
+                <i class="fa-solid fa-layer-group"></i> Otros estados
+            </div>
+
+            <div class="card">
                 <div class="card-body">
-                    @if (count($otros) === 0)
+                    @if(count($otros) === 0)
                         <div class="alert alert-info mb-0">No hay registros.</div>
                     @else
                         <table id="tbl_otros" class="table table-striped table-bordered table-hover table-sm">
-                            <thead>
+                            <thead class="thead-secondary">
                                 <tr>
-                                    <th><center>ID</center></th>
-                                    <th><center>Folio</center></th>
-                                    <th><center>Fecha</center></th>
-                                    <th><center>Sector</center></th>
-                                    <th><center>Unidad</center></th>
-                                    <th><center>Situación</center></th>
-                                    <th><center>Acciones</center></th>
+                                    <th>ID</th><th>Folio</th><th>Fecha</th>
+                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -320,8 +302,8 @@
                                         <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
-                                        <td style="text-align:center;">
-                                            <a href="{{ route('hechos.show', $h->id) }}" class="btn btn-info btn-sm">
+                                        <td>
+                                            <a href="{{ route('hechos.show',$h->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
                                         </td>
@@ -335,26 +317,25 @@
         </div>
     </div>
 
+    {{-- ===================== --}}
+    {{-- TABLA NUEVOS --}}
+    {{-- ===================== --}}
     <div class="row">
         <div class="col-12">
-            <div class="card card-outline card-primary">
-                <div class="card-header">
-                    <h3 class="card-title mb-0">Nuevos pendientes</h3>
-                </div>
+            <div class="tabla-header bg-primary">
+                <i class="fa-solid fa-plus"></i> Nuevos pendientes
+            </div>
+
+            <div class="card">
                 <div class="card-body">
-                    @if ($nuevos->count() === 0)
+                    @if(count($nuevos) === 0)
                         <div class="alert alert-info mb-0">No hay registros.</div>
                     @else
                         <table id="tbl_nuevos" class="table table-striped table-bordered table-hover table-sm">
-                            <thead>
+                            <thead class="thead-primary">
                                 <tr>
-                                    <th><center>ID</center></th>
-                                    <th><center>Folio</center></th>
-                                    <th><center>Fecha</center></th>
-                                    <th><center>Sector</center></th>
-                                    <th><center>Unidad</center></th>
-                                    <th><center>Situación</center></th>
-                                    <th><center>Acciones</center></th>
+                                    <th>ID</th><th>Folio</th><th>Fecha</th>
+                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -366,8 +347,8 @@
                                         <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
-                                        <td style="text-align:center;">
-                                            <a href="{{ route('hechos.show', $h->id) }}" class="btn btn-info btn-sm">
+                                        <td>
+                                            <a href="{{ route('hechos.show',$h->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
                                         </td>
@@ -382,17 +363,35 @@
     </div>
 @stop
 
+{{-- CSS --}}
 @section('css')
-    <style>
-        .table th, .table td {
-            text-align: center;
-            vertical-align: middle;
-        }
-        .small-box .icon i {
-            font-size: 60px;
-        }
-    </style>
+<style>
+    .tabla-header{
+        padding: 14px 18px;
+        font-size: 20px;
+        font-weight: bold;
+        color: white;
+        border-radius: 10px 10px 0 0;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        margin-top:25px;
+    }
+
+    .thead-success th{background:#28a745!important;color:white!important;}
+    .thead-warning th{background:#ffc107!important;color:black!important;}
+    .thead-danger th{background:#dc3545!important;color:white!important;}
+    .thead-primary th{background:#007bff!important;color:white!important;}
+    .thead-secondary th{background:#6c757d!important;color:white!important;}
+
+    .card{
+        border-radius: 0 0 12px 12px;
+        overflow:hidden;
+    }
+</style>
 @stop
+
+
 
 @section('js')
     <script>

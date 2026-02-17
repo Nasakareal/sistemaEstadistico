@@ -17,6 +17,9 @@ use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ActividadController;
 use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\MapaIncidenciasController;
+use App\Http\Controllers\Api\PendientesCortesController;
+
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -27,6 +30,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/permissions', [AuthController::class, 'permissions']);
 
     Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
+
+    Route::middleware('can:ver mapa')->group(function () {
+        Route::get('/mapa-incidencias', [MapaIncidenciasController::class, 'index'])->name('api.mapa.incidencias.index');
+        Route::get('/mapa-incidencias/data', [MapaIncidenciasController::class, 'data'])->name('api.mapa.incidencias.data');
+    });
+
+    Route::prefix('pendientes')->middleware('can:ver hechos')->group(function () {
+        Route::get('/cortes', [PendientesCortesController::class, 'index'])->name('api.hechos.pendientes.cortes.index');
+        Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->name('api.hechos.pendientes.cortes.show');
+    });
 
     Route::prefix('actividades')->group(function () {
         Route::get('/categorias', [ActividadController::class, 'categorias'])->name('api.actividades.categorias');

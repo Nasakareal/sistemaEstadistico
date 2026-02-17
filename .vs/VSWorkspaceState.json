@@ -1,14 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos",
-    "\\resources\\views\\vendor",
-    "\\resources\\views\\vendor\\adminlte",
-    "\\resources\\views\\vendor\\adminlte\\partials",
-    "\\resources\\views\\vendor\\adminlte\\partials\\sidebar"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\vendor\\adminlte\\partials\\sidebar\\left-sidebar.blade.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

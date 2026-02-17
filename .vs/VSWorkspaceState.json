@@ -3,8 +3,8 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos",
-    "\\resources\\views\\hechos\\pendientes_cortes"
+    "\\resources\\views\\hechos"
   ],
+  "SelectedNode": "\\resources\\views\\hechos\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

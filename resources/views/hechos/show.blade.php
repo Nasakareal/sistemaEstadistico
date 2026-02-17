@@ -233,10 +233,14 @@
                                         </div>
 
                                         @if(!empty($hecho->foto_lugar))
-                                            <a href="{{ asset('storage/' . $hecho->foto_lugar) }}" target="_blank" rel="noopener">
-                                                <img src="{{ asset('storage/' . $hecho->foto_lugar) }}"
-                                                     class="sv-photo-img"
-                                                     alt="Foto del lugar">
+                                            <a href="{{ asset('storage/' . $hecho->foto_lugar) }}" target="_blank" rel="noopener" class="sv-photo-link">
+                                                <div class="sv-photo-box">
+                                                    <img src="{{ asset('storage/' . $hecho->foto_lugar) }}"
+                                                         class="sv-photo-img"
+                                                         alt="Foto del lugar"
+                                                         loading="lazy"
+                                                         decoding="async">
+                                                </div>
                                             </a>
                                         @else
                                             <div class="sv-empty">No hay foto del lugar.</div>
@@ -250,10 +254,14 @@
                                         </div>
 
                                         @if(!empty($hecho->foto_situacion))
-                                            <a href="{{ asset('storage/' . $hecho->foto_situacion) }}" target="_blank" rel="noopener">
-                                                <img src="{{ asset('storage/' . $hecho->foto_situacion) }}"
-                                                     class="sv-photo-img"
-                                                     alt="Foto de la situación">
+                                            <a href="{{ asset('storage/' . $hecho->foto_situacion) }}" target="_blank" rel="noopener" class="sv-photo-link">
+                                                <div class="sv-photo-box">
+                                                    <img src="{{ asset('storage/' . $hecho->foto_situacion) }}"
+                                                         class="sv-photo-img"
+                                                         alt="Foto de la situación"
+                                                         loading="lazy"
+                                                         decoding="async">
+                                                </div>
                                             </a>
                                         @else
                                             <div class="sv-empty">No hay foto de la situación.</div>
@@ -625,6 +633,26 @@
         text-align: right;
         word-break: break-word;
     }
+
+    .sv-photo-link{ display: inline-block; }
+
+    .sv-photo-box{
+        width: 100%;
+        max-width: 420px;
+        height: 220px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(255,255,255,.04);
+    }
+
+    .sv-photo-img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
 </style>
 @stop
 

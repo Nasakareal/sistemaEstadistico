@@ -154,8 +154,8 @@
                         <table id="tbl_resueltos" class="table table-striped table-bordered table-hover table-sm">
                             <thead class="thead-success">
                                 <tr>
-                                    <th>ID</th><th>Folio</th><th>Fecha</th>
-                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
+                                    <th>ID</th><th>Fecha</th>
+                                    <th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -197,8 +197,8 @@
                         <table id="tbl_turnados" class="table table-striped table-bordered table-hover table-sm">
                             <thead class="thead-warning">
                                 <tr>
-                                    <th>ID</th><th>Folio</th><th>Fecha</th>
-                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
+                                    <th>ID</th><th>Fecha</th>
+                                    <th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -240,8 +240,8 @@
                         <table id="tbl_siguen" class="table table-striped table-bordered table-hover table-sm">
                             <thead class="thead-danger">
                                 <tr>
-                                    <th>ID</th><th>Folio</th><th>Fecha</th>
-                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
+                                    <th>ID</th><th>Fecha</th>
+                                    <th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -283,8 +283,8 @@
                         <table id="tbl_otros" class="table table-striped table-bordered table-hover table-sm">
                             <thead class="thead-secondary">
                                 <tr>
-                                    <th>ID</th><th>Folio</th><th>Fecha</th>
-                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
+                                    <th>ID</th><th>Fecha</th>
+                                    <th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -326,8 +326,8 @@
                         <table id="tbl_nuevos" class="table table-striped table-bordered table-hover table-sm">
                             <thead class="thead-primary">
                                 <tr>
-                                    <th>ID</th><th>Folio</th><th>Fecha</th>
-                                    <th>Sector</th><th>Unidad</th><th>Situación</th><th>Acciones</th>
+                                    <th>ID</th><th>Fecha</th>
+                                    <th>Unidad</th><th>Situación</th><th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>

@@ -133,6 +133,37 @@
             vertical-align: middle;
         }
 
+        #hechos.table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        #hechos.table-hover tbody tr:hover td,
+        #hechos.table-hover tbody tr:hover th {
+            color: #ffffff !important;
+        }
+
+        #hechos.table-hover tbody tr:hover a {
+            color: #ffffff !important;
+        }
+
+        input[type="date"].form-control {
+            color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.06) !important;
+            border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+
+        input[type="date"].form-control:focus {
+            background-color: rgba(255, 255, 255, 0.10) !important;
+            border-color: rgba(255, 255, 255, 0.30) !important;
+            box-shadow: 0 0 0 .2rem rgba(255, 255, 255, 0.10) !important;
+        }
+
+        input[type="date"].form-control::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.9;
+            cursor: pointer;
+        }
+
         .foto-thumb{
             width: 72px;
             height: 52px;

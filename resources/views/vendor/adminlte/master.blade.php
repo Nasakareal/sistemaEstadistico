@@ -4,23 +4,19 @@
 <head>
     <link rel="icon" href="{{ asset('icon.ico') }}" type="image/x-icon">
 
-    {{-- Base Meta Tags --}}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    {{-- Custom Meta Tags --}}
     @yield('meta_tags')
 
-    {{-- Title --}}
     <title>
         @yield('title_prefix', config('adminlte.title_prefix', ''))
         @yield('title', config('adminlte.title', 'AdminLTE 3'))
         @yield('title_postfix', config('adminlte.title_postfix', ''))
     </title>
 
-    {{-- Base Stylesheets --}}
     @if(config('adminlte.enabled_laravel_mix', false))
         <link rel="stylesheet" href="{{ mix(config('adminlte.laravel_mix_css_path', 'css/app.css')) }}">
     @else
@@ -29,11 +25,9 @@
         <link rel="stylesheet" href="{{ asset('vendor/adminlte/dist/css/adminlte.min.css') }}">
     @endif
 
-    {{-- DataTables CSS --}}
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.dataTables.min.css">
 
-    {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -42,10 +36,8 @@
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
     @endif
 
-    {{-- Extra Plugins CSS --}}
     @include('adminlte::plugins', ['type' => 'css'])
 
-    {{-- Livewire Styles --}}
     @if(config('adminlte.livewire'))
         @if(intval(app()->version()) >= 7)
             @livewireStyles
@@ -54,10 +46,8 @@
         @endif
     @endif
 
-    {{-- Custom Stylesheets --}}
     @yield('adminlte_css')
 
-    {{-- ====== GLOBAL THEME (WELCOME-STYLE) ====== --}}
     <style>
         :root{
             --bg0:#070B14;
@@ -89,12 +79,10 @@
                 linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #050813) !important;
         }
 
-        /* Content wrapper background */
         .content-wrapper, .main-footer{
             background: transparent !important;
         }
 
-        /* Navbar glass */
         .main-header.navbar{
             background: linear-gradient(180deg, rgba(7,11,20,.88), rgba(7,11,20,.55)) !important;
             backdrop-filter: blur(14px);
@@ -108,12 +96,32 @@
             color: rgba(234,240,255,.95) !important;
         }
 
-        /* Sidebar glass */
         .main-sidebar{
             background: rgba(0,0,0,.26) !important;
             backdrop-filter: blur(14px);
             border-right: 1px solid rgba(255,255,255,.10) !important;
+            z-index: 1040 !important;
         }
+
+        .sidebar-overlay{
+            background: rgba(0,0,0,.55) !important;
+            z-index: 1039 !important;
+        }
+
+        .main-header{
+            z-index: 1038 !important;
+        }
+
+        @media (max-width: 991.98px){
+            .main-sidebar{
+                background: #0B1224 !important;
+                backdrop-filter: none !important;
+            }
+            body.sidebar-open .content-wrapper{
+                filter: blur(2px);
+            }
+        }
+
         .brand-link{
             background: transparent !important;
             border-bottom: 1px solid rgba(255,255,255,.10) !important;
@@ -124,7 +132,6 @@
             letter-spacing: .2px;
         }
 
-        /* Menu items */
         .nav-sidebar .nav-link{
             border-radius: 14px !important;
             margin: 6px 10px !important;
@@ -151,7 +158,6 @@
             border: 1px solid rgba(255,255,255,.08) !important;
         }
 
-        /* Cards glass */
         .card{
             background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)) !important;
             border: 1px solid rgba(255,255,255,.12) !important;
@@ -166,7 +172,6 @@
             color: rgba(234,240,255,.92) !important;
         }
 
-        /* Buttons */
         .btn{
             border-radius: 14px !important;
             font-weight: 800 !important;
@@ -182,7 +187,6 @@
             background: linear-gradient(135deg, rgba(45,168,255,.34), rgba(124,92,255,.30)) !important;
         }
 
-        /* Inputs */
         .form-control, .custom-select{
             background: rgba(0,0,0,.18) !important;
             border: 1px solid rgba(255,255,255,.12) !important;
@@ -197,7 +201,12 @@
         }
         label{ color: rgba(234,240,255,.78) !important; font-weight: 700; }
 
-        /* Tables */
+        input[type="date"].form-control::-webkit-calendar-picker-indicator{
+            filter: invert(1);
+            opacity: .9;
+            cursor: pointer;
+        }
+
         .table, table.dataTable{
             color: rgba(234,240,255,.90) !important;
         }
@@ -212,8 +221,15 @@
         .table-striped tbody tr:nth-of-type(odd){
             background: rgba(255,255,255,.03) !important;
         }
+        .table-hover tbody tr:hover{
+            background: rgba(255,255,255,.06) !important;
+        }
+        .table-hover tbody tr:hover td,
+        .table-hover tbody tr:hover th,
+        .table-hover tbody tr:hover a{
+            color: rgba(234,240,255,.95) !important;
+        }
 
-        /* DataTables controls */
         .dataTables_wrapper .dataTables_filter input,
         .dataTables_wrapper .dataTables_length select{
             background: rgba(0,0,0,.18) !important;
@@ -237,7 +253,6 @@
             border-color: rgba(255,255,255,.14) !important;
         }
 
-        /* Alerts */
         .alert{
             border-radius: var(--radius) !important;
             border: 1px solid rgba(255,255,255,.14) !important;
@@ -245,7 +260,6 @@
             color: rgba(234,240,255,.92) !important;
         }
 
-        /* Modals */
         .modal-content{
             border-radius: var(--radius2) !important;
             background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)) !important;
@@ -259,7 +273,6 @@
             border-top: 1px solid rgba(255,255,255,.10) !important;
         }
 
-        /* Breadcrumb */
         .content-header .breadcrumb{
             background: rgba(0,0,0,.14) !important;
             border: 1px solid rgba(255,255,255,.10) !important;
@@ -268,7 +281,6 @@
         .breadcrumb-item a{ color: rgba(234,240,255,.78) !important; font-weight: 700; }
         .breadcrumb-item.active{ color: rgba(234,240,255,.92) !important; }
 
-        /* Small polish */
         .content-header h1{
             color: rgba(234,240,255,.92) !important;
             font-weight: 900;
@@ -276,15 +288,12 @@
         }
     </style>
 
-    {{-- Extra per-page theme overrides (optional) --}}
     @stack('styles')
 </head>
 
 <body class="@yield('classes_body')" @yield('body_data')>
-    {{-- Body Content --}}
     @yield('body')
 
-    {{-- Base Scripts --}}
     @if(config('adminlte.enabled_laravel_mix', false))
         <script src="{{ mix(config('adminlte.laravel_mix_js_path', 'js/app.js')) }}"></script>
     @else
@@ -294,7 +303,6 @@
         <script src="{{ asset('vendor/adminlte/dist/js/adminlte.min.js') }}"></script>
     @endif
 
-    {{-- DataTables JS --}}
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
@@ -303,10 +311,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
-    {{-- Extra Plugins JS --}}
     @include('adminlte::plugins', ['type' => 'js'])
 
-    {{-- Livewire Scripts --}}
     @if(config('adminlte.livewire'))
         @if(intval(app()->version()) >= 7)
             @livewireScripts
@@ -315,10 +321,8 @@
         @endif
     @endif
 
-    {{-- Custom Scripts --}}
     @yield('adminlte_js')
 
-    {{-- Extra per-page scripts (optional) --}}
     @stack('scripts')
 </body>
 </html>

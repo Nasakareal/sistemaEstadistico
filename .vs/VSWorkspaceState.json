@@ -3,8 +3,12 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\resources\\views\\hechos",
+    "\\resources\\views\\vendor",
+    "\\resources\\views\\vendor\\adminlte",
+    "\\resources\\views\\vendor\\adminlte\\partials",
+    "\\resources\\views\\vendor\\adminlte\\partials\\sidebar"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\show.blade.php",
+  "SelectedNode": "\\resources\\views\\vendor\\adminlte\\partials\\sidebar\\left-sidebar.blade.php",
   "PreviewInSolutionExplorer": false
 }

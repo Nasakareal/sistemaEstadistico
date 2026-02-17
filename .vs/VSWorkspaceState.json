@@ -1,12 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\routes"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos",
+    "\\resources\\views\\hechos\\pendientes_cortes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\FeedController.php",
+  "SelectedNode": "\\resources\\views\\hechos\\pendientes_cortes\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

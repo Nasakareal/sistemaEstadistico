@@ -162,9 +162,7 @@
                                 @foreach($resueltos as $h)
                                     <tr>
                                         <td>{{ $h->id }}</td>
-                                        <td>{{ $h->folio_c5i }}</td>
                                         <td>{{ $h->fecha }}</td>
-                                        <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
                                         <td>
@@ -207,9 +205,7 @@
                                 @foreach($turnados as $h)
                                     <tr>
                                         <td>{{ $h->id }}</td>
-                                        <td>{{ $h->folio_c5i }}</td>
                                         <td>{{ $h->fecha }}</td>
-                                        <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
                                         <td>
@@ -252,9 +248,7 @@
                                 @foreach($siguen as $h)
                                     <tr>
                                         <td>{{ $h->id }}</td>
-                                        <td>{{ $h->folio_c5i }}</td>
                                         <td>{{ $h->fecha }}</td>
-                                        <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
                                         <td>
@@ -297,9 +291,7 @@
                                 @foreach($otros as $h)
                                     <tr>
                                         <td>{{ $h->id }}</td>
-                                        <td>{{ $h->folio_c5i }}</td>
                                         <td>{{ $h->fecha }}</td>
-                                        <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
                                         <td>
@@ -342,9 +334,7 @@
                                 @foreach($nuevos as $h)
                                     <tr>
                                         <td>{{ $h->id }}</td>
-                                        <td>{{ $h->folio_c5i }}</td>
                                         <td>{{ $h->fecha }}</td>
-                                        <td>{{ $h->sector }}</td>
                                         <td>{{ $h->unidad }}</td>
                                         <td>{{ $h->situacion }}</td>
                                         <td>

@@ -13,10 +13,13 @@ class LocationController extends Controller
     {
         $user = $request->user();
 
+        // Si está apagado por administración/jefe -> NO guardes y avisa con 403
         if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return response()->json([
-                'message' => 'Tu ubicación está desactivada por tu jefe o por administración. No se guardó tu ubicación.',
-            ], 200);
+                'message' => 'Ubicación desactivada (compartir_ubicacion=0). No se guardó.',
+                'user_id' => $user->id,
+                'compartir_ubicacion' => (int)($user->compartir_ubicacion ?? 0),
+            ], 403);
         }
 
         $validated = $request->validate([
@@ -50,7 +53,7 @@ class LocationController extends Controller
         return response()->json([
             'message' => 'Ubicación guardada',
             'data'    => $location,
-        ], 201);
+        ], 200);
     }
 
     public function last(Request $request)
@@ -63,7 +66,7 @@ class LocationController extends Controller
 
         return response()->json([
             'data' => $location,
-        ]);
+        ], 200);
     }
 
     public function lastByUser(Request $request, User $user)
@@ -76,9 +79,11 @@ class LocationController extends Controller
 
         if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return response()->json([
+                'message' => 'La ubicación de este usuario está desactivada (compartir_ubicacion=0).',
                 'data' => null,
-                'message' => 'La ubicación de este usuario está desactivada.',
-            ], 200);
+                'user_id' => $user->id,
+                'compartir_ubicacion' => (int)($user->compartir_ubicacion ?? 0),
+            ], 403);
         }
 
         $location = UserLocation::where('user_id', $user->id)
@@ -87,7 +92,7 @@ class LocationController extends Controller
 
         return response()->json([
             'data' => $location,
-        ]);
+        ], 200);
     }
 
     public function index(Request $request)
@@ -121,7 +126,7 @@ class LocationController extends Controller
         $data = UserLocation::query()
             ->joinSub($latest, 'ul', function ($join) {
                 $join->on('user_locations.user_id', '=', 'ul.user_id')
-                     ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
+                    ->on('user_locations.captured_at', '=', 'ul.max_captured_at');
             })
             ->join('users', 'users.id', '=', 'user_locations.user_id')
             ->leftJoin('patrullas', 'patrullas.id', '=', 'users.patrulla_id')
@@ -164,7 +169,7 @@ class LocationController extends Controller
                     'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
                 ],
             ],
-        ]);
+        ], 200);
     }
 
     private function canManageUser(User $actor, User $target): bool

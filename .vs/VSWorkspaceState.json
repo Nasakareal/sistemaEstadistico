@@ -5,10 +5,8 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\liberaciones"
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\LocationController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\AuthController.php",
   "PreviewInSolutionExplorer": false
 }

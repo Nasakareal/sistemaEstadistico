@@ -43,6 +43,8 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                // ✅ CLAVE
+                'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
             ],
         ]);
     }
@@ -64,6 +66,8 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                // ✅ CLAVE
+                'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
             ],
             'role' => $role,
             'permissions' => $permissions,

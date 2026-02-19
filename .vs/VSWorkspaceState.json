@@ -3,8 +3,10 @@
     "",
     "\\app",
     "\\app\\Console",
-    "\\app\\Console\\Commands"
+    "\\app\\Console\\Commands",
+    "\\app\\Models",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Console\\Commands\\FetchWazeAlerts.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

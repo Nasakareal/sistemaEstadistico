@@ -2,8 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\DeviceToken;
-use App\Models\User;
 use App\Models\WazeAlert;
 use App\Services\PushService;
 use Carbon\Carbon;
@@ -14,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class FetchWazeAlerts extends Command
 {
     protected $signature = 'waze:fetch-alerts';
-    protected $description = 'Lee el feed JSON de Waze y manda push a roles cuando hay choques nuevos';
+    protected $description = 'Lee el feed JSON de Waze y manda push cuando hay choques nuevos';
 
     public function handle()
     {
@@ -26,27 +24,39 @@ class FetchWazeAlerts extends Command
         }
 
         try {
-            $res = Http::timeout(20)
-            ->withHeaders([
-                'User-Agent' => 'Mozilla/5.0',
-                'Accept' => 'application/json,text/plain,*/*',
-                'Accept-Encoding' => 'gzip, deflate, br, zstd',
-            ])
-            ->get($feedUrl);
-
+            $res = Http::withOptions([
+                    'decode_content' => false,
+                ])
+                ->timeout(20)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0',
+                    'Accept' => 'application/json,text/plain,*/*',
+                ])
+                ->get($feedUrl);
 
             if (!$res->ok()) {
                 Log::warning('Waze feed no OK', ['status' => $res->status()]);
-                $this->error('Waze feed no OK: '.$res->status());
+                $this->error('Waze feed no OK: ' . $res->status());
                 return 1;
             }
 
-            $data = $res->json();
+            $body = $res->body();
+            $data = json_decode($body, true);
+
+            if (!is_array($data)) {
+                Log::error('Waze feed: JSON inválido', ['sample' => substr($body, 0, 200)]);
+                $this->error('Waze feed: JSON inválido');
+                return 1;
+            }
+
             $alerts = $data['alerts'] ?? [];
+            if (!is_array($alerts)) $alerts = [];
 
             $newAccidents = 0;
 
             foreach ($alerts as $item) {
+                if (!is_array($item)) continue;
+
                 $uuid = $item['uuid'] ?? null;
                 if (!$uuid) continue;
 
@@ -61,7 +71,10 @@ class FetchWazeAlerts extends Command
                 $lng = $item['location']['x'] ?? null;
 
                 $pubMillis = $item['pubMillis'] ?? null;
-                $publishedAt = $pubMillis ? Carbon::createFromTimestampMs((int)$pubMillis) : null;
+                $publishedAt = null;
+                if (is_numeric($pubMillis)) {
+                    $publishedAt = Carbon::createFromTimestampMs((int) $pubMillis);
+                }
 
                 $wazeAlert = WazeAlert::create([
                     'uuid' => $uuid,
@@ -71,68 +84,73 @@ class FetchWazeAlerts extends Command
                     'country' => $item['country'] ?? null,
                     'city' => $item['city'] ?? null,
                     'street' => $item['street'] ?? null,
-                    'lat' => $lat,
-                    'lng' => $lng,
-                    'pub_millis' => $pubMillis,
+                    'lat' => is_numeric($lat) ? (float)$lat : null,
+                    'lng' => is_numeric($lng) ? (float)$lng : null,
+                    'pub_millis' => is_numeric($pubMillis) ? (int)$pubMillis : null,
                     'published_at' => $publishedAt,
                     'raw' => $item,
                     'notified' => false,
                 ]);
 
                 if ($this->isAccident($type, $subtype)) {
-                    $sent = $this->notifyRoles($wazeAlert);
+                    $sent = $this->notifyAllTokens($wazeAlert);
                     $wazeAlert->update(['notified' => $sent]);
-                    $newAccidents++;
+
+                    if ($sent) $newAccidents++;
                 }
             }
 
-            $this->info("OK. Choques nuevos procesados: {$newAccidents}");
+            $this->info("OK. Choques nuevos notificados: {$newAccidents}");
             return 0;
 
         } catch (\Throwable $e) {
-            Log::error('Error leyendo Waze feed', ['error' => $e->getMessage()]);
-            $this->error('Error: '.$e->getMessage());
+            Log::error('Error leyendo Waze feed', [
+                'error' => $e->getMessage(),
+            ]);
+            $this->error('Error: ' . $e->getMessage());
             return 1;
         }
     }
 
-    private function isAccident($type, $subtype)
+    private function isAccident($type, $subtype): bool
     {
         $type = strtoupper((string)$type);
         $subtype = strtoupper((string)$subtype);
 
         if ($type === 'ACCIDENT') return true;
 
-        $hay = $type.' '.$subtype;
+        $hay = $type . ' ' . $subtype;
         if (strpos($hay, 'ACCIDENT') !== false) return true;
         if (strpos($hay, 'CRASH') !== false) return true;
 
         return false;
     }
 
-    private function notifyRoles(WazeAlert $wazeAlert): bool
+    private function notifyAllTokens(WazeAlert $wazeAlert): bool
     {
-        $tokens = \App\Models\DeviceToken::whereNotNull('token')
+        $tokens = \App\Models\DeviceToken::query()
+            ->whereNotNull('token')
+            ->where('token', '!=', '')
             ->pluck('token')
             ->unique()
             ->values()
             ->toArray();
 
         if (count($tokens) === 0) {
-            \Log::warning('Waze notify: no device tokens found');
+            Log::warning('Waze notify: no device tokens found');
             return false;
         }
 
         $title = 'Waze: Choque reportado';
-        $body = 'Choque en '.($wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle'));
+        $body = 'Choque en ' . ($wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle'));
 
-        $data = [
+        $payload = [
             'type' => 'WAZE_ACCIDENT',
-            'waze_uuid' => $wazeAlert->uuid,
-            'lat' => (string)$wazeAlert->lat,
-            'lng' => (string)$wazeAlert->lng,
+            'waze_uuid' => (string)$wazeAlert->uuid,
+            'lat' => $wazeAlert->lat !== null ? (string)$wazeAlert->lat : '',
+            'lng' => $wazeAlert->lng !== null ? (string)$wazeAlert->lng : '',
         ];
 
-        return app(\App\Services\PushService::class)->sendToTokens($tokens, $title, $body, $data);
+        return app(PushService::class)->sendToTokens($tokens, $title, $body, $payload);
     }
 }

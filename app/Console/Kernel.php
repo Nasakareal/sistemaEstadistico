@@ -22,6 +22,10 @@ class Kernel extends ConsoleKernel
             ->sundays()
             ->at('18:06')
             ->withoutOverlapping();
+
+        $schedule->command('waze:fetch-alerts')
+            ->everyTwoMinutes()
+            ->withoutOverlapping();
     }
 
     protected function commands()

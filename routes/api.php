@@ -19,11 +19,17 @@ use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\MapaIncidenciasController;
 use App\Http\Controllers\Api\PendientesCortesController;
+use App\Http\Controllers\WhatsAppWebhookController;
 
+
+
+Route::get('/whatsapp/webhook', [WhatsAppWebhookController::class, 'verify']);
+Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);
 
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);

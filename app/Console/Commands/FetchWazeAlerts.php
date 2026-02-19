@@ -126,6 +126,42 @@ class FetchWazeAlerts extends Command
         return false;
     }
 
+    private function reverseGeocode(?float $lat, ?float $lng): ?string
+    {
+        if ($lat === null || $lng === null) return null;
+
+        try {
+            $url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2'
+                . '&lat=' . urlencode((string)$lat)
+                . '&lon=' . urlencode((string)$lng)
+                . '&zoom=18&addressdetails=1';
+
+            $res = Http::timeout(8)->withHeaders([
+                'User-Agent' => 'seguridadvial-mich.com/1.0 (contacto@seguridadvial-mich.com)',
+                'Accept' => 'application/json',
+            ])->get($url);
+
+            if (!$res->ok()) return null;
+
+            $j = $res->json();
+            if (!is_array($j)) return null;
+
+            $display = $j['display_name'] ?? null;
+            if (!is_string($display) || trim($display) === '') return null;
+
+            $display = trim($display);
+            if (mb_strlen($display) > 120) {
+                $display = mb_substr($display, 0, 120) . '...';
+            }
+
+            return $display;
+
+        } catch (\Throwable $e) {
+            Log::warning('reverseGeocode failed', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     private function notifyAllTokens(WazeAlert $wazeAlert): bool
     {
         $tokens = \App\Models\DeviceToken::query()
@@ -141,9 +177,6 @@ class FetchWazeAlerts extends Command
             return false;
         }
 
-        $title = 'Waze: Choque reportado';
-        $body  = 'Choque en ' . ($wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle'));
-
         $lat = $wazeAlert->lat;
         $lng = $wazeAlert->lng;
 
@@ -151,6 +184,13 @@ class FetchWazeAlerts extends Command
         if ($lat !== null && $lng !== null) {
             $mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' . $lat . ',' . $lng;
         }
+
+        $nicePlace = $this->reverseGeocode($lat, $lng);
+
+        $basePlace = $wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle');
+
+        $title = 'Waze: Choque reportado';
+        $body  = 'Choque en ' . ($nicePlace ?: $basePlace);
 
         $payload = [
             'type'      => 'WAZE_ACCIDENT',

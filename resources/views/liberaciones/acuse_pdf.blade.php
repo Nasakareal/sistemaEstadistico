@@ -100,23 +100,18 @@
 
   {{-- ✅ Determinar corralón: primero del vehículo, si no, fallback a la grúa --}}
   @php
-    // 1) Intentar obtener corralón del vehículo (puede ser relación o string)
     $nombreCorralonVehiculo = null;
 
     if (isset($vehiculo) && !is_null($vehiculo->corralon ?? null)) {
-        // Si es relación (objeto)
         if (is_object($vehiculo->corralon)) {
             $nombreCorralonVehiculo = $vehiculo->corralon->nombre ?? ($vehiculo->corralon->id ?? null);
         } else {
-            // Si es string directo
             $nombreCorralonVehiculo = $vehiculo->corralon;
         }
     }
 
-    // 2) Fallback a lo que ya traías como $nombreGrua (si existe)
     $nombreGruaLocal = $nombreGrua ?? null;
 
-    // 3) Elegir el final
     $nombreCorralonFinal = $nombreCorralonVehiculo ?: $nombreGruaLocal ?: 'No especificado';
   @endphp
 
@@ -142,7 +137,6 @@
 
   <br><br><br><br>
 
-  {{-- ✅ Aquí ya usa el corralón correcto --}}
   <h1>C. ENCARGADO DEL CORRALÓN DE GRÚAS {{ $nombreCorralonFinal }}</h1>
   <h1>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</h1>
 
@@ -164,7 +158,20 @@
     <tr><th>Color</th>   <td>{{ $vehiculo->color }}</td></tr>
     <tr>
       <th>Motivo de devolución</th>
-      <td>{{ $liberacion->motivo_liberacion ?? 'No especificado' }}</td>
+      <td>
+        {{ $liberacion->motivo_liberacion ?? 'No especificado' }}
+
+        @php
+          $motivo = trim((string)($liberacion->motivo_liberacion ?? ''));
+          $esOrdenMP = ($motivo === 'Orden del Ministerio Público');
+          $oficioMp = trim((string)($hecho->oficio_mp ?? ''));
+        @endphp
+
+        @if($esOrdenMP && $oficioMp !== '')
+          <br>
+          {{ $oficioMp }}
+        @endif
+      </td>
     </tr>
   </table>
 

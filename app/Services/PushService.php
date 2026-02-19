@@ -24,7 +24,6 @@ class PushService
         }
 
         try {
-            // Obtiene access token OAuth2 para FCM HTTP v1
             putenv('GOOGLE_APPLICATION_CREDENTIALS='.$serviceAccountPath);
 
             $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
@@ -41,7 +40,6 @@ class PushService
 
             $allOk = true;
 
-            // Enviar token por token (FCM v1 no soporta multicast directo como legacy)
             foreach ($tokens as $t) {
                 $payload = [
                     'message' => [
@@ -77,7 +75,6 @@ class PushService
 
     private function stringifyData(array $data): array
     {
-        // FCM data debe ser string-string
         $out = [];
         foreach ($data as $k => $v) {
             $out[$k] = is_string($v) ? $v : json_encode($v, JSON_UNESCAPED_UNICODE);

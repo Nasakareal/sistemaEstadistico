@@ -5,8 +5,9 @@
     "\\app\\Console",
     "\\app\\Console\\Commands",
     "\\app\\Models",
+    "\\app\\Services",
     "\\routes"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\app\\Services\\PushService.php",
   "PreviewInSolutionExplorer": false
 }

@@ -142,13 +142,22 @@ class FetchWazeAlerts extends Command
         }
 
         $title = 'Waze: Choque reportado';
-        $body = 'Choque en ' . ($wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle'));
+        $body  = 'Choque en ' . ($wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle'));
+
+        $lat = $wazeAlert->lat;
+        $lng = $wazeAlert->lng;
+
+        $mapsUrl = '';
+        if ($lat !== null && $lng !== null) {
+            $mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' . $lat . ',' . $lng;
+        }
 
         $payload = [
-            'type' => 'WAZE_ACCIDENT',
-            'waze_uuid' => (string)$wazeAlert->uuid,
-            'lat' => $wazeAlert->lat !== null ? (string)$wazeAlert->lat : '',
-            'lng' => $wazeAlert->lng !== null ? (string)$wazeAlert->lng : '',
+            'type'      => 'WAZE_ACCIDENT',
+            'waze_uuid' => (string) $wazeAlert->uuid,
+            'lat'       => $lat !== null ? (string) $lat : '',
+            'lng'       => $lng !== null ? (string) $lng : '',
+            'maps_url'  => $mapsUrl,
         ];
 
         return app(PushService::class)->sendToTokens($tokens, $title, $body, $payload);

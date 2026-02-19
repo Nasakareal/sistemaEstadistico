@@ -26,7 +26,14 @@ class FetchWazeAlerts extends Command
         }
 
         try {
-            $res = Http::timeout(20)->get($feedUrl);
+            $res = Http::timeout(20)
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0',
+                'Accept' => 'application/json,text/plain,*/*',
+                'Accept-Encoding' => 'gzip, deflate, br, zstd',
+            ])
+            ->get($feedUrl);
+
 
             if (!$res->ok()) {
                 Log::warning('Waze feed no OK', ['status' => $res->status()]);
@@ -43,7 +50,6 @@ class FetchWazeAlerts extends Command
                 $uuid = $item['uuid'] ?? null;
                 if (!$uuid) continue;
 
-                // DEDUPE
                 if (WazeAlert::where('uuid', $uuid)->exists()) {
                     continue;
                 }
@@ -73,7 +79,6 @@ class FetchWazeAlerts extends Command
                     'notified' => false,
                 ]);
 
-                // ✅ Solo choques
                 if ($this->isAccident($type, $subtype)) {
                     $sent = $this->notifyRoles($wazeAlert);
                     $wazeAlert->update(['notified' => $sent]);

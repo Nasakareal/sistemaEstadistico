@@ -3,14 +3,8 @@
     "",
     "\\app",
     "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\config",
-    "\\routes"
+    "\\app\\Console\\Commands"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
+  "SelectedNode": "\\app\\Console\\Commands\\FetchWazeAlerts.php",
   "PreviewInSolutionExplorer": false
 }

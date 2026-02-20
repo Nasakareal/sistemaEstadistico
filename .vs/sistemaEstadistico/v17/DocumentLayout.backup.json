@@ -7,10 +7,6 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\waze\\alerts\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\waze\\alerts\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
@@ -32,7 +28,7 @@
               "RelativeDocumentMoniker": "config\\adminlte.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php",
               "RelativeToolTip": "config\\adminlte.php",
-              "ViewState": "AgIAALQAAAAAAAAAAAAAAM8AAAAlAAAAAAAAAA==",
+              "ViewState": "AgIAAMYBAAAAAAAAAIAwwOIBAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-20T18:16:57.228Z",
               "EditorCaption": ""
@@ -40,19 +36,6 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "index.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\waze\\alerts\\index.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\waze\\alerts\\index.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\waze\\alerts\\index.blade.php",
-              "RelativeToolTip": "resources\\views\\waze\\alerts\\index.blade.php",
-              "ViewState": "AgIAADYAAAAAAAAAAAAwwGgAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-20T18:16:37.437Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
               "Title": "web.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
               "RelativeDocumentMoniker": "routes\\web.php",

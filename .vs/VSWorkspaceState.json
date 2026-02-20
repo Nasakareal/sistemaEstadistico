@@ -1,16 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\AdminLte",
-    "\\app\\AdminLte\\Filters",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\users",
-    "\\routes"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\config\\adminlte.php",
+  "SelectedNode": "\\database\\migrations\\2026_02_20_124426_add_is_read_to_waze_alerts_table.php",
   "PreviewInSolutionExplorer": false
 }

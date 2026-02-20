@@ -206,6 +206,7 @@ return [
             'topnav_right' => true,
             'icon' => 'fas fa-bell',
             'id'   => 'wazeBellLink',
+            'waze_badge' => true,
         ],
         [
             'type' => 'fullscreen-widget',
@@ -479,6 +480,7 @@ return [
         JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,
+        App\AdminLte\Filters\WazeBellBadgeFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,

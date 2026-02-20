@@ -2,11 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\config",
+    "\\app\\AdminLte",
+    "\\app\\AdminLte\\Filters",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\waze",
-    "\\resources\\views\\waze\\alerts",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\users",
     "\\routes"
   ],
   "SelectedNode": "\\config\\adminlte.php",

@@ -191,12 +191,21 @@ return [
             'text' => 'search',
             'topnav_right' => true,
         ], */
+        /*
         [
             'type' => 'link',
             'text' => 'Scan',
             'url' => '#',
             'topnav_right' => true,
             'icon' => 'fa-solid fa-qrcode',
+        ],*/
+        [
+            'type' => 'link',
+            'text' => 'Waze',
+            'route' => 'waze.alerts.index',
+            'topnav_right' => true,
+            'icon' => 'fas fa-bell',
+            'id'   => 'wazeBellLink',
         ],
         [
             'type' => 'fullscreen-widget',

@@ -36,6 +36,8 @@ use App\Http\Controllers\GruaGuardiaController;
 use App\Http\Controllers\GruaTramoController;
 use App\Http\Controllers\TramoLookupController;
 
+use App\Http\Controllers\WazeAlertWebController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {
@@ -44,6 +46,13 @@ Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::get('/mapa/mi-personal',[MapaPatrullasController::class,'miPersonal'])->name('mapa.mi_personal');
     Route::post('/mapa/mi-personal/{user}/ubicacion',[MapaPatrullasController::class,'toggleUbicacionUsuario'])->name('mapa.mi_personal.toggle');
     Route::post('/mapa/mi-personal/ubicacion/todos',[MapaPatrullasController::class,'toggleUbicacionTodos'])->name('mapa.mi_personal.toggle_all');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/waze/alerts', [WazeAlertWebController::class, 'index'])->name('waze.alerts.index');
+    Route::post('/waze/alerts/{alert}/read', [WazeAlertWebController::class, 'markRead'])->name('waze.alerts.read');
+    Route::post('/waze/alerts/read-all', [WazeAlertWebController::class, 'markAllRead'])->name('waze.alerts.read_all');
+    Route::get('/waze/alerts/unread-count', [WazeAlertWebController::class, 'unreadCount'])->name('waze.alerts.unread_count');
 });
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {

@@ -30,4 +30,16 @@ class Grua extends Model
     {
         return $this->hasMany(Servicio::class);
     }
+
+    public function tramos()
+    {
+        return $this->belongsToMany(\App\Models\Tramo::class, 'grua_tramo')
+            ->withPivot(['desde','hasta','prioridad','activo'])
+            ->withTimestamps();
+    }
+
+    public function guardias()
+    {
+        return $this->hasMany(\App\Models\GruaGuardia::class);
+    }
 }

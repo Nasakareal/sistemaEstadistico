@@ -137,8 +137,8 @@
 
   <br><br><br><br>
 
-  <h1>C. ENCARGADO DEL CORRALÓN DE GRÚAS {{ $nombreCorralonFinal }}</h1>
-  <h1>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</h1>
+<h1><strong>C. ENCARGADO DEL CORRALÓN DE GRÚAS {{ $nombreCorralonFinal }}</strong></h1>
+<h1><strong>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</strong></h1>
 
   <br>
 

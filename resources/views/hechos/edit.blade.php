@@ -189,7 +189,6 @@
                             </div>
                         </div>
 
-                        {{-- ✅ UI GEO (EDIT) --}}
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
@@ -322,7 +321,6 @@
                                 </div>
                             </div>
 
-                            {{-- ✅ Dictamen (solo si situacion = TURNADO) --}}
                             <div class="col-md-4" id="dictamen_group" style="display:none;">
                                 <div class="form-group">
                                     <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>

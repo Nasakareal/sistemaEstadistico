@@ -187,15 +187,26 @@
                                 </div>
                             </div>
                             
+                            @php
+                                $norm = function ($s) {
+                                    $s = mb_strtoupper(trim((string)$s), 'UTF-8');
+                                    return strtr($s, ['Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ü'=>'U','Ñ'=>'N']);
+                                };
+
+                                $tipoServicioActual = old('tipo_servicio', $vehiculo->tipo_servicio);
+                                $tipoServicioNorm = $norm($tipoServicioActual);
+                            @endphp
+
                             <!-- Tipo de Servicio -->
                             <div class="col-md-5">
                                 <div class="form-group">
                                     <label for="tipo_servicio">Tipo de Servicio</label>
                                     <select name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" required>
                                         <option value="">-- Seleccione --</option>
-                                        <option value="Particular" {{ old('tipo_servicio', $vehiculo->tipo_servicio) == 'Particular' ? 'selected' : '' }}>Particular</option>
-                                        <option value="Oficial" {{ old('tipo_servicio', $vehiculo->tipo_servicio) == 'Oficial' ? 'selected' : '' }}>Oficial</option>
-                                        <option value="Público" {{ old('tipo_servicio', $vehiculo->tipo_servicio) == 'Público' ? 'selected' : '' }}>Público</option>
+
+                                        <option value="PARTICULAR" {{ $tipoServicioNorm === 'PARTICULAR' ? 'selected' : '' }}>Particular</option>
+                                        <option value="OFICIAL"    {{ $tipoServicioNorm === 'OFICIAL' ? 'selected' : '' }}>Oficial</option>
+                                        <option value="PUBLICO"    {{ $tipoServicioNorm === 'PUBLICO' ? 'selected' : '' }}>Público</option>
                                     </select>
                                     @error('tipo_servicio')
                                         <span class="invalid-feedback" role="alert">
@@ -708,74 +719,73 @@
 
 
 @section('js')
-    <script>
-        @if ($errors->any())
-            Swal.fire({
-                icon: 'error',
-                title: 'Errores en el formulario',
-                html: `
-                    <ul style="text-align: left;">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                `,
-                confirmButtonText: 'Aceptar'
-            });
-        @endif
-    </script>
-
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const tipoGeneral = document.getElementById('tipo_general');
-        const tipo = document.getElementById('tipo');
+document.addEventListener('DOMContentLoaded', function () {
+    const tipoGeneral = document.getElementById('tipo_general');
+    const tipo = document.getElementById('tipo');
 
-        const carrocerias = {
-            automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
-            camion: ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
-            camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
-            motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
-            bicicleta: ['Montaña', 'Ruta', 'BMX'],
-            remolque: ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
-            semoviente: ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro']
-        };
+    const carrocerias = {
+        automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
+        camion: ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
+        camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
+        motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
+        bicicleta: ['Montaña', 'Ruta', 'BMX'],
+        remolque: ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
+        semoviente: ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro']
+    };
 
-        const tipoActual = "{{ old('tipo', $vehiculo->tipo ?? '') }}";
-        let tipoGeneralDetectado = '';
+    function norm(s) {
+        return (s || '')
+            .toString()
+            .trim()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase();
+    }
 
-        for (const [categoria, lista] of Object.entries(carrocerias)) {
-            if (lista.includes(tipoActual)) {
-                tipoGeneralDetectado = categoria;
-                break;
-            }
+    const tipoActualRaw = "{{ old('tipo', $vehiculo->tipo ?? '') }}";
+    const tipoActualNorm = norm(tipoActualRaw);
+
+    let tipoGeneralDetectado = '';
+
+    for (const [categoria, lista] of Object.entries(carrocerias)) {
+        const match = lista.some(op => norm(op) === tipoActualNorm);
+        if (match) {
+            tipoGeneralDetectado = categoria;
+            break;
+        }
+    }
+
+    const tipoGeneralActual = "{{ old('tipo_general') }}";
+    tipoGeneral.value = tipoGeneralActual || tipoGeneralDetectado;
+
+    function cargarOpciones() {
+        const seleccion = tipoGeneral.value;
+        tipo.innerHTML = '<option value="">-- Seleccione --</option>';
+
+        if (carrocerias[seleccion]) {
+            carrocerias[seleccion].forEach(function (opcion) {
+                const opt = document.createElement('option');
+                opt.value = opcion;
+                opt.textContent = opcion;
+                tipo.appendChild(opt);
+            });
         }
 
-        const tipoGeneralActual = "{{ old('tipo_general') }}";
-        tipoGeneral.value = tipoGeneralActual || tipoGeneralDetectado;
-
-        function cargarOpciones() {
-            const seleccion = tipoGeneral.value;
-            tipo.innerHTML = '<option value="">-- Seleccione --</option>';
-
-            if (carrocerias[seleccion]) {
-                carrocerias[seleccion].forEach(function (opcion) {
-                    const opt = document.createElement('option');
-                    opt.value = opcion;
-                    opt.textContent = opcion;
-                    tipo.appendChild(opt);
-                });
-            }
-
-            if (tipoActual) {
-                tipo.value = tipoActual;
+        if (tipoActualRaw) {
+            const opciones = Array.from(tipo.options);
+            const encontrada = opciones.find(o => norm(o.value) === tipoActualNorm);
+            if (encontrada) {
+                tipo.value = encontrada.value;
             }
         }
+    }
 
-        tipoGeneral.addEventListener('change', cargarOpciones);
-        if (tipoGeneral.value) {
-            cargarOpciones();
-        }
-    });
+    tipoGeneral.addEventListener('change', cargarOpciones);
+
+    if (tipoGeneral.value) {
+        cargarOpciones();
+    }
+});
 </script>
-
 @stop

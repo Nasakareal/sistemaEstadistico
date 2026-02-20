@@ -31,6 +31,11 @@ use App\Http\Controllers\ActividadController;
 use App\Http\Controllers\DictamenController;
 use App\Http\Controllers\PendientesCortesController;
 
+use App\Http\Controllers\TramoController;
+use App\Http\Controllers\GruaGuardiaController;
+use App\Http\Controllers\GruaTramoController;
+use App\Http\Controllers\TramoLookupController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {
@@ -97,7 +102,6 @@ Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(
     Route::delete('/{actividad}',[ActividadController::class,'destroy'])->middleware('can:eliminar actividades')->name('actividades.destroy');
 });
 
-
 Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales'])->group(function () {
     Route::get('/',[EstadisticasGlobalesController::class,'index'])->name('estadisticas_globales.index');
     Route::get('/kpis',[EstadisticasGlobalesController::class,'kpis'])->name('estadisticas_globales.kpis');
@@ -158,6 +162,17 @@ Route::prefix('dictamenes')->middleware('can:ver dictamenes')->group(function ()
     Route::delete('/{dictamen}',[DictamenController::class,'destroy'])->middleware('can:eliminar dictamenes')->name('dictamenes.destroy');
 });
 
+    /** =========================
+     *  GRÚAS
+     *  ========================= */
+
+Route::middleware(['auth','can:ver gruas'])->group(function () {
+    Route::resource('tramos', TramoController::class);
+    Route::resource('grua-guardias', GruaGuardiaController::class);
+    Route::get('tramos-lookup', [TramoLookupController::class,'index'])->name('tramos.lookup.index');
+    Route::post('tramos-lookup', [TramoLookupController::class,'resolve'])->name('tramos.lookup.resolve');
+});
+
 Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
     Route::get('/',[GruaController::class,'index'])->name('gruas.index');
     Route::get('/create',[GruaController::class,'create'])->middleware('can:crear gruas')->name('gruas.create');
@@ -176,6 +191,10 @@ Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
         Route::put('/{servicio}',[ServicioController::class,'update'])->name('servicios.update');
         Route::delete('/{servicio}',[ServicioController::class,'destroy'])->name('servicios.destroy');
     });
+
+    Route::get('/{grua}/tramos', [GruaTramoController::class,'index'])->name('gruas.tramos.index');
+    Route::post('/{grua}/tramos', [GruaTramoController::class,'store'])->name('gruas.tramos.store');
+    Route::delete('/{grua}/tramos/{tramo}', [GruaTramoController::class,'destroy'])->name('gruas.tramos.destroy');
 });
 
 Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {

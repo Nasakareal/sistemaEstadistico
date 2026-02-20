@@ -3,16 +3,12 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\FetchWazeAlerts.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Console\\Commands\\FetchWazeAlerts.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vehiculos\\edit.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\vehiculos\\edit.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\WazeAlert.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Models\\WazeAlert.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\VehiculosController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\VehiculosController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -22,43 +18,32 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "api.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
-              "RelativeDocumentMoniker": "routes\\api.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
-              "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAFgAAAAAAAAAAAAwwIkAAAAAAAAAAAAAAA==",
+              "Title": "VehiculosController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\VehiculosController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\VehiculosController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\VehiculosController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\VehiculosController.php",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAwwO8BAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-19T20:49:15.09Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "WazeAlert.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\WazeAlert.php",
-              "RelativeDocumentMoniker": "app\\Models\\WazeAlert.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\WazeAlert.php",
-              "RelativeToolTip": "app\\Models\\WazeAlert.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-19T20:49:00.055Z"
+              "WhenOpened": "2026-02-20T17:54:56.768Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "FetchWazeAlerts.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\FetchWazeAlerts.php",
-              "RelativeDocumentMoniker": "app\\Console\\Commands\\FetchWazeAlerts.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\FetchWazeAlerts.php",
-              "RelativeToolTip": "app\\Console\\Commands\\FetchWazeAlerts.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAH8AAAAAAAAAAAAAAA==",
+              "Title": "edit.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vehiculos\\edit.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\vehiculos\\edit.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vehiculos\\edit.blade.php",
+              "RelativeToolTip": "resources\\views\\vehiculos\\edit.blade.php",
+              "ViewState": "AgIAAJYCAAAAAAAAAAAwwN8CAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-19T20:44:19.575Z",
+              "WhenOpened": "2026-02-20T17:54:14.617Z",
               "EditorCaption": ""
             }
           ]

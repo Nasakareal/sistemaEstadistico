@@ -2,11 +2,12 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Models",
-    "\\app\\Services",
-    "\\routes"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\vehiculos"
   ],
+  "SelectedNode": "\\app\\Http\\Controllers\\VehiculosController.php",
   "PreviewInSolutionExplorer": false
 }

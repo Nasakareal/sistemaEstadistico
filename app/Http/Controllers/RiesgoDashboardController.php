@@ -16,10 +16,10 @@ class RiesgoDashboardController extends Controller
     public function data(Request $request)
     {
         $precision = (int) $request->query('precision', 3);
-        if (!in_array($precision, [2,3,4])) $precision = 3;
+        if (!in_array($precision, [2, 3, 4])) $precision = 3;
 
-        $desde = $request->query('desde');
-        $hasta = $request->query('hasta');
+        $desde   = $request->query('desde');
+        $hasta   = $request->query('hasta');
         $ventana = (int) $request->query('ventana', 60);
         $wazeHoras = (int) $request->query('waze_horas', 24);
 
@@ -29,14 +29,15 @@ class RiesgoDashboardController extends Controller
 
         $tz = 'America/Mexico_City';
 
-        $desdeDT = Carbon::parse($desde, $tz)->startOfDay();
-        $hastaDT = Carbon::parse($hasta, $tz)->endOfDay();
-        $wazeDesde = Carbon::now($tz)->subHours($wazeHoras);
+        $desdeDT = Carbon::parse($desde, $tz)->startOfDay()->toDateTimeString();
+        $hastaDT = Carbon::parse($hasta, $tz)->endOfDay()->toDateTimeString();
+        $wazeDesde = Carbon::now($tz)->subHours($wazeHoras)->toDateTimeString();
 
         /*
         |--------------------------------------------------------------------------
-        | 1) HECHOS agrupados por celda
+        | 1) HECHOS agrupados por celda (solo en rango)
         |--------------------------------------------------------------------------
+        | 
         */
         $hechosCells = DB::table('hechos')
             ->selectRaw("
@@ -44,11 +45,14 @@ class RiesgoDashboardController extends Controller
                 ROUND(lat, ?) AS lat,
                 ROUND(lng, ?) AS lng,
                 COUNT(*) AS total
-            ", [$precision,$precision,$precision,$precision])
+            ", [$precision, $precision, $precision, $precision])
             ->whereNotNull('lat')
             ->whereNotNull('lng')
-            ->whereBetween(DB::raw("TIMESTAMP(fecha, hora)"), [$desdeDT, $hastaDT])
-            ->groupBy('cell','lat','lng')
+            ->whereBetween(
+                DB::raw("STR_TO_DATE(CONCAT(fecha,' ',hora), '%Y-%m-%d %H:%i:%s')"),
+                [$desdeDT, $hastaDT]
+            )
+            ->groupBy('cell', 'lat', 'lng')
             ->get();
 
         /*
@@ -57,30 +61,30 @@ class RiesgoDashboardController extends Controller
         |--------------------------------------------------------------------------
         */
         $wazePoints = DB::table('waze_alerts')
-            ->select('lat','lng','type','street','street_norm','published_at')
+            ->select('lat', 'lng', 'type', 'street', 'street_norm', 'published_at')
             ->whereNotNull('lat')
             ->whereNotNull('lng')
-            ->where('published_at','>=',$wazeDesde)
+            ->where('published_at', '>=', $wazeDesde)
             ->get();
 
         /*
         |--------------------------------------------------------------------------
-        | 3) Matches (choque → tráfico)
+        | 3) Matches (tabla REAL: sin folio_c5i)
         |--------------------------------------------------------------------------
         */
         $matches = DB::table('waze_hecho_matches')
             ->selectRaw("
                 cell_key AS cell,
-                SUBSTRING_INDEX(cell_key, ',', 1) AS lat,
-                SUBSTRING_INDEX(cell_key, ',', -1) AS lng,
-                folio_c5i,
+                (SUBSTRING_INDEX(cell_key, ',', 1) + 0.0) AS lat,
+                (SUBSTRING_INDEX(cell_key, ',', -1) + 0.0) AS lng,
+                hecho_id,
                 waze_accident_at,
                 waze_first_jam_at,
                 min_accident_to_hecho,
                 min_hecho_to_jam
             ")
             ->orderByDesc('hecho_at')
-            ->limit(100)
+            ->limit(200)
             ->get();
 
         /*
@@ -99,7 +103,7 @@ class RiesgoDashboardController extends Controller
                 COALESCE(a.accidents,0) AS accidents_now,
                 ROUND((COALESCE(j.jams,0) * 2)
                       + COALESCE(a.accidents,0)
-                      + (h.total / 10),2) AS score
+                      + (h.total / 10), 2) AS score
             FROM
             (
                 SELECT
@@ -138,17 +142,12 @@ class RiesgoDashboardController extends Controller
             LIMIT 50
         ", [$wazeDesde, $wazeDesde]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | KPIs
-        |--------------------------------------------------------------------------
-        */
         $kpis = [
-            'hechos'    => $hechosCells->sum('total'),
-            'jams'      => $wazePoints->where('type','JAM')->count(),
-            'accidents' => $wazePoints->where('type','ACCIDENT')->count(),
-            'matches'   => $matches->count(),
-            'top'       => isset($riesgo[0]) ? $riesgo[0]->score : 0
+            'hechos'    => (int) $hechosCells->sum('total'),
+            'jams'      => (int) $wazePoints->where('type', 'JAM')->count(),
+            'accidents' => (int) $wazePoints->where('type', 'ACCIDENT')->count(),
+            'matches'   => (int) $matches->count(),
+            'top'       => isset($riesgo[0]) ? (float) $riesgo[0]->score : 0,
         ];
 
         return response()->json([
@@ -156,7 +155,7 @@ class RiesgoDashboardController extends Controller
             'hechos_cells' => $hechosCells,
             'waze_points'  => $wazePoints,
             'matches'      => $matches,
-            'riesgo_cells' => $riesgo
+            'riesgo_cells' => $riesgo,
         ]);
     }
 }

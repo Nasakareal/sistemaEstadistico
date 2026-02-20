@@ -134,7 +134,6 @@
 
 @section('css')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
 <style>
     .card-soft{
         border-radius: 18px !important;
@@ -188,6 +187,21 @@
     const urlData = @json(route('waze.riesgo.data'));
     const statusSub = document.getElementById('status-sub');
 
+    function esc(s){
+        if (s === null || s === undefined) return '';
+        return String(s)
+            .replaceAll('&','&amp;')
+            .replaceAll('<','&lt;')
+            .replaceAll('>','&gt;')
+            .replaceAll('"','&quot;')
+            .replaceAll("'","&#039;");
+    }
+
+    function num(v){
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    }
+
     const map = L.map('map', { zoomControl: true }).setView([19.703, -101.186], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -233,11 +247,11 @@
     document.getElementById('verRiesgo').addEventListener('change', toggleLayers);
 
     function setKpis(k){
-        document.getElementById('k_hechos').textContent = (k && k.hechos) ?? '-';
-        document.getElementById('k_jams').textContent = (k && k.jams) ?? '-';
-        document.getElementById('k_accidents').textContent = (k && k.accidents) ?? '-';
-        document.getElementById('k_matches').textContent = (k && k.matches) ?? '-';
-        document.getElementById('k_top').textContent = (k && k.top) ?? '-';
+        document.getElementById('k_hechos').textContent    = (k && k.hechos    !== undefined) ? k.hechos    : '-';
+        document.getElementById('k_jams').textContent      = (k && k.jams      !== undefined) ? k.jams      : '-';
+        document.getElementById('k_accidents').textContent = (k && k.accidents !== undefined) ? k.accidents : '-';
+        document.getElementById('k_matches').textContent   = (k && k.matches   !== undefined) ? k.matches   : '-';
+        document.getElementById('k_top').textContent       = (k && k.top       !== undefined) ? k.top       : '-';
     }
 
     function clearAll(){
@@ -249,42 +263,53 @@
 
     function addHechosPoints(items){
         (items || []).forEach(p => {
-            L.circleMarker([p.lat, p.lng], {
+            const lat = num(p.lat);
+            const lng = num(p.lng);
+            if(lat === null || lng === null) return;
+
+            L.circleMarker([lat, lng], {
                 radius: 5,
                 color: '#2563eb',
                 fillColor: '#2563eb',
                 fillOpacity: 0.35,
                 weight: 2
             }).bindPopup(
-                `<strong>Hechos:</strong> ${p.total || 0}<br>` +
-                `<strong>Celda:</strong> ${p.cell || '-'}`
+                `<strong>Hechos:</strong> ${esc(p.total || 0)}<br>` +
+                `<strong>Celda:</strong> ${esc(p.cell || '-')}`
             ).addTo(layerHechos);
         });
     }
 
     function addWazePoints(items){
         (items || []).forEach(p => {
-            const t = (p.type || '').toUpperCase();
+            const lat = num(p.lat);
+            const lng = num(p.lng);
+            if(lat === null || lng === null) return;
+
+            const t = String(p.type || '').toUpperCase();
             const color = (t === 'ACCIDENT') ? '#dc3545' : (t === 'JAM' ? '#f59e0b' : '#6b7280');
 
-            L.circleMarker([p.lat, p.lng], {
+            L.circleMarker([lat, lng], {
                 radius: 4,
                 color: color,
                 fillColor: color,
                 fillOpacity: 0.55,
                 weight: 2
             }).bindPopup(
-                `<strong>Waze:</strong> ${p.type || '-'}<br>` +
-                `<strong>Calle:</strong> ${p.street_norm || p.street || '-'}<br>` +
-                `<strong>Publicado:</strong> ${p.published_at || '-'}`
+                `<strong>Waze:</strong> ${esc(p.type || '-')}<br>` +
+                `<strong>Calle:</strong> ${esc(p.street_norm || p.street || '-')}<br>` +
+                `<strong>Publicado:</strong> ${esc(p.published_at || '-')}`
             ).addTo(layerWaze);
         });
     }
 
     function addMatches(items){
         (items || []).forEach(m => {
-            // un match por celda/tiempo: lo pintamos como punto violeta
-            L.circleMarker([m.lat, m.lng], {
+            const lat = num(m.lat);
+            const lng = num(m.lng);
+            if(lat === null || lng === null) return;
+
+            L.circleMarker([lat, lng], {
                 radius: 6,
                 color: '#7c3aed',
                 fillColor: '#7c3aed',
@@ -292,33 +317,37 @@
                 weight: 3
             }).bindPopup(
                 `<strong>MATCH</strong><br>` +
-                `<strong>Hecho:</strong> ${m.folio_c5i || m.hecho_id || '-'}<br>` +
-                `<strong>Celda:</strong> ${m.cell || '-'}<br>` +
-                `<strong>Accidente Waze:</strong> ${m.waze_accident_at || '-'}<br>` +
-                `<strong>Primer Jam:</strong> ${m.waze_first_jam_at || '-'}<br>` +
-                `<strong>Acc→Hecho (min):</strong> ${m.min_accident_to_hecho ?? '-'}<br>` +
-                `<strong>Hecho→Jam (min):</strong> ${m.min_hecho_to_jam ?? '-'}`
+                `<strong>Hecho:</strong> ${esc(m.hecho_id || '-')}<br>` +
+                `<strong>Celda:</strong> ${esc(m.cell || '-')}<br>` +
+                `<strong>Accidente Waze:</strong> ${esc(m.waze_accident_at || '-')}<br>` +
+                `<strong>Primer Jam:</strong> ${esc(m.waze_first_jam_at || '-')}<br>` +
+                `<strong>Acc→Hecho (min):</strong> ${esc(m.min_accident_to_hecho ?? '-')}<br>` +
+                `<strong>Hecho→Jam (min):</strong> ${esc(m.min_hecho_to_jam ?? '-')}`
             ).addTo(layerMatches);
         });
     }
 
     function addRiesgoCells(items){
         (items || []).forEach(z => {
+            const lat = num(z.lat);
+            const lng = num(z.lng);
+            if(lat === null || lng === null) return;
+
             const score = Number(z.score || 0);
             const c = colorRiesgo(score);
 
-            L.circleMarker([z.lat, z.lng], {
+            L.circleMarker([lat, lng], {
                 radius: radioRiesgo(score),
                 color: c,
                 fillColor: c,
                 fillOpacity: 0.50,
                 weight: 2
             }).bindPopup(
-                `<strong>Riesgo:</strong> ${score}<br>` +
-                `<strong>Celda:</strong> ${z.cell || '-'}<br>` +
-                `<strong>Hechos hist:</strong> ${z.hechos_hist || 0}<br>` +
-                `<strong>Jams (ventana):</strong> ${z.jams_now || 0}<br>` +
-                `<strong>Accidents (ventana):</strong> ${z.accidents_now || 0}`
+                `<strong>Riesgo:</strong> ${esc(score)}<br>` +
+                `<strong>Celda:</strong> ${esc(z.cell || '-')}<br>` +
+                `<strong>Hechos hist:</strong> ${esc(z.hechos_hist || 0)}<br>` +
+                `<strong>Jams (ventana):</strong> ${esc(z.jams_now || 0)}<br>` +
+                `<strong>Accidents (ventana):</strong> ${esc(z.accidents_now || 0)}`
             ).addTo(layerRiesgo);
         });
     }
@@ -340,23 +369,36 @@
         u.searchParams.set('precision', precision);
         u.searchParams.set('waze_horas', wazeHoras);
 
-        const res = await fetch(u.toString(), { headers: { 'Accept':'application/json' } });
-        if(!res.ok){
-            statusSub.textContent = 'Error cargando datos (revisa consola / Network).';
+        let res;
+        try{
+            res = await fetch(u.toString(), {
+                headers: { 'Accept':'application/json' }
+            });
+        }catch(e){
+            console.error('Fetch error:', e);
+            statusSub.textContent = 'No se pudo conectar (revisa red / CORS / SSL).';
             setKpis(null);
             return;
         }
 
-        const json = await res.json();
+        if(!res.ok){
+            const txt = await res.text().catch(()=> '');
+            console.error('HTTP', res.status, txt);
+            statusSub.textContent = `Error HTTP ${res.status} (ver consola)`;
+            setKpis(null);
+            return;
+        }
 
-        // Esperado:
-        // {
-        //   kpis: { hechos, jams, accidents, matches, top },
-        //   hechos_cells: [{cell, lat, lng, total}],
-        //   waze_points: [{lat,lng,type,street,street_norm,published_at}],
-        //   matches: [{cell,lat,lng,folio_c5i,waze_accident_at,waze_first_jam_at,min_accident_to_hecho,min_hecho_to_jam}],
-        //   riesgo_cells: [{cell,lat,lng,hechos_hist,jams_now,accidents_now,score}]
-        // }
+        let json;
+        try{
+            json = await res.json();
+        }catch(e){
+            console.error('JSON parse error:', e);
+            statusSub.textContent = 'Respuesta inválida (no es JSON).';
+            setKpis(null);
+            return;
+        }
+
         setKpis(json.kpis || null);
 
         addHechosPoints(json.hechos_cells || []);

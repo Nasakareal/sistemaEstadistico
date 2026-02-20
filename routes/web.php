@@ -37,6 +37,7 @@ use App\Http\Controllers\GruaTramoController;
 use App\Http\Controllers\TramoLookupController;
 
 use App\Http\Controllers\WazeAlertWebController;
+use App\Http\Controllers\RiesgoDashboardController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -53,6 +54,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/waze/alerts/{alert}/read', [WazeAlertWebController::class, 'markRead'])->name('waze.alerts.read');
     Route::post('/waze/alerts/read-all', [WazeAlertWebController::class, 'markAllRead'])->name('waze.alerts.read_all');
     Route::get('/waze/alerts/unread-count', [WazeAlertWebController::class, 'unreadCount'])->name('waze.alerts.unread_count');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/waze/riesgo', [RiesgoDashboardController::class, 'index'])->name('waze.riesgo.index');
+    Route::get('/waze/riesgo/data', [RiesgoDashboardController::class, 'data'])->name('waze.riesgo.data');
 });
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {

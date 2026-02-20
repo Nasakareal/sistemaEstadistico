@@ -2,12 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Helpers",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\waze",
+    "\\resources\\views\\waze\\alerts",
+    "\\resources\\views\\waze\\riesgo",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Console\\Commands\\NormalizeOldStreets.php",
+  "SelectedNode": "\\resources\\views\\waze\\alerts\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

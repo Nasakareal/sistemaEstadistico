@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
+use App\Helpers\StreetNormalizer;
 
 class HechosController extends Controller
 {
@@ -114,6 +115,8 @@ class HechosController extends Controller
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
+
+         $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
 
         $hasCoords = isset($request->lat, $request->lng) && $request->lat !== null && $request->lng !== null;
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
@@ -280,6 +283,8 @@ class HechosController extends Controller
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
+
+        $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
 
         $hasCoords = isset($request->lat, $request->lng) && $request->lat !== null && $request->lng !== null;
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {

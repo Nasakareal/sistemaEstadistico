@@ -1,9 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\database",
-    "\\database\\migrations"
+    "\\app",
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Helpers",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\database\\migrations\\2026_02_20_124426_add_is_read_to_waze_alerts_table.php",
+  "SelectedNode": "\\app\\Console\\Commands\\NormalizeOldStreets.php",
   "PreviewInSolutionExplorer": false
 }

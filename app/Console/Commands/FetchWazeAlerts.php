@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\WazeAlert;
 use App\Services\PushService;
+use App\Helpers\StreetNormalizer;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -53,6 +54,7 @@ class FetchWazeAlerts extends Command
             if (!is_array($alerts)) $alerts = [];
 
             $newAccidents = 0;
+            $savedTotal = 0;
 
             foreach ($alerts as $item) {
                 if (!is_array($item)) continue;
@@ -67,14 +69,19 @@ class FetchWazeAlerts extends Command
                 $type = $item['type'] ?? null;
                 $subtype = $item['subtype'] ?? null;
 
-                $lat = $item['location']['y'] ?? null;
-                $lng = $item['location']['x'] ?? null;
+                // OJO: Waze usa location.x=lng, location.y=lat
+                $lat = data_get($item, 'location.y');
+                $lng = data_get($item, 'location.x');
 
                 $pubMillis = $item['pubMillis'] ?? null;
                 $publishedAt = null;
                 if (is_numeric($pubMillis)) {
-                    $publishedAt = Carbon::createFromTimestampMs((int) $pubMillis);
+                    // Guardamos con timezone México (tu app)
+                    $publishedAt = Carbon::createFromTimestampMs((int)$pubMillis, 'UTC')
+                        ->setTimezone('America/Mexico_City');
                 }
+
+                $street = $item['street'] ?? null;
 
                 $wazeAlert = WazeAlert::create([
                     'uuid' => $uuid,
@@ -83,14 +90,19 @@ class FetchWazeAlerts extends Command
                     'subtype' => $subtype,
                     'country' => $item['country'] ?? null,
                     'city' => $item['city'] ?? null,
-                    'street' => $item['street'] ?? null,
+                    'street' => $street,
+                    'street_norm' => StreetNormalizer::normalize($street),
+
                     'lat' => is_numeric($lat) ? (float)$lat : null,
                     'lng' => is_numeric($lng) ? (float)$lng : null,
                     'pub_millis' => is_numeric($pubMillis) ? (int)$pubMillis : null,
                     'published_at' => $publishedAt,
+
                     'raw' => $item,
                     'notified' => false,
                 ]);
+
+                $savedTotal++;
 
                 if ($this->isAccident($type, $subtype)) {
                     $sent = $this->notifyAllTokens($wazeAlert);
@@ -100,12 +112,13 @@ class FetchWazeAlerts extends Command
                 }
             }
 
-            $this->info("OK. Choques nuevos notificados: {$newAccidents}");
+            $this->info("OK. Alertas nuevas guardadas: {$savedTotal}. Choques nuevos notificados: {$newAccidents}");
             return 0;
 
         } catch (\Throwable $e) {
             Log::error('Error leyendo Waze feed', [
                 'error' => $e->getMessage(),
+                'trace' => substr((string)$e->getTraceAsString(), 0, 1200),
             ]);
             $this->error('Error: ' . $e->getMessage());
             return 1;
@@ -186,7 +199,6 @@ class FetchWazeAlerts extends Command
         }
 
         $nicePlace = $this->reverseGeocode($lat, $lng);
-
         $basePlace = $wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle');
 
         $title = 'Waze: Choque reportado';

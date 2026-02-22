@@ -1,15 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\gruas",
-    "\\resources\\views\\gruas\\guardias_sct",
-    "\\routes"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\resources\\views\\gruas\\guardias_sct\\edit.blade.php",
+  "SelectedNode": "\\database\\migrations\\2026_02_22_160732_alter_vehiculos_make_placas_and_estado_placas_nullable.php",
   "PreviewInSolutionExplorer": false
 }

@@ -46,7 +46,15 @@ class VehiculoController extends Controller
 
             return DB::transaction(function () use ($validated, $hecho) {
                 $vehiculo = Vehiculo::create($this->onlyVehiculoForCreate($validated));
-                $hecho->vehiculos()->attach($vehiculo->id);
+
+                try {
+                    $hecho->vehiculos()->attach($vehiculo->id);
+                } catch (QueryException $e) {
+                    if ($this->isDuplicateKey($e)) {
+                        return $this->fail('Ese vehículo ya está registrado dentro de este hecho.', 409);
+                    }
+                    throw $e;
+                }
 
                 if (!empty($validated['grua_id'])) {
                     DB::table('servicios')->insert([
@@ -61,9 +69,16 @@ class VehiculoController extends Controller
 
                 if ($this->hayDatosConductor($validated)) {
                     $conductor = Conductor::create($this->onlyConductor($validated));
-                    $vehiculo->conductores()->attach($conductor->id);
-                }
 
+                    try {
+                        $vehiculo->conductores()->attach($conductor->id);
+                    } catch (QueryException $e) {
+                        if ($this->isDuplicateKey($e)) {
+                            return $this->fail('Ese conductor ya está ligado a este vehículo.', 409);
+                        }
+                        throw $e;
+                    }
+                }
                 return $this->created('Vehículo creado correctamente.', $vehiculo->load('conductores'));
             });
 
@@ -158,7 +173,15 @@ class VehiculoController extends Controller
                         $conductor->update($this->onlyConductor($validated));
                     } else {
                         $conductor = Conductor::create($this->onlyConductor($validated));
-                        $vehiculo->conductores()->attach($conductor->id);
+
+                        try {
+                            $vehiculo->conductores()->attach($conductor->id);
+                        } catch (QueryException $e) {
+                            if ($this->isDuplicateKey($e)) {
+                                return $this->fail('Ese conductor ya está ligado a este vehículo.', 409);
+                            }
+                            throw $e;
+                        }
                     }
                 }
 
@@ -300,6 +323,27 @@ class VehiculoController extends Controller
     {
         $data = $this->sanitize($request->all());
 
+        $dataForValidation = $data;
+
+        if (isset($dataForValidation['placas']) && is_string($dataForValidation['placas'])) {
+            $p = strtoupper($this->removeAccents($dataForValidation['placas']));
+            $p = str_replace(['-', ' ', '.', ',', '_'], '', $p);
+            $dataForValidation['placas'] = $p;
+        }
+
+        if (array_key_exists('serie', $dataForValidation)) {
+            $s = strtoupper($this->removeAccents((string)($dataForValidation['serie'] ?? '')));
+            $s = str_replace(['-', ' ', '.', ',', '_'], '', $s);
+            $dataForValidation['serie'] = ($s === '') ? null : $s;
+        }
+
+        if (isset($dataForValidation['estado_placas']) && is_string($dataForValidation['estado_placas'])) {
+            $ep = strtoupper($this->removeAccents($dataForValidation['estado_placas']));
+            $ep = str_replace(['.', ',', '-', '_'], '', $ep);
+            $ep = preg_replace('/\s+/', ' ', trim($ep));
+            $dataForValidation['estado_placas'] = $ep;
+        }
+
         $rules = [
             'marca'                      => 'required|string|max:50',
             'modelo'                     => 'nullable|string|max:10',
@@ -307,10 +351,11 @@ class VehiculoController extends Controller
             'linea'                      => 'required|string|max:50',
             'color'                      => 'required|string|max:30',
 
-            'placas'                     => ['required','string','max:15'],
-            'estado_placas'              => 'nullable|string|max:15|required_with:placas',
+            'placas'                     => ['required','string','max:15','regex:/^[A-Z0-9]{5,15}$/'],
 
-            'serie'                      => ['nullable','string','max:17'],
+            'estado_placas'              => ['nullable','string','max:15','required_with:placas','regex:/^[A-Z]{3,15}$/'],
+
+            'serie'                      => ['nullable','string','max:17','regex:/^[A-Z0-9]{6,17}$/'],
 
             'capacidad_personas'         => 'required|integer|min:0',
             'tipo_servicio'              => 'required|string|max:50',
@@ -346,7 +391,7 @@ class VehiculoController extends Controller
         $messages   = $this->validationMessages();
         $attributes = $this->validationAttributes();
 
-        $validator = Validator::make($data, $rules, $messages, $attributes);
+        $validator = Validator::make($dataForValidation, $rules, $messages, $attributes);
 
         if ($validator->fails()) {
             $this->throwValidation($validator->errors()->toArray());
@@ -372,13 +417,20 @@ class VehiculoController extends Controller
 
         if (isset($data['placas'])) {
             $placa = strtoupper($this->removeAccents((string)$data['placas']));
-            $placa = str_replace(['-',' '], '', $placa);
+            $placa = str_replace(['-',' ','.',',','_'], '', $placa);
             $data['placas'] = $placa;
+        }
+
+        if (isset($data['estado_placas']) && is_string($data['estado_placas'])) {
+            $ep = strtoupper($this->removeAccents($data['estado_placas']));
+            $ep = str_replace(['.',',','-','_'], '', $ep);
+            $ep = preg_replace('/\s+/', ' ', trim($ep));
+            $data['estado_placas'] = $ep;
         }
 
         if (array_key_exists('serie', $data)) {
             $serie = strtoupper($this->removeAccents((string)($data['serie'] ?? '')));
-            $serie = str_replace(['-',' '], '', $serie);
+            $serie = str_replace(['-',' ','.',',','_'], '', $serie);
             $data['serie'] = ($serie !== '') ? $serie : null;
         }
 
@@ -546,19 +598,29 @@ class VehiculoController extends Controller
     {
         return [
             'required' => 'Este campo es obligatorio.',
-            'string' => 'Este campo debe ser texto.',
-            'integer' => 'Este campo debe ser un número entero.',
-            'numeric' => 'Este campo debe ser numérico.',
-            'max' => 'No debe exceder :max caracteres.',
-            'min' => 'Debe ser mínimo :min.',
-            'digits' => 'Debe tener exactamente :digits dígitos.',
-            'in' => 'El valor no es válido.',
-            'date' => 'La fecha no es válida.',
-            'exists' => 'El valor seleccionado no existe.',
-            'required_with' => 'Este campo es obligatorio cuando se captura :values.',
-            'serie.max' => 'El NIV/serie no debe superar 17 caracteres.',
-            'estado_placas.required_with' => 'Si capturas placas, también debes capturar el estado de placas.',
-            'telefono.digits' => 'El teléfono debe tener 10 dígitos.',
+            'string'   => 'Este campo debe ser texto.',
+            'integer'  => 'Este campo debe ser un número entero.',
+            'numeric'  => 'Este campo debe ser numérico.',
+            'max'      => 'No debe exceder :max caracteres.',
+            'min'      => 'Debe ser mínimo :min.',
+            'digits'   => 'Debe tener exactamente :digits dígitos.',
+            'in'       => 'El valor no es válido.',
+            'date'     => 'La fecha no es válida.',
+            'exists'   => 'El valor seleccionado no existe.',
+
+            'placas.regex' => 'Placas inválidas: no uses espacios, puntos o guiones. Solo letras y números (ej. ABC123).',
+            'placas.max'   => 'Placas inválidas: máximo 15 caracteres.',
+
+            'estado_placas.required' => 'Debes capturar el estado de placas (ej. MICHOACAN).',
+            'estado_placas.max'      => 'Estado de placas inválido: máximo 15 caracteres.',
+
+            'serie.max'   => 'El NIV/serie no debe superar 17 caracteres.',
+            'serie.regex' => 'NIV/serie inválido: no uses espacios, puntos o guiones. Solo letras y números.',
+
+            'telefono.digits' => 'El teléfono debe tener 10 dígitos (sin espacios).',
+
+            'estado_placas.required_with' => 'Si capturas placas, también debes capturar el estado de placas (ej. MICHOACAN).',
+            'estado_placas.regex'         => 'Estado de placas inválido: escribe SOLO el estado (sin espacios). Ej: MICHOACAN.',
         ];
     }
 
@@ -637,10 +699,13 @@ class VehiculoController extends Controller
 
     private function throwValidation(array $errors): void
     {
-        abort(response()->json([
-            'ok' => false,
-            'message' => 'Datos inválidos. Revisa los campos marcados.',
-            'errors' => $errors,
-        ], 422));
+        throw new \Illuminate\Validation\ValidationException(
+            Validator::make([], []),
+            response()->json([
+                'ok' => false,
+                'message' => 'Datos inválidos. Revisa los campos marcados.',
+                'errors' => $errors,
+            ], 422)
+        );
     }
 }

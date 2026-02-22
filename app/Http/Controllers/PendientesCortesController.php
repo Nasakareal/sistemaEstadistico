@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Hechos;
 use App\Models\PendientesCorte;
 use App\Models\PendientesCorteDetalle;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class PendientesCortesController extends Controller
@@ -19,22 +18,25 @@ class PendientesCortesController extends Controller
 
     public function show(Request $request, PendientesCorte $corte)
     {
-        $tz = 'America/Mexico_City';
-        $prevDate = Carbon::parse($corte->corte_fecha, $tz)->subWeek()->toDateString();
-        $prev = PendientesCorte::where('corte_fecha', $prevDate)->first();
+        $prev = PendientesCorte::where('corte_fecha', '<', $corte->corte_fecha)
+            ->orderByDesc('corte_fecha')
+            ->first();
 
         $idsPrev = $prev
-            ? PendientesCorteDetalle::where('pendientes_corte_id', $prev->id)->pluck('hecho_id')->unique()->values()->all()
+            ? PendientesCorteDetalle::where('pendientes_corte_id', $prev->id)
+                ->pluck('hecho_id')->unique()->values()->all()
             : [];
 
-        $idsNow = PendientesCorteDetalle::where('pendientes_corte_id', $corte->id)->pluck('hecho_id')->unique()->values()->all();
+        $idsNow = PendientesCorteDetalle::where('pendientes_corte_id', $corte->id)
+            ->pluck('hecho_id')->unique()->values()->all();
 
-        $hechosPrev = count($idsPrev)
-            ? Hechos::whereIn('id', $idsPrev)->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])->get()->keyBy('id')
-            : collect();
+        $idsAll = array_values(array_unique(array_merge($idsPrev, $idsNow)));
 
-        $hechosNow = count($idsNow)
-            ? Hechos::whereIn('id', $idsNow)->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])->get()
+        $hechosAll = count($idsAll)
+            ? Hechos::whereIn('id', $idsAll)
+                ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
+                ->get()
+                ->keyBy('id')
             : collect();
 
         $resueltos = [];
@@ -43,10 +45,8 @@ class PendientesCortesController extends Controller
         $otros = [];
 
         foreach ($idsPrev as $id) {
-            $h = $hechosPrev->get($id);
-            if (!$h) {
-                continue;
-            }
+            $h = $hechosAll->get($id);
+            if (!$h) continue;
 
             if ($h->situacion === 'RESUELTO') {
                 $resueltos[] = $h;
@@ -60,9 +60,12 @@ class PendientesCortesController extends Controller
         }
 
         $setPrev = array_fill_keys($idsPrev, true);
-        $nuevos = $hechosNow->filter(function ($h) use ($setPrev) {
-            return !isset($setPrev[$h->id]);
-        })->values();
+
+        $nuevos = collect($idsNow)
+            ->filter(fn ($id) => !isset($setPrev[$id]))
+            ->map(fn ($id) => $hechosAll->get($id))
+            ->filter()
+            ->values();
 
         $totales = [
             'previos' => count($idsPrev),

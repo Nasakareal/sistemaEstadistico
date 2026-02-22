@@ -6,10 +6,10 @@
     "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\waze",
-    "\\resources\\views\\waze\\alerts",
-    "\\resources\\views\\waze\\riesgo",
+    "\\resources\\views\\gruas",
+    "\\resources\\views\\gruas\\guardias_sct",
     "\\routes"
   ],
+  "SelectedNode": "\\resources\\views\\gruas\\guardias_sct\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

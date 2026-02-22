@@ -350,6 +350,13 @@ return [
                     'url'     => 'servicios/grafico',
                     'can'     => 'ver gruas',
                 ],
+                [
+                    'text'    => 'Calendario SCT',
+                    'icon'    => 'fa-solid fa-calendar-days',
+                    'classes' => 'text-white',
+                    'url'     => '/grua-guardias-sct',
+                    'can'     => 'ver gruas',
+                ],
             ],
         ],
 
@@ -434,6 +441,13 @@ return [
                     'icon'    => 'fa-solid fa-fire',
                     'classes' => 'text-white',
                     'url'     => 'mapa-incidencias',
+                    'can'     => 'ver mapa',
+                ],
+                [
+                    'text'    => 'Mapa Predictivo',
+                    'icon'    => 'fa-solid fa-triangle-exclamation',
+                    'classes' => 'text-white',
+                    'url'     => 'waze/riesgo',
                     'can'     => 'ver mapa',
                 ],
             ],

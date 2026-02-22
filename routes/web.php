@@ -33,6 +33,7 @@ use App\Http\Controllers\PendientesCortesController;
 
 use App\Http\Controllers\TramoController;
 use App\Http\Controllers\GruaGuardiaController;
+use App\Http\Controllers\GruaGuardiaSctController;
 use App\Http\Controllers\GruaTramoController;
 use App\Http\Controllers\TramoLookupController;
 
@@ -184,11 +185,12 @@ Route::prefix('dictamenes')->middleware('can:ver dictamenes')->group(function ()
 Route::middleware(['auth','can:ver gruas'])->group(function () {
     Route::resource('tramos', TramoController::class);
     Route::resource('grua-guardias', GruaGuardiaController::class);
+    Route::resource('grua-guardias-sct', GruaGuardiaSctController::class);
     Route::get('tramos-lookup', [TramoLookupController::class,'index'])->name('tramos.lookup.index');
     Route::post('tramos-lookup', [TramoLookupController::class,'resolve'])->name('tramos.lookup.resolve');
 });
 
-Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
+Route::prefix('gruas')->middleware(['auth','can:ver gruas'])->group(function () {
     Route::get('/',[GruaController::class,'index'])->name('gruas.index');
     Route::get('/create',[GruaController::class,'create'])->middleware('can:crear gruas')->name('gruas.create');
     Route::post('/',[GruaController::class,'store'])->middleware('can:crear gruas')->name('gruas.store');
@@ -197,7 +199,7 @@ Route::prefix('gruas')->middleware('can:ver gruas')->group(function () {
     Route::put('/{grua}',[GruaController::class,'update'])->middleware('can:editar gruas')->name('gruas.update');
     Route::delete('/{grua}',[GruaController::class,'destroy'])->middleware('can:eliminar gruas')->name('gruas.destroy');
 
-    Route::prefix('/{grua}/servicios')->group(function () {
+    Route::prefix('{grua}/servicios')->group(function () {
         Route::get('/',[ServicioController::class,'index'])->name('servicios.index');
         Route::get('/create',[ServicioController::class,'create'])->name('servicios.create');
         Route::post('/',[ServicioController::class,'store'])->name('servicios.store');

@@ -3,16 +3,17 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use App\Models\Hechos;
 use App\Models\PendientesCorte;
 use App\Models\PendientesCorteDetalle;
 use Carbon\Carbon;
 
-class ReportePendientesCorte extends Command
+class GenerarPendientesCorte extends Command
 {
-    protected $signature = 'hechos:reporte-pendientes {--corte=} {--prev=} {--json}';
+    protected $signature = 'hechos:generar-corte-pendientes {--corte=} {--prev=} {--json}';
 
-    protected $description = 'Compara pendientes del corte previo contra el corte actual (domingo 6pm).';
+    protected $description = 'Genera el corte semanal (domingo 6pm) guardando SOLO: pendientes del corte pasado + nuevos pendientes de la semana.';
 
     public function handle()
     {
@@ -32,125 +33,96 @@ class ReportePendientesCorte extends Command
             $cortePrevio = Carbon::parse($optPrev, $tz)->startOfDay();
         }
 
-        $corteActualModel = PendientesCorte::where('corte_fecha', $corteActual->toDateString())->first();
-        $cortePrevioModel = PendientesCorte::where('corte_fecha', $cortePrevio->toDateString())->first();
+        $inicioVentana = $cortePrevio->copy()->setTime(18, 0, 0);
+        $finVentana = $corteActual->copy()->setTime(18, 0, 0);
 
-        if (!$cortePrevioModel) {
-            return $this->outputResult([
-                'ok' => false,
-                'message' => 'No existe el corte previo: ' . $cortePrevio->toDateString(),
-            ]);
+        $cortePrevioModel = PendientesCorte::where('corte_fecha', '<', $corteActual->toDateString())
+            ->orderByDesc('corte_fecha')
+            ->first();
+
+        $corteActualModel = PendientesCorte::firstOrCreate(
+            ['corte_fecha' => $corteActual->toDateString()]
+        );
+
+        $idsPrev = [];
+        if ($cortePrevioModel) {
+            $idsPrev = PendientesCorteDetalle::where('pendientes_corte_id', $cortePrevioModel->id)
+                ->pluck('hecho_id')
+                ->unique()
+                ->values()
+                ->all();
         }
 
-        if (!$corteActualModel) {
-            return $this->outputResult([
-                'ok' => false,
-                'message' => 'No existe el corte actual: ' . $corteActual->toDateString(),
-            ]);
-        }
+        $inicio = $inicioVentana->toDateTimeString();
+        $fin = $finVentana->toDateTimeString();
 
-        $idsPrev = PendientesCorteDetalle::where('pendientes_corte_id', $cortePrevioModel->id)
-            ->pluck('hecho_id')
+        $nuevosSemana = Hechos::where('situacion', 'PENDIENTE')
+            ->whereRaw(
+                "STR_TO_DATE(CONCAT(fecha,' ',COALESCE(hora,'00:00:00')), '%Y-%m-%d %H:%i:%s') >= ?
+                 AND STR_TO_DATE(CONCAT(fecha,' ',COALESCE(hora,'00:00:00')), '%Y-%m-%d %H:%i:%s') < ?",
+                [$inicio, $fin]
+            )
+            ->pluck('id')
             ->unique()
             ->values()
             ->all();
 
-        $idsNow = PendientesCorteDetalle::where('pendientes_corte_id', $corteActualModel->id)
-            ->pluck('hecho_id')
-            ->unique()
-            ->values()
-            ->all();
+        $idsFinal = array_values(array_unique(array_merge($idsPrev, $nuevosSemana)));
 
-        $hechosPrev = Hechos::whereIn('id', $idsPrev)
-            ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
-            ->orderBy('id')
-            ->get()
-            ->keyBy('id');
+        DB::transaction(function () use ($corteActualModel, $idsFinal) {
+            PendientesCorteDetalle::where('pendientes_corte_id', $corteActualModel->id)->delete();
 
-        $resueltos = [];
-        $turnados = [];
-        $siguen = [];
-        $otros = [];
-
-        foreach ($idsPrev as $id) {
-            $h = $hechosPrev->get($id);
-            if (!$h) {
-                continue;
+            if (count($idsFinal) === 0) {
+                return;
             }
 
-            $item = [
-                'id' => $h->id,
-                'folio_c5i' => $h->folio_c5i,
-                'fecha' => (string) $h->fecha,
-                'sector' => (string) $h->sector,
-                'unidad' => (string) $h->unidad,
-                'situacion_actual' => (string) $h->situacion,
-                'show_url' => route('hechos.show', $h->id),
-            ];
+            $now = now();
+            $rows = [];
 
-            if ($h->situacion === 'RESUELTO') {
-                $resueltos[] = $item;
-            } elseif ($h->situacion === 'TURNADO') {
-                $turnados[] = $item;
-            } elseif ($h->situacion === 'PENDIENTE') {
-                $siguen[] = $item;
-            } else {
-                $otros[] = $item;
-            }
-        }
+            $hechos = Hechos::whereIn('id', $idsFinal)
+                ->select(['id', 'situacion'])
+                ->get()
+                ->keyBy('id');
 
-        $setPrev = array_fill_keys($idsPrev, true);
-        $nuevosPendientes = [];
+            foreach ($idsFinal as $hechoId) {
+                $h = $hechos->get($hechoId);
+                if (!$h) {
+                    continue;
+                }
 
-        $hechosNow = Hechos::whereIn('id', $idsNow)
-            ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
-            ->orderBy('id')
-            ->get();
-
-        foreach ($hechosNow as $h) {
-            if (isset($setPrev[$h->id])) {
-                continue;
+                $rows[] = [
+                    'pendientes_corte_id' => $corteActualModel->id,
+                    'hecho_id' => $hechoId,
+                    'situacion_en_corte' => (string) $h->situacion,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
 
-            $nuevosPendientes[] = [
-                'id' => $h->id,
-                'folio_c5i' => $h->folio_c5i,
-                'fecha' => (string) $h->fecha,
-                'sector' => (string) $h->sector,
-                'unidad' => (string) $h->unidad,
-                'situacion_actual' => (string) $h->situacion,
-                'show_url' => route('hechos.show', $h->id),
-            ];
-        }
+            PendientesCorteDetalle::insert($rows);
+        });
 
-        $result = [
+        $payload = [
             'ok' => true,
-            'corte_previo' => $cortePrevioModel->corte_fecha,
             'corte_actual' => $corteActualModel->corte_fecha,
+            'corte_previo' => $cortePrevioModel ? $cortePrevioModel->corte_fecha : null,
             'totales' => [
-                'previos' => count($idsPrev),
-                'resueltos' => count($resueltos),
-                'turnados' => count($turnados),
-                'siguen_pendiente' => count($siguen),
-                'otros' => count($otros),
-                'nuevos_pendientes' => count($nuevosPendientes),
-            ],
-            'detalle' => [
-                'resueltos' => $resueltos,
-                'turnados' => $turnados,
-                'siguen_pendiente' => $siguen,
-                'otros' => $otros,
-                'nuevos_pendientes' => $nuevosPendientes,
+                'arrastrados_del_corte_previo' => count($idsPrev),
+                'nuevos_de_la_semana' => count($nuevosSemana),
+                'total_guardados_en_corte_actual' => count($idsFinal),
             ],
         ];
 
-        return $this->outputResult($result);
+        return $this->outputResult($payload);
     }
 
     private function resolveCorteActual(string $tz): Carbon
     {
         $now = Carbon::now($tz);
-        $corte = $now->copy()->startOfWeek(Carbon::MONDAY)->subDay()->setTime(18, 0, 0);
+
+        $corte = $now->copy()
+            ->startOfWeek(Carbon::SUNDAY)
+            ->setTime(18, 0, 0);
 
         if ($now->lt($corte)) {
             $corte = $corte->subWeek();
@@ -173,16 +145,13 @@ class ReportePendientesCorte extends Command
             return 1;
         }
 
-        $this->info('Corte previo: ' . $payload['corte_previo']);
         $this->info('Corte actual: ' . $payload['corte_actual']);
-        $t = $payload['totales'];
+        $this->info('Corte previo: ' . ($payload['corte_previo'] ?? 'No disponible'));
 
-        $this->line('Previos: ' . $t['previos']);
-        $this->line('Resueltos: ' . $t['resueltos']);
-        $this->line('Turnados: ' . $t['turnados']);
-        $this->line('Siguen PENDIENTE: ' . $t['siguen_pendiente']);
-        $this->line('Otros: ' . $t['otros']);
-        $this->line('Nuevos pendientes: ' . $t['nuevos_pendientes']);
+        $t = $payload['totales'];
+        $this->line('Arrastrados del corte previo: ' . $t['arrastrados_del_corte_previo']);
+        $this->line('Nuevos de la semana: ' . $t['nuevos_de_la_semana']);
+        $this->line('Total guardados en corte actual: ' . $t['total_guardados_en_corte_actual']);
 
         return 0;
     }

@@ -437,7 +437,7 @@ class HechosController extends Controller
 
         $hecho->whatsapp_sent_at = now();
         $hecho->whatsapp_chat_id = $chatId;
-        $hecho->whatsapp_msg_id = (string) ($resp['id'] ?? '');
+        $hecho->whatsapp_message_id = (string) ($resp['id'] ?? '');
         $hecho->save();
 
         return redirect()->back()->with('success', 'Hecho compartido por WhatsApp.');

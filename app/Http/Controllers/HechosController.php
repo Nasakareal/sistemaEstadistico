@@ -414,7 +414,7 @@ class HechosController extends Controller
         $media = [];
 
         if (!empty($hecho->foto_lugar)) {
-            $media[] = storage_path('app/public/' . ltrim($hecho->foto_lugar, '/'));
+            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
         }
 
         if (!empty($hecho->foto_situacion)) {

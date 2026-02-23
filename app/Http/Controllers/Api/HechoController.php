@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Services\WhatsApp\WhatsAppLink;
 
+use App\Services\WhatsApp\WhatsAppBot;
+use App\Services\WhatsApp\WhatsAppLink;
+
 class HechoController extends Controller
 {
     private const SECTORES = ['REVOLUCION','NUEVA ESPANA','INDEPENDENCIA','REPUBLICA','CENTRO'];
@@ -566,5 +569,76 @@ class HechoController extends Controller
             'ok' => true,
             'wa_url' => $url,
         ]);
+    }
+
+    public function sendWhatsapp(Request $request, Hechos $hecho)
+    {
+        $user = $request->user();
+
+        if (!$user || !$user->can('ver hechos')) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No autorizado.',
+            ], 403);
+        }
+
+        if (!is_null($hecho->whatsapp_sent_at)) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Este hecho ya fue compartido por WhatsApp.',
+            ], 200);
+        }
+
+        $hecho->load(['vehiculos']);
+
+        $message = WhatsAppLink::textForHecho($hecho);
+
+        $media = [];
+
+        if (!empty($hecho->foto_lugar)) {
+            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+        }
+
+        if (!empty($hecho->foto_situacion)) {
+            $media[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+        }
+
+        foreach ($hecho->vehiculos as $v) {
+            if (!empty($v->fotos)) {
+                $media[] = asset('storage/' . ltrim($v->fotos, '/'));
+            }
+        }
+
+        $chatId = (string) env('WHATSAPP_DEFAULT_CHAT_ID');
+        if ($chatId === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Falta configurar WHATSAPP_DEFAULT_CHAT_ID.',
+            ], 500);
+        }
+
+        $resp = WhatsAppBot::sendToChat($chatId, $message, $media);
+
+        if (!($resp['ok'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo enviar a WhatsApp.',
+                'data' => $resp,
+            ], 500);
+        }
+
+        $hecho->whatsapp_sent_at   = now();
+        $hecho->whatsapp_chat_id   = $chatId;
+        $hecho->whatsapp_message_id = (string) ($resp['id'] ?? '');
+        $hecho->save();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Hecho compartido por WhatsApp.',
+            'data' => [
+                'hecho_id' => $hecho->id,
+                'whatsapp_message_id' => (string) ($resp['id'] ?? ''),
+            ],
+        ], 200);
     }
 }

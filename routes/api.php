@@ -96,7 +96,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'show'])->middleware('can:ver lesionados');
     Route::put('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'update'])->middleware('can:editar lesionados');
     Route::delete('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'destroy'])->middleware('can:eliminar lesionados');
-    Route::post('/hechos/{hecho}/whatsapp', [HechoController::class, 'whatsappLink'])->middleware('can:ver hechos');
+    Route::post('/hechos/{hecho}/whatsapp', [HechoController::class, 'sendWhatsapp'])->middleware('can:ver hechos');
 
     Route::post('/location', [LocationController::class, 'store']);
     Route::get('/location/last', [LocationController::class, 'last']);

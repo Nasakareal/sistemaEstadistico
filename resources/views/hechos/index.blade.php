@@ -21,7 +21,6 @@
 
                 <div class="card-body">
 
-                    {{-- FILTRO REAL (SERVER-SIDE) --}}
                     <form method="GET" action="{{ route('hechos.index') }}" class="row mb-3" autocomplete="off">
                         <div class="col-md-4">
                             <label for="fecha_filtro">Filtrar por fecha:</label>
@@ -44,7 +43,6 @@
                         </div>
                     </form>
 
-                    {{-- Mensaje vacío FUERA de la tabla (para que DataTables no se queje) --}}
                     @if ($hechos->count() === 0)
                         <div class="alert alert-info">
                             No hay hechos para la fecha seleccionada.
@@ -90,23 +88,40 @@
                                     <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
 
                                     <td style="text-align: center">
-                                        <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">
+                                        <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm" title="Ver">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
 
-                                        <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
+                                        <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
                                             <i class="fa-solid fa-pencil"></i>
                                         </a>
 
-                                        <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
+                                        <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
                                             <i class="fas fa-download"></i>
                                         </a>
 
-                                        <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display: inline-block;">
+                                        <form action="{{ route('hechos.whatsapp.send', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                            @csrf
+                                            <button
+                                                type="submit"
+                                                class="btn btn-success btn-sm"
+                                                title="{{ $hecho->whatsapp_sent_at ? 'Ya compartido' : 'Compartir a WhatsApp' }}"
+                                                {{ $hecho->whatsapp_sent_at ? 'disabled' : '' }}
+                                                onclick="return confirm('¿Enviar este hecho al grupo de WhatsApp?');"
+                                            >
+                                                <i class="fa-brands fa-whatsapp"></i>
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-danger btn-sm"
-                                                onclick="return confirm('¿Estás seguro de eliminar este hecho?');">
+                                            <button
+                                                type="submit"
+                                                class="btn btn-danger btn-sm"
+                                                onclick="return confirm('¿Estás seguro de eliminar este hecho?');"
+                                                title="Eliminar"
+                                            >
                                                 <i class="fa-solid fa-trash"></i>
                                             </button>
                                         </form>
@@ -116,7 +131,6 @@
                         </tbody>
                     </table>
 
-                    {{-- PAGINACIÓN LARAVEL (si $hechos es paginate()) --}}
                     <div class="mt-3">
                         {{ $hechos->links() }}
                     </div>
@@ -202,6 +216,25 @@
                 title: '{{ session('success') }}',
                 showConfirmButton: false,
                 timer: 3000
+            });
+        @endif
+
+        @if (session('error'))
+            Swal.fire({
+                position: 'center',
+                icon: 'error',
+                title: '{{ session('error') }}',
+                showConfirmButton: true
+            });
+        @endif
+
+        @if (session('info'))
+            Swal.fire({
+                position: 'center',
+                icon: 'info',
+                title: '{{ session('info') }}',
+                showConfirmButton: false,
+                timer: 2500
             });
         @endif
     </script>

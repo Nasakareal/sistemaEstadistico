@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
 
+use App\Services\WhatsApp\WhatsAppBot;
+use App\Services\WhatsApp\WhatsAppLink;
+
 class HechosController extends Controller
 {
     public function index(Request $request)
@@ -390,5 +393,53 @@ class HechosController extends Controller
         ];
 
         return strtr($string, $unwanted_array);
+    }
+
+    public function sendWhatsapp(Hechos $hecho)
+    {
+        $user = auth()->user();
+
+        if (!$user || !$user->can('ver hechos')) {
+            abort(403);
+        }
+
+        if (!is_null($hecho->whatsapp_sent_at)) {
+            return redirect()->back()->with('info', 'Este hecho ya fue compartido por WhatsApp.');
+        }
+
+        $hecho->load(['vehiculos']);
+
+        $message = WhatsAppLink::textForHecho($hecho);
+
+        $media = [];
+
+        if (!empty($hecho->foto_lugar)) {
+            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+        }
+
+        if (!empty($hecho->foto_situacion)) {
+            $media[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+        }
+
+        foreach ($hecho->vehiculos as $v) {
+            if (!empty($v->fotos)) {
+                $media[] = asset('storage/' . ltrim($v->fotos, '/'));
+            }
+        }
+
+        $chatId = (string) env('WHATSAPP_DEFAULT_CHAT_ID');
+
+        $resp = WhatsAppBot::sendToChat($chatId, $message, $media);
+
+        if (!($resp['ok'] ?? false)) {
+            return redirect()->back()->with('error', 'No se pudo enviar a WhatsApp.');
+        }
+
+        $hecho->whatsapp_sent_at = now();
+        $hecho->whatsapp_chat_id = $chatId;
+        $hecho->whatsapp_msg_id = (string) ($resp['id'] ?? '');
+        $hecho->save();
+
+        return redirect()->back()->with('success', 'Hecho compartido por WhatsApp.');
     }
 }

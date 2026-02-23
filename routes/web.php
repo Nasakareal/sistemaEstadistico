@@ -249,6 +249,8 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
         Route::get('/cortes', [PendientesCortesController::class, 'index'])->name('hechos.pendientes.cortes.index');
         Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->name('hechos.pendientes.cortes.show');
     });
+
+    Route::post('/{hecho}/whatsapp', [HechosController::class, 'sendWhatsapp'])->name('hechos.whatsapp.send');
 });
 
 Route::get('/servicios/grafico',[ServicioController::class,'grafico'])->name('servicios.grafico');

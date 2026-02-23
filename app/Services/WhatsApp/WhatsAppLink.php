@@ -7,15 +7,9 @@ use Illuminate\Support\Str;
 
 class WhatsAppLink
 {
-    public static function linkForHecho(Hechos $hecho, ?string $to = null): string
+    public static function textForHecho(Hechos $hecho): string
     {
-        $to = $to ?: env('WHATSAPP_DEFAULT_TO');
-
-        $msg = self::buildCard($hecho);
-
-        $text = rawurlencode($msg);
-
-        return "https://wa.me/{$to}?text={$text}";
+        return self::buildCard($hecho);
     }
 
     private static function buildCard(Hechos $hecho): string
@@ -69,11 +63,6 @@ class WhatsAppLink
                     $lines[] = "Manifiesta viajar a bordo el C. {$nombre} de {$edad} años.";
                 }
 
-                $fotoVeh = self::publicStorageUrl($v->fotos ?? null);
-                if ($fotoVeh) {
-                    $lines[] = "Foto vehículo {$letter}: {$fotoVeh}";
-                }
-
                 $letter++;
             }
         } else {
@@ -106,16 +95,6 @@ class WhatsAppLink
             $lines[] = "Google Maps: https://www.google.com/maps?q={$lat},{$lng}";
         }
 
-        $fotoLugar = self::publicStorageUrl($hecho->foto_lugar ?? null);
-        $fotoSituacion = self::publicStorageUrl($hecho->foto_situacion ?? null);
-
-        if ($fotoLugar || $fotoSituacion) {
-            $lines[] = "";
-            $lines[] = "Evidencia fotográfica:";
-            if ($fotoLugar)    $lines[] = "• Foto del lugar: {$fotoLugar}";
-            if ($fotoSituacion) $lines[] = "• Foto de la situación: {$fotoSituacion}";
-        }
-
         if (!empty($hecho->unidad)) {
             $lines[] = "";
             $lines[] = "INFORMA UNIDAD {$hecho->unidad}";
@@ -124,17 +103,9 @@ class WhatsAppLink
         return implode("\n", $lines);
     }
 
-    private static function publicStorageUrl(?string $path): ?string
-    {
-        $path = trim((string)$path);
-        if ($path === '') return null;
-
-        return asset('storage/' . ltrim($path, '/'));
-    }
-
     private static function upper(?string $s): string
     {
-        $s = trim((string)$s);
+        $s = trim((string) $s);
         if ($s === '') return 'SIN DATO';
         return Str::upper($s);
     }

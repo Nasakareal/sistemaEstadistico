@@ -2,16 +2,12 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Models",
-    "\\config",
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\gruas",
-    "\\resources\\views\\gruas\\guardias_sct",
-    "\\resources\\views\\tramos"
+    "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\app\\Models\\Tramo.php",
+  "SelectedNode": "\\resources\\views\\hechos\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

@@ -21,14 +21,15 @@ use App\Http\Controllers\Api\MapaIncidenciasController;
 use App\Http\Controllers\Api\PendientesCortesController;
 use App\Http\Controllers\WhatsAppWebhookController;
 
-
-
 Route::get('/whatsapp/webhook', [WhatsAppWebhookController::class, 'verify']);
 Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);
 
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get('/home', [DashboardController::class, 'home'])->name('api.home');
+    Route::get('/home/perito', [DashboardController::class, 'homePerito'])->middleware('role:Perito')->name('api.home.perito');
 
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -125,7 +126,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/series/vehiculos/marca', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosMarca']);
         Route::get('/series/vehiculos/modelo', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosModelo']);
         Route::get('/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'hechos']);
-        Route::get('/export/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'exportHechos']);
+        Route::get('/export/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'exportHechos');
     });
 
     Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');

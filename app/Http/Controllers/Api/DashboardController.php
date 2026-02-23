@@ -17,16 +17,32 @@ class DashboardController extends Controller
             return response()->json(['message' => 'No autorizado.'], 401);
         }
 
+        // Si quieres mantener el rol Perito, ok. (además del can:ver home perito de la ruta)
         if (method_exists($user, 'hasRole')) {
             if (!$user->hasRole('Perito')) {
                 return response()->json(['message' => 'No autorizado.'], 403);
             }
         }
 
-        return response()->json([
-            'ok' => true,
+        // Reutiliza la MISMA lógica de riesgo() SIN crear otra ruta
+        $riesgoResponse = $this->riesgo($request);
+
+        // riesgo() ya regresa Response JSON. Lo convertimos a array.
+        $riesgoData = [];
+        if (method_exists($riesgoResponse, 'getData')) {
+            $riesgoData = (array) $riesgoResponse->getData(true);
+        }
+
+        // Si riesgo() devolvió error (422), lo regresamos tal cual (para que Flutter lo vea claro)
+        if (isset($riesgoData['error'])) {
+            return $riesgoResponse;
+        }
+
+        // Mezclamos home + payload de riesgo en UNA sola respuesta
+        return response()->json(array_merge([
+            'ok'   => true,
             'home' => 'perito',
-        ]);
+        ], $riesgoData));
     }
 
     public function accidentesHoy(Request $request)
@@ -133,7 +149,7 @@ class DashboardController extends Controller
             ->whereNotNull('lat')
             ->whereNotNull('lng')
             ->whereBetween(
-                DB::raw("STR_TO_DATE(CONCAT(fecha,' ',hora), '%Y-%m-%d %H:%i:%s')"),
+                DB::raw(\"STR_TO_DATE(CONCAT(fecha,' ',hora), '%Y-%m-%d %H:%i:%s')\"),
                 [$desdeDT, $hastaDT]
             )
             ->groupBy('cell', 'lat', 'lng')

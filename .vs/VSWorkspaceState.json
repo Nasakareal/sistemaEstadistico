@@ -1,9 +1,17 @@
 {
   "ExpandedNodes": [
     "",
-    "\\database",
-    "\\database\\migrations"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models",
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\database\\migrations\\2026_02_22_160732_alter_vehiculos_make_placas_and_estado_placas_nullable.php",
+  "SelectedNode": "\\app\\Models\\Hechos.php",
   "PreviewInSolutionExplorer": false
 }

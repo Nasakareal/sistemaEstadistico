@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Services\WhatsApp\WhatsAppLink;
 
 class HechoController extends Controller
 {
@@ -157,8 +158,8 @@ class HechoController extends Controller
             'colision_camino'       => 'required|string|max:255',
             'situacion'             => ['required','string', Rule::in(self::SITUAS)],
             'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
-            'vehiculos_mp'          => 'required|integer|min:0',
-            'personas_mp'           => 'required|integer|min:0',
+            'vehiculos_mp'          => 'nullable|integer|min:0|required_if:situacion,TURNADO',
+            'personas_mp'           => 'nullable|integer|min:0|required_if:situacion,TURNADO',
 
             'danos_patrimoniales'        => 'nullable|boolean',
             'propiedades_afectadas'      => 'nullable|string|max:2000',
@@ -294,8 +295,8 @@ class HechoController extends Controller
             'colision_camino'       => 'sometimes|required|string|max:255',
             'situacion'             => ['sometimes','required','string', Rule::in(self::SITUAS)],
             'oficio_mp'             => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
-            'vehiculos_mp'          => 'sometimes|required|integer|min:0',
-            'personas_mp'           => 'sometimes|required|integer|min:0',
+            'vehiculos_mp'          => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
+            'personas_mp'           => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
 
             'danos_patrimoniales'        => 'sometimes|nullable|boolean',
             'propiedades_afectadas'      => 'sometimes|nullable|string|max:2000',
@@ -555,5 +556,15 @@ class HechoController extends Controller
         }
 
         return $u;
+    }
+
+    public function whatsappLink(\App\Models\Hechos $hecho)
+    {
+        $url = WhatsAppLink::linkForHecho($hecho);
+
+        return response()->json([
+            'ok' => true,
+            'wa_url' => $url,
+        ]);
     }
 }

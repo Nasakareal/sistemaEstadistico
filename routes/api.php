@@ -29,7 +29,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/home', [DashboardController::class, 'home'])->name('api.home');
-    Route::get('/home/perito', [DashboardController::class, 'homePerito'])->middleware('role:Perito')->name('api.home.perito');
+    Route::get('/home/perito', [DashboardController::class, 'homePerito'])->middleware('can:ver home perito')->name('api.home.perito');
+
 
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);

@@ -38,8 +38,7 @@
               "RelativeToolTip": "routes\\channels.php",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-23T22:40:58.756Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-23T22:40:58.756Z"
             },
             {
               "$type": "Document",
@@ -51,8 +50,7 @@
               "RelativeToolTip": "app\\Http\\Controllers\\Api\\DashboardController.php",
               "ViewState": "AgIAALQAAAAAAAAAAAAwwOUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-23T21:52:42.288Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-23T21:52:42.288Z"
             },
             {
               "$type": "Document",
@@ -62,7 +60,7 @@
               "RelativeDocumentMoniker": "routes\\api.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
               "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAAAB8AAABKAAAAAAAAAA==",
+              "ViewState": "AgIAAAkAAAAAAAAAAAAAAB8AAABtAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-23T21:50:01.486Z",
               "EditorCaption": ""
@@ -77,8 +75,7 @@
               "RelativeToolTip": "resources\\views\\waze\\riesgo\\index.blade.php",
               "ViewState": "AgIAAHYBAAAAAAAAAAAAAKYBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-23T21:49:11.583Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-23T21:49:11.583Z"
             }
           ]
         }

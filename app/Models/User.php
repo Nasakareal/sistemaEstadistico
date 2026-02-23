@@ -14,6 +14,11 @@ class User extends Authenticatable
 
     protected $guard_name = 'web';
 
+    public function guardName(): string
+    {
+        return 'web';
+    }
+
     protected $fillable = [
         'name',
         'email',
@@ -25,7 +30,6 @@ class User extends Authenticatable
         'turno_id',
         'patrulla_id',
         'delegacion_id',
-
         'compartir_ubicacion',
     ];
 
@@ -40,10 +44,6 @@ class User extends Authenticatable
         'last_seen_at'                 => 'datetime',
         'disconnected_alert_sent_at'   => 'datetime',
     ];
-
-    /* =====================================================
-     | RELACIONES ORGANIZACIONALES
-     ===================================================== */
 
     public function unidad()
     {
@@ -65,15 +65,10 @@ class User extends Authenticatable
         return $this->belongsTo(Patrulla::class);
     }
 
-    // ✅ Delegación fija del usuario (cuando aplique)
     public function delegacion()
     {
         return $this->belongsTo(Delegacion::class, 'delegacion_id');
     }
-
-    /* =====================================================
-     | HELPERS DE ROLES
-     ===================================================== */
 
     public function isSuperadmin(): bool
     {
@@ -85,10 +80,6 @@ class User extends Authenticatable
         return $this->hasRole('Administrador') && !$this->isSuperadmin();
     }
 
-    /* =====================================================
-     | SCOPES DE VISIBILIDAD
-     ===================================================== */
-
     public function scopeVisibleFor($query, ?self $actor)
     {
         if ($actor && $actor->isSuperadmin()) {
@@ -99,10 +90,6 @@ class User extends Authenticatable
             $q->where('name', 'Superadmin');
         });
     }
-
-    /* =====================================================
-     | PROTECCIÓN LÓGICA
-     ===================================================== */
 
     public function canBeDemotedFromSuperadmin(): bool
     {

@@ -30,7 +30,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/home', [DashboardController::class, 'home'])->name('api.home');
     Route::get('/home/perito', [DashboardController::class, 'homePerito'])->middleware('can:ver home perito')->name('api.home.perito');
-    Route::get('/dashboard/riesgo', [DashboardController::class, 'riesgo']);
 
 
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);

@@ -1,15 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\waze",
-    "\\resources\\views\\waze\\riesgo",
-    "\\routes"
+    "\\config"
   ],
+  "SelectedNode": "\\config\\auth.php",
   "PreviewInSolutionExplorer": false
 }

@@ -50,8 +50,7 @@
               "RelativeToolTip": "app\\Http\\Controllers\\Api\\DashboardController.php",
               "ViewState": "AgIAALQAAAAAAAAAAAAwwOUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-23T21:52:42.288Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-23T21:52:42.288Z"
             },
             {
               "$type": "Document",
@@ -61,7 +60,7 @@
               "RelativeDocumentMoniker": "routes\\api.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
               "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAAB8AAABYAAAAAAAAAA==",
+              "ViewState": "AgIAAAEAAAAAAAAAAAAwwCAAAABMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-23T21:50:01.486Z",
               "EditorCaption": ""

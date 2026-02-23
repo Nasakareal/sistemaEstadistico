@@ -4,14 +4,14 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
     "\\app\\Models",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
+    "\\config",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\resources\\views\\gruas",
+    "\\resources\\views\\gruas\\guardias_sct",
+    "\\resources\\views\\tramos"
   ],
-  "SelectedNode": "\\app\\Models\\Hechos.php",
+  "SelectedNode": "\\app\\Models\\Tramo.php",
   "PreviewInSolutionExplorer": false
 }

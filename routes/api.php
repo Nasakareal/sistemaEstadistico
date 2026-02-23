@@ -127,7 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/series/vehiculos/marca', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosMarca']);
         Route::get('/series/vehiculos/modelo', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosModelo']);
         Route::get('/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'hechos']);
-        Route::get('/export/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'exportHechos');
+        Route::get('/export/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'exportHechos']);
     });
 
     Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');

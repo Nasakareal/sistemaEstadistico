@@ -226,7 +226,6 @@
                                         <option value="DESBARRANCAMIENTO" {{ old('tipo_hecho') == 'DESBARRANCAMIENTO' ? 'selected' : '' }}>DESBARRANCAMIENTO</option>
                                         <option value="INCENDIO" {{ old('tipo_hecho') == 'INCENDIO' ? 'selected' : '' }}>INCENDIO</option>
                                         <option value="EXPLOSIÓN" {{ old('tipo_hecho') == 'EXPLOSIÓN' ? 'selected' : '' }}>EXPLOSIÓN</option>
-                                        <option value="Otro" {{ old('tipo_hecho') == 'Otro' ? 'selected' : '' }}>Otro</option>
                                     </select>
                                     @error('tipo_hecho')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>

@@ -234,6 +234,54 @@
                             </div>
                         </div>
 
+                        <hr>
+
+                        <h5 class="mb-3"><strong>Accesorios entregados</strong></h5>
+
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="cargadores_cantidad">Cargadores</label>
+                                    <input
+                                        type="number"
+                                        name="cargadores_cantidad"
+                                        id="cargadores_cantidad"
+                                        class="form-control @error('cargadores_cantidad') is-invalid @enderror"
+                                        value="{{ old('cargadores_cantidad', $armamento->cargadores_cantidad ?? 2) }}"
+                                        min="0"
+                                        max="255"
+                                    >
+                                    @error('cargadores_cantidad')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="cartuchos_cantidad">Cartuchos</label>
+                                    <input
+                                        type="number"
+                                        name="cartuchos_cantidad"
+                                        id="cartuchos_cantidad"
+                                        class="form-control @error('cartuchos_cantidad') is-invalid @enderror"
+                                        value="{{ old('cartuchos_cantidad', $armamento->cartuchos_cantidad ?? 60) }}"
+                                        min="0"
+                                        max="65535"
+                                    >
+                                    @error('cartuchos_cantidad')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
                         <div class="row">
                             <!-- Observaciones -->
                             <div class="col-md-12">

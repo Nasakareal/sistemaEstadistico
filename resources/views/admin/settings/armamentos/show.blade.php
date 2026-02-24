@@ -24,7 +24,6 @@
 
                 <div class="card-body">
 
-                    {{-- ================= DATOS GENERALES ================= --}}
                     <h5 class="mb-3"><strong>Datos Generales</strong></h5>
 
                     <table class="table table-bordered table-striped mb-4">
@@ -63,10 +62,9 @@
                         </tbody>
                     </table>
 
-                    {{-- ================= DATOS DEL ARMAMENTO ================= --}}
                     <h5 class="mb-3"><strong>Datos del Armamento</strong></h5>
 
-                    <table class="table table-bordered table-striped">
+                    <table class="table table-bordered table-striped mb-4">
                         <tbody>
                             <tr>
                                 <th>Tipo</th>
@@ -110,6 +108,22 @@
                                         ? nl2br(e($armamento->observaciones))
                                         : '<span class="text-muted">Sin observaciones</span>' !!}
                                 </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h5 class="mb-3"><strong>Accesorios entregados</strong></h5>
+
+                    <table class="table table-bordered table-striped">
+                        <tbody>
+                            <tr>
+                                <th>Cargadores</th>
+                                <td>{{ $armamento->cargadores_cantidad ?? 0 }}</td>
+                            </tr>
+
+                            <tr>
+                                <th>Cartuchos</th>
+                                <td>{{ $armamento->cartuchos_cantidad ?? 0 }}</td>
                             </tr>
                         </tbody>
                     </table>

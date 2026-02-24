@@ -19,7 +19,6 @@
                         @csrf
 
                         <div class="row">
-                            <!-- Unidad -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad</label>
@@ -44,7 +43,6 @@
                                 </div>
                             </div>
 
-                            <!-- Estatus -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="estatus">Estatus</label>
@@ -75,7 +73,6 @@
                         <h5 class="mb-3"><strong>Datos del Armamento</strong></h5>
 
                         <div class="row">
-                            <!-- Tipo -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="tipo">Tipo</label>
@@ -96,7 +93,6 @@
                                 </div>
                             </div>
 
-                            <!-- Clase -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="clase">Clase</label>
@@ -116,7 +112,6 @@
                                 </div>
                             </div>
 
-                            <!-- Calibre -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="calibre">Calibre</label>
@@ -136,7 +131,6 @@
                                 </div>
                             </div>
 
-                            <!-- Matrícula -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="matricula">Matrícula</label>
@@ -159,7 +153,6 @@
                         </div>
 
                         <div class="row">
-                            <!-- Marca -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="marca">Marca</label>
@@ -179,7 +172,6 @@
                                 </div>
                             </div>
 
-                            <!-- Modelo -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="modelo">Modelo</label>
@@ -199,7 +191,6 @@
                                 </div>
                             </div>
 
-                            <!-- Serie -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="serie">Serie</label>
@@ -221,8 +212,55 @@
                             </div>
                         </div>
 
+                        <hr>
+
+                        <h5 class="mb-3"><strong>Accesorios entregados</strong></h5>
+
                         <div class="row">
-                            <!-- Observaciones -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="cargadores_cantidad">Cargadores</label>
+                                    <input
+                                        type="number"
+                                        name="cargadores_cantidad"
+                                        id="cargadores_cantidad"
+                                        class="form-control @error('cargadores_cantidad') is-invalid @enderror"
+                                        value="{{ old('cargadores_cantidad', 2) }}"
+                                        min="0"
+                                        max="255"
+                                    >
+                                    @error('cargadores_cantidad')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="cartuchos_cantidad">Cartuchos</label>
+                                    <input
+                                        type="number"
+                                        name="cartuchos_cantidad"
+                                        id="cartuchos_cantidad"
+                                        class="form-control @error('cartuchos_cantidad') is-invalid @enderror"
+                                        value="{{ old('cartuchos_cantidad', 60) }}"
+                                        min="0"
+                                        max="65535"
+                                    >
+                                    @error('cartuchos_cantidad')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>

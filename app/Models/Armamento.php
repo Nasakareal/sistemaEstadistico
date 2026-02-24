@@ -13,11 +13,24 @@ class Armamento extends Model
     protected $table = 'armamentos';
 
     protected $fillable = [
-        'unidad_id','tipo','clase','marca','modelo','matricula','serie','calibre','estatus','observaciones',
+        'unidad_id',
+        'tipo',
+        'clase',
+        'marca',
+        'modelo',
+        'matricula',
+        'serie',
+        'calibre',
+        'estatus',
+        'observaciones',
+        'cargadores_cantidad',
+        'cartuchos_cantidad',
     ];
 
     protected $casts = [
         'unidad_id' => 'integer',
+        'cargadores_cantidad' => 'integer',
+        'cartuchos_cantidad' => 'integer',
     ];
 
     public function unidad()
@@ -27,6 +40,6 @@ class Armamento extends Model
 
     public function asignaciones()
     {
-        return $this->hasMany(\App\Models\PersonalAsignacion::class,'armamento_id');
+        return $this->hasMany(\App\Models\PersonalAsignacion::class, 'armamento_id');
     }
 }

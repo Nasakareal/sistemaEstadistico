@@ -52,7 +52,18 @@ class ArmamentoController extends Controller
             'estatus' => 'required|string|max:30',
 
             'observaciones' => 'nullable|string',
+
+            'cargadores_cantidad' => 'nullable|integer|min:0|max:255',
+            'cartuchos_cantidad' => 'nullable|integer|min:0|max:65535',
         ]);
+
+        if (!array_key_exists('cargadores_cantidad', $validated) || $validated['cargadores_cantidad'] === null) {
+            $validated['cargadores_cantidad'] = 2;
+        }
+
+        if (!array_key_exists('cartuchos_cantidad', $validated) || $validated['cartuchos_cantidad'] === null) {
+            $validated['cartuchos_cantidad'] = 60;
+        }
 
         try {
             Armamento::create($validated);
@@ -106,7 +117,18 @@ class ArmamentoController extends Controller
             'estatus' => 'required|string|max:30',
 
             'observaciones' => 'nullable|string',
+
+            'cargadores_cantidad' => 'nullable|integer|min:0|max:255',
+            'cartuchos_cantidad' => 'nullable|integer|min:0|max:65535',
         ]);
+
+        if (!array_key_exists('cargadores_cantidad', $validated) || $validated['cargadores_cantidad'] === null) {
+            $validated['cargadores_cantidad'] = 2;
+        }
+
+        if (!array_key_exists('cartuchos_cantidad', $validated) || $validated['cartuchos_cantidad'] === null) {
+            $validated['cartuchos_cantidad'] = 60;
+        }
 
         try {
             $armamento->update($validated);

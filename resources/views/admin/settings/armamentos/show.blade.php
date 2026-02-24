@@ -1,9 +1,9 @@
 @extends('adminlte::page')
 
-@section('title', 'Detalle de Patrulla')
+@section('title', 'Detalle de Armamento')
 
 @section('content_header')
-    <h1>Detalle de Patrulla</h1>
+    <h1>Detalle de Armamento</h1>
 @stop
 
 @section('content')
@@ -11,12 +11,12 @@
         <div class="col-md-12">
             <div class="card card-outline card-info">
                 <div class="card-header">
-                    <h3 class="card-title">Información de la Patrulla</h3>
+                    <h3 class="card-title">Información del Armamento</h3>
                     <div class="card-tools">
-                        <a href="{{ route('patrullas.edit', $patrulla->id) }}" class="btn btn-success btn-sm">
+                        <a href="{{ route('armamentos.edit', $armamento->id) }}" class="btn btn-success btn-sm">
                             <i class="fa-regular fa-pen-to-square"></i> Editar
                         </a>
-                        <a href="{{ route('patrullas.index') }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('armamentos.index') }}" class="btn btn-secondary btn-sm">
                             <i class="fa-solid fa-arrow-left"></i> Volver
                         </a>
                     </div>
@@ -30,96 +30,86 @@
                     <table class="table table-bordered table-striped mb-4">
                         <tbody>
                             <tr>
-                                <th>Número Económico</th>
-                                <td>{{ $patrulla->numero_economico }}</td>
-                            </tr>
-
-                            <tr>
                                 <th>Unidad</th>
-                                <td>{{ $patrulla->unidad?->nombre ?? 'Sin unidad' }}</td>
+                                <td>{{ $armamento->unidad?->nombre ?? 'Sin unidad' }}</td>
                             </tr>
 
                             <tr>
-                                <th>Turno</th>
-                                <td>{{ $patrulla->turno?->nombre ?? 'Sin turno' }}</td>
-                            </tr>
-
-                            <tr>
-                                <th>Estado</th>
+                                <th>Estatus</th>
                                 <td>
-                                    @if ($patrulla->activa)
-                                        <span class="badge badge-success">Activa</span>
+                                    @if ($armamento->estatus === 'ACTIVO')
+                                        <span class="badge badge-success">ACTIVO</span>
+                                    @elseif ($armamento->estatus === 'BAJA')
+                                        <span class="badge badge-danger">BAJA</span>
+                                    @elseif ($armamento->estatus === 'RESGUARDO')
+                                        <span class="badge badge-warning">RESGUARDO</span>
+                                    @elseif ($armamento->estatus === 'MANTENIMIENTO')
+                                        <span class="badge badge-info">MANTENIMIENTO</span>
                                     @else
-                                        <span class="badge badge-danger">Inactiva</span>
+                                        <span class="badge badge-secondary">{{ $armamento->estatus }}</span>
                                     @endif
                                 </td>
+                            </tr>
+
+                            <tr>
+                                <th>Fecha de Registro</th>
+                                <td>{{ $armamento->created_at?->format('d-m-Y H:i') }}</td>
+                            </tr>
+
+                            <tr>
+                                <th>Última Actualización</th>
+                                <td>{{ $armamento->updated_at?->format('d-m-Y H:i') }}</td>
                             </tr>
                         </tbody>
                     </table>
 
-
-                    {{-- ================= DATOS DEL VEHÍCULO ================= --}}
-                    <h5 class="mb-3"><strong>Datos del Vehículo</strong></h5>
+                    {{-- ================= DATOS DEL ARMAMENTO ================= --}}
+                    <h5 class="mb-3"><strong>Datos del Armamento</strong></h5>
 
                     <table class="table table-bordered table-striped">
                         <tbody>
                             <tr>
                                 <th>Tipo</th>
-                                <td>{{ $patrulla->tipo ?? 'No especificado' }}</td>
+                                <td>{{ $armamento->tipo }}</td>
+                            </tr>
+
+                            <tr>
+                                <th>Clase</th>
+                                <td>{{ $armamento->clase ?? 'No especificada' }}</td>
                             </tr>
 
                             <tr>
                                 <th>Marca</th>
-                                <td>{{ $patrulla->marca ?? 'No especificado' }}</td>
+                                <td>{{ $armamento->marca ?? 'No especificada' }}</td>
                             </tr>
 
                             <tr>
-                                <th>Línea</th>
-                                <td>{{ $patrulla->linea ?? 'No especificado' }}</td>
+                                <th>Modelo</th>
+                                <td>{{ $armamento->modelo ?? 'No especificado' }}</td>
                             </tr>
 
                             <tr>
-                                <th>Modelo (Año)</th>
-                                <td>{{ $patrulla->modelo ?? 'No especificado' }}</td>
+                                <th>Calibre</th>
+                                <td>{{ $armamento->calibre ?? 'No especificado' }}</td>
                             </tr>
 
                             <tr>
-                                <th>Placas</th>
-                                <td>{{ $patrulla->placas ?? 'No registradas' }}</td>
+                                <th>Matrícula</th>
+                                <td>{{ $armamento->matricula ?? 'No registrada' }}</td>
                             </tr>
 
                             <tr>
-                                <th>Serie (VIN)</th>
-                                <td>{{ $patrulla->serie ?? 'No registrada' }}</td>
-                            </tr>
-
-                            <tr>
-                                <th>No. Motor</th>
-                                <td>{{ $patrulla->no_motor ?? 'No registrado' }}</td>
-                            </tr>
-
-                            <tr>
-                                <th>Color</th>
-                                <td>{{ $patrulla->color ?? 'No especificado' }}</td>
+                                <th>Serie</th>
+                                <td>{{ $armamento->serie ?? 'No registrada' }}</td>
                             </tr>
 
                             <tr>
                                 <th>Observaciones</th>
                                 <td>
-                                    {!! $patrulla->observaciones
-                                        ? nl2br(e($patrulla->observaciones))
+                                    {!! $armamento->observaciones
+                                        ? nl2br(e($armamento->observaciones))
                                         : '<span class="text-muted">Sin observaciones</span>' !!}
                                 </td>
-                            </tr>
-
-                            <tr>
-                                <th>Fecha de Creación</th>
-                                <td>{{ $patrulla->created_at?->format('d-m-Y H:i') }}</td>
-                            </tr>
-
-                            <tr>
-                                <th>Última Actualización</th>
-                                <td>{{ $patrulla->updated_at?->format('d-m-Y H:i') }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -127,7 +117,7 @@
                 </div>
 
                 <div class="card-footer text-muted">
-                    <small>ID interno: {{ $patrulla->id }}</small>
+                    <small>ID interno: {{ $armamento->id }}</small>
                 </div>
             </div>
         </div>

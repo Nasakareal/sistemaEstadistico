@@ -56,6 +56,54 @@
             </div>
         </div>
 
+        {{-- PERSONAL --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-teal">
+                    <i class="fa-solid fa-user-group"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Personal</div>
+                    <div class="sv-card__desc">Altas, bajas, incidencias y expedientes.</div>
+                    <a href="{{ url('/admin/settings/personal') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
+                {{-- PATRULLAS --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-success">
+                    <i class="fa fa-car" aria-hidden="true"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Patrullas</div>
+                    <div class="sv-card__desc">Listado, Creación y análisis.</div>
+                    <a href="{{ url('/admin/settings/patrullas') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {{-- ARMAMENTO --}}
+    <div class="col-md-3 col-sm-6 col-12">
+        <div class="sv-card">
+            <div class="sv-card__icon bg-maroon">
+                <i class="fa-solid fa-gun"></i>
+            </div>
+            <div class="sv-card__body">
+                <div class="sv-card__title">Armamento</div>
+                <div class="sv-card__desc">Control, asignación y estatus del armamento institucional.</div>
+                <a href="{{ url('/admin/settings/armamentos') }}" class="btn sv-btn">
+                    <i class="fas fa-arrow-right"></i> Acceder
+                </a>
+            </div>
+        </div>
+    </div>
+
         {{-- ESTADISTICAS --}}
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">
@@ -72,21 +120,7 @@
             </div>
         </div>
 
-        {{-- PATRULLAS --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-success">
-                    <i class="fa fa-car" aria-hidden="true"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Patrullas</div>
-                    <div class="sv-card__desc">Listado, Creación y análisis.</div>
-                    <a href="{{ url('/admin/settings/patrullas') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
+
 
     </div>
 @stop

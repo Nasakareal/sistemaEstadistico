@@ -9,15 +9,32 @@ class Patrulla extends Model
 {
     use HasFactory;
 
+    protected $table = 'patrullas';
+
     protected $fillable = [
         'numero_economico',
+
         'unidad_id',
         'turno_id',
+
         'activa',
+
+        'tipo',
+        'marca',
+        'linea',
+        'modelo',
+        'placas',
+        'serie',
+        'color',
+        'no_motor',
+        'observaciones',
     ];
 
     protected $casts = [
         'activa' => 'boolean',
+        'unidad_id' => 'integer',
+        'turno_id' => 'integer',
+        'modelo' => 'integer',
     ];
 
     /*
@@ -26,21 +43,39 @@ class Patrulla extends Model
     |--------------------------------------------------------------------------
     */
 
-    // Unidad a la que pertenece la patrulla
     public function unidad()
     {
-        return $this->belongsTo(Unidad::class);
+        return $this->belongsTo(\App\Models\Unidad::class, 'unidad_id');
     }
 
-    // Turno de la patrulla
     public function turno()
     {
-        return $this->belongsTo(Turno::class);
+        return $this->belongsTo(\App\Models\Turno::class, 'turno_id');
     }
 
-    // Usuarios asignados a esta patrulla
     public function usuarios()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(\App\Models\User::class, 'patrulla_id');
+    }
+
+    public function personal()
+    {
+        return $this->hasMany(\App\Models\Personal::class, 'patrulla_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Accesores útiles (opcional pero recomendado)
+    |--------------------------------------------------------------------------
+    */
+
+    public function getDescripcionVehiculoAttribute()
+    {
+        return trim("{$this->marca} {$this->linea} {$this->modelo}");
+    }
+
+    public function getEtiquetaCompletaAttribute()
+    {
+        return trim("{$this->numero_economico} - {$this->descripcion_vehiculo}");
     }
 }

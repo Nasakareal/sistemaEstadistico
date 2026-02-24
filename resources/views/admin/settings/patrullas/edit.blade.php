@@ -108,14 +108,211 @@
                                         class="form-control @error('activa') is-invalid @enderror"
                                         required
                                     >
-                                        <option value="1" {{ (string)old('activa', $patrulla->activa) === '1' ? 'selected' : '' }}>
+                                        <option value="1" {{ (string)old('activa', (int)$patrulla->activa) === '1' ? 'selected' : '' }}>
                                             Activa
                                         </option>
-                                        <option value="0" {{ (string)old('activa', $patrulla->activa) === '0' ? 'selected' : '' }}>
+                                        <option value="0" {{ (string)old('activa', (int)$patrulla->activa) === '0' ? 'selected' : '' }}>
                                             Inactiva
                                         </option>
                                     </select>
                                     @error('activa')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h5 class="mb-3"><strong>Datos del Vehículo</strong></h5>
+
+                        <div class="row">
+                            <!-- Tipo -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="tipo">Tipo</label>
+                                    <select
+                                        name="tipo"
+                                        id="tipo"
+                                        class="form-control @error('tipo') is-invalid @enderror"
+                                    >
+                                        <option value="" {{ old('tipo', $patrulla->tipo) ? '' : 'selected' }}>Seleccione</option>
+                                        <option value="PICKUP" {{ old('tipo', $patrulla->tipo) == 'PICKUP' ? 'selected' : '' }}>Pick-Up</option>
+                                        <option value="SUV" {{ old('tipo', $patrulla->tipo) == 'SUV' ? 'selected' : '' }}>SUV</option>
+                                        <option value="SEDAN" {{ old('tipo', $patrulla->tipo) == 'SEDAN' ? 'selected' : '' }}>Sedán</option>
+                                        <option value="MOTO" {{ old('tipo', $patrulla->tipo) == 'MOTO' ? 'selected' : '' }}>Moto</option>
+                                        <option value="VAN" {{ old('tipo', $patrulla->tipo) == 'VAN' ? 'selected' : '' }}>Van</option>
+                                        <option value="OTRO" {{ old('tipo', $patrulla->tipo) == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                                    </select>
+                                    @error('tipo')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Marca -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="marca">Marca</label>
+                                    <input
+                                        type="text"
+                                        name="marca"
+                                        id="marca"
+                                        class="form-control @error('marca') is-invalid @enderror"
+                                        value="{{ old('marca', $patrulla->marca) }}"
+                                        placeholder="Ej. FORD, RAM, NISSAN"
+                                    >
+                                    @error('marca')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Línea -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="linea">Línea</label>
+                                    <input
+                                        type="text"
+                                        name="linea"
+                                        id="linea"
+                                        class="form-control @error('linea') is-invalid @enderror"
+                                        value="{{ old('linea', $patrulla->linea) }}"
+                                        placeholder="Ej. JETTA, CHARGER, F-150, PATRIOT"
+                                    >
+                                    @error('linea')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Modelo (Año) -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="modelo">Modelo (Año)</label>
+                                    <input
+                                        type="number"
+                                        name="modelo"
+                                        id="modelo"
+                                        class="form-control @error('modelo') is-invalid @enderror"
+                                        value="{{ old('modelo', $patrulla->modelo) }}"
+                                        placeholder="Ej. 2020"
+                                        min="1900"
+                                        max="2100"
+                                    >
+                                    @error('modelo')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Placas -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="placas">Placas</label>
+                                    <input
+                                        type="text"
+                                        name="placas"
+                                        id="placas"
+                                        class="form-control @error('placas') is-invalid @enderror"
+                                        value="{{ old('placas', $patrulla->placas) }}"
+                                        placeholder="Ej. MC713A9"
+                                    >
+                                    @error('placas')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Sin espacios ni guiones (opcional).</small>
+                                </div>
+                            </div>
+
+                            <!-- Serie -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="serie">Serie (VIN)</label>
+                                    <input
+                                        type="text"
+                                        name="serie"
+                                        id="serie"
+                                        class="form-control @error('serie') is-invalid @enderror"
+                                        value="{{ old('serie', $patrulla->serie) }}"
+                                        placeholder="Ej. 3FA6P0H73HR..."
+                                    >
+                                    @error('serie')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Color -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="color">Color</label>
+                                    <input
+                                        type="text"
+                                        name="color"
+                                        id="color"
+                                        class="form-control @error('color') is-invalid @enderror"
+                                        value="{{ old('color', $patrulla->color) }}"
+                                        placeholder="Ej. BLANCO"
+                                    >
+                                    @error('color')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- No. motor -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="no_motor">No. Motor</label>
+                                    <input
+                                        type="text"
+                                        name="no_motor"
+                                        id="no_motor"
+                                        class="form-control @error('no_motor') is-invalid @enderror"
+                                        value="{{ old('no_motor', $patrulla->no_motor) }}"
+                                        placeholder="Opcional"
+                                    >
+                                    @error('no_motor')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Observaciones -->
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="observaciones">Observaciones</label>
+                                    <textarea
+                                        name="observaciones"
+                                        id="observaciones"
+                                        class="form-control @error('observaciones') is-invalid @enderror"
+                                        rows="3"
+                                        placeholder="Opcional"
+                                    >{{ old('observaciones', $patrulla->observaciones) }}</textarea>
+                                    @error('observaciones')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>

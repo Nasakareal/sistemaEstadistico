@@ -40,6 +40,16 @@ use App\Http\Controllers\TramoLookupController;
 use App\Http\Controllers\WazeAlertWebController;
 use App\Http\Controllers\RiesgoDashboardController;
 
+use App\Http\Controllers\PersonalController;
+use App\Http\Controllers\PersonalContactoController;
+use App\Http\Controllers\PersonalDomicilioController;
+use App\Http\Controllers\PersonalEmergenciaController;
+use App\Http\Controllers\PersonalAsignacionController;
+use App\Http\Controllers\PersonalIncidenciaController;
+
+
+use App\Http\Controllers\ArmamentoController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {
@@ -288,6 +298,54 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{role}',[RoleController::class,'destroy'])->middleware('can:eliminar roles')->name('roles.destroy');
         Route::get('/{role}/permissions',[RoleController::class,'permissions'])->middleware('can:editar roles')->name('roles.permissions');
         Route::post('/{role}/permissions',[RoleController::class,'assignPermissions'])->middleware('can:editar roles')->name('roles.assignPermissions');
+    });
+
+    Route::prefix('personal')->middleware('can:ver personal')->group(function () {
+        Route::get('/', [PersonalController::class, 'index'])->name('personal.index');
+        Route::get('/create', [PersonalController::class, 'create'])->middleware('can:crear personal')->name('personal.create');
+        Route::post('/', [PersonalController::class, 'store'])->middleware('can:crear personal')->name('personal.store');
+        Route::get('/{personal}', [PersonalController::class, 'show'])->name('personal.show');
+        Route::get('/{personal}/edit', [PersonalController::class, 'edit'])->middleware('can:editar personal')->name('personal.edit');
+        Route::put('/{personal}', [PersonalController::class, 'update'])->middleware('can:editar personal')->name('personal.update');
+        Route::delete('/{personal}', [PersonalController::class, 'destroy'])->middleware('can:borrar personal')->name('personal.destroy');
+
+        Route::post('/{personal}/contactos', [PersonalContactoController::class, 'store'])->middleware('can:editar personal')->name('personal.contactos.store');
+        Route::put('/{personal}/contactos/{contacto}', [PersonalContactoController::class, 'update'])->middleware('can:editar personal')->name('personal.contactos.update');
+        Route::delete('/{personal}/contactos/{contacto}', [PersonalContactoController::class, 'destroy'])->middleware('can:editar personal')->name('personal.contactos.destroy');
+
+        Route::post('/{personal}/domicilios', [PersonalDomicilioController::class, 'store'])->middleware('can:editar personal')->name('personal.domicilios.store');
+        Route::put('/{personal}/domicilios/{domicilio}', [PersonalDomicilioController::class, 'update'])->middleware('can:editar personal')->name('personal.domicilios.update');
+        Route::delete('/{personal}/domicilios/{domicilio}', [PersonalDomicilioController::class, 'destroy'])->middleware('can:editar personal')->name('personal.domicilios.destroy');
+
+        Route::post('/{personal}/emergencias', [PersonalEmergenciaController::class, 'store'])->middleware('can:editar personal')->name('personal.emergencias.store');
+        Route::put('/{personal}/emergencias/{emergencia}', [PersonalEmergenciaController::class, 'update'])->middleware('can:editar personal')->name('personal.emergencias.update');
+        Route::delete('/{personal}/emergencias/{emergencia}', [PersonalEmergenciaController::class, 'destroy'])->middleware('can:editar personal')->name('personal.emergencias.destroy');
+
+        Route::get('/{personal}/incidencias/create', [PersonalIncidenciaController::class, 'create'])->middleware('can:editar personal')->name('personal.incidencias.create');
+        Route::post('/{personal}/incidencias', [PersonalIncidenciaController::class, 'store'])->middleware('can:editar personal')->name('personal.incidencias.store');
+        Route::get('/{personal}/incidencias/{incidencia}/edit', [PersonalIncidenciaController::class, 'edit'])->middleware('can:editar personal')->name('personal.incidencias.edit');
+        Route::put('/{personal}/incidencias/{incidencia}', [PersonalIncidenciaController::class, 'update'])->middleware('can:editar personal')->name('personal.incidencias.update');
+        Route::delete('/{personal}/incidencias/{incidencia}', [PersonalIncidenciaController::class, 'destroy'])->middleware('can:editar personal')->name('personal.incidencias.destroy');
+
+        Route::get('/{personal}/asignaciones/create', [PersonalAsignacionController::class, 'create'])->middleware('can:editar personal')->name('personal.asignaciones.create');
+        Route::post('/{personal}/asignaciones', [PersonalAsignacionController::class, 'store'])->middleware('can:editar personal')->name('personal.asignaciones.store');
+        Route::get('/{personal}/asignaciones/{asignacion}/edit', [PersonalAsignacionController::class, 'edit'])->middleware('can:editar personal')->name('personal.asignaciones.edit');
+        Route::put('/{personal}/asignaciones/{asignacion}', [PersonalAsignacionController::class, 'update'])->middleware('can:editar personal')->name('personal.asignaciones.update');
+        Route::post('/{personal}/asignaciones/{asignacion}/cerrar', [PersonalAsignacionController::class, 'cerrar'])->middleware('can:editar personal')->name('personal.asignaciones.cerrar');
+        Route::delete('/{personal}/asignaciones/{asignacion}', [PersonalAsignacionController::class, 'destroy'])->middleware('can:editar personal')->name('personal.asignaciones.destroy');
+
+        Route::post('/{personal}/armamento/asignar',[PersonalAsignacionController::class,'asignarArmamento'])->middleware('can:editar personal')->name('personal.armamento.asignar');
+        Route::post('/{personal}/armamento/{asignacion}/quitar',[PersonalAsignacionController::class,'quitarArmamento'])->middleware('can:editar personal')->name('personal.armamento.quitar');
+    });
+
+    Route::prefix('armamentos')->middleware('can:ver armamentos')->group(function () {
+        Route::get('/', [ArmamentoController::class, 'index'])->name('armamentos.index');
+        Route::get('/create', [ArmamentoController::class, 'create'])->middleware('can:crear armamentos')->name('armamentos.create');
+        Route::post('/', [ArmamentoController::class, 'store'])->middleware('can:crear armamentos')->name('armamentos.store');
+        Route::get('/{armamento}', [ArmamentoController::class, 'show'])->name('armamentos.show');
+        Route::get('/{armamento}/edit', [ArmamentoController::class, 'edit'])->middleware('can:editar armamentos')->name('armamentos.edit');
+        Route::put('/{armamento}', [ArmamentoController::class, 'update'])->middleware('can:editar armamentos')->name('armamentos.update');
+        Route::delete('/{armamento}', [ArmamentoController::class, 'destroy'])->middleware('can:eliminar armamentos')->name('armamentos.destroy');
     });
 
     Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {

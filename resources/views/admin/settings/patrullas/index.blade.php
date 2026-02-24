@@ -25,7 +25,6 @@
                                 <th><center>#</center></th>
                                 <th><center>Número Económico</center></th>
                                 <th><center>Unidad</center></th>
-                                <th><center>Turno</center></th>
                                 <th><center>Estado</center></th>
                                 <th><center>Fecha de Registro</center></th>
                                 <th><center>Acciones</center></th>
@@ -37,7 +36,6 @@
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ $patrulla->numero_economico }}</td>
                                     <td>{{ $patrulla->unidad->nombre ?? '—' }}</td>
-                                    <td>{{ $patrulla->turno->nombre ?? '—' }}</td>
                                     <td>
                                         @if ($patrulla->activa)
                                             <span class="badge badge-success">Activa</span>

@@ -1,11 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\app"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\edit.blade.php",
+  "SelectedNode": "\\database",
   "PreviewInSolutionExplorer": false
 }

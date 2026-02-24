@@ -16,6 +16,7 @@ class Personal extends Model
         'unidad_id',
         'turno_id',
         'patrulla_id',
+        'user_id',
         'nombre',
         'ap_paterno',
         'ap_materno',
@@ -26,6 +27,7 @@ class Personal extends Model
         'puesto',
         'adscripcion',
         'area',
+        'categoria',
         'estatus',
         'fecha_ingreso',
         'fecha_baja',
@@ -35,9 +37,15 @@ class Personal extends Model
         'unidad_id' => 'integer',
         'turno_id' => 'integer',
         'patrulla_id' => 'integer',
+        'user_id' => 'integer',
         'fecha_ingreso' => 'date',
         'fecha_baja' => 'date',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
 
     public function unidad()
     {

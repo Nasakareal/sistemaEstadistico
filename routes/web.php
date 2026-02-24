@@ -47,6 +47,8 @@ use App\Http\Controllers\PersonalEmergenciaController;
 use App\Http\Controllers\PersonalAsignacionController;
 use App\Http\Controllers\PersonalIncidenciaController;
 
+use App\Http\Controllers\ExportController;
+
 
 use App\Http\Controllers\ArmamentoController;
 
@@ -360,6 +362,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/bitacora',[EstadisticasController::class,'bitacora'])->name('estadisticas.bitacora');
         Route::get('/bitacora/descargar',[EstadisticasController::class,'descargarBitacora'])->name('estadisticas.bitacora.descargar');
     });
+
+    Route::get('/exports/estado-fuerza', [ExportController::class, 'estadoFuerza'])->name('settings.exports.estado_fuerza');
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

@@ -120,7 +120,21 @@
             </div>
         </div>
 
-
+        {{-- EXPORT ESTADO DE FUERZA (PRUEBA) --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-primary">
+                    <i class="fa-solid fa-file-excel"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Exportar 6PM (Prueba)</div>
+                    <div class="sv-card__desc">Genera el Excel local para revisar (EST. FUR).</div>
+                    <a href="{{ route('settings.exports.estado_fuerza') }}" class="btn sv-btn">
+                        <i class="fas fa-download"></i> Generar Excel
+                    </a>
+                </div>
+            </div>
+        </div>
 
     </div>
 @stop

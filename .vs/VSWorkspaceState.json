@@ -1,8 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\personal"
   ],
-  "SelectedNode": "\\database",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\personal\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

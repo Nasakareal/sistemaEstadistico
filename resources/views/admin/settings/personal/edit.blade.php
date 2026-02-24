@@ -19,6 +19,37 @@
                         @method('PUT')
 
                         <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="user_id">Usuario del sistema</label>
+                                    <select name="user_id" id="user_id"
+                                            class="form-control @error('user_id') is-invalid @enderror">
+                                        <option value="">Sin usuario</option>
+
+                                        @if (isset($usuarioActual) && $usuarioActual)
+                                            <option value="{{ $usuarioActual->id }}" selected>
+                                                {{ $usuarioActual->name }}{{ $usuarioActual->email ? ' — ' . $usuarioActual->email : '' }}
+                                            </option>
+                                        @endif
+
+                                        @foreach ($usuariosDisponibles as $u)
+                                            @if(!isset($usuarioActual) || !$usuarioActual || (int)$u->id !== (int)$usuarioActual->id)
+                                                <option value="{{ $u->id }}" {{ old('user_id', $personal->user_id) == $u->id ? 'selected' : '' }}>
+                                                    {{ $u->name }}{{ $u->email ? ' — ' . $u->email : '' }}
+                                                </option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                    @error('user_id')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="nombre">Nombre(s)</label>
@@ -206,10 +237,31 @@
                                     @error('patrulla_id')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Se filtra automáticamente por unidad.</small>
                                 </div>
                             </div>
 
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="categoria">Categoría</label>
+                                    <select name="categoria" id="categoria"
+                                            class="form-control @error('categoria') is-invalid @enderror" required>
+                                        <option value="">Seleccione</option>
+                                        @foreach (($categoriasPersonal ?? ['OPERATIVO','ADMINISTRATIVO']) as $cat)
+                                            <option value="{{ $cat }}" {{ old('categoria', $personal->categoria ?? '') == $cat ? 'selected' : '' }}>
+                                                {{ $cat }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('categoria')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="estatus">Estatus</label>
@@ -276,9 +328,41 @@
 @stop
 
 @section('css')
-    <style>
-        .form-group label { font-weight: bold; }
-    </style>
+<style>
+    .form-group label { font-weight: bold; }
+
+    #user_id.form-control,
+    select.form-control {
+        background-color: #111827 !important;
+        color: #e5e7eb !important;
+        border: 1px solid rgba(255,255,255,.18) !important;
+    }
+
+    #user_id.form-control:focus,
+    select.form-control:focus {
+        background-color: #0b1220 !important;
+        color: #e5e7eb !important;
+        border-color: rgba(59,130,246,.65) !important;
+        box-shadow: 0 0 0 .2rem rgba(59,130,246,.25) !important;
+    }
+
+    #user_id option,
+    select.form-control option {
+        background-color: #111827 !important;
+        color: #e5e7eb !important;
+    }
+
+    #user_id option:checked,
+    select.form-control option:checked {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    #user_id option:disabled,
+    select.form-control option:disabled {
+        color: rgba(229,231,235,.55) !important;
+    }
+</style>
 @stop
 
 @section('js')

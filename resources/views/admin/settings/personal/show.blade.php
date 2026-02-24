@@ -47,6 +47,14 @@
                             <strong>Patrulla:</strong><br>
                             {{ $personal->patrulla->numero_economico ?? 'Sin asignar' }}
                         </div>
+                        <div class="col-md-4">
+                            <strong>Usuario del sistema:</strong><br>
+                            @if(!empty($usuarioActual))
+                                {{ $usuarioActual->name }}{{ $usuarioActual->email ? ' — ' . $usuarioActual->email : '' }}
+                            @else
+                                <span class="text-muted">Sin usuario</span>
+                            @endif
+                        </div>
                     </div>
 
                     <hr>
@@ -340,7 +348,7 @@
                                 <tbody>
                                     @foreach($personal->incidencias as $inc)
                                         <tr>
-                                            <td>{{ $inc->incidencia_tipo_id ?? 'N/A' }}</td>
+                                            <td>{{ $inc->tipo->nombre ?? 'N/A' }}</td>
                                             <td>{{ $inc->fecha_inicio ?? 'N/A' }}</td>
                                             <td>{{ $inc->fecha_fin ?? 'N/A' }}</td>
                                             <td>{{ $inc->folio ?? '' }}</td>

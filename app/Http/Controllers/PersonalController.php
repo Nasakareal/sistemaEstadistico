@@ -8,16 +8,16 @@ use App\Models\Turno;
 use App\Models\Patrulla;
 use App\Models\Armamento;
 use App\Models\PersonalAsignacion;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
 class PersonalController extends Controller
 {
     public function index()
     {
         $personals = Personal::query()
-            ->with(['unidad', 'turno', 'patrulla'])
+            ->with(['unidad', 'turno', 'patrulla', 'user'])
             ->orderByDesc('estatus')
             ->orderBy('nombre')
             ->orderBy('ap_paterno')
@@ -44,9 +44,14 @@ class PersonalController extends Controller
             ->orderBy('numero_economico')
             ->get();
 
-        return view('admin.settings.personal.create',
-            compact('unidades', 'turnos', 'patrullas')
-        );
+        $usuariosDisponibles = User::query()
+            ->whereDoesntHave('personal')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
+
+        return view('admin.settings.personal.create', compact('unidades', 'turnos', 'patrullas', 'usuariosDisponibles', 'categoriasPersonal'));
     }
 
     public function store(Request $request)
@@ -55,6 +60,7 @@ class PersonalController extends Controller
             'unidad_id' => 'required|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
+            'user_id' => 'nullable|exists:users,id|unique:personals,user_id',
 
             'nombre' => 'required|string|max:100',
             'ap_paterno' => 'nullable|string|max:100',
@@ -70,6 +76,8 @@ class PersonalController extends Controller
 
             'adscripcion' => 'nullable|string|max:200',
             'area' => 'nullable|string|max:200',
+
+            'categoria' => 'required|in:OPERATIVO,ADMINISTRATIVO',
 
             'estatus' => 'required|string|max:30',
 
@@ -90,7 +98,7 @@ class PersonalController extends Controller
                         ->withInput();
                 }
 
-                if ((int)$patrulla->unidad_id !== (int)$validated['unidad_id']) {
+                if ((int) $patrulla->unidad_id !== (int) $validated['unidad_id']) {
                     return redirect()->back()
                         ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la misma unidad.'])
                         ->withInput();
@@ -127,6 +135,7 @@ class PersonalController extends Controller
     public function show(Personal $personal)
     {
         $personal->load([
+            'user',
             'unidad',
             'turno',
             'patrulla',
@@ -140,7 +149,6 @@ class PersonalController extends Controller
             'asignaciones.armamento',
         ]);
 
-        // ✅ Asignaciones activas SOLO de ARMAMENTO (para pintar tipo/clase/marca/modelo/matricula/serie/calibre)
         $asignacionesArmamentoActivas = PersonalAsignacion::query()
             ->where('personal_id', $personal->id)
             ->whereNotNull('armamento_id')
@@ -178,13 +186,26 @@ class PersonalController extends Controller
             ->where('unidad_id', $personal->unidad_id)
             ->whereDoesntHave('personal', function ($q) use ($personal) {
                 $q->whereNull('deleted_at')
-                  ->where('estatus', 'ACTIVO')
-                  ->where('id', '!=', $personal->id);
+                    ->where('estatus', 'ACTIVO')
+                    ->where('id', '!=', $personal->id);
             })
             ->orderBy('numero_economico')
             ->get();
 
-        return view('admin.settings.personal.edit', compact('personal', 'unidades', 'turnos', 'patrullas'));
+        $usuariosDisponibles = User::query()
+            ->where(function ($q) use ($personal) {
+                $q->whereDoesntHave('personal');
+
+                if ($personal->user_id) {
+                    $q->orWhere('id', $personal->user_id);
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
+
+        return view('admin.settings.personal.edit', compact('personal', 'unidades', 'turnos', 'patrullas', 'usuariosDisponibles', 'categoriasPersonal'));
     }
 
     public function update(Request $request, Personal $personal)
@@ -193,6 +214,7 @@ class PersonalController extends Controller
             'unidad_id' => 'required|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
+            'user_id' => 'nullable|exists:users,id|unique:personals,user_id,' . $personal->id,
 
             'nombre' => 'required|string|max:100',
             'ap_paterno' => 'nullable|string|max:100',
@@ -208,6 +230,8 @@ class PersonalController extends Controller
 
             'adscripcion' => 'nullable|string|max:200',
             'area' => 'nullable|string|max:200',
+
+            'categoria' => 'required|in:OPERATIVO,ADMINISTRATIVO',
 
             'estatus' => 'required|string|max:30',
 
@@ -228,7 +252,7 @@ class PersonalController extends Controller
                         ->withInput();
                 }
 
-                if ((int)$patrulla->unidad_id !== (int)$validated['unidad_id']) {
+                if ((int) $patrulla->unidad_id !== (int) $validated['unidad_id']) {
                     return redirect()->back()
                         ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la misma unidad.'])
                         ->withInput();

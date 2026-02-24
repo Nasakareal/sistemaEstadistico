@@ -14,11 +14,6 @@ class User extends Authenticatable
 
     protected $guard_name = 'web';
 
-    public function guardName(): string
-    {
-        return 'web';
-    }
-
     protected $fillable = [
         'name',
         'email',
@@ -45,29 +40,34 @@ class User extends Authenticatable
         'disconnected_alert_sent_at'   => 'datetime',
     ];
 
+    public function personal()
+    {
+        return $this->hasOne(\App\Models\Personal::class, 'user_id');
+    }
+
     public function unidad()
     {
-        return $this->belongsTo(Unidad::class);
+        return $this->belongsTo(\App\Models\Unidad::class);
     }
 
     public function unidades()
     {
-        return $this->belongsToMany(Unidad::class, 'unidad_user')->withTimestamps();
+        return $this->belongsToMany(\App\Models\Unidad::class, 'unidad_user')->withTimestamps();
     }
 
     public function turno()
     {
-        return $this->belongsTo(Turno::class);
+        return $this->belongsTo(\App\Models\Turno::class);
     }
 
     public function patrulla()
     {
-        return $this->belongsTo(Patrulla::class);
+        return $this->belongsTo(\App\Models\Patrulla::class);
     }
 
     public function delegacion()
     {
-        return $this->belongsTo(Delegacion::class, 'delegacion_id');
+        return $this->belongsTo(\App\Models\Delegacion::class, 'delegacion_id');
     }
 
     public function isSuperadmin(): bool

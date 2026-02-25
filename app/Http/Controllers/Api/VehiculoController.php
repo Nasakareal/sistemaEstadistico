@@ -322,13 +322,12 @@ class VehiculoController extends Controller
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
         $data = $this->sanitize($request->all());
-
         $dataForValidation = $data;
 
         if (isset($dataForValidation['placas']) && is_string($dataForValidation['placas'])) {
             $p = strtoupper($this->removeAccents($dataForValidation['placas']));
             $p = str_replace(['-', ' ', '.', ',', '_'], '', $p);
-            $dataForValidation['placas'] = $p;
+            $dataForValidation['placas'] = ($p === '') ? null : $p;
         }
 
         if (array_key_exists('serie', $dataForValidation)) {
@@ -341,7 +340,7 @@ class VehiculoController extends Controller
             $ep = strtoupper($this->removeAccents($dataForValidation['estado_placas']));
             $ep = str_replace(['.', ',', '-', '_'], '', $ep);
             $ep = preg_replace('/\s+/', ' ', trim($ep));
-            $dataForValidation['estado_placas'] = $ep;
+            $dataForValidation['estado_placas'] = ($ep === '') ? null : $ep;
         }
 
         $rules = [
@@ -351,9 +350,15 @@ class VehiculoController extends Controller
             'linea'                      => 'required|string|max:50',
             'color'                      => 'required|string|max:30',
 
-            'placas'                     => ['required','string','max:15','regex:/^[A-Z0-9]{5,15}$/'],
+            'placas'                     => ['nullable','string','max:15','regex:/^[A-Z0-9]{5,15}$/'],
 
-            'estado_placas'              => ['nullable','string','max:15','required_with:placas','regex:/^[A-Z]{3,15}$/'],
+            'estado_placas'              => [
+                'nullable',
+                'string',
+                'max:15',
+                'required_with:placas',
+                'regex:/^[A-Z]{3,15}$/'
+            ],
 
             'serie'                      => ['nullable','string','max:17','regex:/^[A-Z0-9]{6,17}$/'],
 

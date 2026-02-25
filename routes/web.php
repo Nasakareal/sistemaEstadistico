@@ -48,9 +48,11 @@ use App\Http\Controllers\PersonalAsignacionController;
 use App\Http\Controllers\PersonalIncidenciaController;
 
 use App\Http\Controllers\ExportController;
-
+use App\Http\Controllers\BackupsSqlController;
 
 use App\Http\Controllers\ArmamentoController;
+use App\Http\Controllers\PatrullaKilometrajeController;
+use App\Http\Controllers\ModuloExamenDiarioController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -282,6 +284,15 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/{patrulla}/edit',[PatrullaController::class,'edit'])->middleware('can:editar patrullas')->name('patrullas.edit');
         Route::put('/{patrulla}',[PatrullaController::class,'update'])->middleware('can:editar patrullas')->name('patrullas.update');
         Route::delete('/{patrulla}',[PatrullaController::class,'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.destroy');
+
+        Route::prefix('{patrulla}/kilometrajes')->middleware('can:ver kilometrajes patrullas')->group(function () {
+            Route::get('/', [PatrullaKilometrajeController::class, 'index'])->name('patrullas.kilometrajes.index');
+            Route::get('/create', [PatrullaKilometrajeController::class, 'create'])->middleware('can:crear kilometrajes patrullas')->name('patrullas.kilometrajes.create');
+            Route::post('/', [\App\Http\Controllers\PatrullaKilometrajeController::class, 'store'])->middleware('can:crear kilometrajes patrullas')->name('patrullas.kilometrajes.store');
+            Route::get('/{kilometraje}/edit', [PatrullaKilometrajeController::class, 'edit'])->middleware('can:editar kilometrajes patrullas')->name('patrullas.kilometrajes.edit');
+            Route::put('/{kilometraje}', [PatrullaKilometrajeController::class, 'update'])->middleware('can:editar kilometrajes patrullas')->name('patrullas.kilometrajes.update');
+            Route::delete('/{kilometraje}', [PatrullaKilometrajeController::class, 'destroy'])->middleware('can:eliminar kilometrajes patrullas')->name('patrullas.kilometrajes.destroy');
+        });
     });
 
     Route::prefix('users')->middleware('can:ver usuarios')->group(function () {
@@ -367,6 +378,24 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/bitacora/descargar',[EstadisticasController::class,'descargarBitacora'])->name('estadisticas.bitacora.descargar');
     });
 
+    Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
+        Route::get('/', [ModuloExamenDiarioController::class, 'index'])->name('modulo_examenes_diarios.index');
+        Route::get('/create', [ModuloExamenDiarioController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.create');
+        Route::post('/', [ModuloExamenDiarioController::class, 'store'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.store');
+        Route::get('/{registro}', [ModuloExamenDiarioController::class, 'show'])->name('modulo_examenes_diarios.show');
+        Route::get('/{registro}/edit', [ModuloExamenDiarioController::class, 'edit'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.edit');
+        Route::put('/{registro}', [ModuloExamenDiarioController::class, 'update'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.update');
+        Route::delete('/{registro}', [ModuloExamenDiarioController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('modulo_examenes_diarios.destroy');
+    });
+
+    Route::prefix('backups-sql')->middleware(['auth'])->group(function () {
+        Route::get('/', [BackupsSqlController::class, 'index'])->name('backups_sql.index');
+
+        Route::get('/{file}', [BackupsSqlController::class, 'download'])
+            ->where('file', '[A-Za-z0-9._-]+\.sql(\.gz)?')
+            ->name('backups_sql.download');
+    });
+
     Route::get('/exports/estado-fuerza', [ExportController::class, 'estadoFuerza'])->name('settings.exports.estado_fuerza');
 });
 
@@ -374,21 +403,3 @@ Route::get('/prueba-404', function () { return response()->view('errors.404', []
 
 Route::view('/privacy-policy', 'privacy_policy')->name('privacy.policy');
 
-Route::middleware(['auth'])->group(function () {
-
-    Route::get('/backups-sql/{file}', function ($file) {
-
-        if (!preg_match('/^[A-Za-z0-9._-]+\.(sql|sql\.gz)$/', $file)) {
-            abort(404);
-        }
-
-        $path = storage_path('app/backups_sql/' . $file);
-
-        if (!file_exists($path)) {
-            abort(404);
-        }
-
-        return response()->download($path);
-    })->name('backups_sql.download');
-
-});

@@ -104,6 +104,22 @@
         </div>
     </div>
 
+    {{-- EXÁMENES DIARIOS --}}
+    <div class="col-md-3 col-sm-6 col-12">
+        <div class="sv-card">
+            <div class="sv-card__icon bg-purple">
+                <i class="fa-solid fa-id-card"></i>
+            </div>
+            <div class="sv-card__body">
+                <div class="sv-card__title">Exámenes (Módulo)</div>
+                <div class="sv-card__desc">Captura diaria de exámenes realizados.</div>
+                <a href="{{ url('/admin/settings/modulo-examenes-diarios') }}" class="btn sv-btn">
+                    <i class="fas fa-arrow-right"></i> Acceder
+                </a>
+            </div>
+        </div>
+    </div>
+
         {{-- ESTADISTICAS --}}
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">
@@ -114,6 +130,22 @@
                     <div class="sv-card__title">Estadísticas</div>
                     <div class="sv-card__desc">Reportes, exportaciones y análisis.</div>
                     <a href="{{ url('/admin/settings/estadisticas') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {{-- RESPALDOS SQL --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-dark">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Respaldos SQL</div>
+                    <div class="sv-card__desc">Lista y descarga respaldos .sql / .sql.gz.</div>
+                    <a href="{{ route('backups_sql.index') }}" class="btn sv-btn">
                         <i class="fas fa-arrow-right"></i> Acceder
                     </a>
                 </div>

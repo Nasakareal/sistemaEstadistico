@@ -13,6 +13,13 @@
                 <div class="card-header">
                     <h3 class="card-title">Información de la Patrulla</h3>
                     <div class="card-tools">
+
+                        @can('ver kilometrajes patrullas')
+                            <a href="{{ route('patrullas.kilometrajes.index', $patrulla->id) }}" class="btn btn-primary btn-sm">
+                                <i class="fa-solid fa-gauge-high"></i> Kilometrajes
+                            </a>
+                        @endcan
+
                         <a href="{{ route('patrullas.edit', $patrulla->id) }}" class="btn btn-success btn-sm">
                             <i class="fa-regular fa-pen-to-square"></i> Editar
                         </a>
@@ -56,7 +63,6 @@
                             </tr>
                         </tbody>
                     </table>
-
 
                     {{-- ================= DATOS DEL VEHÍCULO ================= --}}
                     <h5 class="mb-3"><strong>Datos del Vehículo</strong></h5>

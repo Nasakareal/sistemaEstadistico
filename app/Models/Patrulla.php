@@ -63,12 +63,6 @@ class Patrulla extends Model
         return $this->hasMany(\App\Models\Personal::class, 'patrulla_id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Accesores útiles (opcional pero recomendado)
-    |--------------------------------------------------------------------------
-    */
-
     public function getDescripcionVehiculoAttribute()
     {
         return trim("{$this->marca} {$this->linea} {$this->modelo}");
@@ -77,5 +71,10 @@ class Patrulla extends Model
     public function getEtiquetaCompletaAttribute()
     {
         return trim("{$this->numero_economico} - {$this->descripcion_vehiculo}");
+    }
+
+    public function kilometrajes()
+    {
+        return $this->hasMany(\App\Models\PatrullaKilometraje::class, 'patrulla_id');
     }
 }

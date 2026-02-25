@@ -1,14 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\bootstrap",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\riesgo"
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\backups_sql"
   ],
-  "SelectedNode": "\\resources\\views\\riesgo\\radar.blade.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\backups_sql\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

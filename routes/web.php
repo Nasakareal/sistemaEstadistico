@@ -54,6 +54,10 @@ use App\Http\Controllers\ArmamentoController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
+Route::get('/riesgo-demo', [\App\Http\Controllers\RiesgoWebController::class, 'index'])->name('riesgo.demo');
+Route::get('/radar-riesgo', [\App\Http\Controllers\RadarRiesgoController::class, 'index'])
+    ->name('radar.riesgo');
+
 Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::get('/mapa',[MapaPatrullasController::class,'index'])->name('mapa.index');
     Route::get('/mapa-patrullas/data',[MapaPatrullasController::class,'data'])->name('mapa.patrullas.data');

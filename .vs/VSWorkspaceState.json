@@ -1,6 +1,10 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\app",
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp"
   ],
+  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppBot.php",
   "PreviewInSolutionExplorer": false
 }

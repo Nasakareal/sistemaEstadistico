@@ -10,8 +10,9 @@ class EstadoFuerzaService
     public function estado(Personal $personal, ?Carbon $momento = null): string
     {
         $momento = $momento ? $momento->copy() : now('America/Mexico_City');
+        $momento = $momento->copy()->timezone('America/Mexico_City');
 
-        if (($personal->estatus ?? '') !== 'ACTIVO') {
+        if (strtoupper(trim((string)($personal->estatus ?? ''))) !== 'ACTIVO') {
             return 'INACTIVO';
         }
 
@@ -50,7 +51,7 @@ class EstadoFuerzaService
 
             $tipoNombre = strtoupper(trim($tipoNombre));
 
-            if ($tipoNombre === 'COMISION') return 'COMISIONADOS';
+            if ($tipoNombre === 'COMISION' || $tipoNombre === 'COMISIÓN') return 'COMISIONADOS';
             if ($tipoNombre === 'VACACIONES') return 'VACACIONES';
             if ($tipoNombre === 'INCAPACIDAD') return 'INCAPACIDAD';
             if ($tipoNombre === 'PERMISO') return 'PERMISO';
@@ -62,14 +63,19 @@ class EstadoFuerzaService
 
         $turno = $personal->turno;
 
-        if (!$turno || !$turno->tipo_rol) {
-            return 'SIN_TURNO';
+        if (!$turno) {
+            return 'EN_SERVICIO';
         }
 
-        $tipoRol = strtoupper(trim((string) $turno->tipo_rol));
+        $tipoRol = strtoupper(trim((string) ($turno->tipo_rol ?? '')));
         $nombreTurno = strtoupper(trim((string) ($turno->nombre ?? '')));
+        $slugTurno = strtoupper(trim((string) ($turno->slug ?? '')));
 
-        if ($tipoRol === 'SUBDIRECTOR' || str_contains($nombreTurno, 'SUBDIRECTOR')) {
+        if (
+            $tipoRol === 'SUBDIRECTOR' ||
+            str_contains($nombreTurno, 'SUBDIRECTOR') ||
+            str_contains($slugTurno, 'SUBDIRECTOR')
+        ) {
             return 'EN_SERVICIO';
         }
 
@@ -78,9 +84,14 @@ class EstadoFuerzaService
             return ($dow >= 1 && $dow <= 5) ? 'EN_SERVICIO' : 'FRANCO';
         }
 
-        if ($turno->tipo_rol === '24X24') {
-            if (!$turno->ciclo_inicio || !$turno->trabajo_horas || !$turno->descanso_horas) {
-                return 'SIN_CONFIG_TURNO';
+        if ($tipoRol === 'SAB_DOM') {
+            $dow = (int) $momento->dayOfWeekIso;
+            return ($dow === 6 || $dow === 7) ? 'EN_SERVICIO' : 'FRANCO';
+        }
+
+        if ($tipoRol === '24X24') {
+            if (!$turno->ciclo_inicio || !$turno->trabajo_horas || $turno->descanso_horas === null) {
+                return 'EN_SERVICIO';
             }
 
             $inicio = Carbon::parse($turno->ciclo_inicio, 'America/Mexico_City');
@@ -92,17 +103,25 @@ class EstadoFuerzaService
 
             $trabajo = (int) $turno->trabajo_horas;
             $descanso = (int) $turno->descanso_horas;
+
+            if ($trabajo <= 0 || $descanso < 0) {
+                return 'EN_SERVICIO';
+            }
+
             $ciclo = $trabajo + $descanso;
+            if ($ciclo <= 0) {
+                return 'EN_SERVICIO';
+            }
 
             $pos = $diffHoras % $ciclo;
 
             return ($pos < $trabajo) ? 'EN_SERVICIO' : 'FRANCO';
         }
 
-        if ($turno->tipo_rol === 'SIEMPRE') {
+        if ($tipoRol === 'SIEMPRE') {
             return 'EN_SERVICIO';
         }
 
-        return 'SIN_REGLA';
+        return 'EN_SERVICIO';
     }
 }

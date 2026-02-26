@@ -73,6 +73,11 @@ class EstadoFuerzaService
             return 'EN_SERVICIO';
         }
 
+        if ($tipoRol === 'LUN_VIE') {
+            $dow = (int) $momento->dayOfWeekIso;
+            return ($dow >= 1 && $dow <= 5) ? 'EN_SERVICIO' : 'FRANCO';
+        }
+
         if ($turno->tipo_rol === '24X24') {
             if (!$turno->ciclo_inicio || !$turno->trabajo_horas || !$turno->descanso_horas) {
                 return 'SIN_CONFIG_TURNO';

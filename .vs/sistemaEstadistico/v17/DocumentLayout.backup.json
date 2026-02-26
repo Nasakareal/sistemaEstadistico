@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\PersonalAsignacion.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Models\\PersonalAsignacion.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Exports\\Sheets\\EstadoFuerzaSheet.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Exports\\Sheets\\EstadoFuerzaSheet.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
@@ -11,12 +15,12 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\EstadoFuerzaService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Exports\\EstadoFuerzaExcelService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Exports\\EstadoFuerzaExcelService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\TurnoService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\TurnoService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Exports\\EstadoFuerzaExcelService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Exports\\EstadoFuerzaExcelService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,11 +30,37 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "PersonalAsignacion.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\PersonalAsignacion.php",
+              "RelativeDocumentMoniker": "app\\Models\\PersonalAsignacion.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\PersonalAsignacion.php",
+              "RelativeToolTip": "app\\Models\\PersonalAsignacion.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-02-26T18:50:31.911Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 2,
+              "Title": "EstadoFuerzaService.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\EstadoFuerzaService.php",
+              "RelativeDocumentMoniker": "app\\Services\\EstadoFuerzaService.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\EstadoFuerzaService.php",
+              "RelativeToolTip": "app\\Services\\EstadoFuerzaService.php",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAAAGcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-02-26T18:33:18.397Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "EstadoFuerzaExcelService.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Exports\\EstadoFuerzaExcelService.php",
               "RelativeDocumentMoniker": "app\\Services\\Exports\\EstadoFuerzaExcelService.php",
@@ -38,18 +68,17 @@
               "RelativeToolTip": "app\\Services\\Exports\\EstadoFuerzaExcelService.php",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACwAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-26T18:33:47.517Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-26T18:33:47.517Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "EstadoFuerzaSheet.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Exports\\Sheets\\EstadoFuerzaSheet.php",
               "RelativeDocumentMoniker": "app\\Services\\Exports\\Sheets\\EstadoFuerzaSheet.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Exports\\Sheets\\EstadoFuerzaSheet.php",
               "RelativeToolTip": "app\\Services\\Exports\\Sheets\\EstadoFuerzaSheet.php",
-              "ViewState": "AgIAAAMBAAAAAAAAAAAAADABAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAMgAAAAAAAAAAAAAADABAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-26T18:33:37.364Z",
               "EditorCaption": ""
@@ -65,19 +94,6 @@
               "ViewState": "AgIAABoAAAAAAAAAAAAAAEYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-26T18:33:23.864Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "EstadoFuerzaService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\EstadoFuerzaService.php",
-              "RelativeDocumentMoniker": "app\\Services\\EstadoFuerzaService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\EstadoFuerzaService.php",
-              "RelativeToolTip": "app\\Services\\EstadoFuerzaService.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-26T18:33:18.397Z",
               "EditorCaption": ""
             }
           ]

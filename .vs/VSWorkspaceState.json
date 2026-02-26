@@ -4,11 +4,12 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
     "\\app\\Models",
     "\\app\\Services",
     "\\app\\Services\\Exports",
     "\\app\\Services\\Exports\\Sheets"
   ],
-  "SelectedNode": "\\app\\Models\\PersonalAsignacion.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\EstadisticasGlobalesController.php",
   "PreviewInSolutionExplorer": false
 }

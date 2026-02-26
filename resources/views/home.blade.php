@@ -5,6 +5,54 @@
 @section('content')
     <div class="row">
 
+        <div class="col-lg-12 mb-3">
+            <div class="row">
+
+                <div class="col-md-4">
+                    <div class="sv-card">
+                        <div class="sv-card__icon" style="background:rgba(45,168,255,.18);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Turno Activo</div>
+                            <div class="sv-card__desc" style="font-size:18px;font-weight:900;">
+                                {{ $turno_activo ?? '—' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="sv-card">
+                        <div class="sv-card__icon" style="background:rgba(25,211,140,.18);">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">En Servicio</div>
+                            <div class="sv-card__desc" style="font-size:18px;font-weight:900;">
+                                {{ $personal_en_servicio ?? 0 }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="sv-card">
+                        <div class="sv-card__icon" style="background:rgba(255,193,7,.18);">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Total Activos</div>
+                            <div class="sv-card__desc" style="font-size:18px;font-weight:900;">
+                                {{ $total_activos ?? 0 }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <div class="col-lg-12">
             <div class="sv-feed">
                 <div class="sv-feed__title">Feed</div>
@@ -185,12 +233,13 @@
     }
 
     .sv-feed{
+        max-width: 760px;
+        margin: 0 auto 16px auto;
         border-radius: 22px;
         border: 1px solid rgba(255,255,255,.12);
         background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
         box-shadow: 0 10px 35px rgba(0,0,0,.22);
         padding: 14px;
-        margin-bottom: 16px;
     }
     .sv-feed__title{
         font-weight: 950;
@@ -266,11 +315,13 @@
         overflow: hidden;
         border: 1px solid rgba(255,255,255,.10);
         background: rgba(0,0,0,.18);
+        max-height: 320px;
     }
     .sv-post__img{
         display:block;
         width: 100%;
-        height: auto;
+        height: 320px;
+        object-fit: cover;
     }
     .sv-post__actions{
         display:flex;

@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Personal;
+use App\Services\EstadoFuerzaService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
-    public function __construct()
+    protected EstadoFuerzaService $estadoFuerzaService;
+
+    public function __construct(EstadoFuerzaService $estadoFuerzaService)
     {
         $this->middleware('auth');
+        $this->estadoFuerzaService = $estadoFuerzaService;
     }
 
     public function index(Request $request)
@@ -23,10 +30,51 @@ class HomeController extends Controller
 
         $data = $this->getFeed($limit, $cursorCreatedAt, $cursorId);
 
+        // =========================
+        // KPIs SUPERIOR (tarjetas)
+        // =========================
+        $momento = now('America/Mexico_City');
+
+        // Turno activo (lo sacamos del personal del usuario logueado si existe)
+        $turnoActivoNombre = '—';
+        $user = Auth::user();
+
+        if ($user) {
+            $personalUser = Personal::with('turno')
+                ->where('user_id', $user->id)
+                ->first();
+
+            if ($personalUser && $personalUser->turno && !empty($personalUser->turno->nombre)) {
+                $turnoActivoNombre = (string) $personalUser->turno->nombre;
+            }
+        }
+
+        // Totales: todos los activos
+        $personales = Personal::with([
+                'turno',
+                'incidencias.tipo',
+            ])
+            ->where('estatus', 'ACTIVO')
+            ->get();
+
+        $totalActivos = $personales->count();
+
+        $enServicio = 0;
+        foreach ($personales as $p) {
+            if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
+                $enServicio++;
+            }
+        }
+
         return view('home', [
             'feed_items' => $data['items'],
             'feed_next_cursor' => $data['next_cursor'],
             'feed_limit' => $limit,
+
+            // KPIs
+            'turno_activo' => $turnoActivoNombre,
+            'personal_en_servicio' => $enServicio,
+            'total_activos' => $totalActivos,
         ]);
     }
 

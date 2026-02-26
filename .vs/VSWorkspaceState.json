@@ -2,9 +2,11 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views"
   ],
-  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppBot.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\HomeController.php",
   "PreviewInSolutionExplorer": false
 }

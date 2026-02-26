@@ -19,12 +19,15 @@ class EstadoFuerzaService
             return 'INACTIVO';
         }
 
-        $tieneIncidencia = $personal->incidencias
+        $incActiva = $personal->incidencias
             ? $personal->incidencias->first(function ($inc) use ($momento) {
-                $inicio = $inc->fecha_inicio ? Carbon::parse($inc->fecha_inicio)->startOfDay() : null;
-                $fin = $inc->fecha_fin ? Carbon::parse($inc->fecha_fin)->endOfDay() : null;
+                $inicioRaw = $inc->fecha_inicio ?? null;
+                $finRaw = $inc->fecha_fin ?? null;
 
-                if (!$inicio) return false;
+                if (!$inicioRaw) return false;
+
+                $inicio = Carbon::parse($inicioRaw, 'America/Mexico_City')->startOfDay();
+                $fin = $finRaw ? Carbon::parse($finRaw, 'America/Mexico_City')->endOfDay() : null;
 
                 if ($fin) {
                     return $momento->between($inicio, $fin);
@@ -34,18 +37,27 @@ class EstadoFuerzaService
             })
             : null;
 
-        if ($tieneIncidencia) {
-            $tipo = strtoupper(trim((string)($tieneIncidencia->tipo ?? '')));
+        if ($incActiva) {
+            $tipoNombre = '';
 
-            return match ($tipo) {
-                'COMISION'      => 'COMISIONADOS',
-                'VACACIONES'    => 'VACACIONES',
-                'INCAPACIDAD'   => 'INCAPACIDAD',
-                'PERMISO'       => 'PERMISO',
-                'CURSOS'        => 'CURSOS',
-                'FALTA'         => 'FALTANDO',
-                default         => 'OTROS',
-            };
+            if (isset($incActiva->tipo)) {
+                if (is_object($incActiva->tipo) && isset($incActiva->tipo->nombre)) {
+                    $tipoNombre = (string) $incActiva->tipo->nombre;
+                } elseif (is_string($incActiva->tipo)) {
+                    $tipoNombre = (string) $incActiva->tipo;
+                }
+            }
+
+            $tipoNombre = strtoupper(trim($tipoNombre));
+
+            if ($tipoNombre === 'COMISION') return 'COMISIONADOS';
+            if ($tipoNombre === 'VACACIONES') return 'VACACIONES';
+            if ($tipoNombre === 'INCAPACIDAD') return 'INCAPACIDAD';
+            if ($tipoNombre === 'PERMISO') return 'PERMISO';
+            if ($tipoNombre === 'CURSOS') return 'CURSOS';
+            if ($tipoNombre === 'FALTA') return 'FALTANDO';
+
+            return 'OTROS';
         }
 
         $turno = $personal->turno;
@@ -54,7 +66,10 @@ class EstadoFuerzaService
             return 'SIN_TURNO';
         }
 
-        if ($turno->tipo_rol === 'SIEMPRE') {
+        $tipoRol = strtoupper(trim((string) $turno->tipo_rol));
+        $nombreTurno = strtoupper(trim((string) ($turno->nombre ?? '')));
+
+        if ($tipoRol === 'SUBDIRECTOR' || str_contains($nombreTurno, 'SUBDIRECTOR')) {
             return 'EN_SERVICIO';
         }
 
@@ -72,11 +87,15 @@ class EstadoFuerzaService
 
             $trabajo = (int) $turno->trabajo_horas;
             $descanso = (int) $turno->descanso_horas;
-
             $ciclo = $trabajo + $descanso;
+
             $pos = $diffHoras % $ciclo;
 
             return ($pos < $trabajo) ? 'EN_SERVICIO' : 'FRANCO';
+        }
+
+        if ($turno->tipo_rol === 'SIEMPRE') {
+            return 'EN_SERVICIO';
         }
 
         return 'SIN_REGLA';

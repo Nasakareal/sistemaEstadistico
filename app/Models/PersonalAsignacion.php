@@ -14,8 +14,6 @@ class PersonalAsignacion extends Model
     protected $fillable = [
         'personal_id',
         'armamento_id',
-        'arma_corta_id',
-        'arma_larga_id',
         'fecha_asignacion',
         'fecha_fin',
         'folio',
@@ -27,8 +25,6 @@ class PersonalAsignacion extends Model
     protected $casts = [
         'personal_id' => 'integer',
         'armamento_id' => 'integer',
-        'arma_corta_id' => 'integer',
-        'arma_larga_id' => 'integer',
         'documento_id' => 'integer',
         'activo' => 'boolean',
         'fecha_asignacion' => 'date',

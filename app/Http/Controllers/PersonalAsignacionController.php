@@ -61,59 +61,7 @@ class PersonalAsignacionController extends Controller
 
             $tipo = strtoupper(trim((string)($arma->tipo ?? '')));
 
-            $data = [
-                'personal_id' => $personal->id,
-                'parque_vehicular_id' => null,
-                'armamento_id' => $arma->id,
-                'arma_corta_id' => null,
-                'arma_larga_id' => null,
-                'fecha_asignacion' => $validated['fecha_asignacion'],
-                'fecha_fin' => null,
-                'folio' => null,
-                'documento_id' => null,
-                'observaciones' => $validated['observaciones'] ?? null,
-                'activo' => 1,
-            ];
-
-            if (str_contains($tipo, 'CORTA')) {
-                $yaTieneCorta = PersonalAsignacion::query()
-                    ->where('personal_id', $personal->id)
-                    ->whereNull('fecha_fin')
-                    ->where('activo', 1)
-                    ->whereNotNull('arma_corta_id')
-                    ->exists();
-
-                if ($yaTieneCorta) {
-                    DB::rollBack();
-                    Log::warning('NO SE PUDO ASIGNAR: ya tiene arma corta activa', [
-                        'personal_id' => $personal->id,
-                        'db' => DB::connection()->getDatabaseName(),
-                    ]);
-                    return back()->withErrors(['armamento_id' => 'Este elemento ya tiene un arma CORTA activa.'])->withInput();
-                }
-
-                $data['arma_corta_id'] = $arma->id;
-
-            } elseif (str_contains($tipo, 'LARGA')) {
-                $yaTieneLarga = PersonalAsignacion::query()
-                    ->where('personal_id', $personal->id)
-                    ->whereNull('fecha_fin')
-                    ->where('activo', 1)
-                    ->whereNotNull('arma_larga_id')
-                    ->exists();
-
-                if ($yaTieneLarga) {
-                    DB::rollBack();
-                    Log::warning('NO SE PUDO ASIGNAR: ya tiene arma larga activa', [
-                        'personal_id' => $personal->id,
-                        'db' => DB::connection()->getDatabaseName(),
-                    ]);
-                    return back()->withErrors(['armamento_id' => 'Este elemento ya tiene un arma LARGA activa.'])->withInput();
-                }
-
-                $data['arma_larga_id'] = $arma->id;
-
-            } else {
+            if (!str_contains($tipo, 'CORTA') && !str_contains($tipo, 'LARGA')) {
                 DB::rollBack();
                 Log::warning('NO SE PUDO ASIGNAR: tipo inválido (se esperaba ARMA CORTA/LARGA)', [
                     'armamento_id' => $arma->id,
@@ -123,6 +71,41 @@ class PersonalAsignacionController extends Controller
                 ]);
                 return back()->withErrors(['armamento_id' => 'El armamento no tiene TIPO válido (ARMA CORTA / ARMA LARGA).'])->withInput();
             }
+
+            $yaTieneMismoTipo = PersonalAsignacion::query()
+                ->join('armamentos', 'armamentos.id', '=', 'personal_asignacions.armamento_id')
+                ->where('personal_asignacions.personal_id', $personal->id)
+                ->whereNull('personal_asignacions.fecha_fin')
+                ->where('personal_asignacions.activo', 1)
+                ->where('armamentos.tipo', $arma->tipo)
+                ->exists();
+
+            if ($yaTieneMismoTipo) {
+                DB::rollBack();
+                $msg = str_contains($tipo, 'CORTA')
+                    ? 'Este elemento ya tiene un arma CORTA activa.'
+                    : 'Este elemento ya tiene un arma LARGA activa.';
+
+                Log::warning('NO SE PUDO ASIGNAR: ya tiene arma del mismo tipo activa', [
+                    'personal_id' => $personal->id,
+                    'armamento_id' => $arma->id,
+                    'tipo' => $arma->tipo,
+                    'db' => DB::connection()->getDatabaseName(),
+                ]);
+
+                return back()->withErrors(['armamento_id' => $msg])->withInput();
+            }
+
+            $data = [
+                'personal_id' => $personal->id,
+                'armamento_id' => $arma->id,
+                'fecha_asignacion' => $validated['fecha_asignacion'],
+                'fecha_fin' => null,
+                'folio' => null,
+                'documento_id' => null,
+                'observaciones' => $validated['observaciones'] ?? null,
+                'activo' => 1,
+            ];
 
             $asig = PersonalAsignacion::create($data);
 
@@ -134,7 +117,6 @@ class PersonalAsignacionController extends Controller
             ]);
 
             return redirect()->route('personal.show', $personal->id)->with('success', 'Armamento asignado correctamente.');
-
         } catch (\Exception $e) {
             DB::rollBack();
 

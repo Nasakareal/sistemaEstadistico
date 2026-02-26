@@ -32,11 +32,15 @@ class PersonalAsignacionController extends Controller
 
             $arma = Armamento::query()
                 ->where('id', $validated['armamento_id'])
-                ->where('estatus', 'ACTIVO')
+                ->whereIn('estatus', ['ACTIVO', '1', 1])
                 ->first();
 
             if (!$arma) {
                 DB::rollBack();
+                Log::warning('NO SE PUDO ASIGNAR: armamento no válido o no ACTIVO', [
+                    'armamento_id' => $validated['armamento_id'],
+                    'db' => DB::connection()->getDatabaseName(),
+                ]);
                 return back()->withErrors(['armamento_id' => 'El armamento seleccionado no es válido o no está ACTIVO.'])->withInput();
             }
 
@@ -48,10 +52,14 @@ class PersonalAsignacionController extends Controller
 
             if ($ocupada) {
                 DB::rollBack();
+                Log::warning('NO SE PUDO ASIGNAR: armamento ya ocupado', [
+                    'armamento_id' => $arma->id,
+                    'db' => DB::connection()->getDatabaseName(),
+                ]);
                 return back()->withErrors(['armamento_id' => 'Ese armamento ya está asignado a otro elemento.'])->withInput();
             }
 
-            $clase = strtoupper((string)($arma->clase ?? ''));
+            $tipo = strtoupper(trim((string)($arma->tipo ?? '')));
 
             $data = [
                 'personal_id' => $personal->id,
@@ -67,7 +75,7 @@ class PersonalAsignacionController extends Controller
                 'activo' => 1,
             ];
 
-            if ($clase === 'CORTA') {
+            if (str_contains($tipo, 'CORTA')) {
                 $yaTieneCorta = PersonalAsignacion::query()
                     ->where('personal_id', $personal->id)
                     ->whereNull('fecha_fin')
@@ -77,11 +85,16 @@ class PersonalAsignacionController extends Controller
 
                 if ($yaTieneCorta) {
                     DB::rollBack();
+                    Log::warning('NO SE PUDO ASIGNAR: ya tiene arma corta activa', [
+                        'personal_id' => $personal->id,
+                        'db' => DB::connection()->getDatabaseName(),
+                    ]);
                     return back()->withErrors(['armamento_id' => 'Este elemento ya tiene un arma CORTA activa.'])->withInput();
                 }
 
                 $data['arma_corta_id'] = $arma->id;
-            } elseif ($clase === 'LARGA') {
+
+            } elseif (str_contains($tipo, 'LARGA')) {
                 $yaTieneLarga = PersonalAsignacion::query()
                     ->where('personal_id', $personal->id)
                     ->whereNull('fecha_fin')
@@ -91,13 +104,24 @@ class PersonalAsignacionController extends Controller
 
                 if ($yaTieneLarga) {
                     DB::rollBack();
+                    Log::warning('NO SE PUDO ASIGNAR: ya tiene arma larga activa', [
+                        'personal_id' => $personal->id,
+                        'db' => DB::connection()->getDatabaseName(),
+                    ]);
                     return back()->withErrors(['armamento_id' => 'Este elemento ya tiene un arma LARGA activa.'])->withInput();
                 }
 
                 $data['arma_larga_id'] = $arma->id;
+
             } else {
                 DB::rollBack();
-                return back()->withErrors(['armamento_id' => 'El armamento no tiene clase válida (CORTA/LARGA).'])->withInput();
+                Log::warning('NO SE PUDO ASIGNAR: tipo inválido (se esperaba ARMA CORTA/LARGA)', [
+                    'armamento_id' => $arma->id,
+                    'tipo' => $arma->tipo,
+                    'clase' => $arma->clase,
+                    'db' => DB::connection()->getDatabaseName(),
+                ]);
+                return back()->withErrors(['armamento_id' => 'El armamento no tiene TIPO válido (ARMA CORTA / ARMA LARGA).'])->withInput();
             }
 
             $asig = PersonalAsignacion::create($data);
@@ -110,6 +134,7 @@ class PersonalAsignacionController extends Controller
             ]);
 
             return redirect()->route('personal.show', $personal->id)->with('success', 'Armamento asignado correctamente.');
+
         } catch (\Exception $e) {
             DB::rollBack();
 

@@ -223,6 +223,24 @@ class EstadoFuerzaSheet
                 case 'FRANCO':
                     $agrupado[$unidad][$categoria]['FRANCOS']++;
                     break;
+                case 'FALTANDO':
+                    $agrupado[$unidad][$categoria]['FALTANDO']++;
+                    break;
+                case 'CURSOS':
+                    $agrupado[$unidad][$categoria]['CURSOS']++;
+                    break;
+                case 'VACACIONES':
+                    $agrupado[$unidad][$categoria]['VACACIONES']++;
+                    break;
+                case 'COMISIONADOS':
+                    $agrupado[$unidad][$categoria]['COMISIONADOS']++;
+                    break;
+                case 'INCAPACIDAD':
+                    $agrupado[$unidad][$categoria]['INCAPACIDAD']++;
+                    break;
+                case 'PERMISO':
+                    $agrupado[$unidad][$categoria]['PERMISO']++;
+                    break;
                 default:
                     $agrupado[$unidad][$categoria]['OTROS']++;
                     break;

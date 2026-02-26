@@ -35,7 +35,17 @@ class EstadoFuerzaService
             : null;
 
         if ($tieneIncidencia) {
-            return 'FUERA_POR_INCIDENCIA';
+            $tipo = strtoupper(trim((string)($tieneIncidencia->tipo ?? '')));
+
+            return match ($tipo) {
+                'COMISION'      => 'COMISIONADOS',
+                'VACACIONES'    => 'VACACIONES',
+                'INCAPACIDAD'   => 'INCAPACIDAD',
+                'PERMISO'       => 'PERMISO',
+                'CURSOS'        => 'CURSOS',
+                'FALTA'         => 'FALTANDO',
+                default         => 'OTROS',
+            };
         }
 
         $turno = $personal->turno;
@@ -44,12 +54,16 @@ class EstadoFuerzaService
             return 'SIN_TURNO';
         }
 
+        if ($turno->tipo_rol === 'SIEMPRE') {
+            return 'EN_SERVICIO';
+        }
+
         if ($turno->tipo_rol === '24X24') {
             if (!$turno->ciclo_inicio || !$turno->trabajo_horas || !$turno->descanso_horas) {
                 return 'SIN_CONFIG_TURNO';
             }
 
-            $inicio = Carbon::parse($turno->ciclo_inicio);
+            $inicio = Carbon::parse($turno->ciclo_inicio, 'America/Mexico_City');
 
             $diffHoras = $inicio->diffInHours($momento, false);
             if ($diffHoras < 0) {
@@ -58,15 +72,11 @@ class EstadoFuerzaService
 
             $trabajo = (int) $turno->trabajo_horas;
             $descanso = (int) $turno->descanso_horas;
-            $ciclo = $trabajo + $descanso;
 
+            $ciclo = $trabajo + $descanso;
             $pos = $diffHoras % $ciclo;
 
             return ($pos < $trabajo) ? 'EN_SERVICIO' : 'FRANCO';
-        }
-
-        if ($turno->tipo_rol === 'SIEMPRE') {
-            return 'EN_SERVICIO';
         }
 
         return 'SIN_REGLA';

@@ -2,10 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\Exports",
-    "\\app\\Services\\Exports\\Sheets"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\riesgo",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Services\\Exports\\Sheets\\EstadoFuerzaVehicularSheet.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

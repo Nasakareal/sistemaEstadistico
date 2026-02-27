@@ -52,13 +52,10 @@ use App\Http\Controllers\BackupsSqlController;
 
 use App\Http\Controllers\ArmamentoController;
 use App\Http\Controllers\PatrullaKilometrajeController;
+use App\Http\Controllers\RadarRiesgoController;
 use App\Http\Controllers\ModuloExamenDiarioController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
-
-Route::get('/riesgo-demo', [\App\Http\Controllers\RiesgoWebController::class, 'index'])->name('riesgo.demo');
-Route::get('/radar-riesgo', [\App\Http\Controllers\RadarRiesgoController::class, 'index'])
-    ->name('radar.riesgo');
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::get('/mapa',[MapaPatrullasController::class,'index'])->name('mapa.index');
@@ -387,6 +384,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::put('/{registro}', [ModuloExamenDiarioController::class, 'update'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.update');
         Route::delete('/{registro}', [ModuloExamenDiarioController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('modulo_examenes_diarios.destroy');
     });
+
+    Route::get('/radar-riesgo', [RadarRiesgoController::class, 'index'])->name('radar.riesgo');
 
     Route::prefix('backups-sql')->middleware(['auth'])->group(function () {
         Route::get('/', [BackupsSqlController::class, 'index'])->name('backups_sql.index');

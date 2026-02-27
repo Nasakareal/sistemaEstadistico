@@ -160,9 +160,25 @@
                 </div>
                 <div class="sv-card__body">
                     <div class="sv-card__title">Exportar 6PM (Prueba)</div>
-                    <div class="sv-card__desc">Genera el Excel local para revisar (EST. FUR).</div>
+                    <div class="sv-card__desc">Genera el Excel local para revisar.</div>
                     <a href="{{ route('settings.exports.estado_fuerza') }}" class="btn sv-btn">
                         <i class="fas fa-download"></i> Generar Excel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {{-- RADAR RIESGO --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-info">
+                    <i class="fa-solid fa-radar"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Radar de Riesgo</div>
+                    <div class="sv-card__desc">Mapa/consulta de zonas con mayor incidencia.</div>
+                    <a href="{{ route('radar.riesgo') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
                     </a>
                 </div>
             </div>

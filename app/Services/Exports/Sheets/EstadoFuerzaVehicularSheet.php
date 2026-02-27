@@ -112,12 +112,7 @@ class EstadoFuerzaVehicularSheet
 
         $patrullas = Patrulla::with('unidad')->get();
 
-        $vehiculos = [];
-        foreach ($patrullas as $p) {
-            $vehiculos[$this->vehiculoLabel($p)] = true;
-        }
-        $vehiculos = array_keys($vehiculos);
-        sort($vehiculos);
+        $vehiculos = $this->vehiculosOficiales();
 
         $startRow = 2;
 
@@ -180,6 +175,22 @@ class EstadoFuerzaVehicularSheet
         return $sheet;
     }
 
+    protected function vehiculosOficiales(): array
+    {
+        return [
+            'CHARGER',
+            'FORD 150',
+            'CAMIONETA F250',
+            'RAM DODGE 1500',
+            'JEEP PATRIOT',
+            'ECO SPORT',
+            'TSURU',
+            'PLATINA',
+            'KAWASAKY KLR650',
+            'KAWASAKY ER-6N',
+        ];
+    }
+
     protected function buildRows(iterable $patrullas, array $vehiculos, callable $filter): array
     {
         $rows = [];
@@ -191,23 +202,72 @@ class EstadoFuerzaVehicularSheet
             if ($p->unidad) {
                 $area = (string)($p->unidad->nombre ?? $p->unidad->name ?? 'SIN_AREA');
             }
+            $area = $this->norm($area);
 
-            $veh = $this->vehiculoLabel($p);
+            $veh = $this->vehiculoOficial($p);
+            if ($veh === null) {
+                continue;
+            }
 
             if (!isset($rows[$area])) {
                 $rows[$area] = array_fill_keys($vehiculos, 0);
             }
 
-            if (!array_key_exists($veh, $rows[$area])) {
-                $rows[$area][$veh] = 0;
-            }
-
-            $rows[$area][$veh] += 1;
+            $rows[$area][$veh] = (int)($rows[$area][$veh] ?? 0) + 1;
         }
 
         ksort($rows);
 
         return $rows;
+    }
+
+    protected function vehiculoOficial($p): ?string
+    {
+        $marca = $this->norm($p->marca ?? '');
+        $linea = $this->norm($p->linea ?? '');
+        $modelo = $this->norm($p->modelo ?? '');
+        $tipo  = $this->norm($p->tipo ?? '');
+
+        if ($marca === 'DODGE' && $linea === 'CHARGER') {
+            return 'CHARGER';
+        }
+
+        if ($marca === 'DODGE' && $linea === 'RAM') {
+            return 'RAM DODGE 1500';
+        }
+
+        if ($marca === 'JEEP' && $linea === 'PATRIOT') {
+            return 'JEEP PATRIOT';
+        }
+
+        if ($marca === 'FORD') {
+            if ($linea === 'F150' || $linea === '150' || $linea === 'F-150' || $linea === 'F 150') {
+                return 'FORD 150';
+            }
+            if ($linea === 'F250' || $linea === '250' || $linea === 'F-250' || $linea === 'F 250') {
+                return 'CAMIONETA F250';
+            }
+            if ($linea === 'ECOSPORT' || $linea === 'ECO SPORT') {
+                return 'ECO SPORT';
+            }
+        }
+
+        if ($marca === 'NISSAN') {
+            if ($linea === 'TSURU') return 'TSURU';
+            if ($linea === 'PLATINA') return 'PLATINA';
+        }
+
+        if ($marca === 'KAWASAKI' || $marca === 'KAWASASKI') {
+            if ($linea === 'KLR650' || $linea === 'KLR 650') return 'KAWASAKY KLR650';
+            if ($linea === 'ER-6N' || $linea === 'ER6N' || $linea === 'ER 6N') return 'KAWASAKY ER-6N';
+        }
+
+        if ($tipo === 'MOTO') {
+            if ($linea === 'KLR650' || $linea === 'KLR 650') return 'KAWASAKY KLR650';
+            if ($linea === 'ER-6N' || $linea === 'ER6N' || $linea === 'ER 6N') return 'KAWASAKY ER-6N';
+        }
+
+        return null;
     }
 
     protected function renderSection(
@@ -301,22 +361,13 @@ class EstadoFuerzaVehicularSheet
         return $r - 1;
     }
 
-    protected function vehiculoLabel($p): string
+    protected function norm($s): string
     {
-        $tipo = trim((string)($p->tipo ?? ''));
-        if ($tipo !== '') return mb_strtoupper($tipo);
-
-        $marca = trim((string)($p->marca ?? ''));
-        $linea = trim((string)($p->linea ?? ''));
-        $modelo = trim((string)($p->modelo ?? ''));
-
-        $mix = trim(($marca ? $marca . ' ' : '') . ($linea ? $linea . ' ' : '') . $modelo);
-        if ($mix !== '') return mb_strtoupper($mix);
-
-        $num = trim((string)($p->numero_economico ?? ''));
-        if ($num !== '') return mb_strtoupper($num);
-
-        return 'SIN_TIPO';
+        $s = trim((string)$s);
+        if ($s === '') return '';
+        $s = mb_strtoupper($s);
+        $s = preg_replace('/\s+/', ' ', $s);
+        return $s;
     }
 
     protected function colLetter(int $index): string

@@ -45,6 +45,6 @@ class RadarRiesgoController extends Controller
             ->sortByDesc('score')
             ->take(20);
 
-        return view('riesgo.radar', compact('data'));
+        return view('admin.settings.riesgo.radar', compact('data'));
     }
 }

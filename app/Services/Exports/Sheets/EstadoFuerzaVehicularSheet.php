@@ -170,7 +170,7 @@ class EstadoFuerzaVehicularSheet
         );
 
         $sheet->getColumnDimension('B')->setWidth(20);
-        $col = 3; // C
+        $col = 3;
         foreach ($vehiculos as $_) {
             $sheet->getColumnDimension($this->colLetter($col))->setWidth(14);
             $col++;
@@ -180,7 +180,7 @@ class EstadoFuerzaVehicularSheet
         return $sheet;
     }
 
-    protected function buildRows(array $patrullas, array $vehiculos, callable $filter): array
+    protected function buildRows(iterable $patrullas, array $vehiculos, callable $filter): array
     {
         $rows = [];
 
@@ -228,12 +228,12 @@ class EstadoFuerzaVehicularSheet
         $fechaLabelCell = 'B' . $topRow;
         $fechaValueCell = 'C' . $topRow;
 
-        $firstVehColIndex = 3; // C
-        $totalColIndex = $firstVehColIndex + count($vehiculos); // despues de vehiculos
+        $firstVehColIndex = 3;
+        $totalColIndex = $firstVehColIndex + count($vehiculos);
         $totalColLetter = $this->colLetter($totalColIndex);
 
         $titleStart = 'D' . $topRow;
-        $titleStartIndex = 4; // D
+        $titleStartIndex = 4;
         $titleEndIndex = max($titleStartIndex, $totalColIndex);
         $titleEnd = $this->colLetter($titleEndIndex) . $topRow;
 

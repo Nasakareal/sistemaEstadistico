@@ -53,9 +53,19 @@ class EstadisticasGlobalesController extends Controller
             $totalVehiculos = (clone $vehQ)->distinct('vehiculos.id')->count('vehiculos.id');
 
             $totalLesionados = 0;
+            $totalFallecidos = 0;
+
             if ($this->hasTable('lesionados')) {
-                $totalLesionados = (int) DB::table('lesionados')
-                    ->whereIn('lesionados.hecho_id', $hechosIdsSub)
+
+                $baseLes = DB::table('lesionados')
+                    ->whereIn('lesionados.hecho_id', $hechosIdsSub);
+
+                $totalFallecidos = (int) (clone $baseLes)
+                    ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) = 'FALLECIDO'")
+                    ->count('lesionados.id');
+
+                $totalLesionados = (int) (clone $baseLes)
+                    ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) <> 'FALLECIDO'")
                     ->count('lesionados.id');
             }
 
@@ -75,7 +85,8 @@ class EstadisticasGlobalesController extends Controller
             return [
                 'totales' => [
                     'hechos' => (int)$totalHechos,
-                    'lesionados' => (int)$totalLesionados,
+                    'lesionados'  => (int)$totalLesionados,
+                    'fallecidos'  => (int)$totalFallecidos,
                     'vehiculos' => (int)$totalVehiculos,
                 ],
                 'top' => [
@@ -122,6 +133,8 @@ class EstadisticasGlobalesController extends Controller
             $group = $this->grouping($request);
 
             $q = $this->baseLesionadosQuery($request);
+
+            $q->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) <> 'FALLECIDO'");
 
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);

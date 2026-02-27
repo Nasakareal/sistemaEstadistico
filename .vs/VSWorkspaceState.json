@@ -4,9 +4,9 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\estadisticas_globales"
   ],
-  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppLink.php",
   "PreviewInSolutionExplorer": false
 }

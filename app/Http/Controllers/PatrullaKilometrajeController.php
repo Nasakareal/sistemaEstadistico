@@ -18,7 +18,12 @@ class PatrullaKilometrajeController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return view('admin.settings.patrullas.kilometrajes.index', compact('patrulla', 'kilometrajes'));
+        $patrullas = Patrulla::query()
+            ->select('id', 'numero_economico')
+            ->orderBy('numero_economico')
+            ->get();
+
+        return view('admin.settings.patrullas.kilometrajes.index', compact('patrulla', 'kilometrajes', 'patrullas'));
     }
 
     public function create(Patrulla $patrulla)

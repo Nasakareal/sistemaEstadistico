@@ -133,7 +133,7 @@
 
     {{-- KPIs --}}
     <div class="row">
-        <div class="col-md-4 col-12">
+        <div class="col-md-3 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-navy"><i class="fa-solid fa-car-burst"></i></div>
                 <div class="sv-kpi__body">
@@ -143,7 +143,7 @@
             </div>
         </div>
 
-        <div class="col-md-4 col-12">
+        <div class="col-md-3 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-maroon"><i class="fa-solid fa-user-injured"></i></div>
                 <div class="sv-kpi__body">
@@ -153,7 +153,17 @@
             </div>
         </div>
 
-        <div class="col-md-4 col-12">
+        <div class="col-md-3 col-12">
+            <div class="sv-kpi">
+                <div class="sv-kpi__icon bg-danger"><i class="fa-solid fa-skull-crossbones"></i></div>
+                <div class="sv-kpi__body">
+                    <div class="sv-kpi__label">Fallecidos</div>
+                    <div class="sv-kpi__value" id="k_fallecidos">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-teal"><i class="fa-solid fa-car-side"></i></div>
                 <div class="sv-kpi__body">
@@ -460,6 +470,7 @@
         if (el('k_hechos')) el('k_hechos').textContent = (k.totales?.hechos ?? 0);
         if (el('k_lesionados')) el('k_lesionados').textContent = (k.totales?.lesionados ?? 0);
         if (el('k_vehiculos')) el('k_vehiculos').textContent = (k.totales?.vehiculos ?? 0);
+        if (el('k_fallecidos')) el('k_fallecidos').textContent = (k.totales?.fallecidos ?? 0);
 
         const distSector = await getJson('series/sector');
         fillSelect('f_sector', distSector.series || []);

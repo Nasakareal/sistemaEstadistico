@@ -12,17 +12,29 @@
             <div class="card card-outline card-primary">
                 <div class="card-header">
                     <h3 class="card-title">Historial de Kilometraje</h3>
-                    <div class="card-tools">
+
+                    <div class="card-tools d-flex align-items-center" style="gap:10px;">
+
+                        {{-- SELECT PARA CAMBIAR DE PATRULLA --}}
+                        <div class="d-inline-block">
+                            <select id="patrulla_select" class="form-control form-control-sm" style="min-width: 220px;">
+                                @foreach ($patrullas as $p)
+                                    <option value="{{ $p->id }}" {{ (int)$p->id === (int)$patrulla->id ? 'selected' : '' }}>
+                                        {{ $p->numero_economico }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
 
                         @can('crear kilometrajes patrullas')
                             <a href="{{ route('patrullas.kilometrajes.create', $patrulla->id) }}"
-                               class="btn btn-primary">
+                               class="btn btn-primary btn-sm">
                                 <i class="fa-solid fa-plus"></i> Nuevo Registro
                             </a>
                         @endcan
 
                         <a href="{{ route('patrullas.show', $patrulla->id) }}"
-                           class="btn btn-secondary">
+                           class="btn btn-secondary btn-sm">
                             <i class="fa-solid fa-arrow-left"></i> Volver
                         </a>
 
@@ -142,6 +154,12 @@
                 { extend: 'colvis', text: 'Visor de columnas' }
             ],
         }).buttons().container().appendTo('#kilometrajes_wrapper .col-md-6:eq(0)');
+
+        $('#patrulla_select').on('change', function () {
+            const patrullaId = $(this).val();
+            if (!patrullaId) return;
+            window.location.href = "{{ url('/admin/settings/patrullas') }}/" + patrullaId + "/kilometrajes";
+        });
     });
 
     @if (session('success'))

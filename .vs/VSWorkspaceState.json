@@ -4,9 +4,9 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views"
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HomeController.php",
+  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppLink.php",
   "PreviewInSolutionExplorer": false
 }

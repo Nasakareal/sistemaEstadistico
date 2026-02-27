@@ -8,9 +8,11 @@
     "\\resources\\views",
     "\\resources\\views\\admin",
     "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\patrullas",
+    "\\resources\\views\\admin\\settings\\patrullas\\kilometrajes",
     "\\resources\\views\\admin\\settings\\riesgo",
     "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\PatrullaKilometrajeController.php",
   "PreviewInSolutionExplorer": false
 }

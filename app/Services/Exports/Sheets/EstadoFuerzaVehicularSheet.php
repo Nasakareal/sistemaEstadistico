@@ -186,8 +186,10 @@ class EstadoFuerzaVehicularSheet
             'ECO SPORT',
             'TSURU',
             'PLATINA',
+            'JETTA',
             'KAWASAKY KLR650',
             'KAWASAKY ER-6N',
+            'CF 800EXPLORER',
         ];
     }
 
@@ -198,11 +200,16 @@ class EstadoFuerzaVehicularSheet
         foreach ($patrullas as $p) {
             if (!$filter($p)) continue;
 
-            $area = 'SIN_AREA';
-            if ($p->unidad) {
-                $area = (string)($p->unidad->nombre ?? $p->unidad->name ?? 'SIN_AREA');
+            if (!$p->unidad) continue;
+
+            $unidadSlug = $this->norm($p->unidad->slug ?? '');
+            $unidadNombre = $this->norm($p->unidad->nombre ?? $p->unidad->name ?? '');
+
+            if ($unidadSlug !== 'SINIESTROS' && $unidadNombre !== 'SINIESTROS') {
+                continue;
             }
-            $area = $this->norm($area);
+
+            $area = 'SINIESTROS';
 
             $veh = $this->vehiculoOficial($p);
             if ($veh === null) {
@@ -240,6 +247,10 @@ class EstadoFuerzaVehicularSheet
             return 'JEEP PATRIOT';
         }
 
+        if ($marca === 'VOLKSWAGEN' && $linea === 'JETTA') {
+            return 'JETTA';
+        }
+
         if ($marca === 'FORD') {
             if ($linea === 'F150' || $linea === '150' || $linea === 'F-150' || $linea === 'F 150') {
                 return 'FORD 150';
@@ -262,9 +273,14 @@ class EstadoFuerzaVehicularSheet
             if ($linea === 'ER-6N' || $linea === 'ER6N' || $linea === 'ER 6N') return 'KAWASAKY ER-6N';
         }
 
+        if ($marca === 'CF' || $marca === 'CFMOTO' || $marca === 'CF MOTO') {
+            if ($linea === '800EXPLORER' || $linea === '800 EXPLORER') return 'CF 800EXPLORER';
+        }
+
         if ($tipo === 'MOTO') {
             if ($linea === 'KLR650' || $linea === 'KLR 650') return 'KAWASAKY KLR650';
             if ($linea === 'ER-6N' || $linea === 'ER6N' || $linea === 'ER 6N') return 'KAWASAKY ER-6N';
+            if ($linea === '800EXPLORER' || $linea === '800 EXPLORER') return 'CF 800EXPLORER';
         }
 
         return null;

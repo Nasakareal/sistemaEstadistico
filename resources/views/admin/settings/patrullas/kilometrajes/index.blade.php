@@ -158,7 +158,9 @@
         $('#patrulla_select').on('change', function () {
             const patrullaId = $(this).val();
             if (!patrullaId) return;
-            window.location.href = "{{ url('/admin/settings/patrullas') }}/" + patrullaId + "/kilometrajes";
+
+            const tpl = @json(route('patrullas.kilometrajes.index', ['patrulla' => ':id']));
+            window.location.href = tpl.replace(':id', patrullaId);
         });
     });
 

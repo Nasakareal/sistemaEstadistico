@@ -17,9 +17,18 @@
 
                         {{-- SELECT PARA CAMBIAR DE PATRULLA --}}
                         <div class="d-inline-block">
-                            <select id="patrulla_select" class="form-control form-control-sm" style="min-width: 220px;">
+                            <select
+                                id="patrulla_select"
+                                class="form-control form-control-sm"
+                                style="min-width: 220px;"
+                                onchange="if(this.value){ window.location.href = this.options[this.selectedIndex].dataset.url; }"
+                            >
                                 @foreach ($patrullas as $p)
-                                    <option value="{{ $p->id }}" {{ (int)$p->id === (int)$patrulla->id ? 'selected' : '' }}>
+                                    <option
+                                        value="{{ $p->id }}"
+                                        data-url="{{ route('patrullas.kilometrajes.index', $p->id) }}"
+                                        {{ (int)$p->id === (int)$patrulla->id ? 'selected' : '' }}
+                                    >
                                         {{ $p->numero_economico }}
                                     </option>
                                 @endforeach

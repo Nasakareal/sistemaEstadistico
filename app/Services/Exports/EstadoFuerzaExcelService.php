@@ -4,6 +4,7 @@ namespace App\Services\Exports;
 
 use App\Services\Exports\Sheets\EstadoFuerzaSheet;
 use App\Services\Exports\Sheets\EstadoFuerzaVehicularSheet;
+use App\Services\Exports\Sheets\EstadoFuerzaArmamentoSheet;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -12,13 +13,16 @@ class EstadoFuerzaExcelService
 {
     protected EstadoFuerzaSheet $estadoFuerzaSheet;
     protected EstadoFuerzaVehicularSheet $estadoFuerzaVehicularSheet;
+    protected EstadoFuerzaArmamentoSheet $estadoFuerzaArmamentoSheet;
 
     public function __construct(
         EstadoFuerzaSheet $estadoFuerzaSheet,
-        EstadoFuerzaVehicularSheet $estadoFuerzaVehicularSheet
+        EstadoFuerzaVehicularSheet $estadoFuerzaVehicularSheet,
+        EstadoFuerzaArmamentoSheet $estadoFuerzaArmamentoSheet
     ) {
         $this->estadoFuerzaSheet = $estadoFuerzaSheet;
         $this->estadoFuerzaVehicularSheet = $estadoFuerzaVehicularSheet;
+        $this->estadoFuerzaArmamentoSheet = $estadoFuerzaArmamentoSheet;
     }
 
     public function generar(?Carbon $corte = null): string
@@ -34,6 +38,7 @@ class EstadoFuerzaExcelService
 
         $this->estadoFuerzaSheet->build($spreadsheet, $corte);
         $this->estadoFuerzaVehicularSheet->build($spreadsheet, $corte);
+        $this->estadoFuerzaArmamentoSheet->build($spreadsheet, $corte);
 
         $spreadsheet->setActiveSheetIndex(0);
 

@@ -5,6 +5,9 @@ namespace App\Services\Exports;
 use App\Services\Exports\Sheets\EstadoFuerzaSheet;
 use App\Services\Exports\Sheets\EstadoFuerzaVehicularSheet;
 use App\Services\Exports\Sheets\EstadoFuerzaArmamentoSheet;
+use App\Services\Exports\Sheets\CarruselSheet;
+use App\Services\Exports\Sheets\OperativosSheet;
+use App\Services\Exports\Sheets\TotalSheet;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -14,15 +17,24 @@ class EstadoFuerzaExcelService
     protected EstadoFuerzaSheet $estadoFuerzaSheet;
     protected EstadoFuerzaVehicularSheet $estadoFuerzaVehicularSheet;
     protected EstadoFuerzaArmamentoSheet $estadoFuerzaArmamentoSheet;
+    protected CarruselSheet $carruselSheet;
+    protected OperativosSheet $operativosSheet;
+    protected TotalSheet $totalSheet;
 
     public function __construct(
         EstadoFuerzaSheet $estadoFuerzaSheet,
         EstadoFuerzaVehicularSheet $estadoFuerzaVehicularSheet,
-        EstadoFuerzaArmamentoSheet $estadoFuerzaArmamentoSheet
+        EstadoFuerzaArmamentoSheet $estadoFuerzaArmamentoSheet,
+        CarruselSheet $carruselSheet,
+        OperativosSheet $operativosSheet,
+        TotalSheet $totalSheet
     ) {
         $this->estadoFuerzaSheet = $estadoFuerzaSheet;
         $this->estadoFuerzaVehicularSheet = $estadoFuerzaVehicularSheet;
         $this->estadoFuerzaArmamentoSheet = $estadoFuerzaArmamentoSheet;
+        $this->carruselSheet = $carruselSheet;
+        $this->operativosSheet = $operativosSheet;
+        $this->totalSheet = $totalSheet;
     }
 
     public function generar(?Carbon $corte = null): string
@@ -39,6 +51,10 @@ class EstadoFuerzaExcelService
         $this->estadoFuerzaSheet->build($spreadsheet, $corte);
         $this->estadoFuerzaVehicularSheet->build($spreadsheet, $corte);
         $this->estadoFuerzaArmamentoSheet->build($spreadsheet, $corte);
+        $this->carruselSheet->build($spreadsheet, $corte);
+
+        $this->operativosSheet->build($spreadsheet, $corte);
+        $this->totalSheet->build($spreadsheet, $corte);
 
         $spreadsheet->setActiveSheetIndex(0);
 

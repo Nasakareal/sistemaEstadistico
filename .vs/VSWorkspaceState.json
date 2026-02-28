@@ -2,10 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\Exports",
-    "\\app\\Services\\Exports\\Sheets"
+    "\\config",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\patrullas",
+    "\\resources\\views\\vendor",
+    "\\resources\\views\\vendor\\adminlte"
   ],
-  "SelectedNode": "\\app\\Services\\Exports\\EstadoFuerzaExcelService.php",
+  "SelectedNode": "\\config\\adminlte.php",
   "PreviewInSolutionExplorer": false
 }

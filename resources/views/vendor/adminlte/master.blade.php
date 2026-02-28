@@ -13,28 +13,20 @@
 
     <title>
         @yield('title_prefix', config('adminlte.title_prefix', ''))
-        @yield('title', config('adminlte.title', 'AdminLTE 3'))
+        @yield('title', config('adminlte.title', 'Seguridad Vial'))
         @yield('title_postfix', config('adminlte.title_postfix', ''))
     </title>
 
     @if(config('adminlte.enabled_laravel_mix', false))
         <link rel="stylesheet" href="{{ mix(config('adminlte.laravel_mix_css_path', 'css/app.css')) }}">
     @else
-        <link rel="stylesheet" href="{{ asset('vendor/fontawesome-free/css/all.min.css') }}">
         <link rel="stylesheet" href="{{ asset('vendor/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
         <link rel="stylesheet" href="{{ asset('vendor/adminlte/dist/css/adminlte.min.css') }}">
     @endif
 
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.dataTables.min.css">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    @if(config('adminlte.google_fonts.allowed', true))
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
-    @endif
 
     @include('adminlte::plugins', ['type' => 'css'])
 
@@ -90,7 +82,7 @@
         }
         .main-header .nav-link{
             color: rgba(234,240,255,.82) !important;
-            font-weight: 700;
+            font-weight: 800;
         }
         .main-header .nav-link:hover{
             color: rgba(234,240,255,.95) !important;
@@ -132,31 +124,118 @@
             letter-spacing: .2px;
         }
 
-        .nav-sidebar .nav-link{
-            border-radius: 14px !important;
-            margin: 6px 10px !important;
-            color: rgba(234,240,255,.78) !important;
-            transition: .18s ease;
-        }
-        .nav-sidebar .nav-link:hover{
-            background: rgba(255,255,255,.06) !important;
-            color: rgba(234,240,255,.92) !important;
-            transform: translateY(-1px);
-        }
-        .nav-sidebar .nav-link.active{
-            background: linear-gradient(135deg, rgba(45,168,255,.18), rgba(124,92,255,.14)) !important;
-            border: 1px solid rgba(255,255,255,.12) !important;
-            color: rgba(234,240,255,.95) !important;
-        }
-        .nav-sidebar .nav-treeview{
-            padding-left: 6px !important;
-        }
-        .nav-sidebar .nav-treeview .nav-link{
-            margin: 6px 10px 6px 18px !important;
-            border-radius: 12px !important;
-            background: rgba(0,0,0,.10) !important;
-            border: 1px solid rgba(255,255,255,.08) !important;
-        }
+        .nav-sidebar{
+    padding-top: 6px !important;
+}
+
+.nav-sidebar .nav-item{
+    margin: 6px 10px !important;
+}
+
+.nav-sidebar .nav-link{
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    margin: 0 !important;
+    background: rgba(0,0,0,.12) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    color: rgba(234,240,255,.92) !important;
+    transition: .18s ease !important;
+}
+
+.nav-sidebar .nav-link:hover{
+    transform: translateY(-1px);
+    background: rgba(255,255,255,.06) !important;
+    border-color: rgba(255,255,255,.14) !important;
+    color: rgba(234,240,255,.95) !important;
+}
+
+.nav-sidebar .nav-link.active{
+    background: linear-gradient(135deg, rgba(45,168,255,.35), rgba(124,92,255,.24)) !important;
+    border-color: rgba(45,168,255,.35) !important;
+    color: rgba(234,240,255,.98) !important;
+}
+
+.nav-sidebar .nav-link > i{
+    width: 28px !important;
+    height: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    margin: 0 !important;
+    font-size: 15px !important;
+    flex: 0 0 auto !important;
+}
+
+.nav-sidebar .nav-link p{
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    font-weight: 900 !important;
+    letter-spacing: .15px !important;
+    white-space: nowrap !important;
+    font-size: 14px !important;
+}
+
+.nav-sidebar .nav-link p i.right{
+    display: none !important;
+}
+
+.nav-sidebar .nav-link p::after{
+    content: "›";
+    font-size: 20px;
+    line-height: 1;
+    opacity: .85;
+    margin-left: 10px;
+    transform: translateY(-1px);
+}
+
+.nav-sidebar .menu-open > .nav-link p::after{
+    content: "⌄";
+    font-size: 16px;
+    transform: translateY(-1px);
+}
+
+.nav-sidebar .nav-treeview{
+    padding-left: 0 !important;
+    margin: 6px 0 0 0 !important;
+    border-top: 1px solid rgba(255,255,255,.08) !important;
+}
+
+.nav-sidebar .nav-treeview .nav-item{
+    margin: 6px 0 0 0 !important;
+}
+
+.nav-sidebar .nav-treeview .nav-link{
+    margin: 0 0 0 10px !important;
+    padding: 9px 12px !important;
+    border-radius: 13px !important;
+    background: rgba(0,0,0,.10) !important;
+}
+
+.nav-sidebar .nav-treeview .nav-link > i{
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 14px !important;
+}
+
+.badge.right{
+    position: static !important;
+    margin-left: 8px !important;
+    padding: 3px 8px !important;
+    border-radius: 999px !important;
+    font-weight: 900 !important;
+    font-size: 12px !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    background: rgba(0,0,0,.18) !important;
+}
 
         .card{
             background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)) !important;
@@ -174,7 +253,7 @@
 
         .btn{
             border-radius: 14px !important;
-            font-weight: 800 !important;
+            font-weight: 900 !important;
         }
         .btn-primary{
             border: 1px solid rgba(45,168,255,.35) !important;
@@ -199,7 +278,7 @@
             border-color: rgba(45,168,255,.45) !important;
             background: rgba(0,0,0,.22) !important;
         }
-        label{ color: rgba(234,240,255,.78) !important; font-weight: 700; }
+        label{ color: rgba(234,240,255,.78) !important; font-weight: 800; }
 
         input[type="date"].form-control::-webkit-calendar-picker-indicator{
             filter: invert(1);
@@ -207,15 +286,15 @@
             cursor: pointer;
         }
 
-        .table, table.dataTable{
+        .table{
             color: rgba(234,240,255,.90) !important;
         }
-        .table thead th, table.dataTable thead th{
+        .table thead th{
             background: rgba(0,0,0,.18) !important;
             border-bottom: 1px solid rgba(255,255,255,.12) !important;
             color: rgba(234,240,255,.92) !important;
         }
-        .table td, .table th, table.dataTable td, table.dataTable th{
+        .table td, .table th{
             border-top: 1px solid rgba(255,255,255,.08) !important;
         }
         .table-striped tbody tr:nth-of-type(odd){
@@ -228,29 +307,6 @@
         .table-hover tbody tr:hover th,
         .table-hover tbody tr:hover a{
             color: rgba(234,240,255,.95) !important;
-        }
-
-        .dataTables_wrapper .dataTables_filter input,
-        .dataTables_wrapper .dataTables_length select{
-            background: rgba(0,0,0,.18) !important;
-            border: 1px solid rgba(255,255,255,.12) !important;
-            color: rgba(234,240,255,.92) !important;
-            border-radius: 14px !important;
-            outline: none !important;
-        }
-        .dataTables_wrapper .dataTables_info,
-        .dataTables_wrapper .dataTables_paginate{
-            color: rgba(234,240,255,.70) !important;
-        }
-        .dataTables_wrapper .dataTables_paginate .paginate_button{
-            color: rgba(234,240,255,.85) !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(255,255,255,.10) !important;
-            background: rgba(0,0,0,.12) !important;
-        }
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current{
-            background: linear-gradient(135deg, rgba(45,168,255,.22), rgba(124,92,255,.18)) !important;
-            border-color: rgba(255,255,255,.14) !important;
         }
 
         .alert{
@@ -278,7 +334,7 @@
             border: 1px solid rgba(255,255,255,.10) !important;
             border-radius: 14px !important;
         }
-        .breadcrumb-item a{ color: rgba(234,240,255,.78) !important; font-weight: 700; }
+        .breadcrumb-item a{ color: rgba(234,240,255,.78) !important; font-weight: 800; }
         .breadcrumb-item.active{ color: rgba(234,240,255,.92) !important; }
 
         .content-header h1{
@@ -302,14 +358,6 @@
         <script src="{{ asset('vendor/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>
         <script src="{{ asset('vendor/adminlte/dist/js/adminlte.min.js') }}"></script>
     @endif
-
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.print.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     @include('adminlte::plugins', ['type' => 'js'])
 

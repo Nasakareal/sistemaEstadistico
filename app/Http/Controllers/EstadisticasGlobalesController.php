@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Services\Exports\EstadisticaMensualExporter;
+use Illuminate\Support\Str;
 
 class EstadisticasGlobalesController extends Controller
 {
@@ -25,6 +26,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($baseHechos, $request);
             $this->applyVehiculoFiltersToHechos($baseHechos, $request);
             $this->applyLesionadosFilterToHechos($baseHechos, $request);
+            $this->applyFallecidosFilterToHechos($baseHechos, $request);
 
             $hechosIdsSub = (clone $baseHechos)->select('hechos.id')->distinct();
 
@@ -42,7 +44,16 @@ class EstadisticasGlobalesController extends Controller
             $vehPlacas = trim((string)$request->query('veh_placas', ''));
             $vehSerie  = trim((string)$request->query('veh_serie', ''));
 
-            if ($vehTipo !== '')   $vehQ->where('vehiculos.tipo', $vehTipo);
+            if ($vehTipo !== '') {
+                $carrocerias = $this->carroceriasFromTipoGeneral($vehTipo);
+
+                if (!empty($carrocerias)) {
+                    $vehQ->whereIn('vehiculos.tipo', $carrocerias);
+                } else {
+                    $vehQ->where('vehiculos.tipo', $vehTipo);
+                }
+            }
+
             if ($vehMarca !== '')  $vehQ->where('vehiculos.marca', $vehMarca);
             if ($vehModelo !== '') $vehQ->where('vehiculos.modelo', $vehModelo);
             if ($vehLinea !== '')  $vehQ->where('vehiculos.linea', $vehLinea);
@@ -106,6 +117,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
+            $this->applyFallecidosFilterToHechos($q, $request);
 
             if ($group === 'month') {
                 $rows = $q->selectRaw("DATE_FORMAT(hechos.fecha, '%Y-%m-01') as x, COUNT(DISTINCT hechos.id) as y")
@@ -139,6 +151,8 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
+            $this->applyFallecidosFilterToHechos($q, $request);
+
             $val = trim((string)$request->query('con_lesionados', ''));
             if ($val === '0') {
                 return ['group' => $group, 'series' => []];
@@ -173,13 +187,26 @@ class EstadisticasGlobalesController extends Controller
         return $this->cachedJson($request, 'seriesVehiculosTipo', function () use ($request) {
             $q = $this->baseVehiculosQuery($request);
 
-            $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT vehiculos.id) as total")
+            $raw = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT vehiculos.id) as total")
                 ->groupBy('label')
                 ->orderByDesc('total')
-                ->limit(50)
+                ->limit(200)
                 ->get();
 
-            return ['field' => 'vehiculos.tipo', 'series' => $rows];
+            $acc = [];
+            foreach ($raw as $r) {
+                $general = $this->tipoGeneralFromTipo((string)($r->label ?? ''));
+                $acc[$general] = ($acc[$general] ?? 0) + (int)($r->total ?? 0);
+            }
+
+            arsort($acc);
+
+            $rows = [];
+            foreach ($acc as $label => $total) {
+                $rows[] = ['label' => $label, 'total' => (int)$total];
+            }
+
+            return ['field' => 'vehiculos.tipo_general', 'series' => array_slice($rows, 0, 50)];
         });
     }
 
@@ -223,6 +250,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
+            $this->applyFallecidosFilterToHechos($q, $request);
 
             $q->select('hechos.*')
               ->distinct()
@@ -240,6 +268,7 @@ class EstadisticasGlobalesController extends Controller
         $this->applySearchFilter($q, $request);
         $this->applyVehiculoFiltersToHechos($q, $request);
         $this->applyLesionadosFilterToHechos($q, $request);
+        $this->applyFallecidosFilterToHechos($q, $request);
 
         $q->select([
             'hechos.id',
@@ -327,6 +356,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
+            $this->applyFallecidosFilterToHechos($q, $request);
 
             $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(hechos.$field), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT hechos.id) as total")
                 ->groupBy('label')
@@ -363,13 +393,23 @@ class EstadisticasGlobalesController extends Controller
         $vehPlacas = trim((string)$request->query('veh_placas', ''));
         $vehSerie  = trim((string)$request->query('veh_serie', ''));
 
-        if ($vehTipo !== '')   $q->where('vehiculos.tipo', $vehTipo);
+        if ($vehTipo !== '') {
+            $carrocerias = $this->carroceriasFromTipoGeneral($vehTipo);
+
+            if (!empty($carrocerias)) {
+                $q->whereIn('vehiculos.tipo', $carrocerias);
+            } else {
+                $q->where('vehiculos.tipo', $vehTipo);
+            }
+        }
         if ($vehMarca !== '')  $q->where('vehiculos.marca', $vehMarca);
         if ($vehModelo !== '') $q->where('vehiculos.modelo', $vehModelo);
         if ($vehLinea !== '')  $q->where('vehiculos.linea', $vehLinea);
         if ($vehColor !== '')  $q->where('vehiculos.color', $vehColor);
         if ($vehPlacas !== '') $q->where('vehiculos.placas', 'like', "%$vehPlacas%");
         if ($vehSerie !== '')  $q->where('vehiculos.serie', 'like', "%$vehSerie%");
+
+        $this->applyFallecidosFilterToHechos($q, $request);
 
         return $q;
     }
@@ -454,7 +494,15 @@ class EstadisticasGlobalesController extends Controller
             $this->vehiculosJoined = true;
         }
 
-        if ($vehTipo !== '')   $q->where('vehiculos.tipo', $vehTipo);
+        if ($vehTipo !== '') {
+            $carrocerias = $this->carroceriasFromTipoGeneral($vehTipo);
+
+            if (!empty($carrocerias)) {
+                $q->whereIn('vehiculos.tipo', $carrocerias);
+            } else {
+                $q->where('vehiculos.tipo', $vehTipo);
+            }
+        }
         if ($vehMarca !== '')  $q->where('vehiculos.marca', $vehMarca);
         if ($vehModelo !== '') $q->where('vehiculos.modelo', $vehModelo);
         if ($vehLinea !== '')  $q->where('vehiculos.linea', $vehLinea);
@@ -527,6 +575,77 @@ class EstadisticasGlobalesController extends Controller
             return (int)$q->count('lesionados.id');
         } catch (\Throwable $e) {
             return 0;
+        }
+    }
+
+    private function carroceriasMap(): array
+    {
+        return [
+            'automovil' => ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
+            'camion' => ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto', 'Torton'],
+            'camioneta' => ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
+            'motocicleta' => ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
+            'bicicleta' => ['Montaña', 'Ruta', 'BMX'],
+            'remolque' => ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
+            'semoviente' => ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro'],
+        ];
+    }
+
+    private function tipoGeneralFromTipo(string $tipoCarroceria): string
+    {
+        $t = $this->norm($tipoCarroceria);
+        if ($t === '') return 'NO ESPECIFICADO';
+
+        foreach ($this->carroceriasMap() as $general => $lista) {
+            foreach ($lista as $x) {
+                if ($this->norm((string)$x) === $t) {
+                    return $general;
+                }
+            }
+        }
+
+        return 'OTRO';
+    }
+
+    private function carroceriasFromTipoGeneral(string $vehTipo): array
+    {
+        $key = strtolower(trim($vehTipo));
+        $map = $this->carroceriasMap();
+        return $map[$key] ?? [];
+    }
+
+    private function norm(string $s): string
+    {
+        $s = trim($s);
+        if ($s === '') return '';
+
+        $s = Str::ascii($s);
+        $s = mb_strtoupper($s, 'UTF-8');
+        $s = preg_replace('/\s+/', ' ', $s);
+
+        return $s;
+    }
+
+    private function applyFallecidosFilterToHechos($q, Request $request)
+    {
+        $val = trim((string)$request->query('con_fallecidos', ''));
+        if ($val === '') return;
+        if (!$this->hasTable('lesionados')) return;
+
+        if ($val === '1') {
+            $q->whereExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('lesionados')
+                    ->whereColumn('lesionados.hecho_id', 'hechos.id')
+                    ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) = 'FALLECIDO'");
+            });
+        } elseif ($val === '0') {
+            $q->whereNotExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('lesionados')
+                    ->whereColumn('lesionados.hecho_id', 'hechos.id')
+                    ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) = 'FALLECIDO'");
+            });
         }
     }
 }

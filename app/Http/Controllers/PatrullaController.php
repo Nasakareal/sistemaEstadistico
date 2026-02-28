@@ -15,9 +15,18 @@ class PatrullaController extends Controller
     {
         $actor = Auth::user();
 
-        $patrullas = Patrulla::query()
-            ->with(['unidad', 'turno'])
-            ->orderByDesc('activa')
+        $q = Patrulla::query()
+            ->with(['unidad', 'turno']);
+
+        if (!$actor->hasRole('Superadmin')) {
+            if (!empty($actor->unidad_id)) {
+                $q->where('unidad_id', (int) $actor->unidad_id);
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        }
+
+        $patrullas = $q->orderByDesc('activa')
             ->orderBy('numero_economico')
             ->get();
 

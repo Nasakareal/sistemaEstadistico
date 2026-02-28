@@ -72,6 +72,15 @@
                         </div>
 
                         <div class="sv-field">
+                            <label>Fallecidos</label>
+                            <select id="f_con_fallecidos" class="form-control form-control-sm">
+                                <option value="">(Todos)</option>
+                                <option value="1">Solo con fallecidos</option>
+                                <option value="0">Solo sin fallecidos</option>
+                            </select>
+                        </div>
+
+                        <div class="sv-field">
                             <label>Agrupar</label>
                             <select id="f_group" class="form-control form-control-sm">
                                 <option value="day">Día</option>
@@ -279,14 +288,19 @@
         const q = val('f_q');
         const veh_placas = val('f_veh_placas');
         const veh_serie = val('f_veh_serie');
+
         const con_lesionados = val('f_con_lesionados');
+        const con_fallecidos = val('f_con_fallecidos');
 
         if (desde) params.set('desde', desde);
         if (hasta) params.set('hasta', hasta);
         if (sector) params.set('sector', sector);
         if (tipo_hecho) params.set('tipo_hecho', tipo_hecho);
         if (veh_tipo) params.set('veh_tipo', veh_tipo);
+
         if (con_lesionados !== '') params.set('con_lesionados', con_lesionados);
+        if (con_fallecidos !== '') params.set('con_fallecidos', con_fallecidos);
+
         if (group) params.set('group', group);
         if (q) params.set('q', q);
         if (veh_placas) params.set('veh_placas', veh_placas);
@@ -356,7 +370,8 @@
 
     function wireExportLinkUpdates(){
         const ids = [
-            'f_desde','f_hasta','f_sector','f_tipo_hecho','f_veh_tipo','f_con_lesionados',
+            'f_desde','f_hasta','f_sector','f_tipo_hecho','f_veh_tipo',
+            'f_con_lesionados','f_con_fallecidos',
             'f_q','f_veh_placas','f_veh_serie','f_group'
         ];
 
@@ -372,7 +387,6 @@
         });
     }
 
-    // ---------- Charts ----------
     let chTime = null, chTipoHecho = null, chVehTipo = null;
 
     function mountOrUpdateChart(canvasId, chartRef, type, labels, data){
@@ -401,7 +415,6 @@
         });
     }
 
-    // ---------- Table ----------
     function escapeHtml(str){
         return String(str)
             .replaceAll('&', '&amp;')
@@ -448,7 +461,6 @@
         if (el('pg_info')) el('pg_info').textContent = `Página ${page} de ${lastPage} · ${paginated.total} registros`;
     }
 
-    // ---------- Fill selects ----------
     function fillSelect(selectId, rows){
         const s = el(selectId);
         if (!s) return;

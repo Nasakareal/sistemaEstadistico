@@ -1,4 +1,7 @@
 <?php
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -19,7 +22,17 @@ use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\MapaIncidenciasController;
 use App\Http\Controllers\Api\PendientesCortesController;
-use App\Http\Controllers\WhatsAppWebhookController;
+use App\Http\Controllers\Api\WhatsAppWebhookController;
+
+Route::post('/wabot/incoming', function (Request $request) {
+    Log::info('WABOT incoming', [
+        'keys' => array_keys($request->all()),
+        'from' => $request->input('from'),
+        'has_body' => $request->has('body'),
+    ]);
+
+    return response()->json(['ok' => true], 200);
+});
 
 Route::get('/whatsapp/webhook', [WhatsAppWebhookController::class, 'verify']);
 Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);

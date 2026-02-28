@@ -7,8 +7,9 @@
     "\\app\\Http\\Controllers\\Api",
     "\\app\\Services",
     "\\app\\Services\\WhatsApp",
-    "\\config"
+    "\\config",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

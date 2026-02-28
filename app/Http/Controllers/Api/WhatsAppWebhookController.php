@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -24,19 +25,12 @@ class WhatsAppWebhookController extends Controller
 
     public function handle(Request $request)
     {
-        // Meta recomienda responder 200 rápido
         $payload = $request->all();
 
-        // Log mínimo para depurar
         Log::info('WhatsApp webhook event', [
             'has_entry' => isset($payload['entry']),
             'keys' => array_keys($payload),
         ]);
-
-        // Aquí después :
-        // - Guardar mensajes entrantes
-        // - Detectar comandos ("HECHO 123", "STATUS", etc.)
-        // - Responder automáticamente
 
         return response()->json(['ok' => true], 200);
     }

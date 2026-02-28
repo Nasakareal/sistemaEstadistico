@@ -38,7 +38,7 @@ Route::get('/home',[DashboardController::class,'home'])->name('api.home');
 Route::post('/device-tokens',[DeviceTokenController::class,'store']);
 Route::post('/logout',[AuthController::class,'logout']);
 Route::get('/me',[AuthController::class,'me']);
-Route::get('/permissions',[AuthController::class,'permissions');
+Route::get('/permissions',[AuthController::class,'permissions']);
 Route::get('/feed',[FeedController::class,'index'])->name('api.feed.index');
 
 Route::middleware('can:ver mapa')->group(function(){

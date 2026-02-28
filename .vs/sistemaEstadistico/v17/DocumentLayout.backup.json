@@ -44,7 +44,7 @@
               "RelativeDocumentMoniker": "routes\\api.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
               "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAHYAAAAAAAAAAAAAAKIAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAACIAAAAAAAAAAAAAAI4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-02-28T19:40:00.285Z",
               "EditorCaption": ""
@@ -59,8 +59,7 @@
               "RelativeToolTip": "app\\Http\\Controllers\\Api\\WabotIncomingController.php",
               "ViewState": "AgIAAAsAAAAAAAAAAAAAADgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-02-28T19:36:46.326Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-28T19:36:46.326Z"
             },
             {
               "$type": "Document",

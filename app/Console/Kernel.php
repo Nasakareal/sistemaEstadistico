@@ -26,6 +26,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('waze:fetch-alerts')
             ->everyTwoMinutes()
             ->withoutOverlapping();
+
+        $schedule->command('estadofuerza:enviar-diario')
+            ->timezone('America/Mexico_City')
+            ->dailyAt('18:00')
+            ->withoutOverlapping();
     }
 
     protected function commands()

@@ -8,6 +8,8 @@ use App\Services\Exports\Sheets\EstadoFuerzaArmamentoSheet;
 use App\Services\Exports\Sheets\CarruselSheet;
 use App\Services\Exports\Sheets\OperativosSheet;
 use App\Services\Exports\Sheets\TotalSheet;
+use App\Services\Exports\Sheets\NovRelSheet;
+use App\Services\Exports\Sheets\CampanasSheet;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -20,6 +22,8 @@ class EstadoFuerzaExcelService
     protected CarruselSheet $carruselSheet;
     protected OperativosSheet $operativosSheet;
     protected TotalSheet $totalSheet;
+    protected NovRelSheet $novRelSheet;
+    protected CampanasSheet $campanasSheet;
 
     public function __construct(
         EstadoFuerzaSheet $estadoFuerzaSheet,
@@ -27,7 +31,9 @@ class EstadoFuerzaExcelService
         EstadoFuerzaArmamentoSheet $estadoFuerzaArmamentoSheet,
         CarruselSheet $carruselSheet,
         OperativosSheet $operativosSheet,
-        TotalSheet $totalSheet
+        TotalSheet $totalSheet,
+        NovRelSheet $novRelSheet,
+        CampanasSheet $campanasSheet
     ) {
         $this->estadoFuerzaSheet = $estadoFuerzaSheet;
         $this->estadoFuerzaVehicularSheet = $estadoFuerzaVehicularSheet;
@@ -35,6 +41,8 @@ class EstadoFuerzaExcelService
         $this->carruselSheet = $carruselSheet;
         $this->operativosSheet = $operativosSheet;
         $this->totalSheet = $totalSheet;
+        $this->novRelSheet = $novRelSheet;
+        $this->campanasSheet = $campanasSheet;
     }
 
     public function generar(?Carbon $corte = null): string
@@ -55,6 +63,9 @@ class EstadoFuerzaExcelService
 
         $this->operativosSheet->build($spreadsheet, $corte);
         $this->totalSheet->build($spreadsheet, $corte);
+
+        $this->novRelSheet->build($spreadsheet, $corte);
+        $this->campanasSheet->build($spreadsheet, $corte);
 
         $spreadsheet->setActiveSheetIndex(0);
 

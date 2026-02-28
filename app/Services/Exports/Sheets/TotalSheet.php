@@ -274,12 +274,13 @@ class TotalSheet
 
 
         $this->buildControlVehicularTable($sheet, $inicio, $fin, 82);
-        $this->buildControlVehicularTable($sheet, $inicio, $fin, 82);
         $this->buildControlAseguramientosTable($sheet, $inicio, $fin, 100);
         $this->buildOtrosAseguramientosTable($sheet, 116);
         $this->buildHechosYPersonasInvolucradasTables($sheet, $inicio, $fin, 126);
-        $this->buildHechosDeTransitoTable($sheet, $inicio, $fin, 126);
-        $this->buildBloqueFinalTresTablas($sheet, $inicio, $fin, 126);
+        $this->buildHechosDeTransitoTable($sheet, $inicio, $fin, 134);
+        $this->buildChoquesYMontosTable($sheet, $inicio, $fin, 156);
+        $this->buildHechosTransitoPorTipoVehiculoTable($sheet, $inicio, $fin, 170);
+
     }
 
     protected function mergeBloquesNoCategoria(Worksheet $sheet, array $rows): void
@@ -1414,564 +1415,1141 @@ class TotalSheet
         ];
     }
 
+    //********************************************
+    //                  TABLA 6                 //
+    //********************************************
+
+    protected function buildHechosDeTransitoTable(
+        Worksheet $sheet,
+        Carbon $inicio,
+        Carbon $fin,
+        int $startRow = 134
+    ): void {
+        $r = $startRow;
+
+        $colNo    = 'B';
+        $colHecho = 'C';
+        $colCant  = 'D';
+        $colLes   = 'E';
+        $colHer   = 'F';
+        $colDef   = 'G';
+        $colFuero = 'H';
+
+        $template = $this->templateHechosDeTransito();
+        $counts   = $this->contarHechosDeTransitoPorTipo($inicio, $fin);
+
+        $lastRow = $r + count($template) + 1;
+        $this->unmergeRange($sheet, $colNo . $r . ':' . $colFuero . $lastRow);
+
+        $sheet->getStyle($colNo . $r . ':' . $colFuero . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
+
+        $sheet->setCellValue($colNo . $r, 'No.');
+        $sheet->setCellValue($colHecho . $r, 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue($colCant . $r, 'CANTIDAD');
+        $sheet->setCellValue($colLes . $r, 'LESIONADOS');
+        $sheet->setCellValue($colHer . $r, 'HERIDOS');
+        $sheet->setCellValue($colDef . $r, 'DEFUNCIONES');
+        $sheet->setCellValue($colFuero . $r, 'FUERO COMÚN');
+
+        $sheet->getRowDimension($r)->setRowHeight(20);
+        $sheet->getStyle($colNo . $r . ':' . $colFuero . $r)->applyFromArray($this->styleHeaderBlue());
+
+        $row = $r + 1;
+
+        foreach ($template as $it) {
+            $key = (string)($it['key'] ?? '');
+
+            $sheet->setCellValue($colNo . $row, $it['no']);
+            $sheet->setCellValue($colHecho . $row, $it['label']);
+            $sheet->setCellValue($colCant . $row, (int)($counts['rows'][$key]['cantidad'] ?? 0));
+            $sheet->setCellValue($colLes . $row, (int)($counts['rows'][$key]['lesionados'] ?? 0));
+            $sheet->setCellValue($colHer . $row, (int)($counts['rows'][$key]['heridos'] ?? 0));
+            $sheet->setCellValue($colDef . $row, (int)($counts['rows'][$key]['defunciones'] ?? 0));
+            $sheet->setCellValue($colFuero . $row, (int)($counts['rows'][$key]['fuero_comun'] ?? 0));
+
+            $sheet->getRowDimension($row)->setRowHeight(18);
+
+            $sheet->getStyle($colNo . $row . ':' . $colFuero . $row)->applyFromArray($this->styleBodyThin());
+            $sheet->getStyle($colNo . $row . ':' . $colFuero . $row)->getFill()->setFillType(Fill::FILL_NONE);
+
+            $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle($colCant . $row . ':' . $colFuero . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $row++;
+        }
+
+        $totalRow = $row;
+
+        $this->unmergeRange($sheet, $colNo . $totalRow . ':' . $colHecho . $totalRow);
+        $sheet->mergeCells($colNo . $totalRow . ':' . $colHecho . $totalRow);
+
+        $sheet->setCellValue($colNo . $totalRow, 'TOTAL');
+        $sheet->setCellValue($colCant . $totalRow, (int)($counts['totals']['cantidad'] ?? 0));
+        $sheet->setCellValue($colLes . $totalRow, (int)($counts['totals']['lesionados'] ?? 0));
+        $sheet->setCellValue($colHer . $totalRow, (int)($counts['totals']['heridos'] ?? 0));
+        $sheet->setCellValue($colDef . $totalRow, (int)($counts['totals']['defunciones'] ?? 0));
+        $sheet->setCellValue($colFuero . $totalRow, (int)($counts['totals']['fuero_comun'] ?? 0));
+
+        $sheet->getRowDimension($totalRow)->setRowHeight(20);
+        $sheet->getStyle($colNo . $totalRow . ':' . $colFuero . $totalRow)->applyFromArray($this->styleTotalBlue());
+    }
+
+    protected function templateHechosDeTransito(): array
+    {
+        return [
+            ['no' => 1,  'label' => 'EXPLOSIÓN',                        'key' => 'EXPLOSION'],
+            ['no' => 2,  'label' => 'INCENDIO',                         'key' => 'INCENDIO'],
+            ['no' => 3,  'label' => 'DESBARRANCAMIENTO',                'key' => 'DESBARRANCAMIENTO'],
+            ['no' => 4,  'label' => 'VOLCADURA',                        'key' => 'VOLCADURA'],
+            ['no' => 5,  'label' => 'SALIDA DE RODAMIENTO',             'key' => 'SALIDA_RODAMIENTO'],
+            ['no' => 6,  'label' => 'SUBIDA A CAMELLÓN',                'key' => 'SUBIDA_CAMELLON'],
+            ['no' => 7,  'label' => 'CAIDA DE MOTOCICLETA',             'key' => 'CAIDA_MOTOCICLETA'],
+            ['no' => 8,  'label' => 'CHOQUE OBJETO FIJO',               'key' => 'CHOQUE_OBJETO_FIJO'],
+            ['no' => 9,  'label' => 'COLISIÓN POR ALCANCE',             'key' => 'COLISION_ALCANCE'],
+            ['no' => 10, 'label' => 'COLISIÓN POR NO RESPETAR SEMÁFORO','key' => 'COLISION_SEMAFORO'],
+            ['no' => 11, 'label' => 'COLISIÓN POR INVASIÓN DE CARRIL',  'key' => 'COLISION_INVASION_CARRIL'],
+            ['no' => 12, 'label' => 'COLISIÓN POR CAMBIO DE CARRIL',    'key' => 'COLISION_CAMBIO_CARRIL'],
+            ['no' => 13, 'label' => 'COLISIÓN POR CORTE DE CIRCULACIÓN','key' => 'COLISION_CORTE_CIRCULACION'],
+            ['no' => 14, 'label' => 'COLISIÓN POR MANIOBRA REVERSA',    'key' => 'COLISION_REVERSA'],
+            ['no' => 15, 'label' => 'CAIDA A CUNETA',                   'key' => 'CAIDA_CUNETA'],
+            ['no' => 16, 'label' => 'CAIDA ACUÁTICA DE VEHÍCULO',       'key' => 'CAIDA_ACUATICA'],
+            ['no' => 17, 'label' => 'COLISIÓN CON PEATÓN',              'key' => 'COLISION_PEATON'],
+        ];
+    }
+
+    protected function unmergeRange(Worksheet $sheet, string $range): void
+    {
+        $merges = $sheet->getMergeCells();
+        if (empty($merges)) return;
+
+        [$rStart, $rEnd] = explode(':', $range);
+        [$c1, $r1] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($rStart);
+        [$c2, $r2] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($rEnd);
+
+        $x1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1);
+        $x2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c2);
+        $y1 = (int)$r1;
+        $y2 = (int)$r2;
+
+        $minX = min($x1, $x2);
+        $maxX = max($x1, $x2);
+        $minY = min($y1, $y2);
+        $maxY = max($y1, $y2);
+
+        foreach ($merges as $m => $_) {
+            [$ms, $me] = explode(':', $m);
+            [$mc1, $mr1] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($ms);
+            [$mc2, $mr2] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($me);
+
+            $mx1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($mc1);
+            $mx2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($mc2);
+            $my1 = (int)$mr1;
+            $my2 = (int)$mr2;
+
+            $mMinX = min($mx1, $mx2);
+            $mMaxX = max($mx1, $mx2);
+            $mMinY = min($my1, $my2);
+            $mMaxY = max($my1, $my2);
+
+            $intersects = !(
+                $mMaxX < $minX ||
+                $mMinX > $maxX ||
+                $mMaxY < $minY ||
+                $mMinY > $maxY
+            );
+
+            if ($intersects) {
+                $sheet->unmergeCells($m);
+            }
+        }
+    }
+
+    protected function contarHechosDeTransitoPorTipo(Carbon $inicio, Carbon $fin): array
+    {
+        $inicioStr = $inicio->format('Y-m-d H:i:s');
+        $finStr    = $fin->format('Y-m-d H:i:s');
+
+        $hasTipo = DB::getSchemaBuilder()->hasColumn('hechos', 'tipo_hecho');
+        if (!$hasTipo) {
+            $zeros = [];
+            foreach ($this->templateHechosDeTransito() as $t) {
+                $zeros[$t['key']] = ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0];
+            }
+            return [
+                'rows' => $zeros,
+                'totals' => ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0],
+            ];
+        }
+
+        $hasLes = DB::getSchemaBuilder()->hasColumn('hechos', 'lesionados');
+        $hasHer = DB::getSchemaBuilder()->hasColumn('hechos', 'heridos');
+        $hasDef = DB::getSchemaBuilder()->hasColumn('hechos', 'defunciones');
+        $hasFue = DB::getSchemaBuilder()->hasColumn('hechos', 'fuero_comun');
+
+        $select = [
+            'tipo_hecho',
+            DB::raw('COUNT(*) as cantidad'),
+            DB::raw(($hasLes ? 'SUM(COALESCE(lesionados,0))' : '0') . ' as lesionados'),
+            DB::raw(($hasHer ? 'SUM(COALESCE(heridos,0))' : '0') . ' as heridos'),
+            DB::raw(($hasDef ? 'SUM(COALESCE(defunciones,0))' : '0') . ' as defunciones'),
+            DB::raw(($hasFue ? 'SUM(COALESCE(fuero_comun,0))' : '0') . ' as fuero_comun'),
+        ];
+
+        $base = DB::table('hechos')
+            ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
+            ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr])
+            ->groupBy('tipo_hecho')
+            ->get($select);
+
+        $out = [];
+        foreach ($this->templateHechosDeTransito() as $t) {
+            $out[$t['key']] = ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0];
+        }
+
+        $map = [
+            $this->norm('VOLCADURA') => 'VOLCADURA',
+
+            $this->norm('SALIDA DE SUPERFICIE DE RODAMIENTO') => 'SALIDA_RODAMIENTO',
+            $this->norm('SALIDA DE RODAMIENTO') => 'SALIDA_RODAMIENTO',
+
+            $this->norm('SUBIDA AL CAMELLÓN') => 'SUBIDA_CAMELLON',
+            $this->norm('SUBIDA A CAMELLÓN') => 'SUBIDA_CAMELLON',
+
+            $this->norm('CAIDA DE MOTOCICLETA') => 'CAIDA_MOTOCICLETA',
+
+            $this->norm('CAIDA A CUNETA') => 'CAIDA_CUNETA',
+
+            $this->norm('COLISIÓN CON PEATÓN') => 'COLISION_PEATON',
+
+            $this->norm('COLISIÓN POR ALCANCE') => 'COLISION_ALCANCE',
+
+            $this->norm('COLISIÓN POR NO RESPETAR SEMÁFORO') => 'COLISION_SEMAFORO',
+
+            $this->norm('COLISIÓN POR INVASIÓN DE CARRIL') => 'COLISION_INVASION_CARRIL',
+
+            $this->norm('COLISIÓN POR CORTE DE CIRCULACIÓN') => 'COLISION_CORTE_CIRCULACION',
+
+            $this->norm('COLISIÓN POR CAMBIO DE CARRIL') => 'COLISION_CAMBIO_CARRIL',
+
+            $this->norm('COLISIÓN POR MANIOBRA DE REVERSA') => 'COLISION_REVERSA',
+            $this->norm('COLISIÓN POR MANIOBRA REVERSA') => 'COLISION_REVERSA',
+
+            $this->norm('COLISIÓN CONTRA OBJETO FIJO') => 'CHOQUE_OBJETO_FIJO',
+            $this->norm('COLISIÓN CONTRA OBJETO') => 'CHOQUE_OBJETO_FIJO',
+            $this->norm('CHOQUE OBJETO FIJO') => 'CHOQUE_OBJETO_FIJO',
+
+            $this->norm('CAIDA ACUATICA DE VEHÍCULO') => 'CAIDA_ACUATICA',
+            $this->norm('CAIDA ACUÁTICA DE VEHÍCULO') => 'CAIDA_ACUATICA',
+
+            $this->norm('DESBARRANCAMIENTO') => 'DESBARRANCAMIENTO',
+            $this->norm('INCENDIO') => 'INCENDIO',
+            $this->norm('EXPLOSIÓN') => 'EXPLOSION',
+            $this->norm('EXPLOSION') => 'EXPLOSION',
+        ];
+
+        foreach ($base as $r) {
+            $tipoRaw = (string)($r->tipo_hecho ?? '');
+            $tipoN   = $this->norm($tipoRaw);
+
+            $key = $map[$tipoN] ?? 'COLISION_ALCANCE';
+
+            $out[$key]['cantidad']    = (int)($out[$key]['cantidad'] ?? 0) + (int)($r->cantidad ?? 0);
+            $out[$key]['lesionados']  = (int)($out[$key]['lesionados'] ?? 0) + (int)($r->lesionados ?? 0);
+            $out[$key]['heridos']     = (int)($out[$key]['heridos'] ?? 0) + (int)($r->heridos ?? 0);
+            $out[$key]['defunciones'] = (int)($out[$key]['defunciones'] ?? 0) + (int)($r->defunciones ?? 0);
+            $out[$key]['fuero_comun'] = (int)($out[$key]['fuero_comun'] ?? 0) + (int)($r->fuero_comun ?? 0);
+        }
+
+        $totals = ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0];
+        foreach ($out as $vals) {
+            $totals['cantidad']    += (int)($vals['cantidad'] ?? 0);
+            $totals['lesionados']  += (int)($vals['lesionados'] ?? 0);
+            $totals['heridos']     += (int)($vals['heridos'] ?? 0);
+            $totals['defunciones'] += (int)($vals['defunciones'] ?? 0);
+            $totals['fuero_comun'] += (int)($vals['fuero_comun'] ?? 0);
+        }
+
+        return [
+            'rows' => $out,
+            'totals' => $totals,
+        ];
+    }
+
 //********************************************
-//                  TABLA 6                 //
+//     TABLAS: CHOQUES (IZQ) + MONTOS (DER)  //
 //********************************************
 
-protected function buildHechosDeTransitoTable(
+protected function buildChoquesYMontosTable(
     Worksheet $sheet,
     Carbon $inicio,
     Carbon $fin,
-    int $startRow = 134
+    int $startRow = 160
 ): void {
     $r = $startRow;
 
-    $colNo    = 'B';
-    $colHecho = 'C';
-    $colCant  = 'D';
-    $colLes   = 'E';
-    $colHer   = 'F';
-    $colDef   = 'G';
-    $colFuero = 'H';
+    // Separador visual
+    $sheet->getColumnDimension('E')->setWidth(6);
 
-    $template = $this->templateHechosDeTransito();
-    $counts   = $this->contarHechosDeTransitoPorTipo($inicio, $fin);
+    // IZQ (B:D)
+    $lNo   = 'B';
+    $lDesc = 'C';
+    $lCant = 'D';
 
-    $lastRow = $r + count($template) + 1;
-    $this->unmergeRange($sheet, $colNo . $r . ':' . $colFuero . $lastRow);
+    // DER (F:H)
+    $mNo   = 'F';
+    $mDesc = 'G';
+    $mCant = 'H';
 
-    $sheet->getStyle($colNo . $r . ':' . $colFuero . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
+    $templateChoques = $this->templateChoquesTipos();
+    $countsChoques   = $this->contarChoquesPorTipo($inicio, $fin);
 
-    $sheet->setCellValue($colNo . $r, 'No.');
-    $sheet->setCellValue($colHecho . $r, 'HECHOS DE TRÁNSITO');
-    $sheet->setCellValue($colCant . $r, 'CANTIDAD');
-    $sheet->setCellValue($colLes . $r, 'LESIONADOS');
-    $sheet->setCellValue($colHer . $r, 'HERIDOS');
-    $sheet->setCellValue($colDef . $r, 'DEFUNCIONES');
-    $sheet->setCellValue($colFuero . $r, 'FUERO COMÚN');
+    $montos = $this->contarMontosHechosTransito($inicio, $fin);
+
+    $lastRow = $r + 9;
+    $this->unmergeRange($sheet, $lNo . $r . ':' . $mCant . $lastRow);
+    $sheet->getStyle($lNo . $r . ':' . $mCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
+
+    // Headers
+    $sheet->setCellValue($lNo . $r, 'No.');
+    $sheet->setCellValue($lDesc . $r, 'HECHOS DE TRÁNSITO');
+    $sheet->setCellValue($lCant . $r, 'CANTIDAD');
+
+    $sheet->setCellValue($mNo . $r, 'No.');
+    $sheet->setCellValue($mDesc . $r, 'HECHOS DE TRÁNSITO');
+    $sheet->setCellValue($mCant . $r, 'CANTIDAD');
 
     $sheet->getRowDimension($r)->setRowHeight(20);
-    $sheet->getStyle($colNo . $r . ':' . $colFuero . $r)->applyFromArray($this->styleHeaderBlue());
+    $sheet->getStyle($lNo . $r . ':' . $lCant . $r)->applyFromArray($this->styleHeaderBlue());
+    $sheet->getStyle($mNo . $r . ':' . $mCant . $r)->applyFromArray($this->styleHeaderBlue());
 
+    // Filas
     $row = $r + 1;
 
-    foreach ($template as $it) {
-        $key = (string)($it['key'] ?? '');
+    foreach ($templateChoques as $it) {
+        $key = (string)$it['key'];
 
-        $sheet->setCellValue($colNo . $row, $it['no']);
-        $sheet->setCellValue($colHecho . $row, $it['label']);
-        $sheet->setCellValue($colCant . $row, (int)($counts['rows'][$key]['cantidad'] ?? 0));
-        $sheet->setCellValue($colLes . $row, (int)($counts['rows'][$key]['lesionados'] ?? 0));
-        $sheet->setCellValue($colHer . $row, (int)($counts['rows'][$key]['heridos'] ?? 0));
-        $sheet->setCellValue($colDef . $row, (int)($counts['rows'][$key]['defunciones'] ?? 0));
-        $sheet->setCellValue($colFuero . $row, (int)($counts['rows'][$key]['fuero_comun'] ?? 0));
+        $sheet->setCellValue($lNo . $row, $it['no']);
+        $sheet->setCellValue($lDesc . $row, $it['label']);
+        $sheet->setCellValue($lCant . $row, (int)($countsChoques['rows'][$key] ?? 0));
 
         $sheet->getRowDimension($row)->setRowHeight(18);
+        $sheet->getStyle($lNo . $row . ':' . $lCant . $row)->applyFromArray($this->styleBodyThin());
+        $sheet->getStyle($lNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($lCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->getStyle($colNo . $row . ':' . $colFuero . $row)->applyFromArray($this->styleBodyThin());
-        $sheet->getStyle($colNo . $row . ':' . $colFuero . $row)->getFill()->setFillType(Fill::FILL_NONE);
-
-        $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle($colCant . $row . ':' . $colFuero . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Derecha solo tiene 3 filas + total, así que aquí no escribimos aún
+        $sheet->getStyle($mNo . $row . ':' . $mCant . $row)->applyFromArray($this->styleBodyThin());
 
         $row++;
     }
 
-    $totalRow = $row;
+    // TOTAL Izquierda
+    $totalRowLeft = $row;
+    $this->unmergeRange($sheet, $lNo . $totalRowLeft . ':' . $lDesc . $totalRowLeft);
+    $sheet->mergeCells($lNo . $totalRowLeft . ':' . $lDesc . $totalRowLeft);
+    $sheet->setCellValue($lNo . $totalRowLeft, 'TOTAL');
+    $sheet->setCellValue($lCant . $totalRowLeft, (int)($countsChoques['total'] ?? 0));
 
-    $this->unmergeRange($sheet, $colNo . $totalRow . ':' . $colHecho . $totalRow);
-    $sheet->mergeCells($colNo . $totalRow . ':' . $colHecho . $totalRow);
+    $sheet->getRowDimension($totalRowLeft)->setRowHeight(20);
+    $sheet->getStyle($lNo . $totalRowLeft . ':' . $lCant . $totalRowLeft)->applyFromArray($this->styleTotalBlue());
+    $sheet->getStyle($lCant . $totalRowLeft)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-    $sheet->setCellValue($colNo . $totalRow, 'TOTAL');
-    $sheet->setCellValue($colCant . $totalRow, (int)($counts['totals']['cantidad'] ?? 0));
-    $sheet->setCellValue($colLes . $totalRow, (int)($counts['totals']['lesionados'] ?? 0));
-    $sheet->setCellValue($colHer . $totalRow, (int)($counts['totals']['heridos'] ?? 0));
-    $sheet->setCellValue($colDef . $totalRow, (int)($counts['totals']['defunciones'] ?? 0));
-    $sheet->setCellValue($colFuero . $totalRow, (int)($counts['totals']['fuero_comun'] ?? 0));
+    // DERECHA: Montos (3 filas)
+    $mRow1 = $r + 1;
+    $mRow2 = $r + 2;
+    $mRow3 = $r + 3;
+    $mRowT = $r + 4;
 
-    $sheet->getRowDimension($totalRow)->setRowHeight(20);
-    $sheet->getStyle($colNo . $totalRow . ':' . $colFuero . $totalRow)->applyFromArray($this->styleTotalBlue());
+    $sheet->setCellValue($mNo . $mRow1, 1);
+    $sheet->setCellValue($mDesc . $mRow1, 'MONTO DAÑOS MATERIALES ($)');
+    $sheet->setCellValue($mCant . $mRow1, (float)($montos['danos_materiales'] ?? 0));
+
+    $sheet->setCellValue($mNo . $mRow2, 2);
+    $sheet->setCellValue($mDesc . $mRow2, 'MONTO VEHÍCULOS');
+    $sheet->setCellValue($mCant . $mRow2, (float)($montos['monto_vehiculos'] ?? 0));
+
+    $sheet->setCellValue($mNo . $mRow3, 3);
+    $sheet->setCellValue($mDesc . $mRow3, 'MONTO OTROS');
+    $sheet->setCellValue($mCant . $mRow3, (float)($montos['monto_otros'] ?? 0));
+
+    // Estilo filas derecha
+    foreach ([$mRow1, $mRow2, $mRow3] as $rr) {
+        $sheet->getRowDimension($rr)->setRowHeight(18);
+        $sheet->getStyle($mNo . $rr . ':' . $mCant . $rr)->applyFromArray($this->styleBodyThin());
+        $sheet->getStyle($mNo . $rr)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($mCant . $rr)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    }
+
+    // TOTAL derecha
+    $this->unmergeRange($sheet, $mNo . $mRowT . ':' . $mDesc . $mRowT);
+    $sheet->mergeCells($mNo . $mRowT . ':' . $mDesc . $mRowT);
+    $sheet->setCellValue($mNo . $mRowT, 'TOTAL');
+    $sheet->setCellValue($mCant . $mRowT, (float)($montos['total'] ?? 0));
+
+    $sheet->getRowDimension($mRowT)->setRowHeight(20);
+    $sheet->getStyle($mNo . $mRowT . ':' . $mCant . $mRowT)->applyFromArray($this->styleTotalBlue());
+    $sheet->getStyle($mCant . $mRowT)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+    // Formato moneda en H1:H4
+    $sheet->getStyle($mCant . $mRow1 . ':' . $mCant . $mRowT)
+        ->getNumberFormat()
+        ->setFormatCode('"$"#,##0.00');
 }
 
-protected function templateHechosDeTransito(): array
+protected function templateChoquesTipos(): array
 {
     return [
-        ['no' => 1,  'label' => 'EXPLOSIÓN',                        'key' => 'EXPLOSION'],
-        ['no' => 2,  'label' => 'INCENDIO',                         'key' => 'INCENDIO'],
-        ['no' => 3,  'label' => 'DESBARRANCAMIENTO',                'key' => 'DESBARRANCAMIENTO'],
-        ['no' => 4,  'label' => 'VOLCADURA',                        'key' => 'VOLCADURA'],
-        ['no' => 5,  'label' => 'SALIDA DE RODAMIENTO',             'key' => 'SALIDA_RODAMIENTO'],
-        ['no' => 6,  'label' => 'SUBIDA A CAMELLÓN',                'key' => 'SUBIDA_CAMELLON'],
-        ['no' => 7,  'label' => 'CAIDA DE MOTOCICLETA',             'key' => 'CAIDA_MOTOCICLETA'],
-        ['no' => 8,  'label' => 'CHOQUE OBJETO FIJO',               'key' => 'CHOQUE_OBJETO_FIJO'],
-        ['no' => 9,  'label' => 'COLISIÓN POR ALCANCE',             'key' => 'COLISION_ALCANCE'],
-        ['no' => 10, 'label' => 'COLISIÓN POR NO RESPETAR SEMÁFORO','key' => 'COLISION_SEMAFORO'],
-        ['no' => 11, 'label' => 'COLISIÓN POR INVASIÓN DE CARRIL',  'key' => 'COLISION_INVASION_CARRIL'],
-        ['no' => 12, 'label' => 'COLISIÓN POR CAMBIO DE CARRIL',    'key' => 'COLISION_CAMBIO_CARRIL'],
-        ['no' => 13, 'label' => 'COLISIÓN POR CORTE DE CIRCULACIÓN','key' => 'COLISION_CORTE_CIRCULACION'],
-        ['no' => 14, 'label' => 'COLISIÓN POR MANIOBRA REVERSA',    'key' => 'COLISION_REVERSA'],
-        ['no' => 15, 'label' => 'CAIDA A CUNETA',                   'key' => 'CAIDA_CUNETA'],
-        ['no' => 16, 'label' => 'CAIDA ACUÁTICA DE VEHÍCULO',       'key' => 'CAIDA_ACUATICA'],
-        ['no' => 17, 'label' => 'COLISIÓN CON PEATÓN',              'key' => 'COLISION_PEATON'],
+        ['no' => 1, 'label' => 'CHOQUE ENTRE CAMIÓN Y MOTOCICLETA',      'key' => 'CAMION_MOTO'],
+        ['no' => 2, 'label' => 'CHOQUE ENTRE CAMIÓN Y VEHÍCULO',         'key' => 'CAMION_VEHICULO'],
+        ['no' => 3, 'label' => 'CHOQUE ENTRE MOTOCICLETAS',              'key' => 'MOTO_MOTO'],
+        ['no' => 4, 'label' => 'CHOQUE ENTRE VEHÍCULOS',                 'key' => 'VEHICULO_VEHICULO'],
+        ['no' => 5, 'label' => 'CHOQUE ENTRE MOTOCICLETA Y VEHÍCULO',    'key' => 'MOTO_VEHICULO'],
+        ['no' => 6, 'label' => 'CHOQUE ENTRE VEHÍCULO Y PEATÓN',         'key' => 'VEHICULO_PEATON'],
+        ['no' => 7, 'label' => 'CHOQUE DE VEHÍCULO UNICO',               'key' => 'VEHICULO_UNICO'],
     ];
 }
 
-protected function unmergeRange(Worksheet $sheet, string $range): void
-{
-    $merges = $sheet->getMergeCells();
-    if (empty($merges)) return;
-
-    [$rStart, $rEnd] = explode(':', $range);
-    [$c1, $r1] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($rStart);
-    [$c2, $r2] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($rEnd);
-
-    $x1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c1);
-    $x2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($c2);
-    $y1 = (int)$r1;
-    $y2 = (int)$r2;
-
-    $minX = min($x1, $x2);
-    $maxX = max($x1, $x2);
-    $minY = min($y1, $y2);
-    $maxY = max($y1, $y2);
-
-    foreach ($merges as $m => $_) {
-        [$ms, $me] = explode(':', $m);
-        [$mc1, $mr1] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($ms);
-        [$mc2, $mr2] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::coordinateFromString($me);
-
-        $mx1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($mc1);
-        $mx2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($mc2);
-        $my1 = (int)$mr1;
-        $my2 = (int)$mr2;
-
-        $mMinX = min($mx1, $mx2);
-        $mMaxX = max($mx1, $mx2);
-        $mMinY = min($my1, $my2);
-        $mMaxY = max($my1, $my2);
-
-        $intersects = !(
-            $mMaxX < $minX ||
-            $mMinX > $maxX ||
-            $mMaxY < $minY ||
-            $mMinY > $maxY
-        );
-
-        if ($intersects) {
-            $sheet->unmergeCells($m);
-        }
-    }
-}
-
-protected function contarHechosDeTransitoPorTipo(Carbon $inicio, Carbon $fin): array
+protected function contarChoquesPorTipo(Carbon $inicio, Carbon $fin): array
 {
     $inicioStr = $inicio->format('Y-m-d H:i:s');
     $finStr    = $fin->format('Y-m-d H:i:s');
 
-    $hasTipo = DB::getSchemaBuilder()->hasColumn('hechos', 'tipo_hecho');
-    if (!$hasTipo) {
-        $zeros = [];
-        foreach ($this->templateHechosDeTransito() as $t) {
-            $zeros[$t['key']] = ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0];
+    $subHechos = DB::table('hechos')
+        ->select('hechos.id', 'hechos.tipo_hecho')
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
+
+    $rows = [];
+    foreach ($this->templateChoquesTipos() as $t) $rows[$t['key']] = 0;
+
+    $hechos = $subHechos->get();
+
+    foreach ($hechos as $h) {
+        $hechoId = (int)$h->id;
+
+        $vehiculos = DB::table('hecho_vehiculo')
+            ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id')
+            ->where('hecho_vehiculo.hecho_id', $hechoId)
+            ->select(['vehiculos.id as vehiculo_id', 'vehiculos.tipo as tipo'])
+            ->distinct()
+            ->get();
+
+        $tipos = [];
+        foreach ($vehiculos as $v) {
+            $gen = $this->tipoGeneralFromTipo((string)($v->tipo ?? ''));
+            if (in_array($gen, ['automovil', 'camioneta'], true)) $gen = 'vehiculo';
+            if (!in_array($gen, ['vehiculo', 'motocicleta', 'camion', 'remolque', 'bicicleta', 'semoviente'], true)) $gen = 'vehiculo';
+            $tipos[] = $gen;
         }
-        return [
-            'rows' => $zeros,
-            'totals' => ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0],
-        ];
+
+        $tipos = array_values(array_filter($tipos, fn($x) => $x !== ''));
+        $n = count($tipos);
+
+        $tipoHechoN = $this->norm((string)($h->tipo_hecho ?? ''));
+
+        if (str_contains($tipoHechoN, 'PEATON')) {
+            $rows['VEHICULO_PEATON']++;
+            continue;
+        }
+
+        if ($n <= 0) {
+            continue;
+        }
+
+        if ($n === 1) {
+            $rows['VEHICULO_UNICO']++;
+            continue;
+        }
+
+        $hasCamion = in_array('camion', $tipos, true) || in_array('remolque', $tipos, true);
+        $hasMoto   = in_array('motocicleta', $tipos, true);
+
+        $vehCount  = 0;
+        foreach ($tipos as $t) if ($t === 'vehiculo') $vehCount++;
+
+        if ($hasCamion && $hasMoto) {
+            $rows['CAMION_MOTO']++;
+            continue;
+        }
+
+        if ($hasCamion && $vehCount > 0) {
+            $rows['CAMION_VEHICULO']++;
+            continue;
+        }
+
+        $motoCount = 0;
+        foreach ($tipos as $t) if ($t === 'motocicleta') $motoCount++;
+
+        if ($motoCount >= 2) {
+            $rows['MOTO_MOTO']++;
+            continue;
+        }
+
+        if ($hasMoto && $vehCount > 0) {
+            $rows['MOTO_VEHICULO']++;
+            continue;
+        }
+
+        if ($vehCount >= 2) {
+            $rows['VEHICULO_VEHICULO']++;
+            continue;
+        }
+
+        $rows['VEHICULO_VEHICULO']++;
     }
 
-    $hasLes = DB::getSchemaBuilder()->hasColumn('hechos', 'lesionados');
-    $hasHer = DB::getSchemaBuilder()->hasColumn('hechos', 'heridos');
-    $hasDef = DB::getSchemaBuilder()->hasColumn('hechos', 'defunciones');
-    $hasFue = DB::getSchemaBuilder()->hasColumn('hechos', 'fuero_comun');
-
-    $select = [
-        'tipo_hecho',
-        DB::raw('COUNT(*) as cantidad'),
-        DB::raw(($hasLes ? 'SUM(COALESCE(lesionados,0))' : '0') . ' as lesionados'),
-        DB::raw(($hasHer ? 'SUM(COALESCE(heridos,0))' : '0') . ' as heridos'),
-        DB::raw(($hasDef ? 'SUM(COALESCE(defunciones,0))' : '0') . ' as defunciones'),
-        DB::raw(($hasFue ? 'SUM(COALESCE(fuero_comun,0))' : '0') . ' as fuero_comun'),
-    ];
-
-    $base = DB::table('hechos')
-        ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
-        ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr])
-        ->groupBy('tipo_hecho')
-        ->get($select);
-
-    $out = [];
-    foreach ($this->templateHechosDeTransito() as $t) {
-        $out[$t['key']] = ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0];
-    }
-
-    $map = [
-        $this->norm('VOLCADURA') => 'VOLCADURA',
-
-        $this->norm('SALIDA DE SUPERFICIE DE RODAMIENTO') => 'SALIDA_RODAMIENTO',
-        $this->norm('SALIDA DE RODAMIENTO') => 'SALIDA_RODAMIENTO',
-
-        $this->norm('SUBIDA AL CAMELLÓN') => 'SUBIDA_CAMELLON',
-        $this->norm('SUBIDA A CAMELLÓN') => 'SUBIDA_CAMELLON',
-
-        $this->norm('CAIDA DE MOTOCICLETA') => 'CAIDA_MOTOCICLETA',
-
-        $this->norm('CAIDA A CUNETA') => 'CAIDA_CUNETA',
-
-        $this->norm('COLISIÓN CON PEATÓN') => 'COLISION_PEATON',
-
-        $this->norm('COLISIÓN POR ALCANCE') => 'COLISION_ALCANCE',
-
-        $this->norm('COLISIÓN POR NO RESPETAR SEMÁFORO') => 'COLISION_SEMAFORO',
-
-        $this->norm('COLISIÓN POR INVASIÓN DE CARRIL') => 'COLISION_INVASION_CARRIL',
-
-        $this->norm('COLISIÓN POR CORTE DE CIRCULACIÓN') => 'COLISION_CORTE_CIRCULACION',
-
-        $this->norm('COLISIÓN POR CAMBIO DE CARRIL') => 'COLISION_CAMBIO_CARRIL',
-
-        $this->norm('COLISIÓN POR MANIOBRA DE REVERSA') => 'COLISION_REVERSA',
-        $this->norm('COLISIÓN POR MANIOBRA REVERSA') => 'COLISION_REVERSA',
-
-        $this->norm('COLISIÓN CONTRA OBJETO FIJO') => 'CHOQUE_OBJETO_FIJO',
-        $this->norm('COLISIÓN CONTRA OBJETO') => 'CHOQUE_OBJETO_FIJO',
-        $this->norm('CHOQUE OBJETO FIJO') => 'CHOQUE_OBJETO_FIJO',
-
-        $this->norm('CAIDA ACUATICA DE VEHÍCULO') => 'CAIDA_ACUATICA',
-        $this->norm('CAIDA ACUÁTICA DE VEHÍCULO') => 'CAIDA_ACUATICA',
-
-        $this->norm('DESBARRANCAMIENTO') => 'DESBARRANCAMIENTO',
-        $this->norm('INCENDIO') => 'INCENDIO',
-        $this->norm('EXPLOSIÓN') => 'EXPLOSION',
-        $this->norm('EXPLOSION') => 'EXPLOSION',
-    ];
-
-    foreach ($base as $r) {
-        $tipoRaw = (string)($r->tipo_hecho ?? '');
-        $tipoN   = $this->norm($tipoRaw);
-
-        $key = $map[$tipoN] ?? 'COLISION_ALCANCE';
-
-        $out[$key]['cantidad']    = (int)($out[$key]['cantidad'] ?? 0) + (int)($r->cantidad ?? 0);
-        $out[$key]['lesionados']  = (int)($out[$key]['lesionados'] ?? 0) + (int)($r->lesionados ?? 0);
-        $out[$key]['heridos']     = (int)($out[$key]['heridos'] ?? 0) + (int)($r->heridos ?? 0);
-        $out[$key]['defunciones'] = (int)($out[$key]['defunciones'] ?? 0) + (int)($r->defunciones ?? 0);
-        $out[$key]['fuero_comun'] = (int)($out[$key]['fuero_comun'] ?? 0) + (int)($r->fuero_comun ?? 0);
-    }
-
-    $totals = ['cantidad' => 0, 'lesionados' => 0, 'heridos' => 0, 'defunciones' => 0, 'fuero_comun' => 0];
-    foreach ($out as $vals) {
-        $totals['cantidad']    += (int)($vals['cantidad'] ?? 0);
-        $totals['lesionados']  += (int)($vals['lesionados'] ?? 0);
-        $totals['heridos']     += (int)($vals['heridos'] ?? 0);
-        $totals['defunciones'] += (int)($vals['defunciones'] ?? 0);
-        $totals['fuero_comun'] += (int)($vals['fuero_comun'] ?? 0);
-    }
+    $total = 0;
+    foreach ($rows as $v) $total += (int)$v;
 
     return [
-        'rows' => $out,
-        'totals' => $totals,
+        'rows' => $rows,
+        'total' => $total,
+    ];
+}
+
+protected function contarMontosHechosTransito(Carbon $inicio, Carbon $fin): array
+{
+    $inicioStr = $inicio->format('Y-m-d H:i:s');
+    $finStr    = $fin->format('Y-m-d H:i:s');
+
+    $subHechos = DB::table('hechos')
+        ->select('hechos.id')
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
+
+    $danos = (float) DB::table('hecho_vehiculo')
+        ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id')
+        ->whereIn('hecho_vehiculo.hecho_id', $subHechos)
+        ->distinct()
+        ->sum(DB::raw('COALESCE(vehiculos.monto_danos, 0)'));
+
+    $montoVehiculos = 0.0;
+    $montoOtros     = 0.0;
+
+    return [
+        'danos_materiales' => $danos,
+        'monto_vehiculos'  => $montoVehiculos,
+        'monto_otros'      => $montoOtros,
+        'total'            => ($danos + $montoVehiculos + $montoOtros),
     ];
 }
 
 
+
 //********************************************
-//                  TABLA 7                 //
+//                  TABLA 8                 //
 //********************************************
 
-
-protected function buildBloqueFinalTresTablas(
+protected function buildHechosTransitoPorTipoVehiculoTable(
     Worksheet $sheet,
     Carbon $inicio,
     Carbon $fin,
-    int $startRow = 126
+    int $startRow = 170
 ): void {
     $r = $startRow;
 
+    // Separador visual como las otras tablas dobles
     $sheet->getColumnDimension('E')->setWidth(6);
 
-    $this->buildHechosTransitoPorTipoVehiculoLeft($sheet, $inicio, $fin, $r);
+    // IZQ (B:D) = tu TABLA 8 actual (15 tipos)
+    $lNo   = 'B';
+    $lDesc = 'C';
+    $lCant = 'D';
 
-    $rightR1 = $r;
-    $this->buildHechosTransitoInvolucradosRight($sheet, $inicio, $fin, $rightR1);
+    // DER (F:H) = tabla corta (4 filas) como tu screenshot
+    $pNo   = 'F';
+    $pDesc = 'G';
+    $pCant = 'H';
 
-    $rightR2 = $rightR1 + 5;
-    $this->buildLiberacionesRight($sheet, $inicio, $fin, $rightR2);
+    $templateLeft  = $this->templateHechosTransitoPorTipoVehiculo();
+    $countsLeft    = $this->contarHechosTransitoPorTipoVehiculo($inicio, $fin);
 
-    $rightR3 = $rightR2 + 6;
-    $this->buildAreasAuxiliaresRight($sheet, $inicio, $fin, $rightR3);
+    $templateRight = $this->templateHechosTransitoPorTipoVehiculoResumen();
+    $countsRight   = $this->contarHechosTransitoPorTipoVehiculoResumen($inicio, $fin);
 
-    $clearFrom = $r;
-    $clearTo   = max($r + count($this->templateHechosTransitoVehiculosLeft()), $rightR3 + 1);
+    $lastRowLeft  = $r + count($templateLeft) + 1;
+    $lastRowRight = $r + count($templateRight) + 1;
+    $lastRow      = max($lastRowLeft, $lastRowRight);
 
-    $rangeE = 'E' . $clearFrom . ':E' . $clearTo;
+    $this->unmergeRange($sheet, $lNo . $r . ':' . $pCant . $lastRow);
+    $sheet->getStyle($lNo . $r . ':' . $pCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
 
-    $sheet->getStyle($rangeE)->getFill()->setFillType(Fill::FILL_NONE);
-    $sheet->getStyle($rangeE)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
-    $sheet->getStyle($rangeE)->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+    // Headers
+    $sheet->setCellValue($lNo . $r, 'No.');
+    $sheet->setCellValue($lDesc . $r, 'HECHOS DE TRÁNSITO');
+    $sheet->setCellValue($lCant . $r, 'CANTIDAD');
 
-    for ($rr = $clearFrom; $rr <= $clearTo; $rr++) {
-        $sheet->setCellValueExplicit('E' . $rr, '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-    }
-}
+    $sheet->setCellValue($pNo . $r, 'No.');
+    $sheet->setCellValue($pDesc . $r, 'HECHOS DE TRÁNSITO');
+    $sheet->setCellValue($pCant . $r, 'CANTIDAD');
 
-protected function buildHechosTransitoPorTipoVehiculoLeft(
-    Worksheet $sheet,
-    Carbon $inicio,
-    Carbon $fin,
-    int $startRow
-): void {
-    $colNo   = 'B';
-    $colDesc = 'C';
-    $colCant = 'D';
+    $sheet->getRowDimension($r)->setRowHeight(20);
+    $sheet->getStyle($lNo . $r . ':' . $lCant . $r)->applyFromArray($this->styleHeaderBlue());
+    $sheet->getStyle($pNo . $r . ':' . $pCant . $r)->applyFromArray($this->styleHeaderBlue());
 
-    $template = $this->templateHechosTransitoVehiculosLeft();
-    $counts   = $this->contarHechosTransitoVehiculosLeft($inicio, $fin);
+    // Filas: pintamos hasta el máximo de ambas (para que quede parejo)
+    $maxRows = max(count($templateLeft), count($templateRight));
+    $row = $r + 1;
 
-    $lastRow = $startRow + count($template);
+    for ($i = 0; $i < $maxRows; $i++) {
 
-    $this->unmergeRange($sheet, $colNo . $startRow . ':' . $colCant . $lastRow);
-    $sheet->getStyle($colNo . $startRow . ':' . $colCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
+        // IZQUIERDA
+        if (isset($templateLeft[$i])) {
+            $it = $templateLeft[$i];
+            $key = (string)($it['key'] ?? '');
 
-    $sheet->setCellValue($colNo . $startRow, 'No.');
-    $sheet->setCellValue($colDesc . $startRow, 'HECHOS DE TRÁNSITO');
-    $sheet->setCellValue($colCant . $startRow, 'CANTIDAD');
+            $sheet->setCellValue($lNo . $row, $it['no']);
+            $sheet->setCellValue($lDesc . $row, $it['label']);
+            $sheet->setCellValue($lCant . $row, (int)($countsLeft['rows'][$key] ?? 0));
+        } else {
+            $sheet->setCellValue($lNo . $row, null);
+            $sheet->setCellValue($lDesc . $row, null);
+            $sheet->setCellValue($lCant . $row, null);
+        }
 
-    $sheet->getRowDimension($startRow)->setRowHeight(20);
-    $sheet->getStyle($colNo . $startRow . ':' . $colCant . $startRow)->applyFromArray($this->styleHeaderBlue());
+        // DERECHA
+        // DERECHA
+        if (isset($templateRight[$i])) {
+            $it2 = $templateRight[$i];
+            $key2 = (string)($it2['key'] ?? '');
 
-    $row = $startRow + 1;
-
-    foreach ($template as $it) {
-        $key = (string)($it['key'] ?? '');
-
-        $sheet->setCellValue($colNo . $row, (int)$it['no']);
-        $sheet->setCellValue($colDesc . $row, (string)$it['label']);
-        $sheet->setCellValue($colCant . $row, (int)($counts[$key] ?? 0));
+            $sheet->setCellValue($pNo . $row, $it2['no']);
+            $sheet->setCellValue($pDesc . $row, $it2['label']);
+            $sheet->setCellValue($pCant . $row, (int)($countsRight['rows'][$key2] ?? 0));
+        } else {
+            $sheet->setCellValue($pNo . $row, null);
+            $sheet->setCellValue($pDesc . $row, null);
+            $sheet->setCellValue($pCant . $row, null);
+        }
 
         $sheet->getRowDimension($row)->setRowHeight(18);
 
-        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
-        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->getFill()->setFillType(Fill::FILL_NONE);
+        // IZQUIERDA siempre con bordes
+        $sheet->getStyle($lNo . $row . ':' . $lCant . $row)->applyFromArray($this->styleBodyThin());
 
-        $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle($colCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // DERECHA: si existe fila real -> bordes, si es relleno -> SIN bordes
+        if (isset($templateRight[$i])) {
+            $sheet->getStyle($pNo . $row . ':' . $pCant . $row)->applyFromArray($this->styleBodyThin());
+        } else {
+            $sheet->getStyle($pNo . $row . ':' . $pCant . $row)->applyFromArray($this->styleEmptyNoBorders());
+        }
+
+        $sheet->getStyle($lNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($lCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle($pNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($pCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $row++;
     }
+
+    // TOTAL izquierda
+    $totalRowLeft = $row;
+    $this->unmergeRange($sheet, $lNo . $totalRowLeft . ':' . $lDesc . $totalRowLeft);
+    $sheet->mergeCells($lNo . $totalRowLeft . ':' . $lDesc . $totalRowLeft);
+    $sheet->setCellValue($lNo . $totalRowLeft, 'TOTAL');
+    $sheet->setCellValue($lCant . $totalRowLeft, (int)($countsLeft['total'] ?? 0));
+
+    $sheet->getRowDimension($totalRowLeft)->setRowHeight(20);
+    $sheet->getStyle($lNo . $totalRowLeft . ':' . $lCant . $totalRowLeft)->applyFromArray($this->styleTotalBlue());
+
+    // TOTAL derecha
+    $sheet->setCellValue($pNo . $totalRowLeft, null);
+    $sheet->setCellValue($pDesc . $totalRowLeft, null);
+    $sheet->setCellValue($pCant . $totalRowLeft, null);
+
+    $sheet->getStyle($pNo . $totalRowLeft . ':' . $pCant . $totalRowLeft)->applyFromArray($this->styleEmptyNoBorders());
+    $sheet->getStyle($pNo . $totalRowLeft . ':' . $pCant . $totalRowLeft)->getFill()->setFillType(Fill::FILL_NONE);
+
+    $this->buildLiberacionesTableRight($sheet, $inicio, $fin, $r + 6);
+    $this->buildAreasAuxiliaresTableRight($sheet, $inicio, $fin, $r + 13);
 }
 
-protected function templateHechosTransitoVehiculosLeft(): array
+protected function templateHechosTransitoPorTipoVehiculo(): array
 {
     return [
-        ['no' => 1,  'label' => 'SERVICIO PÚBLICO FED',              'key' => 'SERVICIO_PUBLICO_FED'],
-        ['no' => 2,  'label' => 'TRANSPORTE PÚBLICO',                'key' => 'TRANSPORTE_PUBLICO'],
-        ['no' => 3,  'label' => 'AUTOMÓVIL',                         'key' => 'AUTOMOVIL'],
-        ['no' => 4,  'label' => 'CAMIONETA',                         'key' => 'CAMIONETA'],
-        ['no' => 5,  'label' => 'MICROBUS',                          'key' => 'MICROBUS'],
-        ['no' => 6,  'label' => 'CAMIÓN URBANO DE PASAJEROS',        'key' => 'CAMION_URBANO'],
-        ['no' => 7,  'label' => 'OMNIBUS',                           'key' => 'OMNIBUS'],
-        ['no' => 8,  'label' => 'CAMIONETA DE CARGA',                'key' => 'CAMIONETA_CARGA'],
-        ['no' => 9,  'label' => 'CAMION DE CARGA',                   'key' => 'CAMION_CARGA'],
-        ['no' => 10, 'label' => 'TRACTOR',                           'key' => 'TRACTOR'],
-        ['no' => 11, 'label' => 'FERROCARRIL',                       'key' => 'FERROCARRIL'],
-        ['no' => 12, 'label' => 'MOTOCICLETA',                       'key' => 'MOTOCICLET
-A'],
-        ['no' => 13, 'label' => 'BICICLETA',                         'key' => 'BICICLETA'],
-        ['no' => 14, 'label' => 'OTRO',                              'key' => 'OTRO'],
-        ['no' => 15, 'label' => 'SEMOVIENTE',                        'key' => 'SEMOVIENTE'],
+        ['no' => 1,  'label' => 'SERVICIO PÚBLICO FED',           'key' => 'SERVICIO_PUBLICO_FED'],
+        ['no' => 2,  'label' => 'TRANSPORTE PÚBLICO',             'key' => 'TRANSPORTE_PUBLICO'],
+        ['no' => 3,  'label' => 'AUTOMÓVIL',                      'key' => 'AUTOMOVIL'],
+        ['no' => 4,  'label' => 'CAMIONETA',                      'key' => 'CAMIONETA'],
+        ['no' => 5,  'label' => 'MICROBUS',                       'key' => 'MICROBUS'],
+        ['no' => 6,  'label' => 'CAMIÓN URBANO DE PASAJEROS',     'key' => 'CAMION_URBANO_PASAJEROS'],
+        ['no' => 7,  'label' => 'OMNIBUS',                        'key' => 'OMNIBUS'],
+        ['no' => 8,  'label' => 'CAMIONETA DE CARGA',             'key' => 'CAMIONETA_CARGA'],
+        ['no' => 9,  'label' => 'CAMION DE CARGA',                'key' => 'CAMION_CARGA'],
+        ['no' => 10, 'label' => 'TRACTOR',                        'key' => 'TRACTOR'],
+        ['no' => 11, 'label' => 'FERROCARRIL',                    'key' => 'FERROCARRIL'],
+        ['no' => 12, 'label' => 'MOTOCICLETA',                    'key' => 'MOTOCICLETA'],
+        ['no' => 13, 'label' => 'BICICLETA',                      'key' => 'BICICLETA'],
+        ['no' => 14, 'label' => 'OTRO',                           'key' => 'OTRO'],
+        ['no' => 15, 'label' => 'SEMOVIENTE',                     'key' => 'SEMOVIENTE'],
     ];
 }
 
-protected function contarHechosTransitoVehiculosLeft(Carbon $inicio, Carbon $fin): array
+protected function contarHechosTransitoPorTipoVehiculo(Carbon $inicio, Carbon $fin): array
 {
-    $keys = array_column($this->templateHechosTransitoVehiculosLeft(), 'key');
-    $out = [];
-    foreach ($keys as $k) {
-        $out[$k] = 0;
+    $inicioStr = $inicio->format('Y-m-d H:i:s');
+    $finStr    = $fin->format('Y-m-d H:i:s');
+
+    $subHechos = DB::table('hechos')
+        ->select('hechos.id')
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
+
+    $vehiculos = DB::table('hecho_vehiculo')
+        ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id')
+        ->whereIn('hecho_vehiculo.hecho_id', $subHechos)
+        ->select([
+            'vehiculos.id as vehiculo_id',
+            'vehiculos.tipo as tipo',
+            'vehiculos.linea as linea',
+            'vehiculos.marca as marca',
+            'vehiculos.placas as placas',
+            'vehiculos.estado_placas as estado_placas',
+            'vehiculos.tipo_servicio as tipo_servicio',
+            'vehiculos.capacidad_personas as capacidad_personas',
+        ])
+        ->distinct()
+        ->get();
+
+    $rows = [];
+    foreach ($this->templateHechosTransitoPorTipoVehiculo() as $t) {
+        $rows[(string)$t['key']] = 0;
     }
-    return $out;
+
+    foreach ($vehiculos as $v) {
+        $key = $this->mapVehiculoATabla7Key(
+            (string)($v->tipo_servicio ?? ''),
+            (string)($v->tipo ?? ''),
+            (string)($v->linea ?? ''),
+            (string)($v->marca ?? ''),
+            (string)($v->placas ?? ''),
+            (string)($v->estado_placas ?? ''),
+            (int)($v->capacidad_personas ?? 0)
+        );
+
+        if (!isset($rows[$key])) {
+            $key = 'OTRO';
+        }
+
+        $rows[$key] = (int)$rows[$key] + 1;
+    }
+
+    $total = 0;
+    foreach ($rows as $n) $total += (int)$n;
+
+    return [
+        'rows' => $rows,
+        'total' => $total,
+    ];
 }
 
-protected function buildHechosTransitoInvolucradosRight(
-    Worksheet $sheet,
-    Carbon $inicio,
-    Carbon $fin,
-    int $startRow
-): void {
-    $colNo   = 'F';
-    $colDesc = 'G';
-    $colCant = 'H';
+protected function mapVehiculoATabla7Key(
+    string $tipoServicio,
+    string $tipo,
+    string $linea,
+    string $marca,
+    string $placas,
+    string $estadoPlacas,
+    int $capacidadPersonas
+): string {
+    $ts = $this->norm($tipoServicio);
+    $t  = $this->norm($tipo);
+    $ln = $this->norm($linea);
+    $mk = $this->norm($marca);
+    $pl = $this->norm($placas);
+    $ep = $this->norm($estadoPlacas);
 
-    $items = [
+    $general = $this->tipoGeneralFromTipo($tipo);
+
+    if ($general === 'semoviente') return 'SEMOVIENTE';
+    if ($general === 'bicicleta')  return 'BICICLETA';
+    if ($general === 'motocicleta') return 'MOTOCICLETA';
+
+    if (
+        str_contains($t, 'FERROCARRIL') ||
+        str_contains($t, 'TREN') ||
+        str_contains($ln, 'FERROCARRIL') ||
+        str_contains($ln, 'TREN')
+    ) {
+        return 'FERROCARRIL';
+    }
+
+    if (
+        str_contains($t, 'TRACTOR') ||
+        str_contains($ln, 'TRACTOR') ||
+        str_contains($t, 'TRACTO') ||
+        str_contains($ln, 'TRACTO') ||
+        str_contains($t, 'TRACTOCAMION') ||
+        str_contains($ln, 'TRACTOCAMION')
+    ) {
+        return 'TRACTOR';
+    }
+
+    if (
+        str_contains($ts, 'FED') ||
+        str_contains($ts, 'FEDERAL') ||
+        str_contains($ts, 'SERVICIO PUBLICO FED')
+    ) {
+        return 'SERVICIO_PUBLICO_FED';
+    }
+
+    if (
+        str_contains($t, 'OMNIBUS') ||
+        str_contains($t, 'AUTOBUS') ||
+        str_contains($t, 'BUS') ||
+        str_contains($ln, 'OMNIBUS') ||
+        str_contains($ln, 'AUTOBUS')
+    ) {
+        return 'OMNIBUS';
+    }
+
+    if (
+        str_contains($t, 'MICROBUS') ||
+        str_contains($ln, 'MICROBUS') ||
+        (str_contains($t, 'URVAN') && !str_contains($ts, 'CARGA')) ||
+        (str_contains($ln, 'URVAN') && !str_contains($ts, 'CARGA'))
+    ) {
+        return 'MICROBUS';
+    }
+
+    if (
+        str_contains($t, 'URBANO') ||
+        str_contains($ln, 'URBANO') ||
+        (str_contains($ts, 'URBANO') && (str_contains($t, 'CAMION') || str_contains($t, 'BUS')))
+    ) {
+        return 'CAMION_URBANO_PASAJEROS';
+    }
+
+    if (
+        str_contains($ts, 'PUBLICO') ||
+        str_contains($ts, 'PÚBLICO') ||
+        str_contains($ts, 'TAXI') ||
+        str_contains($ts, 'COLECTIVO') ||
+        str_contains($ts, 'COMBI') ||
+        str_contains($ts, 'RUTA') ||
+        str_contains($ts, 'TRANSPORTE')
+    ) {
+        if (!in_array($general, ['camion', 'remolque'], true)) {
+            return 'TRANSPORTE_PUBLICO';
+        }
+    }
+
+    if (in_array($general, ['automovil'], true)) {
+        return 'AUTOMOVIL';
+    }
+
+    if ($general === 'camioneta') {
+        if (
+            str_contains($ts, 'CARGA') ||
+            str_contains($ts, 'MERCANCIA') ||
+            str_contains($ts, 'MERCANCÍ') ||
+            str_contains($t, 'PANEL') ||
+            $capacidadPersonas > 0 && $capacidadPersonas <= 2
+        ) {
+            return 'CAMIONETA_CARGA';
+        }
+        return 'CAMIONETA';
+    }
+
+    if (in_array($general, ['camion', 'remolque'], true)) {
+        if (
+            str_contains($ts, 'CARGA') ||
+            str_contains($ts, 'MERCANCIA') ||
+            str_contains($t, 'PIPA') ||
+            str_contains($t, 'VOLTEO') ||
+            str_contains($t, 'PLATAFORMA') ||
+            str_contains($t, 'CAJA') ||
+            str_contains($t, 'TORTON') ||
+            str_contains($t, 'RABON')
+        ) {
+            return 'CAMION_CARGA';
+        }
+        return 'CAMION_CARGA';
+    }
+
+    return 'OTRO';
+}
+
+
+
+
+
+protected function templateHechosTransitoPorTipoVehiculoResumen(): array
+{
+    return [
         ['no' => 1, 'label' => 'VEHÍCULOS PARTICULARES INVOL.',   'key' => 'PARTICULARES'],
-        ['no' => 2, 'label' => 'VEHÍCULOS SERV. PÚBLIC. INVOL.',  'key' => 'PUBLICO'],
+        ['no' => 2, 'label' => 'VEHÍCULOS SERV. PÚBLIC. INVOL.',  'key' => 'SERV_PUBLICO'],
         ['no' => 3, 'label' => 'MOTOS INVOLUCRADAS',              'key' => 'MOTOS'],
         ['no' => 4, 'label' => 'VEHÍCULOS OFICIALES INVOL',       'key' => 'OFICIALES'],
     ];
-
-    $counts = $this->contarInvolucradosRight($inicio, $fin);
-
-    $lastRow = $startRow + count($items);
-    $this->unmergeRange($sheet, $colNo . $startRow . ':' . $colCant . $lastRow);
-    $sheet->getStyle($colNo . $startRow . ':' . $colCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
-
-    $sheet->setCellValue($colNo . $startRow, 'No.');
-    $sheet->setCellValue($colDesc . $startRow, 'HECHOS DE TRÁNSITO');
-    $sheet->setCellValue($colCant . $startRow, 'CANTIDAD');
-
-    $sheet->getRowDimension($startRow)->setRowHeight(20);
-    $sheet->getStyle($colNo . $startRow . ':' . $colCant . $startRow)->applyFromArray($this->styleHeaderBlue());
-
-    $row = $startRow + 1;
-
-    foreach ($items as $it) {
-        $key = (string)$it['key'];
-
-        $sheet->setCellValue($colNo . $row, (int)$it['no']);
-        $sheet->setCellValue($colDesc . $row, (string)$it['label']);
-        $sheet->setCellValue($colCant . $row, (int)($counts[$key] ?? 0));
-
-        $sheet->getRowDimension($row)->setRowHeight(18);
-        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
-        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->getFill()->setFillType(Fill::FILL_NONE);
-
-        $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle($colCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $row++;
-    }
 }
 
-protected function contarInvolucradosRight(Carbon $inicio, Carbon $fin): array
+
+
+
+
+
+
+
+
+
+
+
+protected function contarHechosTransitoPorTipoVehiculoResumen(Carbon $inicio, Carbon $fin): array
 {
-    return [
+    $inicioStr = $inicio->format('Y-m-d H:i:s');
+    $finStr    = $fin->format('Y-m-d H:i:s');
+
+    $subHechos = DB::table('hechos')
+        ->select('hechos.id')
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
+        ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
+
+    $vehiculos = DB::table('hecho_vehiculo')
+        ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id')
+        ->whereIn('hecho_vehiculo.hecho_id', $subHechos)
+        ->select([
+            'vehiculos.id as vehiculo_id',
+            'vehiculos.tipo as tipo',
+            'vehiculos.tipo_servicio as tipo_servicio',
+        ])
+        ->distinct()
+        ->get();
+
+    $rows = [
         'PARTICULARES' => 0,
-        'PUBLICO'      => 0,
+        'SERV_PUBLICO' => 0,
         'MOTOS'        => 0,
         'OFICIALES'    => 0,
     ];
+
+    foreach ($vehiculos as $v) {
+        $tipoServicio = (string)($v->tipo_servicio ?? '');
+        $ts = $this->norm($tipoServicio);
+
+        $general = $this->tipoGeneralFromTipo((string)($v->tipo ?? ''));
+
+        if ($general === 'motocicleta') {
+            $rows['MOTOS']++;
+            continue;
+        }
+
+        if (
+            str_contains($ts, 'OFICIAL') ||
+            str_contains($ts, 'GOBIER') ||
+            str_contains($ts, 'PATRULL') ||
+            str_contains($ts, 'SEGURIDAD') ||
+            str_contains($ts, 'POLIC')
+        ) {
+            $rows['OFICIALES']++;
+            continue;
+        }
+
+        if (
+            str_contains($ts, 'PUBLICO') ||
+            str_contains($ts, 'PÚBLICO') ||
+            str_contains($ts, 'TAXI') ||
+            str_contains($ts, 'COLECTIVO') ||
+            str_contains($ts, 'COMBI') ||
+            str_contains($ts, 'RUTA') ||
+            str_contains($ts, 'TRANSPORTE') ||
+            str_contains($ts, 'URBANO')
+        ) {
+            $rows['SERV_PUBLICO']++;
+            continue;
+        }
+
+        $rows['PARTICULARES']++;
+    }
+
+    $total = 0;
+    foreach ($rows as $n) $total += (int)$n;
+
+    return [
+        'rows' => $rows,
+        'total' => $total,
+    ];
 }
 
-protected function buildLiberacionesRight(
+protected function styleEmptyNoBorders(): array
+{
+    return [
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => Border::BORDER_NONE,
+            ],
+        ],
+        'alignment' => [
+            'vertical' => Alignment::VERTICAL_CENTER,
+        ],
+    ];
+}
+
+
+protected function buildLiberacionesTableRight(
     Worksheet $sheet,
     Carbon $inicio,
     Carbon $fin,
     int $startRow
 ): void {
+    $r = $startRow;
+
     $colNo   = 'F';
     $colDesc = 'G';
     $colCant = 'H';
 
-    $items = [
+    // Limpia estilos/bordes en el bloque que vamos a usar
+    $lastRow = $r + 5; // header + 4 filas + total
+    $this->unmergeRange($sheet, $colNo . $r . ':' . $colCant . $lastRow);
+    $sheet->getStyle($colNo . $r . ':' . $colCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
+
+    // Header
+    $sheet->setCellValue($colNo . $r, 'No.');
+    $sheet->setCellValue($colDesc . $r, 'LIBERACIONES');
+    $sheet->setCellValue($colCant . $r, 'CANTIDAD');
+
+    $sheet->getRowDimension($r)->setRowHeight(20);
+    $sheet->getStyle($colNo . $r . ':' . $colCant . $r)->applyFromArray($this->styleHeaderBlue());
+
+    // Datos
+    $counts = $this->contarLiberacionesPorTipoVehiculo($inicio, $fin);
+
+    $rows = [
         ['no' => 1, 'label' => 'LIBERACIÓN MOTOCICLETAS', 'key' => 'MOTOCICLETAS'],
         ['no' => 2, 'label' => 'LIBERACIÓN VEHÍCULOS',    'key' => 'VEHICULOS'],
         ['no' => 3, 'label' => 'LIBERACIÓN CAMIONES',     'key' => 'CAMIONES'],
         ['no' => 4, 'label' => 'LIBERACIÓN REMOLQUES',    'key' => 'REMOLQUES'],
     ];
 
-    $counts = $this->contarLiberacionesRight($inicio, $fin);
+    $row = $r + 1;
 
-    $headerRow = $startRow;
-    $firstRow  = $headerRow + 1;
-    $lastRow   = $firstRow + count($items) - 1;
-    $totalRow  = $lastRow + 1;
-
-    $this->unmergeRange($sheet, $colNo . $headerRow . ':' . $colCant . $totalRow);
-    $sheet->getStyle($colNo . $headerRow . ':' . $colCant . $totalRow)->getFill()->setFillType(Fill::FILL_NONE);
-
-    $sheet->setCellValue($colNo . $headerRow, 'No.');
-    $sheet->setCellValue($colDesc . $headerRow, 'LIBERACIONES');
-    $sheet->setCellValue($colCant . $headerRow, 'CANTIDAD');
-
-    $sheet->getRowDimension($headerRow)->setRowHeight(20);
-    $sheet->getStyle($colNo . $headerRow . ':' . $colCant . $headerRow)->applyFromArray($this->styleHeaderBlue());
-
-    $row = $firstRow;
-    $sum = 0;
-
-    foreach ($items as $it) {
-        $key = (string)$it['key'];
-        $val = (int)($counts[$key] ?? 0);
-
-        $sheet->setCellValue($colNo . $row, (int)$it['no']);
-        $sheet->setCellValue($colDesc . $row, (string)$it['label']);
-        $sheet->setCellValue($colCant . $row, $val);
+    foreach ($rows as $it) {
+        $sheet->setCellValue($colNo . $row, $it['no']);
+        $sheet->setCellValue($colDesc . $row, $it['label']);
+        $sheet->setCellValue($colCant . $row, (int)($counts['rows'][$it['key']] ?? 0));
 
         $sheet->getRowDimension($row)->setRowHeight(18);
-        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
-        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->getFill()->setFillType(Fill::FILL_NONE);
 
+        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
         $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle($colCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sum += $val;
         $row++;
     }
+
+    // TOTAL
+    $totalRow = $row;
 
     $this->unmergeRange($sheet, $colNo . $totalRow . ':' . $colDesc . $totalRow);
     $sheet->mergeCells($colNo . $totalRow . ':' . $colDesc . $totalRow);
 
     $sheet->setCellValue($colNo . $totalRow, 'TOTAL');
-    $sheet->setCellValue($colCant . $totalRow, $sum);
+    $sheet->setCellValue($colCant . $totalRow, (int)($counts['total'] ?? 0));
 
     $sheet->getRowDimension($totalRow)->setRowHeight(20);
     $sheet->getStyle($colNo . $totalRow . ':' . $colCant . $totalRow)->applyFromArray($this->styleTotalBlue());
-
     $sheet->getStyle($colCant . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 }
 
-protected function contarLiberacionesRight(Carbon $inicio, Carbon $fin): array
+
+
+
+protected function contarLiberacionesPorTipoVehiculo(Carbon $inicio, Carbon $fin): array
 {
-    return [
+    // OJO: fecha_liberacion es DATE (por tu screenshot).
+    // Tomamos rango inclusivo por día.
+    $startDate = $inicio->toDateString();
+    $endDate   = $fin->copy()->subSecond()->toDateString();
+
+    $items = DB::table('liberaciones')
+        ->join('vehiculos', 'vehiculos.id', '=', 'liberaciones.vehiculo_id')
+        ->whereBetween('liberaciones.fecha_liberacion', [$startDate, $endDate])
+        ->select([
+            'liberaciones.id as liberacion_id',
+            'vehiculos.tipo as tipo',
+        ])
+        ->distinct()
+        ->get();
+
+    $rows = [
         'MOTOCICLETAS' => 0,
         'VEHICULOS'    => 0,
         'CAMIONES'     => 0,
         'REMOLQUES'    => 0,
     ];
+
+    foreach ($items as $it) {
+        $gen = $this->tipoGeneralFromTipo((string)($it->tipo ?? ''));
+
+        if ($gen === 'motocicleta') {
+            $rows['MOTOCICLETAS']++;
+            continue;
+        }
+
+        if ($gen === 'remolque') {
+            $rows['REMOLQUES']++;
+            continue;
+        }
+
+        if ($gen === 'camion') {
+            $rows['CAMIONES']++;
+            continue;
+        }
+
+        // todo lo demás cae aquí (automóvil/camioneta/otros)
+        $rows['VEHICULOS']++;
+    }
+
+    $total = 0;
+    foreach ($rows as $n) $total += (int)$n;
+
+    return [
+        'rows' => $rows,
+        'total' => $total,
+    ];
 }
 
-protected function buildAreasAuxiliaresRight(
+
+protected function buildAreasAuxiliaresTableRight(
     Worksheet $sheet,
     Carbon $inicio,
     Carbon $fin,
     int $startRow
 ): void {
+    $r = $startRow;
+
     $colNo   = 'F';
     $colDesc = 'G';
     $colCant = 'H';
 
-    $headerRow = $startRow;
-    $row1      = $headerRow + 1;
+    $lastRow = $r + 1; // header + 1 fila
+    $this->unmergeRange($sheet, $colNo . $r . ':' . $colCant . $lastRow);
+    $sheet->getStyle($colNo . $r . ':' . $colCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
 
-    $wipeLast = $headerRow + 6;
-    $wipeRange = $colNo . $headerRow . ':' . $colCant . $wipeLast;
+    $sheet->setCellValue($colNo . $r, 'No.');
+    $sheet->setCellValue($colDesc . $r, 'ÁREAS AUXILIARES');
+    $sheet->setCellValue($colCant . $r, 'CANTIDAD');
 
-    $this->unmergeRange($sheet, $wipeRange);
-    $sheet->getStyle($wipeRange)->getFill()->setFillType(Fill::FILL_NONE);
-    $sheet->getStyle($wipeRange)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
-    $sheet->getStyle($wipeRange)->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+    $sheet->getRowDimension($r)->setRowHeight(20);
+    $sheet->getStyle($colNo . $r . ':' . $colCant . $r)->applyFromArray($this->styleHeaderBlue());
 
-    $sheet->setCellValue($colNo . $headerRow, 'No.');
-    $sheet->setCellValue($colDesc . $headerRow, 'ÁREAS AUXILIARES');
-    $sheet->setCellValue($colCant . $headerRow, 'CANTIDAD');
+    $cantidad = $this->contarExamenTeoricoEnRango($inicio, $fin);
 
-    $sheet->getRowDimension($headerRow)->setRowHeight(20);
-    $sheet->getStyle($colNo . $headerRow . ':' . $colCant . $headerRow)->applyFromArray($this->styleHeaderBlue());
+    $row = $r + 1;
 
-    $examenTeorico = $this->contarExamenTeoricoEnRango($inicio, $fin);
+    $sheet->setCellValue($colNo . $row, 1);
+    $sheet->setCellValue($colDesc . $row, 'EXÁMEN TEÓRICO');
+    $sheet->setCellValue($colCant . $row, (int)$cantidad);
 
-    $sheet->setCellValue($colNo . $row1, 1);
-    $sheet->setCellValue($colDesc . $row1, 'EXÁMEN TEÓRICO');
-    $sheet->setCellValue($colCant . $row1, $examenTeorico);
+    $sheet->getRowDimension($row)->setRowHeight(18);
+    $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
 
-    $sheet->getRowDimension($row1)->setRowHeight(18);
-    $sheet->getStyle($colNo . $row1 . ':' . $colCant . $row1)->applyFromArray($this->styleBodyThin());
-    $sheet->getStyle($colNo . $row1 . ':' . $colCant . $row1)->getFill()->setFillType(Fill::FILL_NONE);
-
-    $sheet->getStyle($colNo . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    $sheet->getStyle($colCant . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    $sheet->getStyle($colCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 }
+
+
 
 protected function contarExamenTeoricoEnRango(Carbon $inicio, Carbon $fin): int
 {
@@ -1979,54 +2557,13 @@ protected function contarExamenTeoricoEnRango(Carbon $inicio, Carbon $fin): int
         return 0;
     }
 
-    $ini = $inicio->toDateString();
-    $end = $fin->copy()->subSecond()->toDateString();
+    $startDate = $inicio->toDateString();
+    $endDate   = $fin->copy()->subSecond()->toDateString();
 
     return (int) DB::table('modulo_examenes_diarios')
-        ->whereBetween('fecha', [$ini, $end])
-        ->sum(DB::raw('COALESCE(total,0)'));
+        ->whereBetween('fecha', [$startDate, $endDate])
+        ->sum(DB::raw('COALESCE(total, 0)'));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

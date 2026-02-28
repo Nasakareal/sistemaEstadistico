@@ -2,13 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
-    "\\config",
-    "\\routes"
+    "\\app\\Console",
+    "\\app\\Console\\Commands"
   ],
+  "SelectedNode": "\\app\\Console\\Kernel.php",
   "PreviewInSolutionExplorer": false
 }

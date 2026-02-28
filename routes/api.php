@@ -23,6 +23,13 @@ use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\MapaIncidenciasController;
 use App\Http\Controllers\Api\PendientesCortesController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
+use App\Http\Controllers\Api\C5IInboundController;
+
+use App\Http\Controllers\Api\BotC5IController;
+
+Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
+
+Route::post('/c5i/report', [C5IInboundController::class, 'handle']);
 
 Route::post('/wabot/incoming', function (Request $request) {
     Log::info('WABOT incoming', [

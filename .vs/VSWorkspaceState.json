@@ -6,8 +6,9 @@
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
     "\\app\\Services",
-    "\\app\\Services\\WhatsApp"
+    "\\app\\Services\\WhatsApp",
+    "\\config"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\BotC5IController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -1695,11 +1695,24 @@ protected function buildBloqueFinalTresTablas(
     $rightR1 = $r;
     $this->buildHechosTransitoInvolucradosRight($sheet, $inicio, $fin, $rightR1);
 
-    $rightR2 = $rightR1 + 6;
+    $rightR2 = $rightR1 + 5;
     $this->buildLiberacionesRight($sheet, $inicio, $fin, $rightR2);
 
-    $rightR3 = $rightR2 + 7;
+    $rightR3 = $rightR2 + 6;
     $this->buildAreasAuxiliaresRight($sheet, $inicio, $fin, $rightR3);
+
+    $clearFrom = $r;
+    $clearTo   = max($r + count($this->templateHechosTransitoVehiculosLeft()), $rightR3 + 1);
+
+    $rangeE = 'E' . $clearFrom . ':E' . $clearTo;
+
+    $sheet->getStyle($rangeE)->getFill()->setFillType(Fill::FILL_NONE);
+    $sheet->getStyle($rangeE)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+    $sheet->getStyle($rangeE)->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+
+    for ($rr = $clearFrom; $rr <= $clearTo; $rr++) {
+        $sheet->setCellValueExplicit('E' . $rr, '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    }
 }
 
 protected function buildHechosTransitoPorTipoVehiculoLeft(
@@ -1762,7 +1775,8 @@ protected function templateHechosTransitoVehiculosLeft(): array
         ['no' => 9,  'label' => 'CAMION DE CARGA',                   'key' => 'CAMION_CARGA'],
         ['no' => 10, 'label' => 'TRACTOR',                           'key' => 'TRACTOR'],
         ['no' => 11, 'label' => 'FERROCARRIL',                       'key' => 'FERROCARRIL'],
-        ['no' => 12, 'label' => 'MOTOCICLETA',                       'key' => 'MOTOCICLETA'],
+        ['no' => 12, 'label' => 'MOTOCICLETA',                       'key' => 'MOTOCICLET
+A'],
         ['no' => 13, 'label' => 'BICICLETA',                         'key' => 'BICICLETA'],
         ['no' => 14, 'label' => 'OTRO',                              'key' => 'OTRO'],
         ['no' => 15, 'label' => 'SEMOVIENTE',                        'key' => 'SEMOVIENTE'],
@@ -1800,6 +1814,7 @@ protected function buildHechosTransitoInvolucradosRight(
 
     $lastRow = $startRow + count($items);
     $this->unmergeRange($sheet, $colNo . $startRow . ':' . $colCant . $lastRow);
+    $sheet->getStyle($colNo . $startRow . ':' . $colCant . $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
 
     $sheet->setCellValue($colNo . $startRow, 'No.');
     $sheet->setCellValue($colDesc . $startRow, 'HECHOS DE TRÁNSITO');
@@ -1819,6 +1834,7 @@ protected function buildHechosTransitoInvolucradosRight(
 
         $sheet->getRowDimension($row)->setRowHeight(18);
         $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
+        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->getFill()->setFillType(Fill::FILL_NONE);
 
         $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle($colCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -1862,6 +1878,7 @@ protected function buildLiberacionesRight(
     $totalRow  = $lastRow + 1;
 
     $this->unmergeRange($sheet, $colNo . $headerRow . ':' . $colCant . $totalRow);
+    $sheet->getStyle($colNo . $headerRow . ':' . $colCant . $totalRow)->getFill()->setFillType(Fill::FILL_NONE);
 
     $sheet->setCellValue($colNo . $headerRow, 'No.');
     $sheet->setCellValue($colDesc . $headerRow, 'LIBERACIONES');
@@ -1883,6 +1900,7 @@ protected function buildLiberacionesRight(
 
         $sheet->getRowDimension($row)->setRowHeight(18);
         $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->applyFromArray($this->styleBodyThin());
+        $sheet->getStyle($colNo . $row . ':' . $colCant . $row)->getFill()->setFillType(Fill::FILL_NONE);
 
         $sheet->getStyle($colNo . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle($colCant . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -1926,7 +1944,13 @@ protected function buildAreasAuxiliaresRight(
     $headerRow = $startRow;
     $row1      = $headerRow + 1;
 
-    $this->unmergeRange($sheet, $colNo . $headerRow . ':' . $colCant . $row1);
+    $wipeLast = $headerRow + 6;
+    $wipeRange = $colNo . $headerRow . ':' . $colCant . $wipeLast;
+
+    $this->unmergeRange($sheet, $wipeRange);
+    $sheet->getStyle($wipeRange)->getFill()->setFillType(Fill::FILL_NONE);
+    $sheet->getStyle($wipeRange)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+    $sheet->getStyle($wipeRange)->getBorders()->getOutline()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
 
     $sheet->setCellValue($colNo . $headerRow, 'No.');
     $sheet->setCellValue($colDesc . $headerRow, 'ÁREAS AUXILIARES');
@@ -1943,6 +1967,7 @@ protected function buildAreasAuxiliaresRight(
 
     $sheet->getRowDimension($row1)->setRowHeight(18);
     $sheet->getStyle($colNo . $row1 . ':' . $colCant . $row1)->applyFromArray($this->styleBodyThin());
+    $sheet->getStyle($colNo . $row1 . ':' . $colCant . $row1)->getFill()->setFillType(Fill::FILL_NONE);
 
     $sheet->getStyle($colNo . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     $sheet->getStyle($colCant . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -1961,9 +1986,6 @@ protected function contarExamenTeoricoEnRango(Carbon $inicio, Carbon $fin): int
         ->whereBetween('fecha', [$ini, $end])
         ->sum(DB::raw('COALESCE(total,0)'));
 }
-
-
-
 
 
 

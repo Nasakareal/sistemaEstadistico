@@ -12,6 +12,8 @@ use App\Helpers\StreetNormalizer;
 
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
+use App\Services\WhatsApp\C5IReport;
+use App\Services\WhatsApp\NearestUnit;
 
 class HechosController extends Controller
 {
@@ -409,7 +411,23 @@ class HechosController extends Controller
 
         $hecho->load(['vehiculos']);
 
-        $message = WhatsAppLink::textForHecho($hecho);
+        $card = WhatsAppLink::textForHecho($hecho);
+
+        $gmaps = C5IReport::googleMapsLinkFromHecho($hecho);
+
+        $recoText = "RECOMENDACIÓN: NO DISPONIBLE (SIN COORDENADAS).";
+        if (is_numeric($hecho->lat) && is_numeric($hecho->lng)) {
+            $r = NearestUnit::recommendForCoords((float)$hecho->lat, (float)$hecho->lng, 3);
+            $recoText = NearestUnit::recommendationText($r);
+        }
+
+        $messageParts = [];
+        $messageParts[] = $card;
+        $messageParts[] = "";
+        if ($gmaps) $messageParts[] = $gmaps;
+        $messageParts[] = $recoText;
+
+        $message = implode("\n", $messageParts);
 
         $media = [];
 

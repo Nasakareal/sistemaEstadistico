@@ -28,6 +28,10 @@ return [
         'feed_url' => env('WAZE_FEED_URL'),
     ],
 
+    'wabot' => [
+        'secret' => env('LARAVEL_INCOMING_SECRET', ''),
+    ],
+
     'firebase' => [
         'project_id' => env('FIREBASE_PROJECT_ID'),
         'service_account' => env('FIREBASE_SERVICE_ACCOUNT'),

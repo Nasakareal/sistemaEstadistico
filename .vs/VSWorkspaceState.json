@@ -9,6 +9,6 @@
     "\\app\\Services\\WhatsApp",
     "\\config"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\BotC5IController.php",
+  "SelectedNode": "\\config\\services.php",
   "PreviewInSolutionExplorer": false
 }

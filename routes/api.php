@@ -26,6 +26,9 @@ use App\Http\Controllers\Api\WhatsAppWebhookController;
 use App\Http\Controllers\Api\C5IInboundController;
 
 use App\Http\Controllers\Api\BotC5IController;
+use App\Http\Controllers\Api\WabotIncomingController;
+
+Route::post('/wabot/incoming', [WabotIncomingController::class, 'handle']);
 
 Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
 

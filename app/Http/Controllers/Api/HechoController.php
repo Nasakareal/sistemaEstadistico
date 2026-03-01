@@ -707,7 +707,39 @@ class HechoController extends Controller
 
         $hecho->load(['vehiculos']);
 
-        $message = WhatsAppLink::textForHecho($hecho);
+        $baseText = WhatsAppLink::textForHecho($hecho);
+
+        $lat = null;
+        $lng = null;
+
+        if (is_numeric($hecho->lat) && is_numeric($hecho->lng)) {
+            $lat = (float) $hecho->lat;
+            $lng = (float) $hecho->lng;
+        } else {
+            $c5Text = null;
+
+            // Si tienes el texto crudo del C5i guardado en algún campo, ponlo aquí:
+            // $c5Text = (string) ($hecho->reporte_c5i_texto ?? '');
+
+            if (is_string($c5Text) && trim($c5Text) !== '') {
+                $parsed = \App\Services\WhatsApp\C5IReport::parseCoordsFromC5IText($c5Text);
+                if ($parsed && isset($parsed['lat'], $parsed['lng'])) {
+                    $lat = (float) $parsed['lat'];
+                    $lng = (float) $parsed['lng'];
+                }
+            }
+        }
+
+        $recoText = "RECOMENDACIÓN: NO DISPONIBLE (SIN COORDENADAS).";
+        $gmaps = null;
+
+        if ($lat !== null && $lng !== null) {
+            $r = \App\Services\WhatsApp\NearestUnit::recommendForCoords($lat, $lng, 3);
+            $recoText = \App\Services\WhatsApp\NearestUnit::recommendationText($r);
+            $gmaps = \App\Services\WhatsApp\C5IReport::googleMapsLinkFromCoords($lat, $lng);
+        }
+
+        $message = trim($baseText . "\n\n" . $recoText . ($gmaps ? "\n" . $gmaps : ''));
 
         $media = [];
 
@@ -743,8 +775,8 @@ class HechoController extends Controller
             ], 500);
         }
 
-        $hecho->whatsapp_sent_at   = now();
-        $hecho->whatsapp_chat_id   = $chatId;
+        $hecho->whatsapp_sent_at    = now();
+        $hecho->whatsapp_chat_id    = $chatId;
         $hecho->whatsapp_message_id = (string) ($resp['id'] ?? '');
         $hecho->save();
 

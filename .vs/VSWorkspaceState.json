@@ -5,11 +5,10 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos",
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
     "\\routes"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WabotIncomingController.php",
   "PreviewInSolutionExplorer": false
 }

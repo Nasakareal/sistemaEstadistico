@@ -20,9 +20,7 @@ class WabotIncomingController extends Controller
         }
 
         $chatId = (string) ($request->input('chat_id') ?? '');
-        $body = (string) ($request->input('body') ?? '');
-
-        $body = trim($body);
+        $body = trim((string) ($request->input('body') ?? ''));
 
         if ($chatId === '' || $body === '') {
             return response()->json(['ok' => false, 'error' => 'missing'], 422);
@@ -34,7 +32,7 @@ class WabotIncomingController extends Controller
         $recoText = "RECOMENDACIÓN: NO DISPONIBLE (SIN COORDENADAS).";
 
         if ($coords) {
-            $gmaps = C5IReport::googleMapsLinkFromCoords($coords['lat'], $coords['lng']);
+            $gmaps = C5IReport::googleMapsLinkFromCoords((float)$coords['lat'], (float)$coords['lng']);
             $r = NearestUnit::recommendForCoords((float)$coords['lat'], (float)$coords['lng'], 3);
             $recoText = NearestUnit::recommendationText($r);
         }
@@ -48,9 +46,22 @@ class WabotIncomingController extends Controller
 
         $reply = implode("\n\n", array_values(array_filter($replyParts, fn($x) => $x !== null && trim($x) !== '')));
 
+        $resp = \App\Services\WhatsApp\WhatsAppBot::sendToChat($chatId, $reply, []);
+
+        if (!($resp['ok'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'send_failed',
+                'data' => $resp,
+                'reply' => $reply,
+            ], 500);
+        }
+
         return response()->json([
             'ok' => true,
+            'sent' => true,
             'reply' => $reply,
+            'whatsapp_message_id' => (string) ($resp['id'] ?? ''),
         ], 200);
     }
 }

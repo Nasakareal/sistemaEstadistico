@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
+use App\Models\Dictamen;
+use Illuminate\Support\Facades\DB;
 
 class HechoController extends Controller
 {
@@ -163,6 +165,8 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'nullable|integer|min:0|required_if:situacion,TURNADO',
             'personas_mp'           => 'nullable|integer|min:0|required_if:situacion,TURNADO',
 
+            'dictamen_id'           => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+
             'danos_patrimoniales'        => 'nullable|boolean',
             'propiedades_afectadas'      => 'nullable|string|max:2000',
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
@@ -205,6 +209,9 @@ class HechoController extends Controller
 
         $validated = $validator->validated();
 
+        $dictamenId = $validated['dictamen_id'] ?? null;
+        unset($validated['dictamen_id']);
+
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
         $validated['danos_patrimoniales']   = $request->boolean('danos_patrimoniales');
 
@@ -232,20 +239,46 @@ class HechoController extends Controller
 
         $validated['created_by'] = $user->id;
 
-        $hecho = Hechos::create($validated);
+        try {
+            $hecho = null;
 
-        $updates = [];
+            DB::transaction(function () use ($request, $validated, $dictamenId, &$hecho) {
+                $hecho = Hechos::create($validated);
 
-        if ($request->hasFile('foto_lugar')) {
-            $updates['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
-        }
+                $updates = [];
 
-        if ($request->hasFile('foto_situacion')) {
-            $updates['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
-        }
+                if ($request->hasFile('foto_lugar')) {
+                    $updates['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                }
 
-        if (!empty($updates)) {
-            $hecho->update($updates);
+                if ($request->hasFile('foto_situacion')) {
+                    $updates['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                }
+
+                if (!empty($updates)) {
+                    $hecho->update($updates);
+                }
+
+                $situacion = strtoupper((string)($validated['situacion'] ?? ''));
+
+                if ($situacion === 'TURNADO' && $dictamenId) {
+                    $dictamen = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
+
+                    if (!empty($dictamen->hecho_id) && (int)$dictamen->hecho_id !== (int)$hecho->id) {
+                        throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
+                    }
+
+                    $dictamen->hecho_id = $hecho->id;
+                    $dictamen->save();
+                }
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => [
+                    'dictamen_id' => [$e->getMessage()],
+                ],
+            ], 422);
         }
 
         $hecho->load(['vehiculos.conductores', 'lesionados']);
@@ -300,6 +333,8 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
             'personas_mp'           => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
 
+            'dictamen_id'           => 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+
             'danos_patrimoniales'        => 'sometimes|nullable|boolean',
             'propiedades_afectadas'      => 'sometimes|nullable|string|max:2000',
             'monto_danos_patrimoniales'  => 'sometimes|nullable|numeric|min:0',
@@ -350,6 +385,10 @@ class HechoController extends Controller
 
         $validated = $validator->validated();
 
+        $dictamenId = $validated['dictamen_id'] ?? null;
+        $dictamenIdProvided = array_key_exists('dictamen_id', $validated);
+        unset($validated['dictamen_id']);
+
         if ($request->has('checaron_antecedentes')) {
             $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
         }
@@ -381,21 +420,99 @@ class HechoController extends Controller
 
         $validated['updated_by'] = $user->id;
 
-        if ($request->hasFile('foto_lugar')) {
-            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
-                Storage::disk('public')->delete($hecho->foto_lugar);
+        $newFotoLugarPath = null;
+        $newFotoSituacionPath = null;
+        $oldFotoLugar = $hecho->foto_lugar;
+        $oldFotoSituacion = $hecho->foto_situacion;
+
+        try {
+            DB::transaction(function () use (
+                $request,
+                $hecho,
+                $validated,
+                $dictamenId,
+                $dictamenIdProvided,
+                &$newFotoLugarPath,
+                &$newFotoSituacionPath,
+                $oldFotoLugar,
+                $oldFotoSituacion
+            ) {
+                if ($request->hasFile('foto_lugar')) {
+                    $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $validated['foto_lugar'] = $newFotoLugarPath;
+                }
+
+                if ($request->hasFile('foto_situacion')) {
+                    $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $validated['foto_situacion'] = $newFotoSituacionPath;
+                }
+
+                $hecho->update($validated);
+
+                $situacion = $request->has('situacion')
+                    ? strtoupper($this->removeAccents((string)$request->input('situacion')))
+                    : strtoupper((string)($hecho->situacion ?? ''));
+
+                $dictamenActual = $hecho->dictamen;
+
+                if ($situacion === 'TURNADO') {
+
+                    if ($dictamenIdProvided) {
+
+                        if ($dictamenActual && (string)$dictamenActual->id !== (string)$dictamenId) {
+                            $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
+                            if ($dictamenActual) {
+                                $dictamenActual->hecho_id = null;
+                                $dictamenActual->save();
+                            }
+                        }
+
+                        if ($dictamenId) {
+                            $nuevo = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
+
+                            if (!empty($nuevo->hecho_id) && (int)$nuevo->hecho_id !== (int)$hecho->id) {
+                                throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
+                            }
+
+                            $nuevo->hecho_id = $hecho->id;
+                            $nuevo->save();
+                        }
+
+                    }
+
+                } else {
+
+                    if ($dictamenActual) {
+                        $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
+                        if ($dictamenActual) {
+                            $dictamenActual->hecho_id = null;
+                            $dictamenActual->save();
+                        }
+                    }
+                }
+            });
+        } catch (\Throwable $e) {
+            if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
+                Storage::disk('public')->delete($newFotoLugarPath);
             }
-            $validated['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+            if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
+                Storage::disk('public')->delete($newFotoSituacionPath);
+            }
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => [
+                    'dictamen_id' => [$e->getMessage()],
+                ],
+            ], 422);
         }
 
-        if ($request->hasFile('foto_situacion')) {
-            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
-                Storage::disk('public')->delete($hecho->foto_situacion);
-            }
-            $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+        if ($newFotoLugarPath && !empty($oldFotoLugar) && Storage::disk('public')->exists($oldFotoLugar)) {
+            Storage::disk('public')->delete($oldFotoLugar);
         }
-
-        $hecho->update($validated);
+        if ($newFotoSituacionPath && !empty($oldFotoSituacion) && Storage::disk('public')->exists($oldFotoSituacion)) {
+            Storage::disk('public')->delete($oldFotoSituacion);
+        }
 
         $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
 

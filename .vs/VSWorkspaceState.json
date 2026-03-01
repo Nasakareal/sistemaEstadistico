@@ -2,9 +2,14 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Console\\Kernel.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

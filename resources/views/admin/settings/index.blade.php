@@ -168,6 +168,22 @@
             </div>
         </div>
 
+        {{-- EXPORT PARTE DE NOVEDADES (PRUEBA) --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-warning">
+                    <i class="fa-solid fa-file-word"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Parte de Novedades (Prueba)</div>
+                    <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
+                    <a href="{{ route('settings.exports.parte_novedades') }}" class="btn sv-btn">
+                        <i class="fas fa-download"></i> Generar Parte
+                    </a>
+                </div>
+            </div>
+        </div>
+
         {{-- RADAR RIESGO --}}
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">

@@ -10,26 +10,30 @@ class EstadoFuerzaDiarioMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public string $fechaTexto;
+    public string $fecha;
+    public ?string $archivoPrincipalPath;
+    public ?string $parteNovedadesPath;
 
-    protected string $filePath;
-    protected string $fileName;
-
-    public function __construct(string $filePath, string $fileName, string $fechaTexto)
+    public function __construct(string $fecha, ?string $archivoPrincipalPath = null, ?string $parteNovedadesPath = null)
     {
-        $this->filePath = $filePath;
-        $this->fileName = $fileName;
-        $this->fechaTexto = $fechaTexto;
+        $this->fecha = $fecha;
+        $this->archivoPrincipalPath = $archivoPrincipalPath;
+        $this->parteNovedadesPath = $parteNovedadesPath;
     }
 
     public function build()
     {
-        return $this
-            ->subject('Estado de Fuerza - ' . $this->fechaTexto)
-            ->view('emails.estado_fuerza_diario')
-            ->attach($this->filePath, [
-                'as' => $this->fileName,
-                'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ]);
+        $mail = $this->subject("Estado de Fuerza + Parte de Novedades - {$this->fecha}")
+            ->view('mails.estado_fuerza_diario');
+
+        if ($this->archivoPrincipalPath && file_exists($this->archivoPrincipalPath)) {
+            $mail->attach($this->archivoPrincipalPath);
+        }
+
+        if ($this->parteNovedadesPath && file_exists($this->parteNovedadesPath)) {
+            $mail->attach($this->parteNovedadesPath);
+        }
+
+        return $mail;
     }
 }

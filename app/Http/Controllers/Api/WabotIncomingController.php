@@ -26,6 +26,7 @@ class WabotIncomingController extends Controller
             return response()->json(['ok' => false, 'error' => 'missing'], 422);
         }
 
+        // Evita spam por reintentos / duplicados del mismo mensaje
         $dedupeKey = 'wabot_incoming:' . sha1($chatId . '|' . $body);
         if (cache()->has($dedupeKey)) {
             return response()->json([
@@ -57,24 +58,18 @@ class WabotIncomingController extends Controller
         $parts[] = $recoText;
         $parts[] = "Te encargo el folio C5I por favor.";
 
-        $reply = implode(' ', array_values(array_filter($parts, fn($x) => $x !== null && trim($x) !== '')));
+        $reply = implode(' ', array_values(array_filter($parts, fn ($x) => $x !== null && trim($x) !== '')));
 
-        $resp = \App\Services\WhatsApp\WhatsAppBot::sendToChat($chatId, $reply, []);
-
-        if (!($resp['ok'] ?? false) || empty($resp['id'])) {
-            return response()->json([
-                'ok' => false,
-                'error' => 'send_failed',
-                'data' => $resp,
-                'reply' => $reply,
-            ], 500);
-        }
-
+        /**
+         * IMPORTANTÍSIMO:
+         * - Aquí NO se envía nada a WhatsApp para evitar duplicados.
+         * - El wabot (Node) es quien manda el reply al chat.
+         */
         return response()->json([
             'ok' => true,
             'sent' => true,
             'reply' => $reply,
-            'whatsapp_message_id' => (string) ($resp['id'] ?? ''),
+            'whatsapp_message_id' => '',
         ], 200);
     }
 }

@@ -396,6 +396,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     });
 
     Route::get('/exports/estado-fuerza', [ExportController::class, 'estadoFuerza'])->name('settings.exports.estado_fuerza');
+    Route::get('/admin/settings/exports/parte-novedades', [ExportController::class, 'parteNovedades'])->name('settings.exports.parte_novedades');
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

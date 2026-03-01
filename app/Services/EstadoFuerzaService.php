@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Personal;
 use Carbon\Carbon;
+use App\Services\TurnoService;
 
 class EstadoFuerzaService
 {

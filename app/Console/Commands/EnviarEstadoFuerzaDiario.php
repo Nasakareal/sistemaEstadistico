@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\EstadoFuerzaDiarioMail;
 use App\Services\Exports\EstadoFuerzaExcelService;
+use App\Services\ParteNovedadesGenerator;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -13,8 +14,10 @@ class EnviarEstadoFuerzaDiario extends Command
     protected $signature = 'estadofuerza:enviar-diario {--corte=}';
     protected $description = 'Genera el Excel Estado de Fuerza y lo envía por correo (diario 18:00).';
 
-    public function handle(EstadoFuerzaExcelService $service): int
-    {
+    public function handle(
+        EstadoFuerzaExcelService $service,
+        ParteNovedadesGenerator $parteGen
+    ): int {
         $tz = 'America/Mexico_City';
 
         $corteOpt = $this->option('corte');
@@ -22,10 +25,14 @@ class EnviarEstadoFuerzaDiario extends Command
             ? Carbon::parse($corteOpt, $tz)
             : now($tz);
 
-        $ruta = $service->generar($corte);
+        $rutaExcel = $service->generar($corte);
 
         $fechaTexto = $corte->format('Y-m-d H:i:s') . " ($tz)";
-        $fileName = 'estado_fuerza_' . $corte->format('Y-m-d_His') . '.xlsx';
+        $fileNameExcel = 'estado_fuerza_' . $corte->format('Y-m-d_His') . '.xlsx';
+
+        $fechaParte = $corte->copy()->format('Y-m-d');
+        $rutaParte = $parteGen->generar($fechaParte);
+        $fileNameParte = 'parte_novedades_' . $fechaParte . '.docx';
 
         $to = $this->parseEmails(env('ESTADO_FUERZA_MAIL_TO', ''));
         $cc = $this->parseEmails(env('ESTADO_FUERZA_MAIL_CC', ''));
@@ -33,16 +40,28 @@ class EnviarEstadoFuerzaDiario extends Command
 
         if (empty($to)) {
             $this->error('No hay destinatarios. Define ESTADO_FUERZA_MAIL_TO en el .env');
+            $this->safeDelete($rutaExcel);
+            $this->safeDelete($rutaParte);
             return self::FAILURE;
         }
 
         Mail::to($to)
             ->cc($cc)
             ->bcc($bcc)
-            ->send(new EstadoFuerzaDiarioMail($ruta, $fileName, $fechaTexto));
+            ->send(new EstadoFuerzaDiarioMail(
+                $rutaExcel,
+                $fileNameExcel,
+                $fechaTexto,
+                $rutaParte,
+                $fileNameParte
+            ));
 
         $this->info('Enviado OK: ' . implode(', ', $to));
-        $this->info('Adjunto: ' . $ruta);
+        $this->info('Adjunto Excel: ' . $rutaExcel);
+        $this->info('Adjunto Parte: ' . $rutaParte);
+
+        $this->safeDelete($rutaExcel);
+        $this->safeDelete($rutaParte);
 
         return self::SUCCESS;
     }
@@ -56,5 +75,13 @@ class EnviarEstadoFuerzaDiario extends Command
             $e = trim($e);
             return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
         }, explode(',', $list))));
+    }
+
+    protected function safeDelete(?string $path): void
+    {
+        if (!$path) return;
+        if (is_file($path) && file_exists($path)) {
+            @unlink($path);
+        }
     }
 }

@@ -1,14 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
-    "\\routes"
+    "\\config"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WabotIncomingController.php",
+  "SelectedNode": "\\config\\services.php",
   "PreviewInSolutionExplorer": false
 }

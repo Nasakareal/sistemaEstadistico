@@ -29,7 +29,7 @@ return [
     ],
 
     'wabot' => [
-        'secret' => env('LARAVEL_INCOMING_SECRET', ''),
+        'secret' => env('WABOT_INCOMING_SECRET', ''),
     ],
 
     'firebase' => [

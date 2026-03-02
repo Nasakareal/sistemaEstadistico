@@ -4,19 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Models\Personal;
 use App\Services\EstadoFuerzaService;
+use App\Services\OperativosService;
+use App\Services\TurnoService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
 {
     protected EstadoFuerzaService $estadoFuerzaService;
+    protected TurnoService $turnoService;
+    protected OperativosService $operativosService;
 
-    public function __construct(EstadoFuerzaService $estadoFuerzaService)
-    {
+    public function __construct(
+        EstadoFuerzaService $estadoFuerzaService,
+        TurnoService $turnoService,
+        OperativosService $operativosService
+    ) {
         $this->middleware('auth');
         $this->estadoFuerzaService = $estadoFuerzaService;
+        $this->turnoService = $turnoService;
+        $this->operativosService = $operativosService;
     }
 
     public function index(Request $request)
@@ -35,18 +45,16 @@ class HomeController extends Controller
         // =========================
         $momento = now('America/Mexico_City');
 
-        // Turno activo (lo sacamos del personal del usuario logueado si existe)
+        /**
+         * TURNO ACTIVO:
+         * No debe venir del usuario logueado (porque puede ser SUBDIRECTOR),
+         * debe venir del 24x24 activo (Turno A / Turno B).
+         */
         $turnoActivoNombre = '—';
-        $user = Auth::user();
+        $turnoActivo = $this->turnoService->turnoActivoEn($momento);
 
-        if ($user) {
-            $personalUser = Personal::with('turno')
-                ->where('user_id', $user->id)
-                ->first();
-
-            if ($personalUser && $personalUser->turno && !empty($personalUser->turno->nombre)) {
-                $turnoActivoNombre = (string) $personalUser->turno->nombre;
-            }
+        if ($turnoActivo && !empty($turnoActivo->nombre)) {
+            $turnoActivoNombre = (string) $turnoActivo->nombre;
         }
 
         // Totales: todos los activos
@@ -59,12 +67,21 @@ class HomeController extends Controller
 
         $totalActivos = $personales->count();
 
+        // Total en servicio (como ya lo traías)
         $enServicio = 0;
         foreach ($personales as $p) {
             if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
                 $enServicio++;
             }
         }
+
+        /**
+         * Desglose Operativos / Administrativos en servicio
+         */
+        $operativosEnServicio = $this->operativosService->contarEnServicio($momento, $this->estadoFuerzaService);
+
+        // Administrativos: activos, NO operativos, y EN_SERVICIO
+        $administrativosEnServicio = $this->contarAdministrativosEnServicio($momento);
 
         return view('home', [
             'feed_items' => $data['items'],
@@ -75,6 +92,10 @@ class HomeController extends Controller
             'turno_activo' => $turnoActivoNombre,
             'personal_en_servicio' => $enServicio,
             'total_activos' => $totalActivos,
+
+            // Desglose
+            'personal_operativos_en_servicio' => $operativosEnServicio,
+            'personal_administrativos_en_servicio' => $administrativosEnServicio,
         ]);
     }
 
@@ -203,5 +224,36 @@ class HomeController extends Controller
         }
 
         return $txt !== '' ? $txt : ($type === 'HECHO' ? 'Hecho registrado' : 'Actividad registrada');
+    }
+
+    private function contarAdministrativosEnServicio(Carbon $momento): int
+    {
+        $momento = $momento->copy()->timezone('America/Mexico_City');
+
+        $q = Personal::query()
+            ->with(['incidencias.tipo', 'turno'])
+            ->where('estatus', 'ACTIVO');
+
+        // Administrativos = NO operativos (misma lógica, pero al revés)
+        if (Schema::hasColumn('personals', 'es_operativo')) {
+            $q->where('es_operativo', 0);
+        } elseif (Schema::hasColumn('personals', 'tipo')) {
+            $q->whereRaw('UPPER(TRIM(tipo)) <> ?', ['OPERATIVO']);
+        } elseif (Schema::hasColumn('personals', 'categoria')) {
+            $q->whereRaw('UPPER(TRIM(categoria)) <> ?', ['OPERATIVO']);
+        }
+        // Si no existe ninguna columna para clasificar, no filtramos (se iría "todo" como administrativos).
+        // Si eso te afecta, dime cuál columna real usan y lo amarramos exacto.
+
+        $personales = $q->get();
+
+        $count = 0;
+        foreach ($personales as $p) {
+            if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 }

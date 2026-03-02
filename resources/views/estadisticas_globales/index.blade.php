@@ -229,9 +229,7 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Folio</th>
                                     <th>Fecha</th>
-                                    <th>Sector</th>
                                     <th>Tipo</th>
                                     <th>Situación</th>
                                     <th></th>
@@ -440,9 +438,7 @@
             return `
                 <tr>
                     <td>${r.id}</td>
-                    <td>${escapeHtml(r.folio_c5i ?? '')}</td>
                     <td>${escapeHtml(r.fecha ?? '')}</td>
-                    <td>${escapeHtml(r.sector ?? '')}</td>
                     <td>${escapeHtml(r.tipo_hecho ?? '')}</td>
                     <td>${escapeHtml(r.situacion ?? '')}</td>
                     <td class="text-right">

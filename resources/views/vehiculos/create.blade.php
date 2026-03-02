@@ -315,7 +315,7 @@
                                     <label for="edad">Edad</label>
                                     <input type="number" name="edad" id="edad"
                                            class="form-control @error('edad') is-invalid @enderror"
-                                           value="{{ old('edad') }}" placeholder="Ingrese la edad del conductor" min="00" max="100">
+                                           value="{{ old('edad') }}" placeholder="Ingrese la edad del conductor" min="0" max="100">
                                     @error('edad')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>

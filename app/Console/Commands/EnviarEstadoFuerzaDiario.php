@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Mail\EstadoFuerzaDiarioMail;
+use App\Services\BitacoraGenerator;
 use App\Services\Exports\EstadoFuerzaExcelService;
+use App\Services\MiniParteGenerator;
 use App\Services\ParteNovedadesGenerator;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -16,7 +18,9 @@ class EnviarEstadoFuerzaDiario extends Command
 
     public function handle(
         EstadoFuerzaExcelService $service,
-        ParteNovedadesGenerator $parteGen
+        ParteNovedadesGenerator $parteGen,
+        BitacoraGenerator $bitacoraGen,
+        MiniParteGenerator $miniParteGen
     ): int {
         $tz = 'America/Mexico_City';
 
@@ -28,11 +32,12 @@ class EnviarEstadoFuerzaDiario extends Command
         $rutaExcel = $service->generar($corte);
 
         $fechaTexto = $corte->format('Y-m-d H:i:s') . " ($tz)";
-        $fileNameExcel = 'estado_fuerza_' . $corte->format('Y-m-d_His') . '.xlsx';
 
-        $fechaParte = $corte->copy()->format('Y-m-d');
-        $rutaParte = $parteGen->generar($fechaParte);
-        $fileNameParte = 'parte_novedades_' . $fechaParte . '.docx';
+        $fechaDoc = $corte->copy()->format('Y-m-d');
+
+        $rutaParte = $parteGen->generar($fechaDoc);
+        $rutaBitacora = $bitacoraGen->generar($fechaDoc);
+        $rutaMiniParte = $miniParteGen->generar($fechaDoc);
 
         $to = $this->parseEmails(env('ESTADO_FUERZA_MAIL_TO', ''));
         $cc = $this->parseEmails(env('ESTADO_FUERZA_MAIL_CC', ''));
@@ -42,6 +47,8 @@ class EnviarEstadoFuerzaDiario extends Command
             $this->error('No hay destinatarios. Define ESTADO_FUERZA_MAIL_TO en el .env');
             $this->safeDelete($rutaExcel);
             $this->safeDelete($rutaParte);
+            $this->safeDelete($rutaBitacora);
+            $this->safeDelete($rutaMiniParte);
             return self::FAILURE;
         }
 
@@ -51,15 +58,21 @@ class EnviarEstadoFuerzaDiario extends Command
             ->send(new EstadoFuerzaDiarioMail(
                 $fechaTexto,
                 $rutaExcel,
-                $rutaParte
+                $rutaParte,
+                $rutaBitacora,
+                $rutaMiniParte
             ));
 
         $this->info('Enviado OK: ' . implode(', ', $to));
         $this->info('Adjunto Excel: ' . $rutaExcel);
         $this->info('Adjunto Parte: ' . $rutaParte);
+        $this->info('Adjunto Bitácora: ' . $rutaBitacora);
+        $this->info('Adjunto Mini Parte: ' . $rutaMiniParte);
 
         $this->safeDelete($rutaExcel);
         $this->safeDelete($rutaParte);
+        $this->safeDelete($rutaBitacora);
+        $this->safeDelete($rutaMiniParte);
 
         return self::SUCCESS;
     }

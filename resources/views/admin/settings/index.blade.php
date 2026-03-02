@@ -184,6 +184,38 @@
             </div>
         </div>
 
+        {{-- EXPORT BITÁCORA (PRUEBA) --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-secondary">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Bitácora (Prueba)</div>
+                    <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
+                    <a href="{{ route('settings.exports.bitacora') }}" class="btn sv-btn">
+                        <i class="fas fa-download"></i> Generar Bitácora
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {{-- EXPORT MINI PARTE (PRUEBA) --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-indigo">
+                    <i class="fa-solid fa-file-word"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Mini Parte (Prueba)</div>
+                    <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
+                    <a href="{{ route('settings.exports.mini_parte') }}" class="btn sv-btn">
+                        <i class="fas fa-download"></i> Generar Mini Parte
+                    </a>
+                </div>
+            </div>
+        </div>
+
         {{-- RADAR RIESGO --}}
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">

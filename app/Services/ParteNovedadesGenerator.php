@@ -20,6 +20,8 @@ class ParteNovedadesGenerator
 
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
             ->whereBetween('created_at', [$inicio, $fin])
+            ->orderBy('fecha', 'asc')
+            ->orderBy('hora', 'asc')
             ->get();
 
         $phpWord = new PhpWord();
@@ -367,16 +369,12 @@ class ParteNovedadesGenerator
         $tableFirmas->addRow();
 
         $cellL2 = $tableFirmas->addCell(5000, $cellStyle);
-        $runL2 = $cellL2->addTextRun(['alignment' => Jc::CENTER]);
-        $runL2->addText('OFICIAL', ['bold' => true]);
-        $runL2->addTextBreak(1);
-        $runL2->addText('LIC. JULIO ERNESTO BAUTISTA JIMENEZ.', ['bold' => true]);
+        $cellL2->addText('OFICIAL', ['bold' => true], ['alignment' => Jc::CENTER]);
+        $cellL2->addText('LIC. JULIO ERNESTO BAUTISTA JIMENEZ.', ['bold' => true], ['alignment' => Jc::CENTER]);
 
         $cellR2 = $tableFirmas->addCell(5000, $cellStyle);
-        $runR2 = $cellR2->addTextRun(['alignment' => Jc::CENTER]);
-        $runR2->addText($comandanteLinea1, ['bold' => true]);
-        $runR2->addTextBreak(1);
-        $runR2->addText($comandanteLinea2, ['bold' => true]);
+        $cellR2->addText($comandanteLinea1, ['bold' => true], ['alignment' => Jc::CENTER]);
+        $cellR2->addText($comandanteLinea2, ['bold' => true], ['alignment' => Jc::CENTER]);
 
         $section->addTextBreak(6);
 

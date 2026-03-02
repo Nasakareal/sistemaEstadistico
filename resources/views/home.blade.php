@@ -31,6 +31,10 @@
                             <div class="sv-card__title">En Servicio</div>
                             <div class="sv-card__desc" style="font-size:18px;font-weight:900;">
                                 {{ $personal_en_servicio ?? 0 }}
+                                <div style="font-size:12px;font-weight:800;opacity:.85;margin-top:4px;">
+                                    OP: {{ $personal_operativos_en_servicio ?? 0 }} &nbsp; | &nbsp;
+                                    ADM: {{ $personal_administrativos_en_servicio ?? 0 }}
+                                </div>
                             </div>
                         </div>
                     </div>

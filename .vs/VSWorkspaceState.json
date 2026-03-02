@@ -2,10 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Mail"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
+  "SelectedNode": "\\app\\Console\\Commands\\EnviarEstadoFuerzaDiario.php",
   "PreviewInSolutionExplorer": false
 }

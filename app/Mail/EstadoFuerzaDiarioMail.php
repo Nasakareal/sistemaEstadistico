@@ -24,7 +24,7 @@ class EstadoFuerzaDiarioMail extends Mailable
     public function build()
     {
         $mail = $this->subject("Estado de Fuerza + Parte de Novedades - {$this->fecha}")
-            ->view('mails.estado_fuerza_diario');
+            ->view('emails.estado_fuerza_diario');
 
         if ($this->archivoPrincipalPath && file_exists($this->archivoPrincipalPath)) {
             $mail->attach($this->archivoPrincipalPath);

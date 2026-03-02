@@ -49,11 +49,9 @@ class EnviarEstadoFuerzaDiario extends Command
             ->cc($cc)
             ->bcc($bcc)
             ->send(new EstadoFuerzaDiarioMail(
-                $rutaExcel,
-                $fileNameExcel,
                 $fechaTexto,
-                $rutaParte,
-                $fileNameParte
+                $rutaExcel,
+                $rutaParte
             ));
 
         $this->info('Enviado OK: ' . implode(', ', $to));

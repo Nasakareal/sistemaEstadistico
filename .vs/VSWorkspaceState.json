@@ -1,11 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Mail"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\emails"
   ],
-  "SelectedNode": "\\app\\Console\\Commands\\EnviarEstadoFuerzaDiario.php",
+  "SelectedNode": "\\resources\\views\\emails\\estado_fuerza_diario.blade.php",
   "PreviewInSolutionExplorer": false
 }

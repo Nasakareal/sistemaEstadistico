@@ -15,7 +15,7 @@
 
                     <div class="card-tools">
 
-                        @can('crear examenes diarios')
+                        @can('crear modulo examenes')
                             <a href="{{ route('modulo_examenes_diarios.create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Nuevo Registro
                             </a>

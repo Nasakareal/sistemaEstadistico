@@ -1,13 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\modulo_examenes_diarios",
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\edit.blade.php",
+  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

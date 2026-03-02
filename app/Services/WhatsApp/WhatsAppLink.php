@@ -4,6 +4,7 @@ namespace App\Services\WhatsApp;
 
 use App\Models\Hechos;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class WhatsAppLink
 {
@@ -63,6 +64,52 @@ class WhatsAppLink
                     $lines[] = "Manifiesta viajar a bordo el C. {$nombre} de {$edad} años.";
                 }
 
+                // ----------------------------
+                // GRÚA / CORRALÓN (desde vehiculos)
+                // ----------------------------
+                $gruaVeh = isset($v->grua) ? trim((string) $v->grua) : '';
+                $corralonVeh = isset($v->corralon) ? trim((string) $v->corralon) : '';
+
+                if (self::hasValue($gruaVeh) && !self::isNA($gruaVeh)) {
+                    $lines[] = "Grúa: " . self::upper($gruaVeh) . ".";
+                }
+
+                if (self::hasValue($corralonVeh) && !self::isNA($corralonVeh)) {
+                    $lines[] = "Corralón: " . self::upper($corralonVeh) . ".";
+                }
+
+                // ----------------------------
+                // SERVICIO (desde tabla servicios)
+                // ----------------------------
+                $serv = DB::table('servicios')
+                    ->where('vehiculo_id', $v->id)
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($serv) {
+                    $extra = [];
+
+                    if (!empty($serv->grua_id)) {
+                        $extra[] = "grua_id " . $serv->grua_id;
+                    }
+
+                    if (!empty($serv->tipo_vehiculo) && !self::isNA($serv->tipo_vehiculo)) {
+                        $extra[] = "tipo " . self::upper((string) $serv->tipo_vehiculo);
+                    }
+
+                    if (!empty($serv->aseguradora) && !self::isNA($serv->aseguradora)) {
+                        $extra[] = "aseguradora " . self::upper((string) $serv->aseguradora);
+                    }
+
+                    if (!empty($serv->descripcion) && !self::isNA($serv->descripcion)) {
+                        $extra[] = "detalle " . self::upper((string) $serv->descripcion);
+                    }
+
+                    if (count($extra) > 0) {
+                        $lines[] = "Servicio: " . implode(", ", $extra) . ".";
+                    }
+                }
+
                 $letter++;
             }
         } else {
@@ -108,5 +155,16 @@ class WhatsAppLink
         $s = trim((string) $s);
         if ($s === '') return 'SIN DATO';
         return Str::upper($s);
+    }
+
+    private static function hasValue(?string $s): bool
+    {
+        return trim((string) $s) !== '';
+    }
+
+    private static function isNA(?string $s): bool
+    {
+        $s = Str::upper(trim((string) $s));
+        return $s === 'N/A' || $s === 'NA' || $s === 'NO' || $s === 'NO SE UTILIZA' || $s === 'SIN DATO';
     }
 }

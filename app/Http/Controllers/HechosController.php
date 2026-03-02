@@ -222,6 +222,10 @@ class HechosController extends Controller
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
+        // ✅ flags de "quitar" (vienen del blade)
+        $quitarFotoLugar     = (string) $request->input('quitar_foto_lugar', '0') === '1';
+        $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
+
         $validated = $request->validate([
             'folio_c5i' => [
                 'required',
@@ -270,11 +274,17 @@ class HechosController extends Controller
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
-        $situacion = (string)($validated['situacion'] ?? '');
-        if (in_array($situacion, ['RESUELTO'], true)) {
-            $request->validate([
-                'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-            ]);
+        $situacion = (string) ($validated['situacion'] ?? '');
+
+        // ✅ SOLO exigir foto_situacion si es RESUELTO y NO hay guardada (o si la quieren quitar)
+        if ($situacion === 'RESUELTO') {
+            $hayFotoGuardada = !empty($hecho->foto_situacion) && !$quitarFotoSituacion;
+
+            if (!$hayFotoGuardada && !$request->hasFile('foto_situacion')) {
+                return back()
+                    ->withErrors(['foto_situacion' => 'La foto de la situación es obligatoria cuando la situación es RESUELTO.'])
+                    ->withInput();
+            }
         }
 
         $validated['updated_by'] = $usuario->id;
@@ -296,6 +306,23 @@ class HechosController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_WEB';
         }
 
+        // ✅ Quitar foto_lugar (si lo pidieron)
+        if ($quitarFotoLugar) {
+            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
+                Storage::disk('public')->delete($hecho->foto_lugar);
+            }
+            $validated['foto_lugar'] = null;
+        }
+
+        // ✅ Quitar foto_situacion (si lo pidieron)
+        if ($quitarFotoSituacion) {
+            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
+                Storage::disk('public')->delete($hecho->foto_situacion);
+            }
+            $validated['foto_situacion'] = null;
+        }
+
+        // ✅ Reemplazo por archivo nuevo (si subieron)
         if ($request->hasFile('foto_lugar')) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
                 Storage::disk('public')->delete($hecho->foto_lugar);
@@ -318,14 +345,14 @@ class HechosController extends Controller
         $dictamenActual = $hecho->dictamen;
 
         if ($situacion === 'TURNADO' && $dictamenId) {
-            if ($dictamenActual && (int)$dictamenActual->id !== (int)$dictamenId) {
+            if ($dictamenActual && (int) $dictamenActual->id !== (int) $dictamenId) {
                 $dictamenActual->hecho_id = null;
                 $dictamenActual->save();
             }
 
             $nuevo = Dictamen::query()->findOrFail($dictamenId);
 
-            if (!empty($nuevo->hecho_id) && (int)$nuevo->hecho_id !== (int)$hecho->id) {
+            if (!empty($nuevo->hecho_id) && (int) $nuevo->hecho_id !== (int) $hecho->id) {
                 return redirect()->route('hechos.edit', $hecho->id)
                     ->withErrors(['dictamen_id' => 'Ese dictamen ya está ligado a otro hecho.'])
                     ->withInput();

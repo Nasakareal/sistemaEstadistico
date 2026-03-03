@@ -10,9 +10,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
-// AJUSTA ESTOS MODELOS A LOS TUYOS
 use App\Models\Dictamen;
-use App\Models\Hechos;
 
 class NovRelSheet
 {
@@ -97,13 +95,17 @@ class NovRelSheet
             ],
         ]);
 
-        // ===== Datos desde dictámenes por fecha =====
+        // ===== Dictámenes del día (según $corte) =====
         $dayStart = $corte->copy()->startOfDay();
         $dayEnd   = $corte->copy()->endOfDay();
 
+        // IMPORTANTe: aquí ya cargamos TODO lo que ocupa la sheet, sin relación "conductor"
         $dictamenes = Dictamen::query()
             ->whereBetween('created_at', [$dayStart, $dayEnd])
             ->whereNotNull('hecho_id')
+            ->with([
+                'hecho.vehiculos.conductores', // <- la relación real
+            ])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -123,23 +125,18 @@ class NovRelSheet
 
         foreach ($dictamenes as $dictamen) {
 
-            // AJUSTA RELACIONES SEGÚN TU PROYECTO:
-            // Hechos::with(['vehiculos.conductor'])
-            $hecho = Hechos::query()
-                ->with(['vehiculos.conductor'])
-                ->find($dictamen->hecho_id);
-
+            $hecho = $dictamen->hecho; // ya viene eager loaded
             if (!$hecho) {
                 continue;
             }
 
             $vehiculos = $hecho->vehiculos ?? collect();
 
-            $hora = $this->pickHora($hecho);
-            $lugar = $this->buildLugar($hecho);
-            $asunto = $this->buildAsunto($hecho, $vehiculos);
+            $hora       = $this->pickHora($hecho);
+            $lugar      = $this->buildLugar($hecho);
+            $asunto     = $this->buildAsunto($hecho, $vehiculos);
             $resolucion = $this->buildResolucion($hecho, $dictamen);
-            $turnados = $this->buildTurnados($vehiculos);
+            $turnados   = $this->buildTurnados($vehiculos);
 
             $this->applyRowBaseStyle($sheet, $row, $lastCol, 150);
 
@@ -150,17 +147,8 @@ class NovRelSheet
             $sheet->setCellValue('E' . $row, $resolucion);
             $sheet->setCellValue('F' . $row, $turnados);
 
-            // ===== Imagenes (si tienes rutas a fotos, aquí se insertan) =====
-            // NOTA: archivo_dictamen normalmente es PDF. Si es PDF, NO se insertará.
-            // Si tienes fotos reales, cámbialas aquí por sus campos (hecho->foto1, vehiculo->foto, etc.)
-
-            // Grafica 1: intento con archivo_dictamen si es imagen
+            // Grafica 1: intento con archivo_dictamen si es imagen (normalmente PDF)
             $this->insertImageIfExists($sheet, $dictamen->archivo_dictamen ?? null, 'G', $row);
-
-            // Grafica 2 y 3: deja hooks por si tienes campos en hechos/vehiculos
-            // Ejemplo (ajusta):
-            // $this->insertImageIfExists($sheet, $hecho->foto_1 ?? null, 'H', $row);
-            // $this->insertImageIfExists($sheet, $hecho->foto_2 ?? null, 'I', $row);
 
             $sheet->getStyle('A' . $row . ':B' . $row)->applyFromArray([
                 'alignment' => [
@@ -216,7 +204,8 @@ class NovRelSheet
 
     protected function buildLugar($hecho): string
     {
-        foreach (['lugar', 'ubicacion', 'direccion', 'location'] as $k) {
+        // Primero lo más “bonito” si existe
+        foreach (['ubicacion_formateada', 'lugar', 'ubicacion', 'direccion', 'location'] as $k) {
             if (!empty($hecho->{$k})) {
                 return trim((string)$hecho->{$k});
             }
@@ -224,7 +213,7 @@ class NovRelSheet
 
         $parts = [];
 
-        foreach (['calle', 'numero', 'colonia', 'municipio', 'estado'] as $k) {
+        foreach (['calle', 'colonia', 'entre_calles', 'municipio'] as $k) {
             if (!empty($hecho->{$k})) {
                 $parts[] = trim((string)$hecho->{$k});
             }
@@ -249,17 +238,8 @@ class NovRelSheet
             $head .= ' clasificado como ' . strtoupper($tipo);
         }
 
-        $les = '';
-        foreach (['lesionados', 'hay_lesionados'] as $k) {
-            if (isset($hecho->{$k})) {
-                $v = $hecho->{$k};
-                $les = ($v ? ' con personas lesionadas' : ' sin personas lesionadas');
-                break;
-            }
-        }
-        if ($les === '') {
-            $les = ' sin personas lesionadas';
-        }
+        // En tu modelo no hay "lesionados" boolean; lo dejamos como fallback “sin lesionados”
+        $les = ' sin personas lesionadas';
 
         $lugar = $this->buildLugar($hecho);
         if ($lugar !== '') {
@@ -275,36 +255,51 @@ class NovRelSheet
             $idx++;
             $letter = chr(64 + $idx); // A, B, C...
 
-            $marca = $v->marca ?? $v->marca_vehiculo ?? '';
+            $marca  = $v->marca ?? '';
             $modelo = $v->modelo ?? '';
-            $tipoV = $v->tipo ?? $v->tipo_vehiculo ?? '';
-            $linea = $v->linea ?? $v->submarca ?? '';
-            $color = $v->color ?? '';
+            $tipoV  = $v->tipo ?? '';
+            $linea  = $v->linea ?? '';
+            $color  = $v->color ?? '';
             $placas = $v->placas ?? '';
-            $serie = $v->serie ?? $v->vin ?? '';
+            $serie  = $v->serie ?? '';
 
             $txt = "VEHÍCULO ({$letter})";
-            if ($marca !== '') $txt .= ' Marca ' . $marca . ',';
+            if ($marca !== '')  $txt .= ' Marca ' . $marca . ',';
             if ($modelo !== '') $txt .= ' Modelo ' . $modelo . ',';
-            if ($tipoV !== '') $txt .= ' Tipo ' . $tipoV . ',';
-            if ($linea !== '') $txt .= ' Línea ' . $linea . ',';
-            if ($color !== '') $txt .= ' Color ' . $color . ',';
+            if ($tipoV !== '')  $txt .= ' Tipo ' . $tipoV . ',';
+            if ($linea !== '')  $txt .= ' Línea ' . $linea . ',';
+            if ($color !== '')  $txt .= ' Color ' . $color . ',';
             if ($placas !== '') $txt .= ' Placas ' . $placas . ',';
-            if ($serie !== '') $txt .= ' Serie ' . $serie . ',';
+            if ($serie !== '')  $txt .= ' Serie ' . $serie . ',';
 
             $txt = rtrim($txt, ',');
 
-            $c = $v->conductor ?? null;
+            // ✅ TU RELACIÓN REAL: conductores()
+            // Tomamos el primero si hay (puedes cambiarlo si quieres listar todos)
+            $c = null;
+            if (isset($v->conductores) && $v->conductores && $v->conductores->count() > 0) {
+                $c = $v->conductores->first();
+            }
+
             if ($c) {
-                $nombre = $c->nombre_completo ?? $c->nombre ?? '';
+                // No me diste el modelo Conductor, así que lo hago tolerante:
+                $nombre = $c->nombre_completo
+                    ?? $c->nombre
+                    ?? trim(implode(' ', array_filter([
+                        $c->nombre ?? null,
+                        $c->apellido_paterno ?? null,
+                        $c->apellido_materno ?? null,
+                    ])))
+                    ?? '';
+
                 $edad = $c->edad ?? '';
-                $dom = $c->domicilio ?? $c->direccion ?? '';
-                $lic = $c->licencia ?? $c->numero_licencia ?? '';
+                $dom  = $c->domicilio ?? $c->direccion ?? '';
+                $lic  = $c->licencia ?? $c->numero_licencia ?? '';
 
                 if ($nombre !== '') $txt .= ', conducido por ' . $nombre;
-                if ($edad !== '') $txt .= ' de ' . $edad . ' años';
-                if ($dom !== '') $txt .= ', con domicilio en ' . $dom;
-                if ($lic !== '') $txt .= ', licencia ' . $lic;
+                if ($edad !== '')   $txt .= ' de ' . $edad . ' años';
+                if ($dom !== '')    $txt .= ', con domicilio en ' . $dom;
+                if ($lic !== '')    $txt .= ', licencia ' . $lic;
             }
 
             $body[] = $txt;
@@ -321,7 +316,6 @@ class NovRelSheet
             }
         }
 
-        // fallback mínimo (por si aún no tienes campo resolucion en hechos)
         $area = $dictamen->area ?? '';
         if ($area !== '') {
             return 'Dictamen generado (' . $area . ').';
@@ -334,22 +328,22 @@ class NovRelSheet
     {
         $items = [];
         foreach ($vehiculos as $v) {
-            $marca = $v->marca ?? $v->marca_vehiculo ?? '';
+            $marca  = $v->marca ?? '';
             $modelo = $v->modelo ?? '';
-            $tipoV = $v->tipo ?? $v->tipo_vehiculo ?? '';
-            $linea = $v->linea ?? $v->submarca ?? '';
-            $color = $v->color ?? '';
+            $tipoV  = $v->tipo ?? '';
+            $linea  = $v->linea ?? '';
+            $color  = $v->color ?? '';
             $placas = $v->placas ?? '';
-            $serie = $v->serie ?? $v->vin ?? '';
+            $serie  = $v->serie ?? '';
 
             $txt = '';
-            if ($marca !== '') $txt .= 'Marca ' . $marca . ', ';
+            if ($marca !== '')  $txt .= 'Marca ' . $marca . ', ';
             if ($modelo !== '') $txt .= 'Modelo ' . $modelo . ', ';
-            if ($tipoV !== '') $txt .= 'Tipo ' . $tipoV . ', ';
-            if ($linea !== '') $txt .= 'Línea ' . $linea . ', ';
-            if ($color !== '') $txt .= 'Color ' . $color . ', ';
+            if ($tipoV !== '')  $txt .= 'Tipo ' . $tipoV . ', ';
+            if ($linea !== '')  $txt .= 'Línea ' . $linea . ', ';
+            if ($color !== '')  $txt .= 'Color ' . $color . ', ';
             if ($placas !== '') $txt .= 'Placas ' . $placas . ', ';
-            if ($serie !== '') $txt .= 'Serie ' . $serie . ', ';
+            if ($serie !== '')  $txt .= 'Serie ' . $serie . ', ';
 
             $txt = rtrim(trim($txt), ',');
             if ($txt !== '') {

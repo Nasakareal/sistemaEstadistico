@@ -1,13 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\modulo_examenes_diarios",
-    "\\routes"
+    "\\app",
+    "\\app\\Services"
   ],
-  "SelectedNode": "\\routes\\web.php",
+  "SelectedNode": "\\app\\Services\\ParteNovedadesGenerator.php",
   "PreviewInSolutionExplorer": false
 }

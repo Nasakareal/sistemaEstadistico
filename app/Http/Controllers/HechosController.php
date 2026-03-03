@@ -180,13 +180,30 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if (
-            $usuario->id !== $hecho->created_by
-            && !$usuario->hasRole('Administrador')
-            && !$usuario->hasRole('Superadmin')
-            && !$usuario->hasRole('Administrativo')
-        ) {
+        $puede = (
+            $usuario->id === $hecho->created_by
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector')
+        );
+
+        if (!$puede) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
+        }
+
+        $updatesSellado = [];
+
+        if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
+            $updatesSellado['unidad_org_id'] = $usuario->unidad_id;
+        }
+
+        if (empty($hecho->delegacion_id) && !empty($usuario->delegacion_id)) {
+            $updatesSellado['delegacion_id'] = $usuario->delegacion_id;
+        }
+
+        if (!empty($updatesSellado)) {
+            $hecho->update($updatesSellado);
         }
 
         $dictamenActual = $hecho->dictamen;
@@ -213,16 +230,32 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if (
-            $usuario->id !== $hecho->created_by
-            && !$usuario->hasRole('Administrador')
-            && !$usuario->hasRole('Superadmin')
-            && !$usuario->hasRole('Administrativo')
-        ) {
+        $puede = (
+            $usuario->id === $hecho->created_by
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector')
+        );
+
+        if (!$puede) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
-        // ✅ flags de "quitar" (vienen del blade)
+        $updatesSellado = [];
+
+        if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
+            $updatesSellado['unidad_org_id'] = $usuario->unidad_id;
+        }
+
+        if (empty($hecho->delegacion_id) && !empty($usuario->delegacion_id)) {
+            $updatesSellado['delegacion_id'] = $usuario->delegacion_id;
+        }
+
+        if (!empty($updatesSellado)) {
+            $hecho->update($updatesSellado);
+        }
+
         $quitarFotoLugar     = (string) $request->input('quitar_foto_lugar', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
@@ -276,7 +309,6 @@ class HechosController extends Controller
 
         $situacion = (string) ($validated['situacion'] ?? '');
 
-        // ✅ SOLO exigir foto_situacion si es RESUELTO y NO hay guardada (o si la quieren quitar)
         if ($situacion === 'RESUELTO') {
             $hayFotoGuardada = !empty($hecho->foto_situacion) && !$quitarFotoSituacion;
 
@@ -306,7 +338,6 @@ class HechosController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_WEB';
         }
 
-        // ✅ Quitar foto_lugar (si lo pidieron)
         if ($quitarFotoLugar) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
                 Storage::disk('public')->delete($hecho->foto_lugar);
@@ -314,7 +345,6 @@ class HechosController extends Controller
             $validated['foto_lugar'] = null;
         }
 
-        // ✅ Quitar foto_situacion (si lo pidieron)
         if ($quitarFotoSituacion) {
             if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
                 Storage::disk('public')->delete($hecho->foto_situacion);
@@ -322,7 +352,6 @@ class HechosController extends Controller
             $validated['foto_situacion'] = null;
         }
 
-        // ✅ Reemplazo por archivo nuevo (si subieron)
         if ($request->hasFile('foto_lugar')) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
                 Storage::disk('public')->delete($hecho->foto_lugar);

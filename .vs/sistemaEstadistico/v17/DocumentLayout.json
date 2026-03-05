@@ -38,8 +38,7 @@
               "RelativeToolTip": "routes\\web.php",
               "ViewState": "AgIAAHkBAAAAAAAAAAAAAJwBAABVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-05T02:22:52.849Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-05T02:22:52.849Z"
             },
             {
               "$type": "Document",
@@ -61,7 +60,7 @@
               "RelativeDocumentMoniker": "app\\Services\\BitacoraTurnoGenerator.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\BitacoraTurnoGenerator.php",
               "RelativeToolTip": "app\\Services\\BitacoraTurnoGenerator.php",
-              "ViewState": "AgIAADoBAAAAAAAAAAAUwGwBAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAP8AAAAAAAAAAAAUwCUBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-03-05T02:12:38.879Z",
               "EditorCaption": ""
@@ -76,8 +75,7 @@
               "RelativeToolTip": "app\\Services\\BitacoraGenerator.php",
               "ViewState": "AgIAAKUAAAAAAAAAAAAUwNYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-05T02:09:41.369Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-05T02:09:41.369Z"
             }
           ]
         }

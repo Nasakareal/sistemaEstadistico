@@ -21,59 +21,25 @@ class BitacoraTurnoGenerator
             throw new \RuntimeException('No se pudo resolver el turno.');
         }
 
-        [$inicio, $fin] = $this->rangoPorTurno($fecha, $turnoId, $tz);
+        [$inicio, $fin] = $this->rangoPorTurno($fecha, $tz);
 
-        // 1) Usuarios (IDs) del turno
         $userIdsTurno = DB::table('users')
             ->where('turno_id', $turnoId)
-            ->whereNotNull('id')
             ->pluck('id')
             ->map(fn ($v) => (int) $v)
             ->values()
             ->all();
 
-        // 2) Mapa de nombres (fallback) por si created_by viene null pero perito trae el nombre
-        $peritos = $this->peritosPorTurno($turnoId);
+        $hechos = collect();
 
-        // 3) Traemos hechos del rango.
-        //    - Principal: created_by IN (users del turno)
-        //    - Fallback: created_by NULL pero perito coincide con algún user del turno
-        $hechos = Hechos::with(['vehiculos', 'lesionados'])
-            ->whereBetween('created_at', [$inicio, $fin])
-            ->where(function ($q) use ($userIdsTurno) {
-                if (!empty($userIdsTurno)) {
-                    $q->whereIn('created_by', $userIdsTurno);
-                } else {
-                    // Si por alguna razón no hay users en ese turno, evitamos romper:
-                    $q->whereRaw('1=0');
-                }
-            })
-            ->orWhere(function ($q) use ($inicio, $fin, $peritos) {
-                // Fallback: created_by null pero perito coincide (solo dentro del mismo rango)
-                $q->whereBetween('created_at', [$inicio, $fin])
-                  ->whereNull('created_by')
-                  ->whereNotNull('perito');
-
-                // Si no hay peritos, que no meta nada
-                if (empty($peritos)) {
-                    $q->whereRaw('1=0');
-                }
-            })
-            ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
-            ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        // Aplicamos el fallback de perito (solo a los que entraron por OR y a cualquiera con perito)
-        if (!empty($peritos)) {
-            $hechos = $hechos->filter(function ($h) use ($peritos) {
-                // Si trae created_by válido, ya pasó.
-                if (!empty($h->created_by)) return true;
-
-                // Si no trae created_by, intentamos por nombre
-                $p = $this->norm((string)($h->perito ?? ''));
-                return $p !== '' && isset($peritos[$p]);
-            })->values();
+        if (!empty($userIdsTurno)) {
+            $hechos = Hechos::with(['vehiculos', 'lesionados'])
+                ->whereBetween('created_at', [$inicio, $fin])
+                ->whereIn('created_by', $userIdsTurno)
+                ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
+                ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")
+                ->orderBy('created_at', 'asc')
+                ->get();
         }
 
         $phpWord = new PhpWord();
@@ -175,7 +141,6 @@ class BitacoraTurnoGenerator
         $table->addCell($wTipo,   $headerCell)->addText('TIPO DE HECHO', ['bold' => true, 'size' => 10], $pCenter0);
         $table->addCell($wObs,    $headerCell)->addText('OBSERVACIÓN / ESTATUS', ['bold' => true, 'size' => 10], $pCenter0);
 
-        // Si no hay hechos, dejamos evidencia en el documento (no “vacío”)
         if ($hechos->count() === 0) {
             $table->addRow(300);
             $table->addCell($wNo,     $cell)->addText('-', ['size' => 10], $pCenter0);
@@ -267,39 +232,10 @@ class BitacoraTurnoGenerator
         return $tempPath;
     }
 
-    private function peritosPorTurno(int $turnoId): array
+    private function rangoPorTurno(string $fecha, string $tz): array
     {
-        $rows = DB::table('users')
-            ->where('turno_id', $turnoId)
-            ->whereNotNull('name')
-            ->get(['name']);
-
-        $map = [];
-        foreach ($rows as $r) {
-            $k = $this->norm((string) $r->name);
-            if ($k !== '') $map[$k] = true;
-        }
-
-        return $map;
-    }
-
-    private function rangoPorTurno(string $fecha, int $turnoId, string $tz): array
-    {
-        $letra = $this->turnoLetraDesdeId($turnoId);
-
-        $d = Carbon::parse($fecha, $tz);
-
-        // TURNO A: 06:00 a 18:00 del MISMO día
-        if ($letra === 'A') {
-            $inicio = $d->copy()->setTime(6, 0, 0);
-            $fin    = $d->copy()->setTime(18, 0, 0);
-            return [$inicio, $fin];
-        }
-
-        // TURNO B: 18:00 del día anterior a 06:00 del día indicado
-        $inicio = $d->copy()->setTime(18, 0, 0)->subDay();
-        $fin    = $d->copy()->setTime(6, 0, 0);
-
+        $fin    = Carbon::parse($fecha, $tz)->setTime(7, 0, 0);
+        $inicio = $fin->copy()->subDay();
         return [$inicio, $fin];
     }
 
@@ -353,12 +289,5 @@ class BitacoraTurnoGenerator
 
         $id = DB::table('turnos')->whereRaw('UPPER(TRIM(nombre)) = ?', [$t])->value('id');
         return $id ? (int) $id : null;
-    }
-
-    private function norm(string $s): string
-    {
-        $s = mb_strtoupper(trim($s), 'UTF-8');
-        $s = preg_replace('/\s+/u', ' ', $s);
-        return trim((string) $s);
     }
 }

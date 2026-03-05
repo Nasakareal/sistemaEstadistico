@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Personal;
+use App\Models\Delegacion;
 use App\Services\EstadoFuerzaService;
 use App\Services\OperativosService;
 use App\Services\TurnoService;
@@ -40,16 +41,8 @@ class HomeController extends Controller
 
         $data = $this->getFeed($limit, $cursorCreatedAt, $cursorId);
 
-        // =========================
-        // KPIs SUPERIOR (tarjetas)
-        // =========================
         $momento = now('America/Mexico_City');
 
-        /**
-         * TURNO ACTIVO:
-         * No debe venir del usuario logueado (porque puede ser SUBDIRECTOR),
-         * debe venir del 24x24 activo (Turno A / Turno B).
-         */
         $turnoActivoNombre = '—';
         $turnoActivo = $this->turnoService->turnoActivoEn($momento);
 
@@ -57,17 +50,12 @@ class HomeController extends Controller
             $turnoActivoNombre = (string) $turnoActivo->nombre;
         }
 
-        // Totales: todos los activos
-        $personales = Personal::with([
-                'turno',
-                'incidencias.tipo',
-            ])
+        $personales = Personal::with(['turno','incidencias.tipo'])
             ->where('estatus', 'ACTIVO')
             ->get();
 
         $totalActivos = $personales->count();
 
-        // Total en servicio (como ya lo traías)
         $enServicio = 0;
         foreach ($personales as $p) {
             if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
@@ -75,12 +63,7 @@ class HomeController extends Controller
             }
         }
 
-        /**
-         * Desglose Operativos / Administrativos en servicio
-         */
         $operativosEnServicio = $this->operativosService->contarEnServicio($momento, $this->estadoFuerzaService);
-
-        // Administrativos: activos, NO operativos, y EN_SERVICIO
         $administrativosEnServicio = $this->contarAdministrativosEnServicio($momento);
 
         return view('home', [
@@ -88,12 +71,10 @@ class HomeController extends Controller
             'feed_next_cursor' => $data['next_cursor'],
             'feed_limit' => $limit,
 
-            // KPIs
             'turno_activo' => $turnoActivoNombre,
             'personal_en_servicio' => $enServicio,
             'total_activos' => $totalActivos,
 
-            // Desglose
             'personal_operativos_en_servicio' => $operativosEnServicio,
             'personal_administrativos_en_servicio' => $administrativosEnServicio,
         ]);
@@ -120,6 +101,8 @@ class HomeController extends Controller
 
     private function getFeed(int $limit, $cursorCreatedAt = null, $cursorId = null): array
     {
+        $usuario = Auth::user();
+
         $hechosQ = DB::table('hechos as h')
             ->join('users as u', 'u.id', '=', 'h.created_by')
             ->selectRaw("
@@ -143,6 +126,8 @@ class HomeController extends Controller
                 a.foto_path as foto_path,
                 a.created_at as created_at
             ");
+
+        $this->applyFeedVisibilityScope($hechosQ, $actividadesQ, $usuario);
 
         if ($cursorCreatedAt && $cursorId) {
             $hechosQ->where(function ($q) use ($cursorCreatedAt, $cursorId) {
@@ -226,6 +211,98 @@ class HomeController extends Controller
         return $txt !== '' ? $txt : ($type === 'HECHO' ? 'Hecho registrado' : 'Actividad registrada');
     }
 
+    private function applyFeedVisibilityScope($hechosQ, $actividadesQ, $usuario): void
+    {
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Coordinador')
+        ) {
+            return;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $UNIDAD_CARRETERAS_ID = 4;
+
+        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
+            $hechosQ->where('h.unidad_org_id', $UNIDAD_CARRETERAS_ID);
+
+            if (Schema::hasColumn('actividades', 'unidad_org_id')) {
+                $actividadesQ->where('a.unidad_org_id', $UNIDAD_CARRETERAS_ID);
+            } else {
+                $actividadesQ->where('u.unidad_id', $UNIDAD_CARRETERAS_ID);
+            }
+            return;
+        }
+
+        if ($unidadId === 2) {
+            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+            if ($delegacionId <= 0) {
+                $hechosQ->whereRaw('1=0');
+                $actividadesQ->whereRaw('1=0');
+                return;
+            }
+
+            $esRegional = Delegacion::query()
+                ->where('id', $delegacionId)
+                ->whereNull('delegacion_padre_id')
+                ->exists();
+
+            if ($usuario->hasRole('Subdirector')) {
+                if ($esRegional) {
+                    $ids = Delegacion::query()
+                        ->where('id', $delegacionId)
+                        ->orWhere('delegacion_padre_id', $delegacionId)
+                        ->pluck('id')
+                        ->toArray();
+
+                    $hechosQ->whereIn('h.delegacion_id', $ids);
+
+                    if (Schema::hasColumn('actividades', 'delegacion_id')) {
+                        $actividadesQ->whereIn('a.delegacion_id', $ids);
+                    } else {
+                        $actividadesQ->whereIn('u.delegacion_id', $ids);
+                    }
+                } else {
+                    $hechosQ->where('h.delegacion_id', $delegacionId);
+
+                    if (Schema::hasColumn('actividades', 'delegacion_id')) {
+                        $actividadesQ->where('a.delegacion_id', $delegacionId);
+                    } else {
+                        $actividadesQ->where('u.delegacion_id', $delegacionId);
+                    }
+                }
+            } else {
+                $hechosQ->where('h.delegacion_id', $delegacionId);
+
+                if (Schema::hasColumn('actividades', 'delegacion_id')) {
+                    $actividadesQ->where('a.delegacion_id', $delegacionId);
+                } else {
+                    $actividadesQ->where('u.delegacion_id', $delegacionId);
+                }
+            }
+
+            return;
+        }
+
+        if ($unidadId > 0) {
+            $hechosQ->where('h.unidad_org_id', $unidadId);
+
+            if (Schema::hasColumn('actividades', 'unidad_org_id')) {
+                $actividadesQ->where('a.unidad_org_id', $unidadId);
+            } else {
+                $actividadesQ->where('u.unidad_id', $unidadId);
+            }
+
+            return;
+        }
+
+        $hechosQ->whereRaw('1=0');
+        $actividadesQ->whereRaw('1=0');
+    }
+
     private function contarAdministrativosEnServicio(Carbon $momento): int
     {
         $momento = $momento->copy()->timezone('America/Mexico_City');
@@ -234,7 +311,6 @@ class HomeController extends Controller
             ->with(['incidencias.tipo', 'turno'])
             ->where('estatus', 'ACTIVO');
 
-        // Administrativos = NO operativos (misma lógica, pero al revés)
         if (Schema::hasColumn('personals', 'es_operativo')) {
             $q->where('es_operativo', 0);
         } elseif (Schema::hasColumn('personals', 'tipo')) {
@@ -242,8 +318,6 @@ class HomeController extends Controller
         } elseif (Schema::hasColumn('personals', 'categoria')) {
             $q->whereRaw('UPPER(TRIM(categoria)) <> ?', ['OPERATIVO']);
         }
-        // Si no existe ninguna columna para clasificar, no filtramos (se iría "todo" como administrativos).
-        // Si eso te afecta, dime cuál columna real usan y lo amarramos exacto.
 
         $personales = $q->get();
 

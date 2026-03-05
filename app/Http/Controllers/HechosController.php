@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
+use App\Models\Delegacion;
 
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
@@ -27,8 +28,14 @@ class HechosController extends Controller
             $fechaSeleccionada = now($tz)->toDateString();
         }
 
-        $hechos = Hechos::query()
-            ->whereDate('fecha', $fechaSeleccionada)
+        $usuario = auth()->user();
+
+        $hechosQuery = Hechos::query()
+            ->whereDate('fecha', $fechaSeleccionada);
+
+        $this->applyHechosVisibilityScope($hechosQuery, $usuario);
+
+        $hechos = $hechosQuery
             ->orderByDesc('hora')
             ->orderByDesc('created_at')
             ->paginate(50)
@@ -51,12 +58,6 @@ class HechosController extends Controller
     public function store(Request $request)
     {
         $usuario = auth()->user();
-
-        $unidadNombre = null;
-        if (!empty($usuario->unidad_id)) {
-            $u = Unidad::query()->find($usuario->unidad_id);
-            $unidadNombre = $u ? $u->nombre : null;
-        }
 
         $validated = $request->validate([
             'folio_c5i' => 'required|string|max:20|unique:hechos,folio_c5i',
@@ -101,7 +102,7 @@ class HechosController extends Controller
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
 
         $situacion = (string)($validated['situacion'] ?? '');
-        if (in_array($situacion, ['RESUELTO'], true)) {
+        if ($situacion === 'RESUELTO') {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             ]);
@@ -111,17 +112,13 @@ class HechosController extends Controller
         $validated['created_by'] = $usuario->id;
         $validated['unidad_org_id'] = $usuario->unidad_id ?? null;
 
-        if (!empty($unidadNombre)) {
-            $validated['unidad'] = $unidadNombre;
-        }
-
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
-         $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
+        $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
 
         $hasCoords = isset($request->lat, $request->lng) && $request->lat !== null && $request->lng !== null;
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
@@ -167,6 +164,15 @@ class HechosController extends Controller
 
     public function show(Hechos $hecho)
     {
+        $usuario = auth()->user();
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
         $hecho->load([
             'vehiculos',
             'vehiculos.servicios',
@@ -180,15 +186,7 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        $puede = (
-            $usuario->id === $hecho->created_by
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrativo')
-            || $usuario->hasRole('Subdirector')
-        );
-
-        if (!$puede) {
+        if (!$this->userCanEditHecho($usuario, $hecho)) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
@@ -204,6 +202,7 @@ class HechosController extends Controller
 
         if (!empty($updatesSellado)) {
             $hecho->update($updatesSellado);
+            $hecho->refresh();
         }
 
         $dictamenActual = $hecho->dictamen;
@@ -230,30 +229,18 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        $puede = (
-            $usuario->id === $hecho->created_by
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrativo')
-            || $usuario->hasRole('Subdirector')
-        );
-
-        if (!$puede) {
+        if (!$this->userCanEditHecho($usuario, $hecho)) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
-        $updatesSellado = [];
-
         if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
-            $updatesSellado['unidad_org_id'] = $usuario->unidad_id;
+            $hecho->update(['unidad_org_id' => $usuario->unidad_id]);
+            $hecho->refresh();
         }
 
         if (empty($hecho->delegacion_id) && !empty($usuario->delegacion_id)) {
-            $updatesSellado['delegacion_id'] = $usuario->delegacion_id;
-        }
-
-        if (!empty($updatesSellado)) {
-            $hecho->update($updatesSellado);
+            $hecho->update(['delegacion_id' => $usuario->delegacion_id]);
+            $hecho->refresh();
         }
 
         $quitarFotoLugar     = (string) $request->input('quitar_foto_lugar', '0') === '1';
@@ -321,7 +308,9 @@ class HechosController extends Controller
 
         $validated['updated_by'] = $usuario->id;
 
-        if (!empty($hecho->unidad_org_id) && empty($validated['unidad_org_id'])) {
+        if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
+            $validated['unidad_org_id'] = $usuario->unidad_id;
+        } elseif (!empty($hecho->unidad_org_id)) {
             $validated['unidad_org_id'] = $hecho->unidad_org_id;
         }
 
@@ -515,5 +504,86 @@ class HechosController extends Controller
         $hecho->save();
 
         return redirect()->back()->with('success', 'Hecho compartido por WhatsApp.');
+    }
+
+    private function applyHechosVisibilityScope($query, $usuario): void
+    {
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Coordinador')
+        ) {
+            return;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $UNIDAD_CARRETERAS_ID = 4;
+
+        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
+            $query->where('unidad_org_id', $UNIDAD_CARRETERAS_ID);
+            return;
+        }
+
+        if ($unidadId === 2) {
+            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+            if ($delegacionId <= 0) {
+                $query->whereRaw('1=0');
+                return;
+            }
+
+            $esRegional = Delegacion::query()
+                ->where('id', $delegacionId)
+                ->whereNull('delegacion_padre_id')
+                ->exists();
+
+            if ($usuario->hasRole('Subdirector')) {
+                if ($esRegional) {
+                    $ids = Delegacion::query()
+                        ->where('id', $delegacionId)
+                        ->orWhere('delegacion_padre_id', $delegacionId)
+                        ->pluck('id')
+                        ->toArray();
+
+                    $query->whereIn('delegacion_id', $ids);
+                } else {
+                    $query->where('delegacion_id', $delegacionId);
+                }
+            } else {
+                $query->where('delegacion_id', $delegacionId);
+            }
+
+            return;
+        }
+
+        if ($unidadId > 0) {
+            $query->where('unidad_org_id', $unidadId);
+            return;
+        }
+
+        $query->whereRaw('1=0');
+    }
+
+    private function userCanEditHecho($usuario, Hechos $hecho): bool
+    {
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector')
+        ) {
+            $q = Hechos::query()->whereKey($hecho->id);
+            $this->applyHechosVisibilityScope($q, $usuario);
+            return $q->exists();
+        }
+
+        if ((int)$usuario->id === (int)$hecho->created_by) {
+            $q = Hechos::query()->whereKey($hecho->id);
+            $this->applyHechosVisibilityScope($q, $usuario);
+            return $q->exists();
+        }
+
+        return false;
     }
 }

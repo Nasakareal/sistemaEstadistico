@@ -6,6 +6,7 @@ use App\Services\Exports\EstadoFuerzaExcelService;
 use App\Services\ParteNovedadesGenerator;
 use App\Services\BitacoraGenerator;
 use App\Services\MiniParteGenerator;
+use App\Services\BitacoraTurnoGenerator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -57,6 +58,22 @@ class ExportController extends Controller
         $ruta = $gen->generar($fecha);
 
         $fileName = 'mini_parte_' . Carbon::parse($fecha, $tz)->format('Y-m-d') . '.docx';
+
+        return response()->download($ruta, $fileName)->deleteFileAfterSend(true);
+    }
+
+    public function bitacoraTurno(Request $request, BitacoraTurnoGenerator $gen)
+    {
+        $tz = 'America/Mexico_City';
+
+        $fecha = (string) ($request->query('fecha') ?? now($tz)->format('Y-m-d'));
+        $turno = $request->query('turno') ?? 'A';
+
+        $ruta = $gen->generar($fecha, $turno);
+
+        $turnoLetra = is_numeric($turno) ? (string)$turno : strtoupper(trim((string)$turno));
+
+        $fileName = 'bitacora_turno_' . $turnoLetra . '_' . Carbon::parse($fecha, $tz)->format('Y-m-d') . '.docx';
 
         return response()->download($ruta, $fileName)->deleteFileAfterSend(true);
     }

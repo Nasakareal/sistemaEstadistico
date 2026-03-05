@@ -82,7 +82,6 @@ class ActividadController extends Controller
             return $a;
         });
 
-
         $pdfFacade = null;
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             $pdfFacade = \Barryvdh\DomPDF\Facade\Pdf::class;
@@ -166,6 +165,8 @@ class ActividadController extends Controller
 
             $fotoPath = $file->storeAs('actividades', $filename, 'public');
 
+            $user = Auth::user();
+
             Actividad::create([
                 'actividad_categoria_id'    => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
@@ -176,6 +177,8 @@ class ActividadController extends Controller
                 'foto_hash'                 => $fotoHash,
                 'created_by'                => Auth::id(),
                 'updated_by'                => Auth::id(),
+                'unidad_org_id'             => $user->unidad_id ?? null,
+                'delegacion_id'             => $user->delegacion_id ?? null,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad creada correctamente.');
@@ -266,6 +269,8 @@ class ActividadController extends Controller
                 $fotoHash = $nuevoHash;
             }
 
+            $user = Auth::user();
+
             $actividad->update([
                 'actividad_categoria_id'    => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
@@ -275,6 +280,8 @@ class ActividadController extends Controller
                 'foto_nombre_original'      => $fotoNombreOriginal,
                 'foto_hash'                 => $fotoHash,
                 'updated_by'                => Auth::id(),
+                'unidad_org_id'             => $actividad->unidad_org_id ?? ($user->unidad_id ?? null),
+                'delegacion_id'             => $actividad->delegacion_id ?? ($user->delegacion_id ?? null),
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');
@@ -316,6 +323,10 @@ class ActividadController extends Controller
             ->whereBetween('created_at', [$inicioDia, $finDia])
             ->orderByDesc('created_at');
 
+        $usuario = Auth::user();
+
+        $this->applyActividadesVisibilityScope($query, $usuario);
+
         if ($request->filled('actividad_categoria_id')) {
             $query->where('actividad_categoria_id', (int) $request->actividad_categoria_id);
         }
@@ -330,6 +341,67 @@ class ActividadController extends Controller
         }
 
         return $query;
+    }
+
+    private function applyActividadesVisibilityScope($query, $usuario): void
+    {
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Coordinador')
+        ) {
+            return;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $UNIDAD_CARRETERAS_ID = (int) \App\Models\Unidad::query()
+            ->where('slug', 'carreteras')
+            ->value('id');
+
+        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
+            $query->where('unidad_org_id', $UNIDAD_CARRETERAS_ID);
+            return;
+        }
+
+        if ($unidadId === 2) {
+            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+            if ($delegacionId <= 0) {
+                $query->whereRaw('1=0');
+                return;
+            }
+
+            $esRegional = \App\Models\Delegacion::query()
+                ->where('id', $delegacionId)
+                ->whereNull('delegacion_padre_id')
+                ->exists();
+
+            if ($usuario->hasRole('Subdirector')) {
+                if ($esRegional) {
+                    $ids = \App\Models\Delegacion::query()
+                        ->where('id', $delegacionId)
+                        ->orWhere('delegacion_padre_id', $delegacionId)
+                        ->pluck('id')
+                        ->toArray();
+
+                    $query->whereIn('delegacion_id', $ids);
+                } else {
+                    $query->where('delegacion_id', $delegacionId);
+                }
+            } else {
+                $query->where('delegacion_id', $delegacionId);
+            }
+
+            return;
+        }
+
+        if ($unidadId > 0) {
+            $query->where('unidad_org_id', $unidadId);
+            return;
+        }
+
+        $query->whereRaw('1=0');
     }
 
     private function getOrCreatePdfImage(?string $fotoPath): ?string

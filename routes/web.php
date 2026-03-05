@@ -46,7 +46,7 @@ use App\Http\Controllers\PersonalDomicilioController;
 use App\Http\Controllers\PersonalEmergenciaController;
 use App\Http\Controllers\PersonalAsignacionController;
 use App\Http\Controllers\PersonalIncidenciaController;
-
+use App\Http\Controllers\DelegacionController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\BackupsSqlController;
 
@@ -292,6 +292,17 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         });
     });
 
+    Route::prefix('delegaciones')->middleware('can:ver delegaciones')->group(function () {
+        Route::get('/', [DelegacionController::class, 'index'])->name('delegaciones.index');
+        Route::get('/create', [DelegacionController::class, 'create'])->middleware('can:crear delegaciones')->name('delegaciones.create');
+        Route::post('/', [DelegacionController::class, 'store'])->middleware('can:crear delegaciones')->name('delegaciones.store');
+        Route::get('/{delegacion}', [DelegacionController::class, 'show'])->name('delegaciones.show');
+        Route::get('/{delegacion}/edit', [DelegacionController::class, 'edit'])->middleware('can:editar delegaciones')->name('delegaciones.edit');
+        Route::put('/{delegacion}', [DelegacionController::class, 'update'])->middleware('can:editar delegaciones')->name('delegaciones.update');
+        Route::delete('/{delegacion}', [DelegacionController::class, 'destroy'])->middleware('can:eliminar delegaciones')->name('delegaciones.destroy');
+        Route::get('/{delegacion}/hijas', [DelegacionController::class, 'hijas'])->name('delegaciones.hijas');
+    });
+
     Route::prefix('users')->middleware('can:ver usuarios')->group(function () {
         Route::get('/',[UserController::class,'index'])->name('users.index');
         Route::get('/create',[UserController::class,'create'])->middleware('can:crear usuarios')->name('users.create');
@@ -399,6 +410,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::get('/admin/settings/exports/parte-novedades', [ExportController::class, 'parteNovedades'])->name('settings.exports.parte_novedades');
     Route::get('/admin/settings/exports/bitacora', [ExportController::class, 'bitacora'])->name('settings.exports.bitacora');
     Route::get('/admin/settings/exports/mini-parte', [ExportController::class, 'miniParte'])->name('settings.exports.mini_parte');
+    Route::get('/exports/mi-service', [ExportController::class, 'miService'])->name('settings.exports.mi_service');
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

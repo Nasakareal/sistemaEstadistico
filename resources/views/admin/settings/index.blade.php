@@ -25,116 +25,148 @@
     <div class="row">
 
         {{-- USUARIOS --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-orange">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Usuarios</div>
-                    <div class="sv-card__desc">Alta, edición y control de accesos.</div>
-                    <a href="{{ url('/admin/settings/users') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
+        @can('ver usuarios')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-orange">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Usuarios</div>
+                        <div class="sv-card__desc">Alta, edición y control de accesos.</div>
+                        <a href="{{ url('/admin/settings/users') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endcan
 
         {{-- ROLES --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-navy">
-                    <i class="fa-regular fa-flag"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Roles</div>
-                    <div class="sv-card__desc">Permisos, roles y asignaciones.</div>
-                    <a href="{{ url('/admin/settings/roles') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
+        @can('ver roles')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-navy">
+                        <i class="fa-regular fa-flag"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Roles</div>
+                        <div class="sv-card__desc">Permisos, roles y asignaciones.</div>
+                        <a href="{{ url('/admin/settings/roles') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endcan
 
         {{-- PERSONAL --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-teal">
-                    <i class="fa-solid fa-user-group"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Personal</div>
-                    <div class="sv-card__desc">Altas, bajas, incidencias y expedientes.</div>
-                    <a href="{{ url('/admin/settings/personal') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
+        @can('ver personal')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-teal">
+                        <i class="fa-solid fa-user-group"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Personal</div>
+                        <div class="sv-card__desc">Altas, bajas, incidencias y expedientes.</div>
+                        <a href="{{ url('/admin/settings/personal') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endcan
 
-                {{-- PATRULLAS --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-success">
-                    <i class="fa fa-car" aria-hidden="true"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Patrullas</div>
-                    <div class="sv-card__desc">Listado, Creación y análisis.</div>
-                    <a href="{{ url('/admin/settings/patrullas') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
+        {{-- PATRULLAS --}}
+        @can('ver patrullas')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-success">
+                        <i class="fa fa-car" aria-hidden="true"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Patrullas</div>
+                        <div class="sv-card__desc">Listado, Creación y análisis.</div>
+                        <a href="{{ url('/admin/settings/patrullas') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endcan
 
         {{-- ARMAMENTO --}}
-    <div class="col-md-3 col-sm-6 col-12">
-        <div class="sv-card">
-            <div class="sv-card__icon bg-maroon">
-                <i class="fa-solid fa-gun"></i>
+        @can('ver armamentos')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-maroon">
+                        <i class="fa-solid fa-gun"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Armamento</div>
+                        <div class="sv-card__desc">Control, asignación y estatus del armamento institucional.</div>
+                        <a href="{{ url('/admin/settings/armamentos') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
             </div>
-            <div class="sv-card__body">
-                <div class="sv-card__title">Armamento</div>
-                <div class="sv-card__desc">Control, asignación y estatus del armamento institucional.</div>
-                <a href="{{ url('/admin/settings/armamentos') }}" class="btn sv-btn">
-                    <i class="fas fa-arrow-right"></i> Acceder
-                </a>
-            </div>
-        </div>
-    </div>
+        @endcan
 
-    {{-- EXÁMENES DIARIOS --}}
-    <div class="col-md-3 col-sm-6 col-12">
-        <div class="sv-card">
-            <div class="sv-card__icon bg-purple">
-                <i class="fa-solid fa-id-card"></i>
+        {{-- EXÁMENES DIARIOS --}}
+        @can('ver modulo examenes')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-purple">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Exámenes (Módulo)</div>
+                        <div class="sv-card__desc">Captura diaria de exámenes realizados.</div>
+                        <a href="{{ url('/admin/settings/modulo-examenes-diarios') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
             </div>
-            <div class="sv-card__body">
-                <div class="sv-card__title">Exámenes (Módulo)</div>
-                <div class="sv-card__desc">Captura diaria de exámenes realizados.</div>
-                <a href="{{ url('/admin/settings/modulo-examenes-diarios') }}" class="btn sv-btn">
-                    <i class="fas fa-arrow-right"></i> Acceder
-                </a>
-            </div>
-        </div>
-    </div>
+        @endcan
 
         {{-- ESTADISTICAS --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-success">
-                    <i class="fa-solid fa-chart-pie"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Estadísticas</div>
-                    <div class="sv-card__desc">Reportes, exportaciones y análisis.</div>
-                    <a href="{{ url('/admin/settings/estadisticas') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
+        @can('ver estadisticas')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-success">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Estadísticas</div>
+                        <div class="sv-card__desc">Reportes, exportaciones y análisis.</div>
+                        <a href="{{ url('/admin/settings/estadisticas') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endcan
+
+        {{-- DELEGACIONES --}}
+        @can('ver delegaciones')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-indigo">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Delegaciones</div>
+                        <div class="sv-card__desc">Gestión de delegaciones y subdelegaciones.</div>
+                        <a href="{{ url('/admin/settings/delegaciones') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
 
         {{-- RESPALDOS SQL --}}
         <div class="col-md-3 col-sm-6 col-12">
@@ -232,9 +264,31 @@
             </div>
         </div>
 
+        {{-- EXPORT BITÁCORA POR TURNO --}}
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-secondary">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Bitácora por Turno</div>
+                    <div class="sv-card__desc">Genera el DOCX por turno (A/B).</div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ route('settings.exports.bitacora_turno', ['turno' => 'A']) }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Turno A
+                        </a>
+
+                        <a href="{{ route('settings.exports.bitacora_turno', ['turno' => 'B']) }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Turno B
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 @stop
-
 @section('css')
 <style>
     :root{

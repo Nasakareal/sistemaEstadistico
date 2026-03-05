@@ -3,8 +3,15 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\app\\Services",
+    "\\app\\Services\\Exports",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\ExportController.php",
   "PreviewInSolutionExplorer": false
 }

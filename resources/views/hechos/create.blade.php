@@ -20,7 +20,7 @@
 
                         <input type="hidden" name="lat" id="lat" value="{{ old('lat') }}">
                         <input type="hidden" name="lng" id="lng" value="{{ old('lng') }}">
-                        <input type="hidden" name="precision_m" id="precision_m" value="{{ old('precision_m') }}">
+                        <input type="hidden" name="calidad_geo" id="calidad_geo" value="{{ old('calidad_geo') }}">
                         <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion') }}">
 
                         <div class="row">
@@ -430,15 +430,23 @@
 
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="checaron_antecedentes">Se checaron antecedentes?<span style="color: red">*</span></label>
-                                    <select name="checaron_antecedentes" id="checaron_antecedentes" class="form-control">
-                                        <option value="0" {{ old('checaron_antecedentes') == '0' ? 'selected' : '' }}>No</option>
-                                        <option value="1" {{ old('checaron_antecedentes') == '1' ? 'selected' : '' }}>Sí</option>
-                                    </select>
-                                </div>
-                            </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>¿Se checaron antecedentes? <span style="color:red">*</span></label>
 
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox"
+                                                   class="custom-control-input"
+                                                   id="checaron_antecedentes"
+                                                   name="checaron_antecedentes"
+                                                   value="1"
+                                                   {{ old('checaron_antecedentes') ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="checaron_antecedentes">
+                                                Sí
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="causas">Causas<span style="color: red">*</span></label>
@@ -538,6 +546,7 @@
         }
     </style>
 @stop
+
 @section('js')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
@@ -567,7 +576,10 @@
 
             const latInput = document.getElementById('lat');
             const lngInput = document.getElementById('lng');
-            const precisionInput = document.getElementById('precision_m');
+
+            // IMPORTANTE: el controller usa/valida 'calidad_geo' (no precision_m)
+            const precisionInput = document.getElementById('calidad_geo');
+
             const fuenteInput = document.getElementById('fuente_ubicacion');
 
             function fillOficioFromDictamen() {
@@ -585,14 +597,14 @@
                     : '';
 
                 oficioInput.value = oficio;
-
-                if (situacionSelect && oficio && situacionSelect.value !== 'TURNADO') {
-                    situacionSelect.value = 'TURNADO';
-                }
             }
 
             function toggleTurnado() {
-                if (situacionSelect && situacionSelect.value === 'TURNADO') {
+                if (!situacionSelect) return;
+
+                const isTurnado = (situacionSelect.value === 'TURNADO');
+
+                if (isTurnado) {
                     if (dictamenGroup) dictamenGroup.style.display = 'block';
                     if (dictamenSelect) dictamenSelect.required = true;
 
@@ -614,18 +626,17 @@
                 if (!situacionSelect) return;
 
                 const val = situacionSelect.value;
-                const mustShow = (val === 'RESUELTO' || val === 'TURNADO');
+
+                // En CREATE: el controller solo exige foto_situacion cuando RESUELTO
+                const mustShow = (val === 'RESUELTO');
 
                 if (mustShow) {
                     if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'block';
                     if (fotoSituacionRequired) fotoSituacionRequired.style.display = 'inline';
-
                     if (fotoSituacionInput) fotoSituacionInput.required = true;
 
                     if (fotoSituacionHint) {
-                        fotoSituacionHint.textContent = (val === 'RESUELTO')
-                            ? 'Obligatoria: foto del convenio (RESUELTO).'
-                            : 'Obligatoria: foto de la puesta (TURNADO).';
+                        fotoSituacionHint.textContent = 'Obligatoria: foto de la situación (RESUELTO).';
                     }
                 } else {
                     if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'none';
@@ -641,9 +652,9 @@
             }
 
             function setGeoUI() {
-                const lat = latInput ? latInput.value : '';
-                const lng = lngInput ? lngInput.value : '';
-                const prec = precisionInput ? precisionInput.value : '';
+                const lat = latInput ? String(latInput.value || '').trim() : '';
+                const lng = lngInput ? String(lngInput.value || '').trim() : '';
+                const prec = precisionInput ? String(precisionInput.value || '').trim() : '';
 
                 if (lat && lng) {
                     if (geoStatus) geoStatus.textContent = `OK: ${lat}, ${lng}` + (prec ? ` (±${prec} m)` : '');
@@ -672,9 +683,11 @@
                 }
             }
 
+            // Inicial
             toggleTurnado();
             toggleFotoSituacion();
             setGeoUI();
+            fillOficioFromDictamen();
 
             if (situacionSelect) {
                 situacionSelect.addEventListener('change', function () {
@@ -686,15 +699,11 @@
             if (dictamenSelect) {
                 dictamenSelect.addEventListener('change', function () {
                     fillOficioFromDictamen();
-
-                    if (situacionSelect && dictamenSelect.value) {
-                        situacionSelect.value = 'TURNADO';
-                        toggleTurnado();
-                        toggleFotoSituacion();
-                    }
+                    // No forzamos TURNADO automáticamente aquí; ya está seleccionado si el usuario lo eligió.
                 });
             }
 
+            // Hora (flatpickr)
             const horaInput = document.getElementById('hora');
             if (horaInput && horaInput.value) {
                 horaInput.value = String(horaInput.value).substring(0, 5);
@@ -709,20 +718,22 @@
                 });
             }
 
+            // Nombres de archivos
             if (fotoLugarInput) {
                 fotoLugarInput.addEventListener('change', function () {
-                    const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
+                    const f = (fotoLugarInput.files && fotoLugarInput.files[0]) ? fotoLugarInput.files[0].name : '';
                     if (fotoLugarName) fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
             if (fotoSituacionInput) {
                 fotoSituacionInput.addEventListener('change', function () {
-                    const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
+                    const f = (fotoSituacionInput.files && fotoSituacionInput.files[0]) ? fotoSituacionInput.files[0].name : '';
                     if (fotoSituacionName) fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
+            // Geolocalización
             if (btnGeo) {
                 btnGeo.addEventListener('click', function () {
                     if (!navigator.geolocation) {
@@ -740,7 +751,7 @@
 
                             if (latInput) latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
                             if (lngInput) lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
-                            if (precisionInput) precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
+                            if (precisionInput) precisionInput.value = (typeof acc === 'number') ? String(Math.round(acc)) : '';
                             if (fuenteInput) fuenteInput.value = 'GPS_WEB';
 
                             setGeoUI();
@@ -775,15 +786,16 @@
 
             if (form) {
                 form.addEventListener('submit', function (e) {
-                    if (!latInput || !lngInput || !latInput.value || !lngInput.value) {
+                    const lat = latInput ? String(latInput.value || '').trim() : '';
+                    const lng = lngInput ? String(lngInput.value || '').trim() : '';
+
+                    if (!lat || !lng) {
                         e.preventDefault();
                         setGeoUI();
                         toastError('Captura la ubicación antes de registrar.');
                     }
                 });
             }
-
-            fillOficioFromDictamen();
         });
 
         @if ($errors->any())

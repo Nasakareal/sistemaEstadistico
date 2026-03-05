@@ -16,6 +16,7 @@ class Delegacion extends Model
         'nombre',
         'municipio',
         'activa',
+        'delegacion_padre_id',
     ];
 
     protected $casts = [
@@ -42,6 +43,16 @@ class Delegacion extends Model
     public function hechos()
     {
         return $this->hasMany(Hechos::class, 'delegacion_id');
+    }
+
+    public function padre()
+    {
+        return $this->belongsTo(self::class, 'delegacion_padre_id');
+    }
+
+    public function hijas()
+    {
+        return $this->hasMany(self::class, 'delegacion_padre_id');
     }
 
     /* =====================================================

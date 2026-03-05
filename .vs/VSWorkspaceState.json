@@ -2,16 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Services",
-    "\\app\\Services\\Exports",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\routes"
+    "\\app\\Services"
   ],
-  "SelectedNode": "\\routes\\web.php",
+  "SelectedNode": "\\app\\Services\\BitacoraGenerator.php",
   "PreviewInSolutionExplorer": false
 }

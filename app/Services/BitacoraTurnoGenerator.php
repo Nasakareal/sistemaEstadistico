@@ -23,19 +23,58 @@ class BitacoraTurnoGenerator
 
         [$inicio, $fin] = $this->rangoPorTurno($fecha, $turnoId, $tz);
 
+        // 1) Usuarios (IDs) del turno
+        $userIdsTurno = DB::table('users')
+            ->where('turno_id', $turnoId)
+            ->whereNotNull('id')
+            ->pluck('id')
+            ->map(fn ($v) => (int) $v)
+            ->values()
+            ->all();
+
+        // 2) Mapa de nombres (fallback) por si created_by viene null pero perito trae el nombre
         $peritos = $this->peritosPorTurno($turnoId);
 
+        // 3) Traemos hechos del rango.
+        //    - Principal: created_by IN (users del turno)
+        //    - Fallback: created_by NULL pero perito coincide con algún user del turno
         $hechos = Hechos::with(['vehiculos', 'lesionados'])
             ->whereBetween('created_at', [$inicio, $fin])
+            ->where(function ($q) use ($userIdsTurno) {
+                if (!empty($userIdsTurno)) {
+                    $q->whereIn('created_by', $userIdsTurno);
+                } else {
+                    // Si por alguna razón no hay users en ese turno, evitamos romper:
+                    $q->whereRaw('1=0');
+                }
+            })
+            ->orWhere(function ($q) use ($inicio, $fin, $peritos) {
+                // Fallback: created_by null pero perito coincide (solo dentro del mismo rango)
+                $q->whereBetween('created_at', [$inicio, $fin])
+                  ->whereNull('created_by')
+                  ->whereNotNull('perito');
+
+                // Si no hay peritos, que no meta nada
+                if (empty($peritos)) {
+                    $q->whereRaw('1=0');
+                }
+            })
             ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
             ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")
             ->orderBy('created_at', 'asc')
-            ->get()
-            ->filter(function ($h) use ($peritos) {
-                $p = $this->norm($h->perito ?? '');
+            ->get();
+
+        // Aplicamos el fallback de perito (solo a los que entraron por OR y a cualquiera con perito)
+        if (!empty($peritos)) {
+            $hechos = $hechos->filter(function ($h) use ($peritos) {
+                // Si trae created_by válido, ya pasó.
+                if (!empty($h->created_by)) return true;
+
+                // Si no trae created_by, intentamos por nombre
+                $p = $this->norm((string)($h->perito ?? ''));
                 return $p !== '' && isset($peritos[$p]);
-            })
-            ->values();
+            })->values();
+        }
 
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Arial');
@@ -136,50 +175,64 @@ class BitacoraTurnoGenerator
         $table->addCell($wTipo,   $headerCell)->addText('TIPO DE HECHO', ['bold' => true, 'size' => 10], $pCenter0);
         $table->addCell($wObs,    $headerCell)->addText('OBSERVACIÓN / ESTATUS', ['bold' => true, 'size' => 10], $pCenter0);
 
-        $n = 1;
-        foreach ($hechos as $hecho) {
-            $hora = '';
-            if (!empty($hecho->hora)) {
-                $hora = Carbon::parse($hecho->hora, $tz)->format('H:i');
-            } else {
-                $hora = Carbon::parse($hecho->created_at, $tz)->format('H:i');
-            }
-
-            $unidad = (string)($hecho->unidad ?? '');
-            $perito = strtoupper((string)($hecho->perito ?? ''));
-
-            $lugar = trim((string)($hecho->calle ?? ''));
-            if (!empty($hecho->colonia))   $lugar .= ($lugar !== '' ? ', ' : '') . 'COL. ' . $hecho->colonia;
-            if (!empty($hecho->municipio)) $lugar .= ($lugar !== '' ? ', ' : '') . $hecho->municipio;
-
-            $grua = 'NO';
-            if ($hecho->vehiculos && $hecho->vehiculos->count() > 0) {
-                $vConGrua = $hecho->vehiculos->first(function ($v) {
-                    return $v->grua !== null && trim((string)$v->grua) !== '' && strtolower(trim((string)$v->grua)) !== 'n/a';
-                });
-                if ($vConGrua) $grua = strtoupper(trim((string)$vConGrua->grua));
-            }
-
-            $personasLes = ($hecho->lesionados && $hecho->lesionados->count() > 0)
-                ? ($hecho->lesionados->count() . ' PERSONA(S)')
-                : 'NO';
-
-            $tipoHecho  = strtoupper((string)($hecho->tipo_hecho ?? ''));
-            $estatus    = strtoupper((string)($hecho->situacion ?? ''));
-            $obsEstatus = trim($estatus);
-
+        // Si no hay hechos, dejamos evidencia en el documento (no “vacío”)
+        if ($hechos->count() === 0) {
             $table->addRow(300);
-            $table->addCell($wNo,     $cell)->addText((string)$n, ['size' => 10], $pCenter0);
-            $table->addCell($wHora,   $cell)->addText($hora !== '' ? $hora : '-', ['size' => 10], $pCenter0);
-            $table->addCell($wUnidad, $cell)->addText($unidad !== '' ? $unidad : '-', ['size' => 10], $pCenter0);
-            $table->addCell($wPerito, $cell)->addText($perito !== '' ? $perito : '-', ['size' => 10], $pLeft0);
-            $table->addCell($wLugar,  $cell)->addText($lugar !== '' ? $lugar : '-', ['size' => 10], $pLeft0);
-            $table->addCell($wGrua,   $cell)->addText($grua, ['size' => 10], $pCenter0);
-            $table->addCell($wLes,    $cell)->addText($personasLes, ['size' => 10], $pCenter0);
-            $table->addCell($wTipo,   $cell)->addText($tipoHecho !== '' ? $tipoHecho : '-', ['size' => 10], $pCenter0);
-            $table->addCell($wObs,    $cell)->addText($obsEstatus !== '' ? $obsEstatus : '-', ['size' => 10], $pCenter0);
+            $table->addCell($wNo,     $cell)->addText('-', ['size' => 10], $pCenter0);
+            $table->addCell($wHora,   $cell)->addText('-', ['size' => 10], $pCenter0);
+            $table->addCell($wUnidad, $cell)->addText('-', ['size' => 10], $pCenter0);
+            $table->addCell($wPerito, $cell)->addText('-', ['size' => 10], $pLeft0);
+            $table->addCell($wLugar,  $cell)->addText('SIN NOVEDADES EN EL TURNO', ['bold' => true, 'size' => 10], $pLeft0);
+            $table->addCell($wGrua,   $cell)->addText('-', ['size' => 10], $pCenter0);
+            $table->addCell($wLes,    $cell)->addText('-', ['size' => 10], $pCenter0);
+            $table->addCell($wTipo,   $cell)->addText('-', ['size' => 10], $pCenter0);
+            $table->addCell($wObs,    $cell)->addText('-', ['size' => 10], $pCenter0);
+        } else {
+            $n = 1;
+            foreach ($hechos as $hecho) {
+                $hora = '';
+                if (!empty($hecho->hora)) {
+                    $hora = Carbon::parse($hecho->hora, $tz)->format('H:i');
+                } else {
+                    $hora = Carbon::parse($hecho->created_at, $tz)->format('H:i');
+                }
 
-            $n++;
+                $unidad = (string)($hecho->unidad ?? '');
+                $perito = strtoupper((string)($hecho->perito ?? ''));
+
+                $lugar = trim((string)($hecho->calle ?? ''));
+                if (!empty($hecho->colonia))   $lugar .= ($lugar !== '' ? ', ' : '') . 'COL. ' . $hecho->colonia;
+                if (!empty($hecho->municipio)) $lugar .= ($lugar !== '' ? ', ' : '') . $hecho->municipio;
+
+                $grua = 'NO';
+                if ($hecho->vehiculos && $hecho->vehiculos->count() > 0) {
+                    $vConGrua = $hecho->vehiculos->first(function ($v) {
+                        return $v->grua !== null && trim((string)$v->grua) !== '' && strtolower(trim((string)$v->grua)) !== 'n/a';
+                    });
+                    if ($vConGrua) $grua = strtoupper(trim((string)$vConGrua->grua));
+                }
+
+                $personasLes = ($hecho->lesionados && $hecho->lesionados->count() > 0)
+                    ? ($hecho->lesionados->count() . ' PERSONA(S)')
+                    : 'NO';
+
+                $tipoHecho  = strtoupper((string)($hecho->tipo_hecho ?? ''));
+                $estatus    = strtoupper((string)($hecho->situacion ?? ''));
+                $obsEstatus = trim($estatus);
+
+                $table->addRow(300);
+                $table->addCell($wNo,     $cell)->addText((string)$n, ['size' => 10], $pCenter0);
+                $table->addCell($wHora,   $cell)->addText($hora !== '' ? $hora : '-', ['size' => 10], $pCenter0);
+                $table->addCell($wUnidad, $cell)->addText($unidad !== '' ? $unidad : '-', ['size' => 10], $pCenter0);
+                $table->addCell($wPerito, $cell)->addText($perito !== '' ? $perito : '-', ['size' => 10], $pLeft0);
+                $table->addCell($wLugar,  $cell)->addText($lugar !== '' ? $lugar : '-', ['size' => 10], $pLeft0);
+                $table->addCell($wGrua,   $cell)->addText($grua, ['size' => 10], $pCenter0);
+                $table->addCell($wLes,    $cell)->addText($personasLes, ['size' => 10], $pCenter0);
+                $table->addCell($wTipo,   $cell)->addText($tipoHecho !== '' ? $tipoHecho : '-', ['size' => 10], $pCenter0);
+                $table->addCell($wObs,    $cell)->addText($obsEstatus !== '' ? $obsEstatus : '-', ['size' => 10], $pCenter0);
+
+                $n++;
+            }
         }
 
         $nombreFirma = $turnoLetra === 'A'
@@ -217,7 +270,6 @@ class BitacoraTurnoGenerator
     private function peritosPorTurno(int $turnoId): array
     {
         $rows = DB::table('users')
-            ->whereNotNull('turno_id')
             ->where('turno_id', $turnoId)
             ->whereNotNull('name')
             ->get(['name']);
@@ -237,14 +289,17 @@ class BitacoraTurnoGenerator
 
         $d = Carbon::parse($fecha, $tz);
 
+        // TURNO A: 06:00 a 18:00 del MISMO día
         if ($letra === 'A') {
             $inicio = $d->copy()->setTime(6, 0, 0);
             $fin    = $d->copy()->setTime(18, 0, 0);
             return [$inicio, $fin];
         }
 
+        // TURNO B: 18:00 del día anterior a 06:00 del día indicado
         $inicio = $d->copy()->setTime(18, 0, 0)->subDay();
         $fin    = $d->copy()->setTime(6, 0, 0);
+
         return [$inicio, $fin];
     }
 

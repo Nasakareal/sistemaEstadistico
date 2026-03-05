@@ -12,6 +12,6 @@
     "\\resources\\views\\admin\\settings",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ExportController.php",
+  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

@@ -410,7 +410,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::get('/admin/settings/exports/parte-novedades', [ExportController::class, 'parteNovedades'])->name('settings.exports.parte_novedades');
     Route::get('/admin/settings/exports/bitacora', [ExportController::class, 'bitacora'])->name('settings.exports.bitacora');
     Route::get('/admin/settings/exports/mini-parte', [ExportController::class, 'miniParte'])->name('settings.exports.mini_parte');
-    Route::get('/exports/mi-service', [ExportController::class, 'miService'])->name('settings.exports.mi_service');
+    Route::get('/exports/bitacora-turno', [ExportController::class, 'bitacoraTurno'])->name('settings.exports.bitacora_turno');
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

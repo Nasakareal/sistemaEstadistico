@@ -586,4 +586,71 @@ class HechosController extends Controller
 
         return false;
     }
+
+    public function seguimiento(Request $request)
+    {
+        $periodo = strtoupper($request->get('periodo', 'SEMANA'));
+        $situacion = strtoupper($request->get('situacion', 'PENDIENTE'));
+
+        $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO'];
+        $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
+
+        if (!in_array($situacion, $situacionesValidas)) {
+            $situacion = 'PENDIENTE';
+        }
+
+        if (!in_array($periodo, $periodosValidos)) {
+            $periodo = 'SEMANA';
+        }
+
+        $hoy = now();
+
+        $inicioSemana = $hoy->copy()->startOfWeek();
+        $finSemana = $hoy->copy()->endOfWeek();
+
+        $inicioMes = $hoy->copy()->startOfMonth();
+        $finMes = $hoy->copy()->endOfMonth();
+
+        $inicioAnio = $hoy->copy()->startOfYear();
+        $finAnio = $hoy->copy()->endOfYear();
+
+        $conteos = [
+            'semana' => [
+                'PENDIENTE' => Hechos::whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'PENDIENTE')->count(),
+                'TURNADO' => Hechos::whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'TURNADO')->count(),
+                'RESUELTO' => Hechos::whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'RESUELTO')->count(),
+            ],
+            'mes' => [
+                'PENDIENTE' => Hechos::whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'PENDIENTE')->count(),
+                'TURNADO' => Hechos::whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'TURNADO')->count(),
+                'RESUELTO' => Hechos::whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'RESUELTO')->count(),
+            ],
+            'anio' => [
+                'PENDIENTE' => Hechos::whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'PENDIENTE')->count(),
+                'TURNADO' => Hechos::whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'TURNADO')->count(),
+                'RESUELTO' => Hechos::whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'RESUELTO')->count(),
+            ],
+        ];
+
+        $query = Hechos::query();
+
+        if ($periodo === 'SEMANA') {
+            $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
+        } elseif ($periodo === 'MES') {
+            $query->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()]);
+        } else {
+            $query->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()]);
+        }
+
+        $query->where('situacion', $situacion);
+
+        $hechos = $query->orderByDesc('fecha')->orderByDesc('hora')->paginate(20)->withQueryString();
+
+        return view('hechos.seguimiento', compact(
+            'conteos',
+            'hechos',
+            'periodo',
+            'situacion'
+        ));
+    }
 }

@@ -231,6 +231,7 @@ Route::prefix('gruas')->middleware(['auth','can:ver gruas'])->group(function () 
 
 Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::get('/',[HechosController::class,'index'])->name('hechos.index');
+    Route::get('/seguimiento', [HechosController::class, 'seguimiento'])->name('hechos.seguimiento');
     Route::get('/create',[HechosController::class,'create'])->middleware('can:crear hechos')->name('hechos.create');
     Route::post('/',[HechosController::class,'store'])->middleware('can:crear hechos')->name('hechos.store');
     Route::get('/{hecho}',[HechosController::class,'show'])->middleware('can:ver hechos')->name('hechos.show');

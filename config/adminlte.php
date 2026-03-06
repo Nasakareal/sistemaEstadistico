@@ -138,20 +138,27 @@ return [
         ],
 
         [
-            'text'    => 'Accidentes',
+            'text'    => 'Siniestros',
             'icon'    => 'fa-solid fa-car-side',
             'classes' => 'bg-blue text-white',
             'can'     => 'ver hechos',
             'submenu' => [
                 [
-                    'text'    => 'Listado de Accidentes',
+                    'text'    => 'Listado de Siniestros',
                     'icon'    => 'fa-solid fa-car-side',
                     'classes' => 'text-white',
                     'url'     => 'hechos',
                     'can'     => 'ver hechos',
                 ],
                 [
-                    'text'    => 'Añadir un accidente',
+                    'text'    => 'Seguimiento de Siniestros',
+                    'icon'    => 'fa-solid fa-chart-line',
+                    'classes' => 'text-white',
+                    'url'     => 'hechos/seguimiento',
+                    'can'     => 'ver hechos',
+                ],
+                [
+                    'text'    => 'Añadir un siniestro',
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'hechos/create',

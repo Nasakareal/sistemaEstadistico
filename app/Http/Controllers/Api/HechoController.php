@@ -173,13 +173,10 @@ class HechoController extends Controller
             'oficio_mp'             => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp'          => 'nullable|integer|min:0|required_if:situacion,TURNADO',
             'personas_mp'           => 'nullable|integer|min:0|required_if:situacion,TURNADO',
-
             'dictamen_id'           => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
-
             'danos_patrimoniales'        => 'nullable|boolean',
             'propiedades_afectadas'      => 'nullable|string|max:2000',
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
-
             'lat'                   => 'nullable|numeric|between:-90,90',
             'lng'                   => 'nullable|numeric|between:-180,180',
             'calidad_geo'           => 'nullable|string|max:20',
@@ -187,9 +184,7 @@ class HechoController extends Controller
             'fuente_ubicacion'      => 'nullable|string|max:20',
             'ubicacion_formateada'  => 'nullable|string|max:2000',
             'place_id'              => 'nullable|string|max:128',
-
             'coords_pair'           => 'nullable',
-
             'foto_lugar'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
@@ -251,6 +246,9 @@ class HechoController extends Controller
         $unidadOrg = (int)($user->unidad_id ?? 0);
         if ($unidadOrg <= 0) $unidadOrg = 1;
         $validated['unidad_org_id'] = $unidadOrg;
+
+        $delegacionId = (int)($user->delegacion_id ?? 0);
+        $validated['delegacion_id'] = $delegacionId > 0 ? $delegacionId : null;
 
         try {
             $hecho = null;
@@ -712,52 +710,52 @@ class HechoController extends Controller
         }
 
         $unidadId = (int) ($usuario->unidad_id ?? 0);
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
 
         $UNIDAD_CARRETERAS_ID = 4;
 
-        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
-            $query->where('unidad_org_id', $UNIDAD_CARRETERAS_ID);
-            return;
-        }
+        $query->where(function ($q) use ($usuario, $unidadId, $delegacionId, $UNIDAD_CARRETERAS_ID) {
+            $q->where('created_by', $usuario->id);
 
-        if ($unidadId === 2) {
-            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
-
-            if ($delegacionId <= 0) {
-                $query->whereRaw('1=0');
+            if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
+                $q->orWhere('unidad_org_id', $UNIDAD_CARRETERAS_ID);
                 return;
             }
 
-            $esRegional = \App\Models\Delegacion::query()
-                ->where('id', $delegacionId)
-                ->whereNull('delegacion_padre_id')
-                ->exists();
-
-            if ($usuario->hasRole('Subdirector')) {
-                if ($esRegional) {
-                    $ids = \App\Models\Delegacion::query()
-                        ->where('id', $delegacionId)
-                        ->orWhere('delegacion_padre_id', $delegacionId)
-                        ->pluck('id')
-                        ->toArray();
-
-                    $query->whereIn('delegacion_id', $ids);
-                } else {
-                    $query->where('delegacion_id', $delegacionId);
+            if ($unidadId === 2) {
+                if ($delegacionId <= 0) {
+                    return;
                 }
-            } else {
-                $query->where('delegacion_id', $delegacionId);
+
+                $esRegional = \App\Models\Delegacion::query()
+                    ->where('id', $delegacionId)
+                    ->whereNull('delegacion_padre_id')
+                    ->exists();
+
+                if ($usuario->hasRole('Subdirector')) {
+                    if ($esRegional) {
+                        $ids = \App\Models\Delegacion::query()
+                            ->where('id', $delegacionId)
+                            ->orWhere('delegacion_padre_id', $delegacionId)
+                            ->pluck('id')
+                            ->toArray();
+
+                        $q->orWhereIn('delegacion_id', $ids);
+                    } else {
+                        $q->orWhere('delegacion_id', $delegacionId);
+                    }
+                } else {
+                    $q->orWhere('delegacion_id', $delegacionId);
+                }
+
+                return;
             }
 
-            return;
-        }
-
-        if ($unidadId > 0) {
-            $query->where('unidad_org_id', $unidadId);
-            return;
-        }
-
-        $query->whereRaw('1=0');
+            if ($unidadId > 0) {
+                $q->orWhere('unidad_org_id', $unidadId);
+                return;
+            }
+        });
     }
 
     private function userCanEditHecho($usuario, \App\Models\Hechos $hecho): bool

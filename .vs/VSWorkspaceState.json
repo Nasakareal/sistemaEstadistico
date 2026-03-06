@@ -4,13 +4,9 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\gruas",
-    "\\resources\\views\\gruas\\servicios",
-    "\\resources\\views\\hechos",
-    "\\routes"
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Models"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\seguimiento.blade.php",
+  "SelectedNode": "\\app\\Models\\Hechos.php",
   "PreviewInSolutionExplorer": false
 }

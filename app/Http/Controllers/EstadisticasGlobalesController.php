@@ -581,13 +581,99 @@ class EstadisticasGlobalesController extends Controller
     private function carroceriasMap(): array
     {
         return [
-            'automovil' => ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
-            'camion' => ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto', 'Torton'],
-            'camioneta' => ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
-            'motocicleta' => ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
-            'bicicleta' => ['Montaña', 'Ruta', 'BMX'],
-            'remolque' => ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
-            'semoviente' => ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro'],
+            'automovil' => [
+                'Sedán',
+                'Hatchback',
+                'Coupé',
+                'SUV',
+                'Convertible',
+            ],
+
+            'camioneta' => [
+                'Pick-up',
+                'Panel',
+                'Vagoneta',
+                'Furgoneta',
+                'Van',
+            ],
+
+            'camion' => [
+                'Caja seca',
+                'Caja cerrada',
+                'Caja abierta',
+                'Plataforma',
+                'Volteo',
+                'Refrigerado',
+                'Cisterna',
+                'Pipa',
+                'Grúa',
+                'Torton',
+                'Rabón',
+                'Tracto',
+            ],
+
+            'motocicleta' => [
+                'Trabajo',
+                'Cruiser',
+                'Doble Propósito',
+                'Scooter',
+                'Enduro',
+                'Naked',
+                'Pista',
+                'Chopper',
+                'Cuatrimoto',
+            ],
+
+            'bicicleta' => [
+                'Montaña',
+                'Ruta',
+                'BMX',
+                'Urbana',
+                'Plegable',
+            ],
+
+            'remolque' => [
+                'Plataforma',
+                'Caja cerrada',
+                'Caja seca',
+                'Cama baja',
+                'Refrigerado',
+                'Volteo',
+                'Góndola',
+                'Dolly',
+                'Portacontenedor',
+            ],
+
+            'maquinaria' => [
+                'Retroexcavadora',
+                'Excavadora',
+                'Cargador frontal',
+                'Motoconformadora',
+                'Bulldozer',
+                'Rodillo compactador',
+                'Grúa industrial',
+                'Montacargas',
+                'Tractor agrícola',
+                'Pavimentadora',
+                'Compactadora',
+            ],
+
+            'tren' => [
+                'Locomotora',
+                'Vagón',
+                'Tren de carga',
+                'Tren de pasajeros',
+                'Tranvía',
+                'Metro',
+            ],
+
+            'semoviente' => [
+                'Caballo',
+                'Burro',
+                'Vaca',
+                'Mula',
+                'Otro animal de tiro',
+            ],
         ];
     }
 

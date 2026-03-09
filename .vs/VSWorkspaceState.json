@@ -1,12 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Models"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\estadisticas_globales"
   ],
-  "SelectedNode": "\\app\\Models\\Hechos.php",
+  "SelectedNode": "\\resources\\views\\estadisticas_globales\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

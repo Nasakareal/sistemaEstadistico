@@ -56,6 +56,16 @@
                         </div>
 
                         <div class="sv-field">
+                            <label>Situación</label>
+                            <select id="f_situacion" class="form-control form-control-sm">
+                                <option value="">(Todos)</option>
+                                <option value="RESUELTO">Resueltos</option>
+                                <option value="TURNADO">Turnados</option>
+                                <option value="PENDIENTE">Pendientes</option>
+                            </select>
+                        </div>
+
+                        <div class="sv-field">
                             <label>Tipo de Vehículo</label>
                             <select id="f_veh_tipo" class="form-control form-control-sm">
                                 <option value="">(Todos)</option>
@@ -281,6 +291,7 @@
         const hasta = val('f_hasta');
         const sector = val('f_sector');
         const tipo_hecho = val('f_tipo_hecho');
+        const situacion = val('f_situacion');
         const veh_tipo = val('f_veh_tipo');
         const group = val('f_group');
         const q = val('f_q');
@@ -294,6 +305,7 @@
         if (hasta) params.set('hasta', hasta);
         if (sector) params.set('sector', sector);
         if (tipo_hecho) params.set('tipo_hecho', tipo_hecho);
+        if (situacion) params.set('situacion', situacion);
         if (veh_tipo) params.set('veh_tipo', veh_tipo);
 
         if (con_lesionados !== '') params.set('con_lesionados', con_lesionados);
@@ -368,7 +380,7 @@
 
     function wireExportLinkUpdates(){
         const ids = [
-            'f_desde','f_hasta','f_sector','f_tipo_hecho','f_veh_tipo',
+            'f_desde','f_hasta','f_sector','f_tipo_hecho','f_situacion','f_veh_tipo',
             'f_con_lesionados','f_con_fallecidos',
             'f_q','f_veh_placas','f_veh_serie','f_group'
         ];

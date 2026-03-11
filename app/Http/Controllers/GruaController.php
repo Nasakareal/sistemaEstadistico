@@ -4,9 +4,27 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Grua;
+use Illuminate\Support\Facades\Auth;
 
 class GruaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+
+            $usuario = Auth::user();
+
+            if (
+                !$usuario ||
+                (!$usuario->hasRole('Superadmin') && (int)$usuario->unidad_id !== 1)
+            ) {
+                abort(403);
+            }
+
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $gruas = Grua::all();
@@ -28,6 +46,7 @@ class GruaController extends Controller
         ]);
 
         $data = $request->all();
+
         $data['nombre'] = strtoupper($data['nombre']);
         $data['direccion'] = strtoupper($data['direccion'] ?? '');
         $data['telefono'] = strtoupper($data['telefono'] ?? '');
@@ -35,7 +54,8 @@ class GruaController extends Controller
 
         Grua::create($data);
 
-        return redirect()->route('gruas.index')->with('success', 'Grúa registrada correctamente.');
+        return redirect()->route('gruas.index')
+            ->with('success', 'Grúa registrada correctamente.');
     }
 
     public function show($id)
@@ -62,6 +82,7 @@ class GruaController extends Controller
         $grua = Grua::findOrFail($id);
 
         $data = $request->all();
+
         $data['nombre'] = strtoupper($data['nombre']);
         $data['direccion'] = strtoupper($data['direccion'] ?? '');
         $data['telefono'] = strtoupper($data['telefono'] ?? '');
@@ -69,7 +90,8 @@ class GruaController extends Controller
 
         $grua->update($data);
 
-        return redirect()->route('gruas.index')->with('success', 'Grúa actualizada correctamente.');
+        return redirect()->route('gruas.index')
+            ->with('success', 'Grúa actualizada correctamente.');
     }
 
     public function destroy($id)
@@ -77,6 +99,7 @@ class GruaController extends Controller
         $grua = Grua::findOrFail($id);
         $grua->delete();
 
-        return redirect()->route('gruas.index')->with('success', 'Grúa eliminada correctamente.');
+        return redirect()->route('gruas.index')
+            ->with('success', 'Grúa eliminada correctamente.');
     }
 }

@@ -6,9 +6,27 @@ use Illuminate\Http\Request;
 use App\Models\Servicio;
 use App\Models\Grua;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class ServicioController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+
+            $usuario = Auth::user();
+
+            if (
+                !$usuario ||
+                (!$usuario->hasRole('Superadmin') && (int)$usuario->unidad_id !== 1)
+            ) {
+                abort(403);
+            }
+
+            return $next($request);
+        });
+    }
+
     public function index(Grua $grua)
     {
         $servicios = $grua->servicios;

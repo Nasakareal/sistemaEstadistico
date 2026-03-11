@@ -5,9 +5,27 @@ namespace App\Http\Controllers;
 use App\Models\Dictamen;
 use App\Models\Unidad;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DictamenController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+
+            $usuario = Auth::user();
+
+            if (
+                !$usuario ||
+                (!$usuario->hasRole('Superadmin') && (int)$usuario->unidad_id !== 1)
+            ) {
+                abort(403);
+            }
+
+            return $next($request);
+        });
+    }
+
     public function index(Request $request)
     {
         $anioActual = now()->year;
@@ -178,7 +196,6 @@ class DictamenController extends Controller
         return redirect()->route('dictamenes.index')
             ->with('success', 'Dictamen actualizado exitosamente.');
     }
-
 
     public function show(Dictamen $dictamen)
     {

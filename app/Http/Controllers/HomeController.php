@@ -32,6 +32,8 @@ class HomeController extends Controller
 
     public function index(Request $request)
     {
+        $usuario = Auth::user();
+
         $limit = (int) $request->query('limit', 12);
         if ($limit < 1) $limit = 1;
         if ($limit > 30) $limit = 30;
@@ -50,9 +52,18 @@ class HomeController extends Controller
             $turnoActivoNombre = (string) $turnoActivo->nombre;
         }
 
-        $personales = Personal::with(['turno','incidencias.tipo'])
-            ->where('estatus', 'ACTIVO')
-            ->get();
+        $qPersonales = Personal::with(['turno','incidencias.tipo'])
+            ->where('estatus', 'ACTIVO');
+
+        if (!$usuario->hasRole('Superadmin')) {
+            if (!empty($usuario->unidad_id)) {
+                $qPersonales->where('unidad_id', (int) $usuario->unidad_id);
+            } else {
+                $qPersonales->whereRaw('1=0');
+            }
+        }
+
+        $personales = $qPersonales->get();
 
         $totalActivos = $personales->count();
 
@@ -102,6 +113,7 @@ class HomeController extends Controller
     private function getFeed(int $limit, $cursorCreatedAt = null, $cursorId = null): array
     {
         $usuario = Auth::user();
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
 
         $hechosQ = DB::table('hechos as h')
             ->join('users as u', 'u.id', '=', 'h.created_by')
@@ -127,7 +139,20 @@ class HomeController extends Controller
                 a.created_at as created_at
             ");
 
-        $this->applyFeedVisibilityScope($hechosQ, $actividadesQ, $usuario);
+        if (!$usuario->hasRole('Superadmin')) {
+            if ($unidadId > 0) {
+                $hechosQ->where('h.unidad_org_id', $unidadId);
+
+                if (Schema::hasColumn('actividades', 'unidad_org_id')) {
+                    $actividadesQ->where('a.unidad_org_id', $unidadId);
+                } else {
+                    $actividadesQ->where('u.unidad_id', $unidadId);
+                }
+            } else {
+                $hechosQ->whereRaw('1=0');
+                $actividadesQ->whereRaw('1=0');
+            }
+        }
 
         if ($cursorCreatedAt && $cursorId) {
             $hechosQ->where(function ($q) use ($cursorCreatedAt, $cursorId) {
@@ -211,105 +236,23 @@ class HomeController extends Controller
         return $txt !== '' ? $txt : ($type === 'HECHO' ? 'Hecho registrado' : 'Actividad registrada');
     }
 
-    private function applyFeedVisibilityScope($hechosQ, $actividadesQ, $usuario): void
-    {
-        if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Coordinador')
-        ) {
-            return;
-        }
-
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        $UNIDAD_CARRETERAS_ID = 4;
-
-        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
-            $hechosQ->where('h.unidad_org_id', $UNIDAD_CARRETERAS_ID);
-
-            if (Schema::hasColumn('actividades', 'unidad_org_id')) {
-                $actividadesQ->where('a.unidad_org_id', $UNIDAD_CARRETERAS_ID);
-            } else {
-                $actividadesQ->where('u.unidad_id', $UNIDAD_CARRETERAS_ID);
-            }
-            return;
-        }
-
-        if ($unidadId === 2) {
-            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
-
-            if ($delegacionId <= 0) {
-                $hechosQ->whereRaw('1=0');
-                $actividadesQ->whereRaw('1=0');
-                return;
-            }
-
-            $esRegional = Delegacion::query()
-                ->where('id', $delegacionId)
-                ->whereNull('delegacion_padre_id')
-                ->exists();
-
-            if ($usuario->hasRole('Subdirector')) {
-                if ($esRegional) {
-                    $ids = Delegacion::query()
-                        ->where('id', $delegacionId)
-                        ->orWhere('delegacion_padre_id', $delegacionId)
-                        ->pluck('id')
-                        ->toArray();
-
-                    $hechosQ->whereIn('h.delegacion_id', $ids);
-
-                    if (Schema::hasColumn('actividades', 'delegacion_id')) {
-                        $actividadesQ->whereIn('a.delegacion_id', $ids);
-                    } else {
-                        $actividadesQ->whereIn('u.delegacion_id', $ids);
-                    }
-                } else {
-                    $hechosQ->where('h.delegacion_id', $delegacionId);
-
-                    if (Schema::hasColumn('actividades', 'delegacion_id')) {
-                        $actividadesQ->where('a.delegacion_id', $delegacionId);
-                    } else {
-                        $actividadesQ->where('u.delegacion_id', $delegacionId);
-                    }
-                }
-            } else {
-                $hechosQ->where('h.delegacion_id', $delegacionId);
-
-                if (Schema::hasColumn('actividades', 'delegacion_id')) {
-                    $actividadesQ->where('a.delegacion_id', $delegacionId);
-                } else {
-                    $actividadesQ->where('u.delegacion_id', $delegacionId);
-                }
-            }
-
-            return;
-        }
-
-        if ($unidadId > 0) {
-            $hechosQ->where('h.unidad_org_id', $unidadId);
-
-            if (Schema::hasColumn('actividades', 'unidad_org_id')) {
-                $actividadesQ->where('a.unidad_org_id', $unidadId);
-            } else {
-                $actividadesQ->where('u.unidad_id', $unidadId);
-            }
-
-            return;
-        }
-
-        $hechosQ->whereRaw('1=0');
-        $actividadesQ->whereRaw('1=0');
-    }
-
     private function contarAdministrativosEnServicio(Carbon $momento): int
     {
+        $usuario = Auth::user();
+
         $momento = $momento->copy()->timezone('America/Mexico_City');
 
         $q = Personal::query()
             ->with(['incidencias.tipo', 'turno'])
             ->where('estatus', 'ACTIVO');
+
+        if (!$usuario->hasRole('Superadmin')) {
+            if (!empty($usuario->unidad_id)) {
+                $q->where('unidad_id', (int) $usuario->unidad_id);
+            } else {
+                $q->whereRaw('1=0');
+            }
+        }
 
         if (Schema::hasColumn('personals', 'es_operativo')) {
             $q->where('es_operativo', 0);

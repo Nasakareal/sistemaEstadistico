@@ -17,6 +17,8 @@ class Tramo extends Model
         'km_fin',
         'lat_fin',
         'lng_fin',
+        'polyline',
+        'puntos_json',
         'geom',
         'bbox',
         'activo',
@@ -29,6 +31,7 @@ class Tramo extends Model
         'lng_inicio' => 'float',
         'lat_fin' => 'float',
         'lng_fin' => 'float',
+        'puntos_json' => 'array',
         'activo' => 'integer',
     ];
 

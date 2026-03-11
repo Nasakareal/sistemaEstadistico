@@ -10,13 +10,171 @@ use App\Models\Armamento;
 use App\Models\PersonalAsignacion;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class PersonalController extends Controller
 {
+    private function actor()
+    {
+        return Auth::user();
+    }
+
+    private function actorEsSuperadmin(): bool
+    {
+        $actor = $this->actor();
+        return $actor && $actor->hasRole('Superadmin');
+    }
+
+    private function actorEsAdministrador(): bool
+    {
+        $actor = $this->actor();
+        return $actor && $actor->hasRole('Administrador') && !$actor->hasRole('Superadmin');
+    }
+
+    private function unidadIdActor(): ?int
+    {
+        return $this->actor()?->unidad_id;
+    }
+
+    private function queryPersonalVisibleParaActor()
+    {
+        return Personal::query()
+            ->when(!$this->actorEsSuperadmin(), function ($q) {
+                $q->where('unidad_id', $this->unidadIdActor());
+            });
+    }
+
+    private function buscarPersonalVisibleOFail($id): Personal
+    {
+        return $this->queryPersonalVisibleParaActor()->findOrFail($id);
+    }
+
+    private function unidadesDisponiblesParaActor()
+    {
+        return Unidad::query()
+            ->where('activa', 1)
+            ->when(!$this->actorEsSuperadmin(), function ($q) {
+                $q->where('id', $this->unidadIdActor());
+            })
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function turnosDisponiblesParaActor()
+    {
+        return Turno::query()
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function patrullasDisponiblesParaActor(?int $unidadId = null, ?int $personalIdExcluir = null)
+    {
+        return Patrulla::query()
+            ->where('activa', 1)
+            ->when($this->actorEsSuperadmin(), function ($q) use ($unidadId) {
+                if (!empty($unidadId)) {
+                    $q->where('unidad_id', $unidadId);
+                }
+            })
+            ->when(!$this->actorEsSuperadmin(), function ($q) {
+                $q->where('unidad_id', $this->unidadIdActor());
+            })
+            ->when($personalIdExcluir !== null, function ($q) use ($personalIdExcluir) {
+                $q->whereDoesntHave('personal', function ($subQ) use ($personalIdExcluir) {
+                    $subQ->whereNull('deleted_at')
+                        ->where('estatus', 'ACTIVO')
+                        ->where('id', '!=', $personalIdExcluir);
+                });
+            }, function ($q) {
+                $q->whereDoesntHave('personal', function ($subQ) {
+                    $subQ->whereNull('deleted_at')
+                        ->where('estatus', 'ACTIVO');
+                });
+            })
+            ->orderBy('numero_economico')
+            ->get();
+    }
+
+    private function usuariosDisponiblesParaActor(?int $userIdActual = null)
+    {
+        return User::query()
+            ->when(!$this->actorEsSuperadmin(), function ($q) {
+                $q->where('unidad_id', $this->unidadIdActor())
+                  ->whereDoesntHave('roles', function ($subQ) {
+                      $subQ->where('name', 'Superadmin');
+                  });
+            })
+            ->where(function ($q) use ($userIdActual) {
+                $q->whereDoesntHave('personal');
+
+                if ($userIdActual) {
+                    $q->orWhere('id', $userIdActual);
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'unidad_id']);
+    }
+
+    private function normalizarUnidadParaActor(?int $unidadId): ?int
+    {
+        if ($this->actorEsSuperadmin()) {
+            return $unidadId;
+        }
+
+        return $this->unidadIdActor();
+    }
+
+    private function patrullaPerteneceAUnidad(?int $patrullaId, ?int $unidadId): bool
+    {
+        if (empty($patrullaId)) {
+            return true;
+        }
+
+        return Patrulla::query()
+            ->where('id', $patrullaId)
+            ->where('activa', 1)
+            ->where('unidad_id', $unidadId)
+            ->exists();
+    }
+
+    private function usuarioPerteneceAUnidadPermitida(?int $userId, ?int $unidadId, ?int $personalIdActual = null): bool
+    {
+        if (empty($userId)) {
+            return true;
+        }
+
+        $query = User::query()
+            ->where('id', $userId)
+            ->where('unidad_id', $unidadId);
+
+        if (!$this->actorEsSuperadmin()) {
+            $query->whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'Superadmin');
+            });
+        }
+
+        $user = $query->first();
+
+        if (!$user) {
+            return false;
+        }
+
+        $ocupado = Personal::query()
+            ->where('user_id', $userId)
+            ->when($personalIdActual !== null, function ($q) use ($personalIdActual) {
+                $q->where('id', '!=', $personalIdActual);
+            })
+            ->exists();
+
+        return !$ocupado;
+    }
+
     public function index()
     {
-        $personals = Personal::query()
+        $personals = $this->queryPersonalVisibleParaActor()
             ->with(['unidad', 'turno', 'patrulla', 'user'])
             ->orderByDesc('estatus')
             ->orderBy('nombre')
@@ -29,29 +187,22 @@ class PersonalController extends Controller
 
     public function create()
     {
-        $unidades = Unidad::query()
-            ->where('activa', 1)
-            ->orderBy('nombre')
-            ->get();
+        $unidadIdDefault = $this->actorEsSuperadmin() ? null : $this->unidadIdActor();
 
-        $turnos = Turno::query()
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get();
-
-        $patrullas = Patrulla::query()
-            ->where('activa', 1)
-            ->orderBy('numero_economico')
-            ->get();
-
-        $usuariosDisponibles = User::query()
-            ->whereDoesntHave('personal')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
-
+        $unidades = $this->unidadesDisponiblesParaActor();
+        $turnos = $this->turnosDisponiblesParaActor();
+        $patrullas = $this->patrullasDisponiblesParaActor($unidadIdDefault);
+        $usuariosDisponibles = $this->usuariosDisponiblesParaActor();
         $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
 
-        return view('admin.settings.personal.create', compact('unidades', 'turnos', 'patrullas', 'usuariosDisponibles', 'categoriasPersonal'));
+        return view('admin.settings.personal.create', compact(
+            'unidades',
+            'turnos',
+            'patrullas',
+            'usuariosDisponibles',
+            'categoriasPersonal',
+            'unidadIdDefault'
+        ));
     }
 
     public function store(Request $request)
@@ -78,29 +229,18 @@ class PersonalController extends Controller
             'area' => 'nullable|string|max:200',
 
             'categoria' => 'required|in:OPERATIVO,ADMINISTRATIVO',
-
             'estatus' => 'required|string|max:30',
-
             'fecha_ingreso' => 'nullable|date',
             'fecha_baja' => 'nullable|date',
         ]);
 
+        $validated['unidad_id'] = $this->normalizarUnidadParaActor($validated['unidad_id'] ?? null);
+
         try {
             if (!empty($validated['patrulla_id'])) {
-                $patrulla = Patrulla::query()
-                    ->where('id', $validated['patrulla_id'])
-                    ->where('activa', 1)
-                    ->first();
-
-                if (!$patrulla) {
+                if (!$this->patrullaPerteneceAUnidad($validated['patrulla_id'], $validated['unidad_id'])) {
                     return redirect()->back()
-                        ->withErrors(['patrulla_id' => 'La patrulla seleccionada no está activa.'])
-                        ->withInput();
-                }
-
-                if ((int) $patrulla->unidad_id !== (int) $validated['unidad_id']) {
-                    return redirect()->back()
-                        ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la misma unidad.'])
+                        ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la unidad permitida o no está activa.'])
                         ->withInput();
                 }
 
@@ -113,6 +253,14 @@ class PersonalController extends Controller
                 if ($ocupada) {
                     return redirect()->back()
                         ->withErrors(['patrulla_id' => 'Esa patrulla ya está asignada a otro elemento ACTIVO.'])
+                        ->withInput();
+                }
+            }
+
+            if (!empty($validated['user_id'])) {
+                if (!$this->usuarioPerteneceAUnidadPermitida($validated['user_id'], $validated['unidad_id'])) {
+                    return redirect()->back()
+                        ->withErrors(['user_id' => 'El usuario seleccionado no pertenece a la unidad permitida o ya está asignado a otro registro de personal.'])
                         ->withInput();
                 }
             }
@@ -132,8 +280,10 @@ class PersonalController extends Controller
         }
     }
 
-    public function show(Personal $personal)
+    public function show($id)
     {
+        $personal = $this->buscarPersonalVisibleOFail($id);
+
         $personal->load([
             'user',
             'unidad',
@@ -176,40 +326,34 @@ class PersonalController extends Controller
         ));
     }
 
-    public function edit(Personal $personal)
+    public function edit($id)
     {
-        $unidades = Unidad::query()->where('activa', 1)->orderBy('nombre')->get();
-        $turnos = Turno::query()->where('activo', 1)->orderBy('nombre')->get();
+        $personal = $this->buscarPersonalVisibleOFail($id);
 
-        $patrullas = Patrulla::query()
-            ->where('activa', 1)
-            ->where('unidad_id', $personal->unidad_id)
-            ->whereDoesntHave('personal', function ($q) use ($personal) {
-                $q->whereNull('deleted_at')
-                    ->where('estatus', 'ACTIVO')
-                    ->where('id', '!=', $personal->id);
-            })
-            ->orderBy('numero_economico')
-            ->get();
+        $unidades = $this->unidadesDisponiblesParaActor();
+        $turnos = $this->turnosDisponiblesParaActor();
+        $patrullas = $this->patrullasDisponiblesParaActor(
+            $this->actorEsSuperadmin() ? $personal->unidad_id : $this->unidadIdActor(),
+            $personal->id
+        );
 
-        $usuariosDisponibles = User::query()
-            ->where(function ($q) use ($personal) {
-                $q->whereDoesntHave('personal');
-
-                if ($personal->user_id) {
-                    $q->orWhere('id', $personal->user_id);
-                }
-            })
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
-
+        $usuariosDisponibles = $this->usuariosDisponiblesParaActor($personal->user_id);
         $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
 
-        return view('admin.settings.personal.edit', compact('personal', 'unidades', 'turnos', 'patrullas', 'usuariosDisponibles', 'categoriasPersonal'));
+        return view('admin.settings.personal.edit', compact(
+            'personal',
+            'unidades',
+            'turnos',
+            'patrullas',
+            'usuariosDisponibles',
+            'categoriasPersonal'
+        ));
     }
 
-    public function update(Request $request, Personal $personal)
+    public function update(Request $request, $id)
     {
+        $personal = $this->buscarPersonalVisibleOFail($id);
+
         $validated = $request->validate([
             'unidad_id' => 'required|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
@@ -232,29 +376,18 @@ class PersonalController extends Controller
             'area' => 'nullable|string|max:200',
 
             'categoria' => 'required|in:OPERATIVO,ADMINISTRATIVO',
-
             'estatus' => 'required|string|max:30',
-
             'fecha_ingreso' => 'nullable|date',
             'fecha_baja' => 'nullable|date',
         ]);
 
+        $validated['unidad_id'] = $this->normalizarUnidadParaActor($validated['unidad_id'] ?? null);
+
         try {
             if (!empty($validated['patrulla_id'])) {
-                $patrulla = Patrulla::query()
-                    ->where('id', $validated['patrulla_id'])
-                    ->where('activa', 1)
-                    ->first();
-
-                if (!$patrulla) {
+                if (!$this->patrullaPerteneceAUnidad($validated['patrulla_id'], $validated['unidad_id'])) {
                     return redirect()->back()
-                        ->withErrors(['patrulla_id' => 'La patrulla seleccionada no está activa.'])
-                        ->withInput();
-                }
-
-                if ((int) $patrulla->unidad_id !== (int) $validated['unidad_id']) {
-                    return redirect()->back()
-                        ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la misma unidad.'])
+                        ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la unidad permitida o no está activa.'])
                         ->withInput();
                 }
 
@@ -268,6 +401,14 @@ class PersonalController extends Controller
                 if ($ocupada) {
                     return redirect()->back()
                         ->withErrors(['patrulla_id' => 'Esa patrulla ya está asignada a otro elemento ACTIVO.'])
+                        ->withInput();
+                }
+            }
+
+            if (!empty($validated['user_id'])) {
+                if (!$this->usuarioPerteneceAUnidadPermitida($validated['user_id'], $validated['unidad_id'], $personal->id)) {
+                    return redirect()->back()
+                        ->withErrors(['user_id' => 'El usuario seleccionado no pertenece a la unidad permitida o ya está asignado a otro registro de personal.'])
                         ->withInput();
                 }
             }
@@ -287,8 +428,10 @@ class PersonalController extends Controller
         }
     }
 
-    public function destroy(Personal $personal)
+    public function destroy($id)
     {
+        $personal = $this->buscarPersonalVisibleOFail($id);
+
         try {
             $personal->delete();
 

@@ -5,14 +5,61 @@ namespace App\Http\Controllers;
 use App\Models\Armamento;
 use App\Models\Unidad;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ArmamentoController extends Controller
 {
+    private function actor()
+    {
+        return Auth::user();
+    }
+
+    private function actorEsSuperadmin(): bool
+    {
+        $actor = $this->actor();
+        return $actor && $actor->hasRole('Superadmin');
+    }
+
+    private function unidadIdActor(): ?int
+    {
+        return $this->actor()?->unidad_id;
+    }
+
+    private function queryArmamentoVisible()
+    {
+        $actor = $this->actor();
+
+        return Armamento::query()
+            ->with(['unidad'])
+            ->when(!$this->actorEsSuperadmin(), function ($q) use ($actor) {
+                if (!empty($actor->unidad_id)) {
+                    $q->where('unidad_id', (int) $actor->unidad_id);
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+    }
+
+    private function buscarArmamentoVisibleOFail($id): Armamento
+    {
+        return $this->queryArmamentoVisible()->findOrFail($id);
+    }
+
+    private function unidadesDisponibles()
+    {
+        return Unidad::query()
+            ->where('activa', 1)
+            ->when(!$this->actorEsSuperadmin(), function ($q) {
+                $q->where('id', $this->unidadIdActor());
+            })
+            ->orderBy('nombre')
+            ->get();
+    }
+
     public function index()
     {
-        $armamentos = Armamento::query()
-            ->with(['unidad'])
+        $armamentos = $this->queryArmamentoVisible()
             ->orderByDesc('estatus')
             ->orderBy('tipo')
             ->orderBy('clase')
@@ -25,10 +72,7 @@ class ArmamentoController extends Controller
 
     public function create()
     {
-        $unidades = Unidad::query()
-            ->where('activa', 1)
-            ->orderBy('nombre')
-            ->get();
+        $unidades = $this->unidadesDisponibles();
 
         return view('admin.settings.armamentos.create', compact('unidades'));
     }
@@ -57,6 +101,10 @@ class ArmamentoController extends Controller
             'cartuchos_cantidad' => 'nullable|integer|min:0|max:65535',
         ]);
 
+        if (!$this->actorEsSuperadmin()) {
+            $validated['unidad_id'] = $this->unidadIdActor();
+        }
+
         if (!array_key_exists('cargadores_cantidad', $validated) || $validated['cargadores_cantidad'] === null) {
             $validated['cargadores_cantidad'] = 2;
         }
@@ -81,25 +129,27 @@ class ArmamentoController extends Controller
         }
     }
 
-    public function show(Armamento $armamento)
+    public function show($id)
     {
+        $armamento = $this->buscarArmamentoVisibleOFail($id);
         $armamento->load(['unidad']);
 
         return view('admin.settings.armamentos.show', compact('armamento'));
     }
 
-    public function edit(Armamento $armamento)
+    public function edit($id)
     {
-        $unidades = Unidad::query()
-            ->where('activa', 1)
-            ->orderBy('nombre')
-            ->get();
+        $armamento = $this->buscarArmamentoVisibleOFail($id);
+
+        $unidades = $this->unidadesDisponibles();
 
         return view('admin.settings.armamentos.edit', compact('armamento', 'unidades'));
     }
 
-    public function update(Request $request, Armamento $armamento)
+    public function update(Request $request, $id)
     {
+        $armamento = $this->buscarArmamentoVisibleOFail($id);
+
         $validated = $request->validate([
             'unidad_id' => 'required|exists:unidades,id',
 
@@ -121,6 +171,10 @@ class ArmamentoController extends Controller
             'cargadores_cantidad' => 'nullable|integer|min:0|max:255',
             'cartuchos_cantidad' => 'nullable|integer|min:0|max:65535',
         ]);
+
+        if (!$this->actorEsSuperadmin()) {
+            $validated['unidad_id'] = $this->unidadIdActor();
+        }
 
         if (!array_key_exists('cargadores_cantidad', $validated) || $validated['cargadores_cantidad'] === null) {
             $validated['cargadores_cantidad'] = 2;
@@ -146,8 +200,10 @@ class ArmamentoController extends Controller
         }
     }
 
-    public function destroy(Armamento $armamento)
+    public function destroy($id)
     {
+        $armamento = $this->buscarArmamentoVisibleOFail($id);
+
         try {
             $armamento->delete();
 

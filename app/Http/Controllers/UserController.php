@@ -26,15 +26,128 @@ class UserController extends Controller
     private function isUnidadDelegaciones(?int $unidadId): bool
     {
         $delegacionesId = $this->unidadDelegacionesId();
-        return $delegacionesId !== null && (int)$unidadId === (int)$delegacionesId;
+        return $delegacionesId !== null && (int) $unidadId === (int) $delegacionesId;
+    }
+
+    private function actorEsSuperadmin(User $actor): bool
+    {
+        return $actor->hasRole('Superadmin');
+    }
+
+    private function actorEsAdministrador(User $actor): bool
+    {
+        return $actor->hasRole('Administrador') && !$actor->hasRole('Superadmin');
+    }
+
+    private function unidadesDisponiblesParaActor(User $actor)
+    {
+        return Unidad::query()
+            ->when(!$this->actorEsSuperadmin($actor), function ($q) use ($actor) {
+                $q->where('id', $actor->unidad_id);
+            })
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function patrullasDisponiblesParaActor(User $actor, ?int $unidadId = null)
+    {
+        return Patrulla::query()
+            ->when($this->actorEsSuperadmin($actor), function ($q) use ($unidadId) {
+                if (!empty($unidadId)) {
+                    $q->where('unidad_id', $unidadId);
+                }
+            })
+            ->when(!$this->actorEsSuperadmin($actor), function ($q) use ($actor) {
+                $q->where('unidad_id', $actor->unidad_id);
+            })
+            ->orderBy('numero_economico')
+            ->get();
+    }
+
+    private function delegacionesDisponiblesParaActor()
+    {
+        return Delegacion::query()
+            ->where('activa', 1)
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function turnosDisponiblesParaActor()
+    {
+        return Turno::query()
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function rolesDisponiblesParaActor(User $actor)
+    {
+        return Role::query()
+            ->when(!$this->actorEsSuperadmin($actor), function ($q) {
+                $q->where('name', '!=', 'Superadmin');
+            })
+            ->get();
+    }
+
+    private function normalizarUnidadParaActor(User $actor, ?int $unidadId): ?int
+    {
+        if ($this->actorEsSuperadmin($actor)) {
+            return $unidadId;
+        }
+
+        return $actor->unidad_id;
+    }
+
+    private function patrullaPerteneceAUnidad(?int $patrullaId, ?int $unidadId): bool
+    {
+        if (empty($patrullaId)) {
+            return true;
+        }
+
+        return Patrulla::query()
+            ->where('id', $patrullaId)
+            ->where('unidad_id', $unidadId)
+            ->exists();
+    }
+
+    private function unidadesExtraPermitidasParaActor(User $actor, array $unidadesIds = []): array
+    {
+        $unidadesIds = array_map('intval', $unidadesIds);
+
+        if ($this->actorEsSuperadmin($actor)) {
+            return $unidadesIds;
+        }
+
+        if (empty($actor->unidad_id)) {
+            return [];
+        }
+
+        return collect($unidadesIds)
+            ->filter(fn ($id) => (int) $id === (int) $actor->unidad_id)
+            ->values()
+            ->all();
+    }
+
+    private function queryUsuariosVisiblesParaActor(User $actor)
+    {
+        return User::query()
+            ->when(!$this->actorEsSuperadmin($actor), function ($q) use ($actor) {
+                $q->whereDoesntHave('roles', function ($subQ) {
+                    $subQ->where('name', 'Superadmin');
+                });
+
+                if ($this->actorEsAdministrador($actor)) {
+                    $q->where('unidad_id', $actor->unidad_id);
+                } else {
+                    $q->where('id', $actor->id);
+                }
+            });
     }
 
     public function index()
     {
         $actor = Auth::user();
 
-        $users = User::query()
-            ->visibleFor($actor)
+        $users = $this->queryUsuariosVisiblesParaActor($actor)
             ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion'])
             ->get();
 
@@ -45,21 +158,14 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        $roles = Role::query()
-            ->when(!$actor->hasRole('Superadmin'), function ($q) {
-                $q->where('name', '!=', 'Superadmin');
-            })
-            ->get();
+        $roles = $this->rolesDisponiblesParaActor($actor);
+        $unidades = $this->unidadesDisponiblesParaActor($actor);
+        $turnos = $this->turnosDisponiblesParaActor();
 
-        $unidades = Unidad::query()->orderBy('nombre')->get();
-        $turnos = Turno::query()->orderBy('nombre')->get();
-        $patrullas = Patrulla::query()->orderBy('numero_economico')->get();
+        $unidadIdDefault = $this->actorEsSuperadmin($actor) ? null : $actor->unidad_id;
 
-        $delegaciones = Delegacion::query()
-            ->where('activa', 1)
-            ->orderBy('nombre')
-            ->get();
-
+        $patrullas = $this->patrullasDisponiblesParaActor($actor, $unidadIdDefault);
+        $delegaciones = $this->delegacionesDisponiblesParaActor();
         $unidadDelegacionesId = $this->unidadDelegacionesId();
 
         return view('admin.settings.users.create', compact(
@@ -68,14 +174,14 @@ class UserController extends Controller
             'turnos',
             'patrullas',
             'delegaciones',
-            'unidadDelegacionesId'
+            'unidadDelegacionesId',
+            'unidadIdDefault'
         ));
     }
 
     public function store(Request $request)
     {
         $actor = Auth::user();
-
         $unidadDelegacionesId = $this->unidadDelegacionesId();
 
         $validatedData = $request->validate([
@@ -90,7 +196,11 @@ class UserController extends Controller
             'patrulla_id' => 'nullable|exists:patrullas,id',
 
             'delegacion_id' => [
-                Rule::requiredIf(fn () => $unidadDelegacionesId !== null && (int)($request->input('unidad_id')) === (int)$unidadDelegacionesId),
+                Rule::requiredIf(function () use ($request, $unidadDelegacionesId, $actor) {
+                    $unidadIdEvaluada = $this->normalizarUnidadParaActor($actor, $request->input('unidad_id'));
+                    return $unidadDelegacionesId !== null
+                        && (int) $unidadIdEvaluada === (int) $unidadDelegacionesId;
+                }),
                 'nullable',
                 'integer',
                 'exists:delegaciones,id',
@@ -100,13 +210,32 @@ class UserController extends Controller
             'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
-        if (!$actor->hasRole('Superadmin') && $validatedData['role'] === 'Superadmin') {
+        if (!$this->actorEsSuperadmin($actor) && $validatedData['role'] === 'Superadmin') {
             abort(403, 'No autorizado.');
+        }
+
+        $validatedData['unidad_id'] = $this->normalizarUnidadParaActor(
+            $actor,
+            $validatedData['unidad_id'] ?? null
+        );
+
+        if (!$this->patrullaPerteneceAUnidad(
+            $validatedData['patrulla_id'] ?? null,
+            $validatedData['unidad_id'] ?? null
+        )) {
+            throw ValidationException::withMessages([
+                'patrulla_id' => 'La patrulla seleccionada no pertenece a la unidad permitida.',
+            ]);
         }
 
         if (!$this->isUnidadDelegaciones($validatedData['unidad_id'] ?? null)) {
             $validatedData['delegacion_id'] = null;
         }
+
+        $unidadesExtra = $this->unidadesExtraPermitidasParaActor(
+            $actor,
+            $validatedData['unidades_ids'] ?? []
+        );
 
         try {
             $user = User::create([
@@ -115,19 +244,18 @@ class UserController extends Controller
                 'password' => bcrypt($validatedData['password']),
                 'estado' => 'Activo',
                 'area' => $validatedData['area'] ?? null,
-
                 'unidad_id' => $validatedData['unidad_id'] ?? null,
                 'turno_id' => $validatedData['turno_id'] ?? null,
                 'patrulla_id' => $validatedData['patrulla_id'] ?? null,
-
                 'delegacion_id' => $validatedData['delegacion_id'] ?? null,
             ]);
 
             $user->assignRole($validatedData['role']);
 
-            $unidadesExtra = $validatedData['unidades_ids'] ?? [];
             if (!empty($unidadesExtra)) {
                 $user->unidades()->sync($unidadesExtra);
+            } else {
+                $user->unidades()->sync([]);
             }
 
             Log::info("Usuario creado exitosamente: {$user->name}");
@@ -135,6 +263,7 @@ class UserController extends Controller
             return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
         } catch (\Exception $e) {
             Log::error("Error al crear el usuario: " . $e->getMessage());
+
             return redirect()->back()
                 ->withErrors('Hubo un error al crear el usuario. Inténtelo nuevamente.')
                 ->withInput();
@@ -145,8 +274,7 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        $user = User::query()
-            ->visibleFor($actor)
+        $user = $this->queryUsuariosVisiblesParaActor($actor)
             ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion'])
             ->findOrFail($id);
 
@@ -157,29 +285,30 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        $user = User::query()
-            ->visibleFor($actor)
+        $user = $this->queryUsuariosVisiblesParaActor($actor)
             ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion'])
             ->findOrFail($id);
 
-        $roles = Role::query()
-            ->when(!$actor->hasRole('Superadmin'), function ($q) {
-                $q->where('name', '!=', 'Superadmin');
-            })
-            ->get();
+        $roles = $this->rolesDisponiblesParaActor($actor);
+        $unidades = $this->unidadesDisponiblesParaActor($actor);
+        $turnos = $this->turnosDisponiblesParaActor();
 
-        $unidades = Unidad::query()->orderBy('nombre')->get();
-        $turnos = Turno::query()->orderBy('nombre')->get();
-        $patrullas = Patrulla::query()->orderBy('numero_economico')->get();
+        $unidadIdParaPatrullas = $this->actorEsSuperadmin($actor)
+            ? ($user->unidad_id ?? null)
+            : $actor->unidad_id;
 
-        $delegaciones = Delegacion::query()
-            ->where('activa', 1)
-            ->orderBy('nombre')
-            ->get();
-
+        $patrullas = $this->patrullasDisponiblesParaActor($actor, $unidadIdParaPatrullas);
+        $delegaciones = $this->delegacionesDisponiblesParaActor();
         $unidadDelegacionesId = $this->unidadDelegacionesId();
 
         $unidadesExtraSeleccionadas = $user->unidades->pluck('id')->all();
+
+        if (!$this->actorEsSuperadmin($actor)) {
+            $unidadesExtraSeleccionadas = collect($unidadesExtraSeleccionadas)
+                ->filter(fn ($unidadId) => (int) $unidadId === (int) $actor->unidad_id)
+                ->values()
+                ->all();
+        }
 
         return view('admin.settings.users.edit', compact(
             'user',
@@ -197,8 +326,7 @@ class UserController extends Controller
     {
         $actor = Auth::user();
 
-        $user = User::query()
-            ->visibleFor($actor)
+        $user = $this->queryUsuariosVisiblesParaActor($actor)
             ->with('roles')
             ->findOrFail($id);
 
@@ -216,7 +344,11 @@ class UserController extends Controller
             'patrulla_id' => 'nullable|exists:patrullas,id',
 
             'delegacion_id' => [
-                Rule::requiredIf(fn () => $unidadDelegacionesId !== null && (int)($request->input('unidad_id')) === (int)$unidadDelegacionesId),
+                Rule::requiredIf(function () use ($request, $unidadDelegacionesId, $actor) {
+                    $unidadIdEvaluada = $this->normalizarUnidadParaActor($actor, $request->input('unidad_id'));
+                    return $unidadDelegacionesId !== null
+                        && (int) $unidadIdEvaluada === (int) $unidadDelegacionesId;
+                }),
                 'nullable',
                 'integer',
                 'exists:delegaciones,id',
@@ -226,12 +358,13 @@ class UserController extends Controller
             'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
-        if (!$actor->hasRole('Superadmin') && $validatedData['role'] === 'Superadmin') {
+        if (!$this->actorEsSuperadmin($actor) && $validatedData['role'] === 'Superadmin') {
             abort(403, 'No autorizado.');
         }
 
         if ($user->hasRole('Superadmin') && $validatedData['role'] !== 'Superadmin') {
             $superadmins = User::role('Superadmin')->count();
+
             if ($superadmins <= 1) {
                 throw ValidationException::withMessages([
                     'role' => 'No puedes dejar el sistema sin Superadmin.',
@@ -239,20 +372,37 @@ class UserController extends Controller
             }
         }
 
+        $validatedData['unidad_id'] = $this->normalizarUnidadParaActor(
+            $actor,
+            $validatedData['unidad_id'] ?? null
+        );
+
+        if (!$this->patrullaPerteneceAUnidad(
+            $validatedData['patrulla_id'] ?? null,
+            $validatedData['unidad_id'] ?? null
+        )) {
+            throw ValidationException::withMessages([
+                'patrulla_id' => 'La patrulla seleccionada no pertenece a la unidad permitida.',
+            ]);
+        }
+
         if (!$this->isUnidadDelegaciones($validatedData['unidad_id'] ?? null)) {
             $validatedData['delegacion_id'] = null;
         }
+
+        $unidadesExtra = $this->unidadesExtraPermitidasParaActor(
+            $actor,
+            $validatedData['unidades_ids'] ?? []
+        );
 
         try {
             $user->update([
                 'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
                 'area' => $validatedData['area'] ?? null,
-
                 'unidad_id' => $validatedData['unidad_id'] ?? null,
                 'turno_id' => $validatedData['turno_id'] ?? null,
                 'patrulla_id' => $validatedData['patrulla_id'] ?? null,
-
                 'delegacion_id' => $validatedData['delegacion_id'] ?? null,
             ]);
 
@@ -262,8 +412,6 @@ class UserController extends Controller
             }
 
             $user->syncRoles([$validatedData['role']]);
-
-            $unidadesExtra = $validatedData['unidades_ids'] ?? [];
             $user->unidades()->sync($unidadesExtra);
 
             Log::info("Usuario actualizado exitosamente: {$user->name}");
@@ -273,6 +421,7 @@ class UserController extends Controller
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             Log::error("Error al actualizar el usuario: " . $e->getMessage());
+
             return redirect()->back()
                 ->withErrors('Hubo un error al actualizar el usuario. Inténtelo nuevamente.')
                 ->withInput();
@@ -284,10 +433,11 @@ class UserController extends Controller
         $actor = Auth::user();
 
         try {
-            $user = User::query()->visibleFor($actor)->findOrFail($id);
+            $user = $this->queryUsuariosVisiblesParaActor($actor)->findOrFail($id);
 
             if ($user->hasRole('Superadmin')) {
                 $superadmins = User::role('Superadmin')->count();
+
                 if ($superadmins <= 1) {
                     throw ValidationException::withMessages([
                         'user' => 'No puedes eliminar al último Superadmin.',
@@ -329,7 +479,9 @@ class UserController extends Controller
         $user = Auth::user();
 
         if (!Hash::check($request->current_password, $user->password)) {
-            return redirect()->back()->withErrors(['current_password' => 'La contraseña actual no coincide.']);
+            return redirect()->back()->withErrors([
+                'current_password' => 'La contraseña actual no coincide.'
+            ]);
         }
 
         $user->password = Hash::make($request->password);

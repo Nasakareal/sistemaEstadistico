@@ -11,22 +11,56 @@ use Illuminate\Support\Facades\Log;
 
 class PatrullaController extends Controller
 {
+    private function actor()
+    {
+        return Auth::user();
+    }
+
+    private function actorEsSuperadmin(): bool
+    {
+        $actor = $this->actor();
+        return $actor && $actor->hasRole('Superadmin');
+    }
+
+    private function unidadIdActor(): ?int
+    {
+        return $this->actor()?->unidad_id;
+    }
+
+    private function queryPatrullasVisibles()
+    {
+        $actor = $this->actor();
+
+        return Patrulla::query()
+            ->with(['unidad', 'turno'])
+            ->when(!$this->actorEsSuperadmin(), function ($q) use ($actor) {
+                if (!empty($actor->unidad_id)) {
+                    $q->where('unidad_id', (int) $actor->unidad_id);
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+    }
+
+    private function buscarPatrullaVisibleOFail($id): Patrulla
+    {
+        return $this->queryPatrullasVisibles()->findOrFail($id);
+    }
+
+    private function unidadesDisponibles()
+    {
+        return Unidad::query()
+            ->when(!$this->actorEsSuperadmin(), function ($q) {
+                $q->where('id', $this->unidadIdActor());
+            })
+            ->orderBy('nombre')
+            ->get();
+    }
+
     public function index()
     {
-        $actor = Auth::user();
-
-        $q = Patrulla::query()
-            ->with(['unidad', 'turno']);
-
-        if (!$actor->hasRole('Superadmin')) {
-            if (!empty($actor->unidad_id)) {
-                $q->where('unidad_id', (int) $actor->unidad_id);
-            } else {
-                $q->whereRaw('1 = 0');
-            }
-        }
-
-        $patrullas = $q->orderByDesc('activa')
+        $patrullas = $this->queryPatrullasVisibles()
+            ->orderByDesc('activa')
             ->orderBy('numero_economico')
             ->get();
 
@@ -35,7 +69,7 @@ class PatrullaController extends Controller
 
     public function create()
     {
-        $unidades = Unidad::query()->orderBy('nombre')->get();
+        $unidades = $this->unidadesDisponibles();
         $turnos   = Turno::query()->orderBy('nombre')->get();
 
         return view('admin.settings.patrullas.create', compact('unidades', 'turnos'));
@@ -61,6 +95,12 @@ class PatrullaController extends Controller
             'no_motor'     => 'nullable|string|max:60',
             'observaciones'=> 'nullable|string',
         ]);
+
+        $actor = $this->actor();
+
+        if (!$this->actorEsSuperadmin()) {
+            $validated['unidad_id'] = $this->unidadIdActor();
+        }
 
         try {
             $validated['placas'] = $this->normalizarPlacas($validated['placas'] ?? null);
@@ -102,23 +142,28 @@ class PatrullaController extends Controller
         }
     }
 
-    public function show(Patrulla $patrulla)
+    public function show($id)
     {
+        $patrulla = $this->buscarPatrullaVisibleOFail($id);
         $patrulla->load(['unidad', 'turno']);
 
         return view('admin.settings.patrullas.show', compact('patrulla'));
     }
 
-    public function edit(Patrulla $patrulla)
+    public function edit($id)
     {
-        $unidades = Unidad::query()->orderBy('nombre')->get();
+        $patrulla = $this->buscarPatrullaVisibleOFail($id);
+
+        $unidades = $this->unidadesDisponibles();
         $turnos   = Turno::query()->orderBy('nombre')->get();
 
         return view('admin.settings.patrullas.edit', compact('patrulla', 'unidades', 'turnos'));
     }
 
-    public function update(Request $request, Patrulla $patrulla)
+    public function update(Request $request, $id)
     {
+        $patrulla = $this->buscarPatrullaVisibleOFail($id);
+
         $validated = $request->validate([
             'numero_economico' => 'required|string|max:20|unique:patrullas,numero_economico,' . $patrulla->id,
             'unidad_id'        => 'required|exists:unidades,id',
@@ -137,6 +182,10 @@ class PatrullaController extends Controller
             'no_motor'     => 'nullable|string|max:60',
             'observaciones'=> 'nullable|string',
         ]);
+
+        if (!$this->actorEsSuperadmin()) {
+            $validated['unidad_id'] = $this->unidadIdActor();
+        }
 
         try {
             $validated['placas'] = $this->normalizarPlacas($validated['placas'] ?? null);
@@ -178,8 +227,10 @@ class PatrullaController extends Controller
         }
     }
 
-    public function destroy(Patrulla $patrulla)
+    public function destroy($id)
     {
+        $patrulla = $this->buscarPatrullaVisibleOFail($id);
+
         try {
             $numero = $patrulla->numero_economico;
             $patrulla->delete();

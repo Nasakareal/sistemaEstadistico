@@ -23,12 +23,7 @@ class Unidad extends Model
 
     public function usuarios()
     {
-        return $this->hasMany(User::class);
-    }
-
-    public function coordinadores()
-    {
-        return $this->belongsToMany(User::class, 'unidad_user');
+        return $this->hasMany(User::class, 'unidad_id');
     }
 
     public function hechos()
@@ -38,6 +33,21 @@ class Unidad extends Model
 
     public function patrullas()
     {
-        return $this->hasMany(Patrulla::class);
+        return $this->hasMany(Patrulla::class, 'unidad_id');
+    }
+
+    public function actividades()
+    {
+        return $this->hasMany(Actividad::class, 'unidad_org_id');
+    }
+
+    public function operativosCatalogo()
+    {
+        return $this->hasMany(OperativoCatalogo::class, 'unidad_id');
+    }
+
+    public function operativos()
+    {
+        return $this->hasMany(Operativo::class, 'unidad_org_id');
     }
 }

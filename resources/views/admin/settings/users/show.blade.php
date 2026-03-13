@@ -16,7 +16,6 @@
 
                 <div class="card-body">
                     <div class="row">
-                        <!-- Nombre -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Nombre</label>
@@ -24,7 +23,6 @@
                             </div>
                         </div>
 
-                        <!-- Email -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Correo Electrónico</label>
@@ -34,7 +32,6 @@
                     </div>
 
                     <div class="row">
-                        <!-- Área -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Área</label>
@@ -42,27 +39,24 @@
                             </div>
                         </div>
 
-                        <!-- Estado -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Estado</label>
-                                <p class="form-control-static">{{ $user->estado }}</p>
+                                <p class="form-control-static">{{ $user->estado ?? 'Sin estado' }}</p>
                             </div>
                         </div>
                     </div>
 
                     <div class="row">
-                        <!-- Rol -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Rol</label>
                                 <p class="form-control-static">
-                                    {{ $user->roles->pluck('name')->join(', ') }}
+                                    {{ $user->roles->pluck('name')->join(', ') ?: 'Sin rol asignado' }}
                                 </p>
                             </div>
                         </div>
 
-                        <!-- Unidad principal -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Unidad principal</label>
@@ -74,7 +68,6 @@
                     </div>
 
                     <div class="row">
-                        <!-- Turno -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Turno</label>
@@ -84,7 +77,6 @@
                             </div>
                         </div>
 
-                        <!-- Patrulla -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Patrulla (número económico)</label>
@@ -95,12 +87,45 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Delegación</label>
+                                <p class="form-control-static">
+                                    @if($user->delegacion)
+                                        {{ $user->delegacion->nombre }}
+                                        @if(!empty($user->delegacion->clave))
+                                            ({{ $user->delegacion->clave }})
+                                        @endif
+                                    @else
+                                        No aplica / Sin delegación asignada
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Destacamento</label>
+                                <p class="form-control-static">
+                                    @if($user->destacamento)
+                                        {{ $user->destacamento->nombre }}
+                                        @if(!empty($user->destacamento->clave))
+                                            ({{ $user->destacamento->clave }})
+                                        @endif
+                                    @else
+                                        No aplica / Sin destacamento asignado
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     @if ($user->hasRole('Coordinador'))
                         <div class="row">
-                            <!-- Unidades adicionales -->
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label>Unidades a cargo</label>
+                                    <label>Unidades adicionales</label>
                                     @if ($user->unidades && $user->unidades->count())
                                         <ul class="mb-0">
                                             @foreach ($user->unidades as $u)
@@ -116,7 +141,6 @@
                     @endif
 
                     <div class="row">
-                        <!-- Foto de perfil -->
                         <div class="col-md-12">
                             <div class="form-group">
                                 <label>Foto de Perfil</label>
@@ -151,12 +175,16 @@
 
 @section('css')
     <style>
-        .form-group label { font-weight: bold; }
+        .form-group label {
+            font-weight: bold;
+        }
+
         .form-control-static {
             display: block;
             font-size: 1rem;
             margin-top: 0.4rem;
         }
+
         .img-thumbnail {
             border: 2px solid #ddd;
             border-radius: 8px;

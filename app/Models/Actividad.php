@@ -21,6 +21,8 @@ class Actividad extends Model
         'foto_hash',
         'created_by',
         'updated_by',
+        'unidad_org_id',
+        'delegacion_id',
     ];
 
     protected $casts = [
@@ -35,5 +37,10 @@ class Actividad extends Model
     public function subcategoria()
     {
         return $this->belongsTo(ActividadSubcategoria::class, 'actividad_subcategoria_id');
+    }
+
+    public function unidad()
+    {
+        return $this->belongsTo(Unidad::class, 'unidad_org_id');
     }
 }

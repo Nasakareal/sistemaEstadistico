@@ -62,6 +62,7 @@
                                 <option value="RESUELTO">Resueltos</option>
                                 <option value="TURNADO">Turnados</option>
                                 <option value="PENDIENTE">Pendientes</option>
+                                <option value="REPORTE">Reporte</option>
                             </select>
                         </div>
 

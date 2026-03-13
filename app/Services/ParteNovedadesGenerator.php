@@ -6,6 +6,7 @@ use App\Models\Hechos;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 
@@ -15,6 +16,8 @@ class ParteNovedadesGenerator
     {
         $tz = 'America/Mexico_City';
 
+        Settings::setOutputEscapingEnabled(true);
+
         $inicio = Carbon::parse($fecha, $tz)->setTime(18, 0)->subDay();
         $fin    = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
@@ -23,6 +26,8 @@ class ParteNovedadesGenerator
             ->orderBy('fecha', 'asc')
             ->orderBy('hora', 'asc')
             ->get();
+
+        $this->sanitizeHechos($hechos);
 
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Arial');
@@ -150,7 +155,8 @@ class ParteNovedadesGenerator
 
             $textRun->addText("A las " . Carbon::parse($hecho->hora, $tz)->format('H:i') . " horas en {$hecho->calle}, de la colonia {$hecho->colonia}, lugar donde ");
 
-            $vehiculos = $hecho->vehiculos;
+
+            $vehiculos = $hecho->vehiculos->loadMissing('conductores');
 
             if ($vehiculos->count() > 0) {
                 $textRun->addText("participaron: ");
@@ -253,7 +259,7 @@ class ParteNovedadesGenerator
                 'spaceBefore' => 0,
             ]);
 
-            $montoTotal = $hecho->vehiculos->sum('monto_danos');
+            $montoTotal = $vehiculos->sum('monto_danos');
 
             $section->addText(
                 strtoupper($hecho->situacion) . "\tDAÑOS APROXIMADOS $ " . number_format($montoTotal, 2),
@@ -388,5 +394,45 @@ class ParteNovedadesGenerator
         IOFactory::createWriter($phpWord, 'Word2007')->save($tempPath);
 
         return $tempPath;
+    }
+    private function sanitizeHechos(
+        $hechos
+    ): void
+    {
+        foreach ($hechos as $hecho) {
+            $this->sanitizeModelStrings($hecho);
+
+            foreach ($hecho->vehiculos as $vehiculo) {
+                $this->sanitizeModelStrings($vehiculo);
+
+                foreach ($vehiculo->conductores as $conductor) {
+                    $this->sanitizeModelStrings($conductor);
+                }
+            }
+
+            foreach ($hecho->lesionados as $lesionado) {
+                $this->sanitizeModelStrings($lesionado);
+            }
+        }
+    }
+
+    private function sanitizeModelStrings($model): void
+    {
+        foreach ($model->getAttributes() as $attribute => $value) {
+            if (is_string($value)) {
+                $model->setAttribute($attribute, $this->sanitizeWordText($value));
+            }
+        }
+    }
+
+    private function sanitizeWordText(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value);
+
+        return $sanitized ?? $value;
     }
 }

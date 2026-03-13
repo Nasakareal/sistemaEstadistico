@@ -116,20 +116,22 @@
 
         {{-- EXÁMENES DIARIOS --}}
         @can('ver modulo examenes')
-            <div class="col-md-3 col-sm-6 col-12">
-                <div class="sv-card">
-                    <div class="sv-card__icon bg-purple">
-                        <i class="fa-solid fa-id-card"></i>
-                    </div>
-                    <div class="sv-card__body">
-                        <div class="sv-card__title">Exámenes (Módulo)</div>
-                        <div class="sv-card__desc">Captura diaria de exámenes realizados.</div>
-                        <a href="{{ url('/admin/settings/modulo-examenes-diarios') }}" class="btn sv-btn">
-                            <i class="fas fa-arrow-right"></i> Acceder
-                        </a>
+            @if(auth()->user()->perteneceAAlgunaUnidad(['siniestros','delegaciones']))
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-purple">
+                            <i class="fa-solid fa-id-card"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Exámenes (Módulo)</div>
+                            <div class="sv-card__desc">Captura diaria de exámenes realizados.</div>
+                            <a href="{{ url('/admin/settings/modulo-examenes-diarios') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endif
         @endcan
 
         {{-- ESTADISTICAS --}}
@@ -152,140 +154,181 @@
 
         {{-- DELEGACIONES --}}
         @can('ver delegaciones')
+            @if(auth()->user()->perteneceAUnidad('delegaciones'))
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-indigo">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Delegaciones</div>
+                            <div class="sv-card__desc">Gestión de delegaciones y subdelegaciones.</div>
+                            <a href="{{ url('/admin/settings/delegaciones') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endcan
+
+        @php $user = auth()->user(); @endphp
+
+        @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 4))
+            @can('ver destacamentos')
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-warning">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Destacamentos</div>
+                            <div class="sv-card__desc">Gestión de destacamentos para consolidado de operativos.</div>
+                            <a href="{{ url('/admin/settings/destacamentos') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endcan
+        @endif
+
+        @php $user = auth()->user(); @endphp
+
+        @if($user && $user->hasRole('Superadmin'))
+
+            {{-- RESPALDOS SQL --}}
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">
-                    <div class="sv-card__icon bg-indigo">
-                        <i class="fa-solid fa-map-location-dot"></i>
+                    <div class="sv-card__icon bg-dark">
+                        <i class="fa-solid fa-database"></i>
                     </div>
                     <div class="sv-card__body">
-                        <div class="sv-card__title">Delegaciones</div>
-                        <div class="sv-card__desc">Gestión de delegaciones y subdelegaciones.</div>
-                        <a href="{{ url('/admin/settings/delegaciones') }}" class="btn sv-btn">
+                        <div class="sv-card__title">Respaldos SQL</div>
+                        <div class="sv-card__desc">Lista y descarga respaldos .sql / .sql.gz.</div>
+                        <a href="{{ route('backups_sql.index') }}" class="btn sv-btn">
                             <i class="fas fa-arrow-right"></i> Acceder
                         </a>
                     </div>
                 </div>
             </div>
-        @endcan
 
-        {{-- RESPALDOS SQL --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-dark">
-                    <i class="fa-solid fa-database"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Respaldos SQL</div>
-                    <div class="sv-card__desc">Lista y descarga respaldos .sql / .sql.gz.</div>
-                    <a href="{{ route('backups_sql.index') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
+        @endif
 
-        {{-- EXPORT ESTADO DE FUERZA (PRUEBA) --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-primary">
-                    <i class="fa-solid fa-file-excel"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Exportar 6PM (Prueba)</div>
-                    <div class="sv-card__desc">Genera el Excel local para revisar.</div>
-                    <a href="{{ route('settings.exports.estado_fuerza') }}" class="btn sv-btn">
-                        <i class="fas fa-download"></i> Generar Excel
-                    </a>
-                </div>
-            </div>
-        </div>
+        @php $user = auth()->user(); @endphp
 
-        {{-- EXPORT PARTE DE NOVEDADES (PRUEBA) --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-warning">
-                    <i class="fa-solid fa-file-word"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Parte de Novedades (Prueba)</div>
-                    <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
-                    <a href="{{ route('settings.exports.parte_novedades') }}" class="btn sv-btn">
-                        <i class="fas fa-download"></i> Generar Parte
-                    </a>
-                </div>
-            </div>
-        </div>
+        @if($user && $user->perteneceAUnidad('siniestros'))
 
-        {{-- EXPORT BITÁCORA (PRUEBA) --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-secondary">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Bitácora (Prueba)</div>
-                    <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
-                    <a href="{{ route('settings.exports.bitacora') }}" class="btn sv-btn">
-                        <i class="fas fa-download"></i> Generar Bitácora
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {{-- EXPORT MINI PARTE (PRUEBA) --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-indigo">
-                    <i class="fa-solid fa-file-word"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Mini Parte (Prueba)</div>
-                    <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
-                    <a href="{{ route('settings.exports.mini_parte') }}" class="btn sv-btn">
-                        <i class="fas fa-download"></i> Generar Mini Parte
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {{-- RADAR RIESGO --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-info">
-                    <i class="fa-solid fa-radar"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Radar de Riesgo</div>
-                    <div class="sv-card__desc">Mapa/consulta de zonas con mayor incidencia.</div>
-                    <a href="{{ route('radar.riesgo') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-right"></i> Acceder
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {{-- EXPORT BITÁCORA POR TURNO --}}
-        <div class="col-md-3 col-sm-6 col-12">
-            <div class="sv-card">
-                <div class="sv-card__icon bg-secondary">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                </div>
-                <div class="sv-card__body">
-                    <div class="sv-card__title">Bitácora por Turno</div>
-                    <div class="sv-card__desc">Genera el DOCX por turno (A/B).</div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="{{ route('settings.exports.bitacora_turno', ['turno' => 'A']) }}" class="btn sv-btn">
-                            <i class="fas fa-download"></i> Turno A
-                        </a>
-
-                        <a href="{{ route('settings.exports.bitacora_turno', ['turno' => 'B']) }}" class="btn sv-btn">
-                            <i class="fas fa-download"></i> Turno B
+            {{-- EXPORT ESTADO DE FUERZA (PRUEBA) --}}
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-primary">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Exportar 6PM (Prueba)</div>
+                        <div class="sv-card__desc">Genera el Excel local para revisar.</div>
+                        <a href="{{ route('settings.exports.estado_fuerza') }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Generar Excel
                         </a>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {{-- EXPORT PARTE DE NOVEDADES (PRUEBA) --}}
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-warning">
+                        <i class="fa-solid fa-file-word"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Parte de Novedades (Prueba)</div>
+                        <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
+                        <a href="{{ route('settings.exports.parte_novedades') }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Generar Parte
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {{-- EXPORT BITÁCORA (PRUEBA) --}}
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-secondary">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Bitácora (Prueba)</div>
+                        <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
+                        <a href="{{ route('settings.exports.bitacora') }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Generar Bitácora
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {{-- EXPORT MINI PARTE (PRUEBA) --}}
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-indigo">
+                        <i class="fa-solid fa-file-word"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Mini Parte (Prueba)</div>
+                        <div class="sv-card__desc">Genera el DOCX local para revisar.</div>
+                        <a href="{{ route('settings.exports.mini_parte') }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Generar Mini Parte
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        @endif
+
+        @php $user = auth()->user(); @endphp
+
+        @if($user && $user->perteneceAUnidad('siniestros'))
+
+            {{-- RADAR RIESGO --}}
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-info">
+                        <i class="fa-solid fa-radar"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Radar de Riesgo</div>
+                        <div class="sv-card__desc">Mapa/consulta de zonas con mayor incidencia.</div>
+                        <a href="{{ route('radar.riesgo') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {{-- EXPORT BITÁCORA POR TURNO --}}
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-secondary">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Bitácora por Turno</div>
+                        <div class="sv-card__desc">Genera el DOCX por turno (A/B).</div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="{{ route('settings.exports.bitacora_turno', ['turno' => 'A']) }}" class="btn sv-btn">
+                                <i class="fas fa-download"></i> Turno A
+                            </a>
+
+                            <a href="{{ route('settings.exports.bitacora_turno', ['turno' => 'B']) }}" class="btn sv-btn">
+                                <i class="fas fa-download"></i> Turno B
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        @endif
 
     </div>
 @stop

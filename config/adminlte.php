@@ -180,7 +180,7 @@ return [
                 ],
             ],
         ],
-
+        /*
         [
             'text'    => 'Pase de Lista',
             'icon'    => 'fas fa-user-check',
@@ -203,30 +203,30 @@ return [
                 ],
             ],
         ],
-
+        */
         [
             'text'    => 'Dictamenes',
             'icon'    => 'fas fa-gavel',
             'classes' => 'bg-blue text-white',
-            'can'     => 'ver dictamenes',
+            'can'     => 'menu-dictamenes',
             'submenu' => [
                 [
                     'text'    => 'Listado de Dictamenes',
                     'icon'    => 'fas fa-gavel',
                     'classes' => 'text-white',
                     'url'     => 'dictamenes',
-                    'can'     => 'ver dictamenes',
+                    'can'     => 'menu-dictamenes',
                 ],
                 [
                     'text'    => 'Solicitar número Dictamen',
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'dictamenes/create',
-                    'can'     => 'crear dictamenes',
+                    'can'     => 'menu-dictamenes-crear',
                 ],
             ],
         ],
-
+        
         [
             'text'    => 'Actividades',
             'icon'    => 'fas fa-tasks',
@@ -243,6 +243,29 @@ return [
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'actividades/create',
+                ],
+            ],
+        ],
+
+        [
+            'text'    => 'Operativos',
+            'icon'    => 'fa-solid fa-shield-halved',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver operativos',
+            'submenu' => [
+                [
+                    'text'    => 'Listado de Operativos',
+                    'icon'    => 'fa-solid fa-list',
+                    'classes' => 'text-white',
+                    'url'     => 'operativos',
+                    'can'     => 'ver operativos',
+                ],
+                [
+                    'text'    => 'Añadir Operativo',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'operativos/create',
+                    'can'     => 'crear operativos',
                 ],
             ],
         ],
@@ -313,7 +336,7 @@ return [
                 ],
             ],
         ],
-
+        /*
         [
             'text'    => 'Oficios',
             'icon'    => 'fas fa-envelope-open-text',
@@ -336,7 +359,7 @@ return [
                 ],
             ],
         ],
-
+        */
         [
             'text'    => 'Estadísticas Globales',
             'icon'    => 'fa-solid fa-chart-column',

@@ -23,7 +23,9 @@ class ArmamentoController extends Controller
 
     private function unidadIdActor(): ?int
     {
-        return $this->actor()?->unidad_id;
+        $actor = $this->actor();
+
+        return $actor ? $actor->unidad_id : null;
     }
 
     private function queryArmamentoVisible()

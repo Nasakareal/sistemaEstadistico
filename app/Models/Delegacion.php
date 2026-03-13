@@ -23,13 +23,6 @@ class Delegacion extends Model
         'activa' => 'boolean',
     ];
 
-    /* =====================================================
-     | RELACIONES
-     ===================================================== */
-
-    /**
-     * Usuarios asignados a esta delegación (pivote)
-     */
     public function users()
     {
         return $this->belongsToMany(User::class, 'delegacion_user')
@@ -37,12 +30,14 @@ class Delegacion extends Model
             ->withTimestamps();
     }
 
-    /**
-     * Hechos asociados a esta delegación
-     */
     public function hechos()
     {
         return $this->hasMany(Hechos::class, 'delegacion_id');
+    }
+
+    public function actividades()
+    {
+        return $this->hasMany(Actividad::class, 'delegacion_id');
     }
 
     public function padre()
@@ -55,10 +50,6 @@ class Delegacion extends Model
         return $this->hasMany(self::class, 'delegacion_padre_id');
     }
 
-    /* =====================================================
-     | HELPERS
-     ===================================================== */
-
     public function getNombreConClaveAttribute(): string
     {
         if (!empty($this->clave)) {
@@ -66,5 +57,10 @@ class Delegacion extends Model
         }
 
         return (string) $this->nombre;
+    }
+
+    public function operativos()
+    {
+        return $this->hasMany(Operativo::class, 'delegacion_id');
     }
 }

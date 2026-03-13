@@ -30,13 +30,13 @@ use App\Http\Controllers\LesionadoController;
 use App\Http\Controllers\ActividadController;
 use App\Http\Controllers\DictamenController;
 use App\Http\Controllers\PendientesCortesController;
-
+use App\Http\Controllers\OperativoController;
 use App\Http\Controllers\TramoController;
 use App\Http\Controllers\GruaGuardiaController;
 use App\Http\Controllers\GruaGuardiaSctController;
 use App\Http\Controllers\GruaTramoController;
 use App\Http\Controllers\TramoLookupController;
-
+use App\Http\Controllers\DestacamentoController;
 use App\Http\Controllers\WazeAlertWebController;
 use App\Http\Controllers\RiesgoDashboardController;
 
@@ -63,6 +63,16 @@ Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::get('/mapa/mi-personal',[MapaPatrullasController::class,'miPersonal'])->name('mapa.mi_personal');
     Route::post('/mapa/mi-personal/{user}/ubicacion',[MapaPatrullasController::class,'toggleUbicacionUsuario'])->name('mapa.mi_personal.toggle');
     Route::post('/mapa/mi-personal/ubicacion/todos',[MapaPatrullasController::class,'toggleUbicacionTodos'])->name('mapa.mi_personal.toggle_all');
+});
+
+Route::prefix('operativos')->middleware(['auth','can:ver operativos'])->group(function () {
+    Route::get('/', [OperativoController::class, 'index'])->name('operativos.index');
+    Route::get('/create', [OperativoController::class, 'create'])->middleware('can:crear operativos')->name('operativos.create');
+    Route::post('/', [OperativoController::class, 'store'])->middleware('can:crear operativos')->name('operativos.store');
+    Route::get('/{operativo}', [OperativoController::class, 'show'])->name('operativos.show');
+    Route::get('/{operativo}/edit', [OperativoController::class, 'edit'])->middleware('can:editar operativos')->name('operativos.edit');
+    Route::put('/{operativo}', [OperativoController::class, 'update'])->middleware('can:editar operativos')->name('operativos.update');
+    Route::delete('/{operativo}', [OperativoController::class, 'destroy'])->middleware('can:eliminar operativos')->name('operativos.destroy');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -183,14 +193,14 @@ Route::prefix('formatos')->middleware('can:ver formatos')->group(function () {
     Route::delete('/{formato}',[FormatoController::class,'destroy'])->middleware('can:eliminar formatos')->name('formatos.destroy');
 });
 
-Route::prefix('dictamenes')->middleware('can:ver dictamenes')->group(function () {
-    Route::get('/',[DictamenController::class,'index'])->name('dictamenes.index');
-    Route::get('/create',[DictamenController::class,'create'])->middleware('can:crear dictamenes')->name('dictamenes.create');
-    Route::post('/',[DictamenController::class,'store'])->middleware('can:crear dictamenes')->name('dictamenes.store');
-    Route::get('/{dictamen}',[DictamenController::class,'show'])->middleware('can:ver dictamenes')->name('dictamenes.show');
-    Route::get('/{dictamen}/edit',[DictamenController::class,'edit'])->middleware('can:editar dictamenes')->name('dictamenes.edit');
-    Route::put('/{dictamen}',[DictamenController::class,'update'])->middleware('can:editar dictamenes')->name('dictamenes.update');
-    Route::delete('/{dictamen}',[DictamenController::class,'destroy'])->middleware('can:eliminar dictamenes')->name('dictamenes.destroy');
+Route::prefix('dictamenes')->middleware(['auth', 'can:ver dictamenes', 'unidad:siniestros'])->group(function () {
+    Route::get('/', [DictamenController::class, 'index'])->name('dictamenes.index');
+    Route::get('/create', [DictamenController::class, 'create'])->middleware('can:crear dictamenes')->name('dictamenes.create');
+    Route::post('/', [DictamenController::class, 'store'])->middleware('can:crear dictamenes')->name('dictamenes.store');
+    Route::get('/{dictamen}', [DictamenController::class, 'show'])->middleware('can:ver dictamenes')->name('dictamenes.show');
+    Route::get('/{dictamen}/edit', [DictamenController::class, 'edit'])->middleware('can:editar dictamenes')->name('dictamenes.edit');
+    Route::put('/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes')->name('dictamenes.update');
+    Route::delete('/{dictamen}', [DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes')->name('dictamenes.destroy');
 });
 
     /** =========================
@@ -405,6 +415,16 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/{file}', [BackupsSqlController::class, 'download'])
             ->where('file', '[A-Za-z0-9._-]+\.sql(\.gz)?')
             ->name('backups_sql.download');
+    });
+
+    Route::prefix('destacamentos')->middleware(['auth','can:ver destacamentos'])->group(function () {
+        Route::get('/', [DestacamentoController::class, 'index'])->name('destacamentos.index');
+        Route::get('/create', [DestacamentoController::class, 'create'])->middleware('can:crear destacamentos')->name('destacamentos.create');
+        Route::post('/', [DestacamentoController::class, 'store'])->middleware('can:crear destacamentos')->name('destacamentos.store');
+        Route::get('/{destacamento}', [DestacamentoController::class, 'show'])->name('destacamentos.show');
+        Route::get('/{destacamento}/edit', [DestacamentoController::class, 'edit'])->middleware('can:editar destacamentos')->name('destacamentos.edit');
+        Route::put('/{destacamento}', [DestacamentoController::class, 'update'])->middleware('can:editar destacamentos')->name('destacamentos.update');
+        Route::delete('/{destacamento}', [DestacamentoController::class, 'destroy'])->middleware('can:eliminar destacamentos')->name('destacamentos.destroy');
     });
 
     Route::get('/exports/estado-fuerza', [ExportController::class, 'estadoFuerza'])->name('settings.exports.estado_fuerza');

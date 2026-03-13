@@ -19,7 +19,7 @@ class PersonalController extends Controller
             ->when($actor->unidad_id, function ($query) use ($actor) {
                 $query->where('unidad_id', $actor->unidad_id);
             })
-            ->when(!$actor->hasRole('subdirector') && $actor->turno_id, function ($query) use ($actor) {
+            ->when(!$actor->hasRole('Subdirector') && $actor->turno_id, function ($query) use ($actor) {
                 $query->where('turno_id', $actor->turno_id);
             })
             ->when($q !== '', function ($query) use ($q) {
@@ -109,7 +109,7 @@ class PersonalController extends Controller
             ->when($actor->unidad_id, function ($q) use ($actor) {
                 $q->where('unidad_id', $actor->unidad_id);
             })
-            ->when(!$actor->hasRole('subdirector') && $actor->turno_id, function ($q) use ($actor) {
+            ->when(!$actor->hasRole('Subdirector') && $actor->turno_id, function ($q) use ($actor) {
                 $q->where('turno_id', $actor->turno_id);
             });
 
@@ -182,7 +182,7 @@ class PersonalController extends Controller
             ->when($actor->unidad_id, function ($qq) use ($actor) {
                 $qq->where('unidad_id', $actor->unidad_id);
             })
-            ->when(!$actor->hasRole('subdirector') && $actor->turno_id, function ($qq) use ($actor) {
+            ->when(!$actor->hasRole('Subdirector') && $actor->turno_id, function ($qq) use ($actor) {
                 $qq->where('turno_id', $actor->turno_id);
             });
 
@@ -209,7 +209,7 @@ class PersonalController extends Controller
             return false;
         }
 
-        if ($actor->hasRole('subdirector')) {
+        if ($actor->hasRole('Subdirector')) {
             return true;
         }
 

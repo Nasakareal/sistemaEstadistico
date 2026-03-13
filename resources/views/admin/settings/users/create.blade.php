@@ -18,7 +18,6 @@
                         @csrf
 
                         <div class="row">
-                            <!-- Nombre -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="name">Nombre del Usuario</label>
@@ -31,7 +30,6 @@
                                 </div>
                             </div>
 
-                            <!-- Email -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="email">Email</label>
@@ -44,7 +42,6 @@
                                 </div>
                             </div>
 
-                            <!-- Área -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="area">Área</label>
@@ -59,7 +56,6 @@
                         </div>
 
                         <div class="row">
-                            <!-- Rol -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="role">Rol</label>
@@ -79,7 +75,6 @@
                                 </div>
                             </div>
 
-                            <!-- Contraseña -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="password">Contraseña</label>
@@ -92,7 +87,6 @@
                                 </div>
                             </div>
 
-                            <!-- Confirmar Contraseña -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="password_confirmation">Repetir Contraseña</label>
@@ -106,7 +100,6 @@
                         <hr>
 
                         <div class="row">
-                            <!-- Unidad principal -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad (principal)</label>
@@ -114,7 +107,7 @@
                                             class="form-control @error('unidad_id') is-invalid @enderror">
                                         <option value="" selected>Sin unidad</option>
                                         @foreach ($unidades as $u)
-                                            <option value="{{ $u->id }}" {{ old('unidad_id') == $u->id ? 'selected' : '' }}>
+                                            <option value="{{ $u->id }}" {{ old('unidad_id', $unidadIdDefault) == $u->id ? 'selected' : '' }}>
                                                 {{ $u->nombre }}
                                             </option>
                                         @endforeach
@@ -126,7 +119,6 @@
                                 </div>
                             </div>
 
-                            <!-- Turno -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="turno_id">Turno</label>
@@ -146,7 +138,6 @@
                                 </div>
                             </div>
 
-                            <!-- Patrulla -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="patrulla_id">Patrulla (número económico)</label>
@@ -167,14 +158,13 @@
                             </div>
                         </div>
 
-                        {{-- ✅ Delegación: SOLO si la Unidad es "DELEGACIONES" --}}
                         <div class="row" id="box_delegacion" style="display:none;">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="delegacion_id">Delegación</label>
                                     <select name="delegacion_id" id="delegacion_id"
                                             class="form-control @error('delegacion_id') is-invalid @enderror">
-                                        <option value="" disabled selected>Seleccione una delegación</option>
+                                        <option value="">Seleccione una delegación</option>
                                         @foreach ($delegaciones as $d)
                                             <option value="{{ $d->id }}" {{ old('delegacion_id') == $d->id ? 'selected' : '' }}>
                                                 {{ $d->nombre }}@if(!empty($d->clave)) ({{ $d->clave }}) @endif
@@ -191,8 +181,30 @@
                             </div>
                         </div>
 
+                        <div class="row" id="box_destacamento" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="destacamento_id">Destacamento</label>
+                                    <select name="destacamento_id" id="destacamento_id"
+                                            class="form-control @error('destacamento_id') is-invalid @enderror">
+                                        <option value="">Seleccione un destacamento</option>
+                                        @foreach ($destacamentos as $destacamento)
+                                            <option value="{{ $destacamento->id }}" {{ old('destacamento_id') == $destacamento->id ? 'selected' : '' }}>
+                                                {{ $destacamento->nombre }}@if(!empty($destacamento->clave)) ({{ $destacamento->clave }}) @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('destacamento_id')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="text-muted">
+                                        Solo aplica si la unidad principal es CARRETERAS. Si cambias la unidad, se limpia automáticamente.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row" id="box_unidades_extra" style="display:none;">
-                            <!-- Unidades extra (Coordinador) -->
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="unidades_ids">Unidades adicionales (solo Coordinador)</label>
@@ -247,6 +259,7 @@
     <script>
         (function () {
             const UNIDAD_DELEGACIONES_ID = @json($unidadDelegacionesId);
+            const UNIDAD_CARRETERAS_ID = @json($unidadCarreterasId);
 
             function toggleUnidadesExtra() {
                 const role = (document.getElementById('role')?.value || '');
@@ -255,20 +268,29 @@
                 box.style.display = (role === 'Coordinador') ? '' : 'none';
             }
 
-            function toggleDelegacion() {
+            function toggleUbicacionEspecial() {
                 const unidadSel = document.getElementById('unidad_id');
-                const box = document.getElementById('box_delegacion');
+                const boxDelegacion = document.getElementById('box_delegacion');
+                const boxDestacamento = document.getElementById('box_destacamento');
                 const delegSel = document.getElementById('delegacion_id');
+                const destacSel = document.getElementById('destacamento_id');
 
-                if (!unidadSel || !box || !delegSel) return;
+                if (!unidadSel || !boxDelegacion || !boxDestacamento || !delegSel || !destacSel) return;
 
                 const unidadId = unidadSel.value ? parseInt(unidadSel.value, 10) : null;
-                const show = (UNIDAD_DELEGACIONES_ID !== null && unidadId === parseInt(UNIDAD_DELEGACIONES_ID, 10));
 
-                box.style.display = show ? '' : 'none';
+                const showDelegacion = (UNIDAD_DELEGACIONES_ID !== null && unidadId === parseInt(UNIDAD_DELEGACIONES_ID, 10));
+                const showDestacamento = (UNIDAD_CARRETERAS_ID !== null && unidadId === parseInt(UNIDAD_CARRETERAS_ID, 10));
 
-                if (!show) {
+                boxDelegacion.style.display = showDelegacion ? '' : 'none';
+                boxDestacamento.style.display = showDestacamento ? '' : 'none';
+
+                if (!showDelegacion) {
                     delegSel.value = '';
+                }
+
+                if (!showDestacamento) {
+                    destacSel.value = '';
                 }
             }
 
@@ -277,10 +299,10 @@
                 if (roleSel) roleSel.addEventListener('change', toggleUnidadesExtra);
 
                 const unidadSel = document.getElementById('unidad_id');
-                if (unidadSel) unidadSel.addEventListener('change', toggleDelegacion);
+                if (unidadSel) unidadSel.addEventListener('change', toggleUbicacionEspecial);
 
                 toggleUnidadesExtra();
-                toggleDelegacion();
+                toggleUbicacionEspecial();
             });
         })();
 

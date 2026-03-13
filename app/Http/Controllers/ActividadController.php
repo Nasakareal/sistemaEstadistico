@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Actividad;
 use App\Models\ActividadCategoria;
 use App\Models\ActividadSubcategoria;
+use App\Models\Delegacion;
+use App\Models\Unidad;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +30,7 @@ class ActividadController extends Controller
             : now($tz)->toDateString();
 
         $inicioDia = Carbon::parse($fechaSeleccionada, $tz)->startOfDay();
-        $finDia    = Carbon::parse($fechaSeleccionada, $tz)->endOfDay();
+        $finDia = Carbon::parse($fechaSeleccionada, $tz)->endOfDay();
 
         $query = $this->buildQuery($request, $inicioDia, $finDia);
 
@@ -67,22 +69,19 @@ class ActividadController extends Controller
         }
 
         $inicioDia = Carbon::parse($fechaSeleccionada, $tz)->startOfDay();
-        $finDia    = Carbon::parse($fechaSeleccionada, $tz)->endOfDay();
+        $finDia = Carbon::parse($fechaSeleccionada, $tz)->endOfDay();
 
         $actividades = $this->buildQuery($request, $inicioDia, $finDia)->get();
 
         $actividades->transform(function ($a) {
             $rel = $this->getOrCreatePdfImage($a->foto_path);
             $a->foto_pdf_path = $rel;
-
-            $a->foto_pdf_abs = $rel
-                ? public_path('storage/' . ltrim($rel, '/'))
-                : null;
-
+            $a->foto_pdf_abs = $rel ? public_path('storage/' . ltrim($rel, '/')) : null;
             return $a;
         });
 
         $pdfFacade = null;
+
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             $pdfFacade = \Barryvdh\DomPDF\Facade\Pdf::class;
         } elseif (class_exists(\Barryvdh\DomPDF\Facade\PDF::class)) {
@@ -153,6 +152,7 @@ class ActividadController extends Controller
             $fotoHash = hash_file('sha256', $file->getRealPath());
 
             $yaExiste = Actividad::query()->where('foto_hash', $fotoHash)->exists();
+
             if ($yaExiste) {
                 return back()->withErrors([
                     'foto' => 'Esta foto ya fue subida anteriormente (mismo contenido).',
@@ -162,7 +162,6 @@ class ActividadController extends Controller
             $fotoNombreOriginal = $file->getClientOriginalName();
             $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
             $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
-
             $fotoPath = $file->storeAs('actividades', $filename, 'public');
 
             $user = Auth::user();
@@ -175,10 +174,10 @@ class ActividadController extends Controller
                 'foto_path'                 => $fotoPath,
                 'foto_nombre_original'      => $fotoNombreOriginal,
                 'foto_hash'                 => $fotoHash,
-                'created_by'                => Auth::id(),
-                'updated_by'                => Auth::id(),
-                'unidad_org_id'             => $user->unidad_id ?? null,
-                'delegacion_id'             => $user->delegacion_id ?? null,
+                'created_by'                => $user->id,
+                'updated_by'                => $user->id,
+                'unidad_org_id'             => $user->unidad_id,
+                'delegacion_id'             => $user->delegacion_id,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad creada correctamente.');
@@ -187,7 +186,7 @@ class ActividadController extends Controller
 
     public function show(Actividad $actividad)
     {
-        $actividad->load(['categoria', 'subcategoria']);
+        $actividad->load(['categoria', 'subcategoria', 'unidad', 'delegacion']);
         return view('actividades.show', compact('actividad'));
     }
 
@@ -264,7 +263,6 @@ class ActividadController extends Controller
                 $fotoNombreOriginal = $file->getClientOriginalName();
                 $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
                 $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
-
                 $fotoPath = $file->storeAs('actividades', $filename, 'public');
                 $fotoHash = $nuevoHash;
             }
@@ -279,9 +277,9 @@ class ActividadController extends Controller
                 'foto_path'                 => $fotoPath,
                 'foto_nombre_original'      => $fotoNombreOriginal,
                 'foto_hash'                 => $fotoHash,
-                'updated_by'                => Auth::id(),
-                'unidad_org_id'             => $actividad->unidad_org_id ?? ($user->unidad_id ?? null),
-                'delegacion_id'             => $actividad->delegacion_id ?? ($user->delegacion_id ?? null),
+                'updated_by'                => $user->id,
+                'unidad_org_id'             => $actividad->unidad_org_id ?? $user->unidad_id,
+                'delegacion_id'             => $actividad->delegacion_id ?? $user->delegacion_id,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');
@@ -319,7 +317,7 @@ class ActividadController extends Controller
     private function buildQuery(Request $request, Carbon $inicioDia, Carbon $finDia)
     {
         $query = Actividad::query()
-            ->with(['categoria', 'subcategoria'])
+            ->with(['categoria', 'subcategoria', 'unidad', 'delegacion'])
             ->whereBetween('created_at', [$inicioDia, $finDia])
             ->orderByDesc('created_at');
 
@@ -355,12 +353,12 @@ class ActividadController extends Controller
 
         $unidadId = (int) ($usuario->unidad_id ?? 0);
 
-        $UNIDAD_CARRETERAS_ID = (int) \App\Models\Unidad::query()
+        $unidadCarreterasId = (int) Unidad::query()
             ->where('slug', 'carreteras')
             ->value('id');
 
-        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
-            $query->where('unidad_org_id', $UNIDAD_CARRETERAS_ID);
+        if ($unidadCarreterasId > 0 && $unidadId === $unidadCarreterasId) {
+            $query->where('unidad_org_id', $unidadCarreterasId);
             return;
         }
 
@@ -372,14 +370,14 @@ class ActividadController extends Controller
                 return;
             }
 
-            $esRegional = \App\Models\Delegacion::query()
+            $esRegional = Delegacion::query()
                 ->where('id', $delegacionId)
                 ->whereNull('delegacion_padre_id')
                 ->exists();
 
             if ($usuario->hasRole('Subdirector')) {
                 if ($esRegional) {
-                    $ids = \App\Models\Delegacion::query()
+                    $ids = Delegacion::query()
                         ->where('id', $delegacionId)
                         ->orWhere('delegacion_padre_id', $delegacionId)
                         ->pluck('id')
@@ -406,26 +404,44 @@ class ActividadController extends Controller
 
     private function getOrCreatePdfImage(?string $fotoPath): ?string
     {
-        if (!$fotoPath) return null;
+        if (!$fotoPath) {
+            return null;
+        }
 
         $disk = Storage::disk('public');
-        if (!$disk->exists($fotoPath)) return null;
+
+        if (!$disk->exists($fotoPath)) {
+            return null;
+        }
 
         $absOriginal = public_path('storage/' . ltrim($fotoPath, '/'));
-        if (!is_file($absOriginal)) return null;
+
+        if (!is_file($absOriginal)) {
+            return null;
+        }
 
         $hash = @hash_file('sha1', $absOriginal);
-        if (!$hash) return $fotoPath;
+
+        if (!$hash) {
+            return $fotoPath;
+        }
 
         $cacheRel = 'actividades/pdf_cache/' . $hash . '.jpg';
-        if ($disk->exists($cacheRel)) return $cacheRel;
+
+        if ($disk->exists($cacheRel)) {
+            return $cacheRel;
+        }
 
         $tmpDir = storage_path('app/tmp');
-        if (!is_dir($tmpDir)) @mkdir($tmpDir, 0775, true);
+
+        if (!is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0775, true);
+        }
 
         $tmpOut = $tmpDir . DIRECTORY_SEPARATOR . $hash . '.jpg';
 
         $ok = $this->resizeToJpeg($absOriginal, $tmpOut, 1280, 75);
+
         if (!$ok || !is_file($tmpOut)) {
             return $fotoPath;
         }
@@ -439,28 +455,48 @@ class ActividadController extends Controller
     private function resizeToJpeg(string $src, string $dst, int $maxW, int $quality): bool
     {
         $info = @getimagesize($src);
-        if (!$info || empty($info[0]) || empty($info[1]) || empty($info['mime'])) return false;
+
+        if (!$info || empty($info[0]) || empty($info[1]) || empty($info['mime'])) {
+            return false;
+        }
 
         $w = (int) $info[0];
         $h = (int) $info[1];
         $mime = (string) $info['mime'];
 
-        if ($w <= 0 || $h <= 0) return false;
+        if ($w <= 0 || $h <= 0) {
+            return false;
+        }
 
         $create = null;
-        if ($mime === 'image/jpeg') $create = 'imagecreatefromjpeg';
-        if ($mime === 'image/png')  $create = 'imagecreatefrompng';
-        if ($mime === 'image/webp') $create = 'imagecreatefromwebp';
 
-        if (!$create || !function_exists($create)) return false;
+        if ($mime === 'image/jpeg') {
+            $create = 'imagecreatefromjpeg';
+        }
+
+        if ($mime === 'image/png') {
+            $create = 'imagecreatefrompng';
+        }
+
+        if ($mime === 'image/webp') {
+            $create = 'imagecreatefromwebp';
+        }
+
+        if (!$create || !function_exists($create)) {
+            return false;
+        }
 
         $srcIm = @$create($src);
-        if (!$srcIm) return false;
+
+        if (!$srcIm) {
+            return false;
+        }
 
         $newW = $w > $maxW ? $maxW : $w;
         $newH = (int) round($h * ($newW / $w));
 
         $dstIm = imagecreatetruecolor($newW, $newH);
+
         if (!$dstIm) {
             imagedestroy($srcIm);
             return false;
@@ -478,18 +514,30 @@ class ActividadController extends Controller
 
     private function deletePdfCacheForOriginal(?string $fotoPath): void
     {
-        if (!$fotoPath) return;
+        if (!$fotoPath) {
+            return;
+        }
 
         $disk = Storage::disk('public');
-        if (!$disk->exists($fotoPath)) return;
+
+        if (!$disk->exists($fotoPath)) {
+            return;
+        }
 
         $absOriginal = public_path('storage/' . ltrim($fotoPath, '/'));
-        if (!is_file($absOriginal)) return;
+
+        if (!is_file($absOriginal)) {
+            return;
+        }
 
         $hash = @hash_file('sha1', $absOriginal);
-        if (!$hash) return;
+
+        if (!$hash) {
+            return;
+        }
 
         $cacheRel = 'actividades/pdf_cache/' . $hash . '.jpg';
+
         if ($disk->exists($cacheRel)) {
             $disk->delete($cacheRel);
         }

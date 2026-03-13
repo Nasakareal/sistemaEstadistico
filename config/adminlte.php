@@ -205,28 +205,40 @@ return [
         ],
         */
         [
-            'text'    => 'Dictamenes',
+            'text'    => 'Puestas a Disposición',
             'icon'    => 'fas fa-gavel',
             'classes' => 'bg-blue text-white',
-            'can'     => 'menu-dictamenes',
             'submenu' => [
                 [
-                    'text'    => 'Listado de Dictamenes',
+                    'text'    => 'Listado de Puestas a Disposición',
+                    'icon'    => 'fas fa-folder-open',
+                    'classes' => 'text-white',
+                    'url'     => 'puestas-disposicion',
+                    'can'     => 'ver puestas a disposicion',
+                ],
+                [
+                    'text'    => 'Agregar Puesta a Disposición',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'puestas-disposicion/create',
+                    'can'     => 'crear puestas a disposicion',
+                ],
+                [
+                    'text'    => 'Listado de Dictámenes',
                     'icon'    => 'fas fa-gavel',
                     'classes' => 'text-white',
                     'url'     => 'dictamenes',
-                    'can'     => 'menu-dictamenes',
+                    'can'     => 'ver dictamenes',
                 ],
                 [
                     'text'    => 'Solicitar número Dictamen',
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'dictamenes/create',
-                    'can'     => 'menu-dictamenes-crear',
+                    'can'     => 'crear dictamenes',
                 ],
             ],
         ],
-        
         [
             'text'    => 'Actividades',
             'icon'    => 'fas fa-tasks',

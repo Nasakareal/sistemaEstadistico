@@ -39,7 +39,7 @@ use App\Http\Controllers\TramoLookupController;
 use App\Http\Controllers\DestacamentoController;
 use App\Http\Controllers\WazeAlertWebController;
 use App\Http\Controllers\RiesgoDashboardController;
-
+use App\Http\Controllers\PuestaDisposicionController;
 use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\PersonalContactoController;
 use App\Http\Controllers\PersonalDomicilioController;
@@ -201,6 +201,16 @@ Route::prefix('dictamenes')->middleware(['auth', 'can:ver dictamenes', 'unidad:s
     Route::get('/{dictamen}/edit', [DictamenController::class, 'edit'])->middleware('can:editar dictamenes')->name('dictamenes.edit');
     Route::put('/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes')->name('dictamenes.update');
     Route::delete('/{dictamen}', [DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes')->name('dictamenes.destroy');
+});
+
+Route::prefix('puestas-disposicion')->middleware(['auth'])->group(function () {
+    Route::get('/', [PuestaDisposicionController::class, 'index'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.index');
+    Route::get('/create', [PuestaDisposicionController::class, 'create'])->middleware('can:crear puestas a disposicion')->name('puestas_disposicion.create');
+    Route::post('/', [PuestaDisposicionController::class, 'store'])->middleware('can:crear puestas a disposicion')->name('puestas_disposicion.store');
+    Route::get('/{puestaDisposicion}', [PuestaDisposicionController::class, 'show'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.show');
+    Route::get('/{puestaDisposicion}/edit', [PuestaDisposicionController::class, 'edit'])->middleware('can:editar puestas a disposicion')->name('puestas_disposicion.edit');
+    Route::put('/{puestaDisposicion}', [PuestaDisposicionController::class, 'update'])->middleware('can:editar puestas a disposicion')->name('puestas_disposicion.update');
+    Route::delete('/{puestaDisposicion}', [PuestaDisposicionController::class, 'destroy'])->middleware('can:eliminar puestas a disposicion')->name('puestas_disposicion.destroy');
 });
 
     /** =========================

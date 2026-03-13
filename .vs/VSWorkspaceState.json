@@ -1,16 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Models",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\users"
+    "\\resources\\views\\dictamenes",
+    "\\resources\\views\\puestas_disposicion"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\users\\show.blade.php",
+  "SelectedNode": "\\resources\\views\\puestas_disposicion\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

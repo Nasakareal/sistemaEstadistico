@@ -88,6 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/hechos/{hecho}/whatsapp', [HechoController::class, 'sendWhatsapp'])->middleware('can:ver hechos');
 
     Route::get('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'index'])->middleware('can:ver vehiculos');
+    Route::post('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'store'])->middleware('can:crear vehiculos');
     Route::post('/vehiculos', [VehiculoController::class, 'store'])->middleware('can:crear vehiculos');
     Route::get('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'show'])->middleware('can:ver vehiculos');
     Route::put('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'update'])->middleware('can:editar vehiculos');
@@ -97,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoDestroy'])->middleware('can:editar vehiculos');
 
     Route::get('/hechos/{hecho}/lesionados', [LesionadoController::class, 'index'])->middleware('can:ver lesionados');
+    Route::post('/hechos/{hecho}/lesionados', [LesionadoController::class, 'store'])->middleware('can:crear lesionados');
     Route::post('/lesionados', [LesionadoController::class, 'store'])->middleware('can:crear lesionados');
     Route::get('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'show'])->middleware('can:ver lesionados');
     Route::put('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'update'])->middleware('can:editar lesionados');

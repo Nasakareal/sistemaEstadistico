@@ -18,14 +18,14 @@ class LesionadoController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ?Hechos $hecho = null)
     {
-        $hecho = null;
-
-        if ($request->filled('hecho_client_uuid')) {
-            $hecho = Hechos::where('client_uuid', $request->input('hecho_client_uuid'))->first();
-        } elseif ($request->filled('hecho_id')) {
-            $hecho = Hechos::find($request->input('hecho_id'));
+        if (!$hecho) {
+            if ($request->filled('hecho_client_uuid')) {
+                $hecho = Hechos::where('client_uuid', $request->input('hecho_client_uuid'))->first();
+            } elseif ($request->filled('hecho_id')) {
+                $hecho = Hechos::find($request->input('hecho_id'));
+            }
         }
 
         if (!$hecho) {

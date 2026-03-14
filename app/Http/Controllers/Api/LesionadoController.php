@@ -9,9 +9,6 @@ use Illuminate\Http\Request;
 
 class LesionadoController extends Controller
 {
-    /**
-     * GET /api/hechos/{hecho}/lesionados
-     */
     public function index(Hechos $hecho)
     {
         $lesionados = $hecho->lesionados()->orderByDesc('id')->get();
@@ -21,24 +18,55 @@ class LesionadoController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/hechos/{hecho}/lesionados
-     */
-    public function store(Request $request, Hechos $hecho)
+    public function store(Request $request)
     {
+        $hecho = null;
+
+        if ($request->filled('hecho_client_uuid')) {
+            $hecho = Hechos::where('client_uuid', $request->input('hecho_client_uuid'))->first();
+        } elseif ($request->filled('hecho_id')) {
+            $hecho = Hechos::find($request->input('hecho_id'));
+        }
+
+        if (!$hecho) {
+            return response()->json([
+                'message' => 'No existe un hecho válido para relacionar el lesionado.',
+            ], 404);
+        }
+
         $validated = $this->validatePayload($request);
 
-        $lesionado = $hecho->lesionados()->create($validated);
+        if (!empty($validated['client_uuid'])) {
+            $lesionadoExistente = Lesionado::where('client_uuid', $validated['client_uuid'])->first();
+
+            if ($lesionadoExistente) {
+                return response()->json([
+                    'message' => 'Lesionado ya existente.',
+                    'created' => false,
+                    'data' => $lesionadoExistente,
+                    'meta' => [
+                        'id' => $lesionadoExistente->id,
+                        'client_uuid' => $lesionadoExistente->client_uuid,
+                    ],
+                ], 200);
+            }
+        }
+
+        $validated['hecho_id'] = $hecho->id;
+
+        $lesionado = Lesionado::create($validated);
 
         return response()->json([
             'message' => 'Lesionado agregado correctamente.',
+            'created' => true,
             'data' => $lesionado,
+            'meta' => [
+                'id' => $lesionado->id,
+                'client_uuid' => $lesionado->client_uuid,
+            ],
         ], 201);
     }
 
-    /**
-     * GET /api/hechos/{hecho}/lesionados/{lesionado}
-     */
     public function show(Hechos $hecho, Lesionado $lesionado)
     {
         $this->ensureBelongsToHecho($hecho, $lesionado);
@@ -48,9 +76,6 @@ class LesionadoController extends Controller
         ]);
     }
 
-    /**
-     * PUT /api/hechos/{hecho}/lesionados/{lesionado}
-     */
     public function update(Request $request, Hechos $hecho, Lesionado $lesionado)
     {
         $this->ensureBelongsToHecho($hecho, $lesionado);
@@ -91,6 +116,10 @@ class LesionadoController extends Controller
     private function validatePayload(Request $request): array
     {
         $validated = $request->validate([
+            'client_uuid' => 'nullable|string|max:36',
+            'hecho_client_uuid' => 'nullable|string|max:36',
+            'hecho_id' => 'nullable|integer',
+
             'nombre' => 'required|string|max:255',
             'edad' => 'nullable|integer|min:0',
             'sexo' => 'nullable|string|in:Masculino,Femenino,Otro',
@@ -103,7 +132,6 @@ class LesionadoController extends Controller
             'observaciones' => 'nullable|string',
         ]);
 
-        // Asegura booleanos consistentes aunque Flutter mande "true"/"false"/1/0/"1"/"0"
         $validated['hospitalizado'] = (bool)($validated['hospitalizado'] ?? false);
         $validated['atencion_en_sitio'] = (bool)($validated['atencion_en_sitio'] ?? false);
 

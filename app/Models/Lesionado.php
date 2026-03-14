@@ -11,6 +11,7 @@ class Lesionado extends Model
     use HasFactory;
 
     protected $fillable = [
+        'client_uuid',
         'hecho_id',
         'nombre',
         'edad',

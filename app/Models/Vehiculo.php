@@ -12,6 +12,7 @@ class Vehiculo extends Model
     protected $table = 'vehiculos';
 
     protected $fillable = [
+        'client_uuid',
         'marca',
         'modelo',
         'tipo',
@@ -31,7 +32,6 @@ class Vehiculo extends Model
         'aseguradora',
         'antecedente_vehiculo',
     ];
-
 
     public function hechos()
     {

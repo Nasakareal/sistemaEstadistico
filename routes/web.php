@@ -49,7 +49,7 @@ use App\Http\Controllers\PersonalIncidenciaController;
 use App\Http\Controllers\DelegacionController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\BackupsSqlController;
-
+use App\Http\Controllers\ModuloConstanciaExamenController;
 use App\Http\Controllers\ArmamentoController;
 use App\Http\Controllers\PatrullaKilometrajeController;
 use App\Http\Controllers\RadarRiesgoController;
@@ -289,6 +289,26 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::post('/{hecho}/whatsapp', [HechosController::class, 'sendWhatsapp'])->name('hechos.whatsapp.send');
 });
 
+Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
+    Route::get('/', [ModuloExamenDiarioController::class, 'index'])->name('modulo_examenes_diarios.index');
+    Route::get('/create', [ModuloExamenDiarioController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.create');
+    Route::post('/', [ModuloExamenDiarioController::class, 'store'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.store');
+    Route::get('/{registro}', [ModuloExamenDiarioController::class, 'show'])->name('modulo_examenes_diarios.show');
+    Route::get('/{registro}/edit', [ModuloExamenDiarioController::class, 'edit'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.edit');
+    Route::put('/{registro}', [ModuloExamenDiarioController::class, 'update'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.update');
+    Route::delete('/{registro}', [ModuloExamenDiarioController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('modulo_examenes_diarios.destroy');
+});
+
+Route::prefix('modulo-constancias-examenes')->middleware(['auth','can:ver modulo examenes'])->group(function () {
+    Route::get('/', [ModuloConstanciaExamenController::class, 'index'])->name('modulo_constancias_examenes.index');
+    Route::get('/create', [ModuloConstanciaExamenController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_constancias_examenes.create');
+    Route::post('/', [ModuloConstanciaExamenController::class, 'store'])->middleware('can:crear modulo examenes')->name('modulo_constancias_examenes.store');
+    Route::get('/{constancia}', [ModuloConstanciaExamenController::class, 'show'])->name('modulo_constancias_examenes.show');
+    Route::get('/{constancia}/descargar-pdf', [ModuloConstanciaExamenController::class, 'descargarPdf'])->name('modulo_constancias_examenes.descargar_pdf');
+    Route::get('/{constancia}/reimprimir', [ModuloConstanciaExamenController::class, 'reimprimir'])->middleware('can:crear modulo examenes')->name('modulo_constancias_examenes.reimprimir');
+    Route::post('/{constancia}/cancelar', [ModuloConstanciaExamenController::class, 'cancelar'])->middleware('can:editar modulo examenes')->name('modulo_constancias_examenes.cancelar');
+});
+
 Route::get('/servicios/grafico',[ServicioController::class,'grafico'])->name('servicios.grafico');
 
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
@@ -405,16 +425,6 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/dictamen/{id}/docx',[EstadisticasController::class,'dictamenDocx'])->name('estadisticas.dictamen.docx');
         Route::get('/bitacora',[EstadisticasController::class,'bitacora'])->name('estadisticas.bitacora');
         Route::get('/bitacora/descargar',[EstadisticasController::class,'descargarBitacora'])->name('estadisticas.bitacora.descargar');
-    });
-
-    Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
-        Route::get('/', [ModuloExamenDiarioController::class, 'index'])->name('modulo_examenes_diarios.index');
-        Route::get('/create', [ModuloExamenDiarioController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.create');
-        Route::post('/', [ModuloExamenDiarioController::class, 'store'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.store');
-        Route::get('/{registro}', [ModuloExamenDiarioController::class, 'show'])->name('modulo_examenes_diarios.show');
-        Route::get('/{registro}/edit', [ModuloExamenDiarioController::class, 'edit'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.edit');
-        Route::put('/{registro}', [ModuloExamenDiarioController::class, 'update'])->middleware('can:editar modulo examenes')->name('modulo_examenes_diarios.update');
-        Route::delete('/{registro}', [ModuloExamenDiarioController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('modulo_examenes_diarios.destroy');
     });
 
     Route::get('/radar-riesgo', [RadarRiesgoController::class, 'index'])->name('radar.riesgo');

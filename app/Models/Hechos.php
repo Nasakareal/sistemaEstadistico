@@ -16,6 +16,7 @@ class Hechos extends Model
     protected $table = 'hechos';
 
     protected $fillable = [
+        'client_uuid',
         'folio_c5i',
         'perito',
         'autorizacion_practico',

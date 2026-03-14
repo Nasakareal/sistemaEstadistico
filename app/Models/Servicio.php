@@ -10,6 +10,7 @@ class Servicio extends Model
     use HasFactory;
 
     protected $fillable = [
+        'client_uuid',
         'grua_id',
         'vehiculo_id',
         'tipo_vehiculo',

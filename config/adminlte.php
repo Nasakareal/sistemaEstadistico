@@ -419,6 +419,36 @@ return [
         ],
 
         [
+            'text'    => 'Módulos de Examenes',
+            'icon'    => 'fa-solid fa-id-card',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'menu-modulo-examenes',
+            'submenu' => [
+                [
+                    'text'    => 'Listado de Exámenes Diarios',
+                    'icon'    => 'fa-solid fa-clipboard-list',
+                    'classes' => 'text-white',
+                    'url'     => 'modulo-examenes-diarios',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+                [
+                    'text'    => 'Capturar Exámenes del Día',
+                    'icon'    => 'fa-solid fa-plus',
+                    'classes' => 'text-white',
+                    'url'     => 'modulo-examenes-diarios/create',
+                    'can'     => 'menu-modulo-examenes-crear',
+                ],
+                [
+                    'text'    => 'Constancias Generadas',
+                    'icon'    => 'fa-solid fa-file-pdf',
+                    'classes' => 'text-white',
+                    'url'     => 'modulo-constancias-examenes',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+            ],
+        ],
+
+        [
             'text'    => 'Configuraciones',
             'icon'    => 'fas fa-fw fa-gear',
             'classes' => 'bg-blue text-white',

@@ -149,7 +149,9 @@ class HechoController extends Controller
         $this->normalizeCatalogFields($request);
 
         $rules = [
-            'folio_c5i'             => 'required|string|max:20|unique:hechos,folio_c5i',
+            'client_uuid' => 'nullable|string|max:36',
+
+            'folio_c5i'             => 'required|string|max:20',
             'perito'                => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad'                => 'required|string|max:50',
@@ -174,9 +176,9 @@ class HechoController extends Controller
             'vehiculos_mp'          => 'nullable|integer|min:0|required_if:situacion,TURNADO',
             'personas_mp'           => 'nullable|integer|min:0|required_if:situacion,TURNADO',
             'dictamen_id'           => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
-            'danos_patrimoniales'        => 'nullable|boolean',
-            'propiedades_afectadas'      => 'nullable|string|max:2000',
-            'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
+            'danos_patrimoniales'   => 'nullable|boolean',
+            'propiedades_afectadas' => 'nullable|string|max:2000',
+            'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
             'lat'                   => 'nullable|numeric|between:-90,90',
             'lng'                   => 'nullable|numeric|between:-180,180',
             'calidad_geo'           => 'nullable|string|max:20',
@@ -195,12 +197,14 @@ class HechoController extends Controller
 
         $validator->after(function ($v) use ($request) {
             $situacion = strtoupper($this->removeAccents((string)$request->input('situacion', '')));
+
             if ($situacion === 'RESUELTO' && !$request->hasFile('foto_situacion')) {
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
             }
 
             $hasLat = $request->filled('lat');
             $hasLng = $request->filled('lng');
+
             if ($hasLat xor $hasLng) {
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
@@ -213,14 +217,32 @@ class HechoController extends Controller
 
         $validated = $validator->validated();
 
+        if (!empty($validated['client_uuid'])) {
+            $hechoExistente = Hechos::query()->where('client_uuid', $validated['client_uuid'])->first();
+
+            if ($hechoExistente) {
+                $hechoExistente->load(['vehiculos.conductores', 'lesionados']);
+
+                return response()->json([
+                    'message' => 'Hecho ya existente',
+                    'created' => false,
+                    'data' => $this->withFotoUrls($hechoExistente),
+                    'meta' => [
+                        'id' => $hechoExistente->id,
+                        'client_uuid' => $hechoExistente->client_uuid,
+                    ],
+                ], 200);
+            }
+        }
+
         $dictamenId = $validated['dictamen_id'] ?? null;
         unset($validated['dictamen_id']);
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
-        $validated['danos_patrimoniales']   = $request->boolean('danos_patrimoniales');
+        $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
 
         foreach ($validated as $key => $value) {
-            if (is_string($value)) {
+            if (is_string($value) && $key !== 'client_uuid') {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
@@ -230,13 +252,22 @@ class HechoController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_APP';
         }
 
-        if (!$request->filled('lat')) $validated['lat'] = null;
-        if (!$request->filled('lng')) $validated['lng'] = null;
+        if (!$request->filled('lat')) {
+            $validated['lat'] = null;
+        }
 
-        if (!$request->has('danos_patrimoniales')) $validated['danos_patrimoniales'] = 0;
+        if (!$request->filled('lng')) {
+            $validated['lng'] = null;
+        }
+
+        if (!$request->has('danos_patrimoniales')) {
+            $validated['danos_patrimoniales'] = 0;
+        }
+
         if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
             $validated['monto_danos_patrimoniales'] = null;
         }
+
         if ($request->has('propiedades_afectadas') && trim((string)$request->input('propiedades_afectadas')) === '') {
             $validated['propiedades_afectadas'] = null;
         }
@@ -244,7 +275,9 @@ class HechoController extends Controller
         $validated['created_by'] = $user->id;
 
         $unidadOrg = (int)($user->unidad_id ?? 0);
-        if ($unidadOrg <= 0) $unidadOrg = 1;
+        if ($unidadOrg <= 0) {
+            $unidadOrg = 1;
+        }
         $validated['unidad_org_id'] = $unidadOrg;
 
         $delegacionId = (int)($user->delegacion_id ?? 0);
@@ -296,7 +329,12 @@ class HechoController extends Controller
 
         return response()->json([
             'message' => 'Hecho creado exitosamente',
-            'data'    => $this->withFotoUrls($hecho),
+            'created' => true,
+            'data' => $this->withFotoUrls($hecho),
+            'meta' => [
+                'id' => $hecho->id,
+                'client_uuid' => $hecho->client_uuid,
+            ],
         ], 201);
     }
 

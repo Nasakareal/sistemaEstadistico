@@ -25,11 +25,49 @@ class VehiculoController extends Controller
         }
     }
 
-    public function store(Request $request, Hechos $hecho)
+    public function store(Request $request)
     {
         try {
+            $hecho = null;
+
+            if ($request->filled('hecho_client_uuid')) {
+                $hecho = Hechos::where('client_uuid', $request->input('hecho_client_uuid'))->first();
+            } elseif ($request->filled('hecho_id')) {
+                $hecho = Hechos::find($request->input('hecho_id'));
+            }
+
+            if (!$hecho) {
+                return $this->fail('No existe un hecho válido para relacionar el vehículo.', 404);
+            }
+
             $validated = $this->validateRequest($request);
             $validated = $this->normalize($request, $validated);
+
+            if (!empty($validated['client_uuid'])) {
+                $vehiculoExistente = Vehiculo::where('client_uuid', $validated['client_uuid'])->first();
+
+                if ($vehiculoExistente) {
+                    if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculoExistente->id)->exists()) {
+                        try {
+                            $hecho->vehiculos()->attach($vehiculoExistente->id);
+                        } catch (QueryException $e) {
+                            if (!$this->isDuplicateKey($e)) {
+                                throw $e;
+                            }
+                        }
+                    }
+
+                    return response()->json([
+                        'ok' => true,
+                        'message' => 'Vehículo ya existente.',
+                        'data' => $vehiculoExistente->load('conductores'),
+                        'meta' => [
+                            'id' => $vehiculoExistente->id,
+                            'client_uuid' => $vehiculoExistente->client_uuid,
+                        ],
+                    ], 200);
+                }
+            }
 
             $validated['grua'] = 'N/A';
             if (!empty($validated['grua_id'])) {
@@ -58,17 +96,26 @@ class VehiculoController extends Controller
 
                 if (!empty($validated['grua_id'])) {
                     DB::table('servicios')->insert([
-                        'vehiculo_id'   => $vehiculo->id,
-                        'grua_id'       => $validated['grua_id'],
+                        'client_uuid' => $validated['servicio_client_uuid'] ?? null,
+                        'vehiculo_id' => $vehiculo->id,
+                        'grua_id' => $validated['grua_id'],
                         'tipo_vehiculo' => $validated['tipo'],
-                        'aseguradora'   => $validated['aseguradora'] ?? '',
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
+                        'aseguradora' => $validated['aseguradora'] ?? '',
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
                 }
 
                 if ($this->hayDatosConductor($validated)) {
-                    $conductor = Conductor::create($this->onlyConductor($validated));
+                    $conductor = null;
+
+                    if (!empty($validated['conductor_client_uuid'])) {
+                        $conductor = Conductor::where('client_uuid', $validated['conductor_client_uuid'])->first();
+                    }
+
+                    if (!$conductor) {
+                        $conductor = Conductor::create($this->onlyConductor($validated));
+                    }
 
                     try {
                         $vehiculo->conductores()->attach($conductor->id);
@@ -79,7 +126,16 @@ class VehiculoController extends Controller
                         throw $e;
                     }
                 }
-                return $this->created('Vehículo creado correctamente.', $vehiculo->load('conductores'));
+
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Vehículo creado correctamente.',
+                    'data' => $vehiculo->load('conductores'),
+                    'meta' => [
+                        'id' => $vehiculo->id,
+                        'client_uuid' => $vehiculo->client_uuid,
+                    ],
+                ], 201);
             });
 
         } catch (QueryException $e) {
@@ -122,7 +178,6 @@ class VehiculoController extends Controller
             return $this->fail('Ocurrió un error al consultar el vehículo.', 500);
         }
     }
-
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
@@ -344,15 +399,21 @@ class VehiculoController extends Controller
         }
 
         $rules = [
-            'marca'                      => 'required|string|max:50',
-            'modelo'                     => 'nullable|string|max:10',
-            'tipo'                       => 'required|string|max:50',
-            'linea'                      => 'required|string|max:50',
-            'color'                      => 'required|string|max:30',
+            'client_uuid' => 'nullable|string|max:36',
+            'hecho_client_uuid' => 'nullable|string|max:36',
+            'hecho_id' => 'nullable|integer',
+            'conductor_client_uuid' => 'nullable|string|max:36',
+            'servicio_client_uuid' => 'nullable|string|max:36',
 
-            'placas'                     => ['nullable','string','max:15','regex:/^[A-Z0-9]{5,15}$/'],
+            'marca' => 'required|string|max:50',
+            'modelo' => 'nullable|string|max:10',
+            'tipo' => 'required|string|max:50',
+            'linea' => 'required|string|max:50',
+            'color' => 'required|string|max:30',
 
-            'estado_placas'              => [
+            'placas' => ['nullable','string','max:15','regex:/^[A-Z0-9]{5,15}$/'],
+
+            'estado_placas' => [
                 'nullable',
                 'string',
                 'max:15',
@@ -360,40 +421,40 @@ class VehiculoController extends Controller
                 'regex:/^[A-Z]{3,15}$/'
             ],
 
-            'serie'                      => ['nullable','string','max:17','regex:/^[A-Z0-9]{6,17}$/'],
+            'serie' => ['nullable','string','max:17','regex:/^[A-Z0-9]{6,17}$/'],
 
-            'capacidad_personas'         => 'required|integer|min:0',
-            'tipo_servicio'              => 'required|string|max:50',
+            'capacidad_personas' => 'required|integer|min:0',
+            'tipo_servicio' => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
 
-            'grua_id'                    => 'nullable|exists:gruas,id',
-            'corralon'                   => 'nullable|string|max:50',
-            'aseguradora'                => 'nullable|string|max:100',
-            'monto_danos'                => 'required|numeric|min:0',
-            'partes_danadas'             => 'required|string',
+            'grua_id' => 'nullable|exists:gruas,id',
+            'corralon' => 'nullable|string|max:50',
+            'aseguradora' => 'nullable|string|max:100',
+            'monto_danos' => 'required|numeric|min:0',
+            'partes_danadas' => 'required|string',
 
-            'antecedente_vehiculo'       => 'sometimes|boolean',
+            'antecedente_vehiculo' => 'sometimes|boolean',
 
-            'conductor_nombre'           => 'nullable|string|max:255',
-            'telefono'                   => 'nullable|digits:10',
-            'domicilio'                  => 'nullable|string|max:255',
-            'sexo'                       => 'nullable|string|in:MASCULINO,FEMENINO,OTRO',
-            'ocupacion'                  => 'nullable|string|max:255',
-            'edad'                       => 'nullable|integer|min:0|max:100',
-            'tipo_licencia'              => 'nullable|string|max:50',
-            'estado_licencia'            => 'nullable|string|max:100',
-            'vigencia_licencia'          => 'nullable|date',
-            'numero_licencia'            => 'nullable|string|max:50',
+            'conductor_nombre' => 'nullable|string|max:255',
+            'telefono' => 'nullable|digits:10',
+            'domicilio' => 'nullable|string|max:255',
+            'sexo' => 'nullable|string|in:MASCULINO,FEMENINO,OTRO',
+            'ocupacion' => 'nullable|string|max:255',
+            'edad' => 'nullable|integer|min:0|max:100',
+            'tipo_licencia' => 'nullable|string|max:50',
+            'estado_licencia' => 'nullable|string|max:100',
+            'vigencia_licencia' => 'nullable|date',
+            'numero_licencia' => 'nullable|string|max:50',
 
-            'permanente'                 => 'sometimes|boolean',
-            'cinturon'                   => 'sometimes|boolean',
-            'antecedente_conductor'      => 'sometimes|boolean',
-            'certificado_lesiones'       => 'sometimes|boolean',
-            'certificado_alcoholemia'    => 'sometimes|boolean',
-            'aliento_etilico'            => 'sometimes|boolean',
+            'permanente' => 'sometimes|boolean',
+            'cinturon' => 'sometimes|boolean',
+            'antecedente_conductor' => 'sometimes|boolean',
+            'certificado_lesiones' => 'sometimes|boolean',
+            'certificado_alcoholemia' => 'sometimes|boolean',
+            'aliento_etilico' => 'sometimes|boolean',
         ];
 
-        $messages   = $this->validationMessages();
+        $messages = $this->validationMessages();
         $attributes = $this->validationAttributes();
 
         $validator = Validator::make($dataForValidation, $rules, $messages, $attributes);
@@ -494,6 +555,7 @@ class VehiculoController extends Controller
     private function onlyVehiculoForCreate(array $v): array
     {
         return [
+            'client_uuid'                => $v['client_uuid'] ?? null,
             'marca'                      => $v['marca'] ?? null,
             'modelo'                     => $v['modelo'] ?? null,
             'tipo'                       => $v['tipo'] ?? null,
@@ -541,6 +603,7 @@ class VehiculoController extends Controller
     private function onlyConductor(array $v): array
     {
         return [
+            'client_uuid'              => $v['conductor_client_uuid'] ?? null,
             'nombre'                  => $v['conductor_nombre'] ?? null,
             'telefono'                => $v['telefono'] ?? null,
             'domicilio'               => $v['domicilio'] ?? null,

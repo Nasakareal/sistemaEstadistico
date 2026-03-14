@@ -1,11 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\dictamenes",
-    "\\resources\\views\\puestas_disposicion"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\puestas_disposicion\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\HechoController.php",
   "PreviewInSolutionExplorer": false
 }

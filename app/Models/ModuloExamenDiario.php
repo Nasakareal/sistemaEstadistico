@@ -41,4 +41,9 @@ class ModuloExamenDiario extends Model
         'aprobados' => 'integer',
         'reprobados' => 'integer',
     ];
+
+    public function constancias()
+    {
+        return $this->hasMany(\App\Models\ModuloConstanciaExamen::class, 'modulo_examen_diario_id');
+    }
 }

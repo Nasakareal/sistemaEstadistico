@@ -12,6 +12,7 @@ class Conductor extends Model
     protected $table = 'conductores';
 
     protected $fillable = [
+        'client_uuid',
         'nombre',
         'edad',
         'domicilio',
@@ -28,7 +29,6 @@ class Conductor extends Model
         'tipo_licencia'
     ];
 
-    // Relación muchos a muchos con Vehiculos
     public function vehiculos()
     {
         return $this->belongsToMany(Vehiculo::class, 'vehiculo_conductor', 'conductor_id', 'vehiculo_id')

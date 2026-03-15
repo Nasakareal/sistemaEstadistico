@@ -152,22 +152,21 @@ class PuestaDisposicionController extends Controller
         $usuario = auth()->user();
 
         $request->merge([
-            'tipo_puesta'         => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
-            'motivo'              => $this->normalizarTextoRequerido($request->input('motivo')),
-            'estatus'             => $request->filled('estatus') ? $this->normalizarTextoRequerido($request->input('estatus')) : 'ACTIVA',
-            'nombre_policia'      => $this->normalizarTextoRequerido($request->input('nombre_policia')),
-            'nombre_mp'           => $this->normalizarTextoNullable($request->input('nombre_mp')),
-            'autoridad_receptora' => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
-            'area'                => $this->normalizarTextoNullable($request->input('area')),
+            'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
+            'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
+            'estatus'               => $request->filled('estatus') ? $this->normalizarTextoRequerido($request->input('estatus')) : 'ACTIVA',
+            'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
+            'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
+            'autoridad_receptora'   => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
+            'area'                  => $this->normalizarTextoNullable($request->input('area')),
             'carpeta_investigacion' => $this->normalizarTextoNullable($request->input('carpeta_investigacion')),
-            'oficio'              => $this->normalizarTextoNullable($request->input('oficio')),
-            'lugar_puesta'        => $this->normalizarTextoNullable($request->input('lugar_puesta')),
-            'narrativa'           => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
-            'observaciones'       => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
+            'oficio'                => $this->normalizarTextoNullable($request->input('oficio')),
+            'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
+            'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
+            'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
         ]);
 
         $request->validate([
-            'hecho_id'              => 'nullable|integer|exists:hechos,id',
             'tipo_puesta'           => 'required|string|max:100',
             'motivo'                => 'required|string|max:150',
             'estatus'               => 'nullable|string|max:100',
@@ -243,7 +242,6 @@ class PuestaDisposicionController extends Controller
             $numeroSiguiente = $ultimoRegistro ? ($ultimoRegistro->numero_puesta + 1) : 1;
 
             $puesta = PuestaDisposicion::create([
-                'hecho_id'              => $request->input('hecho_id'),
                 'numero_puesta'         => $numeroSiguiente,
                 'anio'                  => $anioActual,
                 'tipo_puesta'           => $request->input('tipo_puesta'),
@@ -385,22 +383,21 @@ class PuestaDisposicionController extends Controller
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
 
         $request->merge([
-            'tipo_puesta'         => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
-            'motivo'              => $this->normalizarTextoRequerido($request->input('motivo')),
-            'estatus'             => $request->filled('estatus') ? $this->normalizarTextoRequerido($request->input('estatus')) : 'ACTIVA',
-            'nombre_policia'      => $this->normalizarTextoRequerido($request->input('nombre_policia')),
-            'nombre_mp'           => $this->normalizarTextoNullable($request->input('nombre_mp')),
-            'autoridad_receptora' => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
-            'area'                => $this->normalizarTextoNullable($request->input('area')),
+            'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
+            'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
+            'estatus'               => $request->filled('estatus') ? $this->normalizarTextoRequerido($request->input('estatus')) : 'ACTIVA',
+            'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
+            'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
+            'autoridad_receptora'   => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
+            'area'                  => $this->normalizarTextoNullable($request->input('area')),
             'carpeta_investigacion' => $this->normalizarTextoNullable($request->input('carpeta_investigacion')),
-            'oficio'              => $this->normalizarTextoNullable($request->input('oficio')),
-            'lugar_puesta'        => $this->normalizarTextoNullable($request->input('lugar_puesta')),
-            'narrativa'           => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
-            'observaciones'       => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
+            'oficio'                => $this->normalizarTextoNullable($request->input('oficio')),
+            'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
+            'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
+            'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
         ]);
 
         $request->validate([
-            'hecho_id'              => 'nullable|integer|exists:hechos,id',
             'numero_puesta'         => 'required|integer|unique:puestas_disposicion,numero_puesta,' . $puestaDisposicion->id . ',id,anio,' . $request->input('anio'),
             'anio'                  => 'required|digits:4',
             'tipo_puesta'           => 'required|string|max:100',
@@ -472,7 +469,6 @@ class PuestaDisposicionController extends Controller
             }
 
             $dataUpdate = [
-                'hecho_id'              => $request->input('hecho_id'),
                 'numero_puesta'         => $request->input('numero_puesta'),
                 'anio'                  => $request->input('anio'),
                 'tipo_puesta'           => $request->input('tipo_puesta'),

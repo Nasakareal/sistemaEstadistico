@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\WhatsAppWebhookController;
 use App\Http\Controllers\Api\C5IInboundController;
 use App\Http\Controllers\Api\BotC5IController;
 use App\Http\Controllers\Api\WabotIncomingController;
+use App\Http\Controllers\Api\WazeFeedController;
 
 Route::post('/wabot/incoming', [WabotIncomingController::class, 'handle']);
 Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
@@ -32,6 +33,8 @@ Route::post('/c5i/report', [C5IInboundController::class, 'handle']);
 Route::get('/whatsapp/webhook', [WhatsAppWebhookController::class, 'verify']);
 Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/home', [DashboardController::class, 'home'])->name('api.home');

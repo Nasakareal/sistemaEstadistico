@@ -1,12 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\routes"
+    "\\config"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\VehiculoController.php",
+  "SelectedNode": "\\config\\waze.php",
   "PreviewInSolutionExplorer": false
 }

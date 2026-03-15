@@ -254,12 +254,11 @@
         return diffMin >= STALE_MINUTES;
     }
 
-    // ✅ YA NO USAR ID COMO LABEL: prioriza numero_economico
     function patrullaLabelFromLoc(loc){
         const ne = (loc && loc.numero_economico != null && String(loc.numero_economico).trim() !== '')
             ? String(loc.numero_economico)
             : null;
-        return ne; // si no hay, regresamos null y el UI mostrará N/D
+        return ne;
     }
 
     function mergePersonalWithMap(personalList, mapList){
@@ -304,6 +303,8 @@
     }
 
     function upsertMarker(loc){
+        if(loc.lat == null || loc.lng == null) return;
+
         const key = String(loc.user_id);
         const latlng = [loc.lat, loc.lng];
 
@@ -432,9 +433,11 @@
         });
         if(!res.ok) throw new Error('toggle user failed');
 
-        personal = personal.map(p => (String(p.user_id) === String(userId)))
-            ? ({ ...p, compartir_ubicacion: enabled ? 1 : 0 })
-            : p;
+        personal = personal.map(p =>
+            String(p.user_id) === String(userId)
+                ? { ...p, compartir_ubicacion: enabled ? 1 : 0 }
+                : p
+        );
     }
 
     async function toggleAll(enabled){
@@ -444,6 +447,7 @@
             body: JSON.stringify({ enabled })
         });
         if(!res.ok) throw new Error('toggle all failed');
+
         personal = personal.map(p => ({ ...p, compartir_ubicacion: enabled ? 1 : 0 }));
     }
 
@@ -459,7 +463,7 @@
             name: x.name ?? '',
             email: x.email ?? '',
             patrulla_id: x.patrulla_id ?? null,
-            numero_economico: x.numero_economico ?? null, // ✅
+            numero_economico: x.numero_economico ?? null,
             compartir_ubicacion: x.compartir_ubicacion ?? 0,
         }));
     }
@@ -479,15 +483,21 @@
             const enabled = !!p.compartir_ubicacion;
             if(!enabled) return false;
             if(p.last_lat == null || p.last_lng == null) return false;
-            return p.stale === false;
+            return true;
         });
 
         const visibleUserIds = new Set(visible.map(x => Number(x.user_id)));
         clearMarkersNotIn(visibleUserIds);
 
         visible.forEach(p => {
-            const loc = mapData.find(x => Number(x.user_id) === Number(p.user_id));
-            if(loc) upsertMarker(loc);
+            upsertMarker({
+                user_id: p.user_id,
+                name: p.name,
+                lat: p.last_lat,
+                lng: p.last_lng,
+                captured_at: p.last_captured_at,
+                numero_economico: p.numero_economico,
+            });
         });
 
         renderLista(merged);
@@ -521,6 +531,7 @@
     if(searchInput){
         searchInput.addEventListener('input', () => refreshRenderOnly());
     }
+
     if(btnClearSearch){
         btnClearSearch.addEventListener('click', () => {
             if(searchInput) searchInput.value = '';
@@ -531,17 +542,28 @@
 
     @if(auth()->user()?->hasRole('jefe_de_grupo'))
     document.getElementById('btn-on-all')?.addEventListener('click', async () => {
-        try{ await toggleAll(true); await refreshRenderOnly(); }
-        catch(e){ console.error(e); alert('No se pudo activar.'); }
+        try{
+            await toggleAll(true);
+            await refreshRenderOnly();
+        }catch(e){
+            console.error(e);
+            alert('No se pudo activar.');
+        }
     });
 
     document.getElementById('btn-off-all')?.addEventListener('click', async () => {
-        try{ await toggleAll(false); await refreshRenderOnly(); }
-        catch(e){ console.error(e); alert('No se pudo desactivar.'); }
+        try{
+            await toggleAll(false);
+            await refreshRenderOnly();
+        }catch(e){
+            console.error(e);
+            alert('No se pudo desactivar.');
+        }
     });
     @endif
 
     refreshAll();
+
     setInterval(async () => {
         try{
             await fetchMapOnly();

@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\config"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\mapa"
   ],
-  "SelectedNode": "\\config\\waze.php",
+  "SelectedNode": "\\resources\\views\\mapa\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

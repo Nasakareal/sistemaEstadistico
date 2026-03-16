@@ -511,6 +511,7 @@ class HechosController extends Controller
         if (
             $usuario->hasRole('Superadmin')
             || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Jefe de Grupo')
             || $usuario->hasRole('Coordinador')
         ) {
             return;
@@ -571,6 +572,7 @@ class HechosController extends Controller
             $usuario->hasRole('Superadmin')
             || $usuario->hasRole('Administrador')
             || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Jefe de Grupo')
             || $usuario->hasRole('Subdirector')
         ) {
             $q = Hechos::query()->whereKey($hecho->id);

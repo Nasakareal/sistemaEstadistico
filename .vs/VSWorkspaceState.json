@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\config"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\config\\adminlte.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
   "PreviewInSolutionExplorer": false
 }

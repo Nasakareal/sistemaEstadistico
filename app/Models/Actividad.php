@@ -43,4 +43,9 @@ class Actividad extends Model
     {
         return $this->belongsTo(Unidad::class, 'unidad_org_id');
     }
+
+    public function delegacion()
+    {
+        return $this->belongsTo(Delegacion::class, 'delegacion_id');
+    }
 }

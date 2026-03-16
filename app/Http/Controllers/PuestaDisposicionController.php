@@ -132,14 +132,15 @@ class PuestaDisposicionController extends Controller
         $usuario = auth()->user();
         $anioActual = now()->year;
 
+        $unidadNombre = $this->obtenerNombreUnidad($usuario->unidad_id);
+
         $ultimoRegistro = PuestaDisposicion::query()
             ->where('anio', $anioActual)
+            ->where('unidad_id', $usuario->unidad_id)
             ->orderByDesc('numero_puesta')
             ->first();
 
         $numeroSiguiente = $ultimoRegistro ? ($ultimoRegistro->numero_puesta + 1) : 1;
-
-        $unidadNombre = $this->obtenerNombreUnidad($usuario->unidad_id);
 
         return view('puestas_disposicion.create', compact(
             'numeroSiguiente',
@@ -154,11 +155,11 @@ class PuestaDisposicionController extends Controller
         $request->merge([
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
             'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
-            'estatus'               => $request->filled('estatus') ? $this->normalizarTextoRequerido($request->input('estatus')) : 'ACTIVA',
+            'estatus'               => 'ACTIVA',
             'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
             'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
             'autoridad_receptora'   => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
-            'area'                  => $this->normalizarTextoNullable($request->input('area')),
+            'area'                  => $this->obtenerNombreUnidad($usuario->unidad_id),
             'carpeta_investigacion' => $this->normalizarTextoNullable($request->input('carpeta_investigacion')),
             'oficio'                => $this->normalizarTextoNullable($request->input('oficio')),
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
@@ -199,7 +200,6 @@ class PuestaDisposicionController extends Controller
             'personas.*.observaciones'          => 'nullable|string',
 
             'vehiculos'                         => 'nullable|array',
-            'vehiculos.*.vehiculo_id'           => 'nullable|integer|exists:vehiculos,id',
             'vehiculos.*.tipo'                  => 'nullable|string|max:100',
             'vehiculos.*.marca'                 => 'nullable|string|max:100',
             'vehiculos.*.submarca'              => 'nullable|string|max:100',
@@ -235,6 +235,7 @@ class PuestaDisposicionController extends Controller
 
             $ultimoRegistro = PuestaDisposicion::query()
                 ->where('anio', $anioActual)
+                ->where('unidad_id', $usuario->unidad_id)
                 ->orderByDesc('numero_puesta')
                 ->lockForUpdate()
                 ->first();
@@ -246,13 +247,11 @@ class PuestaDisposicionController extends Controller
                 'anio'                  => $anioActual,
                 'tipo_puesta'           => $request->input('tipo_puesta'),
                 'motivo'                => $request->input('motivo'),
-                'estatus'               => $request->input('estatus', 'ACTIVA'),
+                'estatus'               => 'ACTIVA',
                 'nombre_policia'        => $request->input('nombre_policia'),
                 'nombre_mp'             => $request->input('nombre_mp'),
                 'autoridad_receptora'   => $request->input('autoridad_receptora'),
-                'area'                  => $request->filled('area')
-                                                ? $request->input('area')
-                                                : $this->obtenerNombreUnidad($usuario->unidad_id),
+                'area'                  => $this->obtenerNombreUnidad($usuario->unidad_id),
                 'carpeta_investigacion' => $request->input('carpeta_investigacion'),
                 'oficio'                => $request->input('oficio'),
                 'fecha_puesta'          => $request->input('fecha_puesta'),
@@ -298,15 +297,14 @@ class PuestaDisposicionController extends Controller
                 if (
                     empty(trim((string)($vehiculo['placas'] ?? ''))) &&
                     empty(trim((string)($vehiculo['serie'] ?? ''))) &&
-                    empty(trim((string)($vehiculo['marca'] ?? ''))) &&
-                    empty($vehiculo['vehiculo_id'])
+                    empty(trim((string)($vehiculo['marca'] ?? '')))
                 ) {
                     continue;
                 }
 
                 PuestaDisposicionVehiculo::create([
                     'puesta_disposicion_id' => $puesta->id,
-                    'vehiculo_id'           => $vehiculo['vehiculo_id'] ?? null,
+                    'vehiculo_id'           => null,
                     'tipo'                  => $this->normalizarTextoNullable($vehiculo['tipo'] ?? null),
                     'marca'                 => $this->normalizarTextoNullable($vehiculo['marca'] ?? null),
                     'submarca'              => $this->normalizarTextoNullable($vehiculo['submarca'] ?? null),
@@ -385,11 +383,11 @@ class PuestaDisposicionController extends Controller
         $request->merge([
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
             'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
-            'estatus'               => $request->filled('estatus') ? $this->normalizarTextoRequerido($request->input('estatus')) : 'ACTIVA',
+            'estatus'               => 'ACTIVA',
             'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
             'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
             'autoridad_receptora'   => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
-            'area'                  => $this->normalizarTextoNullable($request->input('area')),
+            'area'                  => $this->obtenerNombreUnidad($puestaDisposicion->unidad_id),
             'carpeta_investigacion' => $this->normalizarTextoNullable($request->input('carpeta_investigacion')),
             'oficio'                => $this->normalizarTextoNullable($request->input('oficio')),
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
@@ -398,7 +396,7 @@ class PuestaDisposicionController extends Controller
         ]);
 
         $request->validate([
-            'numero_puesta'         => 'required|integer|unique:puestas_disposicion,numero_puesta,' . $puestaDisposicion->id . ',id,anio,' . $request->input('anio'),
+            'numero_puesta'         => 'required|integer',
             'anio'                  => 'required|digits:4',
             'tipo_puesta'           => 'required|string|max:100',
             'motivo'                => 'required|string|max:150',
@@ -432,7 +430,6 @@ class PuestaDisposicionController extends Controller
             'personas.*.observaciones'          => 'nullable|string',
 
             'vehiculos'                         => 'nullable|array',
-            'vehiculos.*.vehiculo_id'           => 'nullable|integer|exists:vehiculos,id',
             'vehiculos.*.tipo'                  => 'nullable|string|max:100',
             'vehiculos.*.marca'                 => 'nullable|string|max:100',
             'vehiculos.*.submarca'              => 'nullable|string|max:100',
@@ -455,6 +452,21 @@ class PuestaDisposicionController extends Controller
             'objetos.*.observaciones'           => 'nullable|string',
         ]);
 
+        $existeDuplicado = PuestaDisposicion::query()
+            ->where('id', '!=', $puestaDisposicion->id)
+            ->where('anio', $request->input('anio'))
+            ->where('unidad_id', $puestaDisposicion->unidad_id)
+            ->where('numero_puesta', $request->input('numero_puesta'))
+            ->exists();
+
+        if ($existeDuplicado) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'numero_puesta' => 'El número de puesta ya existe para esta unidad en ese año.'
+                ]);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -473,13 +485,11 @@ class PuestaDisposicionController extends Controller
                 'anio'                  => $request->input('anio'),
                 'tipo_puesta'           => $request->input('tipo_puesta'),
                 'motivo'                => $request->input('motivo'),
-                'estatus'               => $request->input('estatus', 'ACTIVA'),
+                'estatus'               => 'ACTIVA',
                 'nombre_policia'        => $request->input('nombre_policia'),
                 'nombre_mp'             => $request->input('nombre_mp'),
                 'autoridad_receptora'   => $request->input('autoridad_receptora'),
-                'area'                  => $request->filled('area')
-                                                ? $request->input('area')
-                                                : $this->obtenerNombreUnidad($puestaDisposicion->unidad_id),
+                'area'                  => $this->obtenerNombreUnidad($puestaDisposicion->unidad_id),
                 'carpeta_investigacion' => $request->input('carpeta_investigacion'),
                 'oficio'                => $request->input('oficio'),
                 'fecha_puesta'          => $request->input('fecha_puesta'),
@@ -538,15 +548,14 @@ class PuestaDisposicionController extends Controller
                 if (
                     empty(trim((string)($vehiculo['placas'] ?? ''))) &&
                     empty(trim((string)($vehiculo['serie'] ?? ''))) &&
-                    empty(trim((string)($vehiculo['marca'] ?? ''))) &&
-                    empty($vehiculo['vehiculo_id'])
+                    empty(trim((string)($vehiculo['marca'] ?? '')))
                 ) {
                     continue;
                 }
 
                 PuestaDisposicionVehiculo::create([
                     'puesta_disposicion_id' => $puestaDisposicion->id,
-                    'vehiculo_id'           => $vehiculo['vehiculo_id'] ?? null,
+                    'vehiculo_id'           => null,
                     'tipo'                  => $this->normalizarTextoNullable($vehiculo['tipo'] ?? null),
                     'marca'                 => $this->normalizarTextoNullable($vehiculo['marca'] ?? null),
                     'submarca'              => $this->normalizarTextoNullable($vehiculo['submarca'] ?? null),

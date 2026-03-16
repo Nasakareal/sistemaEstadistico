@@ -12,10 +12,13 @@ class Operativo extends Model
     protected $table = 'operativos';
 
     protected $fillable = [
+        'captura_uuid',
         'fecha',
+        'hora',
         'operativo_catalogo_id',
         'unidad_org_id',
         'delegacion_id',
+        'destacamento_id',
         'lugar',
         'descripcion',
         'dispositivos_realizados',
@@ -45,6 +48,7 @@ class Operativo extends Model
 
     protected $casts = [
         'fecha' => 'date',
+        'hora' => 'string',
         'dispositivos_realizados' => 'integer',
         'vehiculos_inspeccionados' => 'integer',
         'personas_inspeccionadas' => 'integer',

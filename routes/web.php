@@ -54,6 +54,7 @@ use App\Http\Controllers\ArmamentoController;
 use App\Http\Controllers\PatrullaKilometrajeController;
 use App\Http\Controllers\RadarRiesgoController;
 use App\Http\Controllers\ModuloExamenDiarioController;
+use App\Http\Controllers\EstadisticasCarreterasController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -66,13 +67,14 @@ Route::middleware(['auth','can:ver mapa'])->group(function () {
 });
 
 Route::prefix('operativos')->middleware(['auth','can:ver operativos'])->group(function () {
+    Route::get('/whatsapp', [OperativoController::class, 'whatsapp'])->name('operativos.whatsapp');
     Route::get('/', [OperativoController::class, 'index'])->name('operativos.index');
     Route::get('/create', [OperativoController::class, 'create'])->middleware('can:crear operativos')->name('operativos.create');
     Route::post('/', [OperativoController::class, 'store'])->middleware('can:crear operativos')->name('operativos.store');
-    Route::get('/{operativo}', [OperativoController::class, 'show'])->name('operativos.show');
-    Route::get('/{operativo}/edit', [OperativoController::class, 'edit'])->middleware('can:editar operativos')->name('operativos.edit');
-    Route::put('/{operativo}', [OperativoController::class, 'update'])->middleware('can:editar operativos')->name('operativos.update');
-    Route::delete('/{operativo}', [OperativoController::class, 'destroy'])->middleware('can:eliminar operativos')->name('operativos.destroy');
+    Route::get('/{capturaUuid}', [OperativoController::class, 'show'])->name('operativos.show');
+    Route::get('/{capturaUuid}/edit', [OperativoController::class, 'edit'])->middleware('can:editar operativos')->name('operativos.edit');
+    Route::put('/{capturaUuid}', [OperativoController::class, 'update'])->middleware('can:editar operativos')->name('operativos.update');
+    Route::delete('/{capturaUuid}', [OperativoController::class, 'destroy'])->middleware('can:eliminar operativos')->name('operativos.destroy');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -143,7 +145,7 @@ Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(
     Route::delete('/{actividad}',[ActividadController::class,'destroy'])->middleware('can:eliminar actividades')->name('actividades.destroy');
 });
 
-Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales'])->group(function () {
+Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales','unidad:siniestros'])->group(function () {
     Route::get('/',[EstadisticasGlobalesController::class,'index'])->name('estadisticas_globales.index');
     Route::get('/kpis',[EstadisticasGlobalesController::class,'kpis'])->name('estadisticas_globales.kpis');
     Route::get('/series/hechos',[EstadisticasGlobalesController::class,'seriesHechos'])->name('estadisticas_globales.series.hechos');
@@ -162,6 +164,23 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/export/hechos',[EstadisticasGlobalesController::class,'exportHechos'])->name('estadisticas_globales.export.hechos');
     Route::get('/export/mensual', [EstadisticasGlobalesController::class, 'exportMensual'])->name('estadisticas_globales.export.mensual');
 });
+
+Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisticas carreteras', 'unidad:carreteras'])->group(function () {
+        Route::get('/', [EstadisticasCarreterasController::class, 'index'])->name('estadisticas_carreteras.index');
+        Route::get('/kpis', [EstadisticasCarreterasController::class, 'kpis'])->name('estadisticas_carreteras.kpis');
+
+        Route::get('/series/actividades', [EstadisticasCarreterasController::class, 'seriesActividades'])->name('estadisticas_carreteras.series.actividades');
+        Route::get('/series/operativos', [EstadisticasCarreterasController::class, 'seriesOperativos'])->name('estadisticas_carreteras.series.operativos');
+        Route::get('/series/puestas-disposicion', [EstadisticasCarreterasController::class, 'seriesPuestasDisposicion'])->name('estadisticas_carreteras.series.puestas_disposicion');
+
+        Route::get('/actividades', [EstadisticasCarreterasController::class, 'actividades'])->name('estadisticas_carreteras.actividades');
+        Route::get('/operativos', [EstadisticasCarreterasController::class, 'operativos'])->name('estadisticas_carreteras.operativos');
+        Route::get('/puestas-disposicion', [EstadisticasCarreterasController::class, 'puestasDisposicion'])->name('estadisticas_carreteras.puestas_disposicion');
+
+        Route::get('/export/actividades', [EstadisticasCarreterasController::class, 'exportActividades'])->name('estadisticas_carreteras.export.actividades');
+        Route::get('/export/operativos', [EstadisticasCarreterasController::class, 'exportOperativos'])->name('estadisticas_carreteras.export.operativos');
+        Route::get('/export/puestas-disposicion', [EstadisticasCarreterasController::class, 'exportPuestasDisposicion'])->name('estadisticas_carreteras.export.puestas_disposicion');
+    });
 
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');

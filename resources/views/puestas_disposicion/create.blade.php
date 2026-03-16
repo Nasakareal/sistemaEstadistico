@@ -57,13 +57,9 @@
 
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="estatus">Estatus</label>
-                                    <input type="text" name="estatus" id="estatus"
-                                           class="form-control @error('estatus') is-invalid @enderror"
-                                           value="{{ old('estatus', 'ACTIVA') }}">
-                                    @error('estatus')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
+                                    <label for="estatus_preview">Estatus</label>
+                                    <input type="text" id="estatus_preview" class="form-control" value="ACTIVA" readonly>
+                                    <input type="hidden" name="estatus" value="ACTIVA">
                                 </div>
                             </div>
                         </div>
@@ -154,11 +150,8 @@
                                 <div class="form-group">
                                     <label for="area">Área</label>
                                     <input type="text" name="area" id="area"
-                                           class="form-control @error('area') is-invalid @enderror"
-                                           value="{{ old('area', $unidadNombre) }}">
-                                    @error('area')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
+                                           class="form-control"
+                                           value="{{ $unidadNombre }}" readonly>
                                 </div>
                             </div>
 
@@ -320,8 +313,67 @@
             padding: 24px !important;
         }
 
+        #btnAgregarPersona,
+        #btnAgregarVehiculo,
+        #btnAgregarObjeto {
+            background: #10b981 !important;
+            border-color: #10b981 !important;
+            color: #ffffff !important;
+            border-radius: 16px !important;
+            font-weight: 700 !important;
+            padding: 10px 18px !important;
+            box-shadow: none !important;
+        }
+
+        #btnAgregarPersona:hover,
+        #btnAgregarPersona:focus,
+        #btnAgregarVehiculo:hover,
+        #btnAgregarVehiculo:focus,
+        #btnAgregarObjeto:hover,
+        #btnAgregarObjeto:focus {
+            background: #059669 !important;
+            border-color: #059669 !important;
+            color: #ffffff !important;
+        }
+
+        /* ===== FIX DEL SELECT PRINCIPAL ===== */
+        #tipo_puesta {
+            background: #13263b !important;
+            color: #ffffff !important;
+            border: 1px solid #2b6cb0 !important;
+            border-radius: 14px !important;
+            min-height: 48px !important;
+            box-shadow: none !important;
+            -webkit-text-fill-color: #ffffff !important;
+            appearance: auto !important;
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+        }
+
+        #tipo_puesta:focus {
+            background: #13263b !important;
+            color: #ffffff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.18) !important;
+            outline: none !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+
+        /* opciones del desplegable */
+        #tipo_puesta option {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+        }
+
+        /* si quieres que la opción seleccionada se vea azul */
+        #tipo_puesta option:checked {
+            background: #2563eb !important;
+            color: #ffffff !important;
+        }
+
+        /* ===== BLOQUES DINAMICOS ===== */
         .bloque-dinamico {
-            background: #ffffff !important;
+            background: #f8fafc !important;
             border: 1px solid #d9dee7 !important;
             border-radius: 18px !important;
             padding: 22px !important;
@@ -394,7 +446,22 @@
             -webkit-text-fill-color: #98a2b3 !important;
         }
 
-        .bloque-dinamico input[type="date"] {
+        .bloque-dinamico select.form-control,
+        .bloque-dinamico select {
+            appearance: auto !important;
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+            background-color: #ffffff !important;
+            color: #1f2937 !important;
+        }
+
+        .bloque-dinamico select option {
+            background: #ffffff !important;
+            color: #1f2937 !important;
+        }
+
+        .bloque-dinamico input[type="date"],
+        .bloque-dinamico input[type="time"] {
             color-scheme: light !important;
         }
 
@@ -403,19 +470,14 @@
         .bloque-dinamico input[type="date"]::-webkit-datetime-edit-text,
         .bloque-dinamico input[type="date"]::-webkit-datetime-edit-month-field,
         .bloque-dinamico input[type="date"]::-webkit-datetime-edit-day-field,
-        .bloque-dinamico input[type="date"]::-webkit-datetime-edit-year-field {
+        .bloque-dinamico input[type="date"]::-webkit-datetime-edit-year-field,
+        .bloque-dinamico input[type="time"]::-webkit-datetime-edit,
+        .bloque-dinamico input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+        .bloque-dinamico input[type="time"]::-webkit-datetime-edit-text,
+        .bloque-dinamico input[type="time"]::-webkit-datetime-edit-hour-field,
+        .bloque-dinamico input[type="time"]::-webkit-datetime-edit-minute-field {
             color: #1f2937 !important;
             -webkit-text-fill-color: #1f2937 !important;
-        }
-
-        .bloque-dinamico input[type="date"]:focus::-webkit-datetime-edit,
-        .bloque-dinamico input[type="date"]:focus::-webkit-datetime-edit-fields-wrapper,
-        .bloque-dinamico input[type="date"]:focus::-webkit-datetime-edit-text,
-        .bloque-dinamico input[type="date"]:focus::-webkit-datetime-edit-month-field,
-        .bloque-dinamico input[type="date"]:focus::-webkit-datetime-edit-day-field,
-        .bloque-dinamico input[type="date"]:focus::-webkit-datetime-edit-year-field {
-            color: #111827 !important;
-            -webkit-text-fill-color: #111827 !important;
         }
 
         .bloque-dinamico input[type="date"]::-webkit-calendar-picker-indicator,
@@ -451,24 +513,6 @@
             color: #ffffff !important;
         }
 
-        .card-header .btn-success,
-        .card-header .btn-success.btn-sm {
-            background: #10b981 !important;
-            border-color: #10b981 !important;
-            color: #ffffff !important;
-            border-radius: 16px !important;
-            font-weight: 700 !important;
-            padding: 10px 18px !important;
-            box-shadow: none !important;
-        }
-
-        .card-header .btn-success:hover,
-        .card-header .btn-success:focus {
-            background: #059669 !important;
-            border-color: #059669 !important;
-            color: #ffffff !important;
-        }
-
         .bloque-dinamico .invalid-feedback,
         .bloque-dinamico .text-danger {
             color: #dc2626 !important;
@@ -494,7 +538,9 @@
             }
 
             .bloque-dinamico .btn-danger,
-            .card-header .btn-success {
+            #btnAgregarPersona,
+            #btnAgregarVehiculo,
+            #btnAgregarObjeto {
                 width: 100% !important;
             }
         }
@@ -643,25 +689,19 @@
                         <div class="row">
                             <div class="col-md-2">
                                 <div class="form-group">
-                                    <label>Vehículo ID</label>
-                                    <input type="number" name="vehiculos[${i}][vehiculo_id]" class="form-control" value="${valor(data.vehiculo_id)}">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
                                     <label>Tipo</label>
                                     <input type="text" name="vehiculos[${i}][tipo]" class="form-control" value="${valor(data.tipo)}">
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Marca</label>
                                     <input type="text" name="vehiculos[${i}][marca]" class="form-control" value="${valor(data.marca)}">
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <div class="form-group">
-                                    <label>Submarca</label>
+                                    <label>Línea</label>
                                     <input type="text" name="vehiculos[${i}][submarca]" class="form-control" value="${valor(data.submarca)}">
                                 </div>
                             </div>

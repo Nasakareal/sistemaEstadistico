@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\C5IInboundController;
 use App\Http\Controllers\Api\BotC5IController;
 use App\Http\Controllers\Api\WabotIncomingController;
 use App\Http\Controllers\Api\WazeFeedController;
+use App\Http\Controllers\Api\PeritoHomeController;
 
 Route::post('/wabot/incoming', [WabotIncomingController::class, 'handle']);
 Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
@@ -37,6 +38,13 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::prefix('perito-home')->group(function () {
+        Route::get('/mapa', [PeritoHomeController::class, 'mapa'])->name('api.perito_home.mapa');
+        Route::get('/filtros', [PeritoHomeController::class, 'filtros'])->name('api.perito_home.filtros');
+        Route::get('/hechos/{hecho}', [PeritoHomeController::class, 'show'])->name('api.perito_home.hechos.show');
+    });
+
     Route::get('/home', [DashboardController::class, 'home'])->name('api.home');
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);

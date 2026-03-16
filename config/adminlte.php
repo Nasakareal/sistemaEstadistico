@@ -376,14 +376,30 @@ return [
             'text'    => 'Estadísticas Globales',
             'icon'    => 'fa-solid fa-chart-column',
             'classes' => 'bg-blue text-white',
-            'can'     => 'ver estadisticas globales',
+            'can'     => 'menu-estadisticas-globales',
             'submenu' => [
                 [
                     'text'    => 'Panel Global',
                     'icon'    => 'fa-solid fa-chart-line',
                     'classes' => 'text-white',
                     'url'     => 'estadisticas-globales',
-                    'can'     => 'ver estadisticas globales',
+                    'can'     => 'menu-estadisticas-globales',
+                ],
+            ],
+        ],
+
+        [
+            'text'    => 'Estadísticas Carreteras',
+            'icon'    => 'fa-solid fa-road',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'menu-estadisticas-carreteras',
+            'submenu' => [
+                [
+                    'text'    => 'Panel Carreteras',
+                    'icon'    => 'fa-solid fa-chart-line',
+                    'classes' => 'text-white',
+                    'url'     => 'estadisticas-carreteras',
+                    'can'     => 'menu-estadisticas-carreteras',
                 ],
             ],
         ],

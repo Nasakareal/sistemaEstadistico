@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\StreetNormalizer;
+use App\Models\DeviceToken;
 use App\Models\WazeAlert;
 use App\Services\PushService;
-use App\Helpers\StreetNormalizer;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -51,16 +52,22 @@ class FetchWazeAlerts extends Command
             }
 
             $alerts = $data['alerts'] ?? [];
-            if (!is_array($alerts)) $alerts = [];
+            if (!is_array($alerts)) {
+                $alerts = [];
+            }
 
             $newAccidents = 0;
             $savedTotal = 0;
 
             foreach ($alerts as $item) {
-                if (!is_array($item)) continue;
+                if (!is_array($item)) {
+                    continue;
+                }
 
                 $uuid = $item['uuid'] ?? null;
-                if (!$uuid) continue;
+                if (!$uuid) {
+                    continue;
+                }
 
                 if (WazeAlert::where('uuid', $uuid)->exists()) {
                     continue;
@@ -69,15 +76,14 @@ class FetchWazeAlerts extends Command
                 $type = $item['type'] ?? null;
                 $subtype = $item['subtype'] ?? null;
 
-                // OJO: Waze usa location.x=lng, location.y=lat
                 $lat = data_get($item, 'location.y');
                 $lng = data_get($item, 'location.x');
 
                 $pubMillis = $item['pubMillis'] ?? null;
                 $publishedAt = null;
+
                 if (is_numeric($pubMillis)) {
-                    // Guardamos con timezone México (tu app)
-                    $publishedAt = Carbon::createFromTimestampMs((int)$pubMillis, 'UTC')
+                    $publishedAt = Carbon::createFromTimestampMs((int) $pubMillis, 'UTC')
                         ->setTimezone('America/Mexico_City');
                 }
 
@@ -92,12 +98,10 @@ class FetchWazeAlerts extends Command
                     'city' => $item['city'] ?? null,
                     'street' => $street,
                     'street_norm' => StreetNormalizer::normalize($street),
-
-                    'lat' => is_numeric($lat) ? (float)$lat : null,
-                    'lng' => is_numeric($lng) ? (float)$lng : null,
-                    'pub_millis' => is_numeric($pubMillis) ? (int)$pubMillis : null,
+                    'lat' => is_numeric($lat) ? (float) $lat : null,
+                    'lng' => is_numeric($lng) ? (float) $lng : null,
+                    'pub_millis' => is_numeric($pubMillis) ? (int) $pubMillis : null,
                     'published_at' => $publishedAt,
-
                     'raw' => $item,
                     'notified' => false,
                 ]);
@@ -108,17 +112,18 @@ class FetchWazeAlerts extends Command
                     $sent = $this->notifyAllTokens($wazeAlert);
                     $wazeAlert->update(['notified' => $sent]);
 
-                    if ($sent) $newAccidents++;
+                    if ($sent) {
+                        $newAccidents++;
+                    }
                 }
             }
 
             $this->info("OK. Alertas nuevas guardadas: {$savedTotal}. Choques nuevos notificados: {$newAccidents}");
             return 0;
-
         } catch (\Throwable $e) {
             Log::error('Error leyendo Waze feed', [
                 'error' => $e->getMessage(),
-                'trace' => substr((string)$e->getTraceAsString(), 0, 1200),
+                'trace' => substr((string) $e->getTraceAsString(), 0, 1200),
             ]);
             $this->error('Error: ' . $e->getMessage());
             return 1;
@@ -127,26 +132,52 @@ class FetchWazeAlerts extends Command
 
     private function isAccident($type, $subtype): bool
     {
-        $type = strtoupper((string)$type);
-        $subtype = strtoupper((string)$subtype);
+        $type = strtoupper((string) $type);
+        $subtype = strtoupper((string) $subtype);
 
-        if ($type === 'ACCIDENT') return true;
+        if ($type === 'ACCIDENT') {
+            return true;
+        }
 
         $hay = $type . ' ' . $subtype;
-        if (strpos($hay, 'ACCIDENT') !== false) return true;
-        if (strpos($hay, 'CRASH') !== false) return true;
+
+        if (strpos($hay, 'ACCIDENT') !== false) {
+            return true;
+        }
+
+        if (strpos($hay, 'CRASH') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isMoreliaAlert(WazeAlert $wazeAlert): bool
+    {
+        $city = mb_strtoupper(trim((string) $wazeAlert->city));
+        $street = mb_strtoupper(trim((string) $wazeAlert->street));
+
+        if ($city === 'MORELIA') {
+            return true;
+        }
+
+        if (str_contains($street, 'MORELIA')) {
+            return true;
+        }
 
         return false;
     }
 
     private function reverseGeocode(?float $lat, ?float $lng): ?string
     {
-        if ($lat === null || $lng === null) return null;
+        if ($lat === null || $lng === null) {
+            return null;
+        }
 
         try {
             $url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2'
-                . '&lat=' . urlencode((string)$lat)
-                . '&lon=' . urlencode((string)$lng)
+                . '&lat=' . urlencode((string) $lat)
+                . '&lon=' . urlencode((string) $lng)
                 . '&zoom=18&addressdetails=1';
 
             $res = Http::timeout(8)->withHeaders([
@@ -154,21 +185,29 @@ class FetchWazeAlerts extends Command
                 'Accept' => 'application/json',
             ])->get($url);
 
-            if (!$res->ok()) return null;
+            if (!$res->ok()) {
+                return null;
+            }
 
             $j = $res->json();
-            if (!is_array($j)) return null;
+
+            if (!is_array($j)) {
+                return null;
+            }
 
             $display = $j['display_name'] ?? null;
-            if (!is_string($display) || trim($display) === '') return null;
+
+            if (!is_string($display) || trim($display) === '') {
+                return null;
+            }
 
             $display = trim($display);
+
             if (mb_strlen($display) > 120) {
                 $display = mb_substr($display, 0, 120) . '...';
             }
 
             return $display;
-
         } catch (\Throwable $e) {
             Log::warning('reverseGeocode failed', ['error' => $e->getMessage()]);
             return null;
@@ -177,19 +216,6 @@ class FetchWazeAlerts extends Command
 
     private function notifyAllTokens(WazeAlert $wazeAlert): bool
     {
-        $tokens = \App\Models\DeviceToken::query()
-            ->whereNotNull('token')
-            ->where('token', '!=', '')
-            ->pluck('token')
-            ->unique()
-            ->values()
-            ->toArray();
-
-        if (count($tokens) === 0) {
-            Log::warning('Waze notify: no device tokens found');
-            return false;
-        }
-
         $lat = $wazeAlert->lat;
         $lng = $wazeAlert->lng;
 
@@ -202,15 +228,69 @@ class FetchWazeAlerts extends Command
         $basePlace = $wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle');
 
         $title = 'Waze: Choque reportado';
-        $body  = 'Choque en ' . ($nicePlace ?: $basePlace);
+        $body = 'Choque en ' . ($nicePlace ?: $basePlace);
 
         $payload = [
-            'type'      => 'WAZE_ACCIDENT',
+            'type' => 'WAZE_ACCIDENT',
             'waze_uuid' => (string) $wazeAlert->uuid,
-            'lat'       => $lat !== null ? (string) $lat : '',
-            'lng'       => $lng !== null ? (string) $lng : '',
-            'maps_url'  => $mapsUrl,
+            'lat' => $lat !== null ? (string) $lat : '',
+            'lng' => $lng !== null ? (string) $lng : '',
+            'maps_url' => $mapsUrl,
         ];
+
+        $isMorelia = $this->isMoreliaAlert($wazeAlert);
+
+        $tokensOtros = DeviceToken::query()
+            ->join('users', 'users.id', '=', 'device_tokens.user_id')
+            ->whereNotNull('device_tokens.token')
+            ->where('device_tokens.token', '!=', '')
+            ->where(function ($q) {
+                $q->whereNull('users.unidad_id')
+                    ->orWhere('users.unidad_id', '!=', 1);
+            })
+            ->pluck('device_tokens.token')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $tokensSiniestros = [];
+
+        if ($isMorelia) {
+            $tokensSiniestros = DeviceToken::query()
+                ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                ->whereNotNull('device_tokens.token')
+                ->where('device_tokens.token', '!=', '')
+                ->where('users.unidad_id', 1)
+                ->pluck('device_tokens.token')
+                ->unique()
+                ->values()
+                ->toArray();
+        }
+
+        $tokens = collect(array_merge($tokensOtros, $tokensSiniestros))
+            ->unique()
+            ->values()
+            ->toArray();
+
+        Log::info('Waze notify filtered tokens', [
+            'waze_uuid' => $wazeAlert->uuid,
+            'city' => $wazeAlert->city,
+            'street' => $wazeAlert->street,
+            'is_morelia' => $isMorelia,
+            'tokens_otros' => count($tokensOtros),
+            'tokens_siniestros' => count($tokensSiniestros),
+            'tokens_total' => count($tokens),
+        ]);
+
+        if (count($tokens) === 0) {
+            Log::warning('Waze notify: no device tokens found for this alert', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'city' => $wazeAlert->city,
+                'street' => $wazeAlert->street,
+                'is_morelia' => $isMorelia,
+            ]);
+            return false;
+        }
 
         return app(PushService::class)->sendToTokens($tokens, $title, $body, $payload);
     }

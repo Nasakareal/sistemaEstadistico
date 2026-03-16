@@ -3,8 +3,10 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\PeritoHomeController.php",
   "PreviewInSolutionExplorer": false
 }

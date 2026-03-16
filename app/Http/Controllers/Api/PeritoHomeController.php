@@ -1,407 +1,414 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Console\Commands;
 
-use App\Http\Controllers\Controller;
+use App\Helpers\StreetNormalizer;
+use App\Models\DeviceToken;
+use App\Models\WazeAlert;
+use App\Services\PushService;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
-class PeritoHomeController extends Controller
+class FetchWazeAlerts extends Command
 {
-    public function mapa(Request $request)
+    protected $signature = 'waze:fetch-alerts';
+    protected $description = 'Lee el feed JSON de Waze y manda push cuando hay alertas relevantes nuevas';
+
+    public function handle()
     {
-        $tz = config('app.timezone', 'America/Mexico_City');
+        $feedUrl = config('services.waze.feed_url');
 
-        $days = (int) $request->get('days', 30);
-        $days = $days > 0 ? $days : 30;
-
-        $gridSize = (float) $request->get('grid_size', 0.01);
-        if ($gridSize <= 0) {
-            $gridSize = 0.01;
+        if (!$feedUrl) {
+            $this->error('Falta configurar services.waze.feed_url');
+            return 1;
         }
 
-        $minScore = (int) $request->get('min_score', 3);
-        $minScore = $minScore > 0 ? $minScore : 3;
+        try {
+            $res = Http::withOptions([
+                    'decode_content' => false,
+                ])
+                ->timeout(20)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0',
+                    'Accept' => 'application/json,text/plain,*/*',
+                ])
+                ->get($feedUrl);
 
-        $wazeHours = (int) $request->get('waze_hours', 12);
-        $wazeHours = $wazeHours > 0 ? $wazeHours : 12;
-
-        $start = Carbon::now($tz)->subDays($days)->startOfDay();
-        $end   = Carbon::now($tz)->endOfDay();
-
-        /*
-        |--------------------------------------------------------------------------
-        | 1) ZONAS DE RIESGO ALTAS
-        |--------------------------------------------------------------------------
-        | Agrupamos hechos por celdas usando lat/lng.
-        | Solo mandamos las zonas con score alto para no saturar el mapa.
-        */
-        $hechos = DB::table('hechos')
-            ->select([
-                'id',
-                'folio',
-                'tipo_hecho',
-                'sector',
-                'municipio',
-                'lat',
-                'lng',
-                'fecha',
-                'hora',
-                'created_at',
-            ])
-            ->whereBetween('created_at', [$start, $end])
-            ->whereNotNull('lat')
-            ->whereNotNull('lng')
-            ->where('lat', '!=', 0)
-            ->where('lng', '!=', 0)
-            ->get();
-
-        $cells = [];
-
-        foreach ($hechos as $h) {
-            $lat = (float) $h->lat;
-            $lng = (float) $h->lng;
-
-            $cellLat = floor($lat / $gridSize) * $gridSize;
-            $cellLng = floor($lng / $gridSize) * $gridSize;
-            $cellKey = number_format($cellLat, 6, '.', '') . '|' . number_format($cellLng, 6, '.', '');
-
-            $createdAt = $h->created_at ? Carbon::parse($h->created_at, $tz) : null;
-            $daysAgo = $createdAt ? max(0, $createdAt->diffInDays(Carbon::now($tz))) : $days;
-
-            // peso por recencia
-            $weight = 1;
-            if ($daysAgo <= 1) {
-                $weight = 4;
-            } elseif ($daysAgo <= 3) {
-                $weight = 3;
-            } elseif ($daysAgo <= 7) {
-                $weight = 2;
+            if (!$res->ok()) {
+                Log::warning('Waze feed no OK', ['status' => $res->status()]);
+                $this->error('Waze feed no OK: ' . $res->status());
+                return 1;
             }
 
-            if (!isset($cells[$cellKey])) {
-                $cells[$cellKey] = [
-                    'cell_key'        => $cellKey,
-                    'center_lat'      => $cellLat + ($gridSize / 2),
-                    'center_lng'      => $cellLng + ($gridSize / 2),
-                    'score'           => 0,
-                    'total_hechos'    => 0,
-                    'tipos'           => [],
-                    'sectores'        => [],
-                    'municipios'      => [],
-                    'last_event_at'   => null,
-                    'sample_hechos'   => [],
-                ];
+            $body = $res->body();
+            $data = json_decode($body, true);
+
+            if (!is_array($data)) {
+                Log::error('Waze feed: JSON inválido', ['sample' => substr($body, 0, 200)]);
+                $this->error('Waze feed: JSON inválido');
+                return 1;
             }
 
-            $cells[$cellKey]['score'] += $weight;
-            $cells[$cellKey]['total_hechos']++;
-
-            if (!empty($h->tipo_hecho)) {
-                $cells[$cellKey]['tipos'][$h->tipo_hecho] = ($cells[$cellKey]['tipos'][$h->tipo_hecho] ?? 0) + 1;
+            $alerts = $data['alerts'] ?? [];
+            if (!is_array($alerts)) {
+                $alerts = [];
             }
 
-            if (!empty($h->sector)) {
-                $cells[$cellKey]['sectores'][$h->sector] = true;
-            }
+            $savedTotal = 0;
+            $notifiedTotal = 0;
 
-            if (!empty($h->municipio)) {
-                $cells[$cellKey]['municipios'][$h->municipio] = true;
-            }
+            foreach ($alerts as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
 
-            if ($h->created_at) {
-                if (
-                    is_null($cells[$cellKey]['last_event_at']) ||
-                    Carbon::parse($h->created_at)->gt(Carbon::parse($cells[$cellKey]['last_event_at']))
-                ) {
-                    $cells[$cellKey]['last_event_at'] = $h->created_at;
+                $uuid = $item['uuid'] ?? null;
+                if (!$uuid) {
+                    continue;
+                }
+
+                if (WazeAlert::where('uuid', $uuid)->exists()) {
+                    continue;
+                }
+
+                $type = $item['type'] ?? null;
+                $subtype = $item['subtype'] ?? null;
+
+                if (!$this->isRelevantAlert($type, $subtype)) {
+                    continue;
+                }
+
+                $lat = data_get($item, 'location.y');
+                $lng = data_get($item, 'location.x');
+
+                $pubMillis = $item['pubMillis'] ?? null;
+                $publishedAt = null;
+
+                if (is_numeric($pubMillis)) {
+                    $publishedAt = Carbon::createFromTimestampMs((int) $pubMillis, 'UTC')
+                        ->setTimezone('America/Mexico_City');
+                }
+
+                $street = $item['street'] ?? null;
+
+                $wazeAlert = WazeAlert::create([
+                    'uuid' => $uuid,
+                    'waze_id' => $item['id'] ?? null,
+                    'type' => $type,
+                    'subtype' => $subtype,
+                    'country' => $item['country'] ?? null,
+                    'city' => $item['city'] ?? null,
+                    'street' => $street,
+                    'street_norm' => StreetNormalizer::normalize($street),
+                    'lat' => is_numeric($lat) ? (float) $lat : null,
+                    'lng' => is_numeric($lng) ? (float) $lng : null,
+                    'pub_millis' => is_numeric($pubMillis) ? (int) $pubMillis : null,
+                    'published_at' => $publishedAt,
+                    'raw' => $item,
+                    'notified' => false,
+                ]);
+
+                $savedTotal++;
+
+                $sent = $this->notifyRelevantTokens($wazeAlert);
+                $wazeAlert->update(['notified' => $sent]);
+
+                if ($sent) {
+                    $notifiedTotal++;
                 }
             }
 
-            if (count($cells[$cellKey]['sample_hechos']) < 5) {
-                $cells[$cellKey]['sample_hechos'][] = [
-                    'id'         => (int) $h->id,
-                    'folio'      => $h->folio,
-                    'tipo_hecho' => $h->tipo_hecho,
-                    'fecha'      => $h->fecha,
-                    'hora'       => $h->hora,
+            $this->info("OK. Alertas nuevas guardadas: {$savedTotal}. Alertas notificadas: {$notifiedTotal}");
+            return 0;
+        } catch (\Throwable $e) {
+            Log::error('Error leyendo Waze feed', [
+                'error' => $e->getMessage(),
+                'trace' => substr((string) $e->getTraceAsString(), 0, 1200),
+            ]);
+            $this->error('Error: ' . $e->getMessage());
+            return 1;
+        }
+    }
+
+    private function isRelevantAlert($type, $subtype): bool
+    {
+        return $this->isAccident($type, $subtype) || $this->isRoadClosed($type, $subtype);
+    }
+
+    private function isAccident($type, $subtype): bool
+    {
+        $type = strtoupper((string) $type);
+        $subtype = strtoupper((string) $subtype);
+
+        if ($type === 'ACCIDENT') {
+            return true;
+        }
+
+        $hay = $type . ' ' . $subtype;
+
+        if (strpos($hay, 'ACCIDENT') !== false) {
+            return true;
+        }
+
+        if (strpos($hay, 'CRASH') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isRoadClosed($type, $subtype): bool
+    {
+        $type = strtoupper((string) $type);
+        $subtype = strtoupper((string) $subtype);
+
+        if ($type === 'ROAD_CLOSED') {
+            return true;
+        }
+
+        $hay = $type . ' ' . $subtype;
+
+        if (strpos($hay, 'ROAD_CLOSED') !== false) {
+            return true;
+        }
+
+        if (strpos($hay, 'CLOSED') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isInsideMoreliaMunicipality(WazeAlert $wazeAlert): bool
+    {
+        $lat = $wazeAlert->lat;
+        $lng = $wazeAlert->lng;
+
+        if ($lat === null || $lng === null) {
+            return false;
+        }
+
+        $polygon = config('services.waze.morelia_polygon', []);
+
+        if (is_array($polygon) && count($polygon) >= 3) {
+            return $this->pointInPolygon($lat, $lng, $polygon);
+        }
+
+        $city = mb_strtoupper(trim((string) $wazeAlert->city));
+
+        return $city === 'MORELIA';
+    }
+
+    private function pointInPolygon(float $lat, float $lng, array $polygon): bool
+    {
+        $points = [];
+
+        foreach ($polygon as $point) {
+            if (is_array($point) && array_key_exists('lat', $point) && array_key_exists('lng', $point)) {
+                $points[] = [
+                    'lat' => (float) $point['lat'],
+                    'lng' => (float) $point['lng'],
+                ];
+                continue;
+            }
+
+            if (is_array($point) && count($point) >= 2) {
+                $values = array_values($point);
+                $points[] = [
+                    'lat' => (float) $values[0],
+                    'lng' => (float) $values[1],
                 ];
             }
         }
 
-        $riskZones = [];
+        $count = count($points);
 
-        foreach ($cells as $cell) {
-            if ((int) $cell['score'] < $minScore) {
-                continue;
+        if ($count < 3) {
+            return false;
+        }
+
+        $inside = false;
+        $j = $count - 1;
+
+        for ($i = 0; $i < $count; $i++) {
+            $xi = $points[$i]['lng'];
+            $yi = $points[$i]['lat'];
+            $xj = $points[$j]['lng'];
+            $yj = $points[$j]['lat'];
+
+            $intersects = (($yi > $lat) !== ($yj > $lat))
+                && ($lng < (($xj - $xi) * ($lat - $yi) / (($yj - $yi) ?: 0.0000000001) + $xi));
+
+            if ($intersects) {
+                $inside = !$inside;
             }
 
-            arsort($cell['tipos']);
-            $topTipo = null;
-            if (!empty($cell['tipos'])) {
-                $topTipo = array_key_first($cell['tipos']);
+            $j = $i;
+        }
+
+        return $inside;
+    }
+
+    private function reverseGeocode(?float $lat, ?float $lng): ?string
+    {
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+
+        try {
+            $url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2'
+                . '&lat=' . urlencode((string) $lat)
+                . '&lon=' . urlencode((string) $lng)
+                . '&zoom=18&addressdetails=1';
+
+            $res = Http::timeout(8)->withHeaders([
+                'User-Agent' => 'seguridadvial-mich.com/1.0 (contacto@seguridadvial-mich.com)',
+                'Accept' => 'application/json',
+            ])->get($url);
+
+            if (!$res->ok()) {
+                return null;
             }
 
-            $severity = $this->resolveSeverity((int) $cell['score'], (int) $cell['total_hechos']);
+            $j = $res->json();
 
-            // solo mandamos las severidades altas
-            if (!in_array($severity, ['alta', 'muy_alta'], true)) {
-                continue;
+            if (!is_array($j)) {
+                return null;
             }
 
-            $riskZones[] = [
-                'type'            => 'risk_zone',
-                'cell_key'        => $cell['cell_key'],
-                'center_lat'      => round((float) $cell['center_lat'], 6),
-                'center_lng'      => round((float) $cell['center_lng'], 6),
-                'score'           => (int) $cell['score'],
-                'total_hechos'    => (int) $cell['total_hechos'],
-                'severity'        => $severity,
-                'radius_meters'   => $severity === 'muy_alta' ? 450 : 300,
-                'label'           => $severity === 'muy_alta' ? 'ZONA DE RIESGO MUY ALTA' : 'ZONA DE RIESGO ALTA',
-                'top_tipo_hecho'  => $topTipo,
-                'sectores'        => array_values(array_keys($cell['sectores'])),
-                'municipios'      => array_values(array_keys($cell['municipios'])),
-                'last_event_at'   => $cell['last_event_at']
-                    ? Carbon::parse($cell['last_event_at'])->timezone($tz)->toDateTimeString()
-                    : null,
-                'sample_hechos'   => $cell['sample_hechos'],
-                'style'           => [
-                    'kind'         => 'circle',
-                    'stroke_color' => $severity === 'muy_alta' ? '#7B1E1E' : '#C62828',
-                    'fill_color'   => $severity === 'muy_alta' ? '#FF5252' : '#FF8A80',
-                    'stroke_width' => $severity === 'muy_alta' ? 3 : 2,
-                    'z_index'      => $severity === 'muy_alta' ? 30 : 20,
-                ],
-            ];
+            $display = $j['display_name'] ?? null;
+
+            if (!is_string($display) || trim($display) === '') {
+                return null;
+            }
+
+            $display = trim($display);
+
+            if (mb_strlen($display) > 120) {
+                $display = mb_substr($display, 0, 120) . '...';
+            }
+
+            return $display;
+        } catch (\Throwable $e) {
+            Log::warning('reverseGeocode failed', ['error' => $e->getMessage()]);
+            return null;
         }
-
-        usort($riskZones, function ($a, $b) {
-            return $b['score'] <=> $a['score'];
-        });
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2) CHOQUES RECIENTES DE WAZE
-        |--------------------------------------------------------------------------
-        | Se mandan aparte para pintarlos muy notorios en Flutter.
-        */
-        $wazeStart = Carbon::now($tz)->subHours($wazeHours);
-
-        $wazeRows = DB::table('waze_alerts')
-            ->select([
-                'id',
-                'uuid',
-                'type',
-                'subtype',
-                'street',
-                'city',
-                'lat',
-                'lng',
-                'published_at',
-                'created_at',
-            ])
-            ->where(function ($q) {
-                $q->where('type', 'ACCIDENT')
-                  ->orWhere('subtype', 'ACCIDENT')
-                  ->orWhere('subtype', 'CRASH')
-                  ->orWhere('type', 'like', '%ACCIDENT%')
-                  ->orWhere('subtype', 'like', '%ACCIDENT%')
-                  ->orWhere('subtype', 'like', '%CRASH%');
-            })
-            ->where(function ($q) use ($wazeStart) {
-                $q->where('published_at', '>=', $wazeStart)
-                  ->orWhere(function ($q2) use ($wazeStart) {
-                      $q2->whereNull('published_at')
-                         ->where('created_at', '>=', $wazeStart);
-                  });
-            })
-            ->whereNotNull('lat')
-            ->whereNotNull('lng')
-            ->orderByDesc(DB::raw('COALESCE(published_at, created_at)'))
-            ->limit(100)
-            ->get();
-
-        $wazeAlerts = [];
-
-        foreach ($wazeRows as $row) {
-            $published = $row->published_at ?: $row->created_at;
-
-            $wazeAlerts[] = [
-                'type'          => 'waze_accident',
-                'id'            => (int) $row->id,
-                'uuid'          => (string) $row->uuid,
-                'lat'           => round((float) $row->lat, 6),
-                'lng'           => round((float) $row->lng, 6),
-                'street'        => $row->street,
-                'city'          => $row->city,
-                'title'         => 'CHOQUE WAZE',
-                'subtitle'      => $row->street ?: ($row->city ?: 'Ubicación sin calle'),
-                'published_at'  => $published ? Carbon::parse($published)->timezone($tz)->toDateTimeString() : null,
-                'style'         => [
-                    'kind'         => 'marker',
-                    'icon'         => 'waze_accident',
-                    'marker_color' => '#FFD600',
-                    'border_color' => '#D50000',
-                    'pulse'        => true,
-                    'z_index'      => 100,
-                ],
-            ];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3) CENTRO INICIAL DEL MAPA
-        |--------------------------------------------------------------------------
-        */
-        $center = $this->resolveCenter($riskZones, $wazeAlerts);
-
-        return response()->json([
-            'meta' => [
-                'days'         => $days,
-                'grid_size'    => $gridSize,
-                'min_score'    => $minScore,
-                'waze_hours'   => $wazeHours,
-                'generated_at' => Carbon::now($tz)->toDateTimeString(),
-                'timezone'     => $tz,
-            ],
-            'map' => [
-                'center' => $center,
-                'zoom'   => 12,
-            ],
-            'layers' => [
-                'risk_zones'   => $riskZones,
-                'waze_alerts'  => $wazeAlerts,
-            ],
-            'counts' => [
-                'risk_zones'  => count($riskZones),
-                'waze_alerts' => count($wazeAlerts),
-            ],
-        ]);
     }
 
-    public function filtros(Request $request)
+    private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
     {
-        return response()->json([
-            'days_options' => [1, 3, 7, 15, 30, 60, 90],
-            'waze_hours_options' => [1, 3, 6, 12, 24],
-            'severity' => [
-                ['value' => 'alta', 'label' => 'Alta'],
-                ['value' => 'muy_alta', 'label' => 'Muy alta'],
-            ],
-            'default_values' => [
-                'days'       => 30,
-                'grid_size'  => 0.01,
-                'min_score'  => 3,
-                'waze_hours' => 12,
-            ],
-        ]);
-    }
+        $lat = $wazeAlert->lat;
+        $lng = $wazeAlert->lng;
 
-    public function show($hecho)
-    {
-        $row = DB::table('hechos')
-            ->select([
-                'id',
-                'folio',
-                'fecha',
-                'hora',
-                'tipo_hecho',
-                'sector',
-                'municipio',
-                'lat',
-                'lng',
-                'created_at',
-                'updated_at',
-            ])
-            ->where('id', $hecho)
-            ->first();
-
-        if (!$row) {
-            return response()->json([
-                'message' => 'Hecho no encontrado.',
-            ], 404);
+        $mapsUrl = '';
+        if ($lat !== null && $lng !== null) {
+            $mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' . $lat . ',' . $lng;
         }
 
-        $vehiculos = DB::table('hecho_vehiculo as hv')
-            ->join('vehiculos as v', 'v.id', '=', 'hv.vehiculo_id')
-            ->where('hv.hecho_id', $hecho)
-            ->select([
-                'v.id',
-                'v.tipo_vehiculo',
-                'v.marca',
-                'v.modelo',
-                'v.color',
-                'v.placas',
-                'v.serie',
-                'v.grua',
-            ])
-            ->get();
+        $nicePlace = $this->reverseGeocode($lat, $lng);
+        $basePlace = $wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle');
 
-        $lesionados = DB::table('lesionados')
-            ->where('hecho_id', $hecho)
-            ->select([
-                'id',
-                'nombre',
-                'edad',
-                'sexo',
-                'tipo_lesion',
-                'estado_salud',
-            ])
-            ->get();
+        $isAccident = $this->isAccident($wazeAlert->type, $wazeAlert->subtype);
+        $isRoadClosed = $this->isRoadClosed($wazeAlert->type, $wazeAlert->subtype);
 
-        return response()->json([
-            'hecho' => [
-                'id'         => (int) $row->id,
-                'folio'      => $row->folio,
-                'fecha'      => $row->fecha,
-                'hora'       => $row->hora,
-                'tipo_hecho' => $row->tipo_hecho,
-                'sector'     => $row->sector,
-                'municipio'  => $row->municipio,
-                'lat'        => $row->lat !== null ? (float) $row->lat : null,
-                'lng'        => $row->lng !== null ? (float) $row->lng : null,
-                'created_at' => $row->created_at,
-                'updated_at' => $row->updated_at,
-            ],
-            'vehiculos' => $vehiculos,
-            'lesionados' => $lesionados,
-        ]);
-    }
-
-    private function resolveSeverity(int $score, int $totalHechos): string
-    {
-        if ($score >= 8 || $totalHechos >= 5) {
-            return 'muy_alta';
+        if ($isAccident) {
+            $title = 'Waze: Choque reportado';
+            $body = 'Choque en ' . ($nicePlace ?: $basePlace);
+            $payloadType = 'WAZE_ACCIDENT';
+        } elseif ($isRoadClosed) {
+            $title = 'Waze: Cierre reportado';
+            $body = 'Cierre en ' . ($nicePlace ?: $basePlace);
+            $payloadType = 'WAZE_ROAD_CLOSED';
+        } else {
+            return false;
         }
 
-        if ($score >= 3 || $totalHechos >= 2) {
-            return 'alta';
-        }
-
-        return 'media';
-    }
-
-    private function resolveCenter(array $riskZones, array $wazeAlerts): array
-    {
-        if (!empty($wazeAlerts)) {
-            return [
-                'lat' => (float) $wazeAlerts[0]['lat'],
-                'lng' => (float) $wazeAlerts[0]['lng'],
-            ];
-        }
-
-        if (!empty($riskZones)) {
-            return [
-                'lat' => (float) $riskZones[0]['center_lat'],
-                'lng' => (float) $riskZones[0]['center_lng'],
-            ];
-        }
-
-        return [
-            'lat' => 19.705950,
-            'lng' => -101.194983,
+        $payload = [
+            'type' => $payloadType,
+            'waze_uuid' => (string) $wazeAlert->uuid,
+            'lat' => $lat !== null ? (string) $lat : '',
+            'lng' => $lng !== null ? (string) $lng : '',
+            'maps_url' => $mapsUrl,
         ];
+
+        $tokens = [];
+
+        if ($isAccident) {
+            $tokensGeneralAccident = DeviceToken::query()
+                ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                ->whereNotNull('device_tokens.token')
+                ->where('device_tokens.token', '!=', '')
+                ->where(function ($q) {
+                    $q->whereNull('users.unidad_id')
+                        ->orWhere('users.unidad_id', '!=', 1);
+                })
+                ->pluck('device_tokens.token')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $tokensSiniestros = [];
+
+            if ($this->isInsideMoreliaMunicipality($wazeAlert)) {
+                $tokensSiniestros = DeviceToken::query()
+                    ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                    ->whereNotNull('device_tokens.token')
+                    ->where('device_tokens.token', '!=', '')
+                    ->where('users.unidad_id', 1)
+                    ->pluck('device_tokens.token')
+                    ->unique()
+                    ->values()
+                    ->toArray();
+            }
+
+            $tokens = collect(array_merge($tokensGeneralAccident, $tokensSiniestros))
+                ->unique()
+                ->values()
+                ->toArray();
+
+            Log::info('Waze notify accident tokens', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'city' => $wazeAlert->city,
+                'street' => $wazeAlert->street,
+                'inside_morelia_municipality' => $this->isInsideMoreliaMunicipality($wazeAlert),
+                'tokens_general_accident' => count($tokensGeneralAccident),
+                'tokens_siniestros' => count($tokensSiniestros),
+                'tokens_total' => count($tokens),
+            ]);
+        }
+
+        if ($isRoadClosed) {
+            $tokens = DeviceToken::query()
+                ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                ->whereNotNull('device_tokens.token')
+                ->where('device_tokens.token', '!=', '')
+                ->where('users.unidad_id', 4)
+                ->pluck('device_tokens.token')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            Log::info('Waze notify road closed tokens', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'city' => $wazeAlert->city,
+                'street' => $wazeAlert->street,
+                'tokens_total' => count($tokens),
+            ]);
+        }
+
+        if (count($tokens) === 0) {
+            Log::warning('Waze notify: no device tokens found for this alert', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'type' => $wazeAlert->type,
+                'subtype' => $wazeAlert->subtype,
+                'city' => $wazeAlert->city,
+                'street' => $wazeAlert->street,
+            ]);
+            return false;
+        }
+
+        return app(PushService::class)->sendToTokens($tokens, $title, $body, $payload);
     }
 }

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 class FetchWazeAlerts extends Command
 {
     protected $signature = 'waze:fetch-alerts';
-    protected $description = 'Lee el feed JSON de Waze y manda push cuando hay choques nuevos';
+    protected $description = 'Lee el feed JSON de Waze y manda push cuando hay alertas relevantes nuevas';
 
     public function handle()
     {
@@ -56,8 +56,8 @@ class FetchWazeAlerts extends Command
                 $alerts = [];
             }
 
-            $newAccidents = 0;
             $savedTotal = 0;
+            $notifiedTotal = 0;
 
             foreach ($alerts as $item) {
                 if (!is_array($item)) {
@@ -75,6 +75,10 @@ class FetchWazeAlerts extends Command
 
                 $type = $item['type'] ?? null;
                 $subtype = $item['subtype'] ?? null;
+
+                if (!$this->isRelevantAlert($type, $subtype)) {
+                    continue;
+                }
 
                 $lat = data_get($item, 'location.y');
                 $lng = data_get($item, 'location.x');
@@ -108,17 +112,15 @@ class FetchWazeAlerts extends Command
 
                 $savedTotal++;
 
-                if ($this->isAccident($type, $subtype)) {
-                    $sent = $this->notifyAllTokens($wazeAlert);
-                    $wazeAlert->update(['notified' => $sent]);
+                $sent = $this->notifyRelevantTokens($wazeAlert);
+                $wazeAlert->update(['notified' => $sent]);
 
-                    if ($sent) {
-                        $newAccidents++;
-                    }
+                if ($sent) {
+                    $notifiedTotal++;
                 }
             }
 
-            $this->info("OK. Alertas nuevas guardadas: {$savedTotal}. Choques nuevos notificados: {$newAccidents}");
+            $this->info("OK. Alertas nuevas guardadas: {$savedTotal}. Alertas notificadas: {$notifiedTotal}");
             return 0;
         } catch (\Throwable $e) {
             Log::error('Error leyendo Waze feed', [
@@ -128,6 +130,11 @@ class FetchWazeAlerts extends Command
             $this->error('Error: ' . $e->getMessage());
             return 1;
         }
+    }
+
+    private function isRelevantAlert($type, $subtype): bool
+    {
+        return $this->isAccident($type, $subtype) || $this->isRoadClosed($type, $subtype);
     }
 
     private function isAccident($type, $subtype): bool
@@ -152,20 +159,96 @@ class FetchWazeAlerts extends Command
         return false;
     }
 
-    private function isMoreliaAlert(WazeAlert $wazeAlert): bool
+    private function isRoadClosed($type, $subtype): bool
     {
-        $city = mb_strtoupper(trim((string) $wazeAlert->city));
-        $street = mb_strtoupper(trim((string) $wazeAlert->street));
+        $type = strtoupper((string) $type);
+        $subtype = strtoupper((string) $subtype);
 
-        if ($city === 'MORELIA') {
+        if ($type === 'ROAD_CLOSED') {
             return true;
         }
 
-        if (str_contains($street, 'MORELIA')) {
+        $hay = $type . ' ' . $subtype;
+
+        if (strpos($hay, 'ROAD_CLOSED') !== false) {
+            return true;
+        }
+
+        if (strpos($hay, 'CLOSED') !== false) {
             return true;
         }
 
         return false;
+    }
+
+    private function isInsideMoreliaMunicipality(WazeAlert $wazeAlert): bool
+    {
+        $lat = $wazeAlert->lat;
+        $lng = $wazeAlert->lng;
+
+        if ($lat === null || $lng === null) {
+            return false;
+        }
+
+        $polygon = config('services.waze.morelia_polygon', []);
+
+        if (is_array($polygon) && count($polygon) >= 3) {
+            return $this->pointInPolygon($lat, $lng, $polygon);
+        }
+
+        $city = mb_strtoupper(trim((string) $wazeAlert->city));
+
+        return $city === 'MORELIA';
+    }
+
+    private function pointInPolygon(float $lat, float $lng, array $polygon): bool
+    {
+        $points = [];
+
+        foreach ($polygon as $point) {
+            if (is_array($point) && array_key_exists('lat', $point) && array_key_exists('lng', $point)) {
+                $points[] = [
+                    'lat' => (float) $point['lat'],
+                    'lng' => (float) $point['lng'],
+                ];
+                continue;
+            }
+
+            if (is_array($point) && count($point) >= 2) {
+                $values = array_values($point);
+                $points[] = [
+                    'lat' => (float) $values[0],
+                    'lng' => (float) $values[1],
+                ];
+            }
+        }
+
+        $count = count($points);
+
+        if ($count < 3) {
+            return false;
+        }
+
+        $inside = false;
+        $j = $count - 1;
+
+        for ($i = 0; $i < $count; $i++) {
+            $xi = $points[$i]['lng'];
+            $yi = $points[$i]['lat'];
+            $xj = $points[$j]['lng'];
+            $yj = $points[$j]['lat'];
+
+            $intersects = (($yi > $lat) !== ($yj > $lat))
+                && ($lng < (($xj - $xi) * ($lat - $yi) / (($yj - $yi) ?: 0.0000000001) + $xi));
+
+            if ($intersects) {
+                $inside = !$inside;
+            }
+
+            $j = $i;
+        }
+
+        return $inside;
     }
 
     private function reverseGeocode(?float $lat, ?float $lng): ?string
@@ -214,7 +297,7 @@ class FetchWazeAlerts extends Command
         }
     }
 
-    private function notifyAllTokens(WazeAlert $wazeAlert): bool
+    private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
     {
         $lat = $wazeAlert->lat;
         $lng = $wazeAlert->lng;
@@ -227,67 +310,134 @@ class FetchWazeAlerts extends Command
         $nicePlace = $this->reverseGeocode($lat, $lng);
         $basePlace = $wazeAlert->street ?: ($wazeAlert->city ?: 'zona sin calle');
 
-        $title = 'Waze: Choque reportado';
-        $body = 'Choque en ' . ($nicePlace ?: $basePlace);
+        $isAccident = $this->isAccident($wazeAlert->type, $wazeAlert->subtype);
+        $isRoadClosed = $this->isRoadClosed($wazeAlert->type, $wazeAlert->subtype);
+
+        if ($isAccident) {
+            $title = 'Waze: Choque reportado';
+            $body = 'Choque en ' . ($nicePlace ?: $basePlace);
+            $payloadType = 'WAZE_ACCIDENT';
+        } elseif ($isRoadClosed) {
+            $title = 'Waze: Cierre reportado';
+            $body = 'Cierre en ' . ($nicePlace ?: $basePlace);
+            $payloadType = 'WAZE_ROAD_CLOSED';
+        } else {
+            return false;
+        }
 
         $payload = [
-            'type' => 'WAZE_ACCIDENT',
+            'type' => $payloadType,
             'waze_uuid' => (string) $wazeAlert->uuid,
             'lat' => $lat !== null ? (string) $lat : '',
             'lng' => $lng !== null ? (string) $lng : '',
             'maps_url' => $mapsUrl,
         ];
 
-        $isMorelia = $this->isMoreliaAlert($wazeAlert);
+        $tokens = [];
 
-        $tokensOtros = DeviceToken::query()
-            ->join('users', 'users.id', '=', 'device_tokens.user_id')
-            ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '')
-            ->where(function ($q) {
-                $q->whereNull('users.unidad_id')
-                    ->orWhere('users.unidad_id', '!=', 1);
-            })
-            ->pluck('device_tokens.token')
-            ->unique()
-            ->values()
-            ->toArray();
+        if ($isAccident) {
+            $insideMoreliaMunicipality = $this->isInsideMoreliaMunicipality($wazeAlert);
 
-        $tokensSiniestros = [];
-
-        if ($isMorelia) {
-            $tokensSiniestros = DeviceToken::query()
+            $tokensGeneralAccident = DeviceToken::query()
                 ->join('users', 'users.id', '=', 'device_tokens.user_id')
                 ->whereNotNull('device_tokens.token')
                 ->where('device_tokens.token', '!=', '')
-                ->where('users.unidad_id', 1)
+                ->where(function ($q) {
+                    $q->whereNull('users.unidad_id')
+                        ->orWhere('users.unidad_id', '!=', 1);
+                })
                 ->pluck('device_tokens.token')
                 ->unique()
                 ->values()
                 ->toArray();
+
+            $tokensSiniestros = [];
+
+            if ($insideMoreliaMunicipality) {
+                $tokensSiniestros = DeviceToken::query()
+                    ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                    ->whereNotNull('device_tokens.token')
+                    ->where('device_tokens.token', '!=', '')
+                    ->where('users.unidad_id', 1)
+                    ->pluck('device_tokens.token')
+                    ->unique()
+                    ->values()
+                    ->toArray();
+            }
+
+            $tokensCarreteras = DeviceToken::query()
+                ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                ->whereNotNull('device_tokens.token')
+                ->where('device_tokens.token', '!=', '')
+                ->where('users.unidad_id', 4)
+                ->pluck('device_tokens.token')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $tokens = collect(array_merge($tokensGeneralAccident, $tokensSiniestros, $tokensCarreteras))
+                ->unique()
+                ->values()
+                ->toArray();
+
+            Log::info('Waze notify accident tokens', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'city' => $wazeAlert->city,
+                'street' => $wazeAlert->street,
+                'inside_morelia_municipality' => $insideMoreliaMunicipality,
+                'tokens_general_accident' => count($tokensGeneralAccident),
+                'tokens_siniestros' => count($tokensSiniestros),
+                'tokens_carreteras' => count($tokensCarreteras),
+                'tokens_total' => count($tokens),
+            ]);
         }
 
-        $tokens = collect(array_merge($tokensOtros, $tokensSiniestros))
-            ->unique()
-            ->values()
-            ->toArray();
+        if ($isRoadClosed) {
+            $tokensSuperadminYGenerales = DeviceToken::query()
+                ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                ->whereNotNull('device_tokens.token')
+                ->where('device_tokens.token', '!=', '')
+                ->where(function ($q) {
+                    $q->whereNull('users.unidad_id')
+                        ->orWhere('users.unidad_id', '!=', 1);
+                })
+                ->pluck('device_tokens.token')
+                ->unique()
+                ->values()
+                ->toArray();
 
-        Log::info('Waze notify filtered tokens', [
-            'waze_uuid' => $wazeAlert->uuid,
-            'city' => $wazeAlert->city,
-            'street' => $wazeAlert->street,
-            'is_morelia' => $isMorelia,
-            'tokens_otros' => count($tokensOtros),
-            'tokens_siniestros' => count($tokensSiniestros),
-            'tokens_total' => count($tokens),
-        ]);
+            $tokensCarreteras = DeviceToken::query()
+                ->join('users', 'users.id', '=', 'device_tokens.user_id')
+                ->whereNotNull('device_tokens.token')
+                ->where('device_tokens.token', '!=', '')
+                ->where('users.unidad_id', 4)
+                ->pluck('device_tokens.token')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $tokens = collect(array_merge($tokensSuperadminYGenerales, $tokensCarreteras))
+                ->unique()
+                ->values()
+                ->toArray();
+
+            Log::info('Waze notify road closed tokens', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'city' => $wazeAlert->city,
+                'street' => $wazeAlert->street,
+                'tokens_superadmin_y_generales' => count($tokensSuperadminYGenerales),
+                'tokens_carreteras' => count($tokensCarreteras),
+                'tokens_total' => count($tokens),
+            ]);
+        }
 
         if (count($tokens) === 0) {
             Log::warning('Waze notify: no device tokens found for this alert', [
                 'waze_uuid' => $wazeAlert->uuid,
+                'type' => $wazeAlert->type,
+                'subtype' => $wazeAlert->subtype,
                 'city' => $wazeAlert->city,
                 'street' => $wazeAlert->street,
-                'is_morelia' => $isMorelia,
             ]);
             return false;
         }

@@ -59,19 +59,25 @@ class WazeFeedService
             return null;
         }
 
+        $lat = (float) $hecho->lat;
+        $lng = (float) $hecho->lng;
+
         return [
             'id' => 'hecho_' . $hecho->id,
             'type' => $type,
             'confidence' => 0.9,
             'reliability' => $this->resolveReliability($hecho),
             'location' => [
-                'x' => (float) $hecho->lng,
-                'y' => (float) $hecho->lat,
+                'x' => $lng,
+                'y' => $lat,
             ],
+            'polyline' => $this->buildPolyline($lat, $lng),
+            'direction' => $this->resolveDirection($hecho),
             'street' => $this->buildStreet($hecho),
             'city' => $this->cleanText($hecho->municipio, 'MORELIA'),
             'country' => 'MX',
             'starttime' => $startTime->utc()->toIso8601String(),
+            'description' => $this->buildDescription($hecho),
         ];
     }
 
@@ -149,6 +155,27 @@ class WazeFeedService
         return 6;
     }
 
+    protected function resolveDirection($hecho): string
+    {
+        return 'BOTH_DIRECTIONS';
+    }
+
+    protected function buildPolyline(float $lat, float $lng): string
+    {
+        $delta = 0.00008;
+
+        $lat2 = $lat;
+        $lng2 = $lng + $delta;
+
+        return $this->formatCoord($lat) . ' ' . $this->formatCoord($lng) . ' '
+             . $this->formatCoord($lat2) . ' ' . $this->formatCoord($lng2);
+    }
+
+    protected function formatCoord(float $value): string
+    {
+        return number_format($value, 7, '.', '');
+    }
+
     protected function buildStreet($hecho): string
     {
         $partes = [];
@@ -168,6 +195,27 @@ class WazeFeedService
         $texto = trim(implode(', ', $partes));
 
         return $texto !== '' ? $texto : 'SIN CALLE';
+    }
+
+    protected function buildDescription($hecho): string
+    {
+        $partes = [];
+
+        if (!empty($hecho->tipo_hecho)) {
+            $partes[] = trim((string) $hecho->tipo_hecho);
+        }
+
+        if (!empty($hecho->situacion)) {
+            $partes[] = 'Situación: ' . trim((string) $hecho->situacion);
+        }
+
+        if (!empty($hecho->folio)) {
+            $partes[] = 'Folio: ' . trim((string) $hecho->folio);
+        } elseif (!empty($hecho->id)) {
+            $partes[] = 'ID interno: ' . $hecho->id;
+        }
+
+        return implode(' | ', $partes);
     }
 
     protected function cleanText($value, string $default = ''): string

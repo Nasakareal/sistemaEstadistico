@@ -57,5 +57,15 @@ class AuthServiceProvider extends ServiceProvider
             return $user->can('ver estadisticas carreteras')
                 && $user->perteneceAUnidad('carreteras');
         });
+
+        Gate::define('menu-guardianes-camino', function ($user) {
+            return $user->can('ver operativos carreteras')
+                && $user->perteneceAUnidad('carreteras');
+        });
+
+        Gate::define('menu-guardianes-camino-crear', function ($user) {
+            return $user->can('crear operativos carreteras')
+                && $user->perteneceAUnidad('carreteras');
+        });
     }
 }

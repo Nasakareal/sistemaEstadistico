@@ -55,6 +55,9 @@ use App\Http\Controllers\PatrullaKilometrajeController;
 use App\Http\Controllers\RadarRiesgoController;
 use App\Http\Controllers\ModuloExamenDiarioController;
 use App\Http\Controllers\EstadisticasCarreterasController;
+use App\Http\Controllers\GuardianesCaminoController;
+use App\Http\Controllers\GuardianesCaminoDispositivoController;
+use App\Http\Controllers\GuardianesCaminoDispositivoFotoController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -180,7 +183,33 @@ Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisti
         Route::get('/export/actividades', [EstadisticasCarreterasController::class, 'exportActividades'])->name('estadisticas_carreteras.export.actividades');
         Route::get('/export/operativos', [EstadisticasCarreterasController::class, 'exportOperativos'])->name('estadisticas_carreteras.export.operativos');
         Route::get('/export/puestas-disposicion', [EstadisticasCarreterasController::class, 'exportPuestasDisposicion'])->name('estadisticas_carreteras.export.puestas_disposicion');
+});
+
+Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carreteras', 'unidad:carreteras'])->group(function () {
+    Route::get('/', [GuardianesCaminoController::class, 'index'])->name('guardianes_camino.index');
+    Route::get('/create', [GuardianesCaminoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.create');
+    Route::post('/', [GuardianesCaminoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.store');
+    Route::get('/{operativo}', [GuardianesCaminoController::class, 'show'])->name('guardianes_camino.show');
+    Route::get('/{operativo}/edit', [GuardianesCaminoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.edit');
+    Route::put('/{operativo}', [GuardianesCaminoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.update');
+    Route::delete('/{operativo}', [GuardianesCaminoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('guardianes_camino.destroy');
+    Route::get('/{operativo}/resumen', [GuardianesCaminoController::class, 'resumen'])->name('guardianes_camino.resumen');
+    Route::get('/{operativo}/whatsapp', [GuardianesCaminoController::class, 'whatsapp'])->name('guardianes_camino.whatsapp');
+
+    Route::prefix('{operativo}/dispositivos')->group(function () {
+        Route::get('/create', [GuardianesCaminoDispositivoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.dispositivos.create');
+        Route::post('/', [GuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.dispositivos.store');
+        Route::get('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'show'])->name('guardianes_camino.dispositivos.show');
+        Route::get('/{dispositivo}/edit', [GuardianesCaminoDispositivoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.edit');
+        Route::put('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.update');
+        Route::delete('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('guardianes_camino.dispositivos.destroy');
+
+        Route::prefix('{dispositivo}/fotos')->group(function () {
+            Route::post('/', [GuardianesCaminoDispositivoFotoController::class, 'store'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.fotos.store');
+            Route::delete('/{foto}', [GuardianesCaminoDispositivoFotoController::class, 'destroy'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.fotos.destroy');
+        });
     });
+});
 
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');

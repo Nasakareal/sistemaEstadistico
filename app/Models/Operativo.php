@@ -106,4 +106,9 @@ class Operativo extends Model
     {
         return $this->belongsTo(\App\Models\Destacamento::class, 'destacamento_id');
     }
+
+    public function dispositivos()
+    {
+        return $this->hasMany(OperativoDispositivo::class, 'operativo_id');
+    }
 }

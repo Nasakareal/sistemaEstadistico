@@ -1,13 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\app\\Services\\Waze"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\guardianes_camino"
   ],
-  "SelectedNode": "\\app\\Services\\Waze\\WazeFeedService.php",
+  "SelectedNode": "\\resources\\views\\guardianes_camino\\create.blade.php",
   "PreviewInSolutionExplorer": false
 }

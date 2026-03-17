@@ -83,7 +83,17 @@ class ActividadController extends Controller
             'foto'                      => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
-        $nombre = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
+        $user = Auth::user();
+
+        $unidadOrg = (int)($user->unidad_id ?? 0);
+        if ($unidadOrg <= 0) {
+            $unidadOrg = 1;
+        }
+
+        $delegacionId = (int)($user->delegacion_id ?? 0);
+        $delegacionId = $delegacionId > 0 ? $delegacionId : null;
+
+        $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $cantidad = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
@@ -103,7 +113,7 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad) {
+        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId) {
 
             $file = $request->file('foto');
 
@@ -134,8 +144,10 @@ class ActividadController extends Controller
                 'foto_path'                 => $fotoPath,
                 'foto_nombre_original'      => $fotoNombreOriginal,
                 'foto_hash'                 => $fotoHash,
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
+                'created_by'                => $user->id,
+                'updated_by'                => $user->id,
+                'unidad_org_id'             => $unidadOrg,
+                'delegacion_id'             => $delegacionId,
             ]);
 
             $actividad->load(['categoria', 'subcategoria']);
@@ -168,7 +180,9 @@ class ActividadController extends Controller
             'foto'                      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
-        $nombre = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
+        $user = Auth::user();
+
+        $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $cantidad = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
@@ -188,7 +202,7 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user) {
 
             $fotoPath = $actividad->foto_path;
             $fotoNombreOriginal = $actividad->foto_nombre_original;
@@ -233,7 +247,7 @@ class ActividadController extends Controller
                 'foto_path'                 => $fotoPath,
                 'foto_nombre_original'      => $fotoNombreOriginal,
                 'foto_hash'                 => $fotoHash,
-                'updated_by' => Auth::id(),
+                'updated_by'                => $user->id,
             ]);
 
             $actividad->load(['categoria', 'subcategoria']);

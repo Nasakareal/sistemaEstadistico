@@ -1,10 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\guardianes_camino"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\resources\\views\\guardianes_camino\\create.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ActividadController.php",
   "PreviewInSolutionExplorer": false
 }

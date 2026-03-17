@@ -71,10 +71,10 @@ class WazeFeedService
                 'x' => $lng,
                 'y' => $lat,
             ],
-            'polyline' => $this->buildPolyline($lat, $lng),
+            'polyline' => $this->buildPolyline($lat, $lng, $hecho),
             'direction' => $this->resolveDirection($hecho),
             'street' => $this->buildStreet($hecho),
-            'city' => $this->cleanText($hecho->municipio, 'MORELIA'),
+            'city' => $this->resolveCity($hecho),
             'country' => 'MX',
             'starttime' => $startTime->utc()->toIso8601String(),
             'description' => $this->buildDescription($hecho),
@@ -89,19 +89,13 @@ class WazeFeedService
             return null;
         }
 
-        if (str_contains($tipo, 'COLISIÓN') || str_contains($tipo, 'COLISION')) {
-            return 'ACCIDENT';
-        }
-
-        if (str_contains($tipo, 'CHOQUE')) {
-            return 'ACCIDENT';
-        }
-
-        if (str_contains($tipo, 'VOLCADURA')) {
-            return 'ACCIDENT';
-        }
-
-        if (str_contains($tipo, 'ATROPELLAMIENTO')) {
+        if (
+            str_contains($tipo, 'COLISIÓN') ||
+            str_contains($tipo, 'COLISION') ||
+            str_contains($tipo, 'CHOQUE') ||
+            str_contains($tipo, 'VOLCADURA') ||
+            str_contains($tipo, 'ATROPELLAMIENTO')
+        ) {
             return 'ACCIDENT';
         }
 
@@ -160,11 +154,25 @@ class WazeFeedService
         return 'BOTH_DIRECTIONS';
     }
 
-    protected function buildPolyline(float $lat, float $lng): string
+    protected function buildPolyline(float $lat, float $lng, $hecho): string
     {
-        $delta = 0.00008;
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
 
-        $lat2 = $lat;
+        $delta = 0.00005;
+
+        if (
+            str_contains($street, 'PERIFERICO') ||
+            str_contains($street, 'CARRETERA') ||
+            str_contains($street, 'BLVD') ||
+            str_contains($street, 'BULEVAR') ||
+            str_contains($street, 'CALZADA') ||
+            str_contains($street, 'AV') ||
+            str_contains($street, 'AV.')
+        ) {
+            $delta = 0.00008;
+        }
+
+        $lat2 = $lat + $delta;
         $lng2 = $lng + $delta;
 
         return $this->formatCoord($lat) . ' ' . $this->formatCoord($lng) . ' '
@@ -181,15 +189,15 @@ class WazeFeedService
         $partes = [];
 
         if (!empty($hecho->calle)) {
-            $partes[] = trim((string) $hecho->calle);
+            $partes[] = $this->cleanText($hecho->calle);
         }
 
         if (!empty($hecho->entre_calles)) {
-            $partes[] = 'ENTRE ' . trim((string) $hecho->entre_calles);
+            $partes[] = 'ENTRE ' . $this->cleanText($hecho->entre_calles);
         }
 
         if (!empty($hecho->colonia)) {
-            $partes[] = 'COL. ' . trim((string) $hecho->colonia);
+            $partes[] = 'COL. ' . $this->cleanText($hecho->colonia);
         }
 
         $texto = trim(implode(', ', $partes));
@@ -202,15 +210,15 @@ class WazeFeedService
         $partes = [];
 
         if (!empty($hecho->tipo_hecho)) {
-            $partes[] = trim((string) $hecho->tipo_hecho);
+            $partes[] = $this->cleanText($hecho->tipo_hecho);
         }
 
         if (!empty($hecho->situacion)) {
-            $partes[] = 'Situación: ' . trim((string) $hecho->situacion);
+            $partes[] = 'Situación: ' . $this->cleanText($hecho->situacion);
         }
 
-        if (!empty($hecho->folio)) {
-            $partes[] = 'Folio: ' . trim((string) $hecho->folio);
+        if (!empty($hecho->folio_c5i)) {
+            $partes[] = 'Folio: ' . trim((string) $hecho->folio_c5i);
         } elseif (!empty($hecho->id)) {
             $partes[] = 'ID interno: ' . $hecho->id;
         }
@@ -218,10 +226,27 @@ class WazeFeedService
         return implode(' | ', $partes);
     }
 
+    protected function resolveCity($hecho): string
+    {
+        $city = mb_strtoupper(trim((string) ($hecho->municipio ?? '')), 'UTF-8');
+
+        if ($city === '' || $city === 'MOTELIA') {
+            return 'MORELIA';
+        }
+
+        return $city;
+    }
+
     protected function cleanText($value, string $default = ''): string
     {
         $text = trim((string) $value);
 
-        return $text !== '' ? $text : $default;
+        if ($text === '') {
+            return $default;
+        }
+
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        return $text;
     }
 }

@@ -8,6 +8,6 @@
     "\\app\\Services",
     "\\app\\Services\\Waze"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WazeFeedController.php",
+  "SelectedNode": "\\app\\Services\\Waze\\WazeFeedService.php",
   "PreviewInSolutionExplorer": false
 }

@@ -28,19 +28,12 @@ class PeritoHomeController extends Controller
         $wazeHours = $wazeHours > 0 ? $wazeHours : 12;
 
         $start = Carbon::now($tz)->subDays($days)->startOfDay();
-        $end   = Carbon::now($tz)->endOfDay();
+        $end = Carbon::now($tz)->endOfDay();
 
-        /*
-        |--------------------------------------------------------------------------
-        | 1) ZONAS DE RIESGO ALTAS
-        |--------------------------------------------------------------------------
-        | Agrupamos hechos por celdas usando lat/lng.
-        | Solo mandamos las zonas con score alto para no saturar el mapa.
-        */
         $hechos = DB::table('hechos')
             ->select([
                 'id',
-                'folio',
+                DB::raw('folio_c5i as folio'),
                 'tipo_hecho',
                 'sector',
                 'municipio',
@@ -70,7 +63,6 @@ class PeritoHomeController extends Controller
             $createdAt = $h->created_at ? Carbon::parse($h->created_at, $tz) : null;
             $daysAgo = $createdAt ? max(0, $createdAt->diffInDays(Carbon::now($tz))) : $days;
 
-            // peso por recencia
             $weight = 1;
             if ($daysAgo <= 1) {
                 $weight = 4;
@@ -82,16 +74,16 @@ class PeritoHomeController extends Controller
 
             if (!isset($cells[$cellKey])) {
                 $cells[$cellKey] = [
-                    'cell_key'        => $cellKey,
-                    'center_lat'      => $cellLat + ($gridSize / 2),
-                    'center_lng'      => $cellLng + ($gridSize / 2),
-                    'score'           => 0,
-                    'total_hechos'    => 0,
-                    'tipos'           => [],
-                    'sectores'        => [],
-                    'municipios'      => [],
-                    'last_event_at'   => null,
-                    'sample_hechos'   => [],
+                    'cell_key' => $cellKey,
+                    'center_lat' => $cellLat + ($gridSize / 2),
+                    'center_lng' => $cellLng + ($gridSize / 2),
+                    'score' => 0,
+                    'total_hechos' => 0,
+                    'tipos' => [],
+                    'sectores' => [],
+                    'municipios' => [],
+                    'last_event_at' => null,
+                    'sample_hechos' => [],
                 ];
             }
 
@@ -121,11 +113,11 @@ class PeritoHomeController extends Controller
 
             if (count($cells[$cellKey]['sample_hechos']) < 5) {
                 $cells[$cellKey]['sample_hechos'][] = [
-                    'id'         => (int) $h->id,
-                    'folio'      => $h->folio,
+                    'id' => (int) $h->id,
+                    'folio' => $h->folio,
                     'tipo_hecho' => $h->tipo_hecho,
-                    'fecha'      => $h->fecha,
-                    'hora'       => $h->hora,
+                    'fecha' => $h->fecha,
+                    'hora' => $h->hora,
                 ];
             }
         }
@@ -138,55 +130,45 @@ class PeritoHomeController extends Controller
             }
 
             arsort($cell['tipos']);
-            $topTipo = null;
-            if (!empty($cell['tipos'])) {
-                $topTipo = array_key_first($cell['tipos']);
-            }
+            $topTipo = !empty($cell['tipos']) ? array_key_first($cell['tipos']) : null;
 
             $severity = $this->resolveSeverity((int) $cell['score'], (int) $cell['total_hechos']);
 
-            // solo mandamos las severidades altas
             if (!in_array($severity, ['alta', 'muy_alta'], true)) {
                 continue;
             }
 
             $riskZones[] = [
-                'type'            => 'risk_zone',
-                'cell_key'        => $cell['cell_key'],
-                'center_lat'      => round((float) $cell['center_lat'], 6),
-                'center_lng'      => round((float) $cell['center_lng'], 6),
-                'score'           => (int) $cell['score'],
-                'total_hechos'    => (int) $cell['total_hechos'],
-                'severity'        => $severity,
-                'radius_meters'   => $severity === 'muy_alta' ? 450 : 300,
-                'label'           => $severity === 'muy_alta' ? 'ZONA DE RIESGO MUY ALTA' : 'ZONA DE RIESGO ALTA',
-                'top_tipo_hecho'  => $topTipo,
-                'sectores'        => array_values(array_keys($cell['sectores'])),
-                'municipios'      => array_values(array_keys($cell['municipios'])),
-                'last_event_at'   => $cell['last_event_at']
+                'type' => 'risk_zone',
+                'cell_key' => $cell['cell_key'],
+                'center_lat' => round((float) $cell['center_lat'], 6),
+                'center_lng' => round((float) $cell['center_lng'], 6),
+                'score' => (int) $cell['score'],
+                'total_hechos' => (int) $cell['total_hechos'],
+                'severity' => $severity,
+                'radius_meters' => $severity === 'muy_alta' ? 450 : 300,
+                'label' => $severity === 'muy_alta'
+                    ? 'ZONA DE RIESGO MUY ALTA'
+                    : 'ZONA DE RIESGO ALTA',
+                'top_tipo_hecho' => $topTipo,
+                'sectores' => array_values(array_keys($cell['sectores'])),
+                'municipios' => array_values(array_keys($cell['municipios'])),
+                'last_event_at' => $cell['last_event_at']
                     ? Carbon::parse($cell['last_event_at'])->timezone($tz)->toDateTimeString()
                     : null,
-                'sample_hechos'   => $cell['sample_hechos'],
-                'style'           => [
-                    'kind'         => 'circle',
+                'sample_hechos' => $cell['sample_hechos'],
+                'style' => [
+                    'kind' => 'circle',
                     'stroke_color' => $severity === 'muy_alta' ? '#7B1E1E' : '#C62828',
-                    'fill_color'   => $severity === 'muy_alta' ? '#FF5252' : '#FF8A80',
+                    'fill_color' => $severity === 'muy_alta' ? '#FF5252' : '#FF8A80',
                     'stroke_width' => $severity === 'muy_alta' ? 3 : 2,
-                    'z_index'      => $severity === 'muy_alta' ? 30 : 20,
+                    'z_index' => $severity === 'muy_alta' ? 30 : 20,
                 ],
             ];
         }
 
-        usort($riskZones, function ($a, $b) {
-            return $b['score'] <=> $a['score'];
-        });
+        usort($riskZones, fn($a, $b) => $b['score'] <=> $a['score']);
 
-        /*
-        |--------------------------------------------------------------------------
-        | 2) CHOQUES RECIENTES DE WAZE
-        |--------------------------------------------------------------------------
-        | Se mandan aparte para pintarlos muy notorios en Flutter.
-        */
         $wazeStart = Carbon::now($tz)->subHours($wazeHours);
 
         $wazeRows = DB::table('waze_alerts')
@@ -204,18 +186,18 @@ class PeritoHomeController extends Controller
             ])
             ->where(function ($q) {
                 $q->where('type', 'ACCIDENT')
-                  ->orWhere('subtype', 'ACCIDENT')
-                  ->orWhere('subtype', 'CRASH')
-                  ->orWhere('type', 'like', '%ACCIDENT%')
-                  ->orWhere('subtype', 'like', '%ACCIDENT%')
-                  ->orWhere('subtype', 'like', '%CRASH%');
+                    ->orWhere('subtype', 'ACCIDENT')
+                    ->orWhere('subtype', 'CRASH')
+                    ->orWhere('type', 'like', '%ACCIDENT%')
+                    ->orWhere('subtype', 'like', '%ACCIDENT%')
+                    ->orWhere('subtype', 'like', '%CRASH%');
             })
             ->where(function ($q) use ($wazeStart) {
                 $q->where('published_at', '>=', $wazeStart)
-                  ->orWhere(function ($q2) use ($wazeStart) {
-                      $q2->whereNull('published_at')
-                         ->where('created_at', '>=', $wazeStart);
-                  });
+                    ->orWhere(function ($q2) use ($wazeStart) {
+                        $q2->whereNull('published_at')
+                            ->where('created_at', '>=', $wazeStart);
+                    });
             })
             ->whereNotNull('lat')
             ->whereNotNull('lng')
@@ -229,53 +211,50 @@ class PeritoHomeController extends Controller
             $published = $row->published_at ?: $row->created_at;
 
             $wazeAlerts[] = [
-                'type'          => 'waze_accident',
-                'id'            => (int) $row->id,
-                'uuid'          => (string) $row->uuid,
-                'lat'           => round((float) $row->lat, 6),
-                'lng'           => round((float) $row->lng, 6),
-                'street'        => $row->street,
-                'city'          => $row->city,
-                'title'         => 'CHOQUE WAZE',
-                'subtitle'      => $row->street ?: ($row->city ?: 'Ubicación sin calle'),
-                'published_at'  => $published ? Carbon::parse($published)->timezone($tz)->toDateTimeString() : null,
-                'style'         => [
-                    'kind'         => 'marker',
-                    'icon'         => 'waze_accident',
+                'type' => 'waze_accident',
+                'id' => (int) $row->id,
+                'uuid' => (string) $row->uuid,
+                'lat' => round((float) $row->lat, 6),
+                'lng' => round((float) $row->lng, 6),
+                'street' => $row->street,
+                'city' => $row->city,
+                'title' => 'CHOQUE WAZE',
+                'subtitle' => $row->street ?: ($row->city ?: 'Ubicación sin calle'),
+                'published_at' => $published
+                    ? Carbon::parse($published)->timezone($tz)->toDateTimeString()
+                    : null,
+                'style' => [
+                    'kind' => 'marker',
+                    'icon' => 'waze_accident',
                     'marker_color' => '#FFD600',
                     'border_color' => '#D50000',
-                    'pulse'        => true,
-                    'z_index'      => 100,
+                    'pulse' => true,
+                    'z_index' => 100,
                 ],
             ];
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | 3) CENTRO INICIAL DEL MAPA
-        |--------------------------------------------------------------------------
-        */
         $center = $this->resolveCenter($riskZones, $wazeAlerts);
 
         return response()->json([
             'meta' => [
-                'days'         => $days,
-                'grid_size'    => $gridSize,
-                'min_score'    => $minScore,
-                'waze_hours'   => $wazeHours,
+                'days' => $days,
+                'grid_size' => $gridSize,
+                'min_score' => $minScore,
+                'waze_hours' => $wazeHours,
                 'generated_at' => Carbon::now($tz)->toDateTimeString(),
-                'timezone'     => $tz,
+                'timezone' => $tz,
             ],
             'map' => [
                 'center' => $center,
-                'zoom'   => 12,
+                'zoom' => 12,
             ],
             'layers' => [
-                'risk_zones'   => $riskZones,
-                'waze_alerts'  => $wazeAlerts,
+                'risk_zones' => $riskZones,
+                'waze_alerts' => $wazeAlerts,
             ],
             'counts' => [
-                'risk_zones'  => count($riskZones),
+                'risk_zones' => count($riskZones),
                 'waze_alerts' => count($wazeAlerts),
             ],
         ]);
@@ -291,9 +270,9 @@ class PeritoHomeController extends Controller
                 ['value' => 'muy_alta', 'label' => 'Muy alta'],
             ],
             'default_values' => [
-                'days'       => 30,
-                'grid_size'  => 0.01,
-                'min_score'  => 3,
+                'days' => 30,
+                'grid_size' => 0.01,
+                'min_score' => 3,
                 'waze_hours' => 12,
             ],
         ]);
@@ -304,7 +283,7 @@ class PeritoHomeController extends Controller
         $row = DB::table('hechos')
             ->select([
                 'id',
-                'folio',
+                DB::raw('folio_c5i as folio'),
                 'fecha',
                 'hora',
                 'tipo_hecho',
@@ -353,15 +332,15 @@ class PeritoHomeController extends Controller
 
         return response()->json([
             'hecho' => [
-                'id'         => (int) $row->id,
-                'folio'      => $row->folio,
-                'fecha'      => $row->fecha,
-                'hora'       => $row->hora,
+                'id' => (int) $row->id,
+                'folio' => $row->folio,
+                'fecha' => $row->fecha,
+                'hora' => $row->hora,
                 'tipo_hecho' => $row->tipo_hecho,
-                'sector'     => $row->sector,
-                'municipio'  => $row->municipio,
-                'lat'        => $row->lat !== null ? (float) $row->lat : null,
-                'lng'        => $row->lng !== null ? (float) $row->lng : null,
+                'sector' => $row->sector,
+                'municipio' => $row->municipio,
+                'lat' => $row->lat !== null ? (float) $row->lat : null,
+                'lng' => $row->lng !== null ? (float) $row->lng : null,
                 'created_at' => $row->created_at,
                 'updated_at' => $row->updated_at,
             ],

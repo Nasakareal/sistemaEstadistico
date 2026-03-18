@@ -131,7 +131,8 @@ class WazeFeedService
             str_contains($street, 'MADERO') ||
             str_contains($street, 'LIBRAMIENTO') ||
             str_contains($street, 'ENRIQUE RAMIREZ') ||
-            str_contains($street, 'ENRIQUE RAMÍREZ');
+            str_contains($street, 'ENRIQUE RAMÍREZ') ||
+            str_contains($street, 'PERIFERICO');
     }
 
     protected function resolveStartTime($hecho): ?Carbon

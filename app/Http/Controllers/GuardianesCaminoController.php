@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Operativo;
 use App\Models\OperativoCatalogo;
 use App\Models\OperativoDispositivo;
-use App\Models\OperativoDispositivoCatalogo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,101 +12,70 @@ use Illuminate\Support\Str;
 
 class GuardianesCaminoController extends Controller
 {
-    public function index(Request $request)
-    {
-        $query = Operativo::query()
-            ->with(['catalogo', 'unidad', 'delegacion', 'destacamento', 'creador'])
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->orderByDesc('fecha')
-            ->orderByDesc('hora')
-            ->orderByDesc('id');
-
-        if ($request->filled('fecha_inicio')) {
-            $query->whereDate('fecha', '>=', $request->fecha_inicio);
-        }
-
-        if ($request->filled('fecha_fin')) {
-            $query->whereDate('fecha', '<=', $request->fecha_fin);
-        }
-
-        if ($request->filled('unidad_org_id')) {
-            $query->where('unidad_org_id', $request->unidad_org_id);
-        }
-
-        if ($request->filled('delegacion_id')) {
-            $query->where('delegacion_id', $request->delegacion_id);
-        }
-
-        if ($request->filled('destacamento_id')) {
-            $query->where('destacamento_id', $request->destacamento_id);
-        }
-
-        $operativos = $query->paginate(20)->withQueryString();
-
-        return view('guardianes_camino.index', compact('operativos'));
-    }
-
-    public function create()
+    protected function obtenerOperativoUnico()
     {
         $catalogo = OperativoCatalogo::where('slug', 'guardianes-del-camino')->firstOrFail();
 
-        return view('guardianes_camino.create', compact('catalogo'));
-    }
-
-    public function store(Request $request)
-    {
-        $catalogo = OperativoCatalogo::where('slug', 'guardianes-del-camino')->firstOrFail();
-
-        $data = $request->validate([
-            'fecha' => ['required', 'date'],
-            'hora' => ['nullable', 'date_format:H:i'],
-            'unidad_org_id' => ['required', 'integer'],
-            'delegacion_id' => ['nullable', 'integer'],
-            'destacamento_id' => ['nullable', 'integer'],
-            'lugar' => ['nullable', 'string', 'max:255'],
-            'descripcion' => ['nullable', 'string'],
-            'observaciones' => ['nullable', 'string'],
-        ]);
-
-        $operativo = new Operativo();
-        $operativo->captura_uuid = (string) Str::uuid();
-        $operativo->fecha = $data['fecha'];
-        $operativo->hora = $data['hora'] ?? null;
-        $operativo->operativo_catalogo_id = $catalogo->id;
-        $operativo->unidad_org_id = $data['unidad_org_id'];
-        $operativo->delegacion_id = $data['delegacion_id'] ?? null;
-        $operativo->destacamento_id = $data['destacamento_id'] ?? null;
-        $operativo->lugar = $data['lugar'] ?? null;
-        $operativo->descripcion = $data['descripcion'] ?? null;
-        $operativo->observaciones = $data['observaciones'] ?? null;
-        $operativo->created_by = Auth::id();
-        $operativo->updated_by = Auth::id();
-        $operativo->save();
-
-        return redirect()
-            ->route('guardianes_camino.show', $operativo->id)
-            ->with('success', 'Operativo Guardianes del Camino creado correctamente.');
-    }
-
-    public function show($operativo)
-    {
         $operativo = Operativo::with([
                 'catalogo',
                 'unidad',
                 'delegacion',
                 'destacamento',
                 'creador',
-                'dispositivos.catalogo',
-                'dispositivos.destacamento',
-                'dispositivos.usuario',
-                'dispositivos.fotos',
             ])
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+            ->where('operativo_catalogo_id', $catalogo->id)
+            ->orderBy('id')
+            ->first();
+
+        if (!$operativo) {
+            $operativo = new Operativo();
+            $operativo->captura_uuid = (string) Str::uuid();
+            $operativo->fecha = now()->toDateString();
+            $operativo->hora = now()->format('H:i');
+            $operativo->operativo_catalogo_id = $catalogo->id;
+            $operativo->lugar = 'Sin lugar';
+            $operativo->descripcion = null;
+            $operativo->observaciones = null;
+            $operativo->created_by = Auth::id();
+            $operativo->updated_by = Auth::id();
+            $operativo->save();
+
+            $operativo->load([
+                'catalogo',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'creador',
+            ]);
+        }
+
+        return $operativo;
+    }
+
+    public function index(Request $request)
+    {
+        $operativo = $this->obtenerOperativoUnico();
+
+        $dispositivosQuery = OperativoDispositivo::with([
+                'catalogo',
+                'destacamento',
+                'usuario',
+                'fotos',
+            ])
+            ->where('operativo_id', $operativo->id)
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('id');
+
+        if ($request->filled('fecha_inicio')) {
+            $dispositivosQuery->whereDate('fecha', '>=', $request->fecha_inicio);
+        }
+
+        if ($request->filled('fecha_fin')) {
+            $dispositivosQuery->whereDate('fecha', '<=', $request->fecha_fin);
+        }
+
+        $dispositivos = $dispositivosQuery->paginate(20)->withQueryString();
 
         $resumen = OperativoDispositivo::query()
             ->select(
@@ -141,30 +109,29 @@ class GuardianesCaminoController extends Controller
             ->with('catalogo')
             ->get();
 
-        return view('guardianes_camino.show', compact('operativo', 'resumen'));
+        return view('guardianes_camino.index', compact('operativo', 'dispositivos', 'resumen'));
     }
 
-    public function edit($operativo)
+    public function show()
     {
-        $operativo = Operativo::whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        return redirect()->route('guardianes_camino.index');
+    }
+
+    public function edit()
+    {
+        $operativo = $this->obtenerOperativoUnico();
 
         return view('guardianes_camino.edit', compact('operativo'));
     }
 
-    public function update(Request $request, $operativo)
+    public function update(Request $request)
     {
-        $operativo = Operativo::whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         $data = $request->validate([
             'fecha' => ['required', 'date'],
             'hora' => ['nullable', 'date_format:H:i'],
-            'unidad_org_id' => ['required', 'integer'],
+            'unidad_org_id' => ['nullable', 'integer'],
             'delegacion_id' => ['nullable', 'integer'],
             'destacamento_id' => ['nullable', 'integer'],
             'lugar' => ['nullable', 'string', 'max:255'],
@@ -174,7 +141,7 @@ class GuardianesCaminoController extends Controller
 
         $operativo->fecha = $data['fecha'];
         $operativo->hora = $data['hora'] ?? null;
-        $operativo->unidad_org_id = $data['unidad_org_id'];
+        $operativo->unidad_org_id = $data['unidad_org_id'] ?? null;
         $operativo->delegacion_id = $data['delegacion_id'] ?? null;
         $operativo->destacamento_id = $data['destacamento_id'] ?? null;
         $operativo->lugar = $data['lugar'] ?? null;
@@ -184,31 +151,13 @@ class GuardianesCaminoController extends Controller
         $operativo->save();
 
         return redirect()
-            ->route('guardianes_camino.show', $operativo->id)
-            ->with('success', 'Operativo actualizado correctamente.');
-    }
-
-    public function destroy($operativo)
-    {
-        $operativo = Operativo::whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
-
-        $operativo->delete();
-
-        return redirect()
             ->route('guardianes_camino.index')
-            ->with('success', 'Operativo eliminado correctamente.');
+            ->with('success', 'Operativo Guardianes del Camino actualizado correctamente.');
     }
 
-    public function resumen($operativo)
+    public function resumen()
     {
-        $operativo = Operativo::with(['catalogo', 'unidad', 'delegacion', 'destacamento'])
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         $resumen = OperativoDispositivo::query()
             ->select(
@@ -264,16 +213,12 @@ class GuardianesCaminoController extends Controller
         return view('guardianes_camino.resumen', compact('operativo', 'resumen', 'totalesGenerales'));
     }
 
-    public function whatsapp($operativo)
+    public function whatsapp()
     {
-        $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         return redirect()
-            ->route('guardianes_camino.resumen', $operativo->id)
+            ->route('guardianes_camino.resumen')
             ->with('success', 'La salida para WhatsApp todavía no está implementada.');
     }
 }

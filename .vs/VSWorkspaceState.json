@@ -2,10 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\app\\Console",
+    "\\app\\Console\\Commands"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ActividadController.php",
+  "SelectedNode": "\\app\\Console\\Commands\\FetchWazeAlerts.php",
   "PreviewInSolutionExplorer": false
 }

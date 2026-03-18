@@ -1,9 +1,9 @@
 @extends('adminlte::page')
 
-@section('title', 'Listado de Operativos Guardianes del Camino')
+@section('title', 'Guardianes del Camino')
 
 @section('content_header')
-    <h1>Listado de Operativos Guardianes del Camino</h1>
+    <h1>Operativo Único Guardianes del Camino</h1>
 @stop
 
 @section('content')
@@ -11,55 +11,47 @@
         <div class="col-md-12">
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Operativos</h3>
+                    <h3 class="card-title">Dispositivos registrados</h3>
                     <div class="card-tools">
                         @can('crear operativos carreteras')
-                            <a href="{{ route('guardianes_camino.create') }}" class="btn btn-primary">
-                                <i class="fa-solid fa-plus"></i> Añadir nuevo operativo
+                            <a href="{{ route('guardianes_camino.dispositivos.create') }}" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i> Añadir dispositivo
                             </a>
                         @endcan
                     </div>
                 </div>
 
                 <div class="card-body">
-
-                    <form method="GET" action="{{ route('guardianes_camino.index') }}" class="row mb-3" autocomplete="off">
-                        <div class="col-md-3">
-                            <label for="fecha_inicio">Fecha inicio:</label>
+                    <form method="GET" action="{{ route('guardianes_camino.index') }}" id="formFiltroFecha" class="row mb-3" autocomplete="off">
+                        <div class="col-md-4">
+                            <label for="fecha">Fecha:</label>
                             <input
                                 type="date"
-                                id="fecha_inicio"
-                                name="fecha_inicio"
+                                id="fecha"
+                                name="fecha"
                                 class="form-control"
-                                value="{{ request('fecha_inicio') }}"
+                                value="{{ request('fecha', now()->format('Y-m-d')) }}"
                             >
                         </div>
 
-                        <div class="col-md-3">
-                            <label for="fecha_fin">Fecha fin:</label>
-                            <input
-                                type="date"
-                                id="fecha_fin"
-                                name="fecha_fin"
-                                class="form-control"
-                                value="{{ request('fecha_fin') }}"
-                            >
-                        </div>
+                        <div class="col-md-8 d-flex align-items-end">
+                            <a href="{{ route('guardianes_camino.index') }}" class="btn btn-secondary mr-2">
+                                <i class="fa-solid fa-rotate-left"></i> Hoy
+                            </a>
 
-                        <div class="col-md-6 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary mr-2">
-                                <i class="fa-solid fa-filter"></i> Filtrar
-                            </button>
+                            <a href="{{ route('guardianes_camino.resumen', ['fecha' => request('fecha', now()->format('Y-m-d'))]) }}" class="btn btn-warning mr-2">
+                                <i class="fa-solid fa-chart-column"></i> Resumen
+                            </a>
 
-                            <a href="{{ route('guardianes_camino.index') }}" class="btn btn-secondary">
-                                <i class="fa-solid fa-rotate-left"></i> Limpiar
+                            <a href="{{ route('guardianes_camino.whatsapp', ['fecha' => request('fecha', now()->format('Y-m-d'))]) }}" class="btn btn-success">
+                                <i class="fa-brands fa-whatsapp"></i> WhatsApp
                             </a>
                         </div>
                     </form>
 
-                    @if ($operativos->count() === 0)
+                    @if ($dispositivos->count() === 0)
                         <div class="alert alert-info">
-                            No hay operativos registrados para los filtros seleccionados.
+                            No hay dispositivos registrados para la fecha seleccionada.
                         </div>
                     @endif
 
@@ -68,62 +60,45 @@
                             <tr>
                                 <th><center>ID</center></th>
                                 <th><center>Fecha y Hora</center></th>
-                                <th><center>Operativo</center></th>
+                                <th><center>Tipo de dispositivo</center></th>
                                 <th><center>Lugar</center></th>
-                                <th><center>Delegación</center></th>
                                 <th><center>Destacamento</center></th>
-                                <th><center>Creado por</center></th>
+                                <th><center>Capturó</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            @foreach ($operativos as $operativo)
+                            @foreach ($dispositivos as $dispositivo)
                                 <tr>
-                                    <td>{{ $operativo->id }}</td>
+                                    <td>{{ $dispositivo->id }}</td>
                                     <td>
-                                        {{ optional($operativo->fecha)->format('d-m-Y') }}
-                                        {{ $operativo->hora }}
+                                        {{ optional($dispositivo->fecha)->format('d-m-Y') }}
+                                        {{ $dispositivo->hora }}
                                     </td>
-                                    <td>{{ $operativo->catalogo->nombre ?? 'Guardianes del Camino' }}</td>
-                                    <td>{{ $operativo->lugar ?? 'Sin lugar' }}</td>
-                                    <td>{{ $operativo->delegacion->nombre ?? 'Sin delegación' }}</td>
-                                    <td>{{ $operativo->destacamento->nombre ?? 'Sin destacamento' }}</td>
-                                    <td>{{ $operativo->creador->name ?? 'Desconocido' }}</td>
-
+                                    <td>{{ $dispositivo->catalogo->nombre ?? 'Sin tipo' }}</td>
+                                    <td>{{ $dispositivo->lugar ?? 'Sin lugar' }}</td>
+                                    <td>{{ $dispositivo->destacamento->nombre ?? 'Sin destacamento' }}</td>
+                                    <td>{{ $dispositivo->usuario->name ?? 'Desconocido' }}</td>
                                     <td style="text-align: center">
-                                        <a href="{{ route('guardianes_camino.show', $operativo->id) }}" class="btn btn-info btn-sm" title="Ver">
+                                        <a href="{{ route('guardianes_camino.dispositivos.show', $dispositivo->id) }}" class="btn btn-info btn-sm" title="Ver">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
 
                                         @can('editar operativos carreteras')
-                                            <a href="{{ route('guardianes_camino.edit', $operativo->id) }}" class="btn btn-success btn-sm" title="Editar">
+                                            <a href="{{ route('guardianes_camino.dispositivos.edit', $dispositivo->id) }}" class="btn btn-success btn-sm" title="Editar">
                                                 <i class="fa-solid fa-pencil"></i>
                                             </a>
                                         @endcan
 
-                                        <a href="{{ route('guardianes_camino.resumen', $operativo->id) }}" class="btn btn-warning btn-sm" title="Resumen">
-                                            <i class="fa-solid fa-chart-column"></i>
-                                        </a>
-
-                                        @can('crear operativos carreteras')
-                                            <a href="{{ route('guardianes_camino.dispositivos.create', $operativo->id) }}" class="btn btn-primary btn-sm" title="Agregar dispositivo">
-                                                <i class="fa-solid fa-plus"></i>
-                                            </a>
-                                        @endcan
-
-                                        <a href="{{ route('guardianes_camino.whatsapp', $operativo->id) }}" class="btn btn-success btn-sm" title="WhatsApp">
-                                            <i class="fa-brands fa-whatsapp"></i>
-                                        </a>
-
                                         @can('eliminar operativos carreteras')
-                                            <form action="{{ route('guardianes_camino.destroy', $operativo->id) }}" method="POST" style="display:inline-block;">
+                                            <form action="{{ route('guardianes_camino.dispositivos.destroy', $dispositivo->id) }}" method="POST" style="display:inline-block;">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button
                                                     type="button"
                                                     class="btn btn-danger btn-sm delete-btn"
-                                                    data-name="{{ $operativo->catalogo->nombre ?? 'Guardianes del Camino' }}"
+                                                    data-name="{{ $dispositivo->catalogo->nombre ?? 'Dispositivo' }}"
                                                 >
                                                     <i class="fa-solid fa-trash"></i>
                                                 </button>
@@ -136,7 +111,7 @@
                     </table>
 
                     <div class="mt-3">
-                        {{ $operativos->links() }}
+                        {{ $dispositivos->appends(request()->query())->links() }}
                     </div>
                 </div>
             </div>
@@ -203,6 +178,10 @@
                 lengthChange: false,
                 autoWidth: false,
             });
+
+            $('#fecha').on('change', function () {
+                $('#formFiltroFecha').submit();
+            });
         });
 
         @if (session('success'))
@@ -242,7 +221,7 @@
 
             Swal.fire({
                 title: '¿Estás seguro?',
-                text: 'Se eliminará el operativo ' + nombre + ' y sus datos relacionados.',
+                text: 'Se eliminará el dispositivo ' + nombre + '.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',

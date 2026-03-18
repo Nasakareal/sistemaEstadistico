@@ -395,25 +395,18 @@ return [
             'can'     => 'menu-guardianes-camino',
             'submenu' => [
                 [
-                    'text'    => 'Listado de Operativos',
-                    'icon'    => 'fa-solid fa-list',
+                    'text'    => 'Listado de Dispositivos',
+                    'icon'    => 'fa-solid fa-list-check',
                     'classes' => 'text-white',
                     'route'   => 'guardianes_camino.index',
                     'can'     => 'menu-guardianes-camino',
-                ],
-                [
-                    'text'    => 'Nuevo Operativo',
-                    'icon'    => 'fa-solid fa-plus',
-                    'classes' => 'text-white',
-                    'route'   => 'guardianes_camino.create',
-                    'can'     => 'menu-guardianes-camino-crear',
                 ],
             ],
         ],
 
         [
             'text'    => 'Estadísticas Carreteras',
-            'icon'    => 'fa-solid fa-road',
+            'icon'    => 'fa-solid fa-chart-column',
             'classes' => 'bg-blue text-white',
             'can'     => 'menu-estadisticas-carreteras',
             'submenu' => [

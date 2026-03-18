@@ -3,20 +3,44 @@
 namespace App\Http\Controllers;
 
 use App\Models\Operativo;
+use App\Models\OperativoCatalogo;
 use App\Models\OperativoDispositivo;
 use App\Models\OperativoDispositivoCatalogo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class GuardianesCaminoDispositivoController extends Controller
 {
-    public function create($operativo)
+    protected function obtenerOperativoUnico()
     {
+        $catalogo = OperativoCatalogo::where('slug', 'guardianes-del-camino')->firstOrFail();
+
         $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+            ->where('operativo_catalogo_id', $catalogo->id)
+            ->orderBy('id')
+            ->first();
+
+        if (!$operativo) {
+            $operativo = new Operativo();
+            $operativo->captura_uuid = (string) Str::uuid();
+            $operativo->fecha = now()->toDateString();
+            $operativo->hora = now()->format('H:i');
+            $operativo->operativo_catalogo_id = $catalogo->id;
+            $operativo->lugar = 'Sin lugar';
+            $operativo->created_by = Auth::id();
+            $operativo->updated_by = Auth::id();
+            $operativo->save();
+
+            $operativo->load('catalogo');
+        }
+
+        return $operativo;
+    }
+
+    public function create()
+    {
+        $operativo = $this->obtenerOperativoUnico();
 
         $catalogos = OperativoDispositivoCatalogo::query()
             ->where('activo', 1)
@@ -27,13 +51,9 @@ class GuardianesCaminoDispositivoController extends Controller
         return view('guardianes_camino.dispositivos.create', compact('operativo', 'catalogos'));
     }
 
-    public function store(Request $request, $operativo)
+    public function store(Request $request)
     {
-        $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         $data = $request->validate([
             'operativo_dispositivo_catalogo_id' => ['required', 'integer', 'exists:operativo_dispositivo_catalogos,id'],
@@ -112,32 +132,32 @@ class GuardianesCaminoDispositivoController extends Controller
         $dispositivo->save();
 
         return redirect()
-            ->route('guardianes_camino.dispositivos.show', [$operativo->id, $dispositivo->id])
+            ->route('guardianes_camino.dispositivos.show', $dispositivo->id)
             ->with('success', 'Dispositivo capturado correctamente.');
     }
 
-    public function show($operativo, $dispositivo)
+    public function show($dispositivo)
     {
-        $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
-        $dispositivo = OperativoDispositivo::with(['catalogo', 'operativo', 'unidad', 'delegacion', 'destacamento', 'usuario', 'fotos'])
+        $dispositivo = OperativoDispositivo::with([
+                'catalogo',
+                'operativo',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'usuario',
+                'fotos',
+            ])
             ->where('operativo_id', $operativo->id)
             ->findOrFail($dispositivo);
 
         return view('guardianes_camino.dispositivos.show', compact('operativo', 'dispositivo'));
     }
 
-    public function edit($operativo, $dispositivo)
+    public function edit($dispositivo)
     {
-        $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         $dispositivo = OperativoDispositivo::where('operativo_id', $operativo->id)->findOrFail($dispositivo);
 
@@ -150,13 +170,9 @@ class GuardianesCaminoDispositivoController extends Controller
         return view('guardianes_camino.dispositivos.edit', compact('operativo', 'dispositivo', 'catalogos'));
     }
 
-    public function update(Request $request, $operativo, $dispositivo)
+    public function update(Request $request, $dispositivo)
     {
-        $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         $dispositivo = OperativoDispositivo::where('operativo_id', $operativo->id)->findOrFail($dispositivo);
 
@@ -233,23 +249,19 @@ class GuardianesCaminoDispositivoController extends Controller
         $dispositivo->save();
 
         return redirect()
-            ->route('guardianes_camino.dispositivos.show', [$operativo->id, $dispositivo->id])
+            ->route('guardianes_camino.dispositivos.show', $dispositivo->id)
             ->with('success', 'Dispositivo actualizado correctamente.');
     }
 
-    public function destroy($operativo, $dispositivo)
+    public function destroy($dispositivo)
     {
-        $operativo = Operativo::with('catalogo')
-            ->whereHas('catalogo', function ($q) {
-                $q->where('slug', 'guardianes-del-camino');
-            })
-            ->findOrFail($operativo);
+        $operativo = $this->obtenerOperativoUnico();
 
         $dispositivo = OperativoDispositivo::where('operativo_id', $operativo->id)->findOrFail($dispositivo);
         $dispositivo->delete();
 
         return redirect()
-            ->route('guardianes_camino.show', $operativo->id)
+            ->route('guardianes_camino.index')
             ->with('success', 'Dispositivo eliminado correctamente.');
     }
 }

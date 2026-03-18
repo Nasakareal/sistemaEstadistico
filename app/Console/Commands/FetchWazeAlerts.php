@@ -297,6 +297,26 @@ class FetchWazeAlerts extends Command
         }
     }
 
+    private function getValidTokensQuery()
+    {
+        return DeviceToken::query()
+            ->join('users', 'users.id', '=', 'device_tokens.user_id')
+            ->whereNotNull('device_tokens.token')
+            ->where('device_tokens.token', '!=', '');
+    }
+
+    private function getTokensByUserId(int $userId): array
+    {
+        return DeviceToken::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('token')
+            ->where('token', '!=', '')
+            ->pluck('token')
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
     private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
     {
         $lat = $wazeAlert->lat;
@@ -334,14 +354,12 @@ class FetchWazeAlerts extends Command
         ];
 
         $tokens = [];
+        $tokensAdminPruebas = $this->getTokensByUserId(1);
 
         if ($isAccident) {
             $insideMoreliaMunicipality = $this->isInsideMoreliaMunicipality($wazeAlert);
 
-            $tokensGeneralAccident = DeviceToken::query()
-                ->join('users', 'users.id', '=', 'device_tokens.user_id')
-                ->whereNotNull('device_tokens.token')
-                ->where('device_tokens.token', '!=', '')
+            $tokensGeneralAccident = $this->getValidTokensQuery()
                 ->where(function ($q) {
                     $q->whereNull('users.unidad_id')
                         ->orWhere('users.unidad_id', '!=', 1);
@@ -354,10 +372,7 @@ class FetchWazeAlerts extends Command
             $tokensSiniestros = [];
 
             if ($insideMoreliaMunicipality) {
-                $tokensSiniestros = DeviceToken::query()
-                    ->join('users', 'users.id', '=', 'device_tokens.user_id')
-                    ->whereNotNull('device_tokens.token')
-                    ->where('device_tokens.token', '!=', '')
+                $tokensSiniestros = $this->getValidTokensQuery()
                     ->where('users.unidad_id', 1)
                     ->pluck('device_tokens.token')
                     ->unique()
@@ -365,20 +380,19 @@ class FetchWazeAlerts extends Command
                     ->toArray();
             }
 
-            $tokensCarreteras = DeviceToken::query()
-                ->join('users', 'users.id', '=', 'device_tokens.user_id')
-                ->whereNotNull('device_tokens.token')
-                ->where('device_tokens.token', '!=', '')
+            $tokensCarreteras = $this->getValidTokensQuery()
                 ->where('users.unidad_id', 4)
                 ->pluck('device_tokens.token')
                 ->unique()
                 ->values()
                 ->toArray();
 
-            $tokens = collect(array_merge($tokensGeneralAccident, $tokensSiniestros, $tokensCarreteras))
-                ->unique()
-                ->values()
-                ->toArray();
+            $tokens = collect(array_merge(
+                $tokensGeneralAccident,
+                $tokensSiniestros,
+                $tokensCarreteras,
+                $tokensAdminPruebas
+            ))->unique()->values()->toArray();
 
             Log::info('Waze notify accident tokens', [
                 'waze_uuid' => $wazeAlert->uuid,
@@ -388,15 +402,13 @@ class FetchWazeAlerts extends Command
                 'tokens_general_accident' => count($tokensGeneralAccident),
                 'tokens_siniestros' => count($tokensSiniestros),
                 'tokens_carreteras' => count($tokensCarreteras),
+                'tokens_admin_pruebas' => count($tokensAdminPruebas),
                 'tokens_total' => count($tokens),
             ]);
         }
 
         if ($isRoadClosed) {
-            $tokensSuperadminYGenerales = DeviceToken::query()
-                ->join('users', 'users.id', '=', 'device_tokens.user_id')
-                ->whereNotNull('device_tokens.token')
-                ->where('device_tokens.token', '!=', '')
+            $tokensGenerales = $this->getValidTokensQuery()
                 ->where(function ($q) {
                     $q->whereNull('users.unidad_id')
                         ->orWhere('users.unidad_id', '!=', 1);
@@ -406,27 +418,26 @@ class FetchWazeAlerts extends Command
                 ->values()
                 ->toArray();
 
-            $tokensCarreteras = DeviceToken::query()
-                ->join('users', 'users.id', '=', 'device_tokens.user_id')
-                ->whereNotNull('device_tokens.token')
-                ->where('device_tokens.token', '!=', '')
+            $tokensCarreteras = $this->getValidTokensQuery()
                 ->where('users.unidad_id', 4)
                 ->pluck('device_tokens.token')
                 ->unique()
                 ->values()
                 ->toArray();
 
-            $tokens = collect(array_merge($tokensSuperadminYGenerales, $tokensCarreteras))
-                ->unique()
-                ->values()
-                ->toArray();
+            $tokens = collect(array_merge(
+                $tokensGenerales,
+                $tokensCarreteras,
+                $tokensAdminPruebas
+            ))->unique()->values()->toArray();
 
             Log::info('Waze notify road closed tokens', [
                 'waze_uuid' => $wazeAlert->uuid,
                 'city' => $wazeAlert->city,
                 'street' => $wazeAlert->street,
-                'tokens_superadmin_y_generales' => count($tokensSuperadminYGenerales),
+                'tokens_generales' => count($tokensGenerales),
                 'tokens_carreteras' => count($tokensCarreteras),
+                'tokens_admin_pruebas' => count($tokensAdminPruebas),
                 'tokens_total' => count($tokens),
             ]);
         }

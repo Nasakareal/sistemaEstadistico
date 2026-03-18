@@ -187,16 +187,12 @@ Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisti
 
 Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carreteras', 'unidad:carreteras'])->group(function () {
     Route::get('/', [GuardianesCaminoController::class, 'index'])->name('guardianes_camino.index');
-    Route::get('/create', [GuardianesCaminoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.create');
-    Route::post('/', [GuardianesCaminoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.store');
-    Route::get('/{operativo}', [GuardianesCaminoController::class, 'show'])->name('guardianes_camino.show');
-    Route::get('/{operativo}/edit', [GuardianesCaminoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.edit');
-    Route::put('/{operativo}', [GuardianesCaminoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.update');
-    Route::delete('/{operativo}', [GuardianesCaminoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('guardianes_camino.destroy');
-    Route::get('/{operativo}/resumen', [GuardianesCaminoController::class, 'resumen'])->name('guardianes_camino.resumen');
-    Route::get('/{operativo}/whatsapp', [GuardianesCaminoController::class, 'whatsapp'])->name('guardianes_camino.whatsapp');
+    Route::get('/edit', [GuardianesCaminoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.edit');
+    Route::put('/', [GuardianesCaminoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.update');
+    Route::get('/resumen', [GuardianesCaminoController::class, 'resumen'])->name('guardianes_camino.resumen');
+    Route::get('/whatsapp', [GuardianesCaminoController::class, 'whatsapp'])->name('guardianes_camino.whatsapp');
 
-    Route::prefix('{operativo}/dispositivos')->group(function () {
+    Route::prefix('dispositivos')->group(function () {
         Route::get('/create', [GuardianesCaminoDispositivoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.dispositivos.create');
         Route::post('/', [GuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.dispositivos.store');
         Route::get('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'show'])->name('guardianes_camino.dispositivos.show');

@@ -47,9 +47,7 @@ class WazeFeedService
 
     protected function mapHechoToIncident($hecho): ?array
     {
-        $type = $this->resolveType((string) $hecho->tipo_hecho);
-
-        if ($type === null) {
+        if (!$this->isSupportedTrafficEvent((string) $hecho->tipo_hecho)) {
             return null;
         }
 
@@ -59,10 +57,23 @@ class WazeFeedService
             return null;
         }
 
-        $lat = (float) $hecho->lat;
-        $lng = (float) $hecho->lng;
+        $lat = is_numeric($hecho->lat) ? (float) $hecho->lat : null;
+        $lng = is_numeric($hecho->lng) ? (float) $hecho->lng : null;
 
-        return [
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+        $type = $this->resolveFeedType($hecho);
+
+        $polyline = $this->buildPolyline($lat, $lng, $hecho, $type);
+
+        if ($polyline === null) {
+            return null;
+        }
+
+        $payload = [
             'id' => 'hecho_' . $hecho->id,
             'type' => $type,
             'confidence' => 0.9,
@@ -71,35 +82,56 @@ class WazeFeedService
                 'x' => $lng,
                 'y' => $lat,
             ],
-            'polyline' => $this->buildPolyline($lat, $lng, $hecho),
-            'direction' => $this->resolveDirection($hecho),
+            'polyline' => $polyline,
+            'direction' => $this->resolveDirection($hecho, $type),
             'street' => $this->buildStreet($hecho),
             'city' => $this->resolveCity($hecho),
             'country' => 'MX',
-            'starttime' => $startTime->utc()->toIso8601String(),
-            'description' => $this->buildDescription($hecho),
+            'starttime' => $startTime->format('c'),
+            'description' => $this->buildDescription($hecho, $type),
         ];
+
+        if ($type === 'ROAD_CLOSED') {
+            $payload['endtime'] = $this->resolveEndTime($hecho, $startTime)->format('c');
+        }
+
+        return $payload;
     }
 
-    protected function resolveType(string $tipoHecho): ?string
+    protected function isSupportedTrafficEvent(string $tipoHecho): bool
     {
         $tipo = mb_strtoupper(trim($tipoHecho), 'UTF-8');
 
         if ($tipo === '') {
-            return null;
+            return false;
         }
 
-        if (
+        return
             str_contains($tipo, 'COLISIÓN') ||
             str_contains($tipo, 'COLISION') ||
             str_contains($tipo, 'CHOQUE') ||
             str_contains($tipo, 'VOLCADURA') ||
-            str_contains($tipo, 'ATROPELLAMIENTO')
-        ) {
-            return 'ACCIDENT';
+            str_contains($tipo, 'ATROPELLAMIENTO');
+    }
+
+    protected function resolveFeedType($hecho): string
+    {
+        return $this->isSpecialLargeRoad($hecho) ? 'ACCIDENT' : 'ROAD_CLOSED';
+    }
+
+    protected function isSpecialLargeRoad($hecho): bool
+    {
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+
+        if ($street === '') {
+            return false;
         }
 
-        return null;
+        return
+            str_contains($street, 'MADERO') ||
+            str_contains($street, 'LIBRAMIENTO') ||
+            str_contains($street, 'ENRIQUE RAMIREZ') ||
+            str_contains($street, 'ENRIQUE RAMÍREZ');
     }
 
     protected function resolveStartTime($hecho): ?Carbon
@@ -114,13 +146,24 @@ class WazeFeedService
             }
 
             if (!empty($hecho->created_at)) {
-                return Carbon::parse($hecho->created_at, 'America/Mexico_City');
+                return Carbon::parse($hecho->created_at)->setTimezone('America/Mexico_City');
             }
         } catch (\Throwable $e) {
             return null;
         }
 
         return null;
+    }
+
+    protected function resolveEndTime($hecho, Carbon $startTime): Carbon
+    {
+        $minutes = (int) config('waze.default_closure_minutes', 30);
+
+        if ($minutes < 5) {
+            $minutes = 30;
+        }
+
+        return $startTime->copy()->addMinutes($minutes);
     }
 
     protected function resolveReliability($hecho): int
@@ -149,34 +192,104 @@ class WazeFeedService
         return 6;
     }
 
-    protected function resolveDirection($hecho): string
+    protected function resolveDirection($hecho, string $type): string
     {
+        if ($type === 'ROAD_CLOSED') {
+            return 'BOTH_DIRECTIONS';
+        }
+
         return 'BOTH_DIRECTIONS';
     }
 
-    protected function buildPolyline(float $lat, float $lng, $hecho): string
+    protected function buildPolyline(float $lat, float $lng, $hecho, string $type): ?string
     {
         $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+        $entre = mb_strtoupper(trim((string) ($hecho->entre_calles ?? '')), 'UTF-8');
 
-        $delta = 0.00005;
+        if ($street === '') {
+            return null;
+        }
 
         if (
+            str_contains($street, ' Y ') ||
+            str_contains($street, ' ESQ') ||
+            str_contains($street, ' ESQUINA') ||
+            str_contains($street, '&') ||
+            str_contains($street, '#')
+        ) {
+            return null;
+        }
+
+        if (
+            str_contains($entre, 'FRENTE') ||
+            str_contains($entre, 'A LA ALTURA') ||
+            str_contains($entre, 'A UN COSTADO')
+        ) {
+            return null;
+        }
+
+        $isMajorRoad =
             str_contains($street, 'PERIFERICO') ||
+            str_contains($street, 'LIBRAMIENTO') ||
             str_contains($street, 'CARRETERA') ||
+            str_contains($street, 'AUTOPISTA') ||
             str_contains($street, 'BLVD') ||
             str_contains($street, 'BULEVAR') ||
             str_contains($street, 'CALZADA') ||
-            str_contains($street, 'AV') ||
-            str_contains($street, 'AV.')
-        ) {
-            $delta = 0.00008;
+            str_contains($street, 'AVENIDA') ||
+            str_contains($street, 'AV.') ||
+            preg_match('/\bAV\b/u', $street);
+
+        $delta = $type === 'ROAD_CLOSED'
+            ? ($isMajorRoad ? 0.00045 : 0.00028)
+            : ($isMajorRoad ? 0.00030 : 0.00018);
+
+        if ($this->looksEastWest($street)) {
+            $points = [
+                [$lat, $lng - $delta],
+                [$lat, $lng],
+                [$lat, $lng + $delta],
+            ];
+        } elseif ($this->looksNorthSouth($street)) {
+            $points = [
+                [$lat - $delta, $lng],
+                [$lat, $lng],
+                [$lat + $delta, $lng],
+            ];
+        } else {
+            if ($isMajorRoad) {
+                $points = [
+                    [$lat, $lng - $delta],
+                    [$lat, $lng],
+                    [$lat, $lng + $delta],
+                ];
+            } else {
+                return null;
+            }
         }
 
-        $lat2 = $lat + $delta;
-        $lng2 = $lng + $delta;
+        return $this->formatPolyline($points);
+    }
 
-        return $this->formatCoord($lat) . ' ' . $this->formatCoord($lng) . ' '
-             . $this->formatCoord($lat2) . ' ' . $this->formatCoord($lng2);
+    protected function looksEastWest(string $street): bool
+    {
+        return preg_match('/\b(PERIFERICO|LIBRAMIENTO|CAMELINAS|MADERO|VENTURA PUENTE|ACUEDUCTO|BULEVAR|BLVD|CALZADA|AVENIDA|AV\.?|CARRETERA|ENRIQUE RAMIREZ|ENRIQUE RAMÍREZ)\b/u', $street) === 1;
+    }
+
+    protected function looksNorthSouth(string $street): bool
+    {
+        return preg_match('/\b(HIDALGO|MORELOS|ALLENDE|JUAREZ|ABASOLO|ALDAMA|GALEANA|MATAMOROS|GUERRERO|NICOLAS BRAVO)\b/u', $street) === 1;
+    }
+
+    protected function formatPolyline(array $points): string
+    {
+        $chunks = [];
+
+        foreach ($points as [$lat, $lng]) {
+            $chunks[] = $this->formatCoord($lat) . ' ' . $this->formatCoord($lng);
+        }
+
+        return implode(' ', $chunks);
     }
 
     protected function formatCoord(float $value): string
@@ -205,12 +318,16 @@ class WazeFeedService
         return $texto !== '' ? $texto : 'SIN CALLE';
     }
 
-    protected function buildDescription($hecho): string
+    protected function buildDescription($hecho, string $type): string
     {
         $partes = [];
 
         if (!empty($hecho->tipo_hecho)) {
             $partes[] = $this->cleanText($hecho->tipo_hecho);
+        }
+
+        if ($type === 'ROAD_CLOSED') {
+            $partes[] = 'Cierre temporal de vialidad';
         }
 
         if (!empty($hecho->situacion)) {
@@ -245,8 +362,6 @@ class WazeFeedService
             return $default;
         }
 
-        $text = preg_replace('/\s+/', ' ', $text);
-
-        return $text;
+        return preg_replace('/\s+/', ' ', $text);
     }
 }

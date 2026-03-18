@@ -47,6 +47,12 @@ class WazeFeedService
 
     protected function mapHechoToIncident($hecho): ?array
     {
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+
+        if (str_contains($street, 'PERIFERICO')) {
+            return null;
+        }
+
         if (!$this->isSupportedTrafficEvent((string) $hecho->tipo_hecho)) {
             return null;
         }
@@ -64,7 +70,6 @@ class WazeFeedService
             return null;
         }
 
-        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
         $type = $this->resolveFeedType($hecho);
 
         $polyline = $this->buildPolyline($lat, $lng, $hecho, $type);

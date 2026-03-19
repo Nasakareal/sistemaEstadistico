@@ -13,12 +13,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Validation\Rule;
 use App\Models\Destacamento;
 
 class UserController extends Controller
 {
-
     public function index()
     {
         $actor = Auth::user();
@@ -64,7 +62,6 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $actor = Auth::user();
-        $unidadDelegacionesId = $this->unidadDelegacionesId();
         $unidadCarreterasId = $this->unidadCarreterasId();
 
         $validatedData = $request->validate([
@@ -78,27 +75,8 @@ class UserController extends Controller
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
 
-            'delegacion_id' => [
-                Rule::requiredIf(function () use ($request, $unidadDelegacionesId, $actor) {
-                    $unidadIdEvaluada = $this->normalizarUnidadParaActor($actor, $request->input('unidad_id'));
-                    return $unidadDelegacionesId !== null
-                        && (int) $unidadIdEvaluada === (int) $unidadDelegacionesId;
-                }),
-                'nullable',
-                'integer',
-                'exists:delegaciones,id',
-            ],
-
-            'destacamento_id' => [
-                Rule::requiredIf(function () use ($request, $unidadCarreterasId, $actor) {
-                    $unidadIdEvaluada = $this->normalizarUnidadParaActor($actor, $request->input('unidad_id'));
-                    return $unidadCarreterasId !== null
-                        && (int) $unidadIdEvaluada === (int) $unidadCarreterasId;
-                }),
-                'nullable',
-                'integer',
-                'exists:destacamentos,id',
-            ],
+            'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
+            'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
 
             'unidades_ids' => 'nullable|array',
             'unidades_ids.*' => 'integer|exists:unidades,id',
@@ -129,15 +107,17 @@ class UserController extends Controller
         if (!$this->isUnidadCarreteras($validatedData['unidad_id'] ?? null)) {
             $validatedData['destacamento_id'] = null;
         } else {
-            $ok = Destacamento::query()
-                ->where('id', (int) ($validatedData['destacamento_id'] ?? 0))
-                ->where('unidad_id', (int) $unidadCarreterasId)
-                ->exists();
+            if (!empty($validatedData['destacamento_id'])) {
+                $ok = Destacamento::query()
+                    ->where('id', (int) $validatedData['destacamento_id'])
+                    ->where('unidad_id', (int) $unidadCarreterasId)
+                    ->exists();
 
-            if (!$ok) {
-                throw ValidationException::withMessages([
-                    'destacamento_id' => 'El destacamento seleccionado no pertenece a CARRETERAS.',
-                ]);
+                if (!$ok) {
+                    throw ValidationException::withMessages([
+                        'destacamento_id' => 'El destacamento seleccionado no pertenece a CARRETERAS.',
+                    ]);
+                }
             }
         }
 
@@ -243,7 +223,6 @@ class UserController extends Controller
             ->with('roles')
             ->findOrFail($id);
 
-        $unidadDelegacionesId = $this->unidadDelegacionesId();
         $unidadCarreterasId = $this->unidadCarreterasId();
 
         $validatedData = $request->validate([
@@ -257,27 +236,8 @@ class UserController extends Controller
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
 
-            'delegacion_id' => [
-                Rule::requiredIf(function () use ($request, $unidadDelegacionesId, $actor) {
-                    $unidadIdEvaluada = $this->normalizarUnidadParaActor($actor, $request->input('unidad_id'));
-                    return $unidadDelegacionesId !== null
-                        && (int) $unidadIdEvaluada === (int) $unidadDelegacionesId;
-                }),
-                'nullable',
-                'integer',
-                'exists:delegaciones,id',
-            ],
-
-            'destacamento_id' => [
-                Rule::requiredIf(function () use ($request, $unidadCarreterasId, $actor) {
-                    $unidadIdEvaluada = $this->normalizarUnidadParaActor($actor, $request->input('unidad_id'));
-                    return $unidadCarreterasId !== null
-                        && (int) $unidadIdEvaluada === (int) $unidadCarreterasId;
-                }),
-                'nullable',
-                'integer',
-                'exists:destacamentos,id',
-            ],
+            'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
+            'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
 
             'unidades_ids' => 'nullable|array',
             'unidades_ids.*' => 'integer|exists:unidades,id',
@@ -318,15 +278,17 @@ class UserController extends Controller
         if (!$this->isUnidadCarreteras($validatedData['unidad_id'] ?? null)) {
             $validatedData['destacamento_id'] = null;
         } else {
-            $ok = Destacamento::query()
-                ->where('id', (int) ($validatedData['destacamento_id'] ?? 0))
-                ->where('unidad_id', (int) $unidadCarreterasId)
-                ->exists();
+            if (!empty($validatedData['destacamento_id'])) {
+                $ok = Destacamento::query()
+                    ->where('id', (int) $validatedData['destacamento_id'])
+                    ->where('unidad_id', (int) $unidadCarreterasId)
+                    ->exists();
 
-            if (!$ok) {
-                throw ValidationException::withMessages([
-                    'destacamento_id' => 'El destacamento seleccionado no pertenece a CARRETERAS.',
-                ]);
+                if (!$ok) {
+                    throw ValidationException::withMessages([
+                        'destacamento_id' => 'El destacamento seleccionado no pertenece a CARRETERAS.',
+                    ]);
+                }
             }
         }
 
@@ -471,7 +433,7 @@ class UserController extends Controller
         return $query->whereRaw('1=0')->get();
     }
 
-        private function unidadDelegacionesId(): ?int
+    private function unidadDelegacionesId(): ?int
     {
         $id = Unidad::query()->where('slug', 'delegaciones')->value('id');
         return $id ? (int) $id : null;

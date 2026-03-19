@@ -13,11 +13,9 @@
                 <div class="card-header">
                     <h3 class="card-title">Dispositivos registrados</h3>
                     <div class="card-tools">
-                        @can('crear operativos carreteras')
                             <a href="{{ route('guardianes_camino.dispositivos.create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Añadir dispositivo
                             </a>
-                        @endcan
                     </div>
                 </div>
 

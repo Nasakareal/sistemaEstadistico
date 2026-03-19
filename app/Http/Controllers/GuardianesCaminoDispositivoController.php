@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class GuardianesCaminoDispositivoController extends Controller
 {
@@ -75,9 +76,9 @@ class GuardianesCaminoDispositivoController extends Controller
             'hora_inicio' => ['nullable', 'date_format:H:i'],
             'hora_fin' => ['nullable', 'date_format:H:i'],
 
-            'unidad_org_id' => ['required', 'integer'],
+            'unidad_org_id' => ['nullable', 'integer'],
             'delegacion_id' => ['nullable', 'integer'],
-            'destacamento_id' => ['required', 'integer', 'exists:destacamentos,id'],
+            'destacamento_id' => ['nullable', 'integer', 'exists:destacamentos,id'],
 
             'tipo_reporte' => ['nullable', 'string', 'max:100'],
             'asunto' => ['nullable', 'string', 'max:255'],
@@ -146,6 +147,42 @@ class GuardianesCaminoDispositivoController extends Controller
             'fotos_caption' => ['nullable', 'array'],
             'fotos_caption.*' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    protected function inyectarDatosOrganizacion(Request $request): void
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        if (!$user->unidad_id) {
+            throw ValidationException::withMessages([
+                'unidad_org_id' => 'Tu usuario no tiene una unidad asignada.',
+            ]);
+        }
+
+        $request->merge([
+            'unidad_org_id' => $user->unidad_id,
+            'delegacion_id' => $user->delegacion_id ?: $request->input('delegacion_id'),
+            'destacamento_id' => $user->destacamento_id ?: $request->input('destacamento_id'),
+        ]);
+    }
+
+    protected function validarDatosOrganizacionFinal(array $data): void
+    {
+        if (empty($data['unidad_org_id'])) {
+            throw ValidationException::withMessages([
+                'unidad_org_id' => 'No fue posible determinar la unidad del usuario autenticado.',
+            ]);
+        }
+
+        if (empty($data['delegacion_id']) && empty($data['destacamento_id'])) {
+            throw ValidationException::withMessages([
+                'destacamento_id' => 'Debes tener delegación o destacamento asignado, o capturar el destacamento en el formulario.',
+            ]);
+        }
     }
 
     protected function normalizarNombre(?string $valor): string
@@ -358,7 +395,11 @@ class GuardianesCaminoDispositivoController extends Controller
     {
         $operativo = $this->obtenerOperativoUnico();
 
+        $this->inyectarDatosOrganizacion($request);
+
         $data = $request->validate($this->reglasValidacion());
+
+        $this->validarDatosOrganizacionFinal($data);
 
         $this->limpiarCamposNoAplicables($data, (int) $data['operativo_dispositivo_catalogo_id']);
 
@@ -418,7 +459,11 @@ class GuardianesCaminoDispositivoController extends Controller
 
         $dispositivo = OperativoDispositivo::where('operativo_id', $operativo->id)->findOrFail($dispositivo);
 
+        $this->inyectarDatosOrganizacion($request);
+
         $data = $request->validate($this->reglasValidacion());
+
+        $this->validarDatosOrganizacionFinal($data);
 
         $this->limpiarCamposNoAplicables($data, (int) $data['operativo_dispositivo_catalogo_id']);
 

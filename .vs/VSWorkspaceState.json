@@ -2,8 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Providers"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\config",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\delegaciones"
   ],
-  "SelectedNode": "\\app\\Providers\\AuthServiceProvider.php",
+  "SelectedNode": "\\config\\guardianes_camino.php",
   "PreviewInSolutionExplorer": false
 }

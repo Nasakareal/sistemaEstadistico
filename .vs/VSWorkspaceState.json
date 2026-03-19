@@ -3,14 +3,8 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\config",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\delegaciones"
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\config\\guardianes_camino.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\DelegacionController.php",
   "PreviewInSolutionExplorer": false
 }

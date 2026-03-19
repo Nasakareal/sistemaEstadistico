@@ -498,4 +498,78 @@ class GuardianesCaminoDispositivoController extends Controller
             ->route('guardianes_camino.index')
             ->with('success', 'Dispositivo eliminado correctamente.');
     }
+
+    public function whatsapp($dispositivo)
+    {
+        $operativo = $this->obtenerOperativoUnico();
+
+        $dispositivo = OperativoDispositivo::with(['catalogo', 'destacamento'])
+            ->where('operativo_id', $operativo->id)
+            ->findOrFail($dispositivo);
+
+        $tipo = strtoupper($dispositivo->catalogo->nombre ?? '');
+
+        $header = "GUARDIA CIVIL MICHOACÁN\n"
+            . "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n"
+            . "UNIDAD DE PROTECCIÓN EN CARRETERAS\n\n"
+            . "\"GUARDIANES DEL CAMINO\"\n\n"
+            . "DESTACAMENTO " . strtoupper($dispositivo->destacamento_nombre_snapshot ?? 'SIN DESTACAMENTO') . "\n\n";
+
+        $fecha = optional($dispositivo->fecha)->format('d/m/Y');
+        $hora = $dispositivo->hora ?? '';
+
+        $texto = $header;
+
+        if (str_contains($tipo, 'CABALLEROS') || filled($dispositivo->nombre_conductor)) {
+            $texto .= "ASUNTO: APOYO A USUARIO\n\n";
+            $texto .= "FECHA: {$fecha}\n\n";
+
+            if ($dispositivo->hora_inicio) {
+                $texto .= "Qtr Inicio {$dispositivo->hora_inicio} horas\n\n";
+            }
+
+            if ($dispositivo->hora_fin) {
+                $texto .= "Qtr Final {$dispositivo->hora_fin} horas\n\n";
+            }
+
+            if ($dispositivo->carretera || $dispositivo->kilometro) {
+                $texto .= "Ubicación {$dispositivo->carretera} km {$dispositivo->kilometro}\n";
+            }
+
+            if ($dispositivo->tramo) {
+                $texto .= "Tramo: {$dispositivo->tramo}\n\n";
+            }
+
+            if ($dispositivo->lat && $dispositivo->lng) {
+                $texto .= "Georreferencia\nLat {$dispositivo->lat} Lng {$dispositivo->lng}\n\n";
+            }
+
+            $texto .= ($dispositivo->narrativa ?? '') . "\n\n";
+            $texto .= "LA GUARDIA CIVIL NO TE MULTA, TE CUIDA EN EL CAMINO.\n\n";
+            $texto .= "RESPETUOSAMENTE";
+        } else {
+            $texto .= "ASUNTO: PATRULLAJE DE SEGURIDAD Y VIGILANCIA\n\n";
+            $texto .= "Fecha: {$fecha}\n";
+            $texto .= "Hora: {$hora} HRS.\n\n";
+
+            if ($dispositivo->lat && $dispositivo->lng) {
+                $texto .= "COORDENADAS\n{$dispositivo->lat},{$dispositivo->lng}\n\n";
+            }
+
+            $texto .= ($dispositivo->narrativa ?? '') . "\n\n";
+            $texto .= "AHORA LA GUARDIA CIVIL NO TE MULTA, TE CUIDA EN EL CAMINO\n\n";
+
+            if ($dispositivo->estado_fuerza_participante || $dispositivo->crps_participantes) {
+                $texto .= "ESTADO DE FUERZA\n";
+                $texto .= "CRPS ({$dispositivo->crps_participantes})\n";
+                $texto .= "ELEMENTOS ({$dispositivo->estado_fuerza_participante})\n\n";
+            }
+
+            $texto .= "RESPETUOSAMENTE";
+        }
+
+        return response()->json([
+            'text' => $texto
+        ]);
+    }
 }

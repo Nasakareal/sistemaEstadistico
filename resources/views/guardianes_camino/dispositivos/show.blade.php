@@ -10,6 +10,12 @@
                 <i class="fa-solid fa-arrow-left"></i> Volver
             </a>
 
+            <a href="javascript:void(0);"
+               class="btn btn-success"
+               onclick="compartirWhatsapp({{ $dispositivo->id }})">
+                <i class="fa-brands fa-whatsapp"></i> Compartir
+            </a>
+
             @can('editar operativos carreteras')
                 <a href="{{ route('guardianes_camino.dispositivos.edit', $dispositivo->id) }}" class="btn btn-success">
                     <i class="fa-solid fa-pen"></i> Editar
@@ -20,31 +26,83 @@
 @stop
 
 @section('content')
+    @php
+        $configDispositivos = config('guardianes_camino.dispositivos', []);
+
+        $normalizar = function ($valor) {
+            $valor = mb_strtoupper(trim((string) $valor), 'UTF-8');
+            $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $valor);
+            return $ascii !== false ? $ascii : $valor;
+        };
+
+        $nombreCatalogo = $dispositivo->catalogo->nombre ?? '';
+        $nombreCatalogoNormalizado = $normalizar($nombreCatalogo);
+
+        $configActual = null;
+        foreach ($configDispositivos as $clave => $item) {
+            if ($normalizar($clave) === $nombreCatalogoNormalizado) {
+                $configActual = $item;
+                break;
+            }
+        }
+
+        $camposDinamicos = $configActual['campos'] ?? [];
+
+        $labelsCampos = [
+            'cantidad' => 'Cantidad',
+            'vehiculos_inspeccionados' => 'Vehículos inspeccionados',
+            'personas_inspeccionadas' => 'Personas inspeccionadas',
+            'vehiculos_impactados' => 'Vehículos impactados',
+            'personas_impactadas' => 'Personas impactadas',
+            'estado_fuerza_participante' => 'Estado de fuerza participante',
+            'crps_participantes' => 'CRPS participantes',
+            'kilometros_recorridos' => 'Kilómetros recorridos',
+            'acompanamientos' => 'Acompañamientos',
+            'abanderamientos' => 'Abanderamientos',
+            'auxilios_viales' => 'Auxilios viales',
+            'prox_empresas' => 'Empresas',
+            'prox_tiendas_conveniencia' => 'Tiendas de conveniencia',
+            'prox_escuelas' => 'Escuelas',
+            'prox_hospitales' => 'Hospitales',
+            'puestas_disposicion' => 'Puestas a disposición',
+            'vehiculos_recuperados' => 'Vehículos recuperados',
+            'armas_aseguradas' => 'Armas aseguradas',
+            'mercancia_recuperada' => 'Mercancía recuperada',
+            'decomiso_drogas' => 'Decomiso de drogas',
+            'antecedentes_personas' => 'Antecedentes personas',
+            'antecedentes_vehiculos' => 'Antecedentes vehículos',
+            'antecedentes_motos' => 'Antecedentes motos',
+            'antecedentes_camiones' => 'Antecedentes camiones',
+        ];
+
+        $extras = [
+            'puestas_disposicion',
+            'vehiculos_recuperados',
+            'armas_aseguradas',
+            'mercancia_recuperada',
+            'decomiso_drogas',
+            'antecedentes_personas',
+            'antecedentes_vehiculos',
+            'antecedentes_motos',
+            'antecedentes_camiones',
+        ];
+
+        $camposMostrar = array_values(array_unique(array_merge($camposDinamicos, $extras)));
+
+        $tieneNarrativa = filled($dispositivo->narrativa) || filled($dispositivo->acciones_realizadas) || filled($dispositivo->frase_institucional);
+        $tieneApoyoUsuario = filled($dispositivo->nombre_conductor) || filled($dispositivo->ocupacion_conductor) || filled($dispositivo->vehiculo_descripcion) || filled($dispositivo->placas_apoyado) || filled($dispositivo->procedencia) || filled($dispositivo->destino) || filled($dispositivo->motivo_apoyo) || (int) $dispositivo->acompanantes_cantidad > 0;
+        $tieneResponsable = filled($dispositivo->cargo_responsable) || filled($dispositivo->nombre_responsable) || filled($dispositivo->elementos_participantes_texto);
+        $tieneObservaciones = filled($dispositivo->observaciones);
+    @endphp
+
     <div class="row">
         <div class="col-md-12">
-
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">
-                        {{ $dispositivo->catalogo->nombre ?? 'Dispositivo' }}
-                    </h3>
-                    <div class="card-tools">
-                        <span class="badge badge-info p-2">
-                            ID: {{ $dispositivo->id }}
-                        </span>
-                    </div>
+                    <h3 class="card-title">{{ $configActual['titulo'] ?? ($dispositivo->catalogo->nombre ?? 'Dispositivo') }}</h3>
                 </div>
 
                 <div class="card-body">
-
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="alert alert-info mb-0">
-                                <strong>Operativo:</strong> {{ $operativo->catalogo->nombre ?? 'Guardianes del Camino' }}
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="row">
 
                         <div class="col-md-6">
@@ -56,24 +114,8 @@
                                     <table class="table table-striped table-sm mb-0">
                                         <tbody>
                                             <tr>
-                                                <th style="width: 35%;">ID</th>
-                                                <td>{{ $dispositivo->id }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>UUID cliente</th>
-                                                <td>{{ $dispositivo->client_uuid ?? 'No disponible' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Tipo de dispositivo</th>
+                                                <th style="width: 35%;">Tipo de dispositivo</th>
                                                 <td>{{ $dispositivo->catalogo->nombre ?? 'Sin tipo' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Tipo de reporte</th>
-                                                <td>{{ $dispositivo->tipo_reporte ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Asunto</th>
-                                                <td>{{ $dispositivo->asunto ?? 'No especificado' }}</td>
                                             </tr>
                                             <tr>
                                                 <th>Fecha</th>
@@ -81,24 +123,44 @@
                                             </tr>
                                             <tr>
                                                 <th>Hora</th>
-                                                <td>{{ $dispositivo->hora ?? 'No especificada' }}</td>
+                                                <td>{{ $dispositivo->hora ?: 'No especificada' }}</td>
                                             </tr>
-                                            <tr>
-                                                <th>Hora inicio</th>
-                                                <td>{{ $dispositivo->hora_inicio ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Hora fin</th>
-                                                <td>{{ $dispositivo->hora_fin ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Lugar</th>
-                                                <td>{{ $dispositivo->lugar ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Descripción breve</th>
-                                                <td>{{ $dispositivo->descripcion ?? 'No especificada' }}</td>
-                                            </tr>
+                                            @if(filled($dispositivo->hora_inicio))
+                                                <tr>
+                                                    <th>Hora inicio</th>
+                                                    <td>{{ $dispositivo->hora_inicio }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->hora_fin))
+                                                <tr>
+                                                    <th>Hora fin</th>
+                                                    <td>{{ $dispositivo->hora_fin }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->tipo_reporte))
+                                                <tr>
+                                                    <th>Tipo de reporte</th>
+                                                    <td>{{ $dispositivo->tipo_reporte }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->asunto))
+                                                <tr>
+                                                    <th>Asunto</th>
+                                                    <td>{{ $dispositivo->asunto }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->lugar))
+                                                <tr>
+                                                    <th>Lugar</th>
+                                                    <td>{{ $dispositivo->lugar }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->descripcion))
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <td>{{ $dispositivo->descripcion }}</td>
+                                                </tr>
+                                            @endif
                                             <tr>
                                                 <th>Destacamento</th>
                                                 <td>{{ $dispositivo->destacamento_nombre_snapshot ?? ($dispositivo->destacamento->nombre ?? 'Sin destacamento') }}</td>
@@ -106,14 +168,6 @@
                                             <tr>
                                                 <th>Capturó</th>
                                                 <td>{{ $dispositivo->usuario->name ?? 'Desconocido' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Creado</th>
-                                                <td>{{ optional($dispositivo->created_at)->format('d-m-Y H:i') }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Actualizado</th>
-                                                <td>{{ optional($dispositivo->updated_at)->format('d-m-Y H:i') }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -124,35 +178,47 @@
                         <div class="col-md-6">
                             <div class="card bg-dark h-100">
                                 <div class="card-header">
-                                    <h3 class="card-title">Georreferencia y tramo</h3>
+                                    <h3 class="card-title">Ubicación</h3>
                                 </div>
                                 <div class="card-body table-responsive p-0">
                                     <table class="table table-striped table-sm mb-0">
                                         <tbody>
-                                            <tr>
-                                                <th style="width: 35%;">Carretera</th>
-                                                <td>{{ $dispositivo->carretera ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Tramo</th>
-                                                <td>{{ $dispositivo->tramo ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Kilómetro</th>
-                                                <td>{{ $dispositivo->kilometro ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Latitud</th>
-                                                <td>{{ $dispositivo->lat ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Longitud</th>
-                                                <td>{{ $dispositivo->lng ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Coordenadas texto</th>
-                                                <td>{{ $dispositivo->coordenadas_texto ?? 'No especificadas' }}</td>
-                                            </tr>
+                                            @if(filled($dispositivo->carretera))
+                                                <tr>
+                                                    <th style="width: 35%;">Carretera</th>
+                                                    <td>{{ $dispositivo->carretera }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->tramo))
+                                                <tr>
+                                                    <th>Tramo</th>
+                                                    <td>{{ $dispositivo->tramo }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->kilometro))
+                                                <tr>
+                                                    <th>Kilómetro</th>
+                                                    <td>{{ $dispositivo->kilometro }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->lat))
+                                                <tr>
+                                                    <th>Latitud</th>
+                                                    <td>{{ $dispositivo->lat }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->lng))
+                                                <tr>
+                                                    <th>Longitud</th>
+                                                    <td>{{ $dispositivo->lng }}</td>
+                                                </tr>
+                                            @endif
+                                            @if(filled($dispositivo->coordenadas_texto))
+                                                <tr>
+                                                    <th>Coordenadas</th>
+                                                    <td>{{ $dispositivo->coordenadas_texto }}</td>
+                                                </tr>
+                                            @endif
                                             <tr>
                                                 <th>Requiere evidencia</th>
                                                 <td>
@@ -163,314 +229,250 @@
                                                     @endif
                                                 </td>
                                             </tr>
-                                            <tr>
-                                                <th>Compartido por WhatsApp</th>
-                                                <td>
-                                                    @if($dispositivo->compartido_whatsapp)
-                                                        <span class="badge badge-success">Sí</span>
-                                                        @if($dispositivo->compartido_whatsapp_at)
-                                                            <br>
-                                                            <small>{{ optional($dispositivo->compartido_whatsapp_at)->format('d-m-Y H:i') }}</small>
-                                                        @endif
-                                                    @else
-                                                        <span class="badge badge-secondary">No</span>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    @if(count($camposMostrar))
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card bg-dark">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Resultados del dispositivo</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            @foreach($camposMostrar as $campo)
+                                                @php
+                                                    $valor = $dispositivo->{$campo} ?? null;
+                                                    $mostrar = false;
+
+                                                    if (is_numeric($valor)) {
+                                                        $mostrar = (float) $valor > 0;
+                                                    } elseif (filled($valor)) {
+                                                        $mostrar = true;
+                                                    }
+
+                                                    if ($campo === 'cantidad' && $valor !== null) {
+                                                        $mostrar = true;
+                                                    }
+
+                                                    if ($campo === 'kilometros_recorridos' && $valor !== null) {
+                                                        $mostrar = true;
+                                                    }
+                                                @endphp
+
+                                                @if($mostrar)
+                                                    <div class="col-md-3 mb-3">
+                                                        <div class="info-box bg-info">
+                                                            <span class="info-box-icon">
+                                                                <i class="fa-solid fa-chart-column"></i>
+                                                            </span>
+                                                            <div class="info-box-content">
+                                                                <span class="info-box-text">{{ $labelsCampos[$campo] ?? $campo }}</span>
+                                                                <span class="info-box-number">
+                                                                    @if($campo === 'kilometros_recorridos')
+                                                                        {{ number_format((float) $valor, 2) }}
+                                                                    @else
+                                                                        {{ $valor }}
+                                                                    @endif
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($tieneNarrativa)
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card bg-dark">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Narrativa</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        @if(filled($dispositivo->narrativa))
+                                            <p><strong>Narrativa:</strong></p>
+                                            <div class="p-3 bg-secondary rounded mb-3" style="white-space: pre-line;">{{ $dispositivo->narrativa }}</div>
+                                        @endif
+
+                                        @if(filled($dispositivo->acciones_realizadas))
+                                            <p><strong>Acciones realizadas:</strong></p>
+                                            <div class="p-3 bg-secondary rounded mb-3" style="white-space: pre-line;">{{ $dispositivo->acciones_realizadas }}</div>
+                                        @endif
+
+                                        @if(filled($dispositivo->frase_institucional))
+                                            <p><strong>Frase institucional:</strong></p>
+                                            <div class="p-3 bg-secondary rounded" style="white-space: pre-line;">{{ $dispositivo->frase_institucional }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($tieneApoyoUsuario)
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="card bg-dark h-100">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Apoyo a usuario</h3>
+                                    </div>
+                                    <div class="card-body table-responsive p-0">
+                                        <table class="table table-striped table-sm mb-0">
+                                            <tbody>
+                                                @if(filled($dispositivo->nombre_conductor))
+                                                    <tr>
+                                                        <th style="width: 35%;">Nombre conductor</th>
+                                                        <td>{{ $dispositivo->nombre_conductor }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->ocupacion_conductor))
+                                                    <tr>
+                                                        <th>Ocupación</th>
+                                                        <td>{{ $dispositivo->ocupacion_conductor }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if((int) $dispositivo->acompanantes_cantidad > 0)
+                                                    <tr>
+                                                        <th>Acompañantes</th>
+                                                        <td>{{ $dispositivo->acompanantes_cantidad }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->vehiculo_descripcion))
+                                                    <tr>
+                                                        <th>Vehículo</th>
+                                                        <td>{{ $dispositivo->vehiculo_descripcion }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->placas_apoyado))
+                                                    <tr>
+                                                        <th>Placas</th>
+                                                        <td>{{ $dispositivo->placas_apoyado }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->procedencia))
+                                                    <tr>
+                                                        <th>Procedencia</th>
+                                                        <td>{{ $dispositivo->procedencia }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->destino))
+                                                    <tr>
+                                                        <th>Destino</th>
+                                                        <td>{{ $dispositivo->destino }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->motivo_apoyo))
+                                                    <tr>
+                                                        <th>Motivo apoyo</th>
+                                                        <td style="white-space: pre-line;">{{ $dispositivo->motivo_apoyo }}</td>
+                                                    </tr>
+                                                @endif
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if($tieneResponsable)
+                                <div class="col-md-6">
+                                    <div class="card bg-dark h-100">
+                                        <div class="card-header">
+                                            <h3 class="card-title">Responsable y personal</h3>
+                                        </div>
+                                        <div class="card-body table-responsive p-0">
+                                            <table class="table table-striped table-sm mb-0">
+                                                <tbody>
+                                                    @if(filled($dispositivo->cargo_responsable))
+                                                        <tr>
+                                                            <th style="width: 35%;">Cargo responsable</th>
+                                                            <td>{{ $dispositivo->cargo_responsable }}</td>
+                                                        </tr>
                                                     @endif
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Estado sync</th>
-                                                <td>{{ $dispositivo->sync_status ?? 'No disponible' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Sincronizado</th>
-                                                <td>{{ optional($dispositivo->synced_at)->format('d-m-Y H:i') ?? 'No disponible' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Error sync</th>
-                                                <td>{{ $dispositivo->sync_error ?? 'Sin error' }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                                    @if(filled($dispositivo->nombre_responsable))
+                                                        <tr>
+                                                            <th>Nombre responsable</th>
+                                                            <td>{{ $dispositivo->nombre_responsable }}</td>
+                                                        </tr>
+                                                    @endif
+                                                    @if(filled($dispositivo->elementos_participantes_texto))
+                                                        <tr>
+                                                            <th>Elementos participantes</th>
+                                                            <td style="white-space: pre-line;">{{ $dispositivo->elementos_participantes_texto }}</td>
+                                                        </tr>
+                                                    @endif
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @elseif($tieneResponsable)
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card bg-dark">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Responsable y personal</h3>
+                                    </div>
+                                    <div class="card-body table-responsive p-0">
+                                        <table class="table table-striped table-sm mb-0">
+                                            <tbody>
+                                                @if(filled($dispositivo->cargo_responsable))
+                                                    <tr>
+                                                        <th style="width: 35%;">Cargo responsable</th>
+                                                        <td>{{ $dispositivo->cargo_responsable }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->nombre_responsable))
+                                                    <tr>
+                                                        <th>Nombre responsable</th>
+                                                        <td>{{ $dispositivo->nombre_responsable }}</td>
+                                                    </tr>
+                                                @endif
+                                                @if(filled($dispositivo->elementos_participantes_texto))
+                                                    <tr>
+                                                        <th>Elementos participantes</th>
+                                                        <td style="white-space: pre-line;">{{ $dispositivo->elementos_participantes_texto }}</td>
+                                                    </tr>
+                                                @endif
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    @endif
 
-                    </div>
+                    @if($tieneObservaciones)
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card bg-dark">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Observaciones</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="p-3 bg-secondary rounded" style="white-space: pre-line;">
+                                            {{ $dispositivo->observaciones }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     <div class="row mt-3">
-
-                        <div class="col-md-12">
-                            <div class="card bg-dark">
-                                <div class="card-header">
-                                    <h3 class="card-title">Resultados del dispositivo</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-info">
-                                                <span class="info-box-icon"><i class="fa-solid fa-layer-group"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Cantidad</span>
-                                                    <span class="info-box-number">{{ $dispositivo->cantidad ?? 0 }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-primary">
-                                                <span class="info-box-icon"><i class="fa-solid fa-car"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Vehículos inspeccionados</span>
-                                                    <span class="info-box-number">{{ $dispositivo->vehiculos_inspeccionados ?? 0 }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-primary">
-                                                <span class="info-box-icon"><i class="fa-solid fa-users"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Personas inspeccionadas</span>
-                                                    <span class="info-box-number">{{ $dispositivo->personas_inspeccionadas ?? 0 }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-secondary">
-                                                <span class="info-box-icon"><i class="fa-solid fa-car-burst"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Vehículos impactados</span>
-                                                    <span class="info-box-number">{{ $dispositivo->vehiculos_impactados ?? 0 }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-secondary">
-                                                <span class="info-box-icon"><i class="fa-solid fa-user-injured"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Personas impactadas</span>
-                                                    <span class="info-box-number">{{ $dispositivo->personas_impactadas ?? 0 }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-success">
-                                                <span class="info-box-icon"><i class="fa-solid fa-shield-halved"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Estado de fuerza</span>
-                                                    <span class="info-box-number">{{ $dispositivo->estado_fuerza_participante ?? 0 }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-warning">
-                                                <span class="info-box-icon"><i class="fa-solid fa-road"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">Km recorridos</span>
-                                                    <span class="info-box-number">{{ number_format((float) ($dispositivo->kilometros_recorridos ?? 0), 2) }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="info-box bg-dark">
-                                                <span class="info-box-icon"><i class="fa-solid fa-truck-fast"></i></span>
-                                                <div class="info-box-content">
-                                                    <span class="info-box-text">CRPS participantes</span>
-                                                    <span class="info-box-number" style="font-size: 14px;">{{ $dispositivo->crps_participantes ?? 'N/D' }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                    </div>
-
-                                    <div class="row mt-2">
-                                        <div class="col-md-3">
-                                            <strong>Acompañamientos:</strong> {{ $dispositivo->acompanamientos ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Abanderamientos:</strong> {{ $dispositivo->abanderamientos ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Auxilios viales:</strong> {{ $dispositivo->auxilios_viales ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Puestas a disposición:</strong> {{ $dispositivo->puestas_disposicion ?? 0 }}
-                                        </div>
-                                    </div>
-
-                                    <div class="row mt-2">
-                                        <div class="col-md-3">
-                                            <strong>Empresas:</strong> {{ $dispositivo->prox_empresas ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Tiendas conveniencia:</strong> {{ $dispositivo->prox_tiendas_conveniencia ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Escuelas:</strong> {{ $dispositivo->prox_escuelas ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Hospitales:</strong> {{ $dispositivo->prox_hospitales ?? 0 }}
-                                        </div>
-                                    </div>
-
-                                    <div class="row mt-2">
-                                        <div class="col-md-3">
-                                            <strong>Antecedentes personas:</strong> {{ $dispositivo->antecedentes_personas ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Antecedentes vehículos:</strong> {{ $dispositivo->antecedentes_vehiculos ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Antecedentes motos:</strong> {{ $dispositivo->antecedentes_motos ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Antecedentes camiones:</strong> {{ $dispositivo->antecedentes_camiones ?? 0 }}
-                                        </div>
-                                    </div>
-
-                                    <div class="row mt-2">
-                                        <div class="col-md-3">
-                                            <strong>Vehículos recuperados:</strong> {{ $dispositivo->vehiculos_recuperados ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Armas aseguradas:</strong> {{ $dispositivo->armas_aseguradas ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Mercancía recuperada:</strong> {{ $dispositivo->mercancia_recuperada ?? 0 }}
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>Decomiso drogas:</strong> {{ $dispositivo->decomiso_drogas ?? 0 }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="row mt-3">
-
-                        <div class="col-md-12">
-                            <div class="card bg-dark">
-                                <div class="card-header">
-                                    <h3 class="card-title">Narrativa</h3>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>Narrativa:</strong></p>
-                                    <div class="p-3 bg-secondary rounded mb-3" style="white-space: pre-line;">{{ $dispositivo->narrativa ?? 'No especificada' }}</div>
-
-                                    <p><strong>Acciones realizadas:</strong></p>
-                                    <div class="p-3 bg-secondary rounded mb-3" style="white-space: pre-line;">{{ $dispositivo->acciones_realizadas ?? 'No especificadas' }}</div>
-
-                                    <p><strong>Frase institucional:</strong></p>
-                                    <div class="p-3 bg-secondary rounded" style="white-space: pre-line;">{{ $dispositivo->frase_institucional ?? 'No especificada' }}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="row mt-3">
-
-                        <div class="col-md-6">
-                            <div class="card bg-dark h-100">
-                                <div class="card-header">
-                                    <h3 class="card-title">Apoyo a usuario</h3>
-                                </div>
-                                <div class="card-body table-responsive p-0">
-                                    <table class="table table-striped table-sm mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 35%;">Nombre conductor</th>
-                                                <td>{{ $dispositivo->nombre_conductor ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Ocupación</th>
-                                                <td>{{ $dispositivo->ocupacion_conductor ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Acompañantes</th>
-                                                <td>{{ $dispositivo->acompanantes_cantidad ?? 0 }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Vehículo</th>
-                                                <td>{{ $dispositivo->vehiculo_descripcion ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Placas</th>
-                                                <td>{{ $dispositivo->placas_apoyado ?? 'No especificadas' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Procedencia</th>
-                                                <td>{{ $dispositivo->procedencia ?? 'No especificada' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Destino</th>
-                                                <td>{{ $dispositivo->destino ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Motivo apoyo</th>
-                                                <td style="white-space: pre-line;">{{ $dispositivo->motivo_apoyo ?? 'No especificado' }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="card bg-dark h-100">
-                                <div class="card-header">
-                                    <h3 class="card-title">Responsable y personal</h3>
-                                </div>
-                                <div class="card-body table-responsive p-0">
-                                    <table class="table table-striped table-sm mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 35%;">Cargo responsable</th>
-                                                <td>{{ $dispositivo->cargo_responsable ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Nombre responsable</th>
-                                                <td>{{ $dispositivo->nombre_responsable ?? 'No especificado' }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Elementos participantes</th>
-                                                <td style="white-space: pre-line;">{{ $dispositivo->elementos_participantes_texto ?? 'No especificados' }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="row mt-3">
-
-                        <div class="col-md-12">
-                            <div class="card bg-dark">
-                                <div class="card-header">
-                                    <h3 class="card-title">Observaciones</h3>
-                                </div>
-                                <div class="card-body">
-                                    <div class="p-3 bg-secondary rounded" style="white-space: pre-line;">
-                                        {{ $dispositivo->observaciones ?? 'Sin observaciones' }}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="row mt-3">
-
                         <div class="col-md-12">
                             <div class="card card-outline card-info">
                                 <div class="card-header">
@@ -500,47 +502,26 @@
                                                         @endif
 
                                                         <div class="card-body">
-                                                            <p class="mb-1">
-                                                                <strong>Archivo:</strong><br>
-                                                                {{ $foto->nombre_original ?? 'Sin nombre' }}
-                                                            </p>
+                                                            @if(filled($foto->nombre_original))
+                                                                <p class="mb-1">
+                                                                    <strong>Archivo:</strong><br>
+                                                                    {{ $foto->nombre_original }}
+                                                                </p>
+                                                            @endif
 
-                                                            <p class="mb-1">
-                                                                <strong>Caption:</strong><br>
-                                                                {{ $foto->caption ?? 'Sin caption' }}
-                                                            </p>
+                                                            @if(filled($foto->caption))
+                                                                <p class="mb-1">
+                                                                    <strong>Caption:</strong><br>
+                                                                    {{ $foto->caption }}
+                                                                </p>
+                                                            @endif
 
-                                                            <p class="mb-1">
-                                                                <strong>Observaciones:</strong><br>
-                                                                {{ $foto->observaciones ?? 'Sin observaciones' }}
-                                                            </p>
-
-                                                            <p class="mb-1">
-                                                                <strong>Portada:</strong>
-                                                                @if($foto->es_portada)
-                                                                    <span class="badge badge-success">Sí</span>
-                                                                @else
-                                                                    <span class="badge badge-secondary">No</span>
-                                                                @endif
-                                                            </p>
-
-                                                            <p class="mb-1">
-                                                                <strong>Incluida en compartido:</strong>
-                                                                @if($foto->incluida_en_compartido)
-                                                                    <span class="badge badge-success">Sí</span>
-                                                                @else
-                                                                    <span class="badge badge-secondary">No</span>
-                                                                @endif
-                                                            </p>
-
-                                                            <p class="mb-1">
-                                                                <strong>Orden:</strong> {{ $foto->orden ?? 0 }}
-                                                            </p>
-
-                                                            <p class="mb-1">
-                                                                <strong>Tomada:</strong>
-                                                                {{ optional($foto->tomada_en)->format('d-m-Y H:i') ?? 'No disponible' }}
-                                                            </p>
+                                                            @if(filled($foto->observaciones))
+                                                                <p class="mb-1">
+                                                                    <strong>Observaciones:</strong><br>
+                                                                    {{ $foto->observaciones }}
+                                                                </p>
+                                                            @endif
                                                         </div>
 
                                                         <div class="card-footer text-center">
@@ -570,12 +551,10 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
 
                 </div>
             </div>
-
         </div>
     </div>
 @stop
@@ -620,4 +599,29 @@
             });
         </script>
     @endif
+    <script>
+        function compartirWhatsapp(id) {
+            let url = "{{ route('guardianes_camino.dispositivos.whatsapp', ':id') }}";
+            url = url.replace(':id', id);
+
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Error al generar el texto para WhatsApp');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    const texto = encodeURIComponent(data.text);
+                    window.open(`https://wa.me/?text=${texto}`, '_blank');
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'No se pudo compartir',
+                        text: error.message
+                    });
+                });
+        }
+    </script>
 @stop

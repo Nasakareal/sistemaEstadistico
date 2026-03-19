@@ -199,6 +199,7 @@ Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carr
         Route::get('/{dispositivo}/edit', [GuardianesCaminoDispositivoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.edit');
         Route::put('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.update');
         Route::delete('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('guardianes_camino.dispositivos.destroy');
+        Route::get('/{dispositivo}/whatsapp', [GuardianesCaminoDispositivoController::class, 'whatsapp'])->name('guardianes_camino.dispositivos.whatsapp');
 
         Route::prefix('{dispositivo}/fotos')->group(function () {
             Route::post('/', [GuardianesCaminoDispositivoFotoController::class, 'store'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.fotos.store');

@@ -27,8 +27,7 @@ class DelegacionController extends Controller
                 $query->where('activa', (int) $activa ? 1 : 0);
             })
             ->orderBy('nombre')
-            ->paginate(20)
-            ->withQueryString();
+            ->get();
 
         return view('admin.settings.delegaciones.index', compact('delegaciones', 'q', 'activa'));
     }

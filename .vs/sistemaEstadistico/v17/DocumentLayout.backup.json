@@ -3,16 +3,20 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\UserController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\admin\\settings\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\PushService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\PushService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\config\\services.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
@@ -39,14 +43,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "UserController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\UserController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\UserController.php",
-              "ViewState": "AgIAAPoBAAAAAAAAAAAYwDECAAAAAAAAAAAAAA==",
+              "Title": "index.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\index.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\admin\\settings\\index.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\index.blade.php",
+              "RelativeToolTip": "resources\\views\\admin\\settings\\index.blade.php",
+              "ViewState": "AgIAAG8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-19T03:52:20.139Z",
+              "WhenOpened": "2026-03-19T04:06:24.929Z",
               "EditorCaption": ""
             },
             {
@@ -57,27 +61,40 @@
               "RelativeDocumentMoniker": "routes\\web.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
               "RelativeToolTip": "routes\\web.php",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAHUBAAAAAAAAAAAIwJABAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-19T03:52:12.4Z",
+              "WhenOpened": "2026-03-19T04:05:57.461Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "PushService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\PushService.php",
-              "RelativeDocumentMoniker": "app\\Services\\PushService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\PushService.php",
-              "RelativeToolTip": "app\\Services\\PushService.php",
-              "ViewState": "AgIAAB4AAAAAAAAAAAAYwFQAAAAAAAAAAAAAAA==",
+              "Title": "AgenteUpecHomeController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php",
+              "ViewState": "AgIAAM4AAAAAAAAAAAAYwAQBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-19T03:25:36.675Z",
+              "WhenOpened": "2026-03-19T03:59:11.751Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 3,
+              "Title": "api.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
+              "RelativeDocumentMoniker": "routes\\api.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
+              "RelativeToolTip": "routes\\api.php",
+              "ViewState": "AgIAAH0AAAAAAAAAAAAYwLMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-03-19T03:58:50.433Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "services.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\config\\services.php",
               "RelativeDocumentMoniker": "config\\services.php",
@@ -85,11 +102,12 @@
               "RelativeToolTip": "config\\services.php",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-19T03:17:22.582Z"
+              "WhenOpened": "2026-03-19T03:17:22.582Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "waze.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\config\\waze.php",
               "RelativeDocumentMoniker": "config\\waze.php",
@@ -101,7 +119,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "FetchWazeAlerts.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\FetchWazeAlerts.php",
               "RelativeDocumentMoniker": "app\\Console\\Commands\\FetchWazeAlerts.php",

@@ -69,14 +69,32 @@ class FetchWazeAlerts extends Command
                     continue;
                 }
 
-                if (WazeAlert::where('uuid', $uuid)->exists()) {
-                    continue;
-                }
-
                 $type = $item['type'] ?? null;
                 $subtype = $item['subtype'] ?? null;
 
+                Log::info('Waze feed alert recibido', [
+                    'uuid' => $uuid,
+                    'type' => $type,
+                    'subtype' => $subtype,
+                    'city' => $item['city'] ?? null,
+                    'street' => $item['street'] ?? null,
+                ]);
+
+                if (WazeAlert::where('uuid', $uuid)->exists()) {
+                    Log::info('Waze alert omitida por uuid existente', [
+                        'uuid' => $uuid,
+                        'type' => $type,
+                        'subtype' => $subtype,
+                    ]);
+                    continue;
+                }
+
                 if (!$this->isRelevantAlert($type, $subtype)) {
+                    Log::info('Waze alert omitida por no ser relevante', [
+                        'uuid' => $uuid,
+                        'type' => $type,
+                        'subtype' => $subtype,
+                    ]);
                     continue;
                 }
 
@@ -141,44 +159,25 @@ class FetchWazeAlerts extends Command
     {
         $type = strtoupper((string) $type);
         $subtype = strtoupper((string) $subtype);
-
-        if ($type === 'ACCIDENT') {
-            return true;
-        }
-
         $hay = $type . ' ' . $subtype;
 
-        if (strpos($hay, 'ACCIDENT') !== false) {
-            return true;
-        }
-
-        if (strpos($hay, 'CRASH') !== false) {
-            return true;
-        }
-
-        return false;
+        return $type === 'ACCIDENT'
+            || strpos($hay, 'ACCIDENT') !== false
+            || strpos($hay, 'CRASH') !== false;
     }
 
     private function isRoadClosed($type, $subtype): bool
     {
         $type = strtoupper((string) $type);
         $subtype = strtoupper((string) $subtype);
-
-        if ($type === 'ROAD_CLOSED') {
-            return true;
-        }
-
         $hay = $type . ' ' . $subtype;
 
-        if (strpos($hay, 'ROAD_CLOSED') !== false) {
-            return true;
-        }
-
-        if (strpos($hay, 'CLOSED') !== false) {
-            return true;
-        }
-
-        return false;
+        return $type === 'ROAD_CLOSED'
+            || strpos($hay, 'ROAD_CLOSED') !== false
+            || strpos($hay, 'ROAD CLOS') !== false
+            || strpos($hay, 'CLOSED') !== false
+            || strpos($hay, 'BLOCK') !== false
+            || strpos($hay, 'CLOSURE') !== false;
     }
 
     private function isInsideMoreliaMunicipality(WazeAlert $wazeAlert): bool
@@ -297,14 +296,6 @@ class FetchWazeAlerts extends Command
         }
     }
 
-    private function getValidTokensQuery()
-    {
-        return DeviceToken::query()
-            ->join('users', 'users.id', '=', 'device_tokens.user_id')
-            ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '');
-    }
-
     private function getTokensByUserId(int $userId): array
     {
         return DeviceToken::query()
@@ -315,6 +306,14 @@ class FetchWazeAlerts extends Command
             ->unique()
             ->values()
             ->toArray();
+    }
+
+    private function getValidTokensQuery()
+    {
+        return DeviceToken::query()
+            ->join('users', 'users.id', '=', 'device_tokens.user_id')
+            ->whereNotNull('device_tokens.token')
+            ->where('device_tokens.token', '!=', '');
     }
 
     private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
@@ -353,106 +352,23 @@ class FetchWazeAlerts extends Command
             'maps_url' => $mapsUrl,
         ];
 
-        $tokens = [];
         $tokensAdminPruebas = $this->getTokensByUserId(1);
 
-        if ($isAccident) {
-            $insideMoreliaMunicipality = $this->isInsideMoreliaMunicipality($wazeAlert);
-
-            $tokensGeneralAccident = $this->getValidTokensQuery()
-                ->where(function ($q) {
-                    $q->whereNull('users.unidad_id')
-                        ->orWhere('users.unidad_id', '!=', 1);
-                })
-                ->pluck('device_tokens.token')
-                ->unique()
-                ->values()
-                ->toArray();
-
-            $tokensSiniestros = [];
-
-            if ($insideMoreliaMunicipality) {
-                $tokensSiniestros = $this->getValidTokensQuery()
-                    ->where('users.unidad_id', 1)
-                    ->pluck('device_tokens.token')
-                    ->unique()
-                    ->values()
-                    ->toArray();
-            }
-
-            $tokensCarreteras = $this->getValidTokensQuery()
-                ->where('users.unidad_id', 4)
-                ->pluck('device_tokens.token')
-                ->unique()
-                ->values()
-                ->toArray();
-
-            $tokens = collect(array_merge(
-                $tokensGeneralAccident,
-                $tokensSiniestros,
-                $tokensCarreteras,
-                $tokensAdminPruebas
-            ))->unique()->values()->toArray();
-
-            Log::info('Waze notify accident tokens', [
-                'waze_uuid' => $wazeAlert->uuid,
-                'city' => $wazeAlert->city,
-                'street' => $wazeAlert->street,
-                'inside_morelia_municipality' => $insideMoreliaMunicipality,
-                'tokens_general_accident' => count($tokensGeneralAccident),
-                'tokens_siniestros' => count($tokensSiniestros),
-                'tokens_carreteras' => count($tokensCarreteras),
-                'tokens_admin_pruebas' => count($tokensAdminPruebas),
-                'tokens_total' => count($tokens),
-            ]);
-        }
-
-        if ($isRoadClosed) {
-            $tokensGenerales = $this->getValidTokensQuery()
-                ->where(function ($q) {
-                    $q->whereNull('users.unidad_id')
-                        ->orWhere('users.unidad_id', '!=', 1);
-                })
-                ->pluck('device_tokens.token')
-                ->unique()
-                ->values()
-                ->toArray();
-
-            $tokensCarreteras = $this->getValidTokensQuery()
-                ->where('users.unidad_id', 4)
-                ->pluck('device_tokens.token')
-                ->unique()
-                ->values()
-                ->toArray();
-
-            $tokens = collect(array_merge(
-                $tokensGenerales,
-                $tokensCarreteras,
-                $tokensAdminPruebas
-            ))->unique()->values()->toArray();
-
-            Log::info('Waze notify road closed tokens', [
-                'waze_uuid' => $wazeAlert->uuid,
-                'city' => $wazeAlert->city,
-                'street' => $wazeAlert->street,
-                'tokens_generales' => count($tokensGenerales),
-                'tokens_carreteras' => count($tokensCarreteras),
-                'tokens_admin_pruebas' => count($tokensAdminPruebas),
-                'tokens_total' => count($tokens),
-            ]);
-        }
-
-        if (count($tokens) === 0) {
-            Log::warning('Waze notify: no device tokens found for this alert', [
-                'waze_uuid' => $wazeAlert->uuid,
-                'type' => $wazeAlert->type,
-                'subtype' => $wazeAlert->subtype,
-                'city' => $wazeAlert->city,
-                'street' => $wazeAlert->street,
-            ]);
+        if (count($tokensAdminPruebas) === 0) {
+            Log::warning('Usuario 1 no tiene tokens válidos');
             return false;
         }
 
-        return app(PushService::class)->sendToTokens($tokens, $title, $body, $payload);
+        Log::info('Waze notify enviando a admin pruebas', [
+            'waze_uuid' => $wazeAlert->uuid,
+            'type' => $wazeAlert->type,
+            'subtype' => $wazeAlert->subtype,
+            'city' => $wazeAlert->city,
+            'street' => $wazeAlert->street,
+            'payload_type' => $payloadType,
+            'tokens_admin_pruebas' => count($tokensAdminPruebas),
+        ]);
+
+        return app(PushService::class)->sendToTokens($tokensAdminPruebas, $title, $body, $payload);
     }
 }

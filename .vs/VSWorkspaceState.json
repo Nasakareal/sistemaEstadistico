@@ -2,8 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\Waze"
+    "\\app\\Providers"
   ],
+  "SelectedNode": "\\app\\Providers\\AuthServiceProvider.php",
   "PreviewInSolutionExplorer": false
 }

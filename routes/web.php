@@ -399,7 +399,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{user}',[UserController::class,'destroy'])->middleware('can:eliminar usuarios')->name('users.destroy');
     });
 
-    Route::prefix('roles')->middleware('can:ver roles')->group(function () {
+    Route::prefix('roles')->middleware(['can:ver roles', 'role:Superadmin'])->group(function () {
         Route::get('/',[RoleController::class,'index'])->name('roles.index');
         Route::get('/create',[RoleController::class,'create'])->middleware('can:crear roles')->name('roles.create');
         Route::post('/',[RoleController::class,'store'])->middleware('can:crear roles')->name('roles.store');

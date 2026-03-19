@@ -303,17 +303,34 @@ class FetchWazeAlerts extends Command
             ->whereNotNull('token')
             ->where('token', '!=', '')
             ->pluck('token')
+            ->filter()
             ->unique()
             ->values()
             ->toArray();
     }
 
-    private function getValidTokensQuery()
+    private function getTokensByUserIds(array $userIds): array
     {
+        $userIds = collect($userIds)
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (count($userIds) === 0) {
+            return [];
+        }
+
         return DeviceToken::query()
-            ->join('users', 'users.id', '=', 'device_tokens.user_id')
-            ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '');
+            ->whereIn('user_id', $userIds)
+            ->whereNotNull('token')
+            ->where('token', '!=', '')
+            ->pluck('token')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
     }
 
     private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
@@ -352,23 +369,44 @@ class FetchWazeAlerts extends Command
             'maps_url' => $mapsUrl,
         ];
 
-        $tokensAdminPruebas = $this->getTokensByUserId(1);
+        $allTokens = [];
 
-        if (count($tokensAdminPruebas) === 0) {
-            Log::warning('Usuario 1 no tiene tokens válidos');
-            return false;
+        $tokensAdminPruebas = $this->getTokensByUserId(1);
+        $allTokens = array_merge($allTokens, $tokensAdminPruebas);
+
+        $insideMorelia = $this->isInsideMoreliaMunicipality($wazeAlert);
+
+        if ($insideMorelia) {
+            $moreliaUserIds = config('services.waze.morelia_user_ids', []);
+            $tokensMorelia = $this->getTokensByUserIds($moreliaUserIds);
+            $allTokens = array_merge($allTokens, $tokensMorelia);
         }
 
-        Log::info('Waze notify enviando a admin pruebas', [
+        $allTokens = collect($allTokens)
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        Log::info('Waze notify resolución destinatarios', [
             'waze_uuid' => $wazeAlert->uuid,
             'type' => $wazeAlert->type,
             'subtype' => $wazeAlert->subtype,
             'city' => $wazeAlert->city,
             'street' => $wazeAlert->street,
-            'payload_type' => $payloadType,
+            'inside_morelia' => $insideMorelia,
             'tokens_admin_pruebas' => count($tokensAdminPruebas),
+            'tokens_finales' => count($allTokens),
         ]);
 
-        return app(PushService::class)->sendToTokens($tokensAdminPruebas, $title, $body, $payload);
+        if (count($allTokens) === 0) {
+            Log::warning('Waze notify: no hay tokens destino', [
+                'waze_uuid' => $wazeAlert->uuid,
+                'inside_morelia' => $insideMorelia,
+            ]);
+            return false;
+        }
+
+        return app(PushService::class)->sendToTokens($allTokens, $title, $body, $payload);
     }
 }

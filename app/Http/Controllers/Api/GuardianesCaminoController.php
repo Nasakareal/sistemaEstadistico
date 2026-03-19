@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Operativo;
 use App\Models\OperativoCatalogo;
 use App\Models\OperativoDispositivo;
@@ -283,31 +284,17 @@ class GuardianesCaminoController extends Controller
             ->orderByDesc('fecha')
             ->orderByDesc('hora')
             ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+            ->paginate((int) $request->input('per_page', 20));
 
         $resumen = $this->obtenerResumenPorFecha($operativo->id, $fecha);
 
-        return view('guardianes_camino.index', compact('operativo', 'dispositivos', 'resumen', 'fecha'));
-    }
-
-    public function show()
-    {
-        return redirect()->route('guardianes_camino.index');
-    }
-
-    public function edit()
-    {
-        return redirect()
-            ->route('guardianes_camino.index')
-            ->with('info', 'El operativo principal ya no se edita desde esta vista. Solo se capturan dispositivos.');
-    }
-
-    public function update(Request $request)
-    {
-        return redirect()
-            ->route('guardianes_camino.index')
-            ->with('info', 'El operativo principal ya no se actualiza desde esta vista. Solo se capturan dispositivos.');
+        return response()->json([
+            'ok' => true,
+            'operativo' => $operativo,
+            'fecha' => $fecha,
+            'dispositivos' => $dispositivos,
+            'resumen' => $resumen,
+        ]);
     }
 
     public function resumen(Request $request)
@@ -318,7 +305,13 @@ class GuardianesCaminoController extends Controller
         $resumen = $this->obtenerResumenPorFecha($operativo->id, $fecha);
         $totalesGenerales = $this->obtenerTotalesGeneralesPorFecha($operativo->id, $fecha);
 
-        return view('guardianes_camino.resumen', compact('operativo', 'resumen', 'totalesGenerales', 'fecha'));
+        return response()->json([
+            'ok' => true,
+            'operativo' => $operativo,
+            'fecha' => $fecha,
+            'resumen' => $resumen,
+            'totales_generales' => $totalesGenerales,
+        ]);
     }
 
     public function whatsapp(Request $request)
@@ -331,6 +324,35 @@ class GuardianesCaminoController extends Controller
 
         $texto = $this->textoWhatsAppConsolidado($operativo, $fecha, $resumen, $totalesGenerales);
 
-        return redirect()->away('https://wa.me/?text=' . urlencode($texto));
+        return response()->json([
+            'ok' => true,
+            'fecha' => $fecha,
+            'texto' => $texto,
+            'url' => 'https://wa.me/?text=' . urlencode($texto),
+        ]);
+    }
+
+    public function show()
+    {
+        return response()->json([
+            'ok' => false,
+            'message' => 'Esta ruta no aplica para el operativo principal. Usa el listado o el resumen.',
+        ], 404);
+    }
+
+    public function edit()
+    {
+        return response()->json([
+            'ok' => false,
+            'message' => 'El operativo principal ya no se edita desde esta ruta. Solo se capturan dispositivos.',
+        ], 405);
+    }
+
+    public function update(Request $request)
+    {
+        return response()->json([
+            'ok' => false,
+            'message' => 'El operativo principal ya no se actualiza desde esta ruta. Solo se capturan dispositivos.',
+        ], 405);
     }
 }

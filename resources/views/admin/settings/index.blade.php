@@ -44,20 +44,22 @@
 
         {{-- ROLES --}}
         @can('ver roles')
-            <div class="col-md-3 col-sm-6 col-12">
-                <div class="sv-card">
-                    <div class="sv-card__icon bg-navy">
-                        <i class="fa-regular fa-flag"></i>
-                    </div>
-                    <div class="sv-card__body">
-                        <div class="sv-card__title">Roles</div>
-                        <div class="sv-card__desc">Permisos, roles y asignaciones.</div>
-                        <a href="{{ url('/admin/settings/roles') }}" class="btn sv-btn">
-                            <i class="fas fa-arrow-right"></i> Acceder
-                        </a>
+            @role('Superadmin')
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-navy">
+                            <i class="fa-regular fa-flag"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Roles</div>
+                            <div class="sv-card__desc">Permisos, roles y asignaciones.</div>
+                            <a href="{{ url('/admin/settings/roles') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endrole
         @endcan
 
         {{-- PERSONAL --}}

@@ -1,10 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\config"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\DelegacionController.php",
+  "SelectedNode": "\\config\\services.php",
   "PreviewInSolutionExplorer": false
 }

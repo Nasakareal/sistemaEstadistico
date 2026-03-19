@@ -27,6 +27,9 @@ use App\Http\Controllers\Api\BotC5IController;
 use App\Http\Controllers\Api\WabotIncomingController;
 use App\Http\Controllers\Api\WazeFeedController;
 use App\Http\Controllers\Api\PeritoHomeController;
+use App\Http\Controllers\Api\GuardianesCaminoController as ApiGuardianesCaminoController;
+use App\Http\Controllers\Api\GuardianesCaminoDispositivoController as ApiGuardianesCaminoDispositivoController;
+use App\Http\Controllers\Api\AgenteUpecHomeController;
 
 Route::post('/wabot/incoming', [WabotIncomingController::class, 'handle']);
 Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
@@ -43,6 +46,27 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/mapa', [PeritoHomeController::class, 'mapa'])->name('api.perito_home.mapa');
         Route::get('/filtros', [PeritoHomeController::class, 'filtros'])->name('api.perito_home.filtros');
         Route::get('/hechos/{hecho}', [PeritoHomeController::class, 'show'])->name('api.perito_home.hechos.show');
+    });
+
+    Route::prefix('agente-upec-home')->middleware(['role:Agente Upec'])->group(function () {
+        Route::get('/mapa', [AgenteUpecHomeController::class, 'mapa'])->name('api.agente_upec_home.mapa');
+        Route::get('/filtros', [AgenteUpecHomeController::class, 'filtros'])->name('api.agente_upec_home.filtros');
+        Route::get('/alertas/{id}', [AgenteUpecHomeController::class, 'show'])->name('api.agente_upec_home.alertas.show');
+    });
+
+    Route::prefix('guardianes-camino')->middleware(['can:ver operativos carreteras', 'unidad:carreteras'])->group(function () {
+        Route::get('/', [ApiGuardianesCaminoController::class, 'index'])->name('api.guardianes_camino.index');
+        Route::get('/resumen', [ApiGuardianesCaminoController::class, 'resumen'])->name('api.guardianes_camino.resumen');
+        Route::get('/whatsapp', [ApiGuardianesCaminoController::class, 'whatsapp'])->name('api.guardianes_camino.whatsapp');
+
+        Route::prefix('dispositivos')->group(function () {
+            Route::get('/', [ApiGuardianesCaminoDispositivoController::class, 'index'])->name('api.guardianes_camino.dispositivos.index');
+            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.store');
+            Route::get('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'show'])->name('api.guardianes_camino.dispositivos.show');
+            Route::put('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.update');
+            Route::delete('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('api.guardianes_camino.dispositivos.destroy');
+            Route::get('/{dispositivo}/whatsapp', [ApiGuardianesCaminoDispositivoController::class, 'whatsapp'])->name('api.guardianes_camino.dispositivos.whatsapp');
+        });
     });
 
     Route::get('/home', [DashboardController::class, 'home'])->name('api.home');

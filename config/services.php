@@ -26,6 +26,8 @@ return [
 
     'waze' => [
         'feed_url' => env('WAZE_FEED_URL'),
+        'morelia_user_ids' => array_values(array_filter(array_map('intval', explode(',', env('WAZE_MORELIA_USER_IDS', ''))))),
+        'morelia_polygon' => [],
     ],
 
     'wabot' => [

@@ -19,9 +19,10 @@ class ParteNovedadesGenerator
         Settings::setOutputEscapingEnabled(true);
 
         $inicio = Carbon::parse($fecha, $tz)->setTime(18, 0)->subDay();
-        $fin    = Carbon::parse($fecha, $tz)->setTime(18, 0);
+        $fin = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
+            ->where('unidad_org_id', 1)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderBy('fecha', 'asc')
             ->orderBy('hora', 'asc')
@@ -34,30 +35,30 @@ class ParteNovedadesGenerator
         $phpWord->setDefaultFontSize(12);
 
         $section = $phpWord->addSection([
-            'pageSizeW'    => 12175,
-            'pageSizeH'    => 17860,
-            'marginTop'    => 1134,
-            'marginRight'  => 1134,
+            'pageSizeW' => 12175,
+            'pageSizeH' => 17860,
+            'marginTop' => 1134,
+            'marginRight' => 1134,
             'marginBottom' => 1134,
-            'marginLeft'   => 1134,
+            'marginLeft' => 1134,
         ]);
 
         $phpWord->addTableStyle('EncabezadoTabla', [
-            'borderSize'  => 0,
+            'borderSize' => 0,
             'borderColor' => 'FFFFFF',
-            'cellMargin'  => 0,
-            'alignment'   => JcTable::CENTER,
+            'cellMargin' => 0,
+            'alignment' => JcTable::CENTER,
         ]);
 
         $table = $section->addTable('EncabezadoTabla');
 
         $table->addRow();
         $table->addCell(5000, ['valign' => 'center'])->addImage(public_path('ssp.jpg'), [
-            'width'     => 140,
+            'width' => 140,
             'alignment' => Jc::LEFT
         ]);
         $table->addCell(5000, ['valign' => 'center'])->addImage(public_path('vialidad.png'), [
-            'width'     => 70,
+            'width' => 70,
             'alignment' => Jc::RIGHT
         ]);
 
@@ -73,8 +74,8 @@ class ParteNovedadesGenerator
             ucfirst(Carbon::parse($fecha, $tz)->translatedFormat('F')) . ' de ' . Carbon::parse($fecha, $tz)->format('Y') . '.';
 
         $section->addText($fechaFormatoOficio, [], [
-            'alignment'   => Jc::RIGHT,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::RIGHT,
+            'spaceAfter' => 0,
             'spaceBefore' => 0,
         ]);
 
@@ -87,53 +88,60 @@ class ParteNovedadesGenerator
 
         foreach ($destinatario as $linea) {
             $section->addText($linea, ['bold' => true], [
-                'alignment'   => Jc::LEFT,
-                'spaceAfter'  => 0,
+                'alignment' => Jc::LEFT,
+                'spaceAfter' => 0,
                 'spaceBefore' => 0,
             ]);
         }
 
         $section->addTextBreak(1);
 
-        $diaInicio = Carbon::parse($fecha, $tz)->subDay()->format('d');
-        $diaFin    = Carbon::parse($fecha, $tz)->format('d');
-        $anio      = Carbon::parse($fecha, $tz)->format('Y');
+        $fechaInicioTexto = ucfirst(
+            Carbon::parse($fecha, $tz)
+                ->subDay()
+                ->translatedFormat('d \\d\\e F \\d\\e Y')
+        );
 
-        $textoNovedades = "Hago de su superior conocimiento, lo relacionado a las novedades ocurridas durante el Servicio de las 18:00 horas del día {$diaInicio}, a las 18:00 horas del día {$diaFin} de {$anio}, por parte de la Unidad de Atención a Siniestros.";
+        $fechaFinTexto = ucfirst(
+            Carbon::parse($fecha, $tz)
+                ->translatedFormat('d \\d\\e F \\d\\e Y')
+        );
+
+        $textoNovedades = "Hago de su superior conocimiento, lo relacionado a las novedades ocurridas durante el Servicio de las 18:00 horas del día {$fechaInicioTexto}, a las 18:00 horas del día {$fechaFinTexto}, por parte de la Unidad de Atención a Siniestros.";
 
         $section->addText($textoNovedades, [], [
-            'alignment'   => Jc::BOTH,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::BOTH,
+            'spaceAfter' => 0,
             'spaceBefore' => 0,
         ]);
 
         $section->addText(str_repeat('.', 148), [], [
-            'alignment'   => Jc::BOTH,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::BOTH,
+            'spaceAfter' => 0,
             'spaceBefore' => 0
         ]);
 
         $section->addTextBreak(1);
 
         $section->addText('HECHOS RELEVANTES', ['bold' => true], [
-            'alignment'   => Jc::CENTER,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::CENTER,
+            'spaceAfter' => 0,
             'spaceBefore' => 0,
         ]);
 
         $section->addTextBreak(1);
 
         $section->addText(str_repeat('.', 148), [], [
-            'alignment'   => Jc::BOTH,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::BOTH,
+            'spaceAfter' => 0,
             'spaceBefore' => 0
         ]);
 
         $section->addTextBreak(1);
 
         $section->addText('HECHOS DE TRÁNSITO', ['bold' => true], [
-            'alignment'   => Jc::CENTER,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::CENTER,
+            'spaceAfter' => 0,
             'spaceBefore' => 0,
         ]);
 
@@ -142,10 +150,9 @@ class ParteNovedadesGenerator
         $contador = 1;
 
         foreach ($hechos as $hecho) {
-
             $textRun = $section->addTextRun([
-                'alignment'   => Jc::BOTH,
-                'spaceAfter'  => 0,
+                'alignment' => Jc::BOTH,
+                'spaceAfter' => 0,
                 'spaceBefore' => 0,
             ]);
 
@@ -154,7 +161,6 @@ class ParteNovedadesGenerator
             $textRun->addText("{$contador}.-" . strtoupper($hecho->tipo_hecho) . " ({$lesionadosTexto}) SECTOR " . strtoupper($hecho->sector) . ".- ", ['bold' => true]);
 
             $textRun->addText("A las " . Carbon::parse($hecho->hora, $tz)->format('H:i') . " horas en {$hecho->calle}, de la colonia {$hecho->colonia}, lugar donde ");
-
 
             $vehiculos = $hecho->vehiculos->loadMissing('conductores');
 
@@ -166,11 +172,21 @@ class ParteNovedadesGenerator
                     $textRun->addText("AUTOMÓVIL ({$letra}) ", ['bold' => true]);
 
                     $partes = [];
-                    if ($vehiculo->marca)  $partes[] = "Marca {$vehiculo->marca}";
-                    if ($vehiculo->modelo) $partes[] = "Modelo {$vehiculo->modelo}";
-                    if ($vehiculo->tipo)   $partes[] = "Tipo {$vehiculo->tipo}";
-                    if ($vehiculo->linea)  $partes[] = "Línea {$vehiculo->linea}";
-                    if ($vehiculo->color)  $partes[] = "Color {$vehiculo->color}";
+                    if ($vehiculo->marca) {
+                        $partes[] = "Marca {$vehiculo->marca}";
+                    }
+                    if ($vehiculo->modelo) {
+                        $partes[] = "Modelo {$vehiculo->modelo}";
+                    }
+                    if ($vehiculo->tipo) {
+                        $partes[] = "Tipo {$vehiculo->tipo}";
+                    }
+                    if ($vehiculo->linea) {
+                        $partes[] = "Línea {$vehiculo->linea}";
+                    }
+                    if ($vehiculo->color) {
+                        $partes[] = "Color {$vehiculo->color}";
+                    }
 
                     if ($partes) {
                         $textRun->addText(implode(', ', $partes) . ", ");
@@ -196,8 +212,12 @@ class ParteNovedadesGenerator
                     if ($conductor) {
                         $textRun->addText("conducido por el C. ");
                         $textRun->addText($conductor->nombre, ['bold' => true]);
-                        if ($conductor->edad)      $textRun->addText(" de {$conductor->edad} años de edad");
-                        if ($conductor->domicilio) $textRun->addText(", con domicilio en {$conductor->domicilio}");
+                        if ($conductor->edad) {
+                            $textRun->addText(" de {$conductor->edad} años de edad");
+                        }
+                        if ($conductor->domicilio) {
+                            $textRun->addText(", con domicilio en {$conductor->domicilio}");
+                        }
                         if ($conductor->estado_licencia) {
                             $textRun->addText(", presentó licencia tipo {$conductor->tipo_licencia}");
                         } else {
@@ -217,45 +237,63 @@ class ParteNovedadesGenerator
             if ($lesionados->count() > 0) {
                 foreach ($lesionados as $index => $l) {
                     $linea = "Lesionado " . ($index + 1) . ": ";
-                    if ($l->nombre)      $linea .= "C. {$l->nombre}";
-                    if ($l->edad)        $linea .= ", de {$l->edad} años";
-                    if ($l->sexo)        $linea .= ", sexo {$l->sexo}";
-                    if ($l->tipo_lesion) $linea .= ", presenta lesión tipo {$l->tipo_lesion}";
+                    if ($l->nombre) {
+                        $linea .= "C. {$l->nombre}";
+                    }
+                    if ($l->edad) {
+                        $linea .= ", de {$l->edad} años";
+                    }
+                    if ($l->sexo) {
+                        $linea .= ", sexo {$l->sexo}";
+                    }
+                    if ($l->tipo_lesion) {
+                        $linea .= ", presenta lesión tipo {$l->tipo_lesion}";
+                    }
                     if ($l->hospitalizado) {
                         $linea .= ", fue hospitalizado";
-                        if ($l->hospital) $linea .= " en {$l->hospital}";
+                        if ($l->hospital) {
+                            $linea .= " en {$l->hospital}";
+                        }
                     } else {
                         $linea .= ", no fue hospitalizado";
                     }
-                    if ($l->atencion_en_sitio) $linea .= ", recibió atención en el sitio";
-                    if ($l->ambulancia)       $linea .= ", trasladado por la unidad {$l->ambulancia}";
-                    if ($l->paramedico)       $linea .= ", atendido por el paramédico {$l->paramedico}";
-                    if ($l->observaciones)    $linea .= ", observaciones: {$l->observaciones}";
+                    if ($l->atencion_en_sitio) {
+                        $linea .= ", recibió atención en el sitio";
+                    }
+                    if ($l->ambulancia) {
+                        $linea .= ", trasladado por la unidad {$l->ambulancia}";
+                    }
+                    if ($l->paramedico) {
+                        $linea .= ", atendido por el paramédico {$l->paramedico}";
+                    }
+                    if ($l->observaciones) {
+                        $linea .= ", observaciones: {$l->observaciones}";
+                    }
                     $linea .= ".";
 
                     $section->addText($linea, [], [
-                        'alignment'   => Jc::BOTH,
-                        'spaceAfter'  => 0,
+                        'alignment' => Jc::BOTH,
+                        'spaceAfter' => 0,
                         'spaceBefore' => 0,
                     ]);
                 }
             } else {
                 $section->addText("SIN LESIONADOS.", [], [
-                    'alignment'   => Jc::BOTH,
-                    'spaceAfter'  => 0,
+                    'alignment' => Jc::BOTH,
+                    'spaceAfter' => 0,
                     'spaceBefore' => 0,
                 ]);
             }
 
             $section->addText("Intervino el perito {$hecho->perito}.", [], [
-                'alignment'   => Jc::BOTH,
-                'spaceAfter'  => 0,
+                'alignment' => Jc::BOTH,
+                'spaceAfter' => 0,
                 'spaceBefore' => 0,
             ]);
 
             $section->addText("ID DE REGISTRO {$hecho->id}", [], [
-                'alignment'   => Jc::BOTH,
-                'spaceAfter'  => 0,
+                'alignment' => Jc::BOTH,
+                'spaceAfter' => 0,
                 'spaceBefore' => 0,
             ]);
 
@@ -278,13 +316,13 @@ class ParteNovedadesGenerator
             }
 
             $section->addText($lineaCausas, [], [
-                'alignment'   => Jc::BOTH,
-                'spaceAfter'  => 0,
+                'alignment' => Jc::BOTH,
+                'spaceAfter' => 0,
                 'spaceBefore' => 0,
             ]);
 
             $usoGrua = $vehiculos->contains(function ($v) {
-                return strtolower((string)$v->grua) !== 'n/a' && $v->grua !== null;
+                return strtolower((string) $v->grua) !== 'n/a' && $v->grua !== null;
             });
 
             $section->addText(
@@ -302,8 +340,8 @@ class ParteNovedadesGenerator
             }
 
             $section->addText(str_repeat('.', 148), [], [
-                'alignment'   => Jc::BOTH,
-                'spaceAfter'  => 0,
+                'alignment' => Jc::BOTH,
+                'spaceAfter' => 0,
                 'spaceBefore' => 0,
             ]);
 
@@ -311,28 +349,27 @@ class ParteNovedadesGenerator
         }
 
         $section->addTextBreak(1);
-
         $section->addTextBreak(1);
         $section->addText('A T E N T A M E N T E', ['bold' => true], [
-            'alignment'   => Jc::CENTER,
-            'spaceAfter'  => 0,
+            'alignment' => Jc::CENTER,
+            'spaceAfter' => 0,
             'spaceBefore' => 0,
         ]);
         $section->addTextBreak(1);
 
         $tableStyleName = 'FirmasSinBordes';
         $phpWord->addTableStyle($tableStyleName, [
-            'borderSize'  => 0,
+            'borderSize' => 0,
             'borderColor' => 'ffffff',
-            'cellMargin'  => 50,
-            'alignment'   => JcTable::CENTER,
+            'cellMargin' => 50,
+            'alignment' => JcTable::CENTER,
         ]);
         $tableFirmas = $section->addTable($tableStyleName);
 
         $cellStyle = [
-            'borderSize'  => 0,
+            'borderSize' => 0,
             'borderColor' => 'ffffff',
-            'valign'      => 'center',
+            'valign' => 'center',
         ];
 
         $turnoSvc = app(TurnoService::class);
@@ -341,8 +378,8 @@ class ParteNovedadesGenerator
 
         $turnoLetra = 'B';
         if ($turnoActivo) {
-            $nombreTurno = strtoupper(trim((string)($turnoActivo->nombre ?? '')));
-            $slugTurno = strtoupper(trim((string)($turnoActivo->slug ?? '')));
+            $nombreTurno = strtoupper(trim((string) ($turnoActivo->nombre ?? '')));
+            $slugTurno = strtoupper(trim((string) ($turnoActivo->slug ?? '')));
             if (str_contains($nombreTurno, ' A') || $nombreTurno === 'A' || str_contains($slugTurno, 'A')) {
                 $turnoLetra = 'A';
             }
@@ -395,9 +432,8 @@ class ParteNovedadesGenerator
 
         return $tempPath;
     }
-    private function sanitizeHechos(
-        $hechos
-    ): void
+
+    private function sanitizeHechos($hechos): void
     {
         foreach ($hechos as $hecho) {
             $this->sanitizeModelStrings($hecho);

@@ -9,7 +9,7 @@
       font-family: DejaVu Sans, sans-serif;
       font-size:12px;
       margin:0 40px;
-      position: relative; /* necesario para los absolute */
+      position: relative;
     }
 
     /* Encabezado con logo */
@@ -55,7 +55,17 @@
     .main-table th { width:40%; }
     .main-table td { width:60%; }
 
-    /* Receptor ABSOLUTO y girado */
+    /* ⚠️ Leyenda institucional */
+    .leyenda {
+      margin-top: 25px;
+      padding: 10px;
+      border: 2px solid #000;
+      font-size:10px;
+      text-align:justify;
+      background:#fff;
+    }
+
+    /* Receptor */
     .receptor {
       position: absolute;
       top: 460px;
@@ -72,24 +82,24 @@
 
     /* Firma */
     .firma {
-      margin-top: 200px;
+      margin-top: 60px;
       text-align:center;
       font-size:10px;
     }
 
-    /* Código QR */
+    /* QR */
     .qr {
       position:absolute;
       bottom:40px;
       right:40px;
     }
 
-    /* ✅ Nota final hasta abajo */
+    /* Nota final */
     .nota {
       position:absolute;
       bottom:10px;
       left:40px;
-      right:200px; /* evita que choque con el QR */
+      right:200px;
       font-size:10px;
       font-style:italic;
     }
@@ -98,7 +108,6 @@
 
 <body>
 
-  {{-- ✅ Determinar corralón: primero del vehículo, si no, fallback a la grúa --}}
   @php
     $nombreCorralonVehiculo = null;
 
@@ -111,7 +120,6 @@
     }
 
     $nombreGruaLocal = $nombreGrua ?? null;
-
     $nombreCorralonFinal = $nombreCorralonVehiculo ?: $nombreGruaLocal ?: 'No especificado';
   @endphp
 
@@ -126,7 +134,6 @@
     </table>
   </div>
 
-  {{-- Fecha larga --}}
   @php
     use Carbon\Carbon;
     $fechaFormateada = Carbon::parse($liberacion->fecha_liberacion)
@@ -137,25 +144,26 @@
 
   <br><br><br><br>
 
-<h1><strong>C. ENCARGADO DEL CORRALÓN DE GRÚAS {{ $nombreCorralonFinal }}</strong></h1>
-<h1><strong>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</strong></h1>
+  <h1><strong>C. ENCARGADO DEL CORRALÓN DE GRÚAS {{ $nombreCorralonFinal }}</strong></h1>
+  <h1><strong>PREVIA IDENTIFICACIÓN ENTREGAR A: {{ $liberacion->personas_autorizadas }}</strong></h1>
 
   <br>
 
   <h1>EL VEHÍCULO DE LAS SIGUIENTES CARACTERÍSTICAS:</h1>
 
-  {{-- Datos del vehículo --}}
+  {{-- Datos --}}
   <table class="main-table">
     <tr>
       <th>Fecha de resguardo</th>
       <td>{{ \Carbon\Carbon::parse($liberacion->hecho->fecha)->format('d/m/Y') }}</td>
     </tr>
-    <tr><th>Marca</th>   <td>{{ $vehiculo->marca }}</td></tr>
-    <tr><th>Tipo</th>    <td>{{ $vehiculo->tipo }}</td></tr>
-    <tr><th>Modelo</th>  <td>{{ $vehiculo->modelo }}</td></tr>
-    <tr><th>Serie</th>   <td>{{ $vehiculo->serie }}</td></tr>
-    <tr><th>Placas</th>  <td>{{ $vehiculo->placas }}</td></tr>
-    <tr><th>Color</th>   <td>{{ $vehiculo->color }}</td></tr>
+    <tr><th>Marca</th><td>{{ $vehiculo->marca }}</td></tr>
+    <tr><th>Tipo</th><td>{{ $vehiculo->tipo }}</td></tr>
+    <tr><th>Modelo</th><td>{{ $vehiculo->modelo }}</td></tr>
+    <tr><th>Serie</th><td>{{ $vehiculo->serie }}</td></tr>
+    <tr><th>Placas</th><td>{{ $vehiculo->placas }}</td></tr>
+    <tr><th>Color</th><td>{{ $vehiculo->color }}</td></tr>
+
     <tr>
       <th>Motivo de devolución</th>
       <td>
@@ -168,14 +176,19 @@
         @endphp
 
         @if($esOrdenMP && $oficioMp !== '')
-          <br>
-          {{ $oficioMp }}
+          <br>{{ $oficioMp }}
         @endif
       </td>
     </tr>
   </table>
 
-  {{-- Bloque receptor girado --}}
+  {{-- ⚠️ LEYENDA IMPORTANTE --}}
+  <div class="leyenda">
+    <strong>IMPORTANTE:</strong><br>
+    En el entendido de que esta dependencia no hace ningún tipo de cobro con relación al arrastre y/o depósito, siendo esto obligación a cubrir directamente con las grúas.
+  </div>
+
+  {{-- Receptor --}}
   <div class="receptor">
     <strong>RECIBE:</strong><br><br>
     Nombre:<br><br>
@@ -184,7 +197,7 @@
     Teléfono:
   </div>
 
-  {{-- Firma autorizador --}}
+  {{-- Firma --}}
   <div class="firma">
     <strong>ATENTAMENTE<br><br><br></strong>
     <strong>COMANDANTE DE TURNO<br><br><br></strong>
@@ -192,12 +205,12 @@
     ___________________________
   </div>
 
-  {{-- Código QR --}}
+  {{-- QR --}}
   <div class="qr">
-    <img src="{{ $qrBase64 }}" width="140" height="140" alt="QR">
+    <img src="{{ $qrBase64 }}" width="140" height="140">
   </div>
 
-  {{-- ✅ Nota final --}}
+  {{-- Nota --}}
   <div class="nota">
     Nota: El pago del servicio de arrastre y pensión son independientes al trámite de esta liberación.
   </div>

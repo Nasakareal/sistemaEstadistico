@@ -1,15 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\resumen_ejecutivo",
-    "\\resources\\views\\resumen_ejecutivo\\partials",
-    "\\routes"
+    "\\public",
+    "\\public\\css"
   ],
-  "SelectedNode": "\\resources\\views\\resumen_ejecutivo\\show.blade.php",
+  "SelectedNode": "\\public\\css\\resumen-ejecutivo-show.css",
   "PreviewInSolutionExplorer": false
 }

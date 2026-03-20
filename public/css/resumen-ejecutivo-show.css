@@ -137,7 +137,70 @@ body.sidebar-collapse #ppt-shell {
 
 
 
+#contenedor_relevantes {
+    align-content: flex-start;
+}
 
+    #contenedor_relevantes .card {
+        background: #ffffff;
+        border-radius: 26px;
+        border: 1px solid rgba(15, 23, 42, .08);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, .10);
+        overflow: hidden;
+    }
+
+    #contenedor_relevantes .card-body {
+        background: #ffffff;
+        color: #0f172a;
+        padding: 26px 26px 22px;
+    }
+
+    #contenedor_relevantes .card h5,
+    #contenedor_relevantes .card .font-weight-bold {
+        color: #0f172a !important;
+    }
+
+    #contenedor_relevantes .card strong {
+        color: #1e3a8a !important;
+        font-weight: 800;
+    }
+
+    #contenedor_relevantes .card .mb-1,
+    #contenedor_relevantes .card .mb-2,
+    #contenedor_relevantes .card .mb-3,
+    #contenedor_relevantes .card .mb-4,
+    #contenedor_relevantes .card div,
+    #contenedor_relevantes .card span,
+    #contenedor_relevantes .card p {
+        color: #334155;
+    }
+
+    #contenedor_relevantes .badge-warning {
+        background: #facc15 !important;
+        color: #172554 !important;
+        font-weight: 900;
+        border-radius: 10px;
+        padding: 7px 12px;
+        font-size: 12px;
+        letter-spacing: .4px;
+    }
+
+    #contenedor_relevantes .btn-primary {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        padding: 10px 14px;
+    }
+
+    #contenedor_relevantes img {
+        display: block;
+        border-radius: 16px;
+    }
+
+    #contenedor_relevantes .alert {
+        border-radius: 18px;
+    }
 
 
 

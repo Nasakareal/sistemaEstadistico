@@ -13,12 +13,9 @@ class Patrulla extends Model
 
     protected $fillable = [
         'numero_economico',
-
         'unidad_id',
         'turno_id',
-
         'activa',
-
         'tipo',
         'marca',
         'linea',
@@ -28,6 +25,7 @@ class Patrulla extends Model
         'color',
         'no_motor',
         'observaciones',
+        'foto',
     ];
 
     protected $casts = [
@@ -36,12 +34,6 @@ class Patrulla extends Model
         'turno_id' => 'integer',
         'modelo' => 'integer',
     ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | Relaciones
-    |--------------------------------------------------------------------------
-    */
 
     public function unidad()
     {
@@ -63,6 +55,11 @@ class Patrulla extends Model
         return $this->hasMany(\App\Models\Personal::class, 'patrulla_id');
     }
 
+    public function kilometrajes()
+    {
+        return $this->hasMany(\App\Models\PatrullaKilometraje::class, 'patrulla_id');
+    }
+
     public function getDescripcionVehiculoAttribute()
     {
         return trim("{$this->marca} {$this->linea} {$this->modelo}");
@@ -73,8 +70,8 @@ class Patrulla extends Model
         return trim("{$this->numero_economico} - {$this->descripcion_vehiculo}");
     }
 
-    public function kilometrajes()
+    public function getFotoUrlAttribute()
     {
-        return $this->hasMany(\App\Models\PatrullaKilometraje::class, 'patrulla_id');
+        return $this->foto ? asset('storage/' . $this->foto) : null;
     }
 }

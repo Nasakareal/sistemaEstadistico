@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('form_dispositivo');
+
     const horaInput = document.getElementById('hora');
     const horaInicioInput = document.getElementById('hora_inicio');
     const horaFinInput = document.getElementById('hora_fin');
@@ -19,11 +21,42 @@ document.addEventListener('DOMContentLoaded', function () {
     const configNode = document.getElementById('dispositivos-config');
     const allCamposNode = document.getElementById('all-campos-config');
 
-    const config = configNode ? JSON.parse(configNode.textContent) : {};
-    const allCampos = allCamposNode ? JSON.parse(allCamposNode.textContent) : [];
+    let config = {};
+    let allCampos = [];
+
+    try {
+        config = configNode ? JSON.parse(configNode.textContent) : {};
+    } catch (error) {
+        console.error('Error al parsear dispositivos-config:', error);
+        config = {};
+    }
+
+    try {
+        allCampos = allCamposNode ? JSON.parse(allCamposNode.textContent) : [];
+    } catch (error) {
+        console.error('Error al parsear all-campos-config:', error);
+        allCampos = [];
+    }
 
     const fotosInput = document.getElementById('fotos');
     const previewContainer = document.getElementById('preview_fotos_container');
+
+    const btnSubmit = document.getElementById('btn_submit');
+    const btnGeo = document.getElementById('btn_geo');
+    const btnGeoClear = document.getElementById('btn_geo_clear');
+    const geoStatus = document.getElementById('geo_status');
+
+    const latInput = document.getElementById('lat');
+    const lngInput = document.getElementById('lng');
+    const coordenadasTextoInput = document.getElementById('coordenadas_texto');
+    const calidadGeoInput = document.getElementById('calidad_geo');
+    const fuenteUbicacionInput = document.getElementById('fuente_ubicacion');
+
+    console.log('GCM JS cargado');
+    console.log('btnGeo:', btnGeo);
+    console.log('latInput:', latInput);
+    console.log('lngInput:', lngInput);
+    console.log('geoStatus:', geoStatus);
 
     function inicializarHora(input) {
         if (!input) {
@@ -74,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function ocultarTodosLosCampos() {
-        document.querySelectorAll('.campo-dinamico').forEach(item => {
+        document.querySelectorAll('.campo-dinamico').forEach(function (item) {
             item.classList.add('campo-oculto');
 
             const input = item.querySelector('input, select, textarea');
@@ -85,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function limpiarCamposOcultos() {
-        document.querySelectorAll('.campo-dinamico').forEach(item => {
+        document.querySelectorAll('.campo-dinamico').forEach(function (item) {
             if (!item.classList.contains('campo-oculto')) {
                 return;
             }
@@ -110,12 +143,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            if (input.type === 'file') {
+                input.value = '';
+                return;
+            }
+
             input.value = '';
         });
     }
 
     function mostrarCampos(campos) {
-        campos.forEach(nombreCampo => {
+        campos.forEach(function (nombreCampo) {
             const bloque = document.querySelector('.campo-dinamico[data-campo="' + nombreCampo + '"]');
 
             if (!bloque) {
@@ -163,6 +201,173 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     }
 
+    function setGeoUI() {
+        const lat = latInput ? String(latInput.value || '').trim() : '';
+        const lng = lngInput ? String(lngInput.value || '').trim() : '';
+        const calidad = calidadGeoInput ? String(calidadGeoInput.value || '').trim() : '';
+
+        if (lat && lng) {
+            if (geoStatus) {
+                geoStatus.textContent = 'OK: ' + lat + ', ' + lng + (calidad ? ' (±' + calidad + ' m)' : '');
+            }
+
+            if (btnGeoClear) {
+                btnGeoClear.style.display = 'inline-block';
+            }
+        } else {
+            if (geoStatus) {
+                geoStatus.textContent = 'Sin coordenadas';
+            }
+
+            if (btnGeoClear) {
+                btnGeoClear.style.display = 'none';
+            }
+        }
+    }
+
+    function toastError(msg) {
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Ubicación',
+                text: msg
+            });
+        } else {
+            alert(msg);
+        }
+    }
+
+    function toastOk(msg) {
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Ubicación',
+                text: msg,
+                timer: 1600,
+                showConfirmButton: false
+            });
+        }
+    }
+
+    function limpiarUbicacion() {
+        if (latInput) latInput.value = '';
+        if (lngInput) lngInput.value = '';
+        if (coordenadasTextoInput) coordenadasTextoInput.value = '';
+        if (calidadGeoInput) calidadGeoInput.value = '';
+        if (fuenteUbicacionInput) fuenteUbicacionInput.value = '';
+        setGeoUI();
+    }
+
+    function capturarUbicacion() {
+        console.log('Click en btn_geo');
+
+        if (!navigator.geolocation) {
+            toastError('Tu navegador no soporta geolocalización.');
+            return;
+        }
+
+        if (!latInput || !lngInput) {
+            console.error('No se encontraron los inputs lat/lng');
+            toastError('No se encontraron los campos de coordenadas.');
+            return;
+        }
+
+        if (geoStatus) {
+            geoStatus.textContent = 'Obteniendo ubicación...';
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function (pos) {
+                console.log('Geolocalización OK:', pos);
+
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const acc = pos.coords.accuracy;
+
+                const latFix = typeof lat === 'number' ? lat.toFixed(7) : '';
+                const lngFix = typeof lng === 'number' ? lng.toFixed(7) : '';
+
+                latInput.value = latFix;
+                lngInput.value = lngFix;
+
+                if (coordenadasTextoInput) {
+                    coordenadasTextoInput.value = latFix + ',' + lngFix;
+                }
+
+                if (calidadGeoInput) {
+                    calidadGeoInput.value = typeof acc === 'number' ? String(Math.round(acc)) : '';
+                }
+
+                if (fuenteUbicacionInput) {
+                    fuenteUbicacionInput.value = 'GPS_WEB';
+                }
+
+                setGeoUI();
+                toastOk('Coordenadas capturadas.');
+            },
+            function (err) {
+                console.error('Error geolocalización:', err);
+
+                let msg = 'No se pudo obtener la ubicación.';
+
+                if (err && err.code === 1) msg = 'Permiso denegado. Activa la ubicación y permite el acceso.';
+                if (err && err.code === 2) msg = 'Ubicación no disponible.';
+                if (err && err.code === 3) msg = 'Tiempo de espera agotado. Intenta otra vez.';
+
+                setGeoUI();
+                toastError(msg);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 12000,
+                maximumAge: 0
+            }
+        );
+    }
+
+    function capturarUbicacionAutomaticaSilenciosa() {
+        const lat = latInput ? String(latInput.value || '').trim() : '';
+        const lng = lngInput ? String(lngInput.value || '').trim() : '';
+
+        if (lat && lng) {
+            setGeoUI();
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            setGeoUI();
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function (pos) {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const acc = pos.coords.accuracy;
+
+                const latFix = typeof lat === 'number' ? lat.toFixed(7) : '';
+                const lngFix = typeof lng === 'number' ? lng.toFixed(7) : '';
+
+                if (latInput) latInput.value = latFix;
+                if (lngInput) lngInput.value = lngFix;
+                if (coordenadasTextoInput) coordenadasTextoInput.value = latFix + ',' + lngFix;
+                if (calidadGeoInput) calidadGeoInput.value = typeof acc === 'number' ? String(Math.round(acc)) : '';
+                if (fuenteUbicacionInput) fuenteUbicacionInput.value = 'GPS_WEB';
+
+                setGeoUI();
+            },
+            function (err) {
+                console.warn('Geolocalización automática falló:', err);
+                setGeoUI();
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 12000,
+                maximumAge: 0
+            }
+        );
+    }
+
     function actualizarFormulario() {
         const selectedOption = selectDispositivo
             ? selectDispositivo.options[selectDispositivo.selectedIndex]
@@ -198,6 +403,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (requiereApoyoUsuario(nombreNormalizado) && seccionApoyoUsuario) {
             seccionApoyoUsuario.classList.remove('d-none');
         }
+
+        if (seccionGeorreferencia && !seccionGeorreferencia.classList.contains('d-none')) {
+            capturarUbicacionAutomaticaSilenciosa();
+        }
     }
 
     if (selectDispositivo) {
@@ -205,13 +414,25 @@ document.addEventListener('DOMContentLoaded', function () {
         actualizarFormulario();
     }
 
+    if (btnGeo) {
+        btnGeo.addEventListener('click', capturarUbicacion);
+    } else {
+        console.error('No se encontró #btn_geo');
+    }
+
+    if (btnGeoClear) {
+        btnGeoClear.addEventListener('click', limpiarUbicacion);
+    }
+
+    setGeoUI();
+
     if (fotosInput && previewContainer) {
         fotosInput.addEventListener('change', function () {
             previewContainer.innerHTML = '';
 
             const archivos = Array.from(this.files || []);
 
-            archivos.forEach((archivo) => {
+            archivos.forEach(function (archivo) {
                 const col = document.createElement('div');
                 col.className = 'col-md-4 mb-3';
 
@@ -254,6 +475,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 col.appendChild(card);
                 previewContainer.appendChild(col);
             });
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            const lat = latInput ? String(latInput.value || '').trim() : '';
+            const lng = lngInput ? String(lngInput.value || '').trim() : '';
+
+            if (latInput && lngInput && (!lat || !lng)) {
+                e.preventDefault();
+                setGeoUI();
+                toastError('Captura la ubicación antes de registrar.');
+                return;
+            }
+
+            if (coordenadasTextoInput && lat && lng) {
+                coordenadasTextoInput.value = lat + ',' + lng;
+            }
+
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+            }
         });
     }
 });

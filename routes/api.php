@@ -60,14 +60,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/whatsapp', [ApiGuardianesCaminoController::class, 'whatsapp'])->name('api.guardianes_camino.whatsapp');
 
         Route::prefix('dispositivos')->group(function () {
+            Route::get('/create', [ApiGuardianesCaminoDispositivoController::class, 'create'])->name('api.guardianes_camino.dispositivos.create');
             Route::get('/', [ApiGuardianesCaminoDispositivoController::class, 'index'])->name('api.guardianes_camino.dispositivos.index');
-            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.store');
+            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->name('api.guardianes_camino.dispositivos.store');
             Route::get('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'show'])->name('api.guardianes_camino.dispositivos.show');
             Route::put('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.update');
             Route::delete('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('api.guardianes_camino.dispositivos.destroy');
             Route::get('/{dispositivo}/whatsapp', [ApiGuardianesCaminoDispositivoController::class, 'whatsapp'])->name('api.guardianes_camino.dispositivos.whatsapp');
         });
     });
+
 
     Route::get('/home', [DashboardController::class, 'home'])->name('api.home');
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);

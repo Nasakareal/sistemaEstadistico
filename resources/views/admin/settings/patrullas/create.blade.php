@@ -14,11 +14,10 @@
                     <h3 class="card-title">Llene los Datos</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('patrullas.store') }}" method="POST">
+                    <form action="{{ route('patrullas.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
                         <div class="row">
-                            <!-- Número económico -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="numero_economico">Número Económico</label>
@@ -39,7 +38,6 @@
                                 </div>
                             </div>
 
-                            <!-- Unidad -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad</label>
@@ -49,10 +47,9 @@
                                         class="form-control @error('unidad_id') is-invalid @enderror"
                                         required
                                     >
-                                        <option value="" disabled selected>Seleccione una unidad</option>
+                                        <option value="" disabled {{ old('unidad_id') ? '' : 'selected' }}>Seleccione una unidad</option>
                                         @foreach ($unidades as $u)
-                                            <option value="{{ $u->id }}"
-                                                {{ old('unidad_id') == $u->id ? 'selected' : '' }}>
+                                            <option value="{{ $u->id }}" {{ old('unidad_id') == $u->id ? 'selected' : '' }}>
                                                 {{ $u->nombre }}
                                             </option>
                                         @endforeach
@@ -65,7 +62,6 @@
                                 </div>
                             </div>
 
-                            <!-- Turno -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="turno_id">Turno</label>
@@ -76,8 +72,7 @@
                                     >
                                         <option value="" selected>Sin turno</option>
                                         @foreach ($turnos as $t)
-                                            <option value="{{ $t->id }}"
-                                                {{ old('turno_id') == $t->id ? 'selected' : '' }}>
+                                            <option value="{{ $t->id }}" {{ old('turno_id') == $t->id ? 'selected' : '' }}>
                                                 {{ $t->nombre }}
                                             </option>
                                         @endforeach
@@ -87,15 +82,12 @@
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
-                                    <small class="text-muted">
-                                        Opcional. Útil si la patrulla está fija a un turno.
-                                    </small>
+                                    <small class="text-muted">Opcional. Útil si la patrulla está fija a un turno.</small>
                                 </div>
                             </div>
                         </div>
 
                         <div class="row">
-                            <!-- Activa -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="activa">Estado</label>
@@ -126,7 +118,6 @@
                         <h5 class="mb-3"><strong>Datos del Vehículo</strong></h5>
 
                         <div class="row">
-                            <!-- Tipo -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="tipo">Tipo</label>
@@ -151,7 +142,6 @@
                                 </div>
                             </div>
 
-                            <!-- Marca -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="marca">Marca</label>
@@ -171,7 +161,6 @@
                                 </div>
                             </div>
 
-                            <!-- Línea -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="linea">Línea</label>
@@ -191,7 +180,6 @@
                                 </div>
                             </div>
 
-                            <!-- Modelo (Año) -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="modelo">Modelo (Año)</label>
@@ -215,7 +203,6 @@
                         </div>
 
                         <div class="row">
-                            <!-- Placas -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="placas">Placas</label>
@@ -236,7 +223,6 @@
                                 </div>
                             </div>
 
-                            <!-- Serie -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="serie">Serie (VIN)</label>
@@ -256,7 +242,6 @@
                                 </div>
                             </div>
 
-                            <!-- Color -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="color">Color</label>
@@ -276,7 +261,6 @@
                                 </div>
                             </div>
 
-                            <!-- No. motor -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="no_motor">No. Motor</label>
@@ -298,7 +282,45 @@
                         </div>
 
                         <div class="row">
-                            <!-- Observaciones -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foto">Foto de la Patrulla</label>
+                                    <input
+                                        type="file"
+                                        name="foto"
+                                        id="foto"
+                                        class="form-control @error('foto') is-invalid @enderror"
+                                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                        required
+                                    >
+                                    @error('foto')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Obligatoria. Formatos permitidos: JPG, JPEG, PNG, WEBP.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Vista previa</label>
+                                    <div class="border rounded p-2 text-center bg-light" style="min-height: 220px;">
+                                        <img
+                                            id="preview_foto"
+                                            src="#"
+                                            alt="Vista previa de la patrulla"
+                                            style="max-width: 100%; max-height: 200px; display: none;"
+                                        >
+                                        <div id="preview_placeholder" class="text-muted" style="padding-top: 85px;">
+                                            Aún no se ha seleccionado una imagen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>
@@ -365,4 +387,35 @@
             });
         </script>
     @endif
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const inputFoto = document.getElementById('foto');
+            const previewFoto = document.getElementById('preview_foto');
+            const previewPlaceholder = document.getElementById('preview_placeholder');
+
+            if (inputFoto) {
+                inputFoto.addEventListener('change', function (e) {
+                    const archivo = e.target.files[0];
+
+                    if (!archivo) {
+                        previewFoto.src = '#';
+                        previewFoto.style.display = 'none';
+                        previewPlaceholder.style.display = 'block';
+                        return;
+                    }
+
+                    const lector = new FileReader();
+
+                    lector.onload = function (evento) {
+                        previewFoto.src = evento.target.result;
+                        previewFoto.style.display = 'inline-block';
+                        previewPlaceholder.style.display = 'none';
+                    };
+
+                    lector.readAsDataURL(archivo);
+                });
+            }
+        });
+    </script>
 @stop

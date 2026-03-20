@@ -137,7 +137,7 @@
 
 @section('js')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="{{ asset('js/guardianes_camino_dispositivos_form.js') }}"></script>
+    <script src="{{ asset('js/guardianes_camino_dispositivos_form.js') }}?v={{ filemtime(public_path('js/guardianes_camino_dispositivos_form.js')) }}"></script>
 
     @if ($errors->any())
         <script>

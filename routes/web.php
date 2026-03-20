@@ -58,8 +58,15 @@ use App\Http\Controllers\EstadisticasCarreterasController;
 use App\Http\Controllers\GuardianesCaminoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoFotoController;
+use App\Http\Controllers\ResumenEjecutivoController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
+
+Route::prefix('resumen-ejecutivo')->middleware(['auth', 'can:ver estadisticas'])->group(function () {
+    Route::get('/', [ResumenEjecutivoController::class, 'index'])->name('resumen_ejecutivo.index');
+    Route::get('/{fecha}', [ResumenEjecutivoController::class, 'show'])->name('resumen_ejecutivo.show');
+    Route::get('/data/{fecha}', [ResumenEjecutivoController::class, 'data'])->name('resumen_ejecutivo.data');
+});
 
 Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::get('/mapa',[MapaPatrullasController::class,'index'])->name('mapa.index');

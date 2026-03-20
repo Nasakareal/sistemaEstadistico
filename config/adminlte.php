@@ -385,6 +385,12 @@ return [
                     'url'     => 'estadisticas-globales',
                     'can'     => 'menu-estadisticas-globales',
                 ],
+                [
+                    'text'    => 'Resumen Ejecutivo',
+                    'route'   => 'resumen_ejecutivo.index',
+                    'icon'    => 'fa-solid fa-chart-line',
+                    'can'     => 'ver estadisticas',
+                ],
             ],
         ],
 

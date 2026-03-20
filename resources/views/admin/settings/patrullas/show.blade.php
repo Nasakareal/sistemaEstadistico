@@ -31,7 +31,27 @@
 
                 <div class="card-body">
 
-                    {{-- ================= DATOS GENERALES ================= --}}
+                    <h5 class="mb-3"><strong>Fotografía</strong></h5>
+
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="foto-patrulla-box text-center">
+                                @if ($patrulla->foto)
+                                    <img
+                                        src="{{ asset('storage/' . $patrulla->foto) }}"
+                                        alt="Foto de la patrulla {{ $patrulla->numero_economico }}"
+                                        class="img-fluid foto-patrulla"
+                                    >
+                                @else
+                                    <div class="text-muted py-5">
+                                        <i class="fa-regular fa-image fa-3x mb-3"></i>
+                                        <div>Esta patrulla no tiene foto registrada</div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
                     <h5 class="mb-3"><strong>Datos Generales</strong></h5>
 
                     <table class="table table-bordered table-striped mb-4">
@@ -64,7 +84,6 @@
                         </tbody>
                     </table>
 
-                    {{-- ================= DATOS DEL VEHÍCULO ================= --}}
                     <h5 class="mb-3"><strong>Datos del Vehículo</strong></h5>
 
                     <table class="table table-bordered table-striped">
@@ -177,6 +196,20 @@
         padding: .35rem .6rem;
         font-size: .85rem;
         border-radius: .35rem;
+    }
+
+    .foto-patrulla-box {
+        background: rgba(0,0,0,.15);
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: .5rem;
+        padding: 15px;
+    }
+
+    .foto-patrulla {
+        max-width: 100%;
+        max-height: 420px;
+        border-radius: .4rem;
+        box-shadow: 0 4px 18px rgba(0,0,0,.25);
     }
 </style>
 @stop

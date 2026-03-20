@@ -14,12 +14,11 @@
                     <h3 class="card-title">Actualizar Datos</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('patrullas.update', $patrulla->id) }}" method="POST">
+                    <form action="{{ route('patrullas.update', $patrulla->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
 
                         <div class="row">
-                            <!-- Número económico -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="numero_economico">Número Económico</label>
@@ -40,7 +39,6 @@
                                 </div>
                             </div>
 
-                            <!-- Unidad -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad</label>
@@ -53,7 +51,7 @@
                                         <option value="" disabled>Seleccione una unidad</option>
                                         @foreach ($unidades as $u)
                                             <option value="{{ $u->id }}"
-                                                {{ (string)old('unidad_id', $patrulla->unidad_id) === (string)$u->id ? 'selected' : '' }}>
+                                                {{ (string) old('unidad_id', $patrulla->unidad_id) === (string) $u->id ? 'selected' : '' }}>
                                                 {{ $u->nombre }}
                                             </option>
                                         @endforeach
@@ -66,7 +64,6 @@
                                 </div>
                             </div>
 
-                            <!-- Turno -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="turno_id">Turno</label>
@@ -80,7 +77,7 @@
                                         </option>
                                         @foreach ($turnos as $t)
                                             <option value="{{ $t->id }}"
-                                                {{ (string)old('turno_id', $patrulla->turno_id) === (string)$t->id ? 'selected' : '' }}>
+                                                {{ (string) old('turno_id', $patrulla->turno_id) === (string) $t->id ? 'selected' : '' }}>
                                                 {{ $t->nombre }}
                                             </option>
                                         @endforeach
@@ -98,7 +95,6 @@
                         </div>
 
                         <div class="row">
-                            <!-- Activa -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="activa">Estado</label>
@@ -108,10 +104,10 @@
                                         class="form-control @error('activa') is-invalid @enderror"
                                         required
                                     >
-                                        <option value="1" {{ (string)old('activa', (int)$patrulla->activa) === '1' ? 'selected' : '' }}>
+                                        <option value="1" {{ (string) old('activa', (int) $patrulla->activa) === '1' ? 'selected' : '' }}>
                                             Activa
                                         </option>
-                                        <option value="0" {{ (string)old('activa', (int)$patrulla->activa) === '0' ? 'selected' : '' }}>
+                                        <option value="0" {{ (string) old('activa', (int) $patrulla->activa) === '0' ? 'selected' : '' }}>
                                             Inactiva
                                         </option>
                                     </select>
@@ -129,7 +125,6 @@
                         <h5 class="mb-3"><strong>Datos del Vehículo</strong></h5>
 
                         <div class="row">
-                            <!-- Tipo -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="tipo">Tipo</label>
@@ -154,7 +149,6 @@
                                 </div>
                             </div>
 
-                            <!-- Marca -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="marca">Marca</label>
@@ -174,7 +168,6 @@
                                 </div>
                             </div>
 
-                            <!-- Línea -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="linea">Línea</label>
@@ -194,7 +187,6 @@
                                 </div>
                             </div>
 
-                            <!-- Modelo (Año) -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="modelo">Modelo (Año)</label>
@@ -218,7 +210,6 @@
                         </div>
 
                         <div class="row">
-                            <!-- Placas -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="placas">Placas</label>
@@ -239,7 +230,6 @@
                                 </div>
                             </div>
 
-                            <!-- Serie -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="serie">Serie (VIN)</label>
@@ -259,7 +249,6 @@
                                 </div>
                             </div>
 
-                            <!-- Color -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="color">Color</label>
@@ -279,7 +268,6 @@
                                 </div>
                             </div>
 
-                            <!-- No. motor -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="no_motor">No. Motor</label>
@@ -301,7 +289,56 @@
                         </div>
 
                         <div class="row">
-                            <!-- Observaciones -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foto">Foto de la Patrulla</label>
+                                    <input
+                                        type="file"
+                                        name="foto"
+                                        id="foto"
+                                        class="form-control @error('foto') is-invalid @enderror"
+                                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                    >
+                                    @error('foto')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Opcional. Si seleccionas una nueva imagen, reemplazará la actual.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Vista previa</label>
+                                    <div class="border rounded p-2 text-center bg-light" style="min-height: 220px;">
+                                        @if ($patrulla->foto)
+                                            <img
+                                                id="preview_foto"
+                                                src="{{ asset('storage/' . $patrulla->foto) }}"
+                                                alt="Foto actual de la patrulla"
+                                                style="max-width: 100%; max-height: 200px; display: inline-block;"
+                                            >
+                                            <div id="preview_placeholder" class="text-muted" style="display: none; padding-top: 85px;">
+                                                Aún no se ha seleccionado una imagen
+                                            </div>
+                                        @else
+                                            <img
+                                                id="preview_foto"
+                                                src="#"
+                                                alt="Vista previa de la patrulla"
+                                                style="max-width: 100%; max-height: 200px; display: none;"
+                                            >
+                                            <div id="preview_placeholder" class="text-muted" style="padding-top: 85px;">
+                                                Esta patrulla no tiene imagen cargada
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>
@@ -345,7 +382,9 @@
 
 @section('css')
     <style>
-        .form-group label { font-weight: bold; }
+        .form-group label {
+            font-weight: bold;
+        }
     </style>
 @stop
 
@@ -366,4 +405,41 @@
             });
         </script>
     @endif
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const inputFoto = document.getElementById('foto');
+            const previewFoto = document.getElementById('preview_foto');
+            const previewPlaceholder = document.getElementById('preview_placeholder');
+
+            if (inputFoto) {
+                inputFoto.addEventListener('change', function (e) {
+                    const archivo = e.target.files[0];
+
+                    if (!archivo) {
+                        @if ($patrulla->foto)
+                            previewFoto.src = "{{ asset('storage/' . $patrulla->foto) }}";
+                            previewFoto.style.display = 'inline-block';
+                            previewPlaceholder.style.display = 'none';
+                        @else
+                            previewFoto.src = '#';
+                            previewFoto.style.display = 'none';
+                            previewPlaceholder.style.display = 'block';
+                        @endif
+                        return;
+                    }
+
+                    const lector = new FileReader();
+
+                    lector.onload = function (evento) {
+                        previewFoto.src = evento.target.result;
+                        previewFoto.style.display = 'inline-block';
+                        previewPlaceholder.style.display = 'none';
+                    };
+
+                    lector.readAsDataURL(archivo);
+                });
+            }
+        });
+    </script>
 @stop

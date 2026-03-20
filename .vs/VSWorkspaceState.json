@@ -1,8 +1,15 @@
 {
   "ExpandedNodes": [
     "",
-    "\\config"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\resumen_ejecutivo",
+    "\\resources\\views\\resumen_ejecutivo\\partials",
+    "\\routes"
   ],
-  "SelectedNode": "\\config\\adminlte.php",
+  "SelectedNode": "\\resources\\views\\resumen_ejecutivo\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

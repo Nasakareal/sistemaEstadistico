@@ -30,12 +30,15 @@ class ResumenEjecutivoController extends Controller
     {
         $fecha = Carbon::parse($fecha)->toDateString();
 
-        $inicio = Carbon::parse($fecha)->startOfDay();
-        $fin    = Carbon::parse($fecha)->endOfDay();
-
         $hechos = Hechos::query()
-            ->with(['vehiculos', 'lesionados'])
-            ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
+            ->with([
+                'vehiculos',
+                'lesionados',
+                'creator',
+                'marcadoRelevantePor',
+                'revisadoPor',
+            ])
+            ->whereDate('fecha', $fecha)
             ->get();
 
         $totalHechos = $hechos->count();
@@ -43,54 +46,76 @@ class ResumenEjecutivoController extends Controller
         $totalVehiculos = $hechos->sum(fn($h) => $h->vehiculos->count());
 
         $porTipoGroup = $hechos
-            ->groupBy(fn($h) => $h->tipo_hecho ?? 'SIN TIPO')
+            ->groupBy(fn($h) => $h->tipo_hecho ?: 'SIN TIPO')
             ->map(fn($items) => $items->count())
             ->sortDesc()
             ->take(10);
 
         $porHoraAgrupado = $hechos
             ->groupBy(function ($h) {
-                return $h->hora ? substr($h->hora, 0, 2) . ':00' : 'SIN HORA';
+                return $h->hora ? substr((string) $h->hora, 0, 2) . ':00' : 'SIN HORA';
             })
             ->map(fn($items) => $items->count())
             ->sortKeys();
 
         $hechosRelevantes = $hechos
-            ->map(function ($hecho) {
-                $score = 0;
-
-                $lesionadosCount = $hecho->lesionados->count();
-                $vehiculosCount  = $hecho->vehiculos->count();
-                $tipoHecho       = strtoupper((string) ($hecho->tipo_hecho ?? ''));
-
-                if ($lesionadosCount > 0) $score += 4;
-                if ($vehiculosCount >= 3) $score += 2;
-                if (str_contains($tipoHecho, 'VOLCADURA')) $score += 4;
-                if (str_contains($tipoHecho, 'ATROPELL')) $score += 5;
-                if (str_contains($tipoHecho, 'PEATON')) $score += 5;
-                if (str_contains($tipoHecho, 'CHOQUE')) $score += 2;
-
-                $hecho->score_relevancia = $score;
-
-                return $hecho;
-            })
-            ->filter(fn($h) => $h->score_relevancia >= 4)
-            ->sortByDesc('score_relevancia')
-            ->take(5)
+            ->filter(fn($h) => (bool) $h->es_relevante)
+            ->sortBy([
+                ['hora', 'asc'],
+                ['id', 'asc'],
+            ])
             ->values()
             ->map(function ($h) {
+                $fotoLugar = $h->foto_lugar ? asset('storage/' . ltrim($h->foto_lugar, '/')) : null;
+                $fotoSituacion = $h->foto_situacion ? asset('storage/' . ltrim($h->foto_situacion, '/')) : null;
+
+                $ubicacionPartes = array_filter([
+                    $h->calle,
+                    $h->colonia,
+                    $h->municipio,
+                ]);
+
+                $ubicacion = count($ubicacionPartes) ? implode(', ', $ubicacionPartes) : 'Sin ubicación';
+
                 return [
                     'id' => $h->id,
-                    'folio' => $h->folio ?? $h->id,
+                    'folio_c5i' => $h->folio_c5i,
                     'tipo_hecho' => $h->tipo_hecho,
+                    'situacion' => $h->situacion,
                     'fecha' => $h->fecha,
                     'hora' => $h->hora,
-                    'ubicacion' => $h->ubicacion ?? $h->lugar ?? 'Sin ubicación',
-                    'score' => $h->score_relevancia,
-                    'lesionados' => $h->lesionados->count(),
-                    'vehiculos' => $h->vehiculos->count(),
+                    'sector' => $h->sector,
+                    'calle' => $h->calle,
+                    'colonia' => $h->colonia,
+                    'entre_calles' => $h->entre_calles,
+                    'municipio' => $h->municipio,
+                    'ubicacion' => $ubicacion,
+                    'causas' => $h->causas,
+                    'colision_camino' => $h->colision_camino,
+                    'clima' => $h->clima,
+                    'tiempo' => $h->tiempo,
+                    'superficie_via' => $h->superficie_via,
+                    'condiciones' => $h->condiciones,
+                    'control_transito' => $h->control_transito,
+                    'danos_patrimoniales' => $h->danos_patrimoniales,
+                    'propiedades_afectadas' => $h->propiedades_afectadas,
+                    'monto_danos_patrimoniales' => $h->monto_danos_patrimoniales,
+                    'oficio_mp' => $h->oficio_mp,
+                    'vehiculos_mp' => $h->vehiculos_mp,
+                    'personas_mp' => $h->personas_mp,
                     'lat' => $h->lat,
                     'lng' => $h->lng,
+                    'foto_lugar' => $fotoLugar,
+                    'foto_situacion' => $fotoSituacion,
+                    'foto_principal' => $fotoSituacion ?: $fotoLugar,
+                    'lesionados_count' => $h->lesionados->count(),
+                    'vehiculos_count' => $h->vehiculos->count(),
+                    'creado_por' => optional($h->creator)->name,
+                    'marcado_relevante_por' => optional($h->marcadoRelevantePor)->name,
+                    'marcado_relevante_at' => $h->marcado_relevante_at,
+                    'revisado_por' => optional($h->revisadoPor)->name,
+                    'estado_revision' => $h->estado_revision,
+                    'observacion_revision' => $h->observacion_revision,
                     'url' => route('hechos.show', $h->id),
                 ];
             });

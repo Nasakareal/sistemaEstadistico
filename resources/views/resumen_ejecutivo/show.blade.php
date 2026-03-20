@@ -6,12 +6,10 @@
 <div id="ppt-shell">
     <div id="ppt-horizontal">
 
-        {{-- SLIDE 1 --}}
         <section class="ppt-slide ppt-slide--cover">
             @include('resumen_ejecutivo.partials.portada')
         </section>
 
-        {{-- SLIDE 2 --}}
         <section class="ppt-slide">
             <div class="ppt-card ppt-card--resumen">
                 <div class="resumen-slide">
@@ -39,7 +37,7 @@
                                     <i class="fa-solid fa-car-burst"></i>
                                 </div>
                                 <div class="resumen-metrica__numero" id="kpi_total_hechos">0</div>
-                                <div class="resumen-metrica__titulo">Hechos registrados</div>
+                                <div class="resumen-metrica__titulo">Siniestros registrados</div>
                                 <div class="resumen-metrica__desc">Eventos capturados en el corte diario</div>
                             </div>
 
@@ -62,7 +60,7 @@
                                 </div>
                                 <div class="resumen-metrica__numero" id="kpi_total_vehiculos">0</div>
                                 <div class="resumen-metrica__titulo">Vehículos involucrados</div>
-                                <div class="resumen-metrica__desc">Unidades registradas en los hechos</div>
+                                <div class="resumen-metrica__desc">Unidades registradas en los siniestros</div>
                             </div>
 
                             <div class="resumen-metrica resumen-metrica--divider"></div>
@@ -72,7 +70,7 @@
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 </div>
                                 <div class="resumen-metrica__numero" id="kpi_total_relevantes">0</div>
-                                <div class="resumen-metrica__titulo">Relevantes</div>
+                                <div class="resumen-metrica__titulo">Siniestros relevantes</div>
                                 <div class="resumen-metrica__desc">Casos priorizados para seguimiento</div>
                             </div>
 
@@ -85,13 +83,12 @@
             </div>
         </section>
 
-        {{-- SLIDE 3 --}}
         <section class="ppt-slide">
             <div class="ppt-card">
                 <div class="ppt-card__header">
                     <div>
                         <div class="ppt-eyebrow">Análisis</div>
-                        <h2 class="ppt-title">Hechos por tipo</h2>
+                        <h2 class="ppt-title">Siniestros por tipo</h2>
                     </div>
                 </div>
 
@@ -99,13 +96,12 @@
             </div>
         </section>
 
-        {{-- SLIDE 4 --}}
         <section class="ppt-slide">
             <div class="ppt-card">
                 <div class="ppt-card__header">
                     <div>
                         <div class="ppt-eyebrow">Comportamiento</div>
-                        <h2 class="ppt-title">Hechos por hora</h2>
+                        <h2 class="ppt-title">Siniestros por hora</h2>
                     </div>
                 </div>
 
@@ -113,13 +109,12 @@
             </div>
         </section>
 
-        {{-- SLIDE 5 --}}
         <section class="ppt-slide">
             <div class="ppt-card">
                 <div class="ppt-card__header">
                     <div>
                         <div class="ppt-eyebrow">Seguimiento</div>
-                        <h2 class="ppt-title">Hechos relevantes</h2>
+                        <h2 class="ppt-title">Siniestros relevantes</h2>
                     </div>
                 </div>
 
@@ -152,6 +147,7 @@
 
 <script>
 const fecha = @json($fecha);
+const dataUrl = @json(route('resumen_ejecutivo.data', $fecha));
 const ppt = document.getElementById('ppt-horizontal');
 const slides = Array.from(document.querySelectorAll('.ppt-slide'));
 const btnPrev = document.getElementById('pptPrev');
@@ -228,69 +224,195 @@ window.addEventListener('resize', () => {
     goToSlide(currentIndex);
 });
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function renderRelevantes(relevantes) {
+    const contenedor = document.getElementById('contenedor_relevantes');
+
+    if (!contenedor) return;
+
+    contenedor.innerHTML = '';
+
+    if (!Array.isArray(relevantes) || relevantes.length === 0) {
+        contenedor.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info mb-0">
+                    No hay siniestros relevantes marcados para esta fecha.
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    relevantes.forEach((hecho) => {
+        const foto = hecho.foto_principal
+            ? `<img src="${hecho.foto_principal}" alt="Foto del siniestro" class="img-fluid rounded shadow-sm w-100" style="height:220px; object-fit:cover;">`
+            : `<div class="d-flex align-items-center justify-content-center rounded" style="height:220px; background:#eef2f7; color:#64748b; font-weight:700;">SIN FOTO</div>`;
+
+        const card = `
+            <div class="col-md-6 col-xl-4 mb-4">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            ${foto}
+                        </div>
+
+                        <div class="mb-2">
+                            <span class="badge badge-warning">RELEVANTE</span>
+                        </div>
+
+                        <h5 class="font-weight-bold mb-2">${escapeHtml(hecho.tipo_hecho || 'SIN TIPO')}</h5>
+
+                        <div class="mb-1">
+                            <strong>Folio:</strong> ${escapeHtml(hecho.folio_c5i || hecho.id)}
+                        </div>
+
+                        <div class="mb-1">
+                            <strong>Hora:</strong> ${escapeHtml(hecho.hora || 'SIN HORA')}
+                        </div>
+
+                        <div class="mb-1">
+                            <strong>Ubicación:</strong> ${escapeHtml(hecho.ubicacion || 'Sin ubicación')}
+                        </div>
+
+                        <div class="mb-1">
+                            <strong>Situación:</strong> ${escapeHtml(hecho.situacion || 'SIN DATO')}
+                        </div>
+
+                        <div class="mb-1">
+                            <strong>Lesionados:</strong> ${escapeHtml(hecho.lesionados_count ?? 0)}
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Vehículos:</strong> ${escapeHtml(hecho.vehiculos_count ?? 0)}
+                        </div>
+
+                        <a href="${hecho.url}" class="btn btn-primary btn-sm" target="_blank" rel="noopener">
+                            <i class="fa-regular fa-eye"></i> Ver siniestro
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        contenedor.insertAdjacentHTML('beforeend', card);
+    });
+}
+
 async function cargar() {
     buildIndicators();
 
-    const res = await fetch(`/resumen-ejecutivo/data/${fecha}`);
-    const data = await res.json();
-
-    document.getElementById('kpi_total_hechos').textContent = data.kpis.total_hechos ?? 0;
-    document.getElementById('kpi_total_lesionados').textContent = data.kpis.total_lesionados ?? 0;
-    document.getElementById('kpi_total_vehiculos').textContent = data.kpis.total_vehiculos ?? 0;
-    document.getElementById('kpi_total_relevantes').textContent = data.kpis.total_relevantes ?? 0;
-
-    if (!chartTipo && document.querySelector('#chart_por_tipo')) {
-        chartTipo = new ApexCharts(document.querySelector('#chart_por_tipo'), {
-            chart: {
-                type: 'bar',
-                height: 420,
-                toolbar: { show: false },
-                animations: { easing: 'easeinout', speed: 500 }
-            },
-            series: [{
-                name: 'Hechos',
-                data: data.graficas?.por_tipo?.series ?? []
-            }],
-            xaxis: {
-                categories: data.graficas?.por_tipo?.labels ?? []
-            },
-            dataLabels: { enabled: false },
-            stroke: { show: false },
-            grid: { borderColor: 'rgba(148,163,184,.20)' },
-            legend: { show: false }
+    try {
+        const res = await fetch(dataUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         });
 
-        chartTipo.render();
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        console.log('Resumen ejecutivo data:', data);
+
+        document.getElementById('kpi_total_hechos').textContent = data.kpis?.total_hechos ?? 0;
+        document.getElementById('kpi_total_lesionados').textContent = data.kpis?.total_lesionados ?? 0;
+        document.getElementById('kpi_total_vehiculos').textContent = data.kpis?.total_vehiculos ?? 0;
+        document.getElementById('kpi_total_relevantes').textContent = data.kpis?.total_relevantes ?? 0;
+
+        renderRelevantes(data.relevantes ?? []);
+
+        if (chartTipo) {
+            chartTipo.destroy();
+            chartTipo = null;
+        }
+
+        if (chartHora) {
+            chartHora.destroy();
+            chartHora = null;
+        }
+
+        if (document.querySelector('#chart_por_tipo')) {
+            chartTipo = new ApexCharts(document.querySelector('#chart_por_tipo'), {
+                chart: {
+                    type: 'bar',
+                    height: 420,
+                    toolbar: { show: false },
+                    animations: { easing: 'easeinout', speed: 500 }
+                },
+                series: [{
+                    name: 'Siniestros',
+                    data: data.graficas?.por_tipo?.series ?? []
+                }],
+                xaxis: {
+                    categories: data.graficas?.por_tipo?.labels ?? []
+                },
+                dataLabels: { enabled: false },
+                stroke: { show: false },
+                grid: { borderColor: 'rgba(148,163,184,.20)' },
+                legend: { show: false }
+            });
+
+            chartTipo.render();
+        }
+
+        if (document.querySelector('#chart_por_hora')) {
+            chartHora = new ApexCharts(document.querySelector('#chart_por_hora'), {
+                chart: {
+                    type: 'line',
+                    height: 420,
+                    toolbar: { show: false },
+                    animations: { easing: 'easeinout', speed: 500 }
+                },
+                series: [{
+                    name: 'Siniestros',
+                    data: data.graficas?.por_hora?.series ?? []
+                }],
+                xaxis: {
+                    categories: data.graficas?.por_hora?.labels ?? []
+                },
+                dataLabels: { enabled: false },
+                stroke: {
+                    curve: 'smooth',
+                    width: 4
+                },
+                grid: { borderColor: 'rgba(148,163,184,.20)' },
+                legend: { show: false }
+            });
+
+            chartHora.render();
+        }
+
+        goToSlide(0);
+    } catch (error) {
+        console.error('Error cargando resumen ejecutivo:', error);
+
+        document.getElementById('kpi_total_hechos').textContent = 0;
+        document.getElementById('kpi_total_lesionados').textContent = 0;
+        document.getElementById('kpi_total_vehiculos').textContent = 0;
+        document.getElementById('kpi_total_relevantes').textContent = 0;
+
+        const contenedor = document.getElementById('contenedor_relevantes');
+        if (contenedor) {
+            contenedor.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger mb-0">
+                        No se pudo cargar la información del resumen ejecutivo.
+                    </div>
+                </div>
+            `;
+        }
     }
-
-    if (!chartHora && document.querySelector('#chart_por_hora')) {
-        chartHora = new ApexCharts(document.querySelector('#chart_por_hora'), {
-            chart: {
-                type: 'line',
-                height: 420,
-                toolbar: { show: false },
-                animations: { easing: 'easeinout', speed: 500 }
-            },
-            series: [{
-                name: 'Hechos',
-                data: data.graficas?.por_hora?.series ?? []
-            }],
-            xaxis: {
-                categories: data.graficas?.por_hora?.labels ?? []
-            },
-            dataLabels: { enabled: false },
-            stroke: {
-                curve: 'smooth',
-                width: 4
-            },
-            grid: { borderColor: 'rgba(148,163,184,.20)' },
-            legend: { show: false }
-        });
-
-        chartHora.render();
-    }
-
-    goToSlide(0);
 }
 
 document.addEventListener('DOMContentLoaded', cargar);

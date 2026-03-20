@@ -31,6 +31,7 @@ class HechosController extends Controller
         $usuario = auth()->user();
 
         $hechosQuery = Hechos::query()
+            ->with(['revisadoPor', 'marcadoRelevantePor'])
             ->whereDate('fecha', $fechaSeleccionada);
 
         $this->applyHechosVisibilityScope($hechosQuery, $usuario);
@@ -177,6 +178,8 @@ class HechosController extends Controller
             'vehiculos',
             'vehiculos.servicios',
             'dictamen',
+            'revisadoPor',
+            'marcadoRelevantePor',
         ]);
 
         return view('hechos.show', compact('hecho'));
@@ -654,5 +657,68 @@ class HechosController extends Controller
             'periodo',
             'situacion'
         ));
+    }
+
+    public function marcarRelevante(Hechos $hecho)
+    {
+        $usuario = auth()->user();
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        if (!$this->userCanMarkRelevante($usuario, $hecho)) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para marcar este hecho como relevante.');
+        }
+
+        $hecho->update([
+            'es_relevante' => true,
+            'marcado_relevante_por' => $usuario->id,
+            'marcado_relevante_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Hecho marcado como relevante.');
+    }
+
+    public function desmarcarRelevante(Hechos $hecho)
+    {
+        $usuario = auth()->user();
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        if (!$this->userCanMarkRelevante($usuario, $hecho)) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para desmarcar este hecho como relevante.');
+        }
+
+        $hecho->update([
+            'es_relevante' => false,
+            'marcado_relevante_por' => null,
+            'marcado_relevante_at' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Hecho desmarcado como relevante.');
+    }
+
+    private function userCanMarkRelevante($usuario, Hechos $hecho): bool
+    {
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Subdirector')
+        ) {
+            $q = Hechos::query()->whereKey($hecho->id);
+            $this->applyHechosVisibilityScope($q, $usuario);
+            return $q->exists();
+        }
+
+        return false;
     }
 }

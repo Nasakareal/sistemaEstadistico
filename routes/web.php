@@ -312,6 +312,10 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::delete('/{hecho}',[HechosController::class,'destroy'])->middleware('can:eliminar hechos')->name('hechos.destroy');
     Route::get('/{hecho}/descargar',[DocumentoHechoController::class,'descargarDocx'])->name('hechos.descargar');
 
+    Route::post('/{hecho}/marcar-relevante', [HechosController::class, 'marcarRelevante'])->middleware('can:editar hechos')->name('hechos.marcarRelevante');
+
+    Route::post('/{hecho}/desmarcar-relevante', [HechosController::class, 'desmarcarRelevante'])->middleware('can:editar hechos')->name('hechos.desmarcarRelevante');
+
     Route::prefix('/{hecho}/vehiculos')->middleware('can:ver vehiculos')->group(function () {
         Route::get('/',[VehiculosController::class,'index'])->name('vehiculos.index');
         Route::get('/create',[VehiculosController::class,'create'])->middleware('can:crear vehiculos')->name('vehiculos.create');
@@ -340,7 +344,6 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
 
     Route::post('/{hecho}/whatsapp', [HechosController::class, 'sendWhatsapp'])->name('hechos.whatsapp.send');
 });
-
 Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
     Route::get('/', [ModuloExamenDiarioController::class, 'index'])->name('modulo_examenes_diarios.index');
     Route::get('/create', [ModuloExamenDiarioController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.create');

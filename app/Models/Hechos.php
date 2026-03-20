@@ -59,13 +59,31 @@ class Hechos extends Model
 
         'created_by',
         'updated_by',
+
+        'es_relevante',
+        'marcado_relevante_por',
+        'marcado_relevante_at',
+
+        'estado_revision',
+        'revisado_por',
+        'revisado_at',
+        'observacion_revision',
     ];
 
     protected $casts = [
         'checaron_antecedentes' => 'boolean',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
+
+        'es_relevante' => 'boolean',
+        'marcado_relevante_at' => 'datetime',
+        'revisado_at' => 'datetime',
+        'fecha' => 'date',
     ];
+
+    /**
+     * RELACIONES EXISTENTES
+     */
 
     public function vehiculos(): BelongsToMany
     {
@@ -101,5 +119,48 @@ class Hechos extends Model
     public function dictamen(): HasOne
     {
         return $this->hasOne(Dictamen::class, 'hecho_id');
+    }
+
+    /**
+     * NUEVAS RELACIONES
+     */
+
+    public function marcadoRelevantePor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'marcado_relevante_por');
+    }
+
+    public function revisadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revisado_por');
+    }
+
+    /**
+     * HELPERS (esto te va a servir un chingo en vistas)
+     */
+
+    public function getEsPendienteRevisionAttribute(): bool
+    {
+        return $this->estado_revision === 'pendiente';
+    }
+
+    public function getEsAprobadoAttribute(): bool
+    {
+        return $this->estado_revision === 'aprobado';
+    }
+
+    public function getEsRechazadoAttribute(): bool
+    {
+        return $this->estado_revision === 'rechazado';
+    }
+
+    public function getPuedeSalirEnResumenAttribute(): bool
+    {
+        return $this->es_relevante;
+    }
+
+    public function getPuedeSalirEnResumenFormalAttribute(): bool
+    {
+        return $this->es_relevante && $this->estado_revision === 'aprobado';
     }
 }

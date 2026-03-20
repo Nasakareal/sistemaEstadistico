@@ -57,6 +57,8 @@
                                 <th><center>Ubicación</center></th>
                                 <th><center>Foto Lugar</center></th>
                                 <th><center>Estado</center></th>
+                                <th><center>Relevante</center></th>
+                                <th><center>Revisado por</center></th>
                                 <th><center>Creado por</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
@@ -85,9 +87,48 @@
                                     </td>
 
                                     <td>{{ $hecho->situacion }}</td>
+
+                                    <td>
+                                        @if ($hecho->es_relevante)
+                                            <span class="badge badge-warning">SÍ</span>
+                                        @else
+                                            <span class="badge badge-secondary">NO</span>
+                                        @endif
+                                    </td>
+
+                                    <td>{{ $hecho->revisadoPor ? $hecho->revisadoPor->name : 'SIN REVISIÓN' }}</td>
+
                                     <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
 
                                     <td style="text-align: center">
+                                        @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador') || auth()->user()->hasRole('Subdirector'))
+                                            @if($hecho->es_relevante)
+                                                <form action="{{ route('hechos.desmarcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-outline-danger btn-sm"
+                                                        onclick="return confirm('¿Quitar este hecho como relevante?');"
+                                                        title="Quitar relevante"
+                                                    >
+                                                        <i class="fa-solid fa-star-half-stroke"></i>
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form action="{{ route('hechos.marcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-outline-warning btn-sm"
+                                                        onclick="return confirm('¿Marcar este hecho como relevante?');"
+                                                        title="Marcar relevante"
+                                                    >
+                                                        <i class="fa-solid fa-star"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endif
+
                                         <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm" title="Ver">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>

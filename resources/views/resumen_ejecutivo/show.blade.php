@@ -109,7 +109,7 @@
             </div>
         </section>
 
-        <section class="ppt-slide">
+        <section class="ppt-slide ppt-slide--relevantes">
             <div class="ppt-card">
                 <div class="ppt-card__header">
                     <div>
@@ -118,7 +118,7 @@
                     </div>
                 </div>
 
-                <div class="row" id="contenedor_relevantes"></div>
+                <div id="contenedor_relevantes"></div>
             </div>
         </section>
 
@@ -239,64 +239,79 @@ function renderRelevantes(relevantes) {
     if (!contenedor) return;
 
     contenedor.innerHTML = '';
+    contenedor.classList.remove('cols-1', 'cols-2');
 
     if (!Array.isArray(relevantes) || relevantes.length === 0) {
         contenedor.innerHTML = `
-            <div class="col-12">
-                <div class="alert alert-info mb-0">
-                    No hay siniestros relevantes marcados para esta fecha.
-                </div>
+            <div class="alert alert-info mb-0">
+                No hay siniestros relevantes marcados para esta fecha.
             </div>
         `;
         return;
     }
 
+    if (relevantes.length === 1) {
+        contenedor.classList.add('cols-1');
+    } else if (relevantes.length === 2) {
+        contenedor.classList.add('cols-2');
+    }
+
     relevantes.forEach((hecho) => {
         const foto = hecho.foto_principal
-            ? `<img src="${hecho.foto_principal}" alt="Foto del siniestro" class="img-fluid rounded shadow-sm w-100" style="height:220px; object-fit:cover;">`
-            : `<div class="d-flex align-items-center justify-content-center rounded" style="height:220px; background:#eef2f7; color:#64748b; font-weight:700;">SIN FOTO</div>`;
+            ? `
+                <div class="relevante-media">
+                    <img src="${hecho.foto_principal}" alt="Foto del siniestro">
+                </div>
+            `
+            : `
+                <div class="relevante-media d-flex align-items-center justify-content-center" style="color:#334155; font-weight:800;">
+                    SIN FOTO
+                </div>
+            `;
 
         const card = `
-            <div class="col-md-6 col-xl-4 mb-4">
-                <div class="card h-100 shadow-sm border-0">
+            <div class="relevante-item">
+                <div class="card">
                     <div class="card-body">
-                        <div class="mb-3">
-                            ${foto}
-                        </div>
+                        ${foto}
 
-                        <div class="mb-2">
+                        <div class="mb-3">
                             <span class="badge badge-warning">RELEVANTE</span>
                         </div>
 
-                        <h5 class="font-weight-bold mb-2">${escapeHtml(hecho.tipo_hecho || 'SIN TIPO')}</h5>
+                        <h5 class="font-weight-bold">${escapeHtml(hecho.tipo_hecho || 'SIN TIPO')}</h5>
 
-                        <div class="mb-1">
-                            <strong>Folio:</strong> ${escapeHtml(hecho.folio_c5i || hecho.id)}
+                        <div class="relevante-texto">
+                            <div class="relevante-linea">
+                                <strong>Folio:</strong> ${escapeHtml(hecho.folio_c5i || hecho.id)}
+                            </div>
+
+                            <div class="relevante-linea">
+                                <strong>Hora:</strong> ${escapeHtml(hecho.hora || 'SIN HORA')}
+                            </div>
+
+                            <div class="relevante-linea">
+                                <strong>Ubicación:</strong> ${escapeHtml(hecho.ubicacion || 'Sin ubicación')}
+                            </div>
+
+                            <div class="relevante-linea">
+                                <strong>Situación:</strong> ${escapeHtml(hecho.situacion || 'SIN DATO')}
+                            </div>
+
+                            <div class="relevante-linea">
+                                <strong>Lesionados:</strong> ${escapeHtml(hecho.lesionados_count ?? 0)}
+                            </div>
+
+                            <div class="relevante-linea">
+                                <strong>Vehículos:</strong> ${escapeHtml(hecho.vehiculos_count ?? 0)}
+                            </div>
                         </div>
 
-                        <div class="mb-1">
-                            <strong>Hora:</strong> ${escapeHtml(hecho.hora || 'SIN HORA')}
+                        <div class="relevante-footer">
+                            <a href="${hecho.url}" class="btn btn-primary btn-sm" target="_blank" rel="noopener">
+                                <i class="fa-regular fa-eye"></i> Ver siniestro
+                            </a>
                         </div>
-
-                        <div class="mb-1">
-                            <strong>Ubicación:</strong> ${escapeHtml(hecho.ubicacion || 'Sin ubicación')}
-                        </div>
-
-                        <div class="mb-1">
-                            <strong>Situación:</strong> ${escapeHtml(hecho.situacion || 'SIN DATO')}
-                        </div>
-
-                        <div class="mb-1">
-                            <strong>Lesionados:</strong> ${escapeHtml(hecho.lesionados_count ?? 0)}
-                        </div>
-
-                        <div class="mb-3">
-                            <strong>Vehículos:</strong> ${escapeHtml(hecho.vehiculos_count ?? 0)}
-                        </div>
-
-                        <a href="${hecho.url}" class="btn btn-primary btn-sm" target="_blank" rel="noopener">
-                            <i class="fa-regular fa-eye"></i> Ver siniestro
-                        </a>
                     </div>
                 </div>
             </div>

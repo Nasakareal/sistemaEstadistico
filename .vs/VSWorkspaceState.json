@@ -1,8 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\routes"
+    "\\config"
   ],
-  "SelectedNode": "\\routes\\web.php",
+  "SelectedNode": "\\config\\adminlte.php",
   "PreviewInSolutionExplorer": false
 }

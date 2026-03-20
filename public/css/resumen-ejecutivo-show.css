@@ -1,0 +1,822 @@
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body {
+    background: radial-gradient(circle at top left, rgba(255,255,255,.05), transparent 24%), linear-gradient(135deg, #08172f 0%, #0f2a59 55%, #1e1c5d 100%);
+}
+
+/* ===== Limpieza de AdminLTE para que no rompa el viewport ===== */
+.wrapper,
+.content-wrapper,
+.content,
+.content .container-fluid {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+
+.content-header {
+    display: none !important;
+}
+
+.main-footer {
+    display: none !important;
+}
+
+/* ===== Shell principal fijo ===== */
+#ppt-shell {
+    position: fixed;
+    top: 57px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    overflow: hidden;
+    background: radial-gradient(circle at top left, rgba(255,255,255,.05), transparent 24%), linear-gradient(135deg, #08172f 0%, #0f2a59 55%, #1e1c5d 100%);
+}
+
+/* Si sidebar está abierto en desktop */
+body:not(.sidebar-collapse) #ppt-shell {
+    left: 250px;
+}
+
+/* Si sidebar colapsado */
+body.sidebar-collapse #ppt-shell {
+    left: 4.6rem;
+}
+
+/* Ajuste móvil */
+@media (max-width: 991.98px) {
+    #ppt-shell,
+    body:not(.sidebar-collapse) #ppt-shell,
+    body.sidebar-collapse #ppt-shell {
+        left: 0;
+        top: 57px;
+    }
+}
+
+/* ===== Carrusel ===== */
+#ppt-horizontal {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+    #ppt-horizontal::-webkit-scrollbar {
+        display: none;
+    }
+
+.ppt-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    box-sizing: border-box;
+    padding: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ppt-slide--cover {
+    padding: 16px;
+}
+
+/* ===== Tarjetas interiores ===== */
+.ppt-card {
+    width: 100%;
+    height: 100%;
+    border-radius: 28px;
+    padding: 34px 36px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 24px 70px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.70);
+    overflow: hidden;
+}
+
+.ppt-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.ppt-eyebrow {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.ppt-title {
+    font-size: clamp(28px, 2.1vw, 42px);
+    line-height: 1.05;
+    font-weight: 900;
+    color: #0f172a;
+    margin: 0;
+}
+
+.ppt-chart {
+    width: 100%;
+    height: calc(100% - 86px);
+    min-height: 360px;
+}
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   SLIDE 2 - RESUMEN EJECUTIVO VISUAL
+========================================================= */
+.ppt-card--resumen {
+    background: linear-gradient(135deg, #fbfcff 0%, #f3f6fc 55%, #eef2fa 100%);
+    border: 1px solid rgba(15, 23, 42, .06);
+    box-shadow: 0 24px 60px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+.resumen-slide {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: #16295f;
+}
+
+.resumen-slide__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 28px;
+    margin-bottom: 26px;
+}
+
+.resumen-slide__brand {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    min-width: 260px;
+}
+
+    .resumen-slide__brand img {
+        display: block;
+        max-width: 300px;
+        max-height: 90px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+    }
+
+.resumen-slide__title-wrap {
+    flex: 1;
+    text-align: right;
+    padding-top: 4px;
+}
+
+.resumen-slide__eyebrow {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: #4d678f;
+    margin-bottom: 10px;
+}
+
+.resumen-slide__title {
+    margin: 0;
+    font-size: clamp(34px, 2.7vw, 52px);
+    line-height: 1.02;
+    font-weight: 900;
+    color: #1a2d66;
+    text-transform: uppercase;
+}
+
+.resumen-slide__date {
+    margin-top: 8px;
+    font-size: clamp(18px, 1.35vw, 28px);
+    line-height: 1.2;
+    font-weight: 800;
+    color: #1e326d;
+    text-transform: uppercase;
+}
+
+    .resumen-slide__date span {
+        font-weight: 700;
+    }
+
+.resumen-slide__body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 8px 4px;
+}
+
+.resumen-metricas {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 24px 1fr 24px 1fr 24px 1fr;
+    align-items: start;
+    gap: 0;
+}
+
+.resumen-metrica {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    min-height: 360px;
+    padding: 8px 18px;
+}
+
+.resumen-metrica__icon {
+    width: 116px;
+    height: 116px;
+    margin-bottom: 20px;
+    border-radius: 0 0 34px 34px;
+    background: linear-gradient(180deg, #1d2f6d 0%, #0f2258 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    box-shadow: 0 18px 28px rgba(15, 34, 88, .16);
+}
+
+.resumen-metrica__numero {
+    font-size: clamp(56px, 4.5vw, 86px);
+    line-height: .95;
+    font-weight: 900;
+    color: #16295f;
+    margin-bottom: 10px;
+}
+
+.resumen-metrica__titulo {
+    font-size: 21px;
+    line-height: 1.15;
+    font-weight: 900;
+    color: #182c65;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.resumen-metrica__desc {
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: #465d87;
+    max-width: 250px;
+}
+
+.resumen-metrica--divider {
+    min-height: 180px;
+    align-self: center;
+    padding: 0;
+    position: relative;
+}
+
+    .resumen-metrica--divider::before {
+        content: "";
+        display: block;
+        width: 6px;
+        height: 220px;
+        margin: 0 auto;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(24,44,101,.06), rgba(24,44,101,.18), rgba(24,44,101,.06));
+    }
+
+.resumen-slide__footer-line {
+    width: 70%;
+    height: 6px;
+    margin: 8px auto 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(24,44,101,.08), rgba(24,44,101,.22), rgba(24,44,101,.08));
+}
+
+/* Quitar estilo anterior de cajas KPI solo en esta slide */
+.ppt-card--resumen .kpi-box,
+.ppt-card--resumen .kpi-label,
+.ppt-card--resumen .kpi-value {
+    all: unset;
+}
+
+/* ===== Responsive resumen ===== */
+@media (max-width: 1400px) {
+    .resumen-slide__brand img {
+        max-width: 250px;
+        max-height: 78px;
+    }
+
+    .resumen-metrica__icon {
+        width: 100px;
+        height: 100px;
+        font-size: 42px;
+    }
+
+    .resumen-metrica__titulo {
+        font-size: 18px;
+    }
+
+    .resumen-metrica__desc {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .resumen-slide__header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .resumen-slide__brand {
+        min-width: auto;
+        justify-content: center;
+    }
+
+    .resumen-slide__title-wrap {
+        text-align: center;
+    }
+
+    .resumen-metricas {
+        grid-template-columns: 1fr 1fr;
+        gap: 26px 18px;
+    }
+
+    .resumen-metrica--divider {
+        display: none;
+    }
+
+    .resumen-metrica {
+        min-height: 280px;
+        padding: 8px 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .resumen-metricas {
+        grid-template-columns: 1fr;
+    }
+
+    .resumen-slide__title {
+        font-size: clamp(26px, 6vw, 38px);
+    }
+
+    .resumen-slide__date {
+        font-size: clamp(15px, 3.6vw, 22px);
+    }
+
+    .resumen-metrica__numero {
+        font-size: 58px;
+    }
+
+    .resumen-metrica__titulo {
+        font-size: 17px;
+    }
+
+    .resumen-metrica__desc {
+        font-size: 14px;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===== KPIs ===== */
+.kpi-box {
+    border-radius: 22px;
+    padding: 22px 22px;
+    color: #fff;
+    min-height: 142px;
+    box-shadow: 0 16px 34px rgba(15,23,42,.18);
+}
+
+.kpi-box--info {
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+}
+
+.kpi-box--danger {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+.kpi-box--warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.kpi-box--success {
+    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+}
+
+.kpi-label {
+    font-size: 15px;
+    font-weight: 700;
+    opacity: .94;
+    margin-bottom: 14px;
+}
+
+.kpi-value {
+    font-size: clamp(36px, 3vw, 56px);
+    line-height: 1;
+    font-weight: 900;
+}
+
+/* ===== Navegación ===== */
+.ppt-nav {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(7, 18, 39, .72);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+
+.ppt-nav__btn {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255,255,255,.14);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+    .ppt-nav__btn:hover {
+        background: rgba(255,255,255,.22);
+        transform: translateY(-1px);
+    }
+
+.ppt-indicators {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ppt-indicator {
+    width: 10px;
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255,255,255,.28);
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+    .ppt-indicator.is-active {
+        width: 28px;
+        background: #fff;
+    }
+
+/* =========================================================
+   PORTADA
+========================================================= */
+.cover-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 34px;
+    overflow: hidden;
+    color: #0b2b61;
+    background: radial-gradient(circle at 18% 14%, rgba(12, 42, 97, .05), transparent 20%), radial-gradient(circle at 86% 8%, rgba(115, 74, 182, .06), transparent 20%), linear-gradient(135deg, #ffffff 0%, #f7faff 54%, #eef3ff 100%);
+    box-shadow: 0 28px 60px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+    .cover-slide::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,.30), transparent 20%, transparent 78%, rgba(11,43,97,.03));
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .cover-slide::after {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(11,43,97,.08);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+/* Pleca abajo */
+.cover-slide__pleca {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    height: 56px;
+    overflow: hidden;
+    box-shadow: 0 -8px 18px rgba(0,0,0,.10);
+}
+
+    .cover-slide__pleca img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+/* Encabezado logos */
+.cover-slide__top {
+    position: absolute;
+    top: 82px;
+    left: 42px;
+    right: 42px;
+    z-index: 4;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+/* Logo izquierdo */
+.cover-slide__brand-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    min-height: 110px;
+}
+
+    .cover-slide__brand-left img {
+        display: block;
+        width: auto;
+        max-width: 82px;
+        max-height: 98px;
+        height: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,.08));
+        opacity: .98;
+    }
+
+/* Logo derecho */
+.cover-slide__brand-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 330px;
+    min-height: 110px;
+}
+
+    .cover-slide__brand-right img {
+        display: block;
+        width: auto;
+        max-width: 300px;
+        max-height: 118px;
+        height: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,.08));
+        opacity: .98;
+    }
+
+/* Cuerpo */
+.cover-slide__content {
+    position: relative;
+    z-index: 2;
+    width: min(1180px, calc(100% - 120px));
+    height: 100%;
+    margin: 0 auto;
+    padding: 150px 20px 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.cover-slide__tag {
+    margin-bottom: 24px;
+    padding: 11px 24px;
+    border-radius: 999px;
+    background: rgba(11,43,97,.06);
+    border: 1px solid rgba(11,43,97,.12);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+    color: #20437d;
+    box-shadow: 0 8px 20px rgba(11,43,97,.06);
+}
+
+.cover-slide__title {
+    margin: 0;
+    max-width: 1180px;
+    font-size: clamp(52px, 5.4vw, 98px);
+    line-height: .96;
+    font-weight: 950;
+    letter-spacing: -1.8px;
+    text-transform: uppercase;
+    text-wrap: balance;
+    color: #0b2b61;
+    text-shadow: 0 8px 20px rgba(11,43,97,.08);
+}
+
+.cover-slide__divider {
+    width: 176px;
+    height: 7px;
+    margin: 32px auto 28px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(11,43,97,.15), #2a4f8f, rgba(11,43,97,.15));
+    box-shadow: 0 6px 16px rgba(11,43,97,.10);
+}
+
+.cover-slide__date {
+    margin: 0;
+    font-size: clamp(32px, 2.4vw, 48px);
+    line-height: 1.08;
+    font-weight: 800;
+    color: #12366f;
+    text-shadow: none;
+}
+
+.cover-slide__subtitle {
+    margin: 14px 0 0;
+    font-size: clamp(18px, 1.3vw, 24px);
+    line-height: 1.2;
+    font-weight: 600;
+    color: #3d5f97;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1200px) {
+    .cover-slide__top {
+        top: 74px;
+        left: 28px;
+        right: 28px;
+    }
+
+    .cover-slide__brand-left {
+        width: 128px;
+        min-height: 96px;
+    }
+
+        .cover-slide__brand-left img {
+            max-width: 70px;
+            max-height: 86px;
+        }
+
+    .cover-slide__brand-right {
+        width: 270px;
+        min-height: 96px;
+    }
+
+        .cover-slide__brand-right img {
+            max-width: 246px;
+            max-height: 98px;
+        }
+
+    .cover-slide__content {
+        width: calc(100% - 60px);
+        padding: 144px 10px 132px;
+    }
+}
+
+@media (max-width: 992px) {
+    .ppt-slide,
+    .ppt-slide--cover {
+        padding: 14px;
+    }
+
+    .ppt-card {
+        padding: 24px 22px;
+    }
+
+    .cover-slide {
+        border-radius: 24px;
+    }
+
+    .cover-slide__pleca {
+        height: 44px;
+    }
+
+    .cover-slide__top {
+        top: 58px;
+        left: 20px;
+        right: 20px;
+    }
+
+    .cover-slide__brand-left {
+        width: 95px;
+        min-height: 70px;
+    }
+
+        .cover-slide__brand-left img {
+            max-width: 48px;
+            max-height: 62px;
+        }
+
+    .cover-slide__brand-right {
+        width: 180px;
+        min-height: 70px;
+    }
+
+        .cover-slide__brand-right img {
+            max-width: 170px;
+            max-height: 70px;
+        }
+
+    .cover-slide__content {
+        width: calc(100% - 32px);
+        padding: 120px 8px 120px;
+    }
+
+    .ppt-nav {
+        bottom: 12px;
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .cover-slide__title {
+        font-size: clamp(34px, 10vw, 54px);
+        line-height: 1.02;
+        letter-spacing: -.8px;
+    }
+
+    .cover-slide__date {
+        font-size: clamp(20px, 5.6vw, 30px);
+    }
+
+    .cover-slide__subtitle {
+        font-size: 15px;
+    }
+
+    .cover-slide__pleca {
+        height: 36px;
+    }
+
+    .cover-slide__top {
+        top: 48px;
+        left: 14px;
+        right: 14px;
+    }
+
+    .cover-slide__brand-left {
+        width: 72px;
+        min-height: 54px;
+    }
+
+        .cover-slide__brand-left img {
+            max-width: 34px;
+            max-height: 46px;
+        }
+
+    .cover-slide__brand-right {
+        width: 132px;
+        min-height: 54px;
+    }
+
+        .cover-slide__brand-right img {
+            max-width: 126px;
+            max-height: 54px;
+        }
+
+    .kpi-value {
+        font-size: 40px;
+    }
+}

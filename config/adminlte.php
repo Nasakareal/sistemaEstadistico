@@ -258,7 +258,7 @@ return [
                 ],
             ],
         ],
-
+        /*
         [
             'text'    => 'Operativos',
             'icon'    => 'fa-solid fa-shield-halved',
@@ -281,7 +281,7 @@ return [
                 ],
             ],
         ],
-
+        */
         [
             'text'    => 'Grúas',
             'icon'    => 'fa-solid fa-truck-moving',

@@ -82,8 +82,8 @@ function guessFileName(url, index, mimeType = '') {
     try {
         const cleanUrl = url.split('?')[0];
         const last = cleanUrl.substring(cleanUrl.lastIndexOf('/') + 1) || ('imagen_' + (index + 1));
-        if (last.includes('.')) return last;
 
+        if (last.includes('.')) return last;
         if (mimeType === 'image/png') return last + '.png';
         if (mimeType === 'image/webp') return last + '.webp';
         return last + '.jpg';
@@ -152,29 +152,26 @@ async function compartirNativo() {
             && navigator.canShare({ files });
 
         if (canShareFiles) {
-            try {
-                await navigator.share({
-                    title: 'Hecho de tránsito',
-                    text: text,
-                    files: files
-                });
-                setStatus('Se abrió el panel de compartir con imágenes.', 'success');
-                return;
-            } catch (e) {
-                console.log('Falló compartir con archivos, se intentará compartir solo texto.', e);
-            }
+            await navigator.share({
+                files: files,
+                text: text,
+                title: 'Hecho de tránsito'
+            });
+
+            setStatus('Se abrió el panel de compartir con imágenes y texto.', 'success');
+            return;
         }
 
         await navigator.share({
-            title: 'Hecho de tránsito',
-            text: text
+            text: text,
+            title: 'Hecho de tránsito'
         });
 
         setStatus('Se abrió el panel de compartir solo con texto.', 'info');
 
     } catch (e) {
         console.log('Compartir cancelado o no disponible', e);
-        setStatus('No se pudo compartir con imágenes desde este dispositivo/app. Usa el botón de WhatsApp con texto como respaldo.', 'warning');
+        setStatus('No se pudo compartir con imágenes desde este dispositivo/app.', 'warning');
     }
 }
 

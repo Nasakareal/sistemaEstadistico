@@ -1,9 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\app",
+    "\\app\\Models",
+    "\\app\\Services",
+    "\\app\\Services\\Exports"
   ],
+  "SelectedNode": "\\app\\Models\\Servicio.php",
   "PreviewInSolutionExplorer": false
 }

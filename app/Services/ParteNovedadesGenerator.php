@@ -21,7 +21,11 @@ class ParteNovedadesGenerator
         $inicio = Carbon::parse($fecha, $tz)->setTime(18, 0)->subDay();
         $fin = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
-        $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
+        $hechos = Hechos::with([
+            'vehiculos.conductores',
+            'vehiculos.servicios.grua',
+            'lesionados'
+        ])
             ->where('unidad_org_id', 1)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderBy('fecha', 'asc')
@@ -162,7 +166,7 @@ class ParteNovedadesGenerator
 
             $textRun->addText("A las " . Carbon::parse($hecho->hora, $tz)->format('H:i') . " horas en {$hecho->calle}, de la colonia {$hecho->colonia}, lugar donde ");
 
-            $vehiculos = $hecho->vehiculos->loadMissing('conductores');
+            $vehiculos = $hecho->vehiculos->loadMissing(['conductores', 'servicios.grua']);
 
             if ($vehiculos->count() > 0) {
                 $textRun->addText("participaron: ");
@@ -321,12 +325,47 @@ class ParteNovedadesGenerator
                 'spaceBefore' => 0,
             ]);
 
-            $usoGrua = $vehiculos->contains(function ($v) {
-                return strtolower((string) $v->grua) !== 'n/a' && $v->grua !== null;
-            });
+            $vehiculosConGrua = [];
+            $gruasUsadas = [];
+
+            foreach ($vehiculos as $index => $vehiculo) {
+                $letraVehiculo = chr(65 + $index);
+                $serviciosVehiculo = $vehiculo->servicios ?? collect();
+
+                $tieneGrua = $serviciosVehiculo->contains(function ($servicio) {
+                    return !empty($servicio->grua_id);
+                });
+
+                if ($tieneGrua) {
+                    $vehiculosConGrua[] = "({$letraVehiculo})";
+
+                    foreach ($serviciosVehiculo as $servicio) {
+                        if (!empty($servicio->grua_id) && $servicio->grua && !empty($servicio->grua->nombre)) {
+                            $gruasUsadas[] = strtoupper(trim($servicio->grua->nombre));
+                        }
+                    }
+                }
+            }
+
+            $vehiculosConGrua = array_values(array_unique($vehiculosConGrua));
+            $gruasUsadas = array_values(array_unique($gruasUsadas));
+
+            if (!empty($vehiculosConGrua)) {
+                $textoGrua = 'Se utilizó grúa';
+
+                if (!empty($gruasUsadas)) {
+                    $textoGrua .= ' ' . implode(', ', $gruasUsadas);
+                }
+
+                $textoGrua .= ' para vehículo ';
+                $textoGrua .= implode(' y ', $vehiculosConGrua);
+                $textoGrua .= '.';
+            } else {
+                $textoGrua = 'No se utilizó grúa.';
+            }
 
             $section->addText(
-                $usoGrua ? "Se utilizó grúa." : "No se utilizó grúa.",
+                $textoGrua,
                 [],
                 ['alignment' => Jc::BOTH, 'spaceAfter' => 0, 'spaceBefore' => 0]
             );
@@ -443,6 +482,14 @@ class ParteNovedadesGenerator
 
                 foreach ($vehiculo->conductores as $conductor) {
                     $this->sanitizeModelStrings($conductor);
+                }
+
+                foreach ($vehiculo->servicios as $servicio) {
+                    $this->sanitizeModelStrings($servicio);
+
+                    if ($servicio->grua) {
+                        $this->sanitizeModelStrings($servicio->grua);
+                    }
                 }
             }
 

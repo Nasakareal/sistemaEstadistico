@@ -32,6 +32,7 @@
                                 value="{{ $fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d') }}"
                             >
                         </div>
+
                         <div class="col-md-8 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary mr-2">
                                 <i class="fa-solid fa-filter"></i> Filtrar
@@ -141,18 +142,13 @@
                                             <i class="fas fa-download"></i>
                                         </a>
 
-                                        <form action="{{ route('hechos.whatsapp.send', $hecho->id) }}" method="POST" style="display:inline-block;">
-                                            @csrf
-                                            <button
-                                                type="submit"
-                                                class="btn btn-success btn-sm"
-                                                title="{{ $hecho->whatsapp_sent_at ? 'Ya compartido' : 'Compartir a WhatsApp' }}"
-                                                {{ $hecho->whatsapp_sent_at ? 'disabled' : '' }}
-                                                onclick="return confirm('¿Enviar este hecho al grupo de WhatsApp?');"
-                                            >
-                                                <i class="fa-brands fa-whatsapp"></i>
-                                            </button>
-                                        </form>
+                                        <a
+                                            href="{{ route('hechos.compartir', $hecho->id) }}"
+                                            class="btn btn-success btn-sm"
+                                            title="Compartir nativo por WhatsApp"
+                                        >
+                                            <i class="fa-brands fa-whatsapp"></i>
+                                        </a>
 
                                         <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
                                             @csrf
@@ -183,7 +179,8 @@
 
 @section('css')
     <style>
-        .table th, .table td {
+        .table th,
+        .table td {
             text-align: center;
             vertical-align: middle;
         }
@@ -219,7 +216,7 @@
             cursor: pointer;
         }
 
-        .foto-thumb{
+        .foto-thumb {
             width: 72px;
             height: 52px;
             object-fit: cover;

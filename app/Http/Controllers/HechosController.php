@@ -842,4 +842,57 @@ class HechosController extends Controller
 
         return redirect()->route('hechos.show', $hecho->id)->with('success', 'Hecho rechazado correctamente.');
     }
+
+    public function compartirNativo(Hechos $hecho)
+    {
+        $user = auth()->user();
+
+        if (!$user || !$user->can('ver hechos')) {
+            abort(403);
+        }
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $user);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $hecho->load(['vehiculos']);
+
+        $card = WhatsAppLink::textForHecho($hecho);
+        $gmaps = C5IReport::googleMapsLinkFromHecho($hecho);
+
+        $recoText = "RECOMENDACIÓN: NO DISPONIBLE (SIN COORDENADAS).";
+        if (is_numeric($hecho->lat) && is_numeric($hecho->lng)) {
+            $r = NearestUnit::recommendForCoords((float)$hecho->lat, (float)$hecho->lng, 3);
+            $recoText = NearestUnit::recommendationText($r);
+        }
+
+        $messageParts = [];
+        $messageParts[] = $card;
+        $messageParts[] = "";
+        if ($gmaps) $messageParts[] = $gmaps;
+        $messageParts[] = $recoText;
+
+        $message = implode("\n", $messageParts);
+
+        $media = [];
+
+        if (!empty($hecho->foto_lugar)) {
+            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+        }
+
+        if (!empty($hecho->foto_situacion)) {
+            $media[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+        }
+
+        foreach ($hecho->vehiculos as $v) {
+            if (!empty($v->fotos)) {
+                $media[] = asset('storage/' . ltrim($v->fotos, '/'));
+            }
+        }
+
+        return view('hechos.compartir', compact('hecho', 'message', 'media'));
+    }
 }

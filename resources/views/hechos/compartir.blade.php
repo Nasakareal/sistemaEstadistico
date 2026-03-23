@@ -153,9 +153,9 @@ async function compartirNativo() {
 
         if (canShareFiles) {
             await navigator.share({
-                files: files,
+                title: 'Hecho de tránsito',
                 text: text,
-                title: 'Hecho de tránsito'
+                files: files
             });
 
             setStatus('Se abrió el panel de compartir con imágenes y texto.', 'success');

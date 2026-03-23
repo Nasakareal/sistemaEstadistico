@@ -26,7 +26,7 @@ return [
             ],
         ],
 
-        'DISPOSITIVO CASCO' => [
+        'CASCO' => [
             'titulo' => 'Dispositivo Casco',
             'campos' => [
                 'cantidad',
@@ -38,7 +38,7 @@ return [
             ],
         ],
 
-        'DISPOSITIVO CINTURON' => [
+        'CINTURÓN' => [
             'titulo' => 'Dispositivo Cinturón',
             'campos' => [
                 'cantidad',
@@ -50,19 +50,7 @@ return [
             ],
         ],
 
-        'DISPOSITIVO CINTURÓN' => [
-            'titulo' => 'Dispositivo Cinturón',
-            'campos' => [
-                'cantidad',
-                'vehiculos_impactados',
-                'personas_impactadas',
-                'estado_fuerza_participante',
-                'crps_participantes',
-                'kilometros_recorridos',
-            ],
-        ],
-
-        'DISPOSITIVO CARRUSEL' => [
+        'CARRUSEL' => [
             'titulo' => 'Dispositivo Carrusel',
             'campos' => [
                 'cantidad',
@@ -85,7 +73,7 @@ return [
             ],
         ],
 
-        'DISPOSITIVO ASIENTO SEGURO PASAJEROS MENORES' => [
+        'ASIENTO SEGURO PASAJEROS MENORES' => [
             'titulo' => 'Dispositivo Asiento Seguro Pasajeros Menores',
             'campos' => [
                 'cantidad',

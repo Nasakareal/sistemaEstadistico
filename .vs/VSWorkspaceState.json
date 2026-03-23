@@ -4,10 +4,9 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\app\\Http\\Controllers\\Api",
+    "\\config"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\config\\guardianes_camino.php",
   "PreviewInSolutionExplorer": false
 }

@@ -770,22 +770,21 @@ class HechosController extends Controller
             abort(404);
         }
 
-        $puedeRevisar = false;
-
-        if ($usuario->hasRole('Administrador')) {
-            $puedeRevisar = true;
+        if (
+            !$usuario->hasRole('Superadmin') &&
+            !$usuario->hasRole('Administrador') &&
+            !$usuario->hasRole('Subdirector') &&
+            !$usuario->hasRole('Jefe de Grupo')
+        ) {
+            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
         }
 
         if ($usuario->hasRole('Jefe de Grupo')) {
             $hecho->loadMissing('creator');
 
-            if ($hecho->creator && (int) $hecho->creator->turno_id === (int) $usuario->turno_id) {
-                $puedeRevisar = true;
+            if (!$hecho->creator || (int)$hecho->creator->turno_id !== (int)$usuario->turno_id) {
+                return redirect()->route('hechos.show', $hecho->id)->with('error', 'No puedes revisar hechos de otro turno.');
             }
-        }
-
-        if (!$puedeRevisar) {
-            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
         }
 
         if ($hecho->estado_revision !== 'pendiente') {
@@ -812,22 +811,21 @@ class HechosController extends Controller
             abort(404);
         }
 
-        $puedeRevisar = false;
-
-        if ($usuario->hasRole('Administrador')) {
-            $puedeRevisar = true;
+        if (
+            !$usuario->hasRole('Superadmin') &&
+            !$usuario->hasRole('Administrador') &&
+            !$usuario->hasRole('Subdirector') &&
+            !$usuario->hasRole('Jefe de Grupo')
+        ) {
+            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
         }
 
         if ($usuario->hasRole('Jefe de Grupo')) {
             $hecho->loadMissing('creator');
 
-            if ($hecho->creator && (int) $hecho->creator->turno_id === (int) $usuario->turno_id) {
-                $puedeRevisar = true;
+            if (!$hecho->creator || (int)$hecho->creator->turno_id !== (int)$usuario->turno_id) {
+                return redirect()->route('hechos.show', $hecho->id)->with('error', 'No puedes revisar hechos de otro turno.');
             }
-        }
-
-        if (!$puedeRevisar) {
-            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
         }
 
         if ($hecho->estado_revision !== 'pendiente') {

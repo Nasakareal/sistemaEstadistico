@@ -121,6 +121,14 @@ return [
             'waze_badge' => true,
         ],
         [
+            'type' => 'link',
+            'text' => 'Revisión',
+            'route' => 'hechos.pendientes_revision',
+            'topnav_right' => true,
+            'icon' => 'fas fa-bell',
+            'id'   => 'hechosRevisionBell',
+        ],
+        [
             'type' => 'fullscreen-widget',
             'topnav_right' => true,
         ],

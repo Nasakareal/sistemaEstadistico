@@ -12,7 +12,6 @@
         </div>
 
         <div class="d-flex align-items-center" style="gap:8px; flex-wrap:wrap;">
-            {{-- NUEVO: botón ver dictamen (solo si existe) --}}
             @if($hecho->dictamen)
                 <a href="{{ route('dictamenes.show', $hecho->dictamen->id) }}"
                    class="btn btn-primary btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
@@ -280,30 +279,74 @@
                                     </div>
                                 </div>
                                 <div class="sv-subcard-body">
-                                    <div class="d-flex flex-wrap" style="gap:10px;">
-                                        {{-- NUEVO: botón dictamen --}}
-                                        @if($dictamen)
-                                            <a href="{{ route('dictamenes.show', $dictamen->id) }}" class="btn btn-primary btn-sm">
-                                                <i class="fa-solid fa-file-lines"></i> Ver dictamen
+                                    <div class="sv-subcard-body">
+                                        @php
+                                            $usuario = auth()->user();
+
+                                            $puedeRevisar = false;
+
+                                            if ($usuario->hasRole('Administrador')) {
+                                                $puedeRevisar = true;
+                                            }
+
+                                            if ($usuario->hasRole('Jefe de Grupo')) {
+                                                $creador = $hecho->creator;
+
+                                                if ($creador && (int) $creador->turno_id === (int) $usuario->turno_id) {
+                                                    $puedeRevisar = true;
+                                                }
+                                            }
+                                        @endphp
+
+                                        <div class="d-flex flex-wrap" style="gap:10px;">
+                                            @if($dictamen)
+                                                <a href="{{ route('dictamenes.show', $dictamen->id) }}" class="btn btn-primary btn-sm">
+                                                    <i class="fa-solid fa-file-lines"></i> Ver dictamen
+                                                </a>
+                                            @endif
+
+                                            @can('editar hechos')
+                                                <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
+                                                    <i class="fa-solid fa-pen-to-square"></i> Editar hecho
+                                                </a>
+                                            @endcan
+
+                                            <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-download"></i> Descargar informe
                                             </a>
+
+                                            @if($puedeRevisar)
+                                                @if($hecho->estado_revision === 'pendiente')
+                                                    <form action="{{ route('hechos.revision.aprobar', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                        @csrf
+                                                        <button class="btn btn-primary btn-sm">
+                                                            <i class="fa-solid fa-check"></i> Aprobar
+                                                        </button>
+                                                    </form>
+
+                                                    <form action="{{ route('hechos.revision.rechazar', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                        @csrf
+                                                        <button class="btn btn-danger btn-sm">
+                                                            <i class="fa-solid fa-xmark"></i> Rechazar
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <span class="badge badge-success">
+                                                        <i class="fa-solid fa-check"></i> YA REVISADO
+                                                    </span>
+                                                @endif
+                                            @endif
+
+                                            <a href="{{ route('hechos.index') }}" class="btn btn-secondary btn-sm">
+                                                <i class="fa-solid fa-arrow-left"></i> Volver
+                                            </a>
+                                        </div>
+
+                                        @if(!$dictamen)
+                                            <div class="sv-hint mt-2">Este hecho no tiene dictamen</div>
                                         @endif
-
-                                        @can('editar hechos')
-                                            <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
-                                                <i class="fa-solid fa-pen-to-square"></i> Editar hecho
-                                            </a>
-                                        @endcan
-
-                                        <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
-                                            <i class="fas fa-download"></i> Descargar informe
-                                        </a>
-
-                                        <a href="{{ route('hechos.index') }}" class="btn btn-secondary btn-sm">
-                                            <i class="fa-solid fa-arrow-left"></i> Volver
-                                        </a>
                                     </div>
 
-                                    {{-- si quieres mostrar un hint cuando NO hay dictamen --}}
                                     @if(!$dictamen)
                                         <div class="sv-hint mt-2">Este hecho no tiene dictamen</div>
                                     @endif

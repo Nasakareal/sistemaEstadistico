@@ -343,7 +343,13 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     });
 
     Route::post('/{hecho}/whatsapp', [HechosController::class, 'sendWhatsapp'])->name('hechos.whatsapp.send');
+
+    Route::get('/revision/pendientes', [HechosController::class, 'pendientesRevision'])->name('hechos.pendientes_revision');
+    Route::get('/revision/pendientes/count', [HechosController::class, 'countPendientesRevision'])->name('hechos.pendientes_revision.count');
+    Route::post('/revision/{hecho}/aprobar', [HechosController::class, 'aprobarRevision'])->name('hechos.revision.aprobar');
+    Route::post('/revision/{hecho}/rechazar', [HechosController::class, 'rechazarRevision'])->name('hechos.revision.rechazar');
 });
+
 Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
     Route::get('/', [ModuloExamenDiarioController::class, 'index'])->name('modulo_examenes_diarios.index');
     Route::get('/create', [ModuloExamenDiarioController::class, 'create'])->middleware('can:crear modulo examenes')->name('modulo_examenes_diarios.create');

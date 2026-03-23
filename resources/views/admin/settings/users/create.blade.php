@@ -250,9 +250,87 @@
 @stop
 
 @section('css')
-    <style>
-        .form-group label { font-weight: bold; }
-    </style>
+<style>
+    .form-group label {
+        font-weight: bold;
+        color: #e5e7eb;
+    }
+
+    .form-control,
+    .custom-select,
+    select.form-control {
+        background: rgba(15, 23, 42, 0.75) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        border-radius: 18px !important;
+        box-shadow: none !important;
+    }
+
+    .form-control:focus,
+    .custom-select:focus,
+    select.form-control:focus {
+        background: rgba(15, 23, 42, 0.92) !important;
+        color: #ffffff !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+    }
+
+    select.form-control option,
+    .custom-select option,
+    select option {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+    }
+
+    select.form-control option:checked,
+    .custom-select option:checked,
+    select option:checked {
+        background: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    select.form-control option:hover,
+    .custom-select option:hover,
+    select option:hover {
+        background: #1d4ed8 !important;
+        color: #ffffff !important;
+    }
+
+    .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.65) !important;
+    }
+
+    .text-muted,
+    small.text-muted {
+        color: rgba(255, 255, 255, 0.72) !important;
+    }
+
+    .card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(49, 46, 129, 0.92)) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 24px !important;
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: rgba(255, 255, 255, 0.04) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    .card-title,
+    .content-header h1 {
+        color: #ffffff !important;
+        font-weight: 700;
+    }
+
+    .btn-primary {
+        border-radius: 16px !important;
+    }
+
+    .btn-secondary {
+        border-radius: 16px !important;
+    }
+</style>
 @stop
 
 @section('js')

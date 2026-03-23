@@ -343,6 +343,21 @@
             letter-spacing: -.3px;
         }
     </style>
+    <style>
+        .main-header .nav-link {
+            position: relative;
+        }
+
+        .main-header .nav-link .hechos-revision-badge {
+            position: absolute;
+            top: 2px;
+            right: -10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 999px;
+        }
+    </style>
 
     @stack('styles')
 </head>
@@ -370,7 +385,59 @@
     @endif
 
     @yield('adminlte_js')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
 
+    function findRevisionBell() {
+        return Array.from(document.querySelectorAll('.main-header .nav-link')).find(link => {
+            const text = (link.textContent || '').replace(/\s+/g, ' ').trim();
+            return text.includes('Revisión');
+        });
+    }
+
+    function updateHechosRevisionBadge() {
+        const bell = findRevisionBell();
+
+        if (!bell) return;
+
+        fetch('{{ route('hechos.pendientes_revision.count') }}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.querySelectorAll('.hechos-revision-badge').forEach(el => {
+                if (!bell.contains(el)) {
+                    el.remove();
+                }
+            });
+
+            let badge = bell.querySelector('.hechos-revision-badge');
+
+            if (parseInt(data.count) > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge badge-danger ml-1 hechos-revision-badge';
+                    bell.appendChild(badge);
+                }
+
+                badge.textContent = data.count;
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
+            }
+        })
+        .catch(() => {});
+    }
+
+    updateHechosRevisionBadge();
+    setInterval(updateHechosRevisionBadge, 15000);
+
+});
+</script>
     @stack('scripts')
 </body>
 </html>

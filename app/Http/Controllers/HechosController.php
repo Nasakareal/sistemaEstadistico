@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
 use App\Models\Delegacion;
-
+use App\Services\HechoRevisionNotificationService;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\WhatsApp\C5IReport;
@@ -85,9 +85,7 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
-
             'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
-
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
             'calidad_geo' => 'nullable|string|max:20',
@@ -95,7 +93,6 @@ class HechosController extends Controller
             'fuente_ubicacion' => 'nullable|string|max:20',
             'ubicacion_formateada' => 'nullable|string|max:2000',
             'place_id' => 'nullable|string|max:128',
-
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -112,6 +109,10 @@ class HechosController extends Controller
         $validated['delegacion_id'] = $usuario->delegacion_id ?? null;
         $validated['created_by'] = $usuario->id;
         $validated['unidad_org_id'] = $usuario->unidad_id ?? null;
+        $validated['estado_revision'] = 'pendiente';
+        $validated['revisado_por'] = null;
+        $validated['revisado_at'] = null;
+        $validated['observacion_revision'] = null;
 
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
@@ -130,6 +131,9 @@ class HechosController extends Controller
         unset($validated['dictamen_id']);
 
         $hecho = Hechos::create($validated);
+
+        app(HechoRevisionNotificationService::class)
+            ->notificarJefesDeGrupoPorHechoPendiente($hecho);
 
         $updates = [];
 
@@ -175,6 +179,7 @@ class HechosController extends Controller
         }
 
         $hecho->load([
+            'creator',
             'vehiculos',
             'vehiculos.servicios',
             'dictamen',
@@ -720,5 +725,121 @@ class HechosController extends Controller
         }
 
         return false;
+    }
+
+    public function pendientesRevision(Request $request)
+    {
+        $usuario = auth()->user();
+
+        $hechosQuery = Hechos::query()
+            ->with(['creator', 'revisadoPor', 'marcadoRelevantePor'])
+            ->where('estado_revision', 'pendiente')
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('created_at');
+
+        $this->applyHechosVisibilityScope($hechosQuery, $usuario);
+
+        $hechos = $hechosQuery->paginate(30)->withQueryString();
+
+        return view('hechos.pendientes_revision', compact('hechos'));
+    }
+
+    public function countPendientesRevision()
+    {
+        $usuario = auth()->user();
+
+        $hechosQuery = Hechos::query()
+            ->where('estado_revision', 'pendiente');
+
+        $this->applyHechosVisibilityScope($hechosQuery, $usuario);
+
+        return response()->json([
+            'count' => $hechosQuery->count(),
+        ]);
+    }
+
+    public function aprobarRevision(Hechos $hecho)
+    {
+        $usuario = auth()->user();
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $puedeRevisar = false;
+
+        if ($usuario->hasRole('Administrador')) {
+            $puedeRevisar = true;
+        }
+
+        if ($usuario->hasRole('Jefe de Grupo')) {
+            $hecho->loadMissing('creator');
+
+            if ($hecho->creator && (int) $hecho->creator->turno_id === (int) $usuario->turno_id) {
+                $puedeRevisar = true;
+            }
+        }
+
+        if (!$puedeRevisar) {
+            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
+        }
+
+        if ($hecho->estado_revision !== 'pendiente') {
+            return redirect()->route('hechos.show', $hecho->id)->with('info', 'Este hecho ya fue revisado.');
+        }
+
+        $hecho->update([
+            'estado_revision' => 'aprobado',
+            'revisado_por' => $usuario->id,
+            'revisado_at' => now(),
+        ]);
+
+        return redirect()->route('hechos.show', $hecho->id)->with('success', 'Hecho aprobado correctamente.');
+    }
+
+    public function rechazarRevision(Hechos $hecho)
+    {
+        $usuario = auth()->user();
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $puedeRevisar = false;
+
+        if ($usuario->hasRole('Administrador')) {
+            $puedeRevisar = true;
+        }
+
+        if ($usuario->hasRole('Jefe de Grupo')) {
+            $hecho->loadMissing('creator');
+
+            if ($hecho->creator && (int) $hecho->creator->turno_id === (int) $usuario->turno_id) {
+                $puedeRevisar = true;
+            }
+        }
+
+        if (!$puedeRevisar) {
+            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
+        }
+
+        if ($hecho->estado_revision !== 'pendiente') {
+            return redirect()->route('hechos.show', $hecho->id)->with('info', 'Este hecho ya fue revisado.');
+        }
+
+        $hecho->update([
+            'estado_revision' => 'rechazado',
+            'revisado_por' => $usuario->id,
+            'revisado_at' => now(),
+        ]);
+
+        return redirect()->route('hechos.show', $hecho->id)->with('success', 'Hecho rechazado correctamente.');
     }
 }

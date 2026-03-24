@@ -200,13 +200,21 @@ Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carr
     Route::get('/whatsapp', [GuardianesCaminoController::class, 'whatsapp'])->name('guardianes_camino.whatsapp');
 
     Route::prefix('dispositivos')->group(function () {
-        Route::get('/create', [GuardianesCaminoDispositivoController::class, 'create'])->name('guardianes_camino.dispositivos.create');
-        Route::post('/', [GuardianesCaminoDispositivoController::class, 'store'])->name('guardianes_camino.dispositivos.store');
+        Route::get('/', [GuardianesCaminoDispositivoController::class, 'index'])->name('guardianes_camino.dispositivos.index');
+        Route::get('/pendientes-revision', [GuardianesCaminoDispositivoController::class, 'pendientesRevision'])->name('guardianes_camino.dispositivos.pendientes_revision');
+        Route::get('/count-pendientes-revision', [GuardianesCaminoDispositivoController::class, 'countPendientesRevision'])->name('guardianes_camino.dispositivos.count_pendientes_revision');
+
+        Route::get('/create', [GuardianesCaminoDispositivoController::class, 'create'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.create');
+        Route::post('/', [GuardianesCaminoDispositivoController::class, 'store'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.store');
+
         Route::get('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'show'])->name('guardianes_camino.dispositivos.show');
         Route::get('/{dispositivo}/edit', [GuardianesCaminoDispositivoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.edit');
         Route::put('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.update');
         Route::delete('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('guardianes_camino.dispositivos.destroy');
         Route::get('/{dispositivo}/whatsapp', [GuardianesCaminoDispositivoController::class, 'whatsapp'])->name('guardianes_camino.dispositivos.whatsapp');
+
+        Route::post('/{dispositivo}/aprobar-revision', [GuardianesCaminoDispositivoController::class, 'aprobarRevision'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.aprobar_revision');
+        Route::post('/{dispositivo}/rechazar-revision', [GuardianesCaminoDispositivoController::class, 'rechazarRevision'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.rechazar_revision');
 
         Route::prefix('{dispositivo}/fotos')->group(function () {
             Route::post('/', [GuardianesCaminoDispositivoFotoController::class, 'store'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.fotos.store');
@@ -214,7 +222,6 @@ Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carr
         });
     });
 });
-
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');
     Route::get('/create',[OficioController::class,'create'])->middleware('can:crear oficios')->name('oficios.create');

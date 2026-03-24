@@ -1,12 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\config"
+    "\\database",
+    "\\database\\migrations"
   ],
-  "SelectedNode": "\\config\\guardianes_camino.php",
+  "SelectedNode": "\\database\\migrations\\2026_03_23_183547_add_revision_fields_to_operativo_dispositivos_table.php",
   "PreviewInSolutionExplorer": false
 }

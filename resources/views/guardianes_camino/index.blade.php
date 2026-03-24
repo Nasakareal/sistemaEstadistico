@@ -13,9 +13,13 @@
                 <div class="card-header">
                     <h3 class="card-title">Dispositivos registrados</h3>
                     <div class="card-tools">
-                            <a href="{{ route('guardianes_camino.dispositivos.create') }}" class="btn btn-primary">
-                                <i class="fa-solid fa-plus"></i> Añadir dispositivo
-                            </a>
+                        <a href="{{ route('guardianes_camino.dispositivos.pendientes_revision', ['fecha' => request('fecha', now()->format('Y-m-d'))]) }}" class="btn btn-warning mr-2">
+                            <i class="fa-solid fa-clipboard-check"></i> Pendientes de revisión
+                        </a>
+
+                        <a href="{{ route('guardianes_camino.dispositivos.create', ['fecha' => request('fecha', now()->format('Y-m-d'))]) }}" class="btn btn-primary">
+                            <i class="fa-solid fa-plus"></i> Añadir dispositivo
+                        </a>
                     </div>
                 </div>
 
@@ -53,60 +57,93 @@
                         </div>
                     @endif
 
-                    <table id="guardianes_camino" class="table table-striped table-bordered table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th><center>ID</center></th>
-                                <th><center>Fecha y Hora</center></th>
-                                <th><center>Tipo de dispositivo</center></th>
-                                <th><center>Lugar</center></th>
-                                <th><center>Destacamento</center></th>
-                                <th><center>Capturó</center></th>
-                                <th><center>Acciones</center></th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            @foreach ($dispositivos as $dispositivo)
+                    <div class="table-responsive">
+                        <table id="guardianes_camino" class="table table-striped table-bordered table-hover table-sm">
+                            <thead>
                                 <tr>
-                                    <td>{{ $dispositivo->id }}</td>
-                                    <td>
-                                        {{ optional($dispositivo->fecha)->format('d-m-Y') }}
-                                        {{ $dispositivo->hora }}
-                                    </td>
-                                    <td>{{ $dispositivo->catalogo->nombre ?? 'Sin tipo' }}</td>
-                                    <td>{{ $dispositivo->lugar ?? 'Sin lugar' }}</td>
-                                    <td>{{ $dispositivo->destacamento->nombre ?? 'Sin destacamento' }}</td>
-                                    <td>{{ $dispositivo->usuario->name ?? 'Desconocido' }}</td>
-                                    <td style="text-align: center">
-                                        <a href="{{ route('guardianes_camino.dispositivos.show', $dispositivo->id) }}" class="btn btn-info btn-sm" title="Ver">
-                                            <i class="fa-regular fa-eye"></i>
-                                        </a>
-
-                                        @can('editar operativos carreteras')
-                                            <a href="{{ route('guardianes_camino.dispositivos.edit', $dispositivo->id) }}" class="btn btn-success btn-sm" title="Editar">
-                                                <i class="fa-solid fa-pencil"></i>
-                                            </a>
-                                        @endcan
-
-                                        @can('eliminar operativos carreteras')
-                                            <form action="{{ route('guardianes_camino.dispositivos.destroy', $dispositivo->id) }}" method="POST" style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-danger btn-sm delete-btn"
-                                                    data-name="{{ $dispositivo->catalogo->nombre ?? 'Dispositivo' }}"
-                                                >
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        @endcan
-                                    </td>
+                                    <th><center>ID</center></th>
+                                    <th><center>Fecha y Hora</center></th>
+                                    <th><center>Tipo de dispositivo</center></th>
+                                    <th><center>Lugar</center></th>
+                                    <th><center>Destacamento</center></th>
+                                    <th><center>Capturó</center></th>
+                                    <th><center>Estado revisión</center></th>
+                                    <th><center>Revisado por</center></th>
+                                    <th><center>Fecha revisión</center></th>
+                                    <th><center>Acciones</center></th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach ($dispositivos as $dispositivo)
+                                    <tr>
+                                        <td>{{ $dispositivo->id }}</td>
+                                        <td>
+                                            {{ optional($dispositivo->fecha)->format('d-m-Y') }}
+                                            <br>
+                                            <small>{{ $dispositivo->hora ?? 'Sin hora' }}</small>
+                                        </td>
+                                        <td>{{ $dispositivo->catalogo->nombre ?? 'Sin tipo' }}</td>
+                                        <td>{{ $dispositivo->lugar ?? 'Sin lugar' }}</td>
+                                        <td>{{ $dispositivo->destacamento->nombre ?? 'Sin destacamento' }}</td>
+                                        <td>{{ $dispositivo->usuario->name ?? 'Desconocido' }}</td>
+                                        <td>
+                                            @php
+                                                $estadoRevision = $dispositivo->estado_revision ?? 'pendiente';
+                                            @endphp
+
+                                            @if ($estadoRevision === 'aprobado')
+                                                <span class="badge badge-success">Aprobado</span>
+                                            @elseif ($estadoRevision === 'rechazado')
+                                                <span class="badge badge-danger">Rechazado</span>
+                                            @else
+                                                <span class="badge badge-warning">Pendiente</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $dispositivo->revisadoPor->name ?? 'Sin revisar' }}</td>
+                                        <td>
+                                            @if ($dispositivo->revisado_at)
+                                                {{ $dispositivo->revisado_at->format('d-m-Y H:i') }}
+                                            @else
+                                                Sin revisar
+                                            @endif
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <a href="{{ route('guardianes_camino.dispositivos.show', $dispositivo->id) }}" class="btn btn-info btn-sm" title="Ver">
+                                                <i class="fa-regular fa-eye"></i>
+                                            </a>
+
+                                            @can('editar operativos carreteras')
+                                                <a href="{{ route('guardianes_camino.dispositivos.edit', $dispositivo->id) }}" class="btn btn-success btn-sm" title="Editar">
+                                                    <i class="fa-solid fa-pencil"></i>
+                                                </a>
+                                            @endcan
+
+                                            @can('editar operativos carreteras')
+                                                @if (($dispositivo->estado_revision ?? 'pendiente') === 'pendiente')
+                                                    <form action="{{ route('guardianes_camino.dispositivos.aprobar_revision', $dispositivo->id) }}" method="POST" style="display:inline-block;">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-primary btn-sm" title="Aprobar">
+                                                            <i class="fa-solid fa-check"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            @endcan
+
+                                            @can('eliminar operativos carreteras')
+                                                <form action="{{ route('guardianes_camino.dispositivos.destroy', $dispositivo->id) }}" method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="button" class="btn btn-danger btn-sm delete-btn" data-name="{{ $dispositivo->catalogo->nombre ?? 'Dispositivo' }}">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endcan
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
 
                     <div class="mt-3">
                         {{ $dispositivos->appends(request()->query())->links() }}
@@ -117,120 +154,34 @@
     </div>
 @stop
 
-@section('css')
-    <style>
-        .table th,
-        .table td {
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        #guardianes_camino.table-hover tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.08) !important;
-        }
-
-        #guardianes_camino.table-hover tbody tr:hover td,
-        #guardianes_camino.table-hover tbody tr:hover th {
-            color: #ffffff !important;
-        }
-
-        #guardianes_camino.table-hover tbody tr:hover a {
-            color: #ffffff !important;
-        }
-
-        input[type="date"].form-control {
-            color: #ffffff !important;
-            background-color: rgba(255, 255, 255, 0.06) !important;
-            border-color: rgba(255, 255, 255, 0.15) !important;
-        }
-
-        input[type="date"].form-control:focus {
-            background-color: rgba(255, 255, 255, 0.10) !important;
-            border-color: rgba(255, 255, 255, 0.30) !important;
-            box-shadow: 0 0 0 .2rem rgba(255, 255, 255, 0.10) !important;
-        }
-
-        input[type="date"].form-control::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-            opacity: 0.9;
-            cursor: pointer;
-        }
-    </style>
-@stop
-
 @section('js')
-    <script>
-        $(function () {
-            $('#guardianes_camino').DataTable({
-                paging: false,
-                info: false,
-                order: [[1, "desc"]],
-                language: {
-                    emptyTable: "No hay información disponible",
-                    loadingRecords: "Cargando...",
-                    processing: "Procesando...",
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                },
-                responsive: true,
-                lengthChange: false,
-                autoWidth: false,
-            });
-
-            $('#fecha').on('change', function () {
-                $('#formFiltroFecha').submit();
-            });
+<script>
+    $(function () {
+        $('#fecha').on('change', function () {
+            $('#formFiltroFecha').submit();
         });
+    });
 
-        @if (session('success'))
-            Swal.fire({
-                position: 'center',
-                icon: 'success',
-                title: '{{ session('success') }}',
-                showConfirmButton: false,
-                timer: 3000
-            });
-        @endif
+    $(document).on('click', '.delete-btn', function (e) {
+        e.preventDefault();
 
-        @if (session('error'))
-            Swal.fire({
-                position: 'center',
-                icon: 'error',
-                title: '{{ session('error') }}',
-                showConfirmButton: true
-            });
-        @endif
+        let form = $(this).closest('form');
+        let nombre = $(this).data('name');
 
-        @if (session('info'))
-            Swal.fire({
-                position: 'center',
-                icon: 'info',
-                title: '{{ session('info') }}',
-                showConfirmButton: false,
-                timer: 2500
-            });
-        @endif
-
-        $(document).on('click', '.delete-btn', function (e) {
-            e.preventDefault();
-
-            let form = $(this).closest('form');
-            let nombre = $(this).data('name');
-
-            Swal.fire({
-                title: '¿Estás seguro?',
-                text: 'Se eliminará el dispositivo ' + nombre + '.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    form.submit();
-                }
-            });
+        Swal.fire({
+            title: '¿Estás seguro?',
+            text: 'Se eliminará el dispositivo ' + nombre + '.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
         });
-    </script>
+    });
+</script>
 @stop

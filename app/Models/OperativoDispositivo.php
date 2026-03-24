@@ -78,6 +78,12 @@ class OperativoDispositivo extends Model
         'observaciones',
         'created_by',
         'updated_by',
+
+        // 🔥 NUEVOS (igual que hechos)
+        'estado_revision',
+        'revisado_por',
+        'revisado_at',
+        'observacion_revision',
     ];
 
     protected $casts = [
@@ -89,7 +95,16 @@ class OperativoDispositivo extends Model
         'compartido_whatsapp' => 'boolean',
         'synced_at' => 'datetime',
         'compartido_whatsapp_at' => 'datetime',
+
+        // 🔥 NUEVO
+        'revisado_at' => 'datetime',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELACIONES EXISTENTES
+    |--------------------------------------------------------------------------
+    */
 
     public function operativo()
     {
@@ -139,5 +154,16 @@ class OperativoDispositivo extends Model
     public function detallesConsolidado()
     {
         return $this->hasMany(OperativoConsolidadoDetalle::class, 'operativo_dispositivo_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔥 NUEVA RELACIÓN (CLAVE)
+    |--------------------------------------------------------------------------
+    */
+
+    public function revisadoPor()
+    {
+        return $this->belongsTo(User::class, 'revisado_por');
     }
 }

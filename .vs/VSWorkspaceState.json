@@ -1,9 +1,14 @@
 {
   "ExpandedNodes": [
     "",
-    "\\database",
-    "\\database\\migrations"
+    "\\app",
+    "\\config",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\vendor",
+    "\\resources\\views\\vendor\\adminlte",
+    "\\routes"
   ],
-  "SelectedNode": "\\database\\migrations\\2026_03_23_183547_add_revision_fields_to_operativo_dispositivos_table.php",
+  "SelectedNode": "\\resources\\views\\vendor\\adminlte\\master.blade.php",
   "PreviewInSolutionExplorer": false
 }

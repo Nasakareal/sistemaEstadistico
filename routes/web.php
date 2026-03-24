@@ -221,6 +221,7 @@ Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carr
             Route::delete('/{foto}', [GuardianesCaminoDispositivoFotoController::class, 'destroy'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.fotos.destroy');
         });
     });
+    Route::get('/guardianes-camino/count-pendientes', [GuardianesCaminoController::class, 'countPendientesRevision'])->name('guardianes_camino.countPendientesRevision');
 });
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');

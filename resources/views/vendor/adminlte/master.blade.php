@@ -438,6 +438,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const bell = document.getElementById('guardianesBell');
+    if (!bell) return;
+
+    const badge = document.createElement('span');
+    badge.classList.add('badge', 'badge-danger', 'navbar-badge');
+    badge.style.display = 'none';
+
+    bell.appendChild(badge);
+
+    async function actualizarCampana() {
+        try {
+            const response = await fetch("{{ route('guardianes_camino.countPendientesRevision') }}");
+            const data = await response.json();
+
+            if (data.total > 0) {
+                badge.innerText = data.total;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('Error campana guardianes:', e);
+        }
+    }
+
+    actualizarCampana();
+    setInterval(actualizarCampana, 30000); // cada 30s
+});
+</script>
     @stack('scripts')
 </body>
 </html>

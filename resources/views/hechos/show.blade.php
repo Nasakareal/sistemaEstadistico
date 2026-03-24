@@ -285,7 +285,11 @@
 
                                             $puedeRevisar = false;
 
-                                            if ($usuario->hasRole('Administrador')) {
+                                            if (
+                                                $usuario->hasRole('Superadmin') ||
+                                                $usuario->hasRole('Administrador') ||
+                                                $usuario->hasRole('Subdirector')
+                                            ) {
                                                 $puedeRevisar = true;
                                             }
 

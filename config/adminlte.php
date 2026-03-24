@@ -129,6 +129,14 @@ return [
             'id'   => 'hechosRevisionBell',
         ],
         [
+    'type' => 'link',
+    'text' => 'Guardianes',
+    'route' => 'guardianes_camino.dispositivos.pendientes_revision',
+    'topnav_right' => true,
+    'icon' => 'fas fa-bell',
+    'id'   => 'guardianesBell',
+],
+        [
             'type' => 'fullscreen-widget',
             'topnav_right' => true,
         ],

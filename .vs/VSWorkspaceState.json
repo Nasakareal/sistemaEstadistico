@@ -1,14 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\config",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\vendor",
-    "\\resources\\views\\vendor\\adminlte",
-    "\\routes"
+    "\\app"
   ],
-  "SelectedNode": "\\resources\\views\\vendor\\adminlte\\master.blade.php",
+  "SelectedNode": "\\app\\Providers",
   "PreviewInSolutionExplorer": false
 }

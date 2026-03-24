@@ -359,6 +359,32 @@
         }
     </style>
 
+    <style>
+        .main-header .nav-link {
+            position: relative;
+        }
+
+        .main-header .nav-link .hechos-revision-badge {
+            position: absolute;
+            top: 2px;
+            right: -10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 999px;
+        }
+
+        .main-header .nav-link .guardianes-revision-badge {
+            position: absolute;
+            top: 2px;
+            right: -10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 999px;
+        }
+    </style>
+
     @stack('styles')
 </head>
 
@@ -441,33 +467,54 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    const bell = document.getElementById('guardianesBell');
-    if (!bell) return;
-
-    const badge = document.createElement('span');
-    badge.classList.add('badge', 'badge-danger', 'navbar-badge');
-    badge.style.display = 'none';
-
-    bell.appendChild(badge);
-
-    async function actualizarCampana() {
-        try {
-            const response = await fetch("{{ route('guardianes_camino.countPendientesRevision') }}");
-            const data = await response.json();
-
-            if (data.total > 0) {
-                badge.innerText = data.total;
-                badge.style.display = 'inline-block';
-            } else {
-                badge.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('Error campana guardianes:', e);
-        }
+    function findGuardianesBell() {
+        return Array.from(document.querySelectorAll('.main-header .nav-link')).find(link => {
+            const text = (link.textContent || '').replace(/\s+/g, ' ').trim();
+            return text.includes('Guardianes');
+        });
     }
 
-    actualizarCampana();
-    setInterval(actualizarCampana, 30000); // cada 30s
+    function updateGuardianesRevisionBadge() {
+        const bell = findGuardianesBell();
+
+        if (!bell) return;
+
+        fetch('{{ route('guardianes_camino.dispositivos.count_pendientes_revision') }}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.querySelectorAll('.guardianes-revision-badge').forEach(el => {
+                if (!bell.contains(el)) {
+                    el.remove();
+                }
+            });
+
+            let badge = bell.querySelector('.guardianes-revision-badge');
+
+            if (parseInt(data.total) > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge badge-danger ml-1 guardianes-revision-badge';
+                    bell.appendChild(badge);
+                }
+
+                badge.textContent = data.total;
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
+            }
+        })
+        .catch(() => {});
+    }
+
+    updateGuardianesRevisionBadge();
+    setInterval(updateGuardianesRevisionBadge, 15000);
+
 });
 </script>
     @stack('scripts')

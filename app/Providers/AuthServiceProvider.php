@@ -20,52 +20,98 @@ class AuthServiceProvider extends ServiceProvider
 
         Gate::define('menu-dictamenes', function ($user) {
             return $user->can('ver dictamenes')
-                && $user->perteneceAUnidad('siniestros');
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-dictamenes-crear', function ($user) {
             return $user->can('crear dictamenes')
-                && $user->perteneceAUnidad('siniestros');
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-delegaciones', function ($user) {
             return $user->can('ver delegaciones')
-                && $user->perteneceAUnidad('delegaciones');
+                && (
+                    $user->perteneceAUnidad('delegaciones')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-delegaciones-crear', function ($user) {
             return $user->can('crear delegaciones')
-                && $user->perteneceAUnidad('delegaciones');
+                && (
+                    $user->perteneceAUnidad('delegaciones')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-modulo-examenes', function ($user) {
             return $user->can('ver modulo examenes')
-                && $user->perteneceAAlgunaUnidad(['siniestros', 'delegaciones']);
+                && (
+                    $user->perteneceAAlgunaUnidad(['siniestros', 'delegaciones'])
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-modulo-examenes-crear', function ($user) {
             return $user->can('crear modulo examenes')
-                && $user->perteneceAAlgunaUnidad(['siniestros', 'delegaciones']);
+                && (
+                    $user->perteneceAAlgunaUnidad(['siniestros', 'delegaciones'])
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-estadisticas-globales', function ($user) {
             return $user->can('ver estadisticas globales')
-                && $user->perteneceAUnidad('siniestros');
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-estadisticas-carreteras', function ($user) {
             return $user->can('ver estadisticas carreteras')
-                && $user->perteneceAUnidad('carreteras');
+                && (
+                    $user->perteneceAUnidad('carreteras')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-guardianes-camino', function ($user) {
             return $user->can('ver operativos carreteras')
-                && $user->perteneceAUnidad('carreteras');
+                && (
+                    $user->perteneceAUnidad('carreteras')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-guardianes-camino-crear', function ($user) {
             return $user->can('crear operativos carreteras')
-                && $user->perteneceAUnidad('carreteras');
+                && (
+                    $user->perteneceAUnidad('carreteras')
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
+        Gate::define('menu-hechos-pendientes-revision', function ($user) {
+            return $user->can('ver hechos')
+                && (
+                    (int) $user->unidad_id === 1
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
+        Gate::define('menu-guardianes-pendientes-revision', function ($user) {
+            return $user->can('ver operativos carreteras')
+                && (
+                    (int) $user->unidad_id === 4
+                    || (int) $user->unidad_id === 3
+                );
         });
     }
 }

@@ -21,14 +21,14 @@
 
                         <input type="hidden" name="lat" id="lat" value="{{ old('lat', $hecho->lat) }}">
                         <input type="hidden" name="lng" id="lng" value="{{ old('lng', $hecho->lng) }}">
-                        <input type="hidden" name="precision_m" id="precision_m" value="{{ old('precision_m', $hecho->precision_m) }}">
+                        <input type="hidden" name="calidad_geo" id="calidad_geo" value="{{ old('calidad_geo', $hecho->calidad_geo) }}">
                         <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion', $hecho->fuente_ubicacion) }}">
 
                         @php
-                            $fotoLugarPath     = $hecho->foto_lugar_path     ?? ($hecho->foto_lugar ?? null);
+                            $fotoLugarPath = $hecho->foto_lugar_path ?? ($hecho->foto_lugar ?? null);
                             $fotoSituacionPath = $hecho->foto_situacion_path ?? ($hecho->foto_situacion ?? null);
 
-                            $fotoLugarUrl     = $fotoLugarPath ? Storage::url($fotoLugarPath) : null;
+                            $fotoLugarUrl = $fotoLugarPath ? Storage::url($fotoLugarPath) : null;
                             $fotoSituacionUrl = $fotoSituacionPath ? Storage::url($fotoSituacionPath) : null;
                         @endphp
 
@@ -110,7 +110,7 @@
                                     <label for="fecha">Fecha<span style="color: red">*</span></label>
                                     <input type="date" name="fecha" id="fecha"
                                            class="form-control @error('fecha') is-invalid @enderror"
-                                           value="{{ old('fecha', $hecho->fecha) }}" required>
+                                           value="{{ old('fecha', \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')) }}" required>
                                     @error('fecha')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -209,6 +209,13 @@
                                     <small class="help-muted">
                                         Se guardan lat/lng para reportes y mapa.
                                     </small>
+
+                                    @error('lat')
+                                        <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                    @enderror
+                                    @error('lng')
+                                        <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                    @enderror
                                 </div>
                             </div>
                         </div>
@@ -323,7 +330,6 @@
                             <div class="col-md-4" id="dictamen_group" style="display:none;">
                                 <div class="form-group">
                                     <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
-
                                     <select name="dictamen_id" id="dictamen_id"
                                             class="form-control @error('dictamen_id') is-invalid @enderror">
                                         <option value="" disabled {{ old('dictamen_id', optional($dictamenActual)->id) ? '' : 'selected' }}>
@@ -336,7 +342,6 @@
                                                     $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
                                                     $selectedId = (string) old('dictamen_id', optional($dictamenActual)->id);
                                                 @endphp
-
                                                 <option value="{{ $d->id }}"
                                                         data-oficio="{{ $oficio }}"
                                                         {{ $selectedId === (string)$d->id ? 'selected' : '' }}>
@@ -345,18 +350,14 @@
                                             @endforeach
                                         @endif
                                     </select>
-
                                     @error('dictamen_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-
-                                    <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos (y el actual si ya tiene).</small>
+                                    <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos y el actual si ya tiene.</small>
                                 </div>
                             </div>
 
-                            {{-- ✅ Oficio MP (NO editable, se autollenará) --}}
                             <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp', $hecho->oficio_mp) }}">
-
 
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -370,7 +371,9 @@
                                     @enderror
                                 </div>
                             </div>
+                        </div>
 
+                        <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="colision_camino">Colisión sobre el Camino<span style="color: red">*</span></label>
@@ -383,96 +386,6 @@
                                     @enderror
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="foto_lugar">Foto del lugar (opcional)</label>
-                                    <input type="file" name="foto_lugar" id="foto_lugar" accept="image/*"
-                                           class="form-control @error('foto_lugar') is-invalid @enderror">
-                                    @error('foto_lugar')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-
-                                    @if ($fotoLugarUrl)
-                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-                                            <img src="{{ $fotoLugarUrl }}" alt="Foto lugar"
-                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
-                                            <a class="btn btn-sm btn-info" href="{{ $fotoLugarUrl }}" target="_blank" rel="noopener">
-                                                <i class="fa-solid fa-up-right-from-square"></i> Ver
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_lugar">
-                                                <i class="fa-solid fa-trash"></i> Quitar
-                                            </button>
-                                            <input type="hidden" name="quitar_foto_lugar" id="quitar_foto_lugar" value="0">
-                                        </div>
-                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
-                                    @endif
-
-                                    <small id="foto_lugar_name" class="help-muted"></small>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6" id="foto_situacion_group" style="display:none;">
-                                <div class="form-group">
-                                    <label for="foto_situacion">
-                                        Foto de la situación <span id="foto_situacion_required" style="color:red; display:none;">*</span>
-                                    </label>
-                                    <input type="file" name="foto_situacion" id="foto_situacion" accept="image/*"
-                                           class="form-control @error('foto_situacion') is-invalid @enderror">
-                                    @error('foto_situacion')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-
-                                    <small id="foto_situacion_hint" class="help-muted"></small>
-
-                                    @if ($fotoSituacionUrl)
-                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-                                            <img src="{{ $fotoSituacionUrl }}" alt="Foto situación"
-                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
-                                            <a class="btn btn-sm btn-info" href="{{ $fotoSituacionUrl }}" target="_blank" rel="noopener">
-                                                <i class="fa-solid fa-up-right-from.square"></i> Ver
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_situacion">
-                                                <i class="fa-solid fa-trash"></i> Quitar
-                                            </button>
-                                            <input type="hidden" name="quitar_foto_situacion" id="quitar_foto_situacion" value="0">
-                                        </div>
-                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
-                                    @endif
-
-                                    <small id="foto_situacion_name" class="help-muted d-block mt-1"></small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="checaron_antecedentes">Se checaron antecedentes?<span style="color: red">*</span></label>
-                                    <select name="checaron_antecedentes" id="checaron_antecedentes" class="form-control">
-                                        <option value="0" {{ old('checaron_antecedentes', (string)($hecho->checaron_antecedentes ?? '0')) == '0' ? 'selected' : '' }}>No</option>
-                                        <option value="1" {{ old('checaron_antecedentes', (string)($hecho->checaron_antecedentes ?? '0')) == '1' ? 'selected' : '' }}>Sí</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="causas">Causas<span style="color: red">*</span></label>
-                                    <input type="text" name="causas" id="causas"
-                                           class="form-control @error('causas') is-invalid @enderror"
-                                           value="{{ old('causas', $hecho->causas) }}"
-                                           placeholder="Ingrese las causas" required>
-                                    @error('causas')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
 
                             <div class="col-md-2">
                                 <div class="form-group">
@@ -500,6 +413,75 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>¿Se checaron antecedentes?</label>
+                                    <select name="checaron_antecedentes" id="checaron_antecedentes" class="form-control">
+                                        <option value="0" {{ old('checaron_antecedentes', (string)($hecho->checaron_antecedentes ?? '0')) == '0' ? 'selected' : '' }}>No</option>
+                                        <option value="1" {{ old('checaron_antecedentes', (string)($hecho->checaron_antecedentes ?? '0')) == '1' ? 'selected' : '' }}>Sí</option>
+                                    </select>
+                                    @error('checaron_antecedentes')
+                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>¿Daños patrimoniales?</label>
+                                    <select name="danos_patrimoniales" id="danos_patrimoniales" class="form-control">
+                                        <option value="0" {{ old('danos_patrimoniales', (string)($hecho->danos_patrimoniales ?? '0')) == '0' ? 'selected' : '' }}>No</option>
+                                        <option value="1" {{ old('danos_patrimoniales', (string)($hecho->danos_patrimoniales ?? '0')) == '1' ? 'selected' : '' }}>Sí</option>
+                                    </select>
+                                    @error('danos_patrimoniales')
+                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row" id="danos_patrimoniales_fields" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="propiedades_afectadas">Propiedades afectadas</label>
+                                    <input type="text" name="propiedades_afectadas" id="propiedades_afectadas"
+                                           class="form-control @error('propiedades_afectadas') is-invalid @enderror"
+                                           value="{{ old('propiedades_afectadas', $hecho->propiedades_afectadas) }}"
+                                           placeholder="Ingrese las propiedades afectadas">
+                                    @error('propiedades_afectadas')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="monto_danos_patrimoniales">Monto de daños patrimoniales</label>
+                                    <input type="number" step="0.01" min="0" name="monto_danos_patrimoniales" id="monto_danos_patrimoniales"
+                                           class="form-control @error('monto_danos_patrimoniales') is-invalid @enderror"
+                                           value="{{ old('monto_danos_patrimoniales', $hecho->monto_danos_patrimoniales) }}"
+                                           placeholder="Ingrese el monto">
+                                    @error('monto_danos_patrimoniales')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="causas">Causas<span style="color: red">*</span></label>
+                                    <input type="text" name="causas" id="causas"
+                                           class="form-control @error('causas') is-invalid @enderror"
+                                           value="{{ old('causas', $hecho->causas) }}"
+                                           placeholder="Ingrese las causas" required>
+                                    @error('causas')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
                             <div class="col-md-2" style="display:flex; align-items:end;">
                                 <a href="{{ route('vehiculos.index', $hecho->id) }}" class="btn btn-success btn-lg w-100">
                                     <i class="fa-solid fa-car-side"></i> Vehículos
@@ -513,11 +495,77 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="foto_lugar">Foto del lugar (opcional)</label>
+                                    <input type="file" name="foto_lugar" id="foto_lugar" accept="image/*"
+                                           class="form-control @error('foto_lugar') is-invalid @enderror">
+                                    @error('foto_lugar')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+
+                                    @if ($fotoLugarUrl)
+                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                            <img src="{{ $fotoLugarUrl }}" alt="Foto lugar"
+                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
+                                            <a class="btn btn-sm btn-info" href="{{ $fotoLugarUrl }}" target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> Ver
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_lugar">
+                                                <i class="fa-solid fa-trash"></i> Quitar
+                                            </button>
+                                            <input type="hidden" name="quitar_foto_lugar" id="quitar_foto_lugar" value="0">
+                                        </div>
+                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
+                                    @else
+                                        <input type="hidden" name="quitar_foto_lugar" id="quitar_foto_lugar" value="0">
+                                    @endif
+
+                                    <small id="foto_lugar_name" class="help-muted"></small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6" id="foto_situacion_group" style="display:none;">
+                                <div class="form-group">
+                                    <label for="foto_situacion">
+                                        Foto de la situación <span id="foto_situacion_required" style="color:red; display:none;">*</span>
+                                    </label>
+                                    <input type="file" name="foto_situacion" id="foto_situacion" accept="image/*"
+                                           class="form-control @error('foto_situacion') is-invalid @enderror">
+                                    @error('foto_situacion')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+
+                                    <small id="foto_situacion_hint" class="help-muted"></small>
+
+                                    @if ($fotoSituacionUrl)
+                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                            <img src="{{ $fotoSituacionUrl }}" alt="Foto situación"
+                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
+                                            <a class="btn btn-sm btn-info" href="{{ $fotoSituacionUrl }}" target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> Ver
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_situacion">
+                                                <i class="fa-solid fa-trash"></i> Quitar
+                                            </button>
+                                            <input type="hidden" name="quitar_foto_situacion" id="quitar_foto_situacion" value="0">
+                                        </div>
+                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
+                                    @else
+                                        <input type="hidden" name="quitar_foto_situacion" id="quitar_foto_situacion" value="0">
+                                    @endif
+
+                                    <small id="foto_situacion_name" class="help-muted d-block mt-1"></small>
+                                </div>
+                            </div>
+                        </div>
+
                         <hr>
                         <div class="row">
                             <div class="col-md-12 text-center">
                                 <div class="form-group">
-                                    <button type="submit" class="btn btn-success">
+                                    <button id="btn_submit" type="submit" class="btn btn-success">
                                         <i class="fa-solid fa-check"></i> Actualizar
                                     </button>
 
@@ -525,6 +573,9 @@
                                         <i class="fa-solid fa-ban"></i> Cancelar
                                     </a>
                                 </div>
+                                <small id="geo_required_hint" class="help-muted" style="display:none;">
+                                    Captura la ubicación para poder actualizar.
+                                </small>
                             </div>
                         </div>
 
@@ -624,8 +675,13 @@
 
             const latInput       = document.getElementById('lat');
             const lngInput       = document.getElementById('lng');
-            const precisionInput = document.getElementById('precision_m');
+            const precisionInput = document.getElementById('calidad_geo');
             const fuenteInput    = document.getElementById('fuente_ubicacion');
+
+            const danosInput = document.getElementById('danos_patrimoniales');
+            const danosFields = document.getElementById('danos_patrimoniales_fields');
+            const propiedadesAfectadasInput = document.getElementById('propiedades_afectadas');
+            const montoDanosInput = document.getElementById('monto_danos_patrimoniales');
 
             function toastError(msg) {
                 if (window.Swal) {
@@ -676,7 +732,10 @@
                     fotoSituacionGroup.style.display = 'block';
                     fotoSituacionRequired.style.display = 'inline';
 
-                    const hayGuardada = {{ $fotoSituacionUrl ? 'true' : 'false' }};
+                    const quitarFotoSituacionInput = document.getElementById('quitar_foto_situacion');
+                    const seMarcaraParaQuitar = quitarFotoSituacionInput && quitarFotoSituacionInput.value === '1';
+                    const hayGuardada = {{ $fotoSituacionUrl ? 'true' : 'false' }} && !seMarcaraParaQuitar;
+
                     fotoSituacionInput.required = !hayGuardada;
 
                     if (val === 'RESUELTO') {
@@ -698,6 +757,25 @@
                 }
             }
 
+            function toggleDanosPatrimoniales() {
+                if (!danosInput || !danosFields) return;
+
+                let activo = false;
+
+                if (danosInput.type === 'checkbox') {
+                    activo = danosInput.checked;
+                } else {
+                    activo = String(danosInput.value) === '1';
+                }
+
+                danosFields.style.display = activo ? 'flex' : 'none';
+
+                if (!activo) {
+                    if (propiedadesAfectadasInput) propiedadesAfectadasInput.value = '';
+                    if (montoDanosInput) montoDanosInput.value = '';
+                }
+            }
+
             function setGeoUI() {
                 if (!geoStatus || !btnGeoClear || !latInput || !lngInput || !precisionInput) return;
 
@@ -716,6 +794,7 @@
 
             toggleTurnado();
             toggleFotoSituacion();
+            toggleDanosPatrimoniales();
             setGeoUI();
             fillOficioFromDictamen();
 
@@ -738,10 +817,17 @@
                 });
             }
 
+            if (danosInput) {
+                danosInput.addEventListener('change', function () {
+                    toggleDanosPatrimoniales();
+                });
+            }
+
             const horaInput = document.getElementById('hora');
             if (horaInput && horaInput.value) {
                 horaInput.value = String(horaInput.value).substring(0, 5);
             }
+
             if (horaInput && window.flatpickr) {
                 flatpickr(horaInput, {
                     enableTime: true,
@@ -763,6 +849,11 @@
                 fotoSituacionInput.addEventListener('change', function () {
                     const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
                     if (fotoSituacionName) fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
+
+                    const h = document.getElementById('quitar_foto_situacion');
+                    if (h) h.value = '0';
+
+                    toggleFotoSituacion();
                 });
             }
 
@@ -854,13 +945,7 @@
                             if (fotoSituacionInput) fotoSituacionInput.value = '';
                             if (fotoSituacionName) fotoSituacionName.textContent = '';
 
-                            const val = situacionSelect ? situacionSelect.value : '';
-                            if (val === 'RESUELTO' || val === 'TURNADO') {
-                                fotoSituacionInput.required = true;
-                                fotoSituacionHint.textContent = (val === 'RESUELTO')
-                                    ? 'Obligatoria: sube otra foto del convenio (RESUELTO).'
-                                    : 'Obligatoria: sube otra foto de la puesta (TURNADO).';
-                            }
+                            toggleFotoSituacion();
                         }
                     });
                 });

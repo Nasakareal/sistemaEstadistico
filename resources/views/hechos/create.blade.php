@@ -186,7 +186,6 @@
                                         <span id="geo_status" class="help-muted">
                                             @if(old('lat') && old('lng'))
                                                 OK: {{ old('lat') }}, {{ old('lng') }}
-                                                @if(old('precision_m')) (±{{ old('precision_m') }} m) @endif
                                             @else
                                                 Sin coordenadas
                                             @endif
@@ -200,6 +199,13 @@
                                     <small class="help-muted">
                                         Es obligatorio capturar lat/lng. Si el navegador pregunta permisos, acepta.
                                     </small>
+
+                                    @error('lat')
+                                        <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                    @enderror
+                                    @error('lng')
+                                        <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                    @enderror
                                 </div>
                             </div>
                         </div>
@@ -322,7 +328,6 @@
                                                 @php
                                                     $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
                                                 @endphp
-
                                                 <option value="{{ $d->id }}"
                                                     data-oficio="{{ $oficio }}"
                                                     {{ (string)old('dictamen_id') === (string)$d->id ? 'selected' : '' }}>
@@ -338,7 +343,6 @@
                                 </div>
                             </div>
 
-                            {{-- Oficio MP: se autollenará con el dictamen seleccionado (NO editable) --}}
                             <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp') }}">
                         </div>
 
@@ -393,6 +397,90 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>¿Se checaron antecedentes?</label>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox"
+                                               class="custom-control-input"
+                                               id="checaron_antecedentes"
+                                               name="checaron_antecedentes"
+                                               value="1"
+                                               {{ old('checaron_antecedentes') ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="checaron_antecedentes">Sí</label>
+                                    </div>
+                                    @error('checaron_antecedentes')
+                                        <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>¿Daños patrimoniales?</label>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox"
+                                               class="custom-control-input"
+                                               id="danos_patrimoniales"
+                                               name="danos_patrimoniales"
+                                               value="1"
+                                               {{ old('danos_patrimoniales') ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="danos_patrimoniales">Sí</label>
+                                    </div>
+                                    @error('danos_patrimoniales')
+                                        <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="causas">Causas<span style="color: red">*</span></label>
+                                    <input type="text" name="causas" id="causas"
+                                           class="form-control @error('causas') is-invalid @enderror"
+                                           value="{{ old('causas') }}" placeholder="Ingrese las causas" required>
+                                    @error('causas')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row" id="danos_patrimoniales_fields" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="propiedades_afectadas">Propiedades afectadas</label>
+                                    <input type="text"
+                                           name="propiedades_afectadas"
+                                           id="propiedades_afectadas"
+                                           class="form-control @error('propiedades_afectadas') is-invalid @enderror"
+                                           value="{{ old('propiedades_afectadas') }}"
+                                           placeholder="Ingrese las propiedades afectadas">
+                                    @error('propiedades_afectadas')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="monto_danos_patrimoniales">Monto de daños patrimoniales</label>
+                                    <input type="number"
+                                           step="0.01"
+                                           min="0"
+                                           name="monto_danos_patrimoniales"
+                                           id="monto_danos_patrimoniales"
+                                           class="form-control @error('monto_danos_patrimoniales') is-invalid @enderror"
+                                           value="{{ old('monto_danos_patrimoniales') }}"
+                                           placeholder="Ingrese el monto">
+                                    @error('monto_danos_patrimoniales')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="foto_lugar">Foto del lugar (opcional)</label>
@@ -421,46 +509,14 @@
                                     @error('foto_situacion')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-
                                     <small id="foto_situacion_hint" class="help-muted"></small><br>
                                     <small id="foto_situacion_name" class="help-muted"></small>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>¿Se checaron antecedentes? <span style="color:red">*</span></label>
-
-                                        <div class="custom-control custom-switch">
-                                            <input type="checkbox"
-                                                   class="custom-control-input"
-                                                   id="checaron_antecedentes"
-                                                   name="checaron_antecedentes"
-                                                   value="1"
-                                                   {{ old('checaron_antecedentes') ? 'checked' : '' }}>
-                                            <label class="custom-control-label" for="checaron_antecedentes">
-                                                Sí
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="causas">Causas<span style="color: red">*</span></label>
-                                    <input type="text" name="causas" id="causas"
-                                           class="form-control @error('causas') is-invalid @enderror"
-                                           value="{{ old('causas') }}" placeholder="Ingrese las causas" required>
-                                    @error('causas')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
                         <hr>
+
                         <div class="row">
                             <div class="col-md-12 text-center">
                                 <div class="form-group">
@@ -477,7 +533,6 @@
                                 </small>
                             </div>
                         </div>
-
                     </form>
                 </div>
             </div>
@@ -576,11 +631,13 @@
 
             const latInput = document.getElementById('lat');
             const lngInput = document.getElementById('lng');
-
-            // IMPORTANTE: el controller usa/valida 'calidad_geo' (no precision_m)
             const precisionInput = document.getElementById('calidad_geo');
-
             const fuenteInput = document.getElementById('fuente_ubicacion');
+
+            const danosSwitch = document.getElementById('danos_patrimoniales');
+            const danosFields = document.getElementById('danos_patrimoniales_fields');
+            const propiedadesAfectadasInput = document.getElementById('propiedades_afectadas');
+            const montoDanosInput = document.getElementById('monto_danos_patrimoniales');
 
             function fillOficioFromDictamen() {
                 const oficioInput = document.getElementById('oficio_mp');
@@ -602,12 +659,11 @@
             function toggleTurnado() {
                 if (!situacionSelect) return;
 
-                const isTurnado = (situacionSelect.value === 'TURNADO');
+                const isTurnado = situacionSelect.value === 'TURNADO';
 
                 if (isTurnado) {
                     if (dictamenGroup) dictamenGroup.style.display = 'block';
                     if (dictamenSelect) dictamenSelect.required = true;
-
                     fillOficioFromDictamen();
                 } else {
                     if (dictamenGroup) dictamenGroup.style.display = 'none';
@@ -625,16 +681,12 @@
             function toggleFotoSituacion() {
                 if (!situacionSelect) return;
 
-                const val = situacionSelect.value;
-
-                // En CREATE: el controller solo exige foto_situacion cuando RESUELTO
-                const mustShow = (val === 'RESUELTO');
+                const mustShow = situacionSelect.value === 'RESUELTO';
 
                 if (mustShow) {
                     if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'block';
                     if (fotoSituacionRequired) fotoSituacionRequired.style.display = 'inline';
                     if (fotoSituacionInput) fotoSituacionInput.required = true;
-
                     if (fotoSituacionHint) {
                         fotoSituacionHint.textContent = 'Obligatoria: foto de la situación (RESUELTO).';
                     }
@@ -647,7 +699,21 @@
                         fotoSituacionInput.required = false;
                         fotoSituacionInput.value = '';
                     }
+
                     if (fotoSituacionName) fotoSituacionName.textContent = '';
+                }
+            }
+
+            function toggleDanosPatrimoniales() {
+                if (!danosSwitch || !danosFields) return;
+
+                const activo = danosSwitch.checked;
+
+                danosFields.style.display = activo ? 'flex' : 'none';
+
+                if (!activo) {
+                    if (propiedadesAfectadasInput) propiedadesAfectadasInput.value = '';
+                    if (montoDanosInput) montoDanosInput.value = '';
                 }
             }
 
@@ -683,9 +749,9 @@
                 }
             }
 
-            // Inicial
             toggleTurnado();
             toggleFotoSituacion();
+            toggleDanosPatrimoniales();
             setGeoUI();
             fillOficioFromDictamen();
 
@@ -699,15 +765,20 @@
             if (dictamenSelect) {
                 dictamenSelect.addEventListener('change', function () {
                     fillOficioFromDictamen();
-                    // No forzamos TURNADO automáticamente aquí; ya está seleccionado si el usuario lo eligió.
                 });
             }
 
-            // Hora (flatpickr)
+            if (danosSwitch) {
+                danosSwitch.addEventListener('change', function () {
+                    toggleDanosPatrimoniales();
+                });
+            }
+
             const horaInput = document.getElementById('hora');
             if (horaInput && horaInput.value) {
                 horaInput.value = String(horaInput.value).substring(0, 5);
             }
+
             if (horaInput && window.flatpickr) {
                 flatpickr(horaInput, {
                     enableTime: true,
@@ -718,22 +789,20 @@
                 });
             }
 
-            // Nombres de archivos
             if (fotoLugarInput) {
                 fotoLugarInput.addEventListener('change', function () {
-                    const f = (fotoLugarInput.files && fotoLugarInput.files[0]) ? fotoLugarInput.files[0].name : '';
+                    const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
                     if (fotoLugarName) fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
             if (fotoSituacionInput) {
                 fotoSituacionInput.addEventListener('change', function () {
-                    const f = (fotoSituacionInput.files && fotoSituacionInput.files[0]) ? fotoSituacionInput.files[0].name : '';
+                    const f = fotoSituacionInput.files && fotoSituacionInput.files[0] ? fotoSituacionInput.files[0].name : '';
                     if (fotoSituacionName) fotoSituacionName.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 
-            // Geolocalización
             if (btnGeo) {
                 btnGeo.addEventListener('click', function () {
                     if (!navigator.geolocation) {
@@ -749,9 +818,9 @@
                             const lng = pos.coords.longitude;
                             const acc = pos.coords.accuracy;
 
-                            if (latInput) latInput.value = (typeof lat === 'number') ? lat.toFixed(7) : '';
-                            if (lngInput) lngInput.value = (typeof lng === 'number') ? lng.toFixed(7) : '';
-                            if (precisionInput) precisionInput.value = (typeof acc === 'number') ? String(Math.round(acc)) : '';
+                            if (latInput) latInput.value = typeof lat === 'number' ? lat.toFixed(7) : '';
+                            if (lngInput) lngInput.value = typeof lng === 'number' ? lng.toFixed(7) : '';
+                            if (precisionInput) precisionInput.value = typeof acc === 'number' ? String(Math.round(acc)) : '';
                             if (fuenteInput) fuenteInput.value = 'GPS_WEB';
 
                             setGeoUI();

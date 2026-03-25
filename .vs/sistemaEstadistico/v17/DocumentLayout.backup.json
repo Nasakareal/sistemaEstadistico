@@ -3,24 +3,12 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\privacy_policy.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\privacy_policy.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vendor\\adminlte\\master.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\vendor\\adminlte\\master.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GuardianesCaminoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\GuardianesCaminoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GuardianesCaminoDispositivoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\GuardianesCaminoDispositivoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -30,19 +18,19 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "master.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vendor\\adminlte\\master.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\vendor\\adminlte\\master.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vendor\\adminlte\\master.blade.php",
-              "RelativeToolTip": "resources\\views\\vendor\\adminlte\\master.blade.php",
-              "ViewState": "AgIAAKkBAAAAAAAAAAAmwNsBAAAAAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "privacy_policy.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\privacy_policy.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\privacy_policy.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\privacy_policy.blade.php",
+              "RelativeToolTip": "resources\\views\\privacy_policy.blade.php",
+              "ViewState": "AgIAAN4AAAAAAAAAAAAmwBABAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-24T20:18:35.246Z",
+              "WhenOpened": "2026-03-25T02:18:16.954Z",
               "EditorCaption": ""
             },
             {
@@ -53,48 +41,9 @@
               "RelativeDocumentMoniker": "routes\\web.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
               "RelativeToolTip": "routes\\web.php",
-              "ViewState": "AgIAAN8BAAAAAAAAAAAmwBECAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAPABAAAAAAAAAAAAABECAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-24T20:18:09.455Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "adminlte.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php",
-              "RelativeDocumentMoniker": "config\\adminlte.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php",
-              "RelativeToolTip": "config\\adminlte.php",
-              "ViewState": "AgIAAGkAAAAAAAAAAAAAAIkAAAACAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-24T20:15:52.557Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "GuardianesCaminoDispositivoController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GuardianesCaminoDispositivoController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\GuardianesCaminoDispositivoController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GuardianesCaminoDispositivoController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\GuardianesCaminoDispositivoController.php",
-              "ViewState": "AgIAAIECAAAAAAAAAAAmwLMCAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-24T20:15:26.838Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "GuardianesCaminoController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GuardianesCaminoController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\GuardianesCaminoController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\GuardianesCaminoController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\GuardianesCaminoController.php",
-              "ViewState": "AgIAAHwBAAAAAAAAAAAmwK4BAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-24T20:15:25.968Z",
+              "WhenOpened": "2026-03-25T02:16:40.25Z",
               "EditorCaption": ""
             }
           ]

@@ -85,6 +85,9 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
+            'danos_patrimoniales' => 'nullable|boolean',
+            'propiedades_afectadas' => 'nullable|string|max:255',
+            'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
             'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
@@ -98,6 +101,12 @@ class HechosController extends Controller
         ]);
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
+        $validated['danos_patrimoniales'] = $request->has('danos_patrimoniales');
+
+        if (!$validated['danos_patrimoniales']) {
+            $validated['propiedades_afectadas'] = null;
+            $validated['monto_danos_patrimoniales'] = null;
+        }
 
         $situacion = (string)($validated['situacion'] ?? '');
         if ($situacion === 'RESUELTO') {
@@ -251,7 +260,7 @@ class HechosController extends Controller
             $hecho->refresh();
         }
 
-        $quitarFotoLugar     = (string) $request->input('quitar_foto_lugar', '0') === '1';
+        $quitarFotoLugar = (string) $request->input('quitar_foto_lugar', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
         $validated = $request->validate([
@@ -264,7 +273,6 @@ class HechosController extends Controller
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
-
             'hora' => 'required|date_format:H:i',
             'fecha' => 'required|date',
             'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
@@ -285,9 +293,10 @@ class HechosController extends Controller
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
-
+            'danos_patrimoniales' => 'nullable|boolean',
+            'propiedades_afectadas' => 'nullable|string|max:255',
+            'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
             'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
-
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
             'calidad_geo' => 'nullable|string|max:20',
@@ -295,12 +304,17 @@ class HechosController extends Controller
             'fuente_ubicacion' => 'nullable|string|max:20',
             'ubicacion_formateada' => 'nullable|string|max:2000',
             'place_id' => 'nullable|string|max:128',
-
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
+        $validated['danos_patrimoniales'] = $request->has('danos_patrimoniales');
+
+        if (!$validated['danos_patrimoniales']) {
+            $validated['propiedades_afectadas'] = null;
+            $validated['monto_danos_patrimoniales'] = null;
+        }
 
         $situacion = (string) ($validated['situacion'] ?? '');
 

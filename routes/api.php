@@ -122,7 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hechos/{hecho}', [HechoController::class, 'update'])->middleware('can:editar hechos');
     Route::delete('/hechos/{hecho}', [HechoController::class, 'destroy'])->middleware('can:eliminar hechos');
     Route::post('/hechos/{hecho}/descargo', [HechoController::class, 'subirDescargo'])->middleware('can:editar hechos');
-    Route::post('/hechos/{hecho}/whatsapp', [HechoController::class, 'sendWhatsapp'])->middleware('can:ver hechos');
+    Route::get('/hechos/{hecho}/native-share', [HechoController::class, 'nativeShare'])->middleware('can:ver hechos');
 
     Route::get('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'index'])->middleware('can:ver vehiculos');
     Route::post('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'store'])->middleware('can:crear vehiculos');

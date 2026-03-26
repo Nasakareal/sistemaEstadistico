@@ -3,11 +3,8 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\resources\\views\\vehiculos\\edit.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\EstadisticasCarreterasController.php",
   "PreviewInSolutionExplorer": false
 }

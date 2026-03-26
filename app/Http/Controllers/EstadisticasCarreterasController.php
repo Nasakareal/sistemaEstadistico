@@ -33,10 +33,7 @@ class EstadisticasCarreterasController extends Controller
             $puestas = $this->basePuestasQuery($request);
             $this->applySearchPuestas($puestas, $request);
 
-            $totalOperativos = (clone $operativos)
-                ->select('operativos.captura_uuid')
-                ->distinct()
-                ->count('operativos.captura_uuid');
+            $totalOperativos = (clone $operativos)->count('operativo_dispositivos.id');
 
             $totalPuestas = (clone $puestas)->count('puestas_disposicion.id');
 
@@ -113,12 +110,12 @@ class EstadisticasCarreterasController extends Controller
             $this->applySearchOperativos($q, $request);
 
             if ($group === 'month') {
-                $rows = $q->selectRaw("DATE_FORMAT(operativos.fecha, '%Y-%m-01') as x, COUNT(DISTINCT operativos.captura_uuid) as y")
+                $rows = $q->selectRaw("DATE_FORMAT(operativo_dispositivos.fecha, '%Y-%m-01') as x, COUNT(operativo_dispositivos.id) as y")
                     ->groupBy('x')
                     ->orderBy('x')
                     ->get();
             } else {
-                $rows = $q->selectRaw("DATE(operativos.fecha) as x, COUNT(DISTINCT operativos.captura_uuid) as y")
+                $rows = $q->selectRaw("DATE(operativo_dispositivos.fecha) as x, COUNT(operativo_dispositivos.id) as y")
                     ->groupBy('x')
                     ->orderBy('x')
                     ->get();
@@ -175,35 +172,40 @@ class EstadisticasCarreterasController extends Controller
             $this->applySearchOperativos($q, $request);
 
             $q->select(
-                'operativos.captura_uuid',
-                'operativos.fecha',
-                'operativos.hora',
-                'operativos.unidad_org_id',
-                'operativos.delegacion_id',
-                'operativos.destacamento_id',
-                'operativos.descripcion',
-                'operativos.lugar'
+                'operativo_dispositivos.id',
+                'operativo_dispositivos.client_uuid',
+                'operativo_dispositivos.operativo_dispositivo_catalogo_id',
+                'operativo_dispositivos.tipo_reporte',
+                'operativo_dispositivos.asunto',
+                'operativo_dispositivos.fecha',
+                'operativo_dispositivos.hora',
+                'operativo_dispositivos.hora_inicio',
+                'operativo_dispositivos.hora_fin',
+                'operativo_dispositivos.unidad_org_id',
+                'operativo_dispositivos.delegacion_id',
+                'operativo_dispositivos.destacamento_id',
+                'operativo_dispositivos.lugar',
+                'operativo_dispositivos.carretera',
+                'operativo_dispositivos.tramo',
+                'operativo_dispositivos.kilometro',
+                'operativo_dispositivos.descripcion',
+                'operativo_dispositivos.narrativa',
+                'operativo_dispositivos.acciones_realizadas',
+                'operativo_dispositivos.frase_institucional',
+                'operativo_dispositivos.cantidad',
+                'operativo_dispositivos.vehiculos_inspeccionados',
+                'operativo_dispositivos.personas_inspeccionadas',
+                'operativo_dispositivos.vehiculos_impactados',
+                'operativo_dispositivos.personas_impactadas',
+                'operativo_dispositivos.estado_fuerza_participante',
+                'operativo_dispositivos.kilometros_recorridos',
+                'operativo_dispositivos.crps_participantes',
+                'operativo_dispositivos.observaciones'
             )
-            ->selectRaw('COUNT(operativos.id) as total_operativos')
-            ->selectRaw('SUM(COALESCE(operativos.dispositivos_realizados,0)) as dispositivos_realizados')
-            ->selectRaw('SUM(COALESCE(operativos.vehiculos_inspeccionados,0)) as vehiculos_inspeccionados')
-            ->selectRaw('SUM(COALESCE(operativos.personas_inspeccionadas,0)) as personas_inspeccionadas')
-            ->selectRaw('SUM(COALESCE(operativos.vehiculos_impactados,0)) as vehiculos_impactados')
-            ->selectRaw('SUM(COALESCE(operativos.personas_impactadas,0)) as personas_impactadas')
-            ->selectRaw('SUM(COALESCE(operativos.estado_fuerza_participante,0)) as estado_fuerza_participante')
-            ->selectRaw('SUM(COALESCE(operativos.kilometros_recorridos,0)) as kilometros_recorridos')
-            ->groupBy(
-                'operativos.captura_uuid',
-                'operativos.fecha',
-                'operativos.hora',
-                'operativos.unidad_org_id',
-                'operativos.delegacion_id',
-                'operativos.destacamento_id',
-                'operativos.descripcion',
-                'operativos.lugar'
-            )
-            ->orderByDesc('operativos.fecha')
-            ->orderByDesc('operativos.hora');
+            ->selectRaw('1 as total_operativos')
+            ->selectRaw('COALESCE(operativo_dispositivos.cantidad, 0) as dispositivos_realizados')
+            ->orderByDesc('operativo_dispositivos.fecha')
+            ->orderByDesc('operativo_dispositivos.hora');
 
             return $q->paginate($per)->toArray();
         });
@@ -292,44 +294,44 @@ class EstadisticasCarreterasController extends Controller
         $this->applySearchOperativos($q, $request);
 
         $q->select(
-            'operativos.captura_uuid',
-            'operativos.fecha',
-            'operativos.hora',
-            'operativos.unidad_org_id',
-            'operativos.delegacion_id',
-            'operativos.destacamento_id',
-            'operativos.descripcion',
-            'operativos.lugar'
+            'operativo_dispositivos.id',
+            'operativo_dispositivos.client_uuid',
+            'operativo_dispositivos.tipo_reporte',
+            'operativo_dispositivos.asunto',
+            'operativo_dispositivos.fecha',
+            'operativo_dispositivos.hora',
+            'operativo_dispositivos.unidad_org_id',
+            'operativo_dispositivos.delegacion_id',
+            'operativo_dispositivos.destacamento_id',
+            'operativo_dispositivos.descripcion',
+            'operativo_dispositivos.lugar',
+            'operativo_dispositivos.carretera',
+            'operativo_dispositivos.tramo',
+            'operativo_dispositivos.kilometro',
+            'operativo_dispositivos.vehiculos_inspeccionados',
+            'operativo_dispositivos.personas_inspeccionadas',
+            'operativo_dispositivos.vehiculos_impactados',
+            'operativo_dispositivos.personas_impactadas',
+            'operativo_dispositivos.estado_fuerza_participante',
+            'operativo_dispositivos.kilometros_recorridos',
+            'operativo_dispositivos.crps_participantes'
         )
-        ->selectRaw('COUNT(operativos.id) as total_operativos')
-        ->selectRaw('SUM(COALESCE(operativos.dispositivos_realizados,0)) as dispositivos_realizados')
-        ->selectRaw('SUM(COALESCE(operativos.vehiculos_inspeccionados,0)) as vehiculos_inspeccionados')
-        ->selectRaw('SUM(COALESCE(operativos.personas_inspeccionadas,0)) as personas_inspeccionadas')
-        ->selectRaw('SUM(COALESCE(operativos.vehiculos_impactados,0)) as vehiculos_impactados')
-        ->selectRaw('SUM(COALESCE(operativos.personas_impactadas,0)) as personas_impactadas')
-        ->selectRaw('SUM(COALESCE(operativos.estado_fuerza_participante,0)) as estado_fuerza_participante')
-        ->selectRaw('SUM(COALESCE(operativos.kilometros_recorridos,0)) as kilometros_recorridos')
-        ->groupBy(
-            'operativos.captura_uuid',
-            'operativos.fecha',
-            'operativos.hora',
-            'operativos.unidad_org_id',
-            'operativos.delegacion_id',
-            'operativos.destacamento_id',
-            'operativos.descripcion',
-            'operativos.lugar'
-        )
-        ->orderByDesc('operativos.fecha')
-        ->orderByDesc('operativos.hora');
+        ->selectRaw('1 as total_operativos')
+        ->selectRaw('COALESCE(operativo_dispositivos.cantidad, 0) as dispositivos_realizados')
+        ->orderByDesc('operativo_dispositivos.fecha')
+        ->orderByDesc('operativo_dispositivos.hora');
 
-        $filename = 'operativos_carreteras_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'dispositivos_carreteras_' . now()->format('Ymd_His') . '.csv';
 
         return new StreamedResponse(function () use ($q) {
             $out = fopen('php://output', 'w');
 
             fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($out, [
-                'captura_uuid',
+                'id',
+                'client_uuid',
+                'tipo_reporte',
+                'asunto',
                 'fecha',
                 'hora',
                 'unidad_org_id',
@@ -337,6 +339,9 @@ class EstadisticasCarreterasController extends Controller
                 'destacamento_id',
                 'descripcion',
                 'lugar',
+                'carretera',
+                'tramo',
+                'kilometro',
                 'total_operativos',
                 'dispositivos_realizados',
                 'vehiculos_inspeccionados',
@@ -345,12 +350,16 @@ class EstadisticasCarreterasController extends Controller
                 'personas_impactadas',
                 'estado_fuerza_participante',
                 'kilometros_recorridos',
+                'crps_participantes',
             ]);
 
             $q->chunk(1000, function ($rows) use ($out) {
                 foreach ($rows as $r) {
                     fputcsv($out, [
-                        $r->captura_uuid,
+                        $r->id,
+                        $r->client_uuid,
+                        $r->tipo_reporte,
+                        $r->asunto,
                         $r->fecha,
                         $r->hora,
                         $r->unidad_org_id,
@@ -358,6 +367,9 @@ class EstadisticasCarreterasController extends Controller
                         $r->destacamento_id,
                         $r->descripcion,
                         $r->lugar,
+                        $r->carretera,
+                        $r->tramo,
+                        $r->kilometro,
                         $r->total_operativos,
                         $r->dispositivos_realizados,
                         $r->vehiculos_inspeccionados,
@@ -366,6 +378,7 @@ class EstadisticasCarreterasController extends Controller
                         $r->personas_impactadas,
                         $r->estado_fuerza_participante,
                         $r->kilometros_recorridos,
+                        $r->crps_participantes,
                     ]);
                 }
             });
@@ -498,21 +511,15 @@ class EstadisticasCarreterasController extends Controller
 
     private function baseOperativosQuery(Request $request)
     {
-        $q = DB::table('operativos')
-            ->whereNotNull('operativos.captura_uuid');
+        $q = DB::table('operativo_dispositivos')
+            ->whereNotNull('operativo_dispositivos.id');
 
         $this->applyOperativosDateFilter($q, $request);
         $this->applyOperativosVisibilityScope($q, $request->user());
 
         if ($request->filled('operativo_catalogo_id')) {
             $catalogoId = (int) $request->query('operativo_catalogo_id');
-
-            $q->whereExists(function ($sub) use ($catalogoId) {
-                $sub->select(DB::raw(1))
-                    ->from('operativos as op2')
-                    ->whereColumn('op2.captura_uuid', 'operativos.captura_uuid')
-                    ->where('op2.operativo_catalogo_id', $catalogoId);
-            });
+            $q->where('operativo_dispositivos.operativo_dispositivo_catalogo_id', $catalogoId);
         }
 
         return $q;
@@ -599,11 +606,11 @@ class EstadisticasCarreterasController extends Controller
         $hasta = trim((string) $request->query('hasta', ''));
 
         if ($desde !== '' && $hasta !== '') {
-            $q->whereBetween('operativos.fecha', [$desde, $hasta]);
+            $q->whereBetween('operativo_dispositivos.fecha', [$desde, $hasta]);
         } elseif ($desde !== '') {
-            $q->whereDate('operativos.fecha', '>=', $desde);
+            $q->whereDate('operativo_dispositivos.fecha', '>=', $desde);
         } elseif ($hasta !== '') {
-            $q->whereDate('operativos.fecha', '<=', $hasta);
+            $q->whereDate('operativo_dispositivos.fecha', '<=', $hasta);
         }
     }
 
@@ -629,10 +636,16 @@ class EstadisticasCarreterasController extends Controller
         }
 
         $q->where(function ($qq) use ($search) {
-            $qq->where('operativos.lugar', 'like', "%$search%")
-                ->orWhere('operativos.descripcion', 'like', "%$search%")
-                ->orWhere('operativos.observaciones', 'like', "%$search%")
-                ->orWhere('operativos.crps_participantes', 'like', "%$search%");
+            $qq->where('operativo_dispositivos.lugar', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.carretera', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.tramo', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.tipo_reporte', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.asunto', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.descripcion', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.narrativa', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.acciones_realizadas', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.observaciones', 'like', "%$search%")
+                ->orWhere('operativo_dispositivos.crps_participantes', 'like', "%$search%");
         });
     }
 
@@ -729,14 +742,14 @@ class EstadisticasCarreterasController extends Controller
             ->value('id');
 
         if ($unidadCarreterasId > 0 && $unidadId === $unidadCarreterasId) {
-            $query->where('operativos.unidad_org_id', $unidadCarreterasId);
+            $query->where('operativo_dispositivos.unidad_org_id', $unidadCarreterasId);
 
-            if (!is_null($usuario->delegacion_id) && $this->hasColumn('operativos', 'delegacion_id')) {
-                $query->where('operativos.delegacion_id', $usuario->delegacion_id);
+            if (!is_null($usuario->delegacion_id) && $this->hasColumn('operativo_dispositivos', 'delegacion_id')) {
+                $query->where('operativo_dispositivos.delegacion_id', $usuario->delegacion_id);
             }
 
-            if (!is_null($usuario->destacamento_id) && $this->hasColumn('operativos', 'destacamento_id')) {
-                $query->where('operativos.destacamento_id', $usuario->destacamento_id);
+            if (!is_null($usuario->destacamento_id) && $this->hasColumn('operativo_dispositivos', 'destacamento_id')) {
+                $query->where('operativo_dispositivos.destacamento_id', $usuario->destacamento_id);
             }
 
             return;
@@ -763,19 +776,19 @@ class EstadisticasCarreterasController extends Controller
                         ->pluck('id')
                         ->toArray();
 
-                    $query->whereIn('operativos.delegacion_id', $ids);
+                    $query->whereIn('operativo_dispositivos.delegacion_id', $ids);
                 } else {
-                    $query->where('operativos.delegacion_id', $delegacionId);
+                    $query->where('operativo_dispositivos.delegacion_id', $delegacionId);
                 }
             } else {
-                $query->where('operativos.delegacion_id', $delegacionId);
+                $query->where('operativo_dispositivos.delegacion_id', $delegacionId);
             }
 
             return;
         }
 
         if ($unidadId > 0) {
-            $query->where('operativos.unidad_org_id', $unidadId);
+            $query->where('operativo_dispositivos.unidad_org_id', $unidadId);
             return;
         }
 

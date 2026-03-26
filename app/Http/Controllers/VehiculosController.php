@@ -10,6 +10,7 @@ use App\Models\Grua;
 use App\Models\Servicios;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class VehiculosController extends Controller
 {
@@ -134,13 +135,24 @@ class VehiculosController extends Controller
 
         $hecho->vehiculos()->attach($vehiculo->id);
 
+        $fechaServicio = now()->format('Y-m-d H:i:s');
+
+        if (!empty($hecho->fecha)) {
+            $fechaBase = \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d');
+            $horaBase = !empty($hecho->hora)
+                ? \Carbon\Carbon::parse($hecho->hora)->format('H:i:s')
+                : '12:00:00';
+
+            $fechaServicio = $fechaBase . ' ' . $horaBase;
+        }
+
         if (!empty($validated['grua_id'])) {
             DB::table('servicios')->insert([
                 'vehiculo_id'   => $vehiculo->id,
                 'grua_id'       => $validated['grua_id'],
                 'tipo_vehiculo' => $validated['tipo'],
                 'aseguradora'   => $validated['aseguradora'],
-                'created_at'    => now(),
+                'created_at'    => $fechaServicio,
                 'updated_at'    => now(),
             ]);
         }
@@ -299,12 +311,15 @@ class VehiculosController extends Controller
             }
         }
 
-        $fechaServicio = null;
+        $fechaServicio = now()->format('Y-m-d H:i:s');
+
         if (!empty($hecho->fecha)) {
-            $hora = !empty($hecho->hora) ? $hecho->hora : '12:00:00';
-            $fechaServicio = $hecho->fecha . ' ' . $hora;
-        } else {
-            $fechaServicio = now()->format('Y-m-d H:i:s');
+            $fechaBase = \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d');
+            $horaBase = !empty($hecho->hora)
+                ? \Carbon\Carbon::parse($hecho->hora)->format('H:i:s')
+                : '12:00:00';
+
+            $fechaServicio = $fechaBase . ' ' . $horaBase;
         }
 
         DB::transaction(function () use ($validated, $vehiculo, $hecho, $nombreGrua, $fechaServicio) {

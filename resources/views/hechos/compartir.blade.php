@@ -163,8 +163,8 @@ async function compartirNativo() {
         }
 
         await navigator.share({
-            text: text,
-            title: 'Hecho de tránsito'
+            title: 'Hecho de tránsito',
+            text: text
         });
 
         setStatus('Se abrió el panel de compartir solo con texto.', 'info');

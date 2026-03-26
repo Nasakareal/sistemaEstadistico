@@ -9,7 +9,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
-use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Models\Dictamen;
 use Illuminate\Support\Facades\DB;
@@ -818,17 +817,7 @@ class HechoController extends Controller
         return false;
     }
 
-    public function whatsappLink(\App\Models\Hechos $hecho)
-    {
-        $url = WhatsAppLink::linkForHecho($hecho);
-
-        return response()->json([
-            'ok' => true,
-            'wa_url' => $url,
-        ]);
-    }
-
-    public function sendWhatsapp(Request $request, Hechos $hecho)
+    public function whatsappLink(Request $request, Hechos $hecho)
     {
         $user = $request->user();
 
@@ -839,94 +828,135 @@ class HechoController extends Controller
             ], 403);
         }
 
-        if (!is_null($hecho->whatsapp_sent_at)) {
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $user);
+
+        if (!$q->exists()) {
             return response()->json([
-                'ok' => true,
-                'message' => 'Este hecho ya fue compartido por WhatsApp.',
-            ], 200);
+                'ok' => false,
+                'message' => 'No encontrado.',
+            ], 404);
         }
 
-        $hecho->load(['vehiculos']);
+        $hecho->load(['vehiculos.conductores', 'lesionados']);
 
-        $baseText = WhatsAppLink::textForHecho($hecho);
+        $message = WhatsAppLink::textForHecho($hecho);
 
-        $lat = null;
-        $lng = null;
+        $fechaMostrar = !empty($hecho->fecha)
+            ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')
+            : '';
 
-        if (is_numeric($hecho->lat) && is_numeric($hecho->lng)) {
-            $lat = (float) $hecho->lat;
-            $lng = (float) $hecho->lng;
-        } else {
-            $c5Text = null;
+        $horaMostrar = !empty($hecho->hora)
+            ? substr((string) $hecho->hora, 0, 5)
+            : '';
 
-            // Si tienes el texto crudo del C5i guardado en algún campo, ponlo aquí:
-            // $c5Text = (string) ($hecho->reporte_c5i_texto ?? '');
-
-            if (is_string($c5Text) && trim($c5Text) !== '') {
-                $parsed = \App\Services\WhatsApp\C5IReport::parseCoordsFromC5IText($c5Text);
-                if ($parsed && isset($parsed['lat'], $parsed['lng'])) {
-                    $lat = (float) $parsed['lat'];
-                    $lng = (float) $parsed['lng'];
-                }
-            }
+        $ubicacionCorta = trim((string) ($hecho->calle ?? ''));
+        if (!empty($hecho->colonia)) {
+            $ubicacionCorta .= ', col. ' . trim((string) $hecho->colonia);
         }
 
-        $recoText = "RECOMENDACIÓN: NO DISPONIBLE (SIN COORDENADAS).";
-        $gmaps = null;
+        $message = preg_replace(
+            '/\b\d{4}-\d{2}-\d{2}\s+00:00:00\s+\d{2}:\d{2}:\d{2}\s+Hrs\./u',
+            $fechaMostrar . ' ' . $horaMostrar . ' Hrs.',
+            $message,
+            1
+        );
 
-        if ($lat !== null && $lng !== null) {
-            $r = \App\Services\WhatsApp\NearestUnit::recommendForCoords($lat, $lng, 3);
-            $recoText = \App\Services\WhatsApp\NearestUnit::recommendationText($r);
-            $gmaps = \App\Services\WhatsApp\C5IReport::googleMapsLinkFromCoords($lat, $lng);
+        if (!empty($ubicacionCorta)) {
+            $message = preg_replace(
+                '/Guardia Civil toma conocimiento en .*?\./u',
+                'Guardia Civil toma conocimiento en ' . $ubicacionCorta . '.',
+                $message,
+                1
+            );
         }
 
-        $message = trim($baseText . "\n\n" . $recoText . ($gmaps ? "\n" . $gmaps : ''));
+        return response()->json([
+            'ok' => true,
+            'wa_url' => 'https://wa.me/?text=' . urlencode($message),
+        ], 200);
+    }
+
+
+    public function nativeShare(Request $request, Hechos $hecho)
+    {
+        $user = $request->user();
+
+        if (!$user || !$user->can('ver hechos')) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No autorizado.',
+            ], 403);
+        }
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $user);
+
+        if (!$q->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No encontrado.',
+            ], 404);
+        }
+
+        $hecho->load(['vehiculos.conductores', 'lesionados']);
+
+        $message = WhatsAppLink::textForHecho($hecho);
+
+        $fechaMostrar = !empty($hecho->fecha)
+            ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')
+            : '';
+
+        $horaMostrar = !empty($hecho->hora)
+            ? substr((string) $hecho->hora, 0, 5)
+            : '';
+
+        $ubicacionCorta = trim((string) ($hecho->calle ?? ''));
+        if (!empty($hecho->colonia)) {
+            $ubicacionCorta .= ', col. ' . trim((string) $hecho->colonia);
+        }
+
+        $message = preg_replace(
+            '/\b\d{4}-\d{2}-\d{2}\s+00:00:00\s+\d{2}:\d{2}:\d{2}\s+Hrs\./u',
+            $fechaMostrar . ' ' . $horaMostrar . ' Hrs.',
+            $message,
+            1
+        );
+
+        if (!empty($ubicacionCorta)) {
+            $message = preg_replace(
+                '/Guardia Civil toma conocimiento en .*?\./u',
+                'Guardia Civil toma conocimiento en ' . $ubicacionCorta . '.',
+                $message,
+                1
+            );
+        }
 
         $media = [];
 
         if (!empty($hecho->foto_lugar)) {
-            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+            $media[] = $this->publicStoragePath($hecho->foto_lugar);
         }
 
         if (!empty($hecho->foto_situacion)) {
-            $media[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+            $media[] = $this->publicStoragePath($hecho->foto_situacion);
         }
 
         foreach ($hecho->vehiculos as $v) {
             if (!empty($v->fotos)) {
-                $media[] = asset('storage/' . ltrim($v->fotos, '/'));
+                $media[] = $this->publicStoragePath($v->fotos);
             }
         }
 
-        $chatId = (string) env('WHATSAPP_DEFAULT_CHAT_ID');
-        if ($chatId === '') {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Falta configurar WHATSAPP_DEFAULT_CHAT_ID.',
-            ], 500);
-        }
-
-        $resp = WhatsAppBot::sendToChat($chatId, $message, $media);
-
-        if (!($resp['ok'] ?? false)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo enviar a WhatsApp.',
-                'data' => $resp,
-            ], 500);
-        }
-
-        $hecho->whatsapp_sent_at    = now();
-        $hecho->whatsapp_chat_id    = $chatId;
-        $hecho->whatsapp_message_id = (string) ($resp['id'] ?? '');
-        $hecho->save();
+        $media = array_values(array_filter($media));
 
         return response()->json([
             'ok' => true,
-            'message' => 'Hecho compartido por WhatsApp.',
             'data' => [
+                'title' => 'Hecho de tránsito',
+                'message' => $message,
+                'media' => $media,
                 'hecho_id' => $hecho->id,
-                'whatsapp_message_id' => (string) ($resp['id'] ?? ''),
             ],
         ], 200);
     }

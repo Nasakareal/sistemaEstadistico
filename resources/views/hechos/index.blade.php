@@ -44,129 +44,145 @@
                         </div>
                     </form>
 
-                    @if ($hechos->count() === 0)
-                        <div class="alert alert-info">
-                            No hay hechos para la fecha seleccionada.
-                        </div>
-                    @endif
-
-                    <table id="hechos" class="table table-striped table-bordered table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th><center>ID</center></th>
-                                <th><center>Fecha y Hora</center></th>
-                                <th><center>Ubicación</center></th>
-                                <th><center>Foto Lugar</center></th>
-                                <th><center>Estado</center></th>
-                                <th><center>Relevante</center></th>
-                                <th><center>Revisado por</center></th>
-                                <th><center>Creado por</center></th>
-                                <th><center>Acciones</center></th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            @foreach ($hechos as $hecho)
+                    <div class="table-responsive">
+                        <table id="hechos" class="table table-striped table-bordered table-hover table-sm">
+                            <thead>
                                 <tr>
-                                    <td>{{ $hecho->id }}</td>
-                                    <td>{{ $hecho->fecha }} {{ $hecho->hora }}</td>
-                                    <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
-
-                                    <td>
-                                        @php
-                                            $foto = $hecho->foto_lugar;
-                                            $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
-                                        @endphp
-
-                                        @if ($urlFoto)
-                                            <a href="{{ $urlFoto }}" target="_blank" rel="noopener">
-                                                <img src="{{ $urlFoto }}" alt="foto_lugar" class="foto-thumb">
-                                            </a>
-                                        @else
-                                            <span class="text-muted">Sin foto</span>
-                                        @endif
-                                    </td>
-
-                                    <td>{{ $hecho->situacion }}</td>
-
-                                    <td>
-                                        @if ($hecho->es_relevante)
-                                            <span class="badge badge-warning">SÍ</span>
-                                        @else
-                                            <span class="badge badge-secondary">NO</span>
-                                        @endif
-                                    </td>
-
-                                    <td>{{ $hecho->revisadoPor ? $hecho->revisadoPor->name : 'SIN REVISIÓN' }}</td>
-
-                                    <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
-
-                                    <td style="text-align: center">
-                                        @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador') || auth()->user()->hasRole('Subdirector'))
-                                            @if($hecho->es_relevante)
-                                                <form action="{{ route('hechos.desmarcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
-                                                    @csrf
-                                                    <button
-                                                        type="submit"
-                                                        class="btn btn-outline-danger btn-sm"
-                                                        onclick="return confirm('¿Quitar este hecho como relevante?');"
-                                                        title="Quitar relevante"
-                                                    >
-                                                        <i class="fa-solid fa-star-half-stroke"></i>
-                                                    </button>
-                                                </form>
-                                            @else
-                                                <form action="{{ route('hechos.marcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
-                                                    @csrf
-                                                    <button
-                                                        type="submit"
-                                                        class="btn btn-outline-warning btn-sm"
-                                                        onclick="return confirm('¿Marcar este hecho como relevante?');"
-                                                        title="Marcar relevante"
-                                                    >
-                                                        <i class="fa-solid fa-star"></i>
-                                                    </button>
-                                                </form>
-                                            @endif
-                                        @endif
-
-                                        <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm" title="Ver">
-                                            <i class="fa-regular fa-eye"></i>
-                                        </a>
-
-                                        <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
-                                            <i class="fa-solid fa-pencil"></i>
-                                        </a>
-
-                                        <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
-                                            <i class="fas fa-download"></i>
-                                        </a>
-
-                                        <a
-                                            href="{{ route('hechos.compartir', $hecho->id) }}"
-                                            class="btn btn-success btn-sm"
-                                            title="Compartir nativo por WhatsApp"
-                                        >
-                                            <i class="fa-brands fa-whatsapp"></i>
-                                        </a>
-
-                                        <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button
-                                                type="submit"
-                                                class="btn btn-danger btn-sm"
-                                                onclick="return confirm('¿Estás seguro de eliminar este hecho?');"
-                                                title="Eliminar"
-                                            >
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
+                                    <th class="text-center">ID</th>
+                                    <th class="text-center">Fecha y Hora</th>
+                                    <th class="text-center">Ubicación</th>
+                                    <th class="text-center">Foto Lugar</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Relevante</th>
+                                    <th class="text-center">Revisado por</th>
+                                    <th class="text-center">Creado por</th>
+                                    <th class="text-center">Acciones</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+
+                            <tbody>
+                                @forelse ($hechos as $hecho)
+                                    @php
+                                        $foto = $hecho->foto_lugar;
+                                        $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
+
+                                        $fechaMostrar = !empty($hecho->fecha)
+                                            ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')
+                                            : '';
+
+                                        $horaMostrar = !empty($hecho->hora)
+                                            ? substr((string) $hecho->hora, 0, 5)
+                                            : '';
+                                    @endphp
+
+                                    <tr>
+                                        <td>{{ $hecho->id }}</td>
+
+                                        <td>
+                                            {{ trim($fechaMostrar . ' ' . $horaMostrar) }}
+                                        </td>
+
+                                        <td>
+                                            {{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}
+                                        </td>
+
+                                        <td>
+                                            @if ($urlFoto)
+                                                <a href="{{ $urlFoto }}" target="_blank" rel="noopener">
+                                                    <img src="{{ $urlFoto }}" alt="foto_lugar" class="foto-thumb">
+                                                </a>
+                                            @else
+                                                <span class="text-muted">Sin foto</span>
+                                            @endif
+                                        </td>
+
+                                        <td>{{ $hecho->situacion }}</td>
+
+                                        <td>
+                                            @if ($hecho->es_relevante)
+                                                <span class="badge badge-warning">SÍ</span>
+                                            @else
+                                                <span class="badge badge-secondary">NO</span>
+                                            @endif
+                                        </td>
+
+                                        <td>{{ $hecho->revisadoPor ? $hecho->revisadoPor->name : 'SIN REVISIÓN' }}</td>
+
+                                        <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
+
+                                        <td class="text-center">
+                                            @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador') || auth()->user()->hasRole('Subdirector'))
+                                                @if($hecho->es_relevante)
+                                                    <form action="{{ route('hechos.desmarcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                        @csrf
+                                                        <button
+                                                            type="submit"
+                                                            class="btn btn-outline-danger btn-sm"
+                                                            onclick="return confirm('¿Quitar este hecho como relevante?');"
+                                                            title="Quitar relevante"
+                                                        >
+                                                            <i class="fa-solid fa-star-half-stroke"></i>
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <form action="{{ route('hechos.marcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                        @csrf
+                                                        <button
+                                                            type="submit"
+                                                            class="btn btn-outline-warning btn-sm"
+                                                            onclick="return confirm('¿Marcar este hecho como relevante?');"
+                                                            title="Marcar relevante"
+                                                        >
+                                                            <i class="fa-solid fa-star"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            @endif
+
+                                            <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm" title="Ver">
+                                                <i class="fa-regular fa-eye"></i>
+                                            </a>
+
+                                            <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
+                                                <i class="fa-solid fa-pencil"></i>
+                                            </a>
+
+                                            <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+
+                                            <a
+                                                href="{{ route('hechos.compartir', $hecho->id) }}"
+                                                class="btn btn-success btn-sm"
+                                                title="Compartir nativo por WhatsApp"
+                                            >
+                                                <i class="fa-brands fa-whatsapp"></i>
+                                            </a>
+
+                                            <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-danger btn-sm"
+                                                    onclick="return confirm('¿Estás seguro de eliminar este hecho?');"
+                                                    title="Eliminar"
+                                                >
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">
+                                            No hay hechos para la fecha seleccionada.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
 
                     <div class="mt-3">
                         {{ $hechos->links() }}
@@ -233,17 +249,17 @@
             $('#hechos').DataTable({
                 paging: false,
                 info: false,
-                order: [[1, "asc"]],
+                order: [[0, 'desc']],
                 language: {
                     emptyTable: "No hay información disponible",
                     loadingRecords: "Cargando...",
                     processing: "Procesando...",
                     search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
+                    zeroRecords: "No se encontraron resultados"
                 },
                 responsive: true,
                 lengthChange: false,
-                autoWidth: false,
+                autoWidth: false
             });
         });
 

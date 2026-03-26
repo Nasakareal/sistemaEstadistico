@@ -872,18 +872,36 @@ class HechosController extends Controller
 
         $hecho->load(['vehiculos']);
 
-        $card = WhatsAppLink::textForHecho($hecho);
-        $gmaps = C5IReport::googleMapsLinkFromHecho($hecho);
+        $message = WhatsAppLink::textForHecho($hecho);
 
-        $messageParts = [];
-        $messageParts[] = $card;
-        $messageParts[] = '';
+        $fechaMostrar = !empty($hecho->fecha)
+            ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')
+            : '';
 
-        if ($gmaps) {
-            $messageParts[] = $gmaps;
+        $horaMostrar = !empty($hecho->hora)
+            ? substr((string) $hecho->hora, 0, 5)
+            : '';
+
+        $ubicacionCorta = trim((string) ($hecho->calle ?? ''));
+        if (!empty($hecho->colonia)) {
+            $ubicacionCorta .= ', col. ' . trim((string) $hecho->colonia);
         }
 
-        $message = implode("\n", $messageParts);
+        $message = preg_replace(
+            '/\b\d{4}-\d{2}-\d{2}\s+00:00:00\s+\d{2}:\d{2}:\d{2}\s+Hrs\./u',
+            $fechaMostrar . ' ' . $horaMostrar . ' Hrs.',
+            $message,
+            1
+        );
+
+        if (!empty($ubicacionCorta)) {
+            $message = preg_replace(
+                '/Guardia Civil toma conocimiento en .*?\./u',
+                'Guardia Civil toma conocimiento en ' . $ubicacionCorta . '.',
+                $message,
+                1
+            );
+        }
 
         $media = [];
 

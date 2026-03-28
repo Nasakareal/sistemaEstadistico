@@ -59,6 +59,7 @@ use App\Http\Controllers\GuardianesCaminoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoFotoController;
 use App\Http\Controllers\ResumenEjecutivoController;
+use App\Http\Controllers\ZonaMapaController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -320,6 +321,13 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::delete('/{hecho}',[HechosController::class,'destroy'])->middleware('can:eliminar hechos')->name('hechos.destroy');
     Route::get('/{hecho}/descargar',[DocumentoHechoController::class,'descargarDocx'])->name('hechos.descargar');
 
+    Route::prefix('/{hecho}/croquis')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CroquisController::class, 'show'])->name('croquis.show');
+        Route::post('/', [\App\Http\Controllers\CroquisController::class, 'store'])->name('croquis.store');
+        Route::put('/', [\App\Http\Controllers\CroquisController::class, 'update'])->name('croquis.update');
+        Route::delete('/', [\App\Http\Controllers\CroquisController::class, 'destroy'])->name('croquis.destroy');
+    });
+
     Route::post('/{hecho}/marcar-relevante', [HechosController::class, 'marcarRelevante'])->middleware('can:editar hechos')->name('hechos.marcarRelevante');
 
     Route::post('/{hecho}/desmarcar-relevante', [HechosController::class, 'desmarcarRelevante'])->middleware('can:editar hechos')->name('hechos.desmarcarRelevante');
@@ -494,6 +502,11 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/dictamen/{id}/docx',[EstadisticasController::class,'dictamenDocx'])->name('estadisticas.dictamen.docx');
         Route::get('/bitacora',[EstadisticasController::class,'bitacora'])->name('estadisticas.bitacora');
         Route::get('/bitacora/descargar',[EstadisticasController::class,'descargarBitacora'])->name('estadisticas.bitacora.descargar');
+    });
+
+    Route::middleware(['auth','can:ver mapa'])->prefix('hechos/zonas')->group(function () {
+        Route::get('/', [ZonaMapaController::class, 'index'])->name('hechos.zonas.index');
+        Route::post('/consulta', [ZonaMapaController::class, 'hechosEnGeometria'])->name('hechos.zonas.consulta');
     });
 
     Route::get('/radar-riesgo', [RadarRiesgoController::class, 'index'])->name('radar.riesgo');

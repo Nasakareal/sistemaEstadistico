@@ -48,7 +48,6 @@ class Hechos extends Model
         'foto_lugar',
         'foto_situacion',
         'delegacion_id',
-
         'lat',
         'lng',
         'calidad_geo',
@@ -56,14 +55,11 @@ class Hechos extends Model
         'fuente_ubicacion',
         'ubicacion_formateada',
         'place_id',
-
         'created_by',
         'updated_by',
-
         'es_relevante',
         'marcado_relevante_por',
         'marcado_relevante_at',
-
         'estado_revision',
         'revisado_por',
         'revisado_at',
@@ -74,16 +70,11 @@ class Hechos extends Model
         'checaron_antecedentes' => 'boolean',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
-
         'es_relevante' => 'boolean',
         'marcado_relevante_at' => 'datetime',
         'revisado_at' => 'datetime',
         'fecha' => 'date',
     ];
-
-    /**
-     * RELACIONES EXISTENTES
-     */
 
     public function vehiculos(): BelongsToMany
     {
@@ -121,10 +112,6 @@ class Hechos extends Model
         return $this->hasOne(Dictamen::class, 'hecho_id');
     }
 
-    /**
-     * NUEVAS RELACIONES
-     */
-
     public function marcadoRelevantePor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'marcado_relevante_por');
@@ -135,9 +122,10 @@ class Hechos extends Model
         return $this->belongsTo(User::class, 'revisado_por');
     }
 
-    /**
-     * HELPERS (esto te va a servir un chingo en vistas)
-     */
+    public function croquis(): HasOne
+    {
+        return $this->hasOne(Croquis::class, 'hecho_id')->latestOfMany();
+    }
 
     public function getEsPendienteRevisionAttribute(): bool
     {

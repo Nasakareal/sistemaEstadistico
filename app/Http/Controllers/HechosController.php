@@ -31,7 +31,8 @@ class HechosController extends Controller
         $usuario = auth()->user();
 
         $hechosQuery = Hechos::query()
-            ->with(['revisadoPor', 'marcadoRelevantePor'])
+            ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis'])
+            ->withCount('lesionados')
             ->whereDate('fecha', $fechaSeleccionada);
 
         $this->applyHechosVisibilityScope($hechosQuery, $usuario);
@@ -41,6 +42,12 @@ class HechosController extends Controller
             ->orderByDesc('created_at')
             ->paginate(50)
             ->withQueryString();
+
+        $hechos->getCollection()->transform(function ($hecho) use ($usuario) {
+            $hecho->puede_editar = $this->userCanEditHecho($usuario, $hecho);
+            $hecho->tiene_croquis = !is_null($hecho->croquis);
+            return $hecho;
+        });
 
         return view('hechos.index', compact('hechos', 'fechaSeleccionada'));
     }
@@ -191,12 +198,32 @@ class HechosController extends Controller
             'creator',
             'vehiculos',
             'vehiculos.servicios',
+            'lesionados',
             'dictamen',
             'revisadoPor',
             'marcadoRelevantePor',
+            'croquis',
         ]);
 
-        return view('hechos.show', compact('hecho'));
+        $puedeEditar = $this->userCanEditHecho($usuario, $hecho);
+        $croquisData = $this->croquisData($hecho->croquis);
+
+        return view('hechos.show', compact('hecho', 'puedeEditar', 'croquisData'));
+    }
+
+    private function croquisData(?\App\Models\Croquis $croquis): array
+    {
+        if (!$croquis || empty($croquis->json_dibujo)) {
+            return [];
+        }
+
+        if (is_array($croquis->json_dibujo)) {
+            return $croquis->json_dibujo;
+        }
+
+        $decoded = json_decode($croquis->json_dibujo, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     public function edit(Hechos $hecho)
@@ -435,6 +462,10 @@ class HechosController extends Controller
             $hecho->vehiculos()->detach();
             $hecho->lesionados()->delete();
 
+            if ($hecho->croquis) {
+                $hecho->croquis->delete();
+            }
+
             $hecho->delete();
 
             return redirect()->route('hechos.index')->with('success', 'Hecho eliminado exitosamente.');
@@ -590,6 +621,13 @@ class HechosController extends Controller
 
     private function userCanEditHecho($usuario, Hechos $hecho): bool
     {
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            return false;
+        }
+
         if (
             $usuario->hasRole('Superadmin')
             || $usuario->hasRole('Administrador')
@@ -597,15 +635,18 @@ class HechosController extends Controller
             || $usuario->hasRole('Jefe de Grupo')
             || $usuario->hasRole('Subdirector')
         ) {
-            $q = Hechos::query()->whereKey($hecho->id);
-            $this->applyHechosVisibilityScope($q, $usuario);
-            return $q->exists();
+            return true;
         }
 
-        if ((int)$usuario->id === (int)$hecho->created_by) {
-            $q = Hechos::query()->whereKey($hecho->id);
-            $this->applyHechosVisibilityScope($q, $usuario);
-            return $q->exists();
+        if ($usuario->hasRole('Perito')) {
+            $nombreUsuario = strtoupper($this->removeAccents(trim((string) ($usuario->name ?? ''))));
+            $nombrePeritoHecho = strtoupper($this->removeAccents(trim((string) ($hecho->perito ?? ''))));
+
+            return $nombreUsuario !== '' && $nombreUsuario === $nombrePeritoHecho;
+        }
+
+        if ((int) $usuario->id === (int) $hecho->created_by) {
+            return true;
         }
 
         return false;
@@ -921,4 +962,5 @@ class HechosController extends Controller
 
         return view('hechos.compartir', compact('hecho', 'message', 'media'));
     }
+
 }

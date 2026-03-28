@@ -61,7 +61,7 @@
                             </thead>
 
                             <tbody>
-                                @forelse ($hechos as $hecho)
+                                @foreach ($hechos as $hecho)
                                     @php
                                         $foto = $hecho->foto_lugar;
                                         $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
@@ -143,9 +143,17 @@
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
 
-                                            <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
-                                                <i class="fa-solid fa-pencil"></i>
-                                            </a>
+                                            @if(!empty($hecho->puede_editar) && $hecho->puede_editar)
+                                                <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
+                                                    <i class="fa-solid fa-pencil"></i>
+                                                </a>
+                                            @endif
+
+                                            @if(!empty($hecho->puede_editar) && $hecho->puede_editar)
+                                                <a href="{{ route('croquis.show', $hecho->id) }}" class="btn btn-primary btn-sm" title="{{ !empty($hecho->tiene_croquis) && $hecho->tiene_croquis ? 'Editar croquis' : 'Crear croquis' }}">
+                                                    <i class="fa-solid fa-draw-polygon"></i>
+                                                </a>
+                                            @endif
 
                                             <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
                                                 <i class="fas fa-download"></i>
@@ -159,30 +167,32 @@
                                                 <i class="fa-brands fa-whatsapp"></i>
                                             </a>
 
-                                            <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button
-                                                    type="submit"
-                                                    class="btn btn-danger btn-sm"
-                                                    onclick="return confirm('¿Estás seguro de eliminar este hecho?');"
-                                                    title="Eliminar"
-                                                >
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </form>
+                                            @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador'))
+                                                <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-danger btn-sm"
+                                                        onclick="return confirm('¿Estás seguro de eliminar este hecho?');"
+                                                        title="Eliminar"
+                                                    >
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </td>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="9" class="text-center text-muted">
-                                            No hay hechos para la fecha seleccionada.
-                                        </td>
-                                    </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
+
+                    @if($hechos->isEmpty())
+                        <div class="text-center text-muted mt-3">
+                            No hay hechos para la fecha seleccionada.
+                        </div>
+                    @endif
 
                     <div class="mt-3">
                         {{ $hechos->links() }}

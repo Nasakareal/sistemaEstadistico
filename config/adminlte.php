@@ -409,6 +409,12 @@ return [
                     'icon'    => 'fa-solid fa-chart-line',
                     'can'     => 'ver estadisticas',
                 ],
+                [
+                    'text'    => 'Mapa de Choques por Zona',
+                    'route'   => 'hechos.zonas.index',
+                    'icon'    => 'fa-solid fa-draw-polygon',
+                    'can'     => 'ver mapa',
+                ],
             ],
         ],
 

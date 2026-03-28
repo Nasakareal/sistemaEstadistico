@@ -21,14 +21,23 @@
                 </a>
             @endif
 
-            @can('editar hechos')
+            @if(!empty($puedeEditar) && $puedeEditar)
                 <a href="{{ route('hechos.edit', $hecho->id) }}"
                    class="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
                    style="width:36px;height:36px;padding:0;"
                    title="Editar hecho">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </a>
-            @endcan
+            @endif
+
+            @if(!empty($puedeEditar) && $puedeEditar)
+                <a href="{{ route('croquis.show', $hecho->id) }}"
+                   class="btn btn-primary btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                   style="width:36px;height:36px;padding:0;"
+                   title="{{ $hecho->croquis ? 'Editar croquis' : 'Crear croquis' }}">
+                    <i class="fa-solid fa-draw-polygon"></i>
+                </a>
+            @endif
 
             <a href="{{ route('hechos.descargar', $hecho->id) }}"
                class="btn btn-warning btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
@@ -309,11 +318,18 @@
                                                 </a>
                                             @endif
 
-                                            @can('editar hechos')
+                                            @if(!empty($puedeEditar) && $puedeEditar)
                                                 <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
                                                     <i class="fa-solid fa-pen-to-square"></i> Editar hecho
                                                 </a>
-                                            @endcan
+                                            @endif
+
+                                            @if(!empty($puedeEditar) && $puedeEditar)
+                                                <a href="{{ route('croquis.show', $hecho->id) }}" class="btn btn-primary btn-sm">
+                                                    <i class="fa-solid fa-draw-polygon"></i>
+                                                    {{ $hecho->croquis ? 'Editar croquis' : 'Crear croquis' }}
+                                                </a>
+                                            @endif
 
                                             <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-download"></i> Descargar informe
@@ -473,6 +489,56 @@
                                 No hay vehículos asociados a este hecho.
                             </div>
                         @endif
+
+
+
+                        <div class="sv-divider"></div>
+
+                        <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
+                            <h3 class="mb-0">Lesionados</h3>
+                            <span class="badge badge-light" style="font-size:.9rem; padding:.35rem .6rem;">
+                                Total: {{ $hecho->lesionados->count() ?? 0 }}
+                            </span>
+                        </div>
+
+                        <div class="mt-3">
+                            @if($hecho->lesionados && $hecho->lesionados->count())
+                                <div class="row">
+                                    @foreach($hecho->lesionados as $lesionado)
+                                        <div class="col-md-6 col-xl-4 mb-3">
+                                            <div class="sv-veh-card h-100">
+                                                <div class="p-3">
+                                                    <strong>{{ $lesionado->nombre ?? 'Sin nombre' }}</strong>
+                                                    <div>{{ $lesionado->edad ?? 'Sin edad' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="sv-empty">
+                                    No hay lesionados registrados.
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="sv-divider"></div>
+
+                        <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
+                            <h3 class="mb-0">Croquis</h3>
+                        </div>
+
+                        <div class="mt-3">
+                        @if(!empty($croquisData))
+                            <div class="sv-croquis-box">
+                                <canvas id="croquisShowCanvas" width="1200" height="700"></canvas>
+                            </div>
+                        @else
+                            <div class="sv-empty">
+                                No hay croquis registrado.
+                            </div>
+                        @endif
+                    </div>
                     </div>
 
                 </div>
@@ -700,6 +766,25 @@
         display: block;
     }
 
+    .sv-croquis-box {
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 14px;
+        padding: 10px;
+        background: rgba(255,255,255,.04);
+        overflow: auto;
+    }
+
+    #croquisShowCanvas {
+        display: block;
+        width: 100%;
+        max-width: 1200px;
+        height: auto;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 10px;
+    }
+
 </style>
 @stop
 
@@ -707,8 +792,31 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <script src="{{ asset('js/croquis/croquis-models.js') }}"></script>
+    <script src="{{ asset('js/croquis/croquis-renderer.js') }}"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+
+        const croquisData = @json($croquisData);
+
+        if (croquisData && croquisData.length) {
+            const canvas = document.getElementById('croquisShowCanvas');
+
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+
+                const elementos = window.CroquisModels.deserialize(croquisData);
+
+                const assets = {
+                    vehiculos: {},
+                    iconos: {}
+                };
+
+                window.CroquisRenderer.render(ctx, canvas, elementos, assets);
+            }
+        }
+
         const lat = @json($lat);
         const lng = @json($lng);
 

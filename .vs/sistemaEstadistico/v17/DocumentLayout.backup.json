@@ -40,7 +40,7 @@
               "RelativeDocumentMoniker": "routes\\api.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
               "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAIMAAAAAAAAAAAAmwLUAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAJIAAAAAAAAAAAAmwLUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-03-26T22:58:56.781Z",
               "EditorCaption": ""
@@ -67,8 +67,7 @@
               "RelativeToolTip": "resources\\views\\hechos\\compartir.blade.php",
               "ViewState": "AgIAAIsAAAAAAAAAAAAmwL0AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-03-26T22:37:22.384Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-26T22:37:22.384Z"
             },
             {
               "$type": "Document",

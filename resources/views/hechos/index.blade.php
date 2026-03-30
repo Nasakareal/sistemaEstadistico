@@ -78,13 +78,9 @@
                                     <tr>
                                         <td>{{ $hecho->id }}</td>
 
-                                        <td>
-                                            {{ trim($fechaMostrar . ' ' . $horaMostrar) }}
-                                        </td>
+                                        <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
 
-                                        <td>
-                                            {{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}
-                                        </td>
+                                        <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
 
                                         <td>
                                             @if ($urlFoto)
@@ -221,7 +217,8 @@
             color: #ffffff !important;
         }
 
-        #hechos.table-hover tbody tr:hover a {
+        #hechos.table-hover tbody tr:hover a,
+        #hechos.table-hover tbody tr:hover button {
             color: #ffffff !important;
         }
 
@@ -257,55 +254,10 @@
 @section('js')
     <script>
         $(function () {
-            $('#hechos').DataTable({
-                paging: false,
-                info: false,
-                order: [[0, 'desc']],
-                language: {
-                    emptyTable: "No hay información disponible",
-                    loadingRecords: "Cargando...",
-                    processing: "Procesando...",
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados"
-                },
-                responsive: true,
-                lengthChange: false,
-                autoWidth: false
-            });
-        });
+            if ($.fn.DataTable.isDataTable('#hechos')) {
+                $('#hechos').DataTable().destroy();
+            }
 
-        @if (session('success'))
-            Swal.fire({
-                position: 'center',
-                icon: 'success',
-                title: '{{ session('success') }}',
-                showConfirmButton: false,
-                timer: 3000
-            });
-        @endif
-
-        @if (session('error'))
-            Swal.fire({
-                position: 'center',
-                icon: 'error',
-                title: '{{ session('error') }}',
-                showConfirmButton: true
-            });
-        @endif
-
-        @if (session('info'))
-            Swal.fire({
-                position: 'center',
-                icon: 'info',
-                title: '{{ session('info') }}',
-                showConfirmButton: false,
-                timer: 2500
-            });
-        @endif
-    </script>
-
-    <script>
-        $(function () {
             $('#hechos').DataTable({
                 paging: false,
                 info: false,
@@ -341,25 +293,41 @@
 
                     const texto = (data.texto || '').trim();
                     const fotos = Array.isArray(data.fotos) ? data.fotos.filter(Boolean) : [];
-                    const foto = data.foto || null;
+                    const archivos = [];
 
-                    if (navigator.share) {
-                        if (foto) {
+                    if (navigator.share && fotos.length) {
+                        for (let i = 0; i < fotos.length; i++) {
                             try {
-                                const imgResp = await fetch(foto);
-                                const blob = await imgResp.blob();
-                                const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
-                                const file = new File([blob], 'hecho.' + ext, { type: blob.type || 'image/jpeg' });
-
-                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                    await navigator.share({
-                                        text: texto,
-                                        files: [file]
-                                    });
-                                    return;
+                                const imgResp = await fetch(fotos[i]);
+                                if (!imgResp.ok) {
+                                    continue;
                                 }
+
+                                const blob = await imgResp.blob();
+                                const mime = blob.type || 'image/jpeg';
+                                let ext = 'jpg';
+
+                                if (mime === 'image/png') {
+                                    ext = 'png';
+                                } else if (mime === 'image/webp') {
+                                    ext = 'webp';
+                                } else if (mime === 'image/jpeg') {
+                                    ext = 'jpg';
+                                }
+
+                                archivos.push(new File([blob], 'hecho_' + (i + 1) + '.' + ext, { type: mime }));
                             } catch (e) {
                             }
+                        }
+                    }
+
+                    if (navigator.share) {
+                        if (archivos.length && navigator.canShare && navigator.canShare({ files: archivos })) {
+                            await navigator.share({
+                                text: texto,
+                                files: archivos
+                            });
+                            return;
                         }
 
                         await navigator.share({
@@ -378,35 +346,35 @@
                     });
                 }
             });
+
+            @if (session('success'))
+                Swal.fire({
+                    position: 'center',
+                    icon: 'success',
+                    title: '{{ session('success') }}',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            @endif
+
+            @if (session('error'))
+                Swal.fire({
+                    position: 'center',
+                    icon: 'error',
+                    title: '{{ session('error') }}',
+                    showConfirmButton: true
+                });
+            @endif
+
+            @if (session('info'))
+                Swal.fire({
+                    position: 'center',
+                    icon: 'info',
+                    title: '{{ session('info') }}',
+                    showConfirmButton: false,
+                    timer: 2500
+                });
+            @endif
         });
-
-        @if (session('success'))
-            Swal.fire({
-                position: 'center',
-                icon: 'success',
-                title: '{{ session('success') }}',
-                showConfirmButton: false,
-                timer: 3000
-            });
-        @endif
-
-        @if (session('error'))
-            Swal.fire({
-                position: 'center',
-                icon: 'error',
-                title: '{{ session('error') }}',
-                showConfirmButton: true
-            });
-        @endif
-
-        @if (session('info'))
-            Swal.fire({
-                position: 'center',
-                icon: 'info',
-                title: '{{ session('info') }}',
-                showConfirmButton: false,
-                timer: 2500
-            });
-        @endif
     </script>
 @stop

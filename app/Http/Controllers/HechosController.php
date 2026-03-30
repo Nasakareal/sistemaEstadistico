@@ -930,7 +930,7 @@ class HechosController extends Controller
 
         $message = preg_replace(
             '/\b\d{4}-\d{2}-\d{2}\s+00:00:00\s+\d{2}:\d{2}:\d{2}\s+Hrs\./u',
-            $fechaMostrar . ' ' . $horaMostrar . ' Hrs.',
+            trim($fechaMostrar . ' ' . $horaMostrar) . ' Hrs.',
             $message,
             1
         );
@@ -944,23 +944,28 @@ class HechosController extends Controller
             );
         }
 
-        $media = [];
+        $fotos = [];
 
         if (!empty($hecho->foto_lugar)) {
-            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+            $fotos[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
         }
 
         if (!empty($hecho->foto_situacion)) {
-            $media[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+            $fotos[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
         }
 
         foreach ($hecho->vehiculos as $v) {
             if (!empty($v->fotos)) {
-                $media[] = asset('storage/' . ltrim($v->fotos, '/'));
+                $fotos[] = asset('storage/' . ltrim($v->fotos, '/'));
             }
         }
 
-        return view('hechos.compartir', compact('hecho', 'message', 'media'));
-    }
+        $fotos = array_values(array_unique(array_filter($fotos)));
 
+        return response()->json([
+            'texto' => trim($message),
+            'foto' => $fotos[0] ?? null,
+            'fotos' => $fotos,
+        ]);
+    }
 }

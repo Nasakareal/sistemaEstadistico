@@ -7,6 +7,10 @@
         <h1 class="mb-0">Detalle de Actividad</h1>
 
         <div class="btn-group">
+            <button type="button" class="btn btn-secondary" onclick="compartirActividad({{ $actividad->id }})">
+                <i class="fa-solid fa-share-nodes"></i> Compartir
+            </button>
+
             @can('editar actividades')
                 <a href="{{ route('actividades.edit', $actividad->id) }}" class="btn btn-success">
                     <i class="fa-solid fa-pen-to-square"></i> Editar
@@ -357,33 +361,93 @@
 
 @section('js')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('form-eliminar-actividad');
-            if (!form) return;
-
-            form.addEventListener('submit', function (e) {
-                if (typeof Swal === 'undefined') {
-                    if (!confirm('¿Seguro que deseas eliminar esta actividad?')) {
-                        e.preventDefault();
+        async function compartirActividad(id) {
+            try {
+                const res = await fetch(`{{ url('actividades') }}/${id}/compartir`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
                     }
+                });
+
+                if (!res.ok) {
+                    throw new Error('No se pudo obtener la información para compartir');
+                }
+
+                const data = await res.json();
+
+                if (!data.texto) {
+                    throw new Error('No hay texto para compartir');
+                }
+
+                if (navigator.share) {
+                    if (data.foto) {
+                        try {
+                            const responseFoto = await fetch(data.foto);
+                            const blob = await responseFoto.blob();
+                            const extension = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
+                            const file = new File([blob], `actividad_${id}.${extension}`, { type: blob.type });
+
+                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                await navigator.share({
+                                    text: data.texto,
+                                    files: [file]
+                                });
+                                return;
+                            }
+                        } catch (e) {
+                        }
+
+                        await navigator.share({
+                            text: data.texto
+                        });
+                        return;
+                    }
+
+                    await navigator.share({
+                        text: data.texto
+                    });
                     return;
                 }
 
-                e.preventDefault();
-
+                window.open(`https://wa.me/?text=${encodeURIComponent(data.texto)}`, '_blank');
+            } catch (error) {
                 Swal.fire({
-                    icon: 'warning',
-                    title: '¿Eliminar actividad?',
-                    text: 'Esta acción no se puede deshacer.',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, eliminar',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        form.submit();
-                    }
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'No se pudo compartir la actividad.'
                 });
-            });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('form-eliminar-actividad');
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    if (typeof Swal === 'undefined') {
+                        if (!confirm('¿Seguro que deseas eliminar esta actividad?')) {
+                            e.preventDefault();
+                        }
+                        return;
+                    }
+
+                    e.preventDefault();
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '¿Eliminar actividad?',
+                        text: 'Esta acción no se puede deshacer.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            }
         });
     </script>
 @stop

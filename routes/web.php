@@ -154,6 +154,8 @@ Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(
     Route::get('/{actividad}/edit',[ActividadController::class,'edit'])->middleware('can:editar actividades')->name('actividades.edit');
     Route::put('/{actividad}',[ActividadController::class,'update'])->middleware('can:editar actividades')->name('actividades.update');
     Route::delete('/{actividad}',[ActividadController::class,'destroy'])->middleware('can:eliminar actividades')->name('actividades.destroy');
+
+    Route::get('/{actividad}/compartir', [ActividadController::class, 'compartir'])->name('actividades.compartir');
 });
 
 Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales','unidad:siniestros'])->group(function () {

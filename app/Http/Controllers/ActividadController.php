@@ -238,13 +238,41 @@ class ActividadController extends Controller
 
     public function show(Actividad $actividad)
     {
-        $actividad->load(['categoria', 'subcategoria', 'unidad', 'delegacion', 'destacamento', 'creador', 'actualizador', 'revisor']);
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $actividad->load([
+            'categoria',
+            'subcategoria',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'creador',
+            'actualizador',
+            'revisor',
+        ]);
+
         return view('actividades.show', compact('actividad'));
     }
 
     public function edit(Actividad $actividad)
     {
         $this->authorize('editar actividades');
+
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
 
         $categorias = ActividadCategoria::query()
             ->where('activo', 1)
@@ -263,6 +291,15 @@ class ActividadController extends Controller
     public function update(Request $request, Actividad $actividad)
     {
         $this->authorize('editar actividades');
+
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
 
         $validated = $request->validate([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
@@ -387,6 +424,15 @@ class ActividadController extends Controller
     {
         $this->authorize('eliminar actividades');
 
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
         return DB::transaction(function () use ($actividad) {
             if (!empty($actividad->foto_path) && Storage::disk('public')->exists($actividad->foto_path)) {
                 Storage::disk('public')->delete($actividad->foto_path);
@@ -461,15 +507,6 @@ class ActividadController extends Controller
         }
 
         $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        $unidadCarreterasId = (int) Unidad::query()
-            ->where('slug', 'carreteras')
-            ->value('id');
-
-        if ($unidadCarreterasId > 0 && $unidadId === $unidadCarreterasId) {
-            $query->where('unidad_org_id', $unidadCarreterasId);
-            return;
-        }
 
         if ($unidadId === 2) {
             $delegacionId = (int) ($usuario->delegacion_id ?? 0);
@@ -661,5 +698,95 @@ class ActividadController extends Controller
         }
 
         return mb_strtoupper($value, 'UTF-8');
+    }
+
+    public function compartir(Actividad $actividad)
+    {
+        $usuario = Auth::user();
+
+        if (!$usuario || !$usuario->can('ver actividades')) {
+            abort(403);
+        }
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $actividad->load(['categoria', 'subcategoria', 'unidad', 'delegacion', 'destacamento']);
+
+        $fecha = $actividad->fecha ? \Carbon\Carbon::parse($actividad->fecha)->format('d/m/Y') : '';
+        $hora = $actividad->hora ? substr((string) $actividad->hora, 0, 5) : '';
+
+        $nombreUnidad = trim((string) optional($actividad->unidad)->nombre);
+        $nombreDelegacion = trim((string) optional($actividad->delegacion)->nombre);
+        $nombreDestacamento = trim((string) optional($actividad->destacamento)->nombre);
+
+        $texto = "GUARDIA CIVIL\n\n";
+        $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n\n";
+
+        if ($nombreUnidad !== '') {
+            $texto .= $nombreUnidad . "\n\n";
+        }
+
+        if ($nombreDelegacion !== '') {
+            $texto .= $nombreDelegacion . "\n\n";
+        } elseif ($nombreDestacamento !== '') {
+            $texto .= $nombreDestacamento . "\n\n";
+        }
+
+        if ($fecha) {
+            $texto .= "FECHA {$fecha}\n";
+        }
+
+        if ($hora) {
+            $texto .= "HORA {$hora}\n\n";
+        }
+
+        if ($actividad->motivo) {
+            $texto .= "ASUNTO: " . mb_strtoupper((string) $actividad->motivo, 'UTF-8') . "\n\n";
+        }
+
+        if ($actividad->narrativa) {
+            $texto .= trim((string) $actividad->narrativa) . "\n\n";
+        }
+
+        if ($actividad->acciones_realizadas) {
+            $texto .= trim((string) $actividad->acciones_realizadas) . "\n\n";
+        }
+
+        if ($actividad->observaciones) {
+            $texto .= trim((string) $actividad->observaciones) . "\n\n";
+        }
+
+        if ($actividad->personas_alcanzadas !== null || $actividad->personas_participantes !== null || $actividad->personas_detenidas !== null) {
+            $texto .= "DATOS GENERALES\n";
+            $texto .= "PERSONAS ALCANZADAS: " . (int) ($actividad->personas_alcanzadas ?? 0) . "\n";
+            $texto .= "PERSONAS PARTICIPANTES: " . (int) ($actividad->personas_participantes ?? 0) . "\n";
+            $texto .= "PERSONAS DETENIDAS: " . (int) ($actividad->personas_detenidas ?? 0) . "\n\n";
+        }
+
+        if ($actividad->elementos_participantes_texto) {
+            $texto .= "ESTADO DE FUERZA\n";
+            $texto .= trim((string) $actividad->elementos_participantes_texto) . "\n\n";
+        }
+
+        if ($actividad->patrullas_participantes_texto) {
+            $texto .= "CRP\n";
+            $texto .= trim((string) $actividad->patrullas_participantes_texto) . "\n\n";
+        }
+
+        $fotoUrl = null;
+
+        if ($actividad->foto_path) {
+            $fotoUrl = asset('storage/' . ltrim($actividad->foto_path, '/'));
+        }
+
+        return response()->json([
+            'texto' => trim($texto),
+            'foto' => $fotoUrl,
+        ]);
     }
 }

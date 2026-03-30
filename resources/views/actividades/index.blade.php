@@ -1,5 +1,3 @@
-{{-- resources/views/actividades/index.blade.php --}}
-
 @extends('adminlte::page')
 
 @section('title', 'Listado de Actividades')
@@ -34,11 +32,8 @@
                 </div>
 
                 <div class="card-body">
-
-                    {{-- FILTROS (GET) --}}
                     <form method="GET" action="{{ route('actividades.index') }}" id="filtrosForm">
                         <div class="row mb-3">
-                            {{-- Fecha --}}
                             <div class="col-md-3">
                                 <label for="fecha_filtro">Día:</label>
                                 <input
@@ -50,7 +45,6 @@
                                 >
                             </div>
 
-                            {{-- Categoría (server-side) --}}
                             <div class="col-md-3">
                                 <label for="categoria_filtro">Filtrar por categoría:</label>
                                 <select id="categoria_filtro" name="actividad_categoria_id" class="form-control">
@@ -63,7 +57,6 @@
                                 </select>
                             </div>
 
-                            {{-- Subcategoría (opcional server-side) --}}
                             <div class="col-md-3">
                                 <label for="subcategoria_filtro">Filtrar por subcategoría:</label>
                                 <select id="subcategoria_filtro" name="actividad_subcategoria_id" class="form-control">
@@ -71,7 +64,9 @@
                                     @php
                                         $subcats = collect();
                                         foreach ($actividades as $a) {
-                                            if ($a->subcategoria) { $subcats->push($a->subcategoria); }
+                                            if ($a->subcategoria) {
+                                                $subcats->push($a->subcategoria);
+                                            }
                                         }
                                         $subcats = $subcats->unique('id')->sortBy('nombre');
                                     @endphp
@@ -87,9 +82,8 @@
                                 </small>
                             </div>
 
-                            {{-- Buscar (server-side) --}}
                             <div class="col-md-3">
-                                <label for="q_filtro">Buscar por nombre:</label>
+                                <label for="q_filtro">Buscar:</label>
                                 <input
                                     type="text"
                                     id="q_filtro"
@@ -137,12 +131,8 @@
                                 <tr>
                                     <td>{{ $a->id }}</td>
                                     <td>{{ $a->nombre }}</td>
-                                    <td>
-                                        {{ $a->categoria ? $a->categoria->nombre : 'Sin categoría' }}
-                                    </td>
-                                    <td>
-                                        {{ $a->subcategoria ? $a->subcategoria->nombre : 'Sin subcategoría' }}
-                                    </td>
+                                    <td>{{ $a->categoria ? $a->categoria->nombre : 'Sin categoría' }}</td>
+                                    <td>{{ $a->subcategoria ? $a->subcategoria->nombre : 'Sin subcategoría' }}</td>
                                     <td>{{ $a->cantidad }}</td>
 
                                     <td>
@@ -162,13 +152,17 @@
 
                                     <td>{{ optional($a->created_at)->timezone('America/Mexico_City')->format('Y-m-d H:i') }}</td>
 
-                                    <td style="text-align:center;">
-                                        <a href="{{ route('actividades.show', $a->id) }}" class="btn btn-info btn-sm">
+                                    <td style="text-align:center; white-space: nowrap;">
+                                        <a href="{{ route('actividades.show', $a->id) }}" class="btn btn-info btn-sm" title="Ver">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
 
+                                        <button type="button" class="btn btn-secondary btn-sm" title="Compartir" onclick="compartirActividad({{ $a->id }})">
+                                            <i class="fa-solid fa-share-nodes"></i>
+                                        </button>
+
                                         @can('editar actividades')
-                                            <a href="{{ route('actividades.edit', $a->id) }}" class="btn btn-success btn-sm">
+                                            <a href="{{ route('actividades.edit', $a->id) }}" class="btn btn-success btn-sm" title="Editar">
                                                 <i class="fa-solid fa-pencil"></i>
                                             </a>
                                         @endcan
@@ -177,7 +171,7 @@
                                             <form action="{{ route('actividades.destroy', $a->id) }}" method="POST" style="display:inline-block;">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar esta actividad?');">
+                                                <button type="submit" class="btn btn-danger btn-sm" title="Eliminar" onclick="return confirm('¿Estás seguro de eliminar esta actividad?');">
                                                     <i class="fa-solid fa-trash"></i>
                                                 </button>
                                             </form>
@@ -193,7 +187,6 @@
                             No hay actividades registradas para el día seleccionado.
                         </div>
                     @endif
-
                 </div>
             </div>
         </div>
@@ -207,7 +200,7 @@
             vertical-align: middle;
         }
 
-        .foto-thumb{
+        .foto-thumb {
             width: 72px;
             height: 52px;
             object-fit: cover;
@@ -220,31 +213,90 @@
 
 @section('js')
     <script>
-        $(function () {
+        async function compartirActividad(id) {
+            try {
+                const res = await fetch(`{{ url('actividades') }}/${id}/compartir`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
 
-            var table = $('#actividades').DataTable({
-                "pageLength": 10,
-                "order": [[0, "desc"]],
-                "language": {
-                    "emptyTable": "No hay información disponible",
-                    "info": "",
-                    "infoEmpty": "",
-                    "infoFiltered": "",
-                    "lengthMenu": "Mostrar _MENU_ Actividades",
-                    "loadingRecords": "Cargando...",
-                    "processing": "Procesando...",
-                    "search": "Buscar:",
-                    "zeroRecords": "No se encontraron resultados",
-                    "paginate": {
-                        "first": "Primero",
-                        "last": "Último",
-                        "next": "Siguiente",
-                        "previous": "Anterior"
+                if (!res.ok) {
+                    throw new Error('No se pudo obtener la información para compartir');
+                }
+
+                const data = await res.json();
+
+                if (!data.texto) {
+                    throw new Error('No se generó el texto para compartir');
+                }
+
+                if (navigator.share) {
+                    if (data.foto) {
+                        try {
+                            const responseFoto = await fetch(data.foto);
+                            const blob = await responseFoto.blob();
+                            const extension = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
+                            const file = new File([blob], `actividad_${id}.${extension}`, { type: blob.type });
+
+                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                await navigator.share({
+                                    text: data.texto,
+                                    files: [file]
+                                });
+                                return;
+                            }
+                        } catch (e) {
+                        }
+
+                        await navigator.share({
+                            text: data.texto
+                        });
+                        return;
+                    }
+
+                    await navigator.share({
+                        text: data.texto
+                    });
+                    return;
+                }
+
+                const waUrl = `https://wa.me/?text=${encodeURIComponent(data.texto)}`;
+                window.open(waUrl, '_blank');
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'No se pudo compartir la actividad.'
+                });
+            }
+        }
+
+        $(function () {
+            $('#actividades').DataTable({
+                pageLength: 10,
+                order: [[0, 'desc']],
+                language: {
+                    emptyTable: 'No hay información disponible',
+                    info: '',
+                    infoEmpty: '',
+                    infoFiltered: '',
+                    lengthMenu: 'Mostrar _MENU_ Actividades',
+                    loadingRecords: 'Cargando...',
+                    processing: 'Procesando...',
+                    search: 'Buscar:',
+                    zeroRecords: 'No se encontraron resultados',
+                    paginate: {
+                        first: 'Primero',
+                        last: 'Último',
+                        next: 'Siguiente',
+                        previous: 'Anterior'
                     }
                 },
-                "responsive": true,
-                "lengthChange": true,
-                "autoWidth": false,
+                responsive: true,
+                lengthChange: true,
+                autoWidth: false
             });
 
             $('#fecha_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {

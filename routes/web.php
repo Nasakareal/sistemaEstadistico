@@ -312,6 +312,8 @@ Route::prefix('gruas')->middleware(['auth','can:ver gruas'])->group(function () 
     Route::delete('/{grua}/tramos/{tramo}', [GruaTramoController::class,'destroy'])->name('gruas.tramos.destroy');
 });
 
+Route::get('/hechos/share/{hecho}', [HechosController::class, 'compartirPublico'])->name('hechos.share.publico');
+
 Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::get('/',[HechosController::class,'index'])->name('hechos.index');
     Route::get('/seguimiento', [HechosController::class, 'seguimiento'])->name('hechos.seguimiento');

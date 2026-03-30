@@ -3,8 +3,8 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos",
-    "\\routes"
+    "\\resources\\views\\hechos"
   ],
+  "SelectedNode": "\\resources\\views\\hechos\\compartir_publico.blade.php",
   "PreviewInSolutionExplorer": false
 }

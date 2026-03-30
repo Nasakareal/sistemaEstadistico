@@ -159,13 +159,14 @@
                                                 <i class="fas fa-download"></i>
                                             </a>
 
-                                            <a
-                                                href="{{ route('hechos.compartir', $hecho->id) }}"
-                                                class="btn btn-success btn-sm"
+                                            <button
+                                                type="button"
+                                                class="btn btn-success btn-sm btn-compartir-hecho"
+                                                data-url="{{ route('hechos.compartir', $hecho->id) }}"
                                                 title="Compartir nativo por WhatsApp"
                                             >
                                                 <i class="fa-brands fa-whatsapp"></i>
-                                            </a>
+                                            </button>
 
                                             @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador'))
                                                 <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
@@ -270,6 +271,112 @@
                 responsive: true,
                 lengthChange: false,
                 autoWidth: false
+            });
+        });
+
+        @if (session('success'))
+            Swal.fire({
+                position: 'center',
+                icon: 'success',
+                title: '{{ session('success') }}',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        @endif
+
+        @if (session('error'))
+            Swal.fire({
+                position: 'center',
+                icon: 'error',
+                title: '{{ session('error') }}',
+                showConfirmButton: true
+            });
+        @endif
+
+        @if (session('info'))
+            Swal.fire({
+                position: 'center',
+                icon: 'info',
+                title: '{{ session('info') }}',
+                showConfirmButton: false,
+                timer: 2500
+            });
+        @endif
+    </script>
+
+    <script>
+        $(function () {
+            $('#hechos').DataTable({
+                paging: false,
+                info: false,
+                order: [[0, 'desc']],
+                language: {
+                    emptyTable: "No hay información disponible",
+                    loadingRecords: "Cargando...",
+                    processing: "Procesando...",
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados"
+                },
+                responsive: true,
+                lengthChange: false,
+                autoWidth: false
+            });
+
+            $(document).on('click', '.btn-compartir-hecho', async function () {
+                const url = this.dataset.url;
+
+                try {
+                    const resp = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!resp.ok) {
+                        throw new Error('No se pudo obtener la información para compartir.');
+                    }
+
+                    const data = await resp.json();
+
+                    const texto = (data.texto || '').trim();
+                    const fotos = Array.isArray(data.fotos) ? data.fotos.filter(Boolean) : [];
+                    const foto = data.foto || null;
+
+                    if (navigator.share) {
+                        if (foto) {
+                            try {
+                                const imgResp = await fetch(foto);
+                                const blob = await imgResp.blob();
+                                const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+                                const file = new File([blob], 'hecho.' + ext, { type: blob.type || 'image/jpeg' });
+
+                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                    await navigator.share({
+                                        text: texto,
+                                        files: [file]
+                                    });
+                                    return;
+                                }
+                            } catch (e) {
+                            }
+                        }
+
+                        await navigator.share({
+                            text: texto
+                        });
+                        return;
+                    }
+
+                    const waUrl = 'https://wa.me/?text=' + encodeURIComponent(texto);
+                    window.open(waUrl, '_blank');
+                } catch (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'No se pudo compartir el hecho.'
+                    });
+                }
             });
         });
 

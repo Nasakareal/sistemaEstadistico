@@ -359,7 +359,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
         Route::get('/cortes', [PendientesCortesController::class, 'index'])->name('hechos.pendientes.cortes.index');
         Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->name('hechos.pendientes.cortes.show');
     });
-    Route::get('/hechos/{hecho}/compartir', [HechosController::class, 'compartirNativo'])->name('hechos.compartir');
+    Route::get('/{hecho}/compartir', [HechosController::class, 'compartirNativo'])->name('hechos.compartir');
     Route::post('/{hecho}/whatsapp', [HechosController::class, 'sendWhatsapp'])->name('hechos.whatsapp.send');
 
     Route::get('/revision/pendientes', [HechosController::class, 'pendientesRevision'])->name('hechos.pendientes_revision');

@@ -2,9 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\actividades",
+    "\\resources\\views\\hechos",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\resources\\views\\actividades\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

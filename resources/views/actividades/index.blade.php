@@ -157,8 +157,8 @@
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
 
-                                        <button type="button" class="btn btn-secondary btn-sm" title="Compartir" onclick="compartirActividad({{ $a->id }})">
-                                            <i class="fa-solid fa-share-nodes"></i>
+                                        <button type="button" class="btn btn-success btn-sm" title="Compartir" onclick="compartirActividad({{ $a->id }})">
+                                            <i class="fa-brands fa-whatsapp"></i>
                                         </button>
 
                                         @can('editar actividades')

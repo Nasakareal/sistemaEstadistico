@@ -722,18 +722,11 @@ class HechoController extends Controller
 
     private function publicStoragePath(?string $storedPath): ?string
     {
-        if (empty($storedPath)) return null;
-
-        $u = Storage::disk('public')->url($storedPath);
-
-        $p = parse_url($u);
-        if (is_array($p) && !empty($p['path'])) {
-            $out = $p['path'];
-            if (!empty($p['query'])) $out .= '?' . $p['query'];
-            return $out;
+        if (empty($storedPath)) {
+            return null;
         }
 
-        return $u;
+        return asset('storage/' . ltrim($storedPath, '/'));
     }
 
     private function applyHechosVisibilityScope($query, $usuario): void

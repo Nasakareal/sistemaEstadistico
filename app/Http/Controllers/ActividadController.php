@@ -126,9 +126,31 @@ class ActividadController extends Controller
         $this->authorize('crear actividades');
 
         $validated = $request->validate([
-            'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
-            'actividad_subcategoria_id' => 'nullable|exists:actividad_subcategorias,id',
-            'foto'                      => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
+            'actividad_subcategoria_id'      => 'nullable|exists:actividad_subcategorias,id',
+            'fecha'                          => 'required|date',
+            'hora'                           => 'nullable|date_format:H:i',
+            'lugar'                          => 'nullable|string|max:255',
+            'municipio'                      => 'nullable|string|max:255',
+            'carretera'                      => 'nullable|string|max:255',
+            'tramo'                          => 'nullable|string|max:255',
+            'kilometro'                      => 'nullable|string|max:50',
+            'lat'                            => 'nullable|numeric|between:-90,90',
+            'lng'                            => 'nullable|numeric|between:-180,180',
+            'coordenadas_texto'              => 'nullable|string',
+            'fuente_ubicacion'               => 'nullable|string|max:50',
+            'nota_geo'                       => 'nullable|string|max:255',
+            'motivo'                         => 'nullable|string',
+            'narrativa'                      => 'nullable|string',
+            'acciones_realizadas'            => 'nullable|string',
+            'observaciones'                  => 'nullable|string',
+            'personas_alcanzadas'            => 'nullable|integer|min:0',
+            'personas_participantes'         => 'nullable|integer|min:0',
+            'personas_detenidas'             => 'nullable|integer|min:0',
+            'elementos_participantes_texto'  => 'nullable|string',
+            'patrullas_participantes_texto'  => 'nullable|string',
+            'destacamento_id'                => 'nullable|integer',
+            'foto'                           => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
@@ -167,17 +189,47 @@ class ActividadController extends Controller
             $user = Auth::user();
 
             Actividad::create([
-                'actividad_categoria_id'    => $validated['actividad_categoria_id'],
-                'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre'                    => $validated['nombre'],
-                'cantidad'                  => 1,
-                'foto_path'                 => $fotoPath,
-                'foto_nombre_original'      => $fotoNombreOriginal,
-                'foto_hash'                 => $fotoHash,
-                'created_by'                => $user->id,
-                'updated_by'                => $user->id,
-                'unidad_org_id'             => $user->unidad_id,
-                'delegacion_id'             => $user->delegacion_id,
+                'client_uuid'                   => (string) Str::uuid(),
+                'sync_status'                   => 'local',
+                'sync_error'                    => null,
+                'synced_at'                     => null,
+                'actividad_categoria_id'        => $validated['actividad_categoria_id'],
+                'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
+                'nombre'                        => $validated['nombre'],
+                'cantidad'                      => 1,
+                'foto_path'                     => $fotoPath,
+                'foto_nombre_original'          => $fotoNombreOriginal,
+                'foto_hash'                     => $fotoHash,
+                'created_by'                    => $user->id,
+                'updated_by'                    => $user->id,
+                'unidad_org_id'                 => $user->unidad_id,
+                'delegacion_id'                 => $user->delegacion_id,
+                'destacamento_id'               => $validated['destacamento_id'] ?? null,
+                'fecha'                         => $validated['fecha'],
+                'hora'                          => $validated['hora'] ?? null,
+                'lugar'                         => $this->toUpperOrNull($validated['lugar'] ?? null),
+                'municipio'                     => $this->toUpperOrNull($validated['municipio'] ?? null),
+                'carretera'                     => $this->toUpperOrNull($validated['carretera'] ?? null),
+                'tramo'                         => $this->toUpperOrNull($validated['tramo'] ?? null),
+                'kilometro'                     => $this->toUpperOrNull($validated['kilometro'] ?? null),
+                'lat'                           => $validated['lat'] ?? null,
+                'lng'                           => $validated['lng'] ?? null,
+                'coordenadas_texto'             => $validated['coordenadas_texto'] ?? null,
+                'fuente_ubicacion'              => $validated['fuente_ubicacion'] ?? null,
+                'nota_geo'                      => $validated['nota_geo'] ?? null,
+                'motivo'                        => $this->toUpperOrNull($validated['motivo'] ?? null),
+                'narrativa'                     => $validated['narrativa'] ?? null,
+                'acciones_realizadas'           => $validated['acciones_realizadas'] ?? null,
+                'observaciones'                 => $validated['observaciones'] ?? null,
+                'personas_alcanzadas'           => (int) ($validated['personas_alcanzadas'] ?? 0),
+                'personas_participantes'        => (int) ($validated['personas_participantes'] ?? 0),
+                'personas_detenidas'            => (int) ($validated['personas_detenidas'] ?? 0),
+                'elementos_participantes_texto' => $validated['elementos_participantes_texto'] ?? null,
+                'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? null,
+                'estado_revision'               => 'pendiente',
+                'revisado_por'                  => null,
+                'revisado_at'                   => null,
+                'observacion_revision'          => null,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad creada correctamente.');
@@ -186,7 +238,7 @@ class ActividadController extends Controller
 
     public function show(Actividad $actividad)
     {
-        $actividad->load(['categoria', 'subcategoria', 'unidad', 'delegacion']);
+        $actividad->load(['categoria', 'subcategoria', 'unidad', 'delegacion', 'destacamento', 'creador', 'actualizador', 'revisor']);
         return view('actividades.show', compact('actividad'));
     }
 
@@ -213,9 +265,31 @@ class ActividadController extends Controller
         $this->authorize('editar actividades');
 
         $validated = $request->validate([
-            'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
-            'actividad_subcategoria_id' => 'nullable|exists:actividad_subcategorias,id',
-            'foto'                      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
+            'actividad_subcategoria_id'      => 'nullable|exists:actividad_subcategorias,id',
+            'fecha'                          => 'required|date',
+            'hora'                           => 'nullable|date_format:H:i',
+            'lugar'                          => 'nullable|string|max:255',
+            'municipio'                      => 'nullable|string|max:255',
+            'carretera'                      => 'nullable|string|max:255',
+            'tramo'                          => 'nullable|string|max:255',
+            'kilometro'                      => 'nullable|string|max:50',
+            'lat'                            => 'nullable|numeric|between:-90,90',
+            'lng'                            => 'nullable|numeric|between:-180,180',
+            'coordenadas_texto'              => 'nullable|string',
+            'fuente_ubicacion'               => 'nullable|string|max:50',
+            'nota_geo'                       => 'nullable|string|max:255',
+            'motivo'                         => 'nullable|string',
+            'narrativa'                      => 'nullable|string',
+            'acciones_realizadas'            => 'nullable|string',
+            'observaciones'                  => 'nullable|string',
+            'personas_alcanzadas'            => 'nullable|integer|min:0',
+            'personas_participantes'         => 'nullable|integer|min:0',
+            'personas_detenidas'             => 'nullable|integer|min:0',
+            'elementos_participantes_texto'  => 'nullable|string',
+            'patrullas_participantes_texto'  => 'nullable|string',
+            'destacamento_id'                => 'nullable|integer',
+            'foto'                           => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
@@ -270,16 +344,39 @@ class ActividadController extends Controller
             $user = Auth::user();
 
             $actividad->update([
-                'actividad_categoria_id'    => $validated['actividad_categoria_id'],
-                'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre'                    => $validated['nombre'],
-                'cantidad'                  => 1,
-                'foto_path'                 => $fotoPath,
-                'foto_nombre_original'      => $fotoNombreOriginal,
-                'foto_hash'                 => $fotoHash,
-                'updated_by'                => $user->id,
-                'unidad_org_id'             => $actividad->unidad_org_id ?? $user->unidad_id,
-                'delegacion_id'             => $actividad->delegacion_id ?? $user->delegacion_id,
+                'sync_status'                   => $actividad->sync_status ?: 'local',
+                'actividad_categoria_id'        => $validated['actividad_categoria_id'],
+                'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
+                'nombre'                        => $validated['nombre'],
+                'cantidad'                      => 1,
+                'foto_path'                     => $fotoPath,
+                'foto_nombre_original'          => $fotoNombreOriginal,
+                'foto_hash'                     => $fotoHash,
+                'updated_by'                    => $user->id,
+                'unidad_org_id'                 => $actividad->unidad_org_id ?? $user->unidad_id,
+                'delegacion_id'                 => $actividad->delegacion_id ?? $user->delegacion_id,
+                'destacamento_id'               => $validated['destacamento_id'] ?? null,
+                'fecha'                         => $validated['fecha'],
+                'hora'                          => $validated['hora'] ?? null,
+                'lugar'                         => $this->toUpperOrNull($validated['lugar'] ?? null),
+                'municipio'                     => $this->toUpperOrNull($validated['municipio'] ?? null),
+                'carretera'                     => $this->toUpperOrNull($validated['carretera'] ?? null),
+                'tramo'                         => $this->toUpperOrNull($validated['tramo'] ?? null),
+                'kilometro'                     => $this->toUpperOrNull($validated['kilometro'] ?? null),
+                'lat'                           => $validated['lat'] ?? null,
+                'lng'                           => $validated['lng'] ?? null,
+                'coordenadas_texto'             => $validated['coordenadas_texto'] ?? null,
+                'fuente_ubicacion'              => $validated['fuente_ubicacion'] ?? null,
+                'nota_geo'                      => $validated['nota_geo'] ?? null,
+                'motivo'                        => $this->toUpperOrNull($validated['motivo'] ?? null),
+                'narrativa'                     => $validated['narrativa'] ?? null,
+                'acciones_realizadas'           => $validated['acciones_realizadas'] ?? null,
+                'observaciones'                 => $validated['observaciones'] ?? null,
+                'personas_alcanzadas'           => (int) ($validated['personas_alcanzadas'] ?? 0),
+                'personas_participantes'        => (int) ($validated['personas_participantes'] ?? 0),
+                'personas_detenidas'            => (int) ($validated['personas_detenidas'] ?? 0),
+                'elementos_participantes_texto' => $validated['elementos_participantes_texto'] ?? null,
+                'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? null,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');
@@ -317,9 +414,11 @@ class ActividadController extends Controller
     private function buildQuery(Request $request, Carbon $inicioDia, Carbon $finDia)
     {
         $query = Actividad::query()
-            ->with(['categoria', 'subcategoria', 'unidad', 'delegacion'])
-            ->whereBetween('created_at', [$inicioDia, $finDia])
-            ->orderByDesc('created_at');
+            ->with(['categoria', 'subcategoria', 'unidad', 'delegacion', 'destacamento'])
+            ->whereBetween('fecha', [$inicioDia->toDateString(), $finDia->toDateString()])
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('id');
 
         $usuario = Auth::user();
 
@@ -335,7 +434,17 @@ class ActividadController extends Controller
 
         if ($request->filled('q')) {
             $q = trim((string) $request->q);
-            $query->where('nombre', 'like', "%{$q}%");
+            $query->where(function ($sub) use ($q) {
+                $sub->where('nombre', 'like', "%{$q}%")
+                    ->orWhere('lugar', 'like', "%{$q}%")
+                    ->orWhere('municipio', 'like', "%{$q}%")
+                    ->orWhere('carretera', 'like', "%{$q}%")
+                    ->orWhere('tramo', 'like', "%{$q}%")
+                    ->orWhere('motivo', 'like', "%{$q}%")
+                    ->orWhere('narrativa', 'like', "%{$q}%")
+                    ->orWhere('elementos_participantes_texto', 'like', "%{$q}%")
+                    ->orWhere('patrullas_participantes_texto', 'like', "%{$q}%");
+            });
         }
 
         return $query;
@@ -541,5 +650,16 @@ class ActividadController extends Controller
         if ($disk->exists($cacheRel)) {
             $disk->delete($cacheRel);
         }
+    }
+
+    private function toUpperOrNull($value): ?string
+    {
+        $value = is_string($value) ? trim($value) : null;
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return mb_strtoupper($value, 'UTF-8');
     }
 }

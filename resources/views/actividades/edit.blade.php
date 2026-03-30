@@ -1,5 +1,3 @@
-{{-- resources/views/actividades/edit.blade.php --}}
-
 @extends('adminlte::page')
 
 @section('title', 'Editar Actividad')
@@ -21,9 +19,7 @@
                         @csrf
                         @method('PUT')
 
-                        <!-- Nombre, Categoría, Subcategoría -->
                         <div class="row">
-                            <!-- Nombre (AUTOMÁTICO / NO EDITABLE) -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="nombre">Nombre<span style="color:red">*</span></label>
@@ -43,7 +39,6 @@
                                 </div>
                             </div>
 
-                            <!-- Categoría -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="actividad_categoria_id">Categoría<span style="color:red">*</span></label>
@@ -52,10 +47,8 @@
                                             class="form-control @error('actividad_categoria_id') is-invalid @enderror"
                                             required>
                                         <option value="" disabled {{ old('actividad_categoria_id', $actividad->actividad_categoria_id) ? '' : 'selected' }}>Seleccione...</option>
-
                                         @foreach ($categorias as $c)
-                                            <option value="{{ $c->id }}"
-                                                {{ (string)old('actividad_categoria_id', $actividad->actividad_categoria_id) === (string)$c->id ? 'selected' : '' }}>
+                                            <option value="{{ $c->id }}" {{ (string) old('actividad_categoria_id', $actividad->actividad_categoria_id) === (string) $c->id ? 'selected' : '' }}>
                                                 {{ $c->nombre }}
                                             </option>
                                         @endforeach
@@ -68,7 +61,6 @@
                                 </div>
                             </div>
 
-                            <!-- Subcategoría (dependiente) -->
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="actividad_subcategoria_id">Subcategoría</label>
@@ -88,57 +80,416 @@
                             </div>
                         </div>
 
-                        <!-- Cantidad fija (1) -->
-                        <input type="hidden" name="cantidad" id="cantidad" value="1">
+                        <input type="hidden" name="cantidad" value="1">
+                        <input type="hidden" name="destacamento_id" value="{{ old('destacamento_id', $actividad->destacamento_id) }}">
 
                         <div class="row">
-                            <!-- Foto (OBLIGATORIA en edit también) -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="fecha">Fecha<span style="color:red">*</span></label>
+                                    <input type="date"
+                                           name="fecha"
+                                           id="fecha"
+                                           class="form-control @error('fecha') is-invalid @enderror"
+                                           value="{{ old('fecha', optional($actividad->fecha)->format('Y-m-d') ?? $actividad->fecha) }}"
+                                           required>
+                                    @error('fecha')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="hora">Hora</label>
+                                    <input type="time"
+                                           name="hora"
+                                           id="hora"
+                                           class="form-control @error('hora') is-invalid @enderror"
+                                           value="{{ old('hora', $actividad->hora ? \Illuminate\Support\Str::of($actividad->hora)->substr(0,5) : '') }}">
+                                    @error('hora')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="lugar">Lugar</label>
+                                    <input type="text"
+                                           name="lugar"
+                                           id="lugar"
+                                           class="form-control @error('lugar') is-invalid @enderror"
+                                           value="{{ old('lugar', $actividad->lugar) }}"
+                                           placeholder="Ej. AV. MADERO PONIENTE Y ABASOLO">
+                                    @error('lugar')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="municipio">Municipio</label>
+                                    <input type="text"
+                                           name="municipio"
+                                           id="municipio"
+                                           class="form-control @error('municipio') is-invalid @enderror"
+                                           value="{{ old('municipio', $actividad->municipio ?? 'MORELIA') }}"
+                                           placeholder="Ej. MORELIA">
+                                    @error('municipio')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="carretera">Carretera</label>
+                                    <input type="text"
+                                           name="carretera"
+                                           id="carretera"
+                                           class="form-control @error('carretera') is-invalid @enderror"
+                                           value="{{ old('carretera', $actividad->carretera) }}">
+                                    @error('carretera')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="tramo">Tramo</label>
+                                    <input type="text"
+                                           name="tramo"
+                                           id="tramo"
+                                           class="form-control @error('tramo') is-invalid @enderror"
+                                           value="{{ old('tramo', $actividad->tramo) }}">
+                                    @error('tramo')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="kilometro">Kilómetro</label>
+                                    <input type="text"
+                                           name="kilometro"
+                                           id="kilometro"
+                                           class="form-control @error('kilometro') is-invalid @enderror"
+                                           value="{{ old('kilometro', $actividad->kilometro) }}"
+                                           placeholder="Ej. KM 12+500">
+                                    @error('kilometro')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="lat">Latitud</label>
+                                    <input type="number"
+                                           step="0.0000001"
+                                           name="lat"
+                                           id="lat"
+                                           class="form-control @error('lat') is-invalid @enderror"
+                                           value="{{ old('lat', $actividad->lat) }}"
+                                           placeholder="19.7000000">
+                                    @error('lat')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="lng">Longitud</label>
+                                    <input type="number"
+                                           step="0.0000001"
+                                           name="lng"
+                                           id="lng"
+                                           class="form-control @error('lng') is-invalid @enderror"
+                                           value="{{ old('lng', $actividad->lng) }}"
+                                           placeholder="-101.1900000">
+                                    @error('lng')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="fuente_ubicacion">Fuente ubicación</label>
+                                    <select name="fuente_ubicacion"
+                                            id="fuente_ubicacion"
+                                            class="form-control @error('fuente_ubicacion') is-invalid @enderror">
+                                        <option value="">Seleccione...</option>
+                                        <option value="GPS_APP" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'GPS_APP' ? 'selected' : '' }}>GPS_APP</option>
+                                        <option value="GPS_WEB" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'GPS_WEB' ? 'selected' : '' }}>GPS_WEB</option>
+                                        <option value="MANUAL" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'MANUAL' ? 'selected' : '' }}>MANUAL</option>
+                                        <option value="REFERENCIA" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'REFERENCIA' ? 'selected' : '' }}>REFERENCIA</option>
+                                    </select>
+                                    @error('fuente_ubicacion')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="nota_geo">Nota geo</label>
+                                    <input type="text"
+                                           name="nota_geo"
+                                           id="nota_geo"
+                                           class="form-control @error('nota_geo') is-invalid @enderror"
+                                           value="{{ old('nota_geo', $actividad->nota_geo) }}"
+                                           placeholder="Ej. ACC:5.2">
+                                    @error('nota_geo')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label for="foto">Foto<span style="color:red">*</span></label>
+                                    <label for="coordenadas_texto">Coordenadas / referencia</label>
+                                    <textarea name="coordenadas_texto"
+                                              id="coordenadas_texto"
+                                              rows="2"
+                                              class="form-control @error('coordenadas_texto') is-invalid @enderror"
+                                              placeholder="Ej. 19.7000000, -101.1900000 o referencia de ubicación">{{ old('coordenadas_texto', $actividad->coordenadas_texto) }}</textarea>
+                                    @error('coordenadas_texto')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="motivo">Qué ocasiona / motivo</label>
+                                    <textarea name="motivo"
+                                              id="motivo"
+                                              rows="3"
+                                              class="form-control @error('motivo') is-invalid @enderror"
+                                              placeholder="Ej. CORTE DE CIRCULACIÓN POR MANIFESTACIÓN">{{ old('motivo', $actividad->motivo) }}</textarea>
+                                    @error('motivo')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="narrativa">Narrativa</label>
+                                    <textarea name="narrativa"
+                                              id="narrativa"
+                                              rows="3"
+                                              class="form-control @error('narrativa') is-invalid @enderror"
+                                              placeholder="Describa lo ocurrido">{{ old('narrativa', $actividad->narrativa) }}</textarea>
+                                    @error('narrativa')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="acciones_realizadas">Acciones realizadas</label>
+                                    <textarea name="acciones_realizadas"
+                                              id="acciones_realizadas"
+                                              rows="3"
+                                              class="form-control @error('acciones_realizadas') is-invalid @enderror"
+                                              placeholder="Acciones realizadas por el personal">{{ old('acciones_realizadas', $actividad->acciones_realizadas) }}</textarea>
+                                    @error('acciones_realizadas')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="observaciones">Observaciones</label>
+                                    <textarea name="observaciones"
+                                              id="observaciones"
+                                              rows="3"
+                                              class="form-control @error('observaciones') is-invalid @enderror"
+                                              placeholder="Observaciones adicionales">{{ old('observaciones', $actividad->observaciones) }}</textarea>
+                                    @error('observaciones')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="personas_alcanzadas">Personas alcanzadas</label>
+                                    <input type="number"
+                                           min="0"
+                                           name="personas_alcanzadas"
+                                           id="personas_alcanzadas"
+                                           class="form-control @error('personas_alcanzadas') is-invalid @enderror"
+                                           value="{{ old('personas_alcanzadas', $actividad->personas_alcanzadas ?? 0) }}">
+                                    @error('personas_alcanzadas')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="personas_participantes">Personas participantes</label>
+                                    <input type="number"
+                                           min="0"
+                                           name="personas_participantes"
+                                           id="personas_participantes"
+                                           class="form-control @error('personas_participantes') is-invalid @enderror"
+                                           value="{{ old('personas_participantes', $actividad->personas_participantes ?? 0) }}">
+                                    @error('personas_participantes')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="personas_detenidas">Personas detenidas</label>
+                                    <input type="number"
+                                           min="0"
+                                           name="personas_detenidas"
+                                           id="personas_detenidas"
+                                           class="form-control @error('personas_detenidas') is-invalid @enderror"
+                                           value="{{ old('personas_detenidas', $actividad->personas_detenidas ?? 0) }}">
+                                    @error('personas_detenidas')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="elementos_participantes_texto">Elementos participantes</label>
+                                    <textarea name="elementos_participantes_texto"
+                                              id="elementos_participantes_texto"
+                                              rows="3"
+                                              class="form-control @error('elementos_participantes_texto') is-invalid @enderror"
+                                              placeholder="Ej. OF. JUAN PÉREZ, OF. LUIS GARCÍA">{{ old('elementos_participantes_texto', $actividad->elementos_participantes_texto) }}</textarea>
+                                    @error('elementos_participantes_texto')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="patrullas_participantes_texto">Patrullas participantes</label>
+                                    <textarea name="patrullas_participantes_texto"
+                                              id="patrullas_participantes_texto"
+                                              rows="3"
+                                              class="form-control @error('patrullas_participantes_texto') is-invalid @enderror"
+                                              placeholder="Ej. 3214, 3178, 04-174">{{ old('patrullas_participantes_texto', $actividad->patrullas_participantes_texto) }}</textarea>
+                                    @error('patrullas_participantes_texto')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        @php
+                            $fotoPathActual = $actividad->foto_path ?? null;
+                            $urlFoto = $fotoPathActual ? asset('storage/' . ltrim($fotoPathActual, '/')) : null;
+                        @endphp
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="foto">Foto</label>
                                     <input type="file"
                                            name="foto"
                                            id="foto"
                                            accept="image/*"
-                                           class="form-control @error('foto') is-invalid @enderror"
-                                           required>
+                                           class="form-control @error('foto') is-invalid @enderror">
                                     @error('foto')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
+                                    <small id="foto_name" class="help-muted"></small>
 
-                                    <div class="preview-wrap">
-                                        @php
-                                            $fotoPathActual = $actividad->foto_path ?? null;
-                                            $urlFoto = $fotoPathActual ? asset('storage/' . ltrim($fotoPathActual, '/')) : null;
-                                        @endphp
-
-                                        @if ($urlFoto)
-                                            <a href="{{ $urlFoto }}" target="_blank" rel="noopener">
-                                                <img src="{{ $urlFoto }}" alt="foto" class="foto-thumb">
-                                            </a>
-                                            <div>
-                                                <small class="help-muted">Foto actual</small><br>
-                                                <small id="foto_name" class="help-muted"></small>
-                                            </div>
-                                        @else
-                                            <small class="text-muted">Sin foto</small>
-                                            <small id="foto_name" class="help-muted d-block"></small>
-                                        @endif
+                                    <div id="preview_wrap" class="preview-wrap" style="{{ $urlFoto ? 'display:flex;' : 'display:none;' }}">
+                                        <a id="foto_link" href="{{ $urlFoto ?: '#' }}" target="_blank" rel="noopener" style="{{ $urlFoto ? '' : 'display:none;' }}">
+                                            <img id="foto_preview" class="foto-thumb" src="{{ $urlFoto ?: '' }}" alt="Vista previa">
+                                        </a>
+                                        <div id="foto_actual_wrap" style="{{ $urlFoto ? '' : 'display:none;' }}">
+                                            <small class="help-muted">Foto actual</small>
+                                        </div>
                                     </div>
-
-                                    <small class="help-muted d-block mt-1">Debe seleccionar una foto para guardar.</small>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Submit y Cancelar -->
                         <hr>
+
                         <div class="row">
                             <div class="col-md-12 text-center">
-                                <div class="form-group">
-                                    <button type="submit" class="btn btn-success">
+                                <div class="form-group mb-0">
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="fa-solid fa-save"></i> Guardar cambios
                                     </button>
 
@@ -158,7 +509,9 @@
 
 @section('css')
     <style>
-        .help-muted { color: rgba(234,240,255,.65); }
+        .help-muted {
+            color: rgba(234,240,255,.65);
+        }
 
         .form-group label {
             font-weight: bold;
@@ -166,14 +519,16 @@
         }
 
         .form-control,
-        select.form-control {
+        select.form-control,
+        textarea.form-control {
             color: #eaf0ff;
             background-color: rgba(255,255,255,.06);
             border: 1px solid rgba(255,255,255,.12);
             border-radius: 12px;
         }
 
-        .form-control::placeholder {
+        .form-control::placeholder,
+        textarea.form-control::placeholder {
             color: rgba(234,240,255,.55);
         }
 
@@ -183,21 +538,23 @@
         }
 
         .form-control:focus,
-        select:focus {
+        select:focus,
+        textarea:focus {
             outline: none;
             box-shadow: 0 0 0 2px rgba(45,168,255,.35);
             border-color: rgba(45,168,255,.55);
         }
 
-        .preview-wrap{
-            display:flex;
-            align-items:center;
-            gap:10px;
-            margin-top:8px;
+        .preview-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
         }
-        .foto-thumb{
-            width: 92px;
-            height: 64px;
+
+        .foto-thumb {
+            width: 140px;
+            height: 100px;
             object-fit: cover;
             border-radius: 8px;
             border: 1px solid rgba(255,255,255,.16);
@@ -211,12 +568,14 @@
         document.addEventListener('DOMContentLoaded', function () {
             const categoriaSelect = document.getElementById('actividad_categoria_id');
             const subcatSelect = document.getElementById('actividad_subcategoria_id');
-
             const nombreInput = document.getElementById('nombre');
             const nombreActual = nombreInput ? nombreInput.value : '';
-
             const fotoInput = document.getElementById('foto');
             const fotoName = document.getElementById('foto_name');
+            const previewWrap = document.getElementById('preview_wrap');
+            const fotoPreview = document.getElementById('foto_preview');
+            const fotoLink = document.getElementById('foto_link');
+            const fotoActualWrap = document.getElementById('foto_actual_wrap');
 
             function setSubcatDisabled(msg) {
                 subcatSelect.disabled = true;
@@ -250,8 +609,7 @@
                 setSubcatDisabled('Cargando...');
 
                 try {
-                    const url = `{{ route('actividades.subcategorias', ['categoria' => '__ID__']) }}`
-                        .replace('__ID__', encodeURIComponent(categoriaId));
+                    const url = `{{ route('actividades.subcategorias', ['categoria' => '__ID__']) }}`.replace('__ID__', encodeURIComponent(categoriaId));
 
                     const res = await fetch(url, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -278,9 +636,9 @@
                         subcatSelect.appendChild(opt);
                     });
 
-                    const selected = "{{ old('actividad_subcategoria_id', $actividad->actividad_subcategoria_id) }}";
-                    if (selected !== null && selected !== undefined && selected !== '') {
-                        subcatSelect.value = selected;
+                    const oldSub = @json(old('actividad_subcategoria_id', $actividad->actividad_subcategoria_id));
+                    if (oldSub !== null && oldSub !== '') {
+                        subcatSelect.value = String(oldSub);
                     } else {
                         subcatSelect.value = '';
                     }
@@ -290,13 +648,17 @@
                 }
             }
 
-            // Bloquea cualquier intento de editar el nombre
             if (nombreInput) {
                 nombreInput.addEventListener('input', function () {
-                    if (this.value !== nombreActual) this.value = nombreActual;
+                    if (this.value !== nombreActual) {
+                        this.value = nombreActual;
+                    }
                 });
+
                 nombreInput.addEventListener('keydown', function (e) {
-                    if (e.key !== 'Tab') e.preventDefault();
+                    if (e.key !== 'Tab') {
+                        e.preventDefault();
+                    }
                 });
             }
 
@@ -305,8 +667,9 @@
                     cargarSubcategorias(this.value);
                 });
 
-                const oldCat = "{{ old('actividad_categoria_id') }}";
+                const oldCat = @json(old('actividad_categoria_id', $actividad->actividad_categoria_id));
                 const initialCat = oldCat || categoriaSelect.value || '';
+
                 if (initialCat) {
                     cargarSubcategorias(initialCat);
                 } else {
@@ -316,10 +679,36 @@
 
             if (fotoInput) {
                 fotoInput.addEventListener('change', function () {
-                    const f = fotoInput.files && fotoInput.files[0] ? fotoInput.files[0].name : '';
+                    const file = fotoInput.files && fotoInput.files[0] ? fotoInput.files[0] : null;
+
                     if (fotoName) {
-                        fotoName.textContent = f ? ('Archivo: ' + f) : '';
+                        fotoName.textContent = file ? ('Archivo: ' + file.name) : '';
                     }
+
+                    if (!file) {
+                        @if($urlFoto)
+                            if (fotoPreview) fotoPreview.src = @json($urlFoto);
+                            if (fotoLink) fotoLink.href = @json($urlFoto);
+                            if (previewWrap) previewWrap.style.display = 'flex';
+                            if (fotoLink) fotoLink.style.display = '';
+                            if (fotoActualWrap) fotoActualWrap.style.display = '';
+                        @else
+                            if (previewWrap) previewWrap.style.display = 'none';
+                            if (fotoPreview) fotoPreview.src = '';
+                            if (fotoLink) fotoLink.href = '#';
+                        @endif
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        if (fotoPreview) fotoPreview.src = e.target.result;
+                        if (fotoLink) fotoLink.href = e.target.result;
+                        if (previewWrap) previewWrap.style.display = 'flex';
+                        if (fotoLink) fotoLink.style.display = '';
+                        if (fotoActualWrap) fotoActualWrap.style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
                 });
             }
         });

@@ -1,12 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\actividades",
-    "\\resources\\views\\hechos",
     "\\routes"
   ],
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

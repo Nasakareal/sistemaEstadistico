@@ -877,7 +877,6 @@ class HechoController extends Controller
         ], 200);
     }
 
-
     public function nativeShare(Request $request, Hechos $hecho)
     {
         $user = $request->user();
@@ -899,7 +898,7 @@ class HechoController extends Controller
             ], 404);
         }
 
-        $hecho->load(['vehiculos.conductores', 'lesionados']);
+        $hecho->load(['vehiculos']);
 
         $message = WhatsAppLink::textForHecho($hecho);
 
@@ -918,7 +917,7 @@ class HechoController extends Controller
 
         $message = preg_replace(
             '/\b\d{4}-\d{2}-\d{2}\s+00:00:00\s+\d{2}:\d{2}:\d{2}\s+Hrs\./u',
-            $fechaMostrar . ' ' . $horaMostrar . ' Hrs.',
+            trim($fechaMostrar . ' ' . $horaMostrar) . ' Hrs.',
             $message,
             1
         );
@@ -932,31 +931,30 @@ class HechoController extends Controller
             );
         }
 
-        $media = [];
+        $fotos = [];
 
         if (!empty($hecho->foto_lugar)) {
-            $media[] = $this->publicStoragePath($hecho->foto_lugar);
+            $fotos[] = $this->publicStoragePath($hecho->foto_lugar);
         }
 
         if (!empty($hecho->foto_situacion)) {
-            $media[] = $this->publicStoragePath($hecho->foto_situacion);
+            $fotos[] = $this->publicStoragePath($hecho->foto_situacion);
         }
 
         foreach ($hecho->vehiculos as $v) {
             if (!empty($v->fotos)) {
-                $media[] = $this->publicStoragePath($v->fotos);
+                $fotos[] = $this->publicStoragePath($v->fotos);
             }
         }
 
-        $media = array_values(array_filter($media));
+        $fotos = array_values(array_unique(array_filter($fotos)));
 
         return response()->json([
             'ok' => true,
             'data' => [
-                'title' => 'Hecho de tránsito',
-                'message' => $message,
-                'media' => $media,
-                'hecho_id' => $hecho->id,
+                'texto' => trim($message),
+                'foto'  => $fotos[0] ?? null,
+                'fotos' => $fotos,
             ],
         ], 200);
     }

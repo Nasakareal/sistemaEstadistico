@@ -3,8 +3,10 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\hechos"
+    "\\resources\\views\\guardianes_camino",
+    "\\resources\\views\\guardianes_camino\\dispositivos",
+    "\\resources\\views\\guardianes_camino\\dispositivos\\partials"
   ],
-  "SelectedNode": "\\resources\\views\\hechos\\compartir_publico.blade.php",
+  "SelectedNode": "\\resources\\views\\guardianes_camino\\dispositivos\\partials\\_campos_dinamicos.blade.php",
   "PreviewInSolutionExplorer": false
 }

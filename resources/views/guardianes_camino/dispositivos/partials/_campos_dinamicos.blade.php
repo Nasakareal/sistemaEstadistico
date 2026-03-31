@@ -8,7 +8,6 @@
 
         @php
             $campos = [
-                'cantidad' => ['Cantidad', 'number', '0'],
                 'vehiculos_inspeccionados' => ['Vehículos inspeccionados', 'number', '0'],
                 'personas_inspeccionadas' => ['Personas inspeccionadas', 'number', '0'],
                 'vehiculos_impactados' => ['Vehículos impactados', 'number', '0'],
@@ -70,5 +69,27 @@
                 </div>
             </div>
         @endforeach
+
+        <div class="col-md-3 campo-dinamico" data-campo="tipo_acompanamiento">
+            <div class="form-group">
+                <label for="tipo_acompanamiento">Tipo de acompañamiento</label>
+                <select
+                    name="tipo_acompanamiento"
+                    id="tipo_acompanamiento"
+                    class="form-control @error('tipo_acompanamiento') is-invalid @enderror"
+                    disabled
+                >
+                    <option value="">Seleccione una opción</option>
+                    <option value="ESCOLTA" {{ old('tipo_acompanamiento') == 'ESCOLTA' ? 'selected' : '' }}>Escolta</option>
+                    <option value="CARAVANA" {{ old('tipo_acompanamiento') == 'CARAVANA' ? 'selected' : '' }}>Caravana</option>
+                    <option value="EMERGENCIA" {{ old('tipo_acompanamiento') == 'EMERGENCIA' ? 'selected' : '' }}>Emergencia</option>
+                    <option value="OTRO" {{ old('tipo_acompanamiento') == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                </select>
+
+                @error('tipo_acompanamiento')
+                    <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                @enderror
+            </div>
+        </div>
     </div>
 </div>

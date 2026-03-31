@@ -5,7 +5,6 @@ return [
         'PSV (PUESTO DE SEGURIDAD Y VIGILANCIA)' => [
             'titulo' => 'PSV (Puesto de Seguridad y Vigilancia)',
             'campos' => [
-                'cantidad',
                 'vehiculos_inspeccionados',
                 'personas_inspeccionadas',
                 'estado_fuerza_participante',
@@ -17,7 +16,6 @@ return [
         'RSV (RECORRIDOS DE SEGURIDAD Y VIGILANCIA - PATRULLAJE)' => [
             'titulo' => 'RSV (Recorridos de Seguridad y Vigilancia - Patrullaje)',
             'campos' => [
-                'cantidad',
                 'vehiculos_inspeccionados',
                 'personas_inspeccionadas',
                 'estado_fuerza_participante',
@@ -29,7 +27,6 @@ return [
         'CASCO' => [
             'titulo' => 'Dispositivo Casco',
             'campos' => [
-                'cantidad',
                 'vehiculos_impactados',
                 'personas_impactadas',
                 'estado_fuerza_participante',
@@ -41,7 +38,6 @@ return [
         'CINTURÓN' => [
             'titulo' => 'Dispositivo Cinturón',
             'campos' => [
-                'cantidad',
                 'vehiculos_impactados',
                 'personas_impactadas',
                 'estado_fuerza_participante',
@@ -53,7 +49,6 @@ return [
         'CARRUSEL' => [
             'titulo' => 'Dispositivo Carrusel',
             'campos' => [
-                'cantidad',
                 'vehiculos_impactados',
                 'estado_fuerza_participante',
                 'crps_participantes',
@@ -64,7 +59,6 @@ return [
         'CORDILLERA' => [
             'titulo' => 'Cordillera',
             'campos' => [
-                'cantidad',
                 'vehiculos_impactados',
                 'personas_impactadas',
                 'estado_fuerza_participante',
@@ -76,7 +70,6 @@ return [
         'ASIENTO SEGURO PASAJEROS MENORES' => [
             'titulo' => 'Dispositivo Asiento Seguro Pasajeros Menores',
             'campos' => [
-                'cantidad',
                 'vehiculos_impactados',
                 'personas_impactadas',
                 'estado_fuerza_participante',
@@ -85,10 +78,26 @@ return [
             ],
         ],
 
+        'ACOMPAÑAMIENTOS' => [
+            'titulo' => 'ACOMPAÑAMIENTOS (Escoltas, Caravanas, Emergencias, Otros)',
+            'campos' => [
+                'tipo_acompanamiento',
+                'estado_fuerza_participante',
+                'crps_participantes',
+                'kilometros_recorridos',
+            ],
+        ],
+
+
+
+
+
+
+
+
         'CABALLEROS DEL CAMINO' => [
             'titulo' => 'Caballeros del Camino',
             'campos' => [
-                'cantidad',
                 'acompanamientos',
                 'abanderamientos',
                 'auxilios_viales',
@@ -110,7 +119,6 @@ return [
     ],
 
     'all_campos' => [
-        'cantidad',
         'vehiculos_inspeccionados',
         'personas_inspeccionadas',
         'vehiculos_impactados',
@@ -134,5 +142,6 @@ return [
         'antecedentes_vehiculos',
         'antecedentes_motos',
         'antecedentes_camiones',
+        'tipo_acompanamiento',
     ],
 ];

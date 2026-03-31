@@ -293,7 +293,7 @@ class GuardianesCaminoDispositivoController extends Controller
         $dispositivo->destino = $data['destino'] ?? null;
         $dispositivo->motivo_apoyo = $data['motivo_apoyo'] ?? null;
 
-        $dispositivo->cantidad = $data['cantidad'] ?? 0;
+        $dispositivo->cantidad = 1;
         $dispositivo->vehiculos_inspeccionados = $data['vehiculos_inspeccionados'] ?? 0;
         $dispositivo->personas_inspeccionadas = $data['personas_inspeccionadas'] ?? 0;
         $dispositivo->vehiculos_impactados = $data['vehiculos_impactados'] ?? 0;
@@ -393,25 +393,37 @@ class GuardianesCaminoDispositivoController extends Controller
 
     public function store(Request $request)
     {
-        $operativo = $this->obtenerOperativoUnico();
+        $data = $request->all();
 
-        $this->inyectarDatosOrganizacion($request);
+        $data['client_uuid'] = (string) \Str::uuid();
+        $data['sync_status'] = 'pending';
+        $data['user_id'] = auth()->id();
+        $data['created_by'] = auth()->id();
+        $data['updated_by'] = auth()->id();
 
-        $data = $request->validate($this->reglasValidacion());
+        $data['cantidad'] = 1;
 
-        $this->validarDatosOrganizacionFinal($data);
+        $catalogo = \App\Models\OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
+        $nombre = mb_strtoupper(trim($catalogo->nombre ?? ''), 'UTF-8');
 
-        $this->limpiarCamposNoAplicables($data, (int) $data['operativo_dispositivo_catalogo_id']);
+        $config = config('guardianes_camino.dispositivos');
+        $camposPermitidos = $config[$nombre]['campos'] ?? [];
 
-        $dispositivo = new OperativoDispositivo();
-        $this->llenarDispositivo($dispositivo, $operativo, $data);
-        $dispositivo->save();
+        foreach (config('guardianes_camino.all_campos') as $campo) {
+            if (!in_array($campo, $camposPermitidos)) {
+                $data[$campo] = 0;
+            }
+        }
 
-        $this->guardarFotos($request, $dispositivo);
+        if ($nombre !== 'ACOMPAÑAMIENTOS') {
+            $data['tipo_acompanamiento'] = null;
+        }
+
+        $dispositivo = \App\Models\OperativoDispositivo::create($data);
 
         return redirect()
             ->route('guardianes_camino.dispositivos.show', $dispositivo->id)
-            ->with('success', 'Dispositivo capturado correctamente.');
+            ->with('success', 'Dispositivo registrado correctamente.');
     }
 
     public function show($dispositivo)
@@ -453,24 +465,32 @@ class GuardianesCaminoDispositivoController extends Controller
         ], $datosVista));
     }
 
-    public function update(Request $request, $dispositivo)
+    public function update(Request $request, $id)
     {
-        $operativo = $this->obtenerOperativoUnico();
+        $dispositivo = \App\Models\OperativoDispositivo::findOrFail($id);
 
-        $dispositivo = OperativoDispositivo::where('operativo_id', $operativo->id)->findOrFail($dispositivo);
+        $data = $request->all();
+        $data['updated_by'] = auth()->id();
 
-        $this->inyectarDatosOrganizacion($request);
+        $data['cantidad'] = 1;
 
-        $data = $request->validate($this->reglasValidacion());
+        $catalogo = \App\Models\OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
+        $nombre = mb_strtoupper(trim($catalogo->nombre ?? ''), 'UTF-8');
 
-        $this->validarDatosOrganizacionFinal($data);
+        $config = config('guardianes_camino.dispositivos');
+        $camposPermitidos = $config[$nombre]['campos'] ?? [];
 
-        $this->limpiarCamposNoAplicables($data, (int) $data['operativo_dispositivo_catalogo_id']);
+        foreach (config('guardianes_camino.all_campos') as $campo) {
+            if (!in_array($campo, $camposPermitidos)) {
+                $data[$campo] = 0;
+            }
+        }
 
-        $this->llenarDispositivo($dispositivo, $operativo, $data);
-        $dispositivo->save();
+        if ($nombre !== 'ACOMPAÑAMIENTOS') {
+            $data['tipo_acompanamiento'] = null;
+        }
 
-        $this->guardarFotos($request, $dispositivo);
+        $dispositivo->update($data);
 
         return redirect()
             ->route('guardianes_camino.dispositivos.show', $dispositivo->id)
@@ -574,118 +594,118 @@ class GuardianesCaminoDispositivoController extends Controller
     }
 
     public function index(Request $request)
-{
-    $operativo = $this->obtenerOperativoUnico();
+    {
+        $operativo = $this->obtenerOperativoUnico();
 
-    $fecha = $request->input('fecha', now()->format('Y-m-d'));
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
 
-    $dispositivos = OperativoDispositivo::with([
-        'catalogo',
-        'destacamento',
-        'usuario',
-        'revisadoPor',
-        'fotos',
-    ])
-    ->where('operativo_id', $operativo->id)
-    ->whereDate('fecha', $fecha)
-    ->orderByDesc('fecha')
-    ->orderByDesc('hora')
-    ->orderByDesc('id')
-    ->paginate(20)
-    ->withQueryString();
-
-    return view('guardianes_camino.index', compact('operativo', 'dispositivos', 'fecha'));
-}
-
-public function pendientesRevision(Request $request)
-{
-    $operativo = $this->obtenerOperativoUnico();
-
-    $fecha = $request->input('fecha');
-
-    $query = OperativoDispositivo::with([
-        'catalogo',
-        'destacamento',
-        'usuario',
-        'revisadoPor',
-        'fotos',
-    ])
-    ->where('operativo_id', $operativo->id)
-    ->where(function ($q) {
-        $q->whereNull('estado_revision')
-          ->orWhere('estado_revision', 'pendiente');
-    });
-
-    if ($fecha) {
-        $query->whereDate('fecha', $fecha);
-    }
-
-    $dispositivos = $query
+        $dispositivos = OperativoDispositivo::with([
+            'catalogo',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+        ])
+        ->where('operativo_id', $operativo->id)
+        ->whereDate('fecha', $fecha)
         ->orderByDesc('fecha')
         ->orderByDesc('hora')
         ->orderByDesc('id')
         ->paginate(20)
         ->withQueryString();
 
-    return view('guardianes_camino.pendientes_revision', compact('operativo', 'dispositivos', 'fecha'));
-}
+        return view('guardianes_camino.index', compact('operativo', 'dispositivos', 'fecha'));
+    }
 
-public function countPendientesRevision(Request $request)
-{
-    $operativo = $this->obtenerOperativoUnico();
+    public function pendientesRevision(Request $request)
+    {
+        $operativo = $this->obtenerOperativoUnico();
 
-    $fecha = $request->input('fecha');
+        $fecha = $request->input('fecha');
 
-    $query = OperativoDispositivo::where('operativo_id', $operativo->id)
+        $query = OperativoDispositivo::with([
+            'catalogo',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+        ])
+        ->where('operativo_id', $operativo->id)
         ->where(function ($q) {
             $q->whereNull('estado_revision')
               ->orWhere('estado_revision', 'pendiente');
         });
 
-    if ($fecha) {
-        $query->whereDate('fecha', $fecha);
+        if ($fecha) {
+            $query->whereDate('fecha', $fecha);
+        }
+
+        $dispositivos = $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('guardianes_camino.pendientes_revision', compact('operativo', 'dispositivos', 'fecha'));
     }
 
-    return response()->json([
-        'total' => $query->count(),
-    ]);
-}
+    public function countPendientesRevision(Request $request)
+    {
+        $operativo = $this->obtenerOperativoUnico();
 
-public function aprobarRevision(Request $request, $dispositivo)
-{
-    $dispositivo = OperativoDispositivo::findOrFail($dispositivo);
+        $fecha = $request->input('fecha');
 
-    $request->validate([
-        'observacion_revision' => ['nullable', 'string'],
-    ]);
+        $query = OperativoDispositivo::where('operativo_id', $operativo->id)
+            ->where(function ($q) {
+                $q->whereNull('estado_revision')
+                  ->orWhere('estado_revision', 'pendiente');
+            });
 
-    $dispositivo->update([
-        'estado_revision' => 'aprobado',
-        'revisado_por' => Auth::id(),
-        'revisado_at' => now(),
-        'observacion_revision' => $request->observacion_revision,
-        'updated_by' => Auth::id(),
-    ]);
+        if ($fecha) {
+            $query->whereDate('fecha', $fecha);
+        }
 
-    return redirect()->back()->with('success', 'Dispositivo aprobado correctamente.');
-}
+        return response()->json([
+            'total' => $query->count(),
+        ]);
+    }
 
-public function rechazarRevision(Request $request, $dispositivo)
-{
-    $dispositivo = OperativoDispositivo::findOrFail($dispositivo);
+    public function aprobarRevision(Request $request, $dispositivo)
+    {
+        $dispositivo = OperativoDispositivo::findOrFail($dispositivo);
 
-    $request->validate([
-        'observacion_revision' => ['required', 'string'],
-    ]);
+        $request->validate([
+            'observacion_revision' => ['nullable', 'string'],
+        ]);
 
-    $dispositivo->update([
-        'estado_revision' => 'rechazado',
-        'revisado_por' => Auth::id(),
-        'revisado_at' => now(),
-        'observacion_revision' => $request->observacion_revision,
-        'updated_by' => Auth::id(),
-    ]);
+        $dispositivo->update([
+            'estado_revision' => 'aprobado',
+            'revisado_por' => Auth::id(),
+            'revisado_at' => now(),
+            'observacion_revision' => $request->observacion_revision,
+            'updated_by' => Auth::id(),
+        ]);
 
-    return redirect()->back()->with('success', 'Dispositivo rechazado correctamente.');
-}
+        return redirect()->back()->with('success', 'Dispositivo aprobado correctamente.');
+    }
+
+    public function rechazarRevision(Request $request, $dispositivo)
+    {
+        $dispositivo = OperativoDispositivo::findOrFail($dispositivo);
+
+        $request->validate([
+            'observacion_revision' => ['required', 'string'],
+        ]);
+
+        $dispositivo->update([
+            'estado_revision' => 'rechazado',
+            'revisado_por' => Auth::id(),
+            'revisado_at' => now(),
+            'observacion_revision' => $request->observacion_revision,
+            'updated_by' => Auth::id(),
+        ]);
+
+        return redirect()->back()->with('success', 'Dispositivo rechazado correctamente.');
+    }
 }

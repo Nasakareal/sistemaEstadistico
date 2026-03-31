@@ -59,6 +59,7 @@ class OperativoDispositivo extends Model
         'acompanamientos',
         'abanderamientos',
         'auxilios_viales',
+        'tipo_acompanamiento',
         'prox_empresas',
         'prox_tiendas_conveniencia',
         'prox_escuelas',
@@ -78,8 +79,6 @@ class OperativoDispositivo extends Model
         'observaciones',
         'created_by',
         'updated_by',
-
-        // 🔥 NUEVOS (igual que hechos)
         'estado_revision',
         'revisado_por',
         'revisado_at',

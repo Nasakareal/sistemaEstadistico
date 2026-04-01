@@ -88,7 +88,25 @@ return [
             ],
         ],
 
+        'ABANDERAMIENTOS' => [
+            'titulo' => 'ABANDERAMIENTOS (Siniestros, Eventos, Otros)',
+            'campos' => [
+                'tipo_abanderamiento',
+                'estado_fuerza_participante',
+                'crps_participantes',
+                'kilometros_recorridos',
+            ],
+        ],
 
+        'AUXILIOS VIALES' => [
+            'titulo' => 'AUXILIOS VIALES (Falla mecánica, Peatón, Otros)',
+            'campos' => [
+                'tipo_auxilio_vial',
+                'estado_fuerza_participante',
+                'crps_participantes',
+                'kilometros_recorridos',
+            ],
+        ],
 
 
 
@@ -143,5 +161,7 @@ return [
         'antecedentes_motos',
         'antecedentes_camiones',
         'tipo_acompanamiento',
+        'tipo_abanderamiento',
+        'tipo_auxilio_vial',
     ],
 ];

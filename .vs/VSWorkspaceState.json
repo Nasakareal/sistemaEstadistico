@@ -3,10 +3,10 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\guardianes_camino",
-    "\\resources\\views\\guardianes_camino\\dispositivos",
-    "\\resources\\views\\guardianes_camino\\dispositivos\\partials"
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\destacamentos"
   ],
-  "SelectedNode": "\\resources\\views\\guardianes_camino\\dispositivos\\partials\\_campos_dinamicos.blade.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\destacamentos\\mapa.blade.php",
   "PreviewInSolutionExplorer": false
 }

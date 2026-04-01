@@ -16,11 +16,19 @@ class Destacamento extends Model
         'clave',
         'nombre',
         'municipio',
+        'lat',
+        'lng',
+        'direccion',
+        'telefono',
+        'responsable',
+        'referencia',
         'activo',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
+        'lat' => 'float',
+        'lng' => 'float',
     ];
 
     public function unidad()
@@ -36,5 +44,10 @@ class Destacamento extends Model
     public function operativos()
     {
         return $this->hasMany(Operativo::class, 'destacamento_id');
+    }
+
+    public function redApoyos()
+    {
+        return $this->hasMany(DestacamentoRedApoyo::class, 'destacamento_id');
     }
 }

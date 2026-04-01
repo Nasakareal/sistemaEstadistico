@@ -121,6 +121,10 @@ class GuardianesCaminoDispositivoController extends Controller
             'abanderamientos' => ['nullable', 'integer', 'min:0'],
             'auxilios_viales' => ['nullable', 'integer', 'min:0'],
 
+            'tipo_acompanamiento' => ['nullable', 'string', 'max:255'],
+            'tipo_abanderamiento' => ['nullable', 'string', 'max:255'],
+            'tipo_auxilio_vial' => ['nullable', 'string', 'max:255'],
+
             'prox_empresas' => ['nullable', 'integer', 'min:0'],
             'prox_tiendas_conveniencia' => ['nullable', 'integer', 'min:0'],
             'prox_escuelas' => ['nullable', 'integer', 'min:0'],
@@ -393,25 +397,31 @@ class GuardianesCaminoDispositivoController extends Controller
 
     public function store(Request $request)
     {
+        $this->inyectarDatosOrganizacion($request);
+
         $data = $request->all();
 
-        $data['client_uuid'] = (string) \Str::uuid();
+        $this->validarDatosOrganizacionFinal($data);
+
+        $operativo = $this->obtenerOperativoUnico();
+        $data['operativo_id'] = $operativo->id;
+
+        $data['client_uuid'] = (string) Str::uuid();
         $data['sync_status'] = 'pending';
         $data['user_id'] = auth()->id();
         $data['created_by'] = auth()->id();
         $data['updated_by'] = auth()->id();
-
         $data['cantidad'] = 1;
 
-        $catalogo = \App\Models\OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
+        $catalogo = OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
         $nombre = mb_strtoupper(trim($catalogo->nombre ?? ''), 'UTF-8');
 
         $config = config('guardianes_camino.dispositivos');
         $camposPermitidos = $config[$nombre]['campos'] ?? [];
 
         foreach (config('guardianes_camino.all_campos') as $campo) {
-            if (!in_array($campo, $camposPermitidos)) {
-                $data[$campo] = 0;
+            if (!in_array($campo, $camposPermitidos, true)) {
+                $data[$campo] = in_array($campo, ['tipo_acompanamiento', 'tipo_abanderamiento', 'tipo_auxilio_vial'], true) ? null : 0;
             }
         }
 
@@ -419,7 +429,21 @@ class GuardianesCaminoDispositivoController extends Controller
             $data['tipo_acompanamiento'] = null;
         }
 
-        $dispositivo = \App\Models\OperativoDispositivo::create($data);
+        if ($nombre !== 'ABANDERAMIENTOS') {
+            $data['tipo_abanderamiento'] = null;
+        }
+
+        if ($nombre !== 'AUXILIOS VIALES') {
+            $data['tipo_auxilio_vial'] = null;
+        }
+
+        $destacamento = !empty($data['destacamento_id'])
+            ? Destacamento::find($data['destacamento_id'])
+            : null;
+
+        $data['destacamento_nombre_snapshot'] = $destacamento->nombre ?? null;
+
+        $dispositivo = OperativoDispositivo::create($data);
 
         return redirect()
             ->route('guardianes_camino.dispositivos.show', $dispositivo->id)
@@ -467,28 +491,46 @@ class GuardianesCaminoDispositivoController extends Controller
 
     public function update(Request $request, $id)
     {
-        $dispositivo = \App\Models\OperativoDispositivo::findOrFail($id);
+        $dispositivo = OperativoDispositivo::findOrFail($id);
+
+        $this->inyectarDatosOrganizacion($request);
 
         $data = $request->all();
-        $data['updated_by'] = auth()->id();
 
+        $this->validarDatosOrganizacionFinal($data);
+
+        $data['updated_by'] = auth()->id();
         $data['cantidad'] = 1;
 
-        $catalogo = \App\Models\OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
+        $catalogo = OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
         $nombre = mb_strtoupper(trim($catalogo->nombre ?? ''), 'UTF-8');
 
         $config = config('guardianes_camino.dispositivos');
         $camposPermitidos = $config[$nombre]['campos'] ?? [];
 
         foreach (config('guardianes_camino.all_campos') as $campo) {
-            if (!in_array($campo, $camposPermitidos)) {
-                $data[$campo] = 0;
+            if (!in_array($campo, $camposPermitidos, true)) {
+                $data[$campo] = in_array($campo, ['tipo_acompanamiento', 'tipo_abanderamiento', 'tipo_auxilio_vial'], true) ? null : 0;
             }
         }
 
         if ($nombre !== 'ACOMPAÑAMIENTOS') {
             $data['tipo_acompanamiento'] = null;
         }
+
+        if ($nombre !== 'ABANDERAMIENTOS') {
+            $data['tipo_abanderamiento'] = null;
+        }
+
+        if ($nombre !== 'AUXILIOS VIALES') {
+            $data['tipo_auxilio_vial'] = null;
+        }
+
+        $destacamento = !empty($data['destacamento_id'])
+            ? Destacamento::find($data['destacamento_id'])
+            : null;
+
+        $data['destacamento_nombre_snapshot'] = $destacamento->nombre ?? null;
 
         $dispositivo->update($data);
 
@@ -540,7 +582,13 @@ class GuardianesCaminoDispositivoController extends Controller
 
         $texto = $header;
 
-        if (str_contains($tipo, 'CABALLEROS') || filled($dispositivo->nombre_conductor)) {
+        if (
+            str_contains($tipo, 'CABALLEROS')
+            || str_contains($tipo, 'ACOMPAÑAMIENTOS')
+            || str_contains($tipo, 'ABANDERAMIENTOS')
+            || str_contains($tipo, 'AUXILIOS VIALES')
+            || filled($dispositivo->nombre_conductor)
+        ) {
             $texto .= "ASUNTO: APOYO A USUARIO\n\n";
             $texto .= "FECHA: {$fecha}\n\n";
 
@@ -562,6 +610,25 @@ class GuardianesCaminoDispositivoController extends Controller
 
             if ($dispositivo->lat && $dispositivo->lng) {
                 $texto .= "Georreferencia\nLat {$dispositivo->lat} Lng {$dispositivo->lng}\n\n";
+            }
+
+            if (str_contains($tipo, 'ACOMPAÑAMIENTOS') && !empty($dispositivo->tipo_acompanamiento)) {
+                $texto .= "TIPO DE ACOMPAÑAMIENTO: {$dispositivo->tipo_acompanamiento}\n\n";
+            }
+
+            if (str_contains($tipo, 'ABANDERAMIENTOS') && !empty($dispositivo->tipo_abanderamiento)) {
+                $texto .= "TIPO DE ABANDERAMIENTO: {$dispositivo->tipo_abanderamiento}\n\n";
+            }
+
+            if (str_contains($tipo, 'AUXILIOS VIALES') && !empty($dispositivo->tipo_auxilio_vial)) {
+                $texto .= "TIPO DE AUXILIO VIAL: {$dispositivo->tipo_auxilio_vial}\n\n";
+            }
+
+            if ($dispositivo->estado_fuerza_participante || $dispositivo->crps_participantes || $dispositivo->kilometros_recorridos) {
+                $texto .= "ESTADO DE FUERZA\n";
+                $texto .= "CRPS ({$dispositivo->crps_participantes})\n";
+                $texto .= "ELEMENTOS ({$dispositivo->estado_fuerza_participante})\n";
+                $texto .= "KILÓMETROS RECORRIDOS ({$dispositivo->kilometros_recorridos})\n\n";
             }
 
             $texto .= ($dispositivo->narrativa ?? '') . "\n\n";

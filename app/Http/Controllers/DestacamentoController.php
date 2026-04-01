@@ -72,6 +72,21 @@ class DestacamentoController extends Controller
         return view('admin.settings.destacamentos.index', compact('destacamentos'));
     }
 
+    public function mapa()
+    {
+        $this->authorize('ver mapa destacamentos');
+        $this->assertAccess();
+
+        $actor = Auth::user();
+
+        $destacamentos = $this->queryVisiblesParaActor($actor)
+            ->whereNotNull('lat')
+            ->whereNotNull('lng')
+            ->get();
+
+        return view('admin.settings.destacamentos.mapa', compact('destacamentos'));
+    }
+
     public function create()
     {
         $this->authorize('crear destacamentos');
@@ -89,6 +104,12 @@ class DestacamentoController extends Controller
             'clave' => 'nullable|string|max:20',
             'nombre' => 'required|string|max:255',
             'municipio' => 'nullable|string|max:255',
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
+            'direccion' => 'nullable|string|max:255',
+            'telefono' => 'nullable|string|max:30',
+            'responsable' => 'nullable|string|max:255',
+            'referencia' => 'nullable|string|max:255',
             'activa' => 'nullable|boolean',
         ]);
 
@@ -101,6 +122,14 @@ class DestacamentoController extends Controller
             'municipio' => !empty($validated['municipio'])
                 ? mb_strtoupper((string) $validated['municipio'], 'UTF-8')
                 : null,
+            'lat' => isset($validated['lat']) && $validated['lat'] !== '' ? (float) $validated['lat'] : null,
+            'lng' => isset($validated['lng']) && $validated['lng'] !== '' ? (float) $validated['lng'] : null,
+            'direccion' => $validated['direccion'] ?? null,
+            'telefono' => $validated['telefono'] ?? null,
+            'responsable' => !empty($validated['responsable'])
+                ? mb_strtoupper((string) $validated['responsable'], 'UTF-8')
+                : null,
+            'referencia' => $validated['referencia'] ?? null,
             'activo' => (bool) ($validated['activa'] ?? true),
         ]);
 
@@ -110,6 +139,13 @@ class DestacamentoController extends Controller
     public function show(Destacamento $destacamento)
     {
         $this->assertCanTouchDestacamento($destacamento);
+
+        $destacamento->load([
+            'unidad',
+            'redApoyos' => function ($q) {
+                $q->orderBy('tipo_apoyo')->orderBy('institucion');
+            },
+        ]);
 
         return view('admin.settings.destacamentos.show', compact('destacamento'));
     }
@@ -131,6 +167,12 @@ class DestacamentoController extends Controller
             'clave' => 'nullable|string|max:20',
             'nombre' => 'required|string|max:255',
             'municipio' => 'nullable|string|max:255',
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
+            'direccion' => 'nullable|string|max:255',
+            'telefono' => 'nullable|string|max:30',
+            'responsable' => 'nullable|string|max:255',
+            'referencia' => 'nullable|string|max:255',
             'activa' => 'nullable|boolean',
         ]);
 
@@ -143,6 +185,14 @@ class DestacamentoController extends Controller
             'municipio' => !empty($validated['municipio'])
                 ? mb_strtoupper((string) $validated['municipio'], 'UTF-8')
                 : null,
+            'lat' => isset($validated['lat']) && $validated['lat'] !== '' ? (float) $validated['lat'] : null,
+            'lng' => isset($validated['lng']) && $validated['lng'] !== '' ? (float) $validated['lng'] : null,
+            'direccion' => $validated['direccion'] ?? null,
+            'telefono' => $validated['telefono'] ?? null,
+            'responsable' => !empty($validated['responsable'])
+                ? mb_strtoupper((string) $validated['responsable'], 'UTF-8')
+                : null,
+            'referencia' => $validated['referencia'] ?? null,
             'activo' => (bool) ($validated['activa'] ?? $destacamento->activo),
         ]);
 
@@ -154,7 +204,7 @@ class DestacamentoController extends Controller
         $this->authorize('eliminar destacamentos');
         $this->assertCanTouchDestacamento($destacamento);
 
-        $tieneUsuarios = \App\Models\User::query()
+        $tieneUsuarios = User::query()
             ->where('destacamento_id', $destacamento->id)
             ->exists();
 

@@ -20,8 +20,14 @@
                     <h3 class="card-title">Destacamentos Registrados</h3>
 
                     <div class="card-tools">
+                        @can('ver mapa destacamentos')
+                            <a href="{{ route('destacamentos.mapa') }}" class="btn btn-info">
+                                <i class="fa-solid fa-map-location-dot"></i> Ver mapa
+                            </a>
+                        @endcan
+
                         @can('crear destacamentos')
-                            <a href="{{ route('destacamentos.create') }}" class="btn btn-warning">
+                            <a href="{{ route('destacamentos.create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Nuevo Destacamento
                             </a>
                         @endcan
@@ -98,6 +104,10 @@
         .table th, .table td {
             text-align: center;
             vertical-align: middle;
+        }
+
+        .card-tools .btn {
+            margin-left: 6px;
         }
     </style>
 @stop

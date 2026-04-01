@@ -225,10 +225,25 @@ class GuardianesCaminoController extends Controller
         $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'ASIENTO SEGURO PASAJEROS MENORES', 'total_crps_participantes', '00') ?: '00') . "\n";
         $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'ASIENTO SEGURO PASAJEROS MENORES', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
 
+        $texto .= "ACOMPAÑAMIENTOS (ESCOLTAS, CARAVANAS, EMERGENCIAS, OTROS): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'ACOMPAÑAMIENTOS', 'total_acompanamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "ESTADO DE FUERZA PARTICIPANTE: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'ACOMPAÑAMIENTOS', 'total_estado_fuerza_participante', 0), 2, '0', STR_PAD_LEFT) . " elementos.\n";
+        $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'ACOMPAÑAMIENTOS', 'total_crps_participantes', '00') ?: '00') . "\n";
+        $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'ACOMPAÑAMIENTOS', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
+
+        $texto .= "ABANDERAMIENTOS (SINIESTROS, EVENTOS, OTROS): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'ABANDERAMIENTOS', 'total_abanderamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "ESTADO DE FUERZA PARTICIPANTE: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'ABANDERAMIENTOS', 'total_estado_fuerza_participante', 0), 2, '0', STR_PAD_LEFT) . " elementos.\n";
+        $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'ABANDERAMIENTOS', 'total_crps_participantes', '00') ?: '00') . "\n";
+        $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'ABANDERAMIENTOS', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
+
+        $texto .= "AUXILIOS VIALES (FALLAS MECÁNICAS, PEATÓN, OTROS): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'AUXILIOS VIALES', 'total_auxilios_viales', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "ESTADO DE FUERZA PARTICIPANTE: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'AUXILIOS VIALES', 'total_estado_fuerza_participante', 0), 2, '0', STR_PAD_LEFT) . " elementos.\n";
+        $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'AUXILIOS VIALES', 'total_crps_participantes', '00') ?: '00') . "\n";
+        $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'AUXILIOS VIALES', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
+
         $texto .= "CABALLEROS DEL CAMINO: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_cantidad', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "• ACOMPAÑAMIENTOS (ESCOLTAS, CARAVANAS, EMERGENCIAS, OTROS): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_acompanamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "• ABANDERAMIENTOS (HECHOS DE TRÁNSITO, EVENTOS, OTROS): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_abanderamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "• AUXILIOS VIALES (FALLAS MECÁNICAS, PEATÓN, OTROS): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_auxilios_viales', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "• ACOMPAÑAMIENTOS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_acompanamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "• ABANDERAMIENTOS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_abanderamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "• AUXILIOS VIALES: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_auxilios_viales', 0), 2, '0', STR_PAD_LEFT) . "\n";
         $texto .= "ESTADO DE FUERZA PARTICIPANTE: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_estado_fuerza_participante', 0), 2, '0', STR_PAD_LEFT) . " elementos.\n";
         $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_crps_participantes', '00') ?: '00') . "\n";
         $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";

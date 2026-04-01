@@ -91,5 +91,47 @@
                 @enderror
             </div>
         </div>
+
+        <div class="col-md-3 campo-dinamico" data-campo="tipo_abanderamiento">
+            <div class="form-group">
+                <label for="tipo_abanderamiento">Tipo de abanderamiento</label>
+                <select
+                    name="tipo_abanderamiento"
+                    id="tipo_abanderamiento"
+                    class="form-control @error('tipo_abanderamiento') is-invalid @enderror"
+                    disabled
+                >
+                    <option value="">Seleccione una opción</option>
+                    <option value="SINIESTROS" {{ old('tipo_abanderamiento') == 'SINIESTROS' ? 'selected' : '' }}>Siniestros</option>
+                    <option value="EVENTOS" {{ old('tipo_abanderamiento') == 'EVENTOS' ? 'selected' : '' }}>Eventos</option>
+                    <option value="OTRO" {{ old('tipo_abanderamiento') == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                </select>
+
+                @error('tipo_abanderamiento')
+                    <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                @enderror
+            </div>
+        </div>
+
+        <div class="col-md-3 campo-dinamico" data-campo="tipo_auxilio_vial">
+            <div class="form-group">
+                <label for="tipo_auxilio_vial">Tipo de auxilio vial</label>
+                <select
+                    name="tipo_auxilio_vial"
+                    id="tipo_auxilio_vial"
+                    class="form-control @error('tipo_auxilio_vial') is-invalid @enderror"
+                    disabled
+                >
+                    <option value="">Seleccione una opción</option>
+                    <option value="FALLA MECANICA" {{ old('tipo_auxilio_vial') == 'FALLA MECANICA' ? 'selected' : '' }}>Falla mecánica</option>
+                    <option value="PEATON" {{ old('tipo_auxilio_vial') == 'PEATON' ? 'selected' : '' }}>Peatón</option>
+                    <option value="OTRO" {{ old('tipo_auxilio_vial') == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                </select>
+
+                @error('tipo_auxilio_vial')
+                    <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                @enderror
+            </div>
+        </div>
     </div>
 </div>

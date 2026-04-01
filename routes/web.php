@@ -523,12 +523,24 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
     Route::prefix('destacamentos')->middleware(['auth','can:ver destacamentos'])->group(function () {
         Route::get('/', [DestacamentoController::class, 'index'])->name('destacamentos.index');
+        Route::get('/mapa', [DestacamentoController::class, 'mapa'])->name('destacamentos.mapa');
+
         Route::get('/create', [DestacamentoController::class, 'create'])->middleware('can:crear destacamentos')->name('destacamentos.create');
         Route::post('/', [DestacamentoController::class, 'store'])->middleware('can:crear destacamentos')->name('destacamentos.store');
         Route::get('/{destacamento}', [DestacamentoController::class, 'show'])->name('destacamentos.show');
         Route::get('/{destacamento}/edit', [DestacamentoController::class, 'edit'])->middleware('can:editar destacamentos')->name('destacamentos.edit');
         Route::put('/{destacamento}', [DestacamentoController::class, 'update'])->middleware('can:editar destacamentos')->name('destacamentos.update');
         Route::delete('/{destacamento}', [DestacamentoController::class, 'destroy'])->middleware('can:eliminar destacamentos')->name('destacamentos.destroy');
+    });
+
+    Route::prefix('directorio-red-apoyo')->middleware(['auth','can:ver directorio red apoyo'])->group(function () {
+        Route::get('/', [DestacamentoRedApoyoController::class, 'index'])->name('directorio_red_apoyo.index');
+        Route::get('/create', [DestacamentoRedApoyoController::class, 'create'])->middleware('can:crear directorio red apoyo')->name('directorio_red_apoyo.create');
+        Route::post('/', [DestacamentoRedApoyoController::class, 'store'])->middleware('can:crear directorio red apoyo')->name('directorio_red_apoyo.store');
+        Route::get('/{redApoyo}', [DestacamentoRedApoyoController::class, 'show'])->name('directorio_red_apoyo.show');
+        Route::get('/{redApoyo}/edit', [DestacamentoRedApoyoController::class, 'edit'])->middleware('can:editar directorio red apoyo')->name('directorio_red_apoyo.edit');
+        Route::put('/{redApoyo}', [DestacamentoRedApoyoController::class, 'update'])->middleware('can:editar directorio red apoyo')->name('directorio_red_apoyo.update');
+        Route::delete('/{redApoyo}', [DestacamentoRedApoyoController::class, 'destroy'])->middleware('can:eliminar directorio red apoyo')->name('directorio_red_apoyo.destroy');
     });
 
     Route::get('/exports/estado-fuerza', [ExportController::class, 'estadoFuerza'])->name('settings.exports.estado_fuerza');

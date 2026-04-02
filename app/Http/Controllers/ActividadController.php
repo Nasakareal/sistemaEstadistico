@@ -150,7 +150,8 @@ class ActividadController extends Controller
             'elementos_participantes_texto'  => 'nullable|string',
             'patrullas_participantes_texto'  => 'nullable|string',
             'destacamento_id'                => 'nullable|integer',
-            'foto'                           => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'fotos'                          => 'required|array|min:1',
+            'fotos.*'                        => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
@@ -170,25 +171,9 @@ class ActividadController extends Controller
         }
 
         return DB::transaction(function () use ($request, $validated) {
-            $file = $request->file('foto');
-            $fotoHash = hash_file('sha256', $file->getRealPath());
-
-            $yaExiste = Actividad::query()->where('foto_hash', $fotoHash)->exists();
-
-            if ($yaExiste) {
-                return back()->withErrors([
-                    'foto' => 'Esta foto ya fue subida anteriormente (mismo contenido).',
-                ])->withInput();
-            }
-
-            $fotoNombreOriginal = $file->getClientOriginalName();
-            $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-            $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
-            $fotoPath = $file->storeAs('actividades', $filename, 'public');
-
             $user = Auth::user();
 
-            Actividad::create([
+            $actividad = Actividad::create([
                 'client_uuid'                   => (string) Str::uuid(),
                 'sync_status'                   => 'local',
                 'sync_error'                    => null,
@@ -197,9 +182,9 @@ class ActividadController extends Controller
                 'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
                 'nombre'                        => $validated['nombre'],
                 'cantidad'                      => 1,
-                'foto_path'                     => $fotoPath,
-                'foto_nombre_original'          => $fotoNombreOriginal,
-                'foto_hash'                     => $fotoHash,
+                'foto_path'                     => null,
+                'foto_nombre_original'          => null,
+                'foto_hash'                     => null,
                 'created_by'                    => $user->id,
                 'updated_by'                    => $user->id,
                 'unidad_org_id'                 => $user->unidad_id,
@@ -231,6 +216,43 @@ class ActividadController extends Controller
                 'revisado_at'                   => null,
                 'observacion_revision'          => null,
             ]);
+
+            $ordenBase = 0;
+
+            foreach ($request->file('fotos', []) as $index => $file) {
+                $fotoHash = hash_file('sha256', $file->getRealPath());
+
+                $yaExiste = $actividad->fotos()
+                    ->where('foto_hash', $fotoHash)
+                    ->exists();
+
+                if ($yaExiste) {
+                    continue;
+                }
+
+                $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+                $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
+                $fotoPath = $file->storeAs('actividades', $filename, 'public');
+
+                $actividad->fotos()->create([
+                    'foto_path'            => $fotoPath,
+                    'foto_nombre_original' => $file->getClientOriginalName(),
+                    'foto_hash'            => $fotoHash,
+                    'orden'                => $ordenBase + $index,
+                    'created_by'           => $user->id,
+                    'updated_by'           => $user->id,
+                ]);
+            }
+
+            $fotoPrincipal = $actividad->fotos()->orderBy('orden')->orderBy('id')->first();
+
+            if ($fotoPrincipal) {
+                $actividad->update([
+                    'foto_path'            => $fotoPrincipal->foto_path,
+                    'foto_nombre_original' => $fotoPrincipal->foto_nombre_original,
+                    'foto_hash'            => $fotoPrincipal->foto_hash,
+                ]);
+            }
 
             return redirect()->route('actividades.index')->with('success', 'Actividad creada correctamente.');
         });
@@ -326,7 +348,8 @@ class ActividadController extends Controller
             'elementos_participantes_texto'  => 'nullable|string',
             'patrullas_participantes_texto'  => 'nullable|string',
             'destacamento_id'                => 'nullable|integer',
-            'foto'                           => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'fotos'                          => 'nullable|array|min:1',
+            'fotos.*'                        => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
@@ -346,38 +369,6 @@ class ActividadController extends Controller
         }
 
         return DB::transaction(function () use ($request, $validated, $actividad) {
-            $fotoPath = $actividad->foto_path;
-            $fotoNombreOriginal = $actividad->foto_nombre_original;
-            $fotoHash = $actividad->foto_hash;
-
-            if ($request->hasFile('foto')) {
-                $file = $request->file('foto');
-                $nuevoHash = hash_file('sha256', $file->getRealPath());
-
-                $yaExiste = Actividad::query()
-                    ->where('foto_hash', $nuevoHash)
-                    ->where('id', '!=', $actividad->id)
-                    ->exists();
-
-                if ($yaExiste) {
-                    return back()->withErrors([
-                        'foto' => 'Esta foto ya fue subida anteriormente (mismo contenido).',
-                    ])->withInput();
-                }
-
-                if (!empty($fotoPath) && Storage::disk('public')->exists($fotoPath)) {
-                    Storage::disk('public')->delete($fotoPath);
-                }
-
-                $this->deletePdfCacheForOriginal($fotoPath);
-
-                $fotoNombreOriginal = $file->getClientOriginalName();
-                $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-                $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
-                $fotoPath = $file->storeAs('actividades', $filename, 'public');
-                $fotoHash = $nuevoHash;
-            }
-
             $user = Auth::user();
 
             $actividad->update([
@@ -386,9 +377,6 @@ class ActividadController extends Controller
                 'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
                 'nombre'                        => $validated['nombre'],
                 'cantidad'                      => 1,
-                'foto_path'                     => $fotoPath,
-                'foto_nombre_original'          => $fotoNombreOriginal,
-                'foto_hash'                     => $fotoHash,
                 'updated_by'                    => $user->id,
                 'unidad_org_id'                 => $actividad->unidad_org_id ?? $user->unidad_id,
                 'delegacion_id'                 => $actividad->delegacion_id ?? $user->delegacion_id,
@@ -416,6 +404,44 @@ class ActividadController extends Controller
                 'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? null,
             ]);
 
+            if ($request->hasFile('fotos')) {
+                $ordenBase = (int) $actividad->fotos()->max('orden');
+                $ordenBase = $ordenBase >= 0 ? $ordenBase + 1 : 0;
+
+                foreach ($request->file('fotos', []) as $index => $file) {
+                    $fotoHash = hash_file('sha256', $file->getRealPath());
+
+                    $yaExiste = $actividad->fotos()
+                        ->where('foto_hash', $fotoHash)
+                        ->exists();
+
+                    if ($yaExiste) {
+                        continue;
+                    }
+
+                    $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+                    $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
+                    $fotoPath = $file->storeAs('actividades', $filename, 'public');
+
+                    $actividad->fotos()->create([
+                        'foto_path'            => $fotoPath,
+                        'foto_nombre_original' => $file->getClientOriginalName(),
+                        'foto_hash'            => $fotoHash,
+                        'orden'                => $ordenBase + $index,
+                        'created_by'           => $user->id,
+                        'updated_by'           => $user->id,
+                    ]);
+                }
+            }
+
+            $fotoPrincipal = $actividad->fotos()->orderBy('orden')->orderBy('id')->first();
+
+            $actividad->update([
+                'foto_path'            => $fotoPrincipal?->foto_path,
+                'foto_nombre_original' => $fotoPrincipal?->foto_nombre_original,
+                'foto_hash'            => $fotoPrincipal?->foto_hash,
+            ]);
+
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');
         });
     }
@@ -434,6 +460,16 @@ class ActividadController extends Controller
         }
 
         return DB::transaction(function () use ($actividad) {
+            $actividad->load('fotos');
+
+            foreach ($actividad->fotos as $foto) {
+                if (!empty($foto->foto_path) && Storage::disk('public')->exists($foto->foto_path)) {
+                    Storage::disk('public')->delete($foto->foto_path);
+                }
+
+                $this->deletePdfCacheForOriginal($foto->foto_path);
+            }
+
             if (!empty($actividad->foto_path) && Storage::disk('public')->exists($actividad->foto_path)) {
                 Storage::disk('public')->delete($actividad->foto_path);
             }
@@ -715,7 +751,14 @@ class ActividadController extends Controller
             abort(404);
         }
 
-        $actividad->load(['categoria', 'subcategoria', 'unidad', 'delegacion', 'destacamento']);
+        $actividad->load([
+            'categoria',
+            'subcategoria',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'fotos',
+        ]);
 
         $fecha = $actividad->fecha ? \Carbon\Carbon::parse($actividad->fecha)->format('d/m/Y') : '';
         $hora = $actividad->hora ? substr((string) $actividad->hora, 0, 5) : '';
@@ -778,15 +821,22 @@ class ActividadController extends Controller
             $texto .= trim((string) $actividad->patrullas_participantes_texto) . "\n\n";
         }
 
-        $fotoUrl = null;
+        $fotos = $actividad->fotos
+            ->sortBy([['orden', 'asc'], ['id', 'asc']])
+            ->map(function ($foto) {
+                return asset('storage/' . ltrim($foto->foto_path, '/'));
+            })
+            ->values();
 
-        if ($actividad->foto_path) {
-            $fotoUrl = asset('storage/' . ltrim($actividad->foto_path, '/'));
+        if ($fotos->isEmpty() && $actividad->foto_path) {
+            $fotos = collect([
+                asset('storage/' . ltrim($actividad->foto_path, '/')),
+            ]);
         }
 
         return response()->json([
             'texto' => trim($texto),
-            'foto' => $fotoUrl,
+            'fotos' => $fotos,
         ]);
     }
 }

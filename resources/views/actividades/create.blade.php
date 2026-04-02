@@ -422,23 +422,30 @@
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label for="foto">Foto<span style="color:red">*</span></label>
+                                    <label for="fotos">Fotos<span style="color:red">*</span></label>
                                     <input type="file"
-                                           name="foto"
-                                           id="foto"
+                                           name="fotos[]"
+                                           id="fotos"
                                            accept="image/*"
-                                           class="form-control @error('foto') is-invalid @enderror"
+                                           multiple
+                                           class="form-control @error('fotos') is-invalid @enderror @error('fotos.*') is-invalid @enderror"
                                            required>
-                                    @error('foto')
-                                        <span class="invalid-feedback" role="alert">
+
+                                    @error('fotos')
+                                        <span class="invalid-feedback d-block" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
+
+                                    @error('fotos.*')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
                                     <small id="foto_name" class="help-muted"></small>
 
-                                    <div id="preview_wrap" class="preview-wrap" style="display:none;">
-                                        <img id="foto_preview" class="foto-thumb" src="" alt="Vista previa">
-                                    </div>
+                                    <div id="preview_wrap" class="preview-grid" style="display:none;"></div>
                                 </div>
                             </div>
                         </div>
@@ -504,20 +511,31 @@
             border-color: rgba(45,168,255,.55);
         }
 
-        .preview-wrap {
-            display: flex;
-            align-items: center;
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 10px;
-            margin-top: 8px;
+            margin-top: 10px;
+        }
+
+        .preview-item {
+            position: relative;
         }
 
         .foto-thumb {
-            width: 140px;
-            height: 100px;
+            width: 100%;
+            height: 120px;
             object-fit: cover;
             border-radius: 8px;
             border: 1px solid rgba(255,255,255,.16);
             background: rgba(255,255,255,.06);
+        }
+
+        .preview-label {
+            margin-top: 4px;
+            font-size: 12px;
+            color: rgba(234,240,255,.75);
+            word-break: break-word;
         }
     </style>
 @stop
@@ -529,16 +547,16 @@
             const subcatSelect = document.getElementById('actividad_subcategoria_id');
             const nombreInput = document.getElementById('nombre');
             const nombreActual = nombreInput ? nombreInput.value : '';
-            const fotoInput = document.getElementById('foto');
+
+            const fotoInput = document.getElementById('fotos');
             const fotoName = document.getElementById('foto_name');
             const previewWrap = document.getElementById('preview_wrap');
-            const fotoPreview = document.getElementById('foto_preview');
 
             const latInput = document.getElementById('lat');
             const lngInput = document.getElementById('lng');
             const fuenteInput = document.getElementById('fuente_ubicacion');
             const notaGeoInput = document.getElementById('nota_geo');
-            const coordenadasTextoInput = document.querySelector('input[type="hidden"][name="coordenadas_texto"]');
+            const coordenadasTextoInput = document.getElementById('coordenadas_texto');
             const btnUbicacion = document.getElementById('btnUbicacion');
             const ubicacionEstado = document.getElementById('ubicacion_estado');
             const ubicacionPreviewWrap = document.getElementById('ubicacion_preview_wrap');
@@ -612,7 +630,6 @@
                     } else {
                         subcatSelect.value = '';
                     }
-
                 } catch (e) {
                     setSubcatBase('No hay subcategorías para esta categoría');
                 }
@@ -632,6 +649,52 @@
                 if (ubicacionPreviewWrap) {
                     ubicacionPreviewWrap.style.display = '';
                 }
+            }
+
+            function limpiarPreviewFotos() {
+                if (!previewWrap) return;
+                previewWrap.innerHTML = '';
+                previewWrap.style.display = 'none';
+            }
+
+            function renderPreviewFotos(files) {
+                if (!previewWrap) return;
+
+                limpiarPreviewFotos();
+
+                if (!files || files.length === 0) {
+                    return;
+                }
+
+                previewWrap.style.display = 'grid';
+
+                files.forEach(function (file, index) {
+                    if (!file.type || !file.type.startsWith('image/')) {
+                        return;
+                    }
+
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        const item = document.createElement('div');
+                        item.className = 'preview-item';
+
+                        const img = document.createElement('img');
+                        img.className = 'foto-thumb';
+                        img.src = e.target.result;
+                        img.alt = file.name || `Foto ${index + 1}`;
+
+                        const label = document.createElement('div');
+                        label.className = 'preview-label';
+                        label.textContent = file.name || `Foto ${index + 1}`;
+
+                        item.appendChild(img);
+                        item.appendChild(label);
+                        previewWrap.appendChild(item);
+                    };
+
+                    reader.readAsDataURL(file);
+                });
             }
 
             if (btnUbicacion) {
@@ -727,24 +790,15 @@
 
             if (fotoInput) {
                 fotoInput.addEventListener('change', function () {
-                    const file = fotoInput.files && fotoInput.files[0] ? fotoInput.files[0] : null;
+                    const files = Array.from(fotoInput.files || []);
 
                     if (fotoName) {
-                        fotoName.textContent = file ? ('Archivo: ' + file.name) : '';
+                        fotoName.textContent = files.length > 0
+                            ? `${files.length} archivo(s) seleccionado(s)`
+                            : '';
                     }
 
-                    if (!file) {
-                        if (previewWrap) previewWrap.style.display = 'none';
-                        if (fotoPreview) fotoPreview.src = '';
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        if (fotoPreview) fotoPreview.src = e.target.result;
-                        if (previewWrap) previewWrap.style.display = 'flex';
-                    };
-                    reader.readAsDataURL(file);
+                    renderPreviewFotos(files);
                 });
             }
         });

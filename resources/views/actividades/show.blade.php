@@ -36,8 +36,21 @@
 
 @section('content')
     @php
-        $fotoPath = $actividad->foto_path ?? null;
-        $urlFoto = $fotoPath ? asset('storage/' . ltrim($fotoPath, '/')) : null;
+        $fotosActividad = $actividad->relationLoaded('fotos')
+            ? $actividad->fotos
+            : $actividad->fotos()->orderBy('orden')->orderBy('id')->get();
+
+        if ($fotosActividad->isEmpty() && !empty($actividad->foto_path)) {
+            $fotosActividad = collect([
+                (object) [
+                    'id' => 'legacy',
+                    'foto_path' => $actividad->foto_path,
+                    'foto_nombre_original' => $actividad->foto_nombre_original,
+                    'foto_hash' => $actividad->foto_hash,
+                    'orden' => 0,
+                ]
+            ]);
+        }
     @endphp
 
     <div class="row">
@@ -293,29 +306,40 @@
 
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Foto</h3>
+                    <h3 class="card-title">Fotos</h3>
                 </div>
 
                 <div class="card-body">
-                    @if ($urlFoto)
-                        <a href="{{ $urlFoto }}" target="_blank" rel="noopener">
-                            <img src="{{ $urlFoto }}" alt="foto" class="foto-big">
-                        </a>
+                    @if ($fotosActividad->count())
+                        <div class="foto-grid">
+                            @foreach ($fotosActividad as $foto)
+                                @php
+                                    $fotoUrl = asset('storage/' . ltrim($foto->foto_path, '/'));
+                                    $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
+                                @endphp
 
-                        <div class="row mt-3" style="row-gap:18px;">
-                            <div class="col-md-6">
-                                <label class="help-muted d-block">Archivo original</label>
-                                <div class="form-control-like text-wrap-block">{{ $actividad->foto_nombre_original ?? '—' }}</div>
-                            </div>
+                                <div class="foto-card">
+                                    <a href="{{ $fotoUrl }}" target="_blank" rel="noopener">
+                                        <img src="{{ $fotoUrl }}" alt="{{ $fotoNombre }}" class="foto-big">
+                                    </a>
 
-                            <div class="col-md-6">
-                                <label class="help-muted d-block">Hash de foto</label>
-                                <div class="form-control-like text-wrap-block">{{ $actividad->foto_hash ?? '—' }}</div>
-                            </div>
+                                    <div class="row mt-3" style="row-gap:18px;">
+                                        <div class="col-md-6">
+                                            <label class="help-muted d-block">Archivo original</label>
+                                            <div class="form-control-like text-wrap-block">{{ $fotoNombre }}</div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="help-muted d-block">Hash de foto</label>
+                                            <div class="form-control-like text-wrap-block">{{ $foto->foto_hash ?? '—' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     @else
                         <div class="alert alert-warning mb-0">
-                            No hay foto registrada para esta actividad.
+                            No hay fotos registradas para esta actividad.
                         </div>
                     @endif
                 </div>
@@ -347,6 +371,19 @@
             align-items: flex-start;
         }
 
+        .foto-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        .foto-card {
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 16px;
+            background: rgba(255,255,255,.03);
+        }
+
         .foto-big {
             width: 100%;
             max-width: 900px;
@@ -355,6 +392,7 @@
             border: 1px solid rgba(255,255,255,.16);
             background: rgba(255,255,255,.06);
             display: block;
+            margin: 0 auto;
         }
     </style>
 @stop
@@ -381,17 +419,24 @@
                 }
 
                 if (navigator.share) {
-                    if (data.foto) {
+                    if (Array.isArray(data.fotos) && data.fotos.length > 0) {
                         try {
-                            const responseFoto = await fetch(data.foto);
-                            const blob = await responseFoto.blob();
-                            const extension = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
-                            const file = new File([blob], `actividad_${id}.${extension}`, { type: blob.type });
+                            const files = [];
 
-                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            for (const [index, fotoUrl] of data.fotos.entries()) {
+                                const responseFoto = await fetch(fotoUrl);
+                                const blob = await responseFoto.blob();
+                                const extension = blob.type === 'image/png'
+                                    ? 'png'
+                                    : (blob.type === 'image/webp' ? 'webp' : 'jpg');
+
+                                files.push(new File([blob], `actividad_${id}_${index + 1}.${extension}`, { type: blob.type }));
+                            }
+
+                            if (files.length > 0 && navigator.canShare && navigator.canShare({ files })) {
                                 await navigator.share({
                                     text: data.texto,
-                                    files: [file]
+                                    files: files
                                 });
                                 return;
                             }

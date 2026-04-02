@@ -240,19 +240,14 @@ class GuardianesCaminoController extends Controller
         $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'AUXILIOS VIALES', 'total_crps_participantes', '00') ?: '00') . "\n";
         $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'AUXILIOS VIALES', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
 
-        $texto .= "CABALLEROS DEL CAMINO: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_cantidad', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "• ACOMPAÑAMIENTOS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_acompanamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "• ABANDERAMIENTOS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_abanderamientos', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "• AUXILIOS VIALES: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_auxilios_viales', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "ESTADO DE FUERZA PARTICIPANTE: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_estado_fuerza_participante', 0), 2, '0', STR_PAD_LEFT) . " elementos.\n";
-        $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_crps_participantes', '00') ?: '00') . "\n";
-        $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'CABALLEROS DEL CAMINO', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
-
-        $texto .= "PROXIMIDAD SOCIAL\n";
-        $texto .= "- EMPRESAS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'PROXIMIDAD SOCIAL', 'total_prox_empresas', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "- TIENDAS DE CONVENIENCIA: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'PROXIMIDAD SOCIAL', 'total_prox_tiendas_conveniencia', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "- ESCUELAS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'PROXIMIDAD SOCIAL', 'total_prox_escuelas', 0), 2, '0', STR_PAD_LEFT) . "\n";
-        $texto .= "- HOSPITALES: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'PROXIMIDAD SOCIAL', 'total_prox_hospitales', 0), 2, '0', STR_PAD_LEFT) . "\n\n";
+        $texto .= "CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL): " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_cantidad', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "- EMPRESAS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_prox_empresas', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "- TIENDAS DE CONVENIENCIA: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_prox_tiendas_conveniencia', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "- ESCUELAS: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_prox_escuelas', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "- HOSPITALES: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_prox_hospitales', 0), 2, '0', STR_PAD_LEFT) . "\n";
+        $texto .= "ESTADO DE FUERZA PARTICIPANTE: " . str_pad((string) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_estado_fuerza_participante', 0), 2, '0', STR_PAD_LEFT) . " elementos.\n";
+        $texto .= "CRP´s. PARTICIPANTES: " . ($this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_crps_participantes', '00') ?: '00') . "\n";
+        $texto .= "KILÓMETROS RECORRIDOS: " . str_pad((string) ((float) $this->valorResumen($resumenPorNombre, 'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)', 'total_kilometros_recorridos', 0)), 2, '0', STR_PAD_LEFT) . "\n\n";
 
         $texto .= "TOTALES:\n\n";
         $texto .= "INSPECCIONES DE PERSONAS Y/O VEHÍCULOS:\n";

@@ -3,10 +3,8 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\destacamentos"
+    "\\resources\\views\\actividades"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\destacamentos\\mapa.blade.php",
+  "SelectedNode": "\\resources\\views\\actividades\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

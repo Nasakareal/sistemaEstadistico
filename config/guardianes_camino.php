@@ -108,30 +108,27 @@ return [
             ],
         ],
 
-
-
-
-
-
-        'CABALLEROS DEL CAMINO' => [
-            'titulo' => 'Caballeros del Camino',
+        'CABALLERO DEL CAMINO (PROXIMIDAD SOCIAL)' => [
+            'titulo' => 'Caballero del Camino (Proximidad Social)',
             'campos' => [
-                'acompanamientos',
-                'abanderamientos',
-                'auxilios_viales',
+                'prox_empresas',
+                'prox_tiendas_conveniencia',
+                'prox_escuelas',
+                'prox_hospitales',
                 'estado_fuerza_participante',
                 'crps_participantes',
                 'kilometros_recorridos',
             ],
         ],
 
-        'PROXIMIDAD SOCIAL' => [
-            'titulo' => 'Proximidad Social',
+        'ATENCIÓN A REPORTES C5' => [
+            'titulo' => 'Atención a Reportes C5',
             'campos' => [
-                'prox_empresas',
-                'prox_tiendas_conveniencia',
-                'prox_escuelas',
-                'prox_hospitales',
+                'folio_atendido',
+                'motivo_folio',
+                'estado_fuerza_participante',
+                'crps_participantes',
+                'kilometros_recorridos',
             ],
         ],
     ],
@@ -163,5 +160,7 @@ return [
         'tipo_acompanamiento',
         'tipo_abanderamiento',
         'tipo_auxilio_vial',
+        'folio_atendido',
+        'motivo_folio',
     ],
 ];

@@ -60,6 +60,10 @@ class OperativoDispositivo extends Model
         'abanderamientos',
         'auxilios_viales',
         'tipo_acompanamiento',
+        'tipo_abanderamiento',
+        'tipo_auxilio_vial',
+        'folio_atendido',
+        'motivo_folio',
         'prox_empresas',
         'prox_tiendas_conveniencia',
         'prox_escuelas',
@@ -94,16 +98,8 @@ class OperativoDispositivo extends Model
         'compartido_whatsapp' => 'boolean',
         'synced_at' => 'datetime',
         'compartido_whatsapp_at' => 'datetime',
-
-        // 🔥 NUEVO
         'revisado_at' => 'datetime',
     ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | RELACIONES EXISTENTES
-    |--------------------------------------------------------------------------
-    */
 
     public function operativo()
     {
@@ -154,12 +150,6 @@ class OperativoDispositivo extends Model
     {
         return $this->hasMany(OperativoConsolidadoDetalle::class, 'operativo_dispositivo_id');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | 🔥 NUEVA RELACIÓN (CLAVE)
-    |--------------------------------------------------------------------------
-    */
 
     public function revisadoPor()
     {

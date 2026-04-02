@@ -107,4 +107,9 @@ class Actividad extends Model
     {
         return $this->belongsTo(User::class, 'revisado_por');
     }
+
+    public function fotos()
+    {
+        return $this->hasMany(ActividadFoto::class, 'actividad_id')->orderBy('orden');
+    }
 }

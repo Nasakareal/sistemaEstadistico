@@ -452,34 +452,75 @@
                         </div>
 
                         @php
-                            $fotoPathActual = $actividad->foto_path ?? null;
-                            $urlFoto = $fotoPathActual ? asset('storage/' . ltrim($fotoPathActual, '/')) : null;
+                            $fotosActuales = $actividad->relationLoaded('fotos')
+                                ? $actividad->fotos
+                                : $actividad->fotos()->orderBy('orden')->orderBy('id')->get();
+
+                            if ($fotosActuales->isEmpty() && !empty($actividad->foto_path)) {
+                                $fotosActuales = collect([
+                                    (object) [
+                                        'id' => 'legacy',
+                                        'foto_path' => $actividad->foto_path,
+                                        'foto_nombre_original' => $actividad->foto_nombre_original,
+                                        'orden' => 0,
+                                    ]
+                                ]);
+                            }
                         @endphp
 
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label for="foto">Foto</label>
+                                    <label>Fotos actuales</label>
+
+                                    <div class="preview-grid" style="{{ $fotosActuales->count() ? '' : 'display:none;' }}">
+                                        @foreach ($fotosActuales as $foto)
+                                            @php
+                                                $fotoUrl = asset('storage/' . ltrim($foto->foto_path, '/'));
+                                                $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
+                                            @endphp
+                                            <div class="preview-item">
+                                                <a href="{{ $fotoUrl }}" target="_blank" rel="noopener">
+                                                    <img src="{{ $fotoUrl }}" class="foto-thumb" alt="{{ $fotoNombre }}">
+                                                </a>
+                                                <div class="preview-label">{{ $fotoNombre }}</div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    @if ($fotosActuales->isEmpty())
+                                        <small class="help-muted">No hay fotos registradas actualmente.</small>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="fotos">Agregar nuevas fotos</label>
                                     <input type="file"
-                                           name="foto"
-                                           id="foto"
+                                           name="fotos[]"
+                                           id="fotos"
                                            accept="image/*"
-                                           class="form-control @error('foto') is-invalid @enderror">
-                                    @error('foto')
-                                        <span class="invalid-feedback" role="alert">
+                                           multiple
+                                           class="form-control @error('fotos') is-invalid @enderror @error('fotos.*') is-invalid @enderror">
+
+                                    @error('fotos')
+                                        <span class="invalid-feedback d-block" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
+
+                                    @error('fotos.*')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
                                     <small id="foto_name" class="help-muted"></small>
 
-                                    <div id="preview_wrap" class="preview-wrap" style="{{ $urlFoto ? 'display:flex;' : 'display:none;' }}">
-                                        <a id="foto_link" href="{{ $urlFoto ?: '#' }}" target="_blank" rel="noopener" style="{{ $urlFoto ? '' : 'display:none;' }}">
-                                            <img id="foto_preview" class="foto-thumb" src="{{ $urlFoto ?: '' }}" alt="Vista previa">
-                                        </a>
-                                        <div id="foto_actual_wrap" style="{{ $urlFoto ? '' : 'display:none;' }}">
-                                            <small class="help-muted">Foto actual</small>
-                                        </div>
-                                    </div>
+                                    <div id="preview_wrap" class="preview-grid" style="display:none;"></div>
                                 </div>
                             </div>
                         </div>
@@ -545,20 +586,32 @@
             border-color: rgba(45,168,255,.55);
         }
 
-        .preview-wrap {
-            display: flex;
-            align-items: center;
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 10px;
-            margin-top: 8px;
+            margin-top: 10px;
+        }
+
+        .preview-item {
+            position: relative;
         }
 
         .foto-thumb {
-            width: 140px;
-            height: 100px;
+            width: 100%;
+            height: 120px;
             object-fit: cover;
             border-radius: 8px;
             border: 1px solid rgba(255,255,255,.16);
             background: rgba(255,255,255,.06);
+            display: block;
+        }
+
+        .preview-label {
+            margin-top: 4px;
+            font-size: 12px;
+            color: rgba(234,240,255,.75);
+            word-break: break-word;
         }
     </style>
 @stop
@@ -570,19 +623,20 @@
             const subcatSelect = document.getElementById('actividad_subcategoria_id');
             const nombreInput = document.getElementById('nombre');
             const nombreActual = nombreInput ? nombreInput.value : '';
-            const fotoInput = document.getElementById('foto');
+
+            const fotoInput = document.getElementById('fotos');
             const fotoName = document.getElementById('foto_name');
             const previewWrap = document.getElementById('preview_wrap');
-            const fotoPreview = document.getElementById('foto_preview');
-            const fotoLink = document.getElementById('foto_link');
-            const fotoActualWrap = document.getElementById('foto_actual_wrap');
 
             function setSubcatDisabled(msg) {
+                if (!subcatSelect) return;
                 subcatSelect.disabled = true;
                 subcatSelect.innerHTML = `<option value="" selected>${msg}</option>`;
             }
 
             function setSubcatBase(msgOpcional) {
+                if (!subcatSelect) return;
+
                 subcatSelect.disabled = false;
                 subcatSelect.innerHTML = '';
 
@@ -642,10 +696,55 @@
                     } else {
                         subcatSelect.value = '';
                     }
-
                 } catch (e) {
                     setSubcatBase('No hay subcategorías para esta categoría');
                 }
+            }
+
+            function limpiarPreviewFotos() {
+                if (!previewWrap) return;
+                previewWrap.innerHTML = '';
+                previewWrap.style.display = 'none';
+            }
+
+            function renderPreviewFotos(files) {
+                if (!previewWrap) return;
+
+                limpiarPreviewFotos();
+
+                if (!files || files.length === 0) {
+                    return;
+                }
+
+                previewWrap.style.display = 'grid';
+
+                files.forEach(function (file, index) {
+                    if (!file.type || !file.type.startsWith('image/')) {
+                        return;
+                    }
+
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        const item = document.createElement('div');
+                        item.className = 'preview-item';
+
+                        const img = document.createElement('img');
+                        img.className = 'foto-thumb';
+                        img.src = e.target.result;
+                        img.alt = file.name || `Foto ${index + 1}`;
+
+                        const label = document.createElement('div');
+                        label.className = 'preview-label';
+                        label.textContent = file.name || `Foto ${index + 1}`;
+
+                        item.appendChild(img);
+                        item.appendChild(label);
+                        previewWrap.appendChild(item);
+                    };
+
+                    reader.readAsDataURL(file);
+                });
             }
 
             if (nombreInput) {
@@ -679,36 +778,15 @@
 
             if (fotoInput) {
                 fotoInput.addEventListener('change', function () {
-                    const file = fotoInput.files && fotoInput.files[0] ? fotoInput.files[0] : null;
+                    const files = Array.from(fotoInput.files || []);
 
                     if (fotoName) {
-                        fotoName.textContent = file ? ('Archivo: ' + file.name) : '';
+                        fotoName.textContent = files.length > 0
+                            ? `${files.length} archivo(s) seleccionado(s)`
+                            : '';
                     }
 
-                    if (!file) {
-                        @if($urlFoto)
-                            if (fotoPreview) fotoPreview.src = @json($urlFoto);
-                            if (fotoLink) fotoLink.href = @json($urlFoto);
-                            if (previewWrap) previewWrap.style.display = 'flex';
-                            if (fotoLink) fotoLink.style.display = '';
-                            if (fotoActualWrap) fotoActualWrap.style.display = '';
-                        @else
-                            if (previewWrap) previewWrap.style.display = 'none';
-                            if (fotoPreview) fotoPreview.src = '';
-                            if (fotoLink) fotoLink.href = '#';
-                        @endif
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        if (fotoPreview) fotoPreview.src = e.target.result;
-                        if (fotoLink) fotoLink.href = e.target.result;
-                        if (previewWrap) previewWrap.style.display = 'flex';
-                        if (fotoLink) fotoLink.style.display = '';
-                        if (fotoActualWrap) fotoActualWrap.style.display = 'none';
-                    };
-                    reader.readAsDataURL(file);
+                    renderPreviewFotos(files);
                 });
             }
         });

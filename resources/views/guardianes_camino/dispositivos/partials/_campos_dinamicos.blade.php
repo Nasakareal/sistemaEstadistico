@@ -22,6 +22,8 @@
                 'prox_tiendas_conveniencia' => ['Tiendas de conveniencia', 'number', '0'],
                 'prox_escuelas' => ['Escuelas', 'number', '0'],
                 'prox_hospitales' => ['Hospitales', 'number', '0'],
+                'folio_atendido' => ['N° folio atendido', 'text', ''],
+                'motivo_folio' => ['Motivo del folio', 'text', ''],
             ];
         @endphp
 

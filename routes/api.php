@@ -90,13 +90,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('actividades')->group(function () {
         Route::get('/categorias', [ActividadController::class, 'categorias'])->name('api.actividades.categorias');
-        Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->name('api.actividades.subcategorias');
+        Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->whereNumber('categoria')->name('api.actividades.subcategorias');
+        Route::get('/compartir-totales-whatsapp', [ActividadController::class, 'compartirTotalesWhatsapp'])->name('api.actividades.compartir_totales');
+        Route::get('/{actividad}/compartir', [ActividadController::class, 'compartir'])->whereNumber('actividad')->name('api.actividades.compartir');
         Route::get('/', [ActividadController::class, 'index'])->name('api.actividades.index');
         Route::post('/', [ActividadController::class, 'store'])->middleware('can:crear actividades')->name('api.actividades.store');
-        Route::get('/{actividad}', [ActividadController::class, 'show'])->name('api.actividades.show');
-        Route::put('/{actividad}', [ActividadController::class, 'update'])->middleware('can:editar actividades')->name('api.actividades.update');
-        Route::delete('/{actividad}', [ActividadController::class, 'destroy'])->middleware('can:eliminar actividades')->name('api.actividades.destroy');
+        Route::get('/{actividad}', [ActividadController::class, 'show'])->whereNumber('actividad')->name('api.actividades.show');
+        Route::put('/{actividad}', [ActividadController::class, 'update'])->whereNumber('actividad')->middleware('can:editar actividades')->name('api.actividades.update');
+        Route::delete('/{actividad}', [ActividadController::class, 'destroy'])->whereNumber('actividad')->middleware('can:eliminar actividades')->name('api.actividades.destroy');
     });
+
 
     Route::get('/alerts', [AlertController::class, 'index']);
     Route::post('/alerts/{alert}/read', [AlertController::class, 'markRead']);

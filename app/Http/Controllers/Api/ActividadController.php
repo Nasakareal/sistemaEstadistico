@@ -704,4 +704,16 @@ class ActividadController extends Controller
 
         $query->whereRaw('1=0');
     }
+
+    private function toUpperOrNull($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : mb_strtoupper($value, 'UTF-8');
+    }
+
 }

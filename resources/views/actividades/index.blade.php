@@ -23,6 +23,15 @@
                             <i class="fa-solid fa-file-pdf"></i> Generar informe
                         </a>
 
+                        <button
+                            type="button"
+                            class="btn btn-success"
+                            id="btnCompartirTotalesWhatsapp"
+                            data-url="{{ route('actividades.compartir_totales_whatsapp', ['fecha' => $fechaSeleccionada]) }}"
+                        >
+                            <i class="fa-brands fa-whatsapp"></i> Compartir totales WhatsApp
+                        </button>
+
                         @can('crear actividades')
                             <a href="{{ route('actividades.create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Añadir nueva actividad
@@ -232,28 +241,32 @@
                     throw new Error('No se generó el texto para compartir');
                 }
 
-                if (navigator.share) {
-                    if (data.foto) {
-                        try {
-                            const responseFoto = await fetch(data.foto);
-                            const blob = await responseFoto.blob();
-                            const extension = blob.type === 'image/png' ? 'png' : (blob.type === 'image/webp' ? 'webp' : 'jpg');
-                            const file = new File([blob], `actividad_${id}.${extension}`, { type: blob.type });
+                const fotos = Array.isArray(data.fotos) ? data.fotos : [];
 
-                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                if (navigator.share) {
+                    if (fotos.length > 0) {
+                        try {
+                            const archivos = [];
+
+                            for (let i = 0; i < fotos.length; i++) {
+                                const responseFoto = await fetch(fotos[i]);
+                                const blob = await responseFoto.blob();
+                                const extension = blob.type === 'image/png'
+                                    ? 'png'
+                                    : (blob.type === 'image/webp' ? 'webp' : 'jpg');
+
+                                archivos.push(new File([blob], `actividad_${id}_${i + 1}.${extension}`, { type: blob.type }));
+                            }
+
+                            if (navigator.canShare && navigator.canShare({ files: archivos })) {
                                 await navigator.share({
                                     text: data.texto,
-                                    files: [file]
+                                    files: archivos
                                 });
                                 return;
                             }
                         } catch (e) {
                         }
-
-                        await navigator.share({
-                            text: data.texto
-                        });
-                        return;
                     }
 
                     await navigator.share({
@@ -269,6 +282,49 @@
                     icon: 'error',
                     title: 'Error',
                     text: error.message || 'No se pudo compartir la actividad.'
+                });
+            }
+        }
+
+        async function compartirTotalesWhatsapp() {
+            const btn = document.getElementById('btnCompartirTotalesWhatsapp');
+
+            if (!btn) {
+                return;
+            }
+
+            try {
+                const res = await fetch(btn.dataset.url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || !data.ok) {
+                    throw new Error(data.message || 'No se pudo generar el resumen.');
+                }
+
+                if (!data.texto) {
+                    throw new Error('No se generó el texto para compartir.');
+                }
+
+                if (navigator.share) {
+                    await navigator.share({
+                        text: data.texto
+                    });
+                    return;
+                }
+
+                const waUrl = `https://wa.me/?text=${encodeURIComponent(data.texto)}`;
+                window.open(waUrl, '_blank');
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'No se pudo compartir el resumen de totales.'
                 });
             }
         }
@@ -308,6 +364,10 @@
                     e.preventDefault();
                     $('#filtrosForm').submit();
                 }
+            });
+
+            $('#btnCompartirTotalesWhatsapp').on('click', function () {
+                compartirTotalesWhatsapp();
             });
 
             @if (session('success'))

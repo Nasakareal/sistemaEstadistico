@@ -159,6 +159,7 @@ Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(
     Route::delete('/{actividad}',[ActividadController::class,'destroy'])->middleware('can:eliminar actividades')->name('actividades.destroy');
 
     Route::get('/{actividad}/compartir', [ActividadController::class, 'compartir'])->name('actividades.compartir');
+    Route::get('actividades/compartir-totales-whatsapp', [ActividadController::class, 'compartirTotalesWhatsapp'])->name('actividades.compartir_totales_whatsapp');
 });
 
 Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales','unidad:siniestros'])->group(function () {
@@ -554,6 +555,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/bitacora/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarBitacora'])->name('settings.estadisticas_siniestros.bitacora.descargar');
         Route::get('/mini-parte', [EstadisticasSiniestrosSettingsController::class, 'miniParte'])->name('settings.estadisticas_siniestros.mini_parte');
         Route::get('/mini-parte/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarMiniParte'])->name('settings.estadisticas_siniestros.mini_parte.descargar');
+        Route::get('/excel-novedades', [EstadisticasSiniestrosSettingsController::class, 'excelNovedades'])->name('settings.estadisticas_siniestros.excel_novedades');
+        Route::get('/excel-novedades/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarExcelNovedades'])->name('settings.estadisticas_siniestros.excel_novedades.descargar');
     });
 
     Route::prefix('estadisticas-carreteras')->group(function () {

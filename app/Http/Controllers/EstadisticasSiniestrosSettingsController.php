@@ -138,4 +138,46 @@ class EstadisticasSiniestrosSettingsController extends Controller
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
         );
     }
+
+    public function excelNovedades()
+    {
+        $disk = Storage::disk('local');
+        $directorio = 'cortes/excel_novedades';
+
+        $cortes = collect($disk->files($directorio))
+            ->filter(function ($file) {
+                return preg_match('/excel_novedades_\d{4}-\d{2}-\d{2}\.xlsx$/', basename($file));
+            })
+            ->map(function ($file) {
+                $nombre = basename($file);
+
+                preg_match('/excel_novedades_(\d{4}-\d{2}-\d{2})\.xlsx$/', $nombre, $matches);
+
+                return [
+                    'archivo' => $nombre,
+                    'ruta' => $file,
+                    'fecha' => $matches[1] ?? null,
+                    'url_descarga' => route('settings.estadisticas_siniestros.excel_novedades.descargar', $matches[1] ?? null),
+                ];
+            })
+            ->filter(fn ($item) => !empty($item['fecha']))
+            ->sortByDesc('fecha')
+            ->values();
+
+        return view('admin.settings.estadisticas_siniestros.excel_novedades.index', compact('cortes'));
+    }
+
+    public function descargarExcelNovedades(string $fecha)
+    {
+        $nombreArchivo = 'excel_novedades_' . $fecha . '.xlsx';
+        $ruta = storage_path('app/cortes/excel_novedades/' . $nombreArchivo);
+
+        abort_unless(file_exists($ruta), 404);
+
+        return response()->download(
+            $ruta,
+            $nombreArchivo,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
 }

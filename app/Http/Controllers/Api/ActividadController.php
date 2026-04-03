@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Models\Actividad;
 use App\Models\ActividadCategoria;
@@ -30,7 +31,8 @@ class ActividadController extends Controller
 
         if (empty($date)) {
             $start = now($tz)->startOfDay();
-            $end   = now($tz)->endOfDay();
+            $end = now($tz)->endOfDay();
+            $dateSeleccionada = now($tz)->toDateString();
         } else {
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date)) {
                 return response()->json([
@@ -40,15 +42,31 @@ class ActividadController extends Controller
                 ], 422);
             }
 
-            $start = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $tz)->startOfDay();
-            $end   = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $tz)->endOfDay();
+            $start = Carbon::createFromFormat('Y-m-d', $date, $tz)->startOfDay();
+            $end = Carbon::createFromFormat('Y-m-d', $date, $tz)->endOfDay();
+            $dateSeleccionada = $date;
         }
 
+        $usuario = Auth::user();
+
         $query = Actividad::query()
-            ->with(['categoria', 'subcategoria'])
-            ->whereBetween('created_at', [$start, $end])
-            ->orderByDesc('created_at')
-            ->orderByDesc('id');
+            ->with([
+                'categoria',
+                'subcategoria',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'fotos'
+            ])
+            ->where(function ($q) use ($start, $end, $dateSeleccionada) {
+                $q->whereDate('fecha', $dateSeleccionada)
+                  ->orWhere(function ($sub) use ($start, $end) {
+                      $sub->whereNull('fecha')
+                          ->whereBetween('created_at', [$start, $end]);
+                  });
+            });
+
+        $this->applyActividadesVisibilityScope($query, $usuario);
 
         if ($request->filled('actividad_categoria_id')) {
             $query->where('actividad_categoria_id', (int) $request->actividad_categoria_id);
@@ -59,15 +77,29 @@ class ActividadController extends Controller
         }
 
         if ($request->filled('q')) {
-            $q = trim($request->q);
-            $query->where('nombre', 'like', "%{$q}%");
+            $q = trim((string) $request->q);
+            $query->where(function ($sub) use ($q) {
+                $sub->where('nombre', 'like', "%{$q}%")
+                    ->orWhere('lugar', 'like', "%{$q}%")
+                    ->orWhere('municipio', 'like', "%{$q}%")
+                    ->orWhere('carretera', 'like', "%{$q}%")
+                    ->orWhere('tramo', 'like', "%{$q}%")
+                    ->orWhere('motivo', 'like', "%{$q}%")
+                    ->orWhere('narrativa', 'like', "%{$q}%")
+                    ->orWhere('elementos_participantes_texto', 'like', "%{$q}%")
+                    ->orWhere('patrullas_participantes_texto', 'like', "%{$q}%");
+            });
         }
+
+        $query->orderByDesc(DB::raw('COALESCE(fecha, DATE(created_at))'))
+              ->orderByDesc(DB::raw('COALESCE(hora, TIME(created_at))'))
+              ->orderByDesc('id');
 
         $actividades = $query->paginate($perPage);
 
         return response()->json([
             'ok' => true,
-            'date' => empty($date) ? now($tz)->toDateString() : $date,
+            'date' => $dateSeleccionada,
             'per_page' => $perPage,
             'data' => $actividades,
         ]);
@@ -80,17 +112,44 @@ class ActividadController extends Controller
         $validated = $request->validate([
             'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
+            'fecha'                     => 'nullable|date',
+            'hora'                      => 'nullable|date_format:H:i',
+            'lugar'                     => 'nullable|string|max:255',
+            'municipio'                 => 'nullable|string|max:255',
+            'carretera'                 => 'nullable|string|max:255',
+            'tramo'                     => 'nullable|string|max:255',
+            'kilometro'                 => 'nullable|string|max:50',
+            'lat'                       => 'nullable|numeric|between:-90,90',
+            'lng'                       => 'nullable|numeric|between:-180,180',
+            'coordenadas_texto'         => 'nullable|string',
+            'fuente_ubicacion'          => 'nullable|string|max:50',
+            'nota_geo'                  => 'nullable|string|max:255',
+            'motivo'                    => 'nullable|string',
+            'narrativa'                 => 'nullable|string',
+            'acciones_realizadas'       => 'nullable|string',
+            'observaciones'             => 'nullable|string',
+            'personas_alcanzadas'       => 'nullable|integer|min:0',
+            'personas_participantes'    => 'nullable|integer|min:0',
+            'personas_detenidas'        => 'nullable|integer|min:0',
+            'elementos_participantes_texto' => 'nullable|string',
+            'patrullas_participantes_texto' => 'nullable|string',
+            'destacamento_id'           => 'nullable|integer',
             'foto'                      => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $user = Auth::user();
+        $tz = config('app.timezone', 'America/Mexico_City');
+        $ahora = now($tz);
 
-        $unidadOrg = (int)($user->unidad_id ?? 0);
+        $fecha = !empty($validated['fecha']) ? Carbon::parse($validated['fecha'], $tz)->toDateString() : $ahora->toDateString();
+        $hora = !empty($validated['hora']) ? $validated['hora'] : $ahora->format('H:i');
+
+        $unidadOrg = (int) ($user->unidad_id ?? 0);
         if ($unidadOrg <= 0) {
             $unidadOrg = 1;
         }
 
-        $delegacionId = (int)($user->delegacion_id ?? 0);
+        $delegacionId = (int) ($user->delegacion_id ?? 0);
         $delegacionId = $delegacionId > 0 ? $delegacionId : null;
 
         $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
@@ -113,8 +172,7 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId) {
-
+        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora) {
             $file = $request->file('foto');
 
             $fotoHash = hash_file('sha256', $file->getRealPath());
@@ -133,21 +191,50 @@ class ActividadController extends Controller
             $fotoNombreOriginal = $file->getClientOriginalName();
             $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
             $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
-
             $fotoPath = $file->storeAs('actividades', $filename, 'public');
 
             $actividad = Actividad::create([
-                'actividad_categoria_id'    => $validated['actividad_categoria_id'],
-                'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre'                    => $nombre,
-                'cantidad'                  => $cantidad,
-                'foto_path'                 => $fotoPath,
-                'foto_nombre_original'      => $fotoNombreOriginal,
-                'foto_hash'                 => $fotoHash,
-                'created_by'                => $user->id,
-                'updated_by'                => $user->id,
-                'unidad_org_id'             => $unidadOrg,
-                'delegacion_id'             => $delegacionId,
+                'client_uuid'                => (string) Str::uuid(),
+                'sync_status'                => 'local',
+                'sync_error'                 => null,
+                'synced_at'                  => null,
+                'actividad_categoria_id'     => $validated['actividad_categoria_id'],
+                'actividad_subcategoria_id'  => $validated['actividad_subcategoria_id'] ?? null,
+                'nombre'                     => $nombre,
+                'cantidad'                   => $cantidad,
+                'foto_path'                  => $fotoPath,
+                'foto_nombre_original'       => $fotoNombreOriginal,
+                'foto_hash'                  => $fotoHash,
+                'created_by'                 => $user->id,
+                'updated_by'                 => $user->id,
+                'estado_revision'            => 'pendiente',
+                'revisado_por'               => null,
+                'revisado_at'                => null,
+                'observacion_revision'       => null,
+                'unidad_org_id'              => $unidadOrg,
+                'delegacion_id'              => $delegacionId,
+                'destacamento_id'            => $validated['destacamento_id'] ?? null,
+                'fecha'                      => $fecha,
+                'hora'                       => $hora,
+                'lugar'                      => $this->toUpperOrNull($validated['lugar'] ?? null),
+                'municipio'                  => $this->toUpperOrNull($validated['municipio'] ?? null),
+                'carretera'                  => $this->toUpperOrNull($validated['carretera'] ?? null),
+                'tramo'                      => $this->toUpperOrNull($validated['tramo'] ?? null),
+                'kilometro'                  => $this->toUpperOrNull($validated['kilometro'] ?? null),
+                'lat'                        => $validated['lat'] ?? null,
+                'lng'                        => $validated['lng'] ?? null,
+                'coordenadas_texto'          => $validated['coordenadas_texto'] ?? null,
+                'fuente_ubicacion'           => $validated['fuente_ubicacion'] ?? null,
+                'nota_geo'                   => $validated['nota_geo'] ?? null,
+                'motivo'                     => $this->toUpperOrNull($validated['motivo'] ?? null),
+                'narrativa'                  => $validated['narrativa'] ?? null,
+                'acciones_realizadas'        => $validated['acciones_realizadas'] ?? null,
+                'observaciones'              => $validated['observaciones'] ?? null,
+                'personas_alcanzadas'        => (int) ($validated['personas_alcanzadas'] ?? 0),
+                'personas_participantes'     => (int) ($validated['personas_participantes'] ?? 0),
+                'personas_detenidas'         => (int) ($validated['personas_detenidas'] ?? 0),
+                'elementos_participantes_texto' => $validated['elementos_participantes_texto'] ?? null,
+                'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? null,
             ]);
 
             $actividad->load(['categoria', 'subcategoria']);
@@ -162,7 +249,26 @@ class ActividadController extends Controller
 
     public function show(Actividad $actividad)
     {
-        $actividad->load(['categoria', 'subcategoria']);
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No encontrado'
+            ], 404);
+        }
+
+        $actividad->load([
+            'categoria',
+            'subcategoria',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'fotos'
+        ]);
 
         return response()->json([
             'ok' => true,
@@ -174,13 +280,48 @@ class ActividadController extends Controller
     {
         $this->authorize('editar actividades');
 
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No autorizado para modificar esta actividad'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
+            'fecha'                     => 'nullable|date',
+            'hora'                      => 'nullable|date_format:H:i',
+            'lugar'                     => 'nullable|string|max:255',
+            'municipio'                 => 'nullable|string|max:255',
+            'carretera'                 => 'nullable|string|max:255',
+            'tramo'                     => 'nullable|string|max:255',
+            'kilometro'                 => 'nullable|string|max:50',
+            'lat'                       => 'nullable|numeric|between:-90,90',
+            'lng'                       => 'nullable|numeric|between:-180,180',
+            'coordenadas_texto'         => 'nullable|string',
+            'fuente_ubicacion'          => 'nullable|string|max:50',
+            'nota_geo'                  => 'nullable|string|max:255',
+            'motivo'                    => 'nullable|string',
+            'narrativa'                 => 'nullable|string',
+            'acciones_realizadas'       => 'nullable|string',
+            'observaciones'             => 'nullable|string',
+            'personas_alcanzadas'       => 'nullable|integer|min:0',
+            'personas_participantes'    => 'nullable|integer|min:0',
+            'personas_detenidas'        => 'nullable|integer|min:0',
+            'elementos_participantes_texto' => 'nullable|string',
+            'patrullas_participantes_texto' => 'nullable|string',
+            'destacamento_id'           => 'nullable|integer',
             'foto'                      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $user = Auth::user();
+        $tz = config('app.timezone', 'America/Mexico_City');
 
         $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $cantidad = 1;
@@ -202,8 +343,7 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user) {
-
+        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz) {
             $fotoPath = $actividad->foto_path;
             $fotoNombreOriginal = $actividad->foto_nombre_original;
             $fotoHash = $actividad->foto_hash;
@@ -239,15 +379,45 @@ class ActividadController extends Controller
                 $fotoHash = $nuevoHash;
             }
 
+            $fechaRespaldo = $actividad->created_at
+                ? Carbon::parse($actividad->created_at, $tz)->toDateString()
+                : now($tz)->toDateString();
+
+            $horaRespaldo = $actividad->created_at
+                ? Carbon::parse($actividad->created_at, $tz)->format('H:i')
+                : now($tz)->format('H:i');
+
             $actividad->update([
-                'actividad_categoria_id'    => $validated['actividad_categoria_id'],
-                'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre'                    => $nombre,
-                'cantidad'                  => $cantidad,
-                'foto_path'                 => $fotoPath,
-                'foto_nombre_original'      => $fotoNombreOriginal,
-                'foto_hash'                 => $fotoHash,
-                'updated_by'                => $user->id,
+                'actividad_categoria_id'        => $validated['actividad_categoria_id'],
+                'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
+                'nombre'                        => $nombre,
+                'cantidad'                      => $cantidad,
+                'foto_path'                     => $fotoPath,
+                'foto_nombre_original'          => $fotoNombreOriginal,
+                'foto_hash'                     => $fotoHash,
+                'updated_by'                    => $user->id,
+                'fecha'                         => $validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo,
+                'hora'                          => $validated['hora'] ?? $actividad->hora ?? $horaRespaldo,
+                'destacamento_id'               => $validated['destacamento_id'] ?? $actividad->destacamento_id,
+                'lugar'                         => array_key_exists('lugar', $validated) ? $this->toUpperOrNull($validated['lugar']) : $actividad->lugar,
+                'municipio'                     => array_key_exists('municipio', $validated) ? $this->toUpperOrNull($validated['municipio']) : $actividad->municipio,
+                'carretera'                     => array_key_exists('carretera', $validated) ? $this->toUpperOrNull($validated['carretera']) : $actividad->carretera,
+                'tramo'                         => array_key_exists('tramo', $validated) ? $this->toUpperOrNull($validated['tramo']) : $actividad->tramo,
+                'kilometro'                     => array_key_exists('kilometro', $validated) ? $this->toUpperOrNull($validated['kilometro']) : $actividad->kilometro,
+                'lat'                           => $validated['lat'] ?? $actividad->lat,
+                'lng'                           => $validated['lng'] ?? $actividad->lng,
+                'coordenadas_texto'             => $validated['coordenadas_texto'] ?? $actividad->coordenadas_texto,
+                'fuente_ubicacion'              => $validated['fuente_ubicacion'] ?? $actividad->fuente_ubicacion,
+                'nota_geo'                      => $validated['nota_geo'] ?? $actividad->nota_geo,
+                'motivo'                        => array_key_exists('motivo', $validated) ? $this->toUpperOrNull($validated['motivo']) : $actividad->motivo,
+                'narrativa'                     => $validated['narrativa'] ?? $actividad->narrativa,
+                'acciones_realizadas'           => $validated['acciones_realizadas'] ?? $actividad->acciones_realizadas,
+                'observaciones'                 => $validated['observaciones'] ?? $actividad->observaciones,
+                'personas_alcanzadas'           => $validated['personas_alcanzadas'] ?? $actividad->personas_alcanzadas,
+                'personas_participantes'        => $validated['personas_participantes'] ?? $actividad->personas_participantes,
+                'personas_detenidas'            => $validated['personas_detenidas'] ?? $actividad->personas_detenidas,
+                'elementos_participantes_texto' => $validated['elementos_participantes_texto'] ?? $actividad->elementos_participantes_texto,
+                'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? $actividad->patrullas_participantes_texto,
             ]);
 
             $actividad->load(['categoria', 'subcategoria']);
@@ -263,6 +433,18 @@ class ActividadController extends Controller
     public function destroy(Actividad $actividad)
     {
         $this->authorize('eliminar actividades');
+
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No autorizado para eliminar esta actividad'
+            ], 403);
+        }
 
         return DB::transaction(function () use ($actividad) {
 
@@ -304,5 +486,141 @@ class ActividadController extends Controller
             'ok' => true,
             'data' => $items,
         ]);
+    }
+
+    public function compartir(Actividad $actividad)
+    {
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            return response()->json(['ok' => false, 'message' => 'No encontrado'], 404);
+        }
+
+        $actividad->load([
+            'categoria',
+            'subcategoria',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'fotos',
+        ]);
+
+        $fecha = $actividad->fecha ? Carbon::parse($actividad->fecha)->format('d/m/Y') : '';
+        $hora = $actividad->hora ? substr((string)$actividad->hora, 0, 5) : '';
+
+        $texto = "GUARDIA CIVIL\n\n";
+        $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n\n";
+
+        if ($actividad->unidad?->nombre) {
+            $texto .= $actividad->unidad->nombre . "\n\n";
+        }
+
+        if ($actividad->delegacion?->nombre) {
+            $texto .= $actividad->delegacion->nombre . "\n\n";
+        } elseif ($actividad->destacamento?->nombre) {
+            $texto .= $actividad->destacamento->nombre . "\n\n";
+        }
+
+        if ($fecha) $texto .= "FECHA {$fecha}\n";
+        if ($hora) $texto .= "HORA {$hora}\n\n";
+
+        if ($actividad->motivo) {
+            $texto .= "ASUNTO: " . mb_strtoupper($actividad->motivo, 'UTF-8') . "\n\n";
+        }
+
+        if ($actividad->narrativa) $texto .= trim($actividad->narrativa) . "\n\n";
+        if ($actividad->acciones_realizadas) $texto .= trim($actividad->acciones_realizadas) . "\n\n";
+        if ($actividad->observaciones) $texto .= trim($actividad->observaciones) . "\n\n";
+
+        $texto .= "DATOS GENERALES\n";
+        $texto .= "PERSONAS ALCANZADAS: " . (int)($actividad->personas_alcanzadas ?? 0) . "\n";
+        $texto .= "PERSONAS PARTICIPANTES: " . (int)($actividad->personas_participantes ?? 0) . "\n";
+        $texto .= "PERSONAS DETENIDAS: " . (int)($actividad->personas_detenidas ?? 0) . "\n\n";
+
+        if ($actividad->elementos_participantes_texto) {
+            $texto .= "ESTADO DE FUERZA\n" . $actividad->elementos_participantes_texto . "\n\n";
+        }
+
+        if ($actividad->patrullas_participantes_texto) {
+            $texto .= "CRP\n" . $actividad->patrullas_participantes_texto . "\n\n";
+        }
+
+        $fotos = $actividad->fotos
+            ->sortBy([['orden','asc'],['id','asc']])
+            ->map(fn($f)=>asset('storage/'.$f->foto_path))
+            ->values();
+
+        if ($fotos->isEmpty() && $actividad->foto_path) {
+            $fotos = collect([asset('storage/'.$actividad->foto_path)]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'texto' => trim($texto),
+            'fotos' => $fotos,
+        ]);
+    }
+
+    public function compartirTotalesWhatsapp(Request $request)
+    {
+        $usuario = Auth::user();
+        $tz = 'America/Mexico_City';
+
+        $fecha = $request->input('fecha') ?? now($tz)->toDateString();
+
+        $unidadId = (int)($usuario->unidad_id ?? 0);
+
+        $categorias = DB::table('actividad_categorias')
+            ->join('actividades', 'actividades.actividad_categoria_id','=','actividad_categorias.id')
+            ->whereDate('actividades.fecha',$fecha)
+            ->where('actividades.unidad_org_id',$unidadId)
+            ->groupBy('actividad_categorias.id','actividad_categorias.nombre')
+            ->select('actividad_categorias.nombre', DB::raw('SUM(actividades.cantidad) as total'))
+            ->get();
+
+        if ($categorias->isEmpty()) {
+            return response()->json(['ok'=>false,'message'=>'Sin datos'],404);
+        }
+
+        $fechaTexto = Carbon::parse($fecha,$tz)->locale('es')->translatedFormat('l d F Y');
+
+        $texto = "GUARDIA CIVIL\n";
+        $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n";
+        $texto .= strtoupper($fechaTexto)."\n";
+        $texto .= "ACTIVIDADES RELEVANTES\n\n";
+
+        foreach ($categorias as $cat) {
+            $texto .= "- {$cat->nombre}: " . str_pad($cat->total,2,'0',STR_PAD_LEFT) . "\n";
+        }
+
+        return response()->json([
+            'ok'=>true,
+            'texto'=>trim($texto),
+            'fotos'=>[]
+        ]);
+    }
+
+    private function applyActividadesVisibilityScope($query, $usuario): void
+    {
+        $unidadId = (int)($usuario->unidad_id ?? 0);
+
+        if ($usuario->hasRole('Superadmin') || $usuario->hasRole('Coordinador') || $unidadId === 3) {
+            return;
+        }
+
+        if ($unidadId === 2) {
+            $query->where('delegacion_id', $usuario->delegacion_id);
+            return;
+        }
+
+        if ($unidadId > 0) {
+            $query->where('unidad_org_id', $unidadId);
+            return;
+        }
+
+        $query->whereRaw('1=0');
     }
 }

@@ -534,15 +534,15 @@ class ActividadController extends Controller
 
     private function applyActividadesVisibilityScope($query, $usuario): void
     {
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
         if (
             $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
             || $usuario->hasRole('Coordinador')
+            || $unidadId === 3
         ) {
             return;
         }
-
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
 
         if ($unidadId === 2) {
             $delegacionId = (int) ($usuario->delegacion_id ?? 0);
@@ -837,6 +837,133 @@ class ActividadController extends Controller
         return response()->json([
             'texto' => trim($texto),
             'fotos' => $fotos,
+        ]);
+    }
+
+    public function compartirTotalesWhatsapp(Request $request)
+    {
+        $usuario = Auth::user();
+
+        if (!$usuario || !$usuario->can('ver actividades')) {
+            abort(403);
+        }
+
+        $tz = 'America/Mexico_City';
+
+        $fechaSeleccionada = $request->filled('fecha')
+            ? $request->input('fecha')
+            : now($tz)->toDateString();
+
+        try {
+            $fecha = Carbon::createFromFormat('Y-m-d', (string) $fechaSeleccionada, $tz)->toDateString();
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La fecha proporcionada no es válida.',
+            ], 422);
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if ($unidadId <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'El usuario no tiene una unidad asignada.',
+            ], 422);
+        }
+
+        $unidad = Unidad::find($unidadId);
+
+        if (!$unidad) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontró la unidad del usuario.',
+            ], 404);
+        }
+
+        $categorias = ActividadCategoria::query()
+            ->select(
+                'actividad_categorias.id',
+                'actividad_categorias.nombre',
+                DB::raw('SUM(actividades.cantidad) as total')
+            )
+            ->join('actividades', 'actividades.actividad_categoria_id', '=', 'actividad_categorias.id')
+            ->whereDate('actividades.fecha', $fecha)
+            ->where('actividades.unidad_org_id', $unidadId)
+            ->groupBy('actividad_categorias.id', 'actividad_categorias.nombre')
+            ->orderBy('actividad_categorias.nombre')
+            ->get();
+
+        if ($categorias->isEmpty()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No hay actividades registradas para esa fecha.',
+            ], 404);
+        }
+
+        $subcategoriasPorCategoria = ActividadSubcategoria::query()
+            ->select(
+                'actividad_subcategorias.actividad_categoria_id',
+                'actividad_subcategorias.nombre'
+            )
+            ->join('actividades', 'actividades.actividad_subcategoria_id', '=', 'actividad_subcategorias.id')
+            ->whereDate('actividades.fecha', $fecha)
+            ->where('actividades.unidad_org_id', $unidadId)
+            ->whereNotNull('actividades.actividad_subcategoria_id')
+            ->groupBy('actividad_subcategorias.actividad_categoria_id', 'actividad_subcategorias.nombre')
+            ->orderBy('actividad_subcategorias.nombre')
+            ->get()
+            ->groupBy('actividad_categoria_id');
+
+        $fechaCarbon = Carbon::parse($fecha, $tz)->locale('es');
+        $fechaTexto = mb_strtoupper($fechaCarbon->translatedFormat('l d F Y'), 'UTF-8');
+
+        $nombreUnidad = mb_strtoupper((string) $unidad->nombre, 'UTF-8');
+
+        $texto = "GUARDIA CIVIL\n";
+        $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n";
+        $texto .= $nombreUnidad . "\n";
+        $texto .= $fechaTexto . "\n";
+        $texto .= "ACTIVIDADES RELEVANTES DE LAS 06:00 A LAS 21:00 HORAS\n\n";
+
+        foreach ($categorias as $categoria) {
+            $texto .= '- ' . trim($categoria->nombre) . ': ' . str_pad((string) ((int) $categoria->total), 2, '0', STR_PAD_LEFT) . "\n";
+
+            $subcats = $subcategoriasPorCategoria->get($categoria->id, collect());
+
+            foreach ($subcats as $subcat) {
+                $texto .= '- ' . trim($subcat->nombre) . "\n";
+            }
+
+            $texto .= "\n";
+        }
+
+        $subdirector = DB::table('personals')
+            ->where('unidad_id', $unidadId)
+            ->whereRaw('UPPER(puesto) = ?', ['SUBDIRECTOR'])
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->first();
+
+        if ($subdirector) {
+            $nombreSubdirector = trim(
+                collect([
+                    $subdirector->grado ?? null,
+                    $subdirector->nombre ?? null,
+                    $subdirector->ap_paterno ?? null,
+                    $subdirector->ap_materno ?? null,
+                ])->filter()->implode(' ')
+            );
+
+            $texto .= "RESPETUOSAMENTE\n";
+            $texto .= 'SUBDIRECTOR DE ' . $nombreUnidad . "\n";
+            $texto .= mb_strtoupper($nombreSubdirector, 'UTF-8');
+        }
+
+        return response()->json([
+            'ok' => true,
+            'texto' => trim($texto),
+            'fotos' => [],
         ]);
     }
 }

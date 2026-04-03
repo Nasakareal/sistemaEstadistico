@@ -69,6 +69,21 @@
             </div>
         </div>
 
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-success">
+                    <i class="fa-solid fa-file-excel"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Excel Novedades</div>
+                    <div class="sv-card__desc">Estado de fuerza y reportes en formato Excel.</div>
+                    <a href="{{ route('settings.estadisticas_siniestros.excel_novedades') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
     </div>
 @stop
 

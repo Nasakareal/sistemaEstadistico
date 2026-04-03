@@ -2,16 +2,14 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Services",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\bitacora",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\mini_parte",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\parte_novedades"
+    "\\resources\\views\\actividades",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Console\\Commands\\siniestros\\GenerarMiniParteDiario.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ActividadController.php",
   "PreviewInSolutionExplorer": false
 }

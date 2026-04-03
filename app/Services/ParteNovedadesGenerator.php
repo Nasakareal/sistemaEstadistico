@@ -451,7 +451,6 @@ class ParteNovedadesGenerator
         $tableFirmas->addRow();
 
         $cellL2 = $tableFirmas->addCell(5000, $cellStyle);
-        $cellL2->addText('OFICIAL', ['bold' => true], ['alignment' => Jc::CENTER]);
         $cellL2->addText('LIC. JULIO ERNESTO BAUTISTA JIMENEZ.', ['bold' => true], ['alignment' => Jc::CENTER]);
 
         $cellR2 = $tableFirmas->addCell(5000, $cellStyle);

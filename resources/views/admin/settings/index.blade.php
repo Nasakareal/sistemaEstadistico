@@ -290,6 +290,50 @@
         @php $user = auth()->user(); @endphp
 
         @if($user && $user->perteneceAUnidad('siniestros'))
+            @can('ver estadisticas')
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-danger">
+                            <i class="fa-solid fa-car-burst"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Estadísticas Siniestros</div>
+                            <div class="sv-card__desc">
+                                Parte de novedades, bitácora y mini parte.
+                            </div>
+                            <a href="{{ route('settings.estadisticas_siniestros.index') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endcan
+        @endif
+
+        @php $user = auth()->user(); @endphp
+
+        @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 4))
+            @can('ver estadisticas')
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-info">
+                            <i class="fa-solid fa-road"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Estadísticas Carreteras</div>
+                            <div class="sv-card__desc">Indicadores, reportes y análisis de carreteras.</div>
+                            <a href="{{ route('settings.estadisticas_carreteras.index') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endcan
+        @endif
+
+        @php $user = auth()->user(); @endphp
+
+        @if($user && $user->perteneceAUnidad('siniestros'))
 
             {{-- RADAR RIESGO --}}
             <div class="col-md-3 col-sm-6 col-12">

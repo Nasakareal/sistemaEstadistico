@@ -61,6 +61,9 @@ use App\Http\Controllers\GuardianesCaminoDispositivoFotoController;
 use App\Http\Controllers\ResumenEjecutivoController;
 use App\Http\Controllers\ZonaMapaController;
 
+use App\Http\Controllers\EstadisticasCarreterasSettingsController;
+use App\Http\Controllers\EstadisticasSiniestrosSettingsController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::prefix('resumen-ejecutivo')->middleware(['auth', 'can:ver estadisticas'])->group(function () {
@@ -541,6 +544,19 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/{redApoyo}/edit', [DestacamentoRedApoyoController::class, 'edit'])->middleware('can:editar directorio red apoyo')->name('directorio_red_apoyo.edit');
         Route::put('/{redApoyo}', [DestacamentoRedApoyoController::class, 'update'])->middleware('can:editar directorio red apoyo')->name('directorio_red_apoyo.update');
         Route::delete('/{redApoyo}', [DestacamentoRedApoyoController::class, 'destroy'])->middleware('can:eliminar directorio red apoyo')->name('directorio_red_apoyo.destroy');
+    });
+
+    Route::prefix('estadisticas-siniestros')->group(function () {
+        Route::get('/', [EstadisticasSiniestrosSettingsController::class, 'index'])->name('settings.estadisticas_siniestros.index');
+        Route::get('/parte-novedades', [EstadisticasSiniestrosSettingsController::class, 'parteNovedades'])->name('settings.estadisticas_siniestros.parte_novedades');
+        Route::get('/parte-novedades/descargar/{archivo}', [EstadisticasSiniestrosSettingsController::class, 'descargarParteNovedades'])->name('settings.estadisticas_siniestros.parte_novedades.descargar');
+        Route::get('/bitacora', [EstadisticasSiniestrosSettingsController::class, 'bitacora'])->name('settings.estadisticas_siniestros.bitacora');
+        Route::get('/mini-parte', [EstadisticasSiniestrosSettingsController::class, 'miniParte'])->name('settings.estadisticas_siniestros.mini_parte');
+    });
+
+    Route::prefix('estadisticas-carreteras')->group(function () {
+        Route::get('/', [EstadisticasCarreterasSettingsController::class, 'index'])->name('settings.estadisticas_carreteras.index');
+        Route::get('/excel-novedades', [EstadisticasCarreterasSettingsController::class, 'excelNovedades'])->name('settings.estadisticas_carreteras.excel_novedades');
     });
 
     Route::get('/exports/estado-fuerza', [ExportController::class, 'estadoFuerza'])->name('settings.exports.estado_fuerza');

@@ -36,6 +36,16 @@ class Kernel extends ConsoleKernel
             ->timezone('America/Mexico_City')
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
             ->withoutOverlapping();
+
+        $schedule->command('siniestros:generar-bitacora-diaria')
+            ->timezone('America/Mexico_City')
+            ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
+            ->withoutOverlapping();
+
+        $schedule->command('siniestros:generar-mini-parte-diario')
+            ->timezone('America/Mexico_City')
+            ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
+            ->withoutOverlapping();
     }
 
     protected function commands()

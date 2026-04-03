@@ -549,9 +549,11 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::prefix('estadisticas-siniestros')->group(function () {
         Route::get('/', [EstadisticasSiniestrosSettingsController::class, 'index'])->name('settings.estadisticas_siniestros.index');
         Route::get('/parte-novedades', [EstadisticasSiniestrosSettingsController::class, 'parteNovedades'])->name('settings.estadisticas_siniestros.parte_novedades');
-        Route::get('/parte-novedades/descargar/{archivo}', [EstadisticasSiniestrosSettingsController::class, 'descargarParteNovedades'])->name('settings.estadisticas_siniestros.parte_novedades.descargar');
+        Route::get('/parte-novedades/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarParteNovedades'])->name('settings.estadisticas_siniestros.parte_novedades.descargar');
         Route::get('/bitacora', [EstadisticasSiniestrosSettingsController::class, 'bitacora'])->name('settings.estadisticas_siniestros.bitacora');
+        Route::get('/bitacora/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarBitacora'])->name('settings.estadisticas_siniestros.bitacora.descargar');
         Route::get('/mini-parte', [EstadisticasSiniestrosSettingsController::class, 'miniParte'])->name('settings.estadisticas_siniestros.mini_parte');
+        Route::get('/mini-parte/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarMiniParte'])->name('settings.estadisticas_siniestros.mini_parte.descargar');
     });
 
     Route::prefix('estadisticas-carreteras')->group(function () {

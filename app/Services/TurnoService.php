@@ -9,7 +9,6 @@ class TurnoService
 {
     public function turnoActivoEn(Carbon $fechaHora)
     {
-        // Asegura timezone consistente
         $fechaHora = $fechaHora->copy()->timezone('America/Mexico_City');
 
         $turnos = DB::table('turnos')

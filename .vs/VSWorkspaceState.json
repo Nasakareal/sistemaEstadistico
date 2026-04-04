@@ -1,8 +1,17 @@
 {
   "ExpandedNodes": [
     "",
-    "\\routes"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Services",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\sectorizaciones"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\sectorizaciones\\gestionar.blade.php",
   "PreviewInSolutionExplorer": false
 }

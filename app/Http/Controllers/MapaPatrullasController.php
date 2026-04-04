@@ -43,7 +43,6 @@ class MapaPatrullasController extends Controller
     {
         $actor = request()->user();
 
-        // ✅ users visibles con ubicacion compartida, con join a patrullas para numero_economico
         $usersQuery = User::query()
             ->from('users')
             ->leftJoin('patrullas', 'patrullas.id', '=', 'users.patrulla_id')

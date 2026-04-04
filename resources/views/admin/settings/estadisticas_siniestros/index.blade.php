@@ -84,6 +84,21 @@
             </div>
         </div>
 
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-primary">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Sectorizaciones</div>
+                    <div class="sv-card__desc">Mapa operativo por sectores con asignación manual de personal y patrullas.</div>
+                    <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
     </div>
 @stop
 

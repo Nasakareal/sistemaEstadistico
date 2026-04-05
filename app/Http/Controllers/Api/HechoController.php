@@ -154,7 +154,7 @@ class HechoController extends Controller
             'perito'                => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad'                => 'required|string|max:50',
-            'hora'                  => 'required|date_format:H:i',
+            'hora' => $user->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
             'fecha'                 => 'required|date',
             'sector'                => ['required','string', Rule::in(self::SECTORES)],
             'calle'                 => 'required|string|max:255',
@@ -246,6 +246,11 @@ class HechoController extends Controller
             }
         }
 
+        if ($user->hasRole('Perito')) {
+            $validated['hora'] = now('America/Mexico_City')->format('H:i');
+        }
+
+
         $hasCoords = $request->filled('lat') && $request->filled('lng');
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_APP';
@@ -285,8 +290,13 @@ class HechoController extends Controller
         try {
             $hecho = null;
 
-            DB::transaction(function () use ($request, $validated, $dictamenId, &$hecho) {
+            DB::transaction(function () use ($request, $validated, $dictamenId, $user, &$hecho) {
                 $hecho = Hechos::create($validated);
+
+                if ($user->hasRole('Perito')) {
+                    $hecho->hora = optional($hecho->created_at)->timezone('America/Mexico_City')->format('H:i');
+                    $hecho->save();
+                }
 
                 $updates = [];
 
@@ -358,228 +368,232 @@ class HechoController extends Controller
     }
 
     public function update(Request $request, Hechos $hecho)
-{
-    $user = $request->user();
+    {
+        $user = $request->user();
 
-    $this->normalizeCatalogFields($request);
+        $this->normalizeCatalogFields($request);
 
-    $rules = [
-        'folio_c5i' => [
-            'sometimes', 'required', 'string', 'max:20',
-            Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
-        ],
-        'perito'                => 'sometimes|required|string|max:255',
-        'autorizacion_practico' => 'sometimes|nullable|string|max:255',
-        'unidad'                => 'sometimes|required|string|max:50',
-        'hora'                  => 'sometimes|required|date_format:H:i',
-        'fecha'                 => 'sometimes|required|date',
-        'sector'                => ['sometimes','required','string', Rule::in(self::SECTORES)],
-        'calle'                 => 'sometimes|required|string|max:255',
-        'colonia'               => 'sometimes|required|string|max:255',
-        'entre_calles'          => 'sometimes|nullable|string|max:255',
-        'municipio'             => 'sometimes|required|string|max:100',
-        'tipo_hecho'            => 'sometimes|required|string|max:255',
-        'superficie_via'        => 'sometimes|required|string|max:50',
-        'tiempo'                => ['sometimes','required','string', Rule::in(self::TIEMPOS)],
-        'clima'                 => ['sometimes','required','string', Rule::in(self::CLIMAS)],
-        'condiciones'           => ['sometimes','required','string', Rule::in(self::COND)],
-        'control_transito'      => 'sometimes|required|string|max:50',
-        'checaron_antecedentes' => 'sometimes|nullable|boolean',
-        'causas'                => 'sometimes|required|string|max:255',
-        'colision_camino'       => 'sometimes|required|string|max:255',
-        'situacion'             => ['sometimes','required','string', Rule::in(self::SITUAS)],
-        'oficio_mp'             => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
-        'vehiculos_mp'          => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
-        'personas_mp'           => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
+        $rules = [
+            'folio_c5i' => [
+                'sometimes', 'required', 'string', 'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+            ],
+            'perito'                => 'sometimes|required|string|max:255',
+            'autorizacion_practico' => 'sometimes|nullable|string|max:255',
+            'unidad'                => 'sometimes|required|string|max:50',
+            'hora' => $user->hasRole('Perito') ? 'sometimes|nullable' : 'sometimes|required|date_format:H:i',
+            'fecha'                 => 'sometimes|required|date',
+            'sector'                => ['sometimes','required','string', Rule::in(self::SECTORES)],
+            'calle'                 => 'sometimes|required|string|max:255',
+            'colonia'               => 'sometimes|required|string|max:255',
+            'entre_calles'          => 'sometimes|nullable|string|max:255',
+            'municipio'             => 'sometimes|required|string|max:100',
+            'tipo_hecho'            => 'sometimes|required|string|max:255',
+            'superficie_via'        => 'sometimes|required|string|max:50',
+            'tiempo'                => ['sometimes','required','string', Rule::in(self::TIEMPOS)],
+            'clima'                 => ['sometimes','required','string', Rule::in(self::CLIMAS)],
+            'condiciones'           => ['sometimes','required','string', Rule::in(self::COND)],
+            'control_transito'      => 'sometimes|required|string|max:50',
+            'checaron_antecedentes' => 'sometimes|nullable|boolean',
+            'causas'                => 'sometimes|required|string|max:255',
+            'colision_camino'       => 'sometimes|required|string|max:255',
+            'situacion'             => ['sometimes','required','string', Rule::in(self::SITUAS)],
+            'oficio_mp'             => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
+            'vehiculos_mp'          => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
+            'personas_mp'           => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
 
-        'dictamen_id'           => 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'dictamen_id'           => 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id',
 
-        'danos_patrimoniales'        => 'sometimes|nullable|boolean',
-        'propiedades_afectadas'      => 'sometimes|nullable|string|max:2000',
-        'monto_danos_patrimoniales'  => 'sometimes|nullable|numeric|min:0',
+            'danos_patrimoniales'        => 'sometimes|nullable|boolean',
+            'propiedades_afectadas'      => 'sometimes|nullable|string|max:2000',
+            'monto_danos_patrimoniales'  => 'sometimes|nullable|numeric|min:0',
 
-        'lat'                   => 'sometimes|required|numeric|between:-90,90',
-        'lng'                   => 'sometimes|required|numeric|between:-180,180',
-        'calidad_geo'           => 'sometimes|nullable|string|max:20',
-        'nota_geo'              => 'sometimes|nullable|string|max:1000',
-        'fuente_ubicacion'      => 'sometimes|nullable|string|max:20',
-        'ubicacion_formateada'  => 'sometimes|nullable|string|max:2000',
-        'place_id'              => 'sometimes|nullable|string|max:128',
+            'lat'                   => 'sometimes|required|numeric|between:-90,90',
+            'lng'                   => 'sometimes|required|numeric|between:-180,180',
+            'calidad_geo'           => 'sometimes|nullable|string|max:20',
+            'nota_geo'              => 'sometimes|nullable|string|max:1000',
+            'fuente_ubicacion'      => 'sometimes|nullable|string|max:20',
+            'ubicacion_formateada'  => 'sometimes|nullable|string|max:2000',
+            'place_id'              => 'sometimes|nullable|string|max:128',
 
-        'foto_lugar'            => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-        'foto_situacion'        => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-    ];
+            'foto_lugar'            => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion'        => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ];
 
-    $messages = $this->messages();
+        $messages = $this->messages();
 
-    $validator = Validator::make($request->all(), $rules, $messages);
+        $validator = Validator::make($request->all(), $rules, $messages);
 
-    $validator->after(function ($v) use ($request, $hecho) {
-        $situacionNueva = $request->has('situacion')
-            ? strtoupper($this->removeAccents((string)$request->input('situacion')))
-            : null;
-
-        $situacionEfectiva = $situacionNueva ?? strtoupper((string)($hecho->situacion ?? ''));
-
-        if ($situacionEfectiva === 'RESUELTO') {
-            $yaTieneFoto  = !empty($hecho->foto_situacion);
-            $vieneArchivo = $request->hasFile('foto_situacion');
-
-            if (!$yaTieneFoto && !$vieneArchivo) {
-                $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
-            }
-        }
-
-        $hasLat = $request->filled('lat');
-        $hasLng = $request->filled('lng');
-        if ($hasLat xor $hasLng) {
-            $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
-            $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
-        }
-    });
-
-    if ($validator->fails()) {
-        return $this->validationErrorResponse($validator->errors()->toArray());
-    }
-
-    $validated = $validator->validated();
-
-    $dictamenId = $validated['dictamen_id'] ?? null;
-    $dictamenIdProvided = array_key_exists('dictamen_id', $validated);
-    unset($validated['dictamen_id']);
-
-    if ($request->has('checaron_antecedentes')) {
-        $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
-    }
-
-    if ($request->has('danos_patrimoniales')) {
-        $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
-    }
-
-    foreach ($validated as $key => $value) {
-        if (is_string($value)) {
-            $validated[$key] = strtoupper($this->removeAccents($value));
-        }
-    }
-
-    $hasCoords = $request->filled('lat') && $request->filled('lng');
-    if ($hasCoords && empty($validated['fuente_ubicacion'])) {
-        $validated['fuente_ubicacion'] = 'GPS_APP';
-    }
-
-    if ($request->has('lat') && !$request->filled('lat')) $validated['lat'] = null;
-    if ($request->has('lng') && !$request->filled('lng')) $validated['lng'] = null;
-
-    if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
-        $validated['monto_danos_patrimoniales'] = null;
-    }
-    if ($request->has('propiedades_afectadas') && trim((string)$request->input('propiedades_afectadas')) === '') {
-        $validated['propiedades_afectadas'] = null;
-    }
-
-    $validated['updated_by'] = $user->id;
-
-    unset($validated['unidad_org_id']);
-
-    $newFotoLugarPath = null;
-    $newFotoSituacionPath = null;
-    $oldFotoLugar = $hecho->foto_lugar;
-    $oldFotoSituacion = $hecho->foto_situacion;
-
-    try {
-        DB::transaction(function () use (
-            $request,
-            $hecho,
-            $validated,
-            $dictamenId,
-            $dictamenIdProvided,
-            &$newFotoLugarPath,
-            &$newFotoSituacionPath
-        ) {
-            if ($request->hasFile('foto_lugar')) {
-                $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
-                $validated['foto_lugar'] = $newFotoLugarPath;
-            }
-
-            if ($request->hasFile('foto_situacion')) {
-                $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
-                $validated['foto_situacion'] = $newFotoSituacionPath;
-            }
-
-            $hecho->update($validated);
-
-            $situacion = $request->has('situacion')
+        $validator->after(function ($v) use ($request, $hecho) {
+            $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string)$request->input('situacion')))
-                : strtoupper((string)($hecho->situacion ?? ''));
+                : null;
 
-            $dictamenActual = $hecho->dictamen;
+            $situacionEfectiva = $situacionNueva ?? strtoupper((string)($hecho->situacion ?? ''));
 
-            if ($situacion === 'TURNADO') {
+            if ($situacionEfectiva === 'RESUELTO') {
+                $yaTieneFoto  = !empty($hecho->foto_situacion);
+                $vieneArchivo = $request->hasFile('foto_situacion');
 
-                if ($dictamenIdProvided) {
+                if (!$yaTieneFoto && !$vieneArchivo) {
+                    $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
+                }
+            }
 
-                    if ($dictamenActual && (string)$dictamenActual->id !== (string)$dictamenId) {
+            $hasLat = $request->filled('lat');
+            $hasLng = $request->filled('lng');
+            if ($hasLat xor $hasLng) {
+                $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
+                $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator->errors()->toArray());
+        }
+
+        $validated = $validator->validated();
+
+        $dictamenId = $validated['dictamen_id'] ?? null;
+        $dictamenIdProvided = array_key_exists('dictamen_id', $validated);
+        unset($validated['dictamen_id']);
+
+        if ($request->has('checaron_antecedentes')) {
+            $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        }
+
+        if ($request->has('danos_patrimoniales')) {
+            $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
+        }
+
+        foreach ($validated as $key => $value) {
+            if (is_string($value)) {
+                $validated[$key] = strtoupper($this->removeAccents($value));
+            }
+        }
+
+        if ($user->hasRole('Perito')) {
+            unset($validated['hora']);
+        }
+
+        $hasCoords = $request->filled('lat') && $request->filled('lng');
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_APP';
+        }
+
+        if ($request->has('lat') && !$request->filled('lat')) $validated['lat'] = null;
+        if ($request->has('lng') && !$request->filled('lng')) $validated['lng'] = null;
+
+        if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
+            $validated['monto_danos_patrimoniales'] = null;
+        }
+        if ($request->has('propiedades_afectadas') && trim((string)$request->input('propiedades_afectadas')) === '') {
+            $validated['propiedades_afectadas'] = null;
+        }
+
+        $validated['updated_by'] = $user->id;
+
+        unset($validated['unidad_org_id']);
+
+        $newFotoLugarPath = null;
+        $newFotoSituacionPath = null;
+        $oldFotoLugar = $hecho->foto_lugar;
+        $oldFotoSituacion = $hecho->foto_situacion;
+
+        try {
+            DB::transaction(function () use (
+                $request,
+                $hecho,
+                $validated,
+                $dictamenId,
+                $dictamenIdProvided,
+                &$newFotoLugarPath,
+                &$newFotoSituacionPath
+            ) {
+                if ($request->hasFile('foto_lugar')) {
+                    $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $validated['foto_lugar'] = $newFotoLugarPath;
+                }
+
+                if ($request->hasFile('foto_situacion')) {
+                    $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $validated['foto_situacion'] = $newFotoSituacionPath;
+                }
+
+                $hecho->update($validated);
+
+                $situacion = $request->has('situacion')
+                    ? strtoupper($this->removeAccents((string)$request->input('situacion')))
+                    : strtoupper((string)($hecho->situacion ?? ''));
+
+                $dictamenActual = $hecho->dictamen;
+
+                if ($situacion === 'TURNADO') {
+
+                    if ($dictamenIdProvided) {
+
+                        if ($dictamenActual && (string)$dictamenActual->id !== (string)$dictamenId) {
+                            $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
+                            if ($dictamenActual) {
+                                $dictamenActual->hecho_id = null;
+                                $dictamenActual->save();
+                            }
+                        }
+
+                        if ($dictamenId) {
+                            $nuevo = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
+
+                            if (!empty($nuevo->hecho_id) && (int)$nuevo->hecho_id !== (int)$hecho->id) {
+                                throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
+                            }
+
+                            $nuevo->hecho_id = $hecho->id;
+                            $nuevo->save();
+                        }
+
+                    }
+
+                } else {
+
+                    if ($dictamenActual) {
                         $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
                         if ($dictamenActual) {
                             $dictamenActual->hecho_id = null;
                             $dictamenActual->save();
                         }
                     }
-
-                    if ($dictamenId) {
-                        $nuevo = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
-
-                        if (!empty($nuevo->hecho_id) && (int)$nuevo->hecho_id !== (int)$hecho->id) {
-                            throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
-                        }
-
-                        $nuevo->hecho_id = $hecho->id;
-                        $nuevo->save();
-                    }
-
                 }
-
-            } else {
-
-                if ($dictamenActual) {
-                    $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
-                    if ($dictamenActual) {
-                        $dictamenActual->hecho_id = null;
-                        $dictamenActual->save();
-                    }
-                }
+            });
+        } catch (\Throwable $e) {
+            if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
+                Storage::disk('public')->delete($newFotoLugarPath);
             }
-        });
-    } catch (\Throwable $e) {
-        if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
-            Storage::disk('public')->delete($newFotoLugarPath);
+            if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
+                Storage::disk('public')->delete($newFotoSituacionPath);
+            }
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => [
+                    'dictamen_id' => [$e->getMessage()],
+                ],
+            ], 422);
         }
-        if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
-            Storage::disk('public')->delete($newFotoSituacionPath);
+
+        if ($newFotoLugarPath && !empty($oldFotoLugar) && Storage::disk('public')->exists($oldFotoLugar)) {
+            Storage::disk('public')->delete($oldFotoLugar);
         }
+        if ($newFotoSituacionPath && !empty($oldFotoSituacion) && Storage::disk('public')->exists($oldFotoSituacion)) {
+            Storage::disk('public')->delete($oldFotoSituacion);
+        }
+
+        $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
-            'message' => $e->getMessage(),
-            'errors' => [
-                'dictamen_id' => [$e->getMessage()],
-            ],
-        ], 422);
+            'message' => 'Hecho actualizado exitosamente',
+            'data'    => $this->withFotoUrls($hecho),
+        ], 200);
     }
-
-    if ($newFotoLugarPath && !empty($oldFotoLugar) && Storage::disk('public')->exists($oldFotoLugar)) {
-        Storage::disk('public')->delete($oldFotoLugar);
-    }
-    if ($newFotoSituacionPath && !empty($oldFotoSituacion) && Storage::disk('public')->exists($oldFotoSituacion)) {
-        Storage::disk('public')->delete($oldFotoSituacion);
-    }
-
-    $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
-
-    return response()->json([
-        'message' => 'Hecho actualizado exitosamente',
-        'data'    => $this->withFotoUrls($hecho),
-    ], 200);
-}
 
     public function subirDescargo(Request $request, Hechos $hecho)
     {

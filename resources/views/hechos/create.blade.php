@@ -74,6 +74,7 @@
                         </div>
 
                         <div class="row">
+                            @if(!auth()->user()->hasRole('Perito'))
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="hora">Hora<span style="color: red">*</span></label>
@@ -91,6 +92,7 @@
                                     @enderror
                                 </div>
                             </div>
+                            @endif
 
                             <div class="col-md-3">
                                 <div class="form-group">

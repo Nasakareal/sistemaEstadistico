@@ -87,6 +87,7 @@
                         </div>
 
                         <div class="row">
+                            @if(!auth()->user()->hasRole('Perito'))
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="hora">Hora<span style="color: red">*</span></label>
@@ -96,7 +97,7 @@
                                            inputmode="numeric"
                                            autocomplete="off"
                                            class="form-control @error('hora') is-invalid @enderror"
-                                           value="{{ old('hora', substr((string)($hecho->hora ?? ''), 0, 5)) }}"
+                                           value="{{ old('hora', !empty($hecho->hora) ? substr($hecho->hora, 0, 5) : '') }}"
                                            placeholder="HH:MM"
                                            required>
                                     @error('hora')
@@ -104,6 +105,7 @@
                                     @enderror
                                 </div>
                             </div>
+                            @endif
 
                             <div class="col-md-3">
                                 <div class="form-group">

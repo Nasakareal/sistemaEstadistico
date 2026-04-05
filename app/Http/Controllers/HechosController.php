@@ -72,7 +72,7 @@ class HechosController extends Controller
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
-            'hora' => 'required|date_format:H:i',
+            'hora' => $usuario->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
             'fecha' => 'required|date',
             'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
             'calle' => 'required|string|max:255',
@@ -129,6 +129,10 @@ class HechosController extends Controller
         $validated['revisado_por'] = null;
         $validated['revisado_at'] = null;
         $validated['observacion_revision'] = null;
+
+        if ($usuario->hasRole('Perito')) {
+            $validated['hora'] = now('America/Mexico_City')->format('H:i');
+        }
 
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
@@ -300,7 +304,7 @@ class HechosController extends Controller
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
-            'hora' => 'required|date_format:H:i',
+            'hora' => $usuario->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
             'fecha' => 'required|date',
             'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
             'calle' => 'required|string|max:255',
@@ -356,6 +360,12 @@ class HechosController extends Controller
         }
 
         $validated['updated_by'] = $usuario->id;
+
+        if ($usuario->hasRole('Perito')) {
+            $validated['hora'] = !empty($hecho->hora)
+                ? substr((string) $hecho->hora, 0, 5)
+                : substr((string) $hecho->created_at, 11, 5);
+        }
 
         if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
             $validated['unidad_org_id'] = $usuario->unidad_id;

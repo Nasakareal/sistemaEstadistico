@@ -64,6 +64,10 @@ use App\Http\Controllers\ZonaMapaController;
 use App\Http\Controllers\EstadisticasCarreterasSettingsController;
 use App\Http\Controllers\EstadisticasSiniestrosSettingsController;
 
+use App\Http\Controllers\VialidadesUrbanasController;
+use App\Http\Controllers\VialidadesUrbanasDispositivoController;
+use App\Http\Controllers\VialidadesUrbanasDispositivoFotoController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::prefix('resumen-ejecutivo')->middleware(['auth', 'can:ver estadisticas'])->group(function () {
@@ -230,6 +234,28 @@ Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carr
     });
     Route::get('/guardianes-camino/count-pendientes', [GuardianesCaminoController::class, 'countPendientesRevision'])->name('guardianes_camino.countPendientesRevision');
 });
+
+Route::prefix('vialidades-urbanas')->middleware(['auth', 'can:ver operativos vialidades'])->group(function () {
+    Route::get('/', [VialidadesUrbanasController::class, 'index'])->name('vialidades_urbanas.index');
+    Route::get('/create', [VialidadesUrbanasController::class, 'create'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.create');
+    Route::post('/', [VialidadesUrbanasController::class, 'store'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.store');
+    Route::get('/{vialidadUrbana}/edit', [VialidadesUrbanasController::class, 'edit'])->middleware('can:editar operativos vialidades')->name('vialidades_urbanas.edit');
+    Route::put('/{vialidadUrbana}', [VialidadesUrbanasController::class, 'update'])->middleware('can:editar operativos vialidades')->name('vialidades_urbanas.update');
+    Route::get('/{vialidadUrbana}/resumen', [VialidadesUrbanasController::class, 'resumen'])->name('vialidades_urbanas.resumen');
+    Route::get('/{vialidadUrbana}/whatsapp', [VialidadesUrbanasController::class, 'whatsapp'])->name('vialidades_urbanas.whatsapp');
+
+    Route::prefix('{vialidadUrbana}/dispositivos')->group(function () {
+        Route::get('/', [VialidadesUrbanasDispositivoController::class, 'index'])->name('vialidades_urbanas.dispositivos.index');
+        Route::get('/create', [VialidadesUrbanasDispositivoController::class, 'create'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.dispositivos.create');
+        Route::post('/', [VialidadesUrbanasDispositivoController::class, 'store'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.dispositivos.store');
+        Route::get('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'show'])->name('vialidades_urbanas.dispositivos.show');
+        Route::get('/{dispositivo}/edit', [VialidadesUrbanasDispositivoController::class, 'edit'])->middleware('can:editar operativos vialidades')->name('vialidades_urbanas.dispositivos.edit');
+        Route::put('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'update'])->middleware('can:editar operativos vialidades')->name('vialidades_urbanas.dispositivos.update');
+        Route::delete('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos vialidades')->name('vialidades_urbanas.dispositivos.destroy');
+        Route::get('/{dispositivo}/whatsapp', [VialidadesUrbanasDispositivoController::class, 'whatsapp'])->name('vialidades_urbanas.dispositivos.whatsapp');
+    });
+});
+
 Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');
     Route::get('/create',[OficioController::class,'create'])->middleware('can:crear oficios')->name('oficios.create');

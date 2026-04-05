@@ -1,17 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Services",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\sectorizaciones"
+    "\\resources\\views\\vialidades_urbanas"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\sectorizaciones\\gestionar.blade.php",
+  "SelectedNode": "\\resources\\views\\vialidades_urbanas\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

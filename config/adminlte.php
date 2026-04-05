@@ -366,6 +366,29 @@ return [
                 ],
             ],
         ],
+
+        [
+            'text'    => 'Vialidades Urbanas',
+            'icon'    => 'fa-solid fa-traffic-light',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'menu-vialidades-urbanas',
+            'submenu' => [
+                [
+                    'text'    => 'Panel Vialidades Urbanas',
+                    'icon'    => 'fa-solid fa-list-check',
+                    'classes' => 'text-white',
+                    'url'     => 'vialidades-urbanas',
+                    'can'     => 'menu-vialidades-urbanas',
+                ],
+                [
+                    'text'    => 'Resumen',
+                    'icon'    => 'fa-solid fa-chart-column',
+                    'classes' => 'text-white',
+                    'url'     => 'vialidades-urbanas/1/resumen',
+                    'can'     => 'menu-vialidades-urbanas',
+                ],
+            ],
+        ],
         /*
         [
             'text'    => 'Oficios',

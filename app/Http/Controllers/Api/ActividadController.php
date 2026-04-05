@@ -110,6 +110,7 @@ class ActividadController extends Controller
         $this->authorize('crear actividades');
 
         $validated = $request->validate([
+            'client_uuid' => 'nullable|string|max:36',
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'fecha' => 'nullable|date',
@@ -139,6 +140,34 @@ class ActividadController extends Controller
             'fotos.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
+        if (!empty($validated['client_uuid'])) {
+            $actividadExistente = Actividad::query()
+                ->where('client_uuid', $validated['client_uuid'])
+                ->first();
+
+            if ($actividadExistente) {
+                $actividadExistente->load([
+                    'categoria',
+                    'subcategoria',
+                    'unidad',
+                    'delegacion',
+                    'destacamento',
+                    'fotos',
+                ]);
+
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Actividad ya existente.',
+                    'created' => false,
+                    'data' => $this->withFotoUrls($actividadExistente),
+                    'meta' => [
+                        'id' => $actividadExistente->id,
+                        'client_uuid' => $actividadExistente->client_uuid,
+                    ],
+                ], 200);
+            }
+        }
+
         if (!$request->hasFile('foto') && !$request->hasFile('fotos')) {
             return response()->json([
                 'ok' => false,
@@ -155,6 +184,11 @@ class ActividadController extends Controller
 
         $fecha = !empty($validated['fecha']) ? Carbon::parse($validated['fecha'], $tz)->toDateString() : $ahora->toDateString();
         $hora = !empty($validated['hora']) ? $validated['hora'] : $ahora->format('H:i');
+
+        $hasCoords = $request->filled('lat') && $request->filled('lng');
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_APP';
+        }
 
         $unidadOrg = (int) ($user->unidad_id ?? 0);
         if ($unidadOrg <= 0) {
@@ -239,7 +273,7 @@ class ActividadController extends Controller
             }
 
             $actividad = Actividad::create([
-                'client_uuid' => (string) Str::uuid(),
+                'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
                 'sync_status' => 'local',
                 'sync_error' => null,
                 'synced_at' => null,
@@ -323,7 +357,12 @@ class ActividadController extends Controller
             return response()->json([
                 'ok' => true,
                 'message' => 'Actividad creada correctamente.',
-                'data' => $actividad,
+                'created' => true,
+                'data' => $this->withFotoUrls($actividad),
+                'meta' => [
+                    'id' => $actividad->id,
+                    'client_uuid' => $actividad->client_uuid,
+                ],
             ], 201);
         });
     }
@@ -353,7 +392,7 @@ class ActividadController extends Controller
 
         return response()->json([
             'ok' => true,
-            'data' => $actividad,
+            'data' => $this->withFotoUrls($actividad),
         ]);
     }
 
@@ -374,31 +413,31 @@ class ActividadController extends Controller
         }
 
         $validated = $request->validate([
-            'actividad_categoria_id'    => 'required|exists:actividad_categorias,id',
+            'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
-            'fecha'                     => 'nullable|date',
-            'hora'                      => 'nullable|date_format:H:i',
-            'lugar'                     => 'nullable|string|max:255',
-            'municipio'                 => 'nullable|string|max:255',
-            'carretera'                 => 'nullable|string|max:255',
-            'tramo'                     => 'nullable|string|max:255',
-            'kilometro'                 => 'nullable|string|max:50',
-            'lat'                       => 'nullable|numeric|between:-90,90',
-            'lng'                       => 'nullable|numeric|between:-180,180',
-            'coordenadas_texto'         => 'nullable|string',
-            'fuente_ubicacion'          => 'nullable|string|max:50',
-            'nota_geo'                  => 'nullable|string|max:255',
-            'motivo'                    => 'nullable|string',
-            'narrativa'                 => 'nullable|string',
-            'acciones_realizadas'       => 'nullable|string',
-            'observaciones'             => 'nullable|string',
-            'personas_alcanzadas'       => 'nullable|integer|min:0',
-            'personas_participantes'    => 'nullable|integer|min:0',
-            'personas_detenidas'        => 'nullable|integer|min:0',
+            'fecha' => 'nullable|date',
+            'hora' => 'nullable|date_format:H:i',
+            'lugar' => 'nullable|string|max:255',
+            'municipio' => 'nullable|string|max:255',
+            'carretera' => 'nullable|string|max:255',
+            'tramo' => 'nullable|string|max:255',
+            'kilometro' => 'nullable|string|max:50',
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
+            'coordenadas_texto' => 'nullable|string',
+            'fuente_ubicacion' => 'nullable|string|max:50',
+            'nota_geo' => 'nullable|string|max:255',
+            'motivo' => 'nullable|string',
+            'narrativa' => 'nullable|string',
+            'acciones_realizadas' => 'nullable|string',
+            'observaciones' => 'nullable|string',
+            'personas_alcanzadas' => 'nullable|integer|min:0',
+            'personas_participantes' => 'nullable|integer|min:0',
+            'personas_detenidas' => 'nullable|integer|min:0',
             'elementos_participantes_texto' => 'nullable|string',
             'patrullas_participantes_texto' => 'nullable|string',
-            'destacamento_id'           => 'nullable|integer',
-            'foto'                      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'destacamento_id' => 'nullable|integer',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $user = Auth::user();
@@ -406,6 +445,19 @@ class ActividadController extends Controller
 
         $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $cantidad = 1;
+
+        $hasCoords = $request->filled('lat') && $request->filled('lng');
+        if ($hasCoords && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_APP';
+        }
+
+        if ($request->has('lat') && !$request->filled('lat')) {
+            $validated['lat'] = null;
+        }
+
+        if ($request->has('lng') && !$request->filled('lng')) {
+            $validated['lng'] = null;
+        }
 
         if (!empty($validated['actividad_subcategoria_id'])) {
             $ok = ActividadSubcategoria::query()
@@ -448,9 +500,7 @@ class ActividadController extends Controller
                     ], 422);
                 }
 
-                if (!empty($fotoPath) && Storage::disk('public')->exists($fotoPath)) {
-                    Storage::disk('public')->delete($fotoPath);
-                }
+                $fotoAnteriorPath = $fotoPath;
 
                 $fotoNombreOriginal = $file->getClientOriginalName();
                 $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
@@ -458,6 +508,10 @@ class ActividadController extends Controller
 
                 $fotoPath = $file->storeAs('actividades', $filename, 'public');
                 $fotoHash = $nuevoHash;
+
+                if (!empty($fotoAnteriorPath) && Storage::disk('public')->exists($fotoAnteriorPath)) {
+                    Storage::disk('public')->delete($fotoAnteriorPath);
+                }
             }
 
             $fechaRespaldo = $actividad->created_at
@@ -469,44 +523,51 @@ class ActividadController extends Controller
                 : now($tz)->format('H:i');
 
             $actividad->update([
-                'actividad_categoria_id'        => $validated['actividad_categoria_id'],
-                'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre'                        => $nombre,
-                'cantidad'                      => $cantidad,
-                'foto_path'                     => $fotoPath,
-                'foto_nombre_original'          => $fotoNombreOriginal,
-                'foto_hash'                     => $fotoHash,
-                'updated_by'                    => $user->id,
-                'fecha'                         => $validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo,
-                'hora'                          => $validated['hora'] ?? $actividad->hora ?? $horaRespaldo,
-                'destacamento_id'               => $validated['destacamento_id'] ?? $actividad->destacamento_id,
-                'lugar'                         => array_key_exists('lugar', $validated) ? $this->toUpperOrNull($validated['lugar']) : $actividad->lugar,
-                'municipio'                     => array_key_exists('municipio', $validated) ? $this->toUpperOrNull($validated['municipio']) : $actividad->municipio,
-                'carretera'                     => array_key_exists('carretera', $validated) ? $this->toUpperOrNull($validated['carretera']) : $actividad->carretera,
-                'tramo'                         => array_key_exists('tramo', $validated) ? $this->toUpperOrNull($validated['tramo']) : $actividad->tramo,
-                'kilometro'                     => array_key_exists('kilometro', $validated) ? $this->toUpperOrNull($validated['kilometro']) : $actividad->kilometro,
-                'lat'                           => $validated['lat'] ?? $actividad->lat,
-                'lng'                           => $validated['lng'] ?? $actividad->lng,
-                'coordenadas_texto'             => $validated['coordenadas_texto'] ?? $actividad->coordenadas_texto,
-                'fuente_ubicacion'              => $validated['fuente_ubicacion'] ?? $actividad->fuente_ubicacion,
-                'nota_geo'                      => $validated['nota_geo'] ?? $actividad->nota_geo,
-                'motivo'                        => array_key_exists('motivo', $validated) ? $this->toUpperOrNull($validated['motivo']) : $actividad->motivo,
-                'narrativa'                     => $validated['narrativa'] ?? $actividad->narrativa,
-                'acciones_realizadas'           => $validated['acciones_realizadas'] ?? $actividad->acciones_realizadas,
-                'observaciones'                 => $validated['observaciones'] ?? $actividad->observaciones,
-                'personas_alcanzadas'           => $validated['personas_alcanzadas'] ?? $actividad->personas_alcanzadas,
-                'personas_participantes'        => $validated['personas_participantes'] ?? $actividad->personas_participantes,
-                'personas_detenidas'            => $validated['personas_detenidas'] ?? $actividad->personas_detenidas,
-                'elementos_participantes_texto' => $validated['elementos_participantes_texto'] ?? $actividad->elementos_participantes_texto,
-                'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? $actividad->patrullas_participantes_texto,
+                'actividad_categoria_id' => $validated['actividad_categoria_id'],
+                'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
+                'nombre' => $nombre,
+                'cantidad' => $cantidad,
+                'foto_path' => $fotoPath,
+                'foto_nombre_original' => $fotoNombreOriginal,
+                'foto_hash' => $fotoHash,
+                'updated_by' => $user->id,
+                'fecha' => $validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo,
+                'hora' => $validated['hora'] ?? $actividad->hora ?? $horaRespaldo,
+                'destacamento_id' => $validated['destacamento_id'] ?? $actividad->destacamento_id,
+                'lugar' => array_key_exists('lugar', $validated) ? $this->toUpperOrNull($validated['lugar']) : $actividad->lugar,
+                'municipio' => array_key_exists('municipio', $validated) ? $this->toUpperOrNull($validated['municipio']) : $actividad->municipio,
+                'carretera' => array_key_exists('carretera', $validated) ? $this->toUpperOrNull($validated['carretera']) : $actividad->carretera,
+                'tramo' => array_key_exists('tramo', $validated) ? $this->toUpperOrNull($validated['tramo']) : $actividad->tramo,
+                'kilometro' => array_key_exists('kilometro', $validated) ? $this->toUpperOrNull($validated['kilometro']) : $actividad->kilometro,
+                'lat' => array_key_exists('lat', $validated) ? $validated['lat'] : $actividad->lat,
+                'lng' => array_key_exists('lng', $validated) ? $validated['lng'] : $actividad->lng,
+                'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $validated['coordenadas_texto'] : $actividad->coordenadas_texto,
+                'fuente_ubicacion' => array_key_exists('fuente_ubicacion', $validated) ? $validated['fuente_ubicacion'] : $actividad->fuente_ubicacion,
+                'nota_geo' => array_key_exists('nota_geo', $validated) ? $validated['nota_geo'] : $actividad->nota_geo,
+                'motivo' => array_key_exists('motivo', $validated) ? $this->toUpperOrNull($validated['motivo']) : $actividad->motivo,
+                'narrativa' => array_key_exists('narrativa', $validated) ? $validated['narrativa'] : $actividad->narrativa,
+                'acciones_realizadas' => array_key_exists('acciones_realizadas', $validated) ? $validated['acciones_realizadas'] : $actividad->acciones_realizadas,
+                'observaciones' => array_key_exists('observaciones', $validated) ? $validated['observaciones'] : $actividad->observaciones,
+                'personas_alcanzadas' => array_key_exists('personas_alcanzadas', $validated) ? $validated['personas_alcanzadas'] : $actividad->personas_alcanzadas,
+                'personas_participantes' => array_key_exists('personas_participantes', $validated) ? $validated['personas_participantes'] : $actividad->personas_participantes,
+                'personas_detenidas' => array_key_exists('personas_detenidas', $validated) ? $validated['personas_detenidas'] : $actividad->personas_detenidas,
+                'elementos_participantes_texto' => array_key_exists('elementos_participantes_texto', $validated) ? $validated['elementos_participantes_texto'] : $actividad->elementos_participantes_texto,
+                'patrullas_participantes_texto' => array_key_exists('patrullas_participantes_texto', $validated) ? $validated['patrullas_participantes_texto'] : $actividad->patrullas_participantes_texto,
             ]);
 
-            $actividad->load(['categoria', 'subcategoria']);
+            $actividad->load([
+                'categoria',
+                'subcategoria',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'fotos',
+            ]);
 
             return response()->json([
                 'ok' => true,
                 'message' => 'Actividad actualizada correctamente.',
-                'data' => $actividad,
+                'data' => $this->withFotoUrls($actividad),
             ]);
         });
     }
@@ -716,4 +777,28 @@ class ActividadController extends Controller
         return $value === '' ? null : mb_strtoupper($value, 'UTF-8');
     }
 
+    private function withFotoUrls(Actividad $actividad): array
+    {
+        $data = $actividad->toArray();
+
+        $data['foto_url'] = $this->publicStoragePath($actividad->foto_path);
+
+        if (!empty($data['fotos']) && is_array($data['fotos'])) {
+            $data['fotos'] = array_map(function ($foto) {
+                $foto['foto_url'] = $this->publicStoragePath($foto['foto_path'] ?? null);
+                return $foto;
+            }, $data['fotos']);
+        }
+
+        return $data;
+    }
+
+    private function publicStoragePath(?string $storedPath): ?string
+    {
+        if (empty($storedPath)) {
+            return null;
+        }
+
+        return asset('storage/' . ltrim($storedPath, '/'));
+    }
 }

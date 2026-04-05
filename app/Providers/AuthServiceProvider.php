@@ -113,5 +113,21 @@ class AuthServiceProvider extends ServiceProvider
                     || (int) $user->unidad_id === 3
                 );
         });
+
+        Gate::define('menu-vialidades-urbanas', function ($user) {
+            return $user->can('ver operativos vialidades')
+                && (
+                    $user->perteneceAUnidad('vialidades-urbanas')
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
+        Gate::define('menu-vialidades-urbanas-crear', function ($user) {
+            return $user->can('crear operativos vialidades')
+                && (
+                    $user->perteneceAUnidad('vialidades-urbanas')
+                    || (int) $user->unidad_id === 3
+                );
+        });
     }
 }

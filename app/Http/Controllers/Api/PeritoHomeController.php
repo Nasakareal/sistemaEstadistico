@@ -21,8 +21,8 @@ class PeritoHomeController extends Controller
             $gridSize = 0.01;
         }
 
-        $minScore = (int) $request->get('min_score', 3);
-        $minScore = $minScore > 0 ? $minScore : 3;
+        $minScore = (int) $request->get('min_score', 6);
+        $minScore = $minScore > 0 ? $minScore : 6;
 
         $wazeHours = (int) $request->get('waze_hours', 12);
         $wazeHours = $wazeHours > 0 ? $wazeHours : 12;
@@ -272,7 +272,7 @@ class PeritoHomeController extends Controller
             'default_values' => [
                 'days' => 30,
                 'grid_size' => 0.01,
-                'min_score' => 3,
+                'min_score' => 6,
                 'waze_hours' => 12,
             ],
         ]);
@@ -351,11 +351,11 @@ class PeritoHomeController extends Controller
 
     private function resolveSeverity(int $score, int $totalHechos): string
     {
-        if ($score >= 8 || $totalHechos >= 5) {
+        if ($score >= 12 || $totalHechos >= 7) {
             return 'muy_alta';
         }
 
-        if ($score >= 3 || $totalHechos >= 2) {
+        if ($score >= 6 || $totalHechos >= 4) {
             return 'alta';
         }
 

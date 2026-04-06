@@ -123,63 +123,6 @@
 
                         <hr>
 
-                        <h4 class="mb-3">Detalles del dispositivo</h4>
-
-                        <div id="contenedor-detalles">
-                            @php
-                                $detallesOld = old('detalles', [
-                                    ['tipo' => 'texto', 'titulo' => '', 'contenido' => '', 'ubicacion' => '', 'hora' => '']
-                                ]);
-                            @endphp
-
-                            @foreach($detallesOld as $i => $detalle)
-                                <div class="detalle-item card card-outline card-secondary mb-3">
-                                    <div class="card-header">
-                                        <h3 class="card-title">Detalle <span class="detalle-numero">{{ $i + 1 }}</span></h3>
-                                        <div class="card-tools">
-                                            <button type="button" class="btn btn-danger btn-sm btn-eliminar-detalle">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-2">
-                                                <label>Tipo</label>
-                                                <input type="text" name="detalles[{{ $i }}][tipo]" class="form-control" value="{{ $detalle['tipo'] ?? 'texto' }}">
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <label>Título</label>
-                                                <input type="text" name="detalles[{{ $i }}][titulo]" class="form-control" value="{{ $detalle['titulo'] ?? '' }}">
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label>Ubicación</label>
-                                                <input type="text" name="detalles[{{ $i }}][ubicacion]" class="form-control" value="{{ $detalle['ubicacion'] ?? '' }}">
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label>Hora</label>
-                                                <input type="time" name="detalles[{{ $i }}][hora]" class="form-control" value="{{ $detalle['hora'] ?? '' }}">
-                                            </div>
-
-                                            <div class="col-md-12 mt-3">
-                                                <label>Contenido</label>
-                                                <textarea name="detalles[{{ $i }}][contenido]" rows="4" class="form-control">{{ $detalle['contenido'] ?? '' }}</textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-
-                        <button type="button" id="btn-agregar-detalle" class="btn btn-outline-primary btn-sm">
-                            <i class="fa-solid fa-plus"></i> Agregar detalle
-                        </button>
-
-                        <hr>
-
                         <h4 class="mb-3">Estado de fuerza</h4>
 
                         <div class="row">
@@ -221,22 +164,6 @@
                             <div class="col-md-2 mt-3">
                                 <label for="otros_apoyos">Otros apoyos</label>
                                 <input type="number" min="0" name="otros_apoyos" id="otros_apoyos" class="form-control" value="{{ old('otros_apoyos', 0) }}">
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <h4 class="mb-3">Responsable</h4>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label for="responsable_cargo">Cargo</label>
-                                <input type="text" name="responsable_cargo" id="responsable_cargo" class="form-control" value="{{ old('responsable_cargo', 'SUBDIRECTOR DE PROTECCIÓN EN VIALIDADES URBANAS') }}">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="responsable_nombre">Nombre</label>
-                                <input type="text" name="responsable_nombre" id="responsable_nombre" class="form-control" value="{{ old('responsable_nombre') }}">
                             </div>
                         </div>
 
@@ -359,66 +286,6 @@
 @section('js')
     <script>
         $(function () {
-            let detalleIndex = $('#contenedor-detalles .detalle-item').length;
-
-            $('#btn-agregar-detalle').on('click', function () {
-                let html = `
-                    <div class="detalle-item card card-outline card-secondary mb-3">
-                        <div class="card-header">
-                            <h3 class="card-title">Detalle <span class="detalle-numero">${detalleIndex + 1}</span></h3>
-                            <div class="card-tools">
-                                <button type="button" class="btn btn-danger btn-sm btn-eliminar-detalle">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-2">
-                                    <label>Tipo</label>
-                                    <input type="text" name="detalles[${detalleIndex}][tipo]" class="form-control" value="texto">
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label>Título</label>
-                                    <input type="text" name="detalles[${detalleIndex}][titulo]" class="form-control">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label>Ubicación</label>
-                                    <input type="text" name="detalles[${detalleIndex}][ubicacion]" class="form-control">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label>Hora</label>
-                                    <input type="time" name="detalles[${detalleIndex}][hora]" class="form-control">
-                                </div>
-
-                                <div class="col-md-12 mt-3">
-                                    <label>Contenido</label>
-                                    <textarea name="detalles[${detalleIndex}][contenido]" rows="4" class="form-control"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                $('#contenedor-detalles').append(html);
-                detalleIndex++;
-                renumerarDetalles();
-            });
-
-            $(document).on('click', '.btn-eliminar-detalle', function () {
-                $(this).closest('.detalle-item').remove();
-                renumerarDetalles();
-            });
-
-            function renumerarDetalles() {
-                $('#contenedor-detalles .detalle-item').each(function(index) {
-                    $(this).find('.detalle-numero').text(index + 1);
-                });
-            }
-
             @if ($errors->any())
                 Swal.fire({
                     icon: 'error',

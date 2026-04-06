@@ -7,8 +7,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use App\Models\VialidadDispositivo;
 use App\Models\VialidadDispositivoCatalogo;
-use App\Models\VialidadDispositivoDetalle;
 use App\Models\VialidadDispositivoFoto;
+use App\Models\Personal;
 
 class VialidadesUrbanasController extends Controller
 {
@@ -108,14 +108,6 @@ class VialidadesUrbanasController extends Controller
             'gruas' => 'nullable|integer|min:0',
             'otros_apoyos' => 'nullable|integer|min:0',
             'supervision' => 'nullable|string|max:255',
-            'responsable_nombre' => 'nullable|string|max:255',
-            'responsable_cargo' => 'nullable|string|max:255',
-            'detalles' => 'nullable|array',
-            'detalles.*.tipo' => 'nullable|string|max:50',
-            'detalles.*.titulo' => 'nullable|string|max:255',
-            'detalles.*.contenido' => 'nullable|string',
-            'detalles.*.ubicacion' => 'nullable|string|max:255',
-            'detalles.*.hora' => 'nullable|date_format:H:i',
             'fotos' => 'nullable|array',
             'fotos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -151,14 +143,13 @@ class VialidadesUrbanasController extends Controller
             'gruas' => (int) ($validated['gruas'] ?? 0),
             'otros_apoyos' => (int) ($validated['otros_apoyos'] ?? 0),
             'supervision' => $this->normalizeText($validated['supervision'] ?? null),
-            'responsable_nombre' => $this->normalizeText($validated['responsable_nombre'] ?? null),
-            'responsable_cargo' => $this->normalizeText($validated['responsable_cargo'] ?? null),
+            'responsable_nombre' => null,
+            'responsable_cargo' => null,
             'revisado' => false,
             'revisado_por' => null,
             'revisado_en' => null,
         ]);
 
-        $this->syncDetalles($dispositivo, $request->input('detalles', []));
         $this->storeFotos($dispositivo, $request->file('fotos', []));
 
         return redirect()
@@ -226,14 +217,6 @@ class VialidadesUrbanasController extends Controller
             'gruas' => 'nullable|integer|min:0',
             'otros_apoyos' => 'nullable|integer|min:0',
             'supervision' => 'nullable|string|max:255',
-            'responsable_nombre' => 'nullable|string|max:255',
-            'responsable_cargo' => 'nullable|string|max:255',
-            'detalles' => 'nullable|array',
-            'detalles.*.tipo' => 'nullable|string|max:50',
-            'detalles.*.titulo' => 'nullable|string|max:255',
-            'detalles.*.contenido' => 'nullable|string',
-            'detalles.*.ubicacion' => 'nullable|string|max:255',
-            'detalles.*.hora' => 'nullable|date_format:H:i',
             'fotos' => 'nullable|array',
             'fotos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'eliminar_fotos' => 'nullable|array',
@@ -264,11 +247,10 @@ class VialidadesUrbanasController extends Controller
             'gruas' => (int) ($validated['gruas'] ?? 0),
             'otros_apoyos' => (int) ($validated['otros_apoyos'] ?? 0),
             'supervision' => $this->normalizeText($validated['supervision'] ?? null),
-            'responsable_nombre' => $this->normalizeText($validated['responsable_nombre'] ?? null),
-            'responsable_cargo' => $this->normalizeText($validated['responsable_cargo'] ?? null),
+            'responsable_nombre' => null,
+            'responsable_cargo' => null,
         ]);
 
-        $this->syncDetalles($dispositivo, $request->input('detalles', []));
         $this->deleteFotos($dispositivo, $request->input('eliminar_fotos', []));
         $this->storeFotos($dispositivo, $request->file('fotos', []));
         $this->syncFotoPortada($dispositivo, $request->input('foto_portada_id'));
@@ -344,6 +326,24 @@ class VialidadesUrbanasController extends Controller
 
         $dispositivos = $query->get();
 
+        $subdirector = Personal::query()
+            ->where('unidad_id', 5)
+            ->where('puesto', 'SUBDIRECTOR')
+            ->where('estatus', 'ACTIVO')
+            ->orderBy('id')
+            ->first();
+
+        $cargoFirma = 'SUBDIRECTOR DE PROTECCIÓN EN VIALIDADES URBANAS';
+
+        $nombreFirma = $subdirector
+            ? trim(collect([
+                $subdirector->grado,
+                $subdirector->nombre,
+                $subdirector->ap_paterno,
+                $subdirector->ap_materno,
+            ])->filter()->implode(' '))
+            : '';
+
         $lineas = [];
         $lineas[] = 'GUARDIA CIVIL';
         $lineas[] = '';
@@ -411,36 +411,16 @@ class VialidadesUrbanasController extends Controller
             $lineas[] = '';
         }
 
+        $lineas[] = 'RESPETUOSAMENTE';
+        $lineas[] = $cargoFirma;
+
+        if ($nombreFirma !== '') {
+            $lineas[] = strtoupper($this->removeAccents($nombreFirma));
+        }
+
         return response()->json([
             'texto' => trim(implode("\n", $lineas)),
         ]);
-    }
-
-    private function syncDetalles(VialidadDispositivo $dispositivo, array $detalles): void
-    {
-        $dispositivo->detalles()->delete();
-
-        $orden = 1;
-
-        foreach ($detalles as $detalle) {
-            $contenido = trim((string) ($detalle['contenido'] ?? ''));
-
-            if ($contenido === '') {
-                continue;
-            }
-
-            VialidadDispositivoDetalle::create([
-                'vialidad_dispositivo_id' => $dispositivo->id,
-                'orden' => $orden,
-                'tipo' => !empty($detalle['tipo']) ? trim((string) $detalle['tipo']) : 'texto',
-                'titulo' => $this->normalizeText($detalle['titulo'] ?? null),
-                'contenido' => $this->normalizeText($contenido),
-                'ubicacion' => $this->normalizeText($detalle['ubicacion'] ?? null),
-                'hora' => !empty($detalle['hora']) ? $detalle['hora'] : null,
-            ]);
-
-            $orden++;
-        }
     }
 
     private function storeFotos(VialidadDispositivo $dispositivo, array $fotos): void

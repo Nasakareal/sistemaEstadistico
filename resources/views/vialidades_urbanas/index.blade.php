@@ -124,7 +124,6 @@
                                     <th class="text-center">Lugar</th>
                                     <th class="text-center">Portada</th>
                                     <th class="text-center">Estado de Fuerza</th>
-                                    <th class="text-center">Responsable</th>
                                     <th class="text-center">Creado por</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
@@ -187,13 +186,6 @@
                                             @else
                                                 <span class="text-muted">Sin datos</span>
                                             @endif
-                                        </td>
-
-                                        <td>
-                                            @if(!empty($dispositivo->responsable_cargo))
-                                                <strong>{{ $dispositivo->responsable_cargo }}</strong><br>
-                                            @endif
-                                            {{ $dispositivo->responsable_nombre ?? 'SIN RESPONSABLE' }}
                                         </td>
 
                                         <td>{{ optional($dispositivo->creador)->name ?? 'Desconocido' }}</td>

@@ -1,0 +1,333 @@
+@extends('adminlte::page')
+
+@section('title', 'Captura Operativa del Dispositivo')
+
+@section('content_header')
+    <h1>Captura Operativa del Dispositivo</h1>
+@stop
+
+@section('content')
+    @php
+        $vialidadUrbanaId = $vialidadUrbana ?? 1;
+    @endphp
+
+    <div class="row">
+        <div class="col-md-12">
+            <form action="{{ route('vialidades_urbanas.dispositivos.store', [$vialidadUrbanaId, $dispositivo->id]) }}" method="POST" enctype="multipart/form-data" autocomplete="off">
+                @csrf
+
+                <div class="card card-outline card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Información operativa del dispositivo</h3>
+
+                        <div class="card-tools">
+                            <a href="{{ route('vialidades_urbanas.edit', $dispositivo->id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-arrow-left"></i> Volver
+                            </a>
+
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fa-solid fa-floppy-disk"></i> Guardar información
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="card card-outline card-secondary mb-4">
+                            <div class="card-header">
+                                <h3 class="card-title">Dispositivo padre</h3>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label>ID</label>
+                                        <input type="text" class="form-control" value="{{ $dispositivo->id }}" readonly>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label>Fecha</label>
+                                        <input type="text" class="form-control" value="{{ !empty($dispositivo->fecha) ? \Carbon\Carbon::parse($dispositivo->fecha)->format('Y-m-d') : '' }}" readonly>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label>Hora</label>
+                                        <input type="text" class="form-control" value="{{ !empty($dispositivo->hora) ? substr((string) $dispositivo->hora, 0, 5) : '' }}" readonly>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label>Catálogo</label>
+                                        <input type="text" class="form-control" value="{{ optional($dispositivo->catalogo)->nombre ?? 'SIN CATÁLOGO' }}" readonly>
+                                    </div>
+
+                                    <div class="col-md-6 mt-3">
+                                        <label>Asunto</label>
+                                        <input type="text" class="form-control" value="{{ $dispositivo->asunto }}" readonly>
+                                    </div>
+
+                                    <div class="col-md-3 mt-3">
+                                        <label>Municipio</label>
+                                        <input type="text" class="form-control" value="{{ $dispositivo->municipio }}" readonly>
+                                    </div>
+
+                                    <div class="col-md-3 mt-3">
+                                        <label>Lugar</label>
+                                        <input type="text" class="form-control" value="{{ $dispositivo->lugar }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h4 class="mb-3">Detalles de lo realizado</h4>
+
+                        <div id="contenedor-detalles">
+                            @php
+                                $detallesOld = old('detalles', [
+                                    ['tipo' => 'texto', 'titulo' => '', 'contenido' => '', 'ubicacion' => '', 'hora' => '']
+                                ]);
+                            @endphp
+
+                            @foreach($detallesOld as $i => $detalle)
+                                <div class="detalle-item card card-outline card-secondary mb-3">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Detalle <span class="detalle-numero">{{ $i + 1 }}</span></h3>
+                                        <div class="card-tools">
+                                            <button type="button" class="btn btn-danger btn-sm btn-eliminar-detalle">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-2">
+                                                <label>Tipo</label>
+                                                <input type="text" name="detalles[{{ $i }}][tipo]" class="form-control" value="{{ $detalle['tipo'] ?? 'texto' }}">
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <label>Título</label>
+                                                <input type="text" name="detalles[{{ $i }}][titulo]" class="form-control" value="{{ $detalle['titulo'] ?? '' }}">
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <label>Ubicación</label>
+                                                <input type="text" name="detalles[{{ $i }}][ubicacion]" class="form-control" value="{{ $detalle['ubicacion'] ?? '' }}">
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <label>Hora</label>
+                                                <input type="time" name="detalles[{{ $i }}][hora]" class="form-control" value="{{ $detalle['hora'] ?? '' }}">
+                                            </div>
+
+                                            <div class="col-md-12 mt-3">
+                                                <label>Contenido</label>
+                                                <textarea name="detalles[{{ $i }}][contenido]" rows="4" class="form-control @error('detalles.' . $i . '.contenido') is-invalid @enderror">{{ $detalle['contenido'] ?? '' }}</textarea>
+                                                @error('detalles.' . $i . '.contenido')
+                                                    <div class="invalid-feedback">{{ $message }}</div>
+                                                @enderror
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <button type="button" id="btn-agregar-detalle" class="btn btn-outline-primary btn-sm">
+                            <i class="fa-solid fa-plus"></i> Agregar detalle
+                        </button>
+
+                        <hr>
+
+                        <h4 class="mb-3">Fotos</h4>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label for="fotos">Subir fotos</label>
+                                <input type="file" name="fotos[]" id="fotos" class="form-control-file" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer text-right">
+                        <a href="{{ route('vialidades_urbanas.edit', $dispositivo->id) }}" class="btn btn-secondary">
+                            <i class="fa-solid fa-xmark"></i> Cancelar
+                        </a>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar información
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+@stop
+
+@section('css')
+    <style>
+        input[type="date"].form-control,
+        input[type="time"].form-control,
+        select.form-control,
+        textarea.form-control,
+        input.form-control {
+            color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.06) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border-radius: 18px !important;
+            box-shadow: none !important;
+        }
+
+        input[type="date"].form-control,
+        input[type="time"].form-control,
+        select.form-control,
+        input.form-control {
+            height: calc(2.25rem + 10px) !important;
+            padding: .45rem 1rem !important;
+            line-height: 1.5 !important;
+        }
+
+        textarea.form-control {
+            min-height: 140px;
+            padding: .85rem 1rem !important;
+            line-height: 1.45 !important;
+            resize: vertical;
+        }
+
+        input[type="date"].form-control:focus,
+        input[type="time"].form-control:focus,
+        select.form-control:focus,
+        textarea.form-control:focus,
+        input.form-control:focus {
+            color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.10) !important;
+            border-color: rgba(255, 255, 255, 0.30) !important;
+            box-shadow: 0 0 0 .2rem rgba(255, 255, 255, 0.10) !important;
+        }
+
+        input[readonly].form-control {
+            opacity: 0.92;
+            cursor: not-allowed;
+        }
+
+        input[type="date"].form-control::-webkit-calendar-picker-indicator,
+        input[type="time"].form-control::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.9;
+            cursor: pointer;
+        }
+
+        select.form-control {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 2.6rem !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='rgba(255,255,255,0.9)'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .9rem center;
+            background-size: 16px 16px;
+        }
+
+        select.form-control option {
+            color: #111827 !important;
+            background-color: #ffffff !important;
+            padding: 6px 10px !important;
+        }
+
+        select.form-control option[value=""] {
+            color: #6b7280 !important;
+        }
+
+        .form-control.is-invalid,
+        .was-validated .form-control:invalid {
+            border-color: #dc3545 !important;
+            padding-right: inherit !important;
+            background-image: none !important;
+        }
+
+        .invalid-feedback {
+            color: #ffb4b4 !important;
+        }
+
+        .card .form-group label,
+        .card label {
+            color: #e5e7eb;
+            font-weight: 600;
+            margin-bottom: .45rem;
+        }
+    </style>
+@stop
+
+@section('js')
+    <script>
+        $(function () {
+            let detalleIndex = $('#contenedor-detalles .detalle-item').length;
+
+            $('#btn-agregar-detalle').on('click', function () {
+                let html = `
+                    <div class="detalle-item card card-outline card-secondary mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">Detalle <span class="detalle-numero">${detalleIndex + 1}</span></h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-danger btn-sm btn-eliminar-detalle">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <label>Tipo</label>
+                                    <input type="text" name="detalles[${detalleIndex}][tipo]" class="form-control" value="texto">
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label>Título</label>
+                                    <input type="text" name="detalles[${detalleIndex}][titulo]" class="form-control">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label>Ubicación</label>
+                                    <input type="text" name="detalles[${detalleIndex}][ubicacion]" class="form-control">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label>Hora</label>
+                                    <input type="time" name="detalles[${detalleIndex}][hora]" class="form-control">
+                                </div>
+
+                                <div class="col-md-12 mt-3">
+                                    <label>Contenido</label>
+                                    <textarea name="detalles[${detalleIndex}][contenido]" rows="4" class="form-control"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                $('#contenedor-detalles').append(html);
+                detalleIndex++;
+                renumerarDetalles();
+            });
+
+            $(document).on('click', '.btn-eliminar-detalle', function () {
+                $(this).closest('.detalle-item').remove();
+                renumerarDetalles();
+            });
+
+            function renumerarDetalles() {
+                $('#contenedor-detalles .detalle-item').each(function(index) {
+                    $(this).find('.detalle-numero').text(index + 1);
+                });
+            }
+
+            @if ($errors->any())
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Revisa el formulario',
+                    html: `{!! implode('<br>', $errors->all()) !!}`
+                });
+            @endif
+        });
+    </script>
+@stop

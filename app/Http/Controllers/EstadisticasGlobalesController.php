@@ -429,12 +429,66 @@ class EstadisticasGlobalesController extends Controller
         $desde = trim((string)$request->query('desde', ''));
         $hasta = trim((string)$request->query('hasta', ''));
 
+        $horaDesde = $this->normalizeHour($request->query('hora_desde', ''));
+        $horaHasta = $this->normalizeHour($request->query('hora_hasta', ''));
+
         if ($desde !== '' && $hasta !== '') {
-            $q->whereBetween('hechos.fecha', [$desde, $hasta]);
+            if ($desde === $hasta) {
+                $q->whereDate('hechos.fecha', '=', $desde);
+
+                if ($horaDesde !== null) {
+                    $q->whereTime('hechos.hora', '>=', $horaDesde);
+                }
+
+                if ($horaHasta !== null) {
+                    $q->whereTime('hechos.hora', '<=', $horaHasta);
+                }
+            } else {
+                $q->where(function ($w) use ($desde, $hasta, $horaDesde, $horaHasta) {
+                    $w->where(function ($mid) use ($desde, $hasta) {
+                        $mid->whereDate('hechos.fecha', '>', $desde)
+                            ->whereDate('hechos.fecha', '<', $hasta);
+                    })
+                    ->orWhere(function ($start) use ($desde, $horaDesde) {
+                        $start->whereDate('hechos.fecha', '=', $desde);
+
+                        if ($horaDesde !== null) {
+                            $start->whereTime('hechos.hora', '>=', $horaDesde);
+                        }
+                    })
+                    ->orWhere(function ($end) use ($hasta, $horaHasta) {
+                        $end->whereDate('hechos.fecha', '=', $hasta);
+
+                        if ($horaHasta !== null) {
+                            $end->whereTime('hechos.hora', '<=', $horaHasta);
+                        }
+                    });
+                });
+            }
         } elseif ($desde !== '') {
-            $q->whereDate('hechos.fecha', '>=', $desde);
+            if ($horaDesde !== null) {
+                $q->where(function ($w) use ($desde, $horaDesde) {
+                    $w->whereDate('hechos.fecha', '>', $desde)
+                        ->orWhere(function ($sameDay) use ($desde, $horaDesde) {
+                            $sameDay->whereDate('hechos.fecha', '=', $desde)
+                                ->whereTime('hechos.hora', '>=', $horaDesde);
+                        });
+                });
+            } else {
+                $q->whereDate('hechos.fecha', '>=', $desde);
+            }
         } elseif ($hasta !== '') {
-            $q->whereDate('hechos.fecha', '<=', $hasta);
+            if ($horaHasta !== null) {
+                $q->where(function ($w) use ($hasta, $horaHasta) {
+                    $w->whereDate('hechos.fecha', '<', $hasta)
+                        ->orWhere(function ($sameDay) use ($hasta, $horaHasta) {
+                            $sameDay->whereDate('hechos.fecha', '=', $hasta)
+                                ->whereTime('hechos.hora', '<=', $horaHasta);
+                        });
+                });
+            } else {
+                $q->whereDate('hechos.fecha', '<=', $hasta);
+            }
         }
 
         $map = [
@@ -733,5 +787,24 @@ class EstadisticasGlobalesController extends Controller
                     ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) = 'FALLECIDO'");
             });
         }
+    }
+
+    private function normalizeHour($value): ?string
+    {
+        $value = trim((string)$value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{2}:\d{2}$/', $value)) {
+            return $value . ':00';
+        }
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $value)) {
+            return $value;
+        }
+
+        return null;
     }
 }

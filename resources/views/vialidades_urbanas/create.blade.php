@@ -13,7 +13,7 @@
 
     <div class="row">
         <div class="col-md-12">
-            <form action="{{ route('vialidades_urbanas.dispositivos.store', $vialidadUrbanaId) }}" method="POST" enctype="multipart/form-data" autocomplete="off">
+            <form action="{{ route('vialidades_urbanas.store') }}" method="POST" enctype="multipart/form-data" autocomplete="off">
                 @csrf
 
                 <div class="card card-outline card-primary">

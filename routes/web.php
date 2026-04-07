@@ -245,13 +245,13 @@ Route::prefix('vialidades-urbanas')->middleware(['auth', 'can:ver operativos via
     Route::get('/{vialidadUrbana}/whatsapp', [VialidadesUrbanasController::class, 'whatsapp'])->name('vialidades_urbanas.whatsapp');
 
     Route::prefix('{vialidadUrbana}/dispositivos')->group(function () {
-        Route::get('/', [VialidadesUrbanasDispositivoController::class, 'index'])->name('vialidades_urbanas.dispositivos.index');
-        Route::get('/create', [VialidadesUrbanasDispositivoController::class, 'create'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.dispositivos.create');
-        Route::post('/', [VialidadesUrbanasDispositivoController::class, 'store'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.dispositivos.store');
-        Route::get('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'show'])->name('vialidades_urbanas.dispositivos.show');
+        Route::get('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'index'])->name('vialidades_urbanas.dispositivos.index');
+        Route::get('/{dispositivo}/create', [VialidadesUrbanasDispositivoController::class, 'create'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.dispositivos.create');
+        Route::post('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'store'])->middleware('can:crear operativos vialidades')->name('vialidades_urbanas.dispositivos.store');
+        Route::get('/{dispositivo}/show', [VialidadesUrbanasDispositivoController::class, 'show'])->name('vialidades_urbanas.dispositivos.show');
         Route::get('/{dispositivo}/edit', [VialidadesUrbanasDispositivoController::class, 'edit'])->middleware('can:editar operativos vialidades')->name('vialidades_urbanas.dispositivos.edit');
         Route::put('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'update'])->middleware('can:editar operativos vialidades')->name('vialidades_urbanas.dispositivos.update');
-        Route::delete('/{dispositivo}', [VialidadesUrbanasDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos vialidades')->name('vialidades_urbanas.dispositivos.destroy');
+        Route::delete('/{dispositivo}/{detalle}', [VialidadesUrbanasDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos vialidades')->name('vialidades_urbanas.dispositivos.destroy');
         Route::get('/{dispositivo}/whatsapp', [VialidadesUrbanasDispositivoController::class, 'whatsapp'])->name('vialidades_urbanas.dispositivos.whatsapp');
     });
 });

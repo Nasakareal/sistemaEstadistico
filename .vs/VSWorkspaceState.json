@@ -1,14 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\vialidades_urbanas",
-    "\\resources\\views\\vialidades_urbanas\\dispositivos"
+    "\\resources\\views\\estadisticas_globales"
   ],
-  "SelectedNode": "\\resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php",
+  "SelectedNode": "\\resources\\views\\estadisticas_globales\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

@@ -195,6 +195,10 @@
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
 
+                                            <a href="{{ route('vialidades_urbanas.dispositivos.index', [1, $dispositivo->id]) }}" class="btn btn-primary btn-sm" title="Detalles">
+                                                <i class="fa-solid fa-list-check"></i>
+                                            </a>
+
                                             @can('editar operativos vialidades')
                                                 <a href="{{ route('vialidades_urbanas.edit', $dispositivo->id) }}" class="btn btn-success btn-sm" title="Editar">
                                                     <i class="fa-solid fa-pencil"></i>
@@ -209,10 +213,6 @@
                                             >
                                                 <i class="fa-brands fa-whatsapp"></i>
                                             </button>
-
-                                            @can('eliminar operativos vialidades')
-                                                <form action="{{ route('vialidades_urbanas.update', $dispositivo->id) }}" method="POST" style="display:none;"></form>
-                                            @endcan
                                         </td>
                                     </tr>
                                 @endforeach

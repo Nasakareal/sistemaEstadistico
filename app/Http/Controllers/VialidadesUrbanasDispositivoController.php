@@ -364,4 +364,94 @@ class VialidadesUrbanasDispositivoController extends Controller
 
         return strtr($string, $unwantedArray);
     }
+
+    public function whatsapp($vialidadUrbana, $dispositivoId)
+    {
+        $dispositivo = VialidadDispositivo::query()
+            ->with([
+                'catalogo',
+                'creador',
+                'detalles',
+            ])
+            ->where('unidad_id', 5)
+            ->findOrFail($dispositivoId);
+
+        $this->authorizeDispositivo($dispositivo);
+
+        $nombreInformante = trim((string) optional($dispositivo->creador)->name);
+        $catalogo = trim((string) optional($dispositivo->catalogo)->nombre);
+
+        $lineas = [];
+        $lineas[] = 'GUARDIA CIVIL';
+        $lineas[] = '';
+        $lineas[] = 'COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL';
+        $lineas[] = '';
+        $lineas[] = 'UNIDAD DE PROTECCION EN VIALIDADES URBANAS';
+        $lineas[] = '';
+        $lineas[] = 'TARJETA INFORMATIVA';
+        $lineas[] = '';
+
+        $referencia = 'EN CUMPLIMIENTO AL DISPOSITIVO ACTIVO';
+        if (!empty($dispositivo->id)) {
+            $referencia .= ' ID ' . $dispositivo->id;
+        }
+        if ($catalogo !== '') {
+            $referencia .= ', ' . strtoupper($this->removeAccents($catalogo));
+        }
+        if (!empty($dispositivo->asunto)) {
+            $referencia .= ', ASUNTO: ' . trim((string) $dispositivo->asunto);
+        }
+
+        $lineas[] = $referencia . '.';
+
+        if (!empty($dispositivo->fecha)) {
+            $lineas[] = 'FECHA DEL DISPOSITIVO: ' . \Carbon\Carbon::parse($dispositivo->fecha)->format('d/m/Y');
+        }
+
+        $lineas[] = '';
+
+        if ($dispositivo->detalles->count() > 0) {
+            foreach ($dispositivo->detalles as $index => $detalle) {
+                $prefijo = ($index + 1) . '.-';
+
+                $partes = [];
+
+                if (!empty($detalle->hora)) {
+                    $partes[] = 'A LAS ' . substr((string) $detalle->hora, 0, 5) . ' HORAS';
+                }
+
+                if (!empty($detalle->ubicacion)) {
+                    $partes[] = 'EN ' . trim((string) $detalle->ubicacion);
+                }
+
+                if (!empty($detalle->titulo)) {
+                    $partes[] = trim((string) $detalle->titulo);
+                }
+
+                $encabezado = trim(implode(', ', $partes));
+
+                if ($encabezado !== '') {
+                    $lineas[] = $prefijo . ' ' . $encabezado . '.';
+                } else {
+                    $lineas[] = $prefijo;
+                }
+
+                if (!empty($detalle->contenido)) {
+                    $lineas[] = trim((string) $detalle->contenido);
+                }
+
+                $lineas[] = '';
+            }
+        } else {
+            $lineas[] = 'SIN NOVEDAD REPORTADA.';
+            $lineas[] = '';
+        }
+
+        $lineas[] = 'INFORMA EL AGENTE';
+        $lineas[] = $nombreInformante !== '' ? strtoupper($this->removeAccents($nombreInformante)) : 'SIN USUARIO REGISTRADO';
+
+        return response()->json([
+            'texto' => trim(implode("\n", $lineas)),
+        ]);
+    }
 }

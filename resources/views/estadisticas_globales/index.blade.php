@@ -37,8 +37,18 @@
                         </div>
 
                         <div class="sv-field">
+                            <label>Hora desde</label>
+                            <input type="time" id="f_hora_desde" class="form-control form-control-sm">
+                        </div>
+
+                        <div class="sv-field">
                             <label>Hasta</label>
                             <input type="date" id="f_hasta" class="form-control form-control-sm">
+                        </div>
+
+                        <div class="sv-field">
+                            <label>Hora hasta</label>
+                            <input type="time" id="f_hora_hasta" class="form-control form-control-sm">
                         </div>
 
                         <div class="sv-field">
@@ -289,7 +299,9 @@
         const params = new URLSearchParams();
 
         const desde = val('f_desde');
+        const hora_desde = val('f_hora_desde');
         const hasta = val('f_hasta');
+        const hora_hasta = val('f_hora_hasta');
         const sector = val('f_sector');
         const tipo_hecho = val('f_tipo_hecho');
         const situacion = val('f_situacion');
@@ -303,7 +315,9 @@
         const con_fallecidos = val('f_con_fallecidos');
 
         if (desde) params.set('desde', desde);
+        if (hora_desde) params.set('hora_desde', hora_desde);
         if (hasta) params.set('hasta', hasta);
+        if (hora_hasta) params.set('hora_hasta', hora_hasta);
         if (sector) params.set('sector', sector);
         if (tipo_hecho) params.set('tipo_hecho', tipo_hecho);
         if (situacion) params.set('situacion', situacion);
@@ -381,7 +395,7 @@
 
     function wireExportLinkUpdates(){
         const ids = [
-            'f_desde','f_hasta','f_sector','f_tipo_hecho','f_situacion','f_veh_tipo',
+            'f_desde','f_hora_desde','f_hasta','f_hora_hasta','f_sector','f_tipo_hecho','f_situacion','f_veh_tipo',
             'f_con_lesionados','f_con_fallecidos',
             'f_q','f_veh_placas','f_veh_serie','f_group'
         ];

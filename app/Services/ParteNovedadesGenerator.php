@@ -325,50 +325,72 @@ class ParteNovedadesGenerator
                 'spaceBefore' => 0,
             ]);
 
-            $vehiculosConGrua = [];
-            $gruasUsadas = [];
+            $detallesResguardo = [];
 
             foreach ($vehiculos as $index => $vehiculo) {
                 $letraVehiculo = chr(65 + $index);
                 $serviciosVehiculo = $vehiculo->servicios ?? collect();
 
-                $tieneGrua = $serviciosVehiculo->contains(function ($servicio) {
-                    return !empty($servicio->grua_id);
-                });
-
-                if ($tieneGrua) {
-                    $vehiculosConGrua[] = "({$letraVehiculo})";
-
-                    foreach ($serviciosVehiculo as $servicio) {
-                        if (!empty($servicio->grua_id) && $servicio->grua && !empty($servicio->grua->nombre)) {
-                            $gruasUsadas[] = strtoupper(trim($servicio->grua->nombre));
-                        }
+                $gruasVehiculo = [];
+                foreach ($serviciosVehiculo as $servicio) {
+                    if (!empty($servicio->grua_id) && $servicio->grua && !empty($servicio->grua->nombre)) {
+                        $gruasVehiculo[] = strtoupper(trim($servicio->grua->nombre));
                     }
                 }
-            }
+                $gruasVehiculo = array_values(array_unique($gruasVehiculo));
 
-            $vehiculosConGrua = array_values(array_unique($vehiculosConGrua));
-            $gruasUsadas = array_values(array_unique($gruasUsadas));
+                $valorGruaVehiculo = strtoupper(trim((string) ($vehiculo->grua ?? '')));
+                $valorCorralonVehiculo = strtoupper(trim((string) ($vehiculo->corralon ?? '')));
 
-            if (!empty($vehiculosConGrua)) {
-                $textoGrua = 'Se utilizó grúa';
+                $tieneGruaPorServicio = !empty($gruasVehiculo);
+                $tieneGruaPorVehiculo = $valorGruaVehiculo !== '' &&
+                    !in_array($valorGruaVehiculo, ['N/A', 'NA', 'NO', 'NO SE UTILIZA', 'NINGUNA', 'NINGUNO', 'NULL']);
 
-                if (!empty($gruasUsadas)) {
-                    $textoGrua .= ' ' . implode(', ', $gruasUsadas);
+                $fueResguardado = $valorCorralonVehiculo !== '' &&
+                    !in_array($valorCorralonVehiculo, ['N/A', 'NA', 'NO', 'NO SE UTILIZA', 'NINGUNA', 'NINGUNO', 'NULL']);
+
+                $textoVehiculo = "Vehículo ({$letraVehiculo}): ";
+
+                if ($tieneGruaPorServicio) {
+                    $textoVehiculo .= "se utilizó grúa " . implode(', ', $gruasVehiculo);
+
+                    if ($fueResguardado) {
+                        $textoVehiculo .= " y quedó resguardado en el corralón {$valorCorralonVehiculo}";
+                    }
+
+                    $textoVehiculo .= ".";
+                } elseif ($tieneGruaPorVehiculo) {
+                    $textoVehiculo .= "se utilizó grúa {$valorGruaVehiculo}";
+
+                    if ($fueResguardado) {
+                        $textoVehiculo .= " y quedó resguardado en el corralón {$valorCorralonVehiculo}";
+                    }
+
+                    $textoVehiculo .= ".";
+                } elseif ($fueResguardado) {
+                    $textoVehiculo .= "quedó resguardado en el corralón {$valorCorralonVehiculo}, sin uso de grúa.";
+                } else {
+                    $textoVehiculo .= "no se utilizó grúa ni quedó resguardado en corralón.";
                 }
 
-                $textoGrua .= ' para vehículo ';
-                $textoGrua .= implode(' y ', $vehiculosConGrua);
-                $textoGrua .= '.';
-            } else {
-                $textoGrua = 'No se utilizó grúa.';
+                $detallesResguardo[] = $textoVehiculo;
             }
 
-            $section->addText(
-                $textoGrua,
-                [],
-                ['alignment' => Jc::BOTH, 'spaceAfter' => 0, 'spaceBefore' => 0]
-            );
+            if (!empty($detallesResguardo)) {
+                foreach ($detallesResguardo as $detalleResguardo) {
+                    $section->addText(
+                        $detalleResguardo,
+                        [],
+                        ['alignment' => Jc::BOTH, 'spaceAfter' => 0, 'spaceBefore' => 0]
+                    );
+                }
+            } else {
+                $section->addText(
+                    'No se encontró información de resguardo de vehículos.',
+                    [],
+                    ['alignment' => Jc::BOTH, 'spaceAfter' => 0, 'spaceBefore' => 0]
+                );
+            }
 
             if ($hecho->checaron_antecedentes) {
                 $section->addText(

@@ -22,16 +22,41 @@
     <div class="card">
         <div class="card-header">
             <form method="GET" action="{{ route('dictamenes.index') }}" class="form-inline">
+
                 <label class="mr-2 mb-0">Año</label>
-                <select name="anio" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                <select name="anio" class="form-control form-control-sm mr-2">
                     @foreach($anios as $anio)
                         <option value="{{ $anio }}" {{ request('anio', $anioActual) == $anio ? 'selected' : '' }}>
                             {{ $anio }}
                         </option>
                     @endforeach
                 </select>
-                <noscript><button class="btn btn-sm btn-secondary">Filtrar</button></noscript>
+
+                <label class="mr-2 mb-0">Mes desde</label>
+                <select name="mes_desde" class="form-control form-control-sm mr-2">
+                    @foreach($meses as $num => $nombre)
+                        <option value="{{ $num }}" {{ ($mesDesde ?? 1) == $num ? 'selected' : '' }}>
+                            {{ $nombre }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <label class="mr-2 mb-0">Mes hasta</label>
+                <select name="mes_hasta" class="form-control form-control-sm mr-2">
+                    @foreach($meses as $num => $nombre)
+                        <option value="{{ $num }}" {{ ($mesHasta ?? 12) == $num ? 'selected' : '' }}>
+                            {{ $nombre }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <button class="btn btn-sm btn-primary">Filtrar</button>
+
             </form>
+
+            <div class="mt-2">
+                <strong>Total de dictámenes:</strong> {{ $totalDictamenes ?? 0 }}
+            </div>
         </div>
 
         <div class="card-body p-0">
@@ -98,7 +123,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
-                                    No hay dictámenes para el año seleccionado.
+                                    No hay dictámenes para el filtro seleccionado.
                                 </td>
                             </tr>
                         @endforelse

@@ -29,12 +29,33 @@ class DictamenController extends Controller
     public function index(Request $request)
     {
         $anioActual = now()->year;
-        $anioSeleccionado = $request->get('anio', $anioActual);
+        $anioSeleccionado = (int) $request->get('anio', $anioActual);
 
-        $dictamenes = Dictamen::query()
+        $mesDesde = (int) $request->get('mes_desde', 1);
+        $mesHasta = (int) $request->get('mes_hasta', 12);
+
+        if ($mesDesde < 1 || $mesDesde > 12) {
+            $mesDesde = 1;
+        }
+
+        if ($mesHasta < 1 || $mesHasta > 12) {
+            $mesHasta = 12;
+        }
+
+        if ($mesDesde > $mesHasta) {
+            [$mesDesde, $mesHasta] = [$mesHasta, $mesDesde];
+        }
+
+        $query = Dictamen::query()
             ->where('anio', $anioSeleccionado)
+            ->whereMonth('created_at', '>=', $mesDesde)
+            ->whereMonth('created_at', '<=', $mesHasta);
+
+        $dictamenes = $query
             ->orderByDesc('numero_dictamen')
             ->get();
+
+        $totalDictamenes = (clone $query)->count();
 
         $anios = Dictamen::query()
             ->select('anio')
@@ -42,7 +63,31 @@ class DictamenController extends Controller
             ->orderBy('anio', 'desc')
             ->pluck('anio');
 
-        return view('dictamenes.index', compact('dictamenes', 'anios', 'anioActual', 'anioSeleccionado'));
+        $meses = [
+            1 => 'ENERO',
+            2 => 'FEBRERO',
+            3 => 'MARZO',
+            4 => 'ABRIL',
+            5 => 'MAYO',
+            6 => 'JUNIO',
+            7 => 'JULIO',
+            8 => 'AGOSTO',
+            9 => 'SEPTIEMBRE',
+            10 => 'OCTUBRE',
+            11 => 'NOVIEMBRE',
+            12 => 'DICIEMBRE',
+        ];
+
+        return view('dictamenes.index', compact(
+            'dictamenes',
+            'anios',
+            'anioActual',
+            'anioSeleccionado',
+            'mesDesde',
+            'mesHasta',
+            'meses',
+            'totalDictamenes'
+        ));
     }
 
     public function create()

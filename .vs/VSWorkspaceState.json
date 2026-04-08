@@ -1,9 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Services"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\dictamenes"
   ],
-  "SelectedNode": "\\app\\Services\\ParteNovedadesGenerator.php",
+  "SelectedNode": "\\resources\\views\\dictamenes\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

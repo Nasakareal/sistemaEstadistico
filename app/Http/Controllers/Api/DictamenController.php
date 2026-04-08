@@ -129,7 +129,6 @@ class DictamenController extends Controller
         $request->merge([
             'nombre_policia' => strtoupper((string) $request->input('nombre_policia')),
             'nombre_mp'      => strtoupper((string) $request->input('nombre_mp')),
-            'area'           => strtoupper((string) $request->input('area')),
         ]);
 
         $request->validate([
@@ -141,9 +140,10 @@ class DictamenController extends Controller
             'anio' => 'required|digits:4',
             'nombre_policia' => 'required|string|max:100',
             'nombre_mp' => 'nullable|string|max:100',
-            'area' => 'required|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ]);
+
+        $area = $this->resolverAreaUsuario($usuario);
 
         $archivoDictamen = $dictamen->archivo_dictamen;
 
@@ -161,7 +161,7 @@ class DictamenController extends Controller
             'anio'             => (int) $request->input('anio'),
             'nombre_policia'   => $request->input('nombre_policia'),
             'nombre_mp'        => $request->input('nombre_mp'),
-            'area'             => $request->input('area'),
+            'area'             => $area,
             'archivo_dictamen' => $archivoDictamen,
             'updated_by'       => $usuario->id,
         ]);
@@ -169,6 +169,7 @@ class DictamenController extends Controller
         return response()->json([
             'message' => 'Dictamen actualizado exitosamente.',
             'nombre_usuario' => $usuario->name,
+            'area_autollenada' => $area,
             'data' => $dictamen->fresh(),
         ]);
     }
@@ -211,18 +212,11 @@ class DictamenController extends Controller
 
     private function resolverAreaUsuario($usuario): string
     {
-        if (!empty($usuario->area)) {
-            return strtoupper((string) $usuario->area);
-        }
+        $unidadId = !empty($usuario->unidad_id) ? (int) $usuario->unidad_id : 1;
 
-        if (!empty($usuario->unidad_id)) {
-            $unidadNombre = Unidad::where('id', $usuario->unidad_id)->value('nombre');
-            if ($unidadNombre) {
-                return strtoupper((string) $unidadNombre);
-            }
-        }
+        $unidadNombre = Unidad::where('id', $unidadId)->value('nombre');
 
-        return 'SIN ASIGNAR';
+        return $unidadNombre ? strtoupper((string) $unidadNombre) : 'SINIESTROS';
     }
 
     private function puedeEditar($usuario, Dictamen $dictamen): bool

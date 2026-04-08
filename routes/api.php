@@ -100,6 +100,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{actividad}', [ActividadController::class, 'destroy'])->whereNumber('actividad')->middleware('can:eliminar actividades')->name('api.actividades.destroy');
     });
 
+    Route::prefix('vialidades-urbanas')->middleware(['can:ver operativos vialidades'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'index'])->name('api.vialidades_urbanas.index');
+        Route::post('/', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'store'])->middleware('can:crear operativos vialidades')->name('api.vialidades_urbanas.store');
+        Route::get('/{vialidadUrbana}', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'show'])->name('api.vialidades_urbanas.show');
+        Route::put('/{vialidadUrbana}', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'update'])->middleware('can:editar operativos vialidades')->name('api.vialidades_urbanas.update');
+        Route::delete('/{vialidadUrbana}', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'destroy'])->middleware('can:eliminar operativos vialidades')->name('api.vialidades_urbanas.destroy');
+
+        Route::get('/{vialidadUrbana}/resumen', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'resumen'])->name('api.vialidades_urbanas.resumen');
+        Route::get('/{vialidadUrbana}/whatsapp', [\App\Http\Controllers\Api\VialidadesUrbanasController::class, 'whatsapp'])->name('api.vialidades_urbanas.whatsapp');
+
+        Route::prefix('{vialidadUrbana}/dispositivos')->group(function () {
+            Route::get('/{dispositivo}', [\App\Http\Controllers\Api\VialidadesUrbanasDispositivoController::class, 'index'])->name('api.vialidades_urbanas.dispositivos.index');
+            Route::post('/{dispositivo}', [\App\Http\Controllers\Api\VialidadesUrbanasDispositivoController::class, 'store'])->middleware('can:crear operativos vialidades')->name('api.vialidades_urbanas.dispositivos.store');
+            Route::get('/{dispositivo}/show', [\App\Http\Controllers\Api\VialidadesUrbanasDispositivoController::class, 'show'])->name('api.vialidades_urbanas.dispositivos.show');
+            Route::put('/{dispositivo}', [\App\Http\Controllers\Api\VialidadesUrbanasDispositivoController::class, 'update'])->middleware('can:editar operativos vialidades')->name('api.vialidades_urbanas.dispositivos.update');
+            Route::delete('/{dispositivo}/{detalle}', [\App\Http\Controllers\Api\VialidadesUrbanasDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos vialidades')->name('api.vialidades_urbanas.dispositivos.destroy');
+            Route::get('/{dispositivo}/whatsapp', [\App\Http\Controllers\Api\VialidadesUrbanasDispositivoController::class, 'whatsapp'])->name('api.vialidades_urbanas.dispositivos.whatsapp');
+        });
+    });
+
 
     Route::get('/alerts', [AlertController::class, 'index']);
     Route::post('/alerts/{alert}/read', [AlertController::class, 'markRead']);

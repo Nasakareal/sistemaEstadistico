@@ -3,12 +3,16 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\dictamenes\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\dictamenes\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\DictamenController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vialidades_urbanas\\dispositivos\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\vialidades_urbanas\\dispositivos\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\VialidadesUrbanasDispositivoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\VialidadesUrbanasDispositivoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -23,27 +27,40 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "index.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\dictamenes\\index.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\dictamenes\\index.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\dictamenes\\index.blade.php",
-              "RelativeToolTip": "resources\\views\\dictamenes\\index.blade.php",
-              "ViewState": "AgIAAFQAAAAAAAAAAAAmwIcAAAAAAAAAAAAAAA==",
+              "Title": "create.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php",
+              "RelativeToolTip": "resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php",
+              "ViewState": "AgIAABsBAAAAAAAAAAAmwEIBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-08T00:58:40.977Z",
+              "WhenOpened": "2026-04-08T02:30:52.226Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "DictamenController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\DictamenController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\DictamenController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\DictamenController.php",
-              "ViewState": "AgIAAD4AAAAAAAAAAAAAAEUAAAAZAAAAAAAAAA==",
+              "Title": "index.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vialidades_urbanas\\dispositivos\\index.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\vialidades_urbanas\\dispositivos\\index.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\vialidades_urbanas\\dispositivos\\index.blade.php",
+              "RelativeToolTip": "resources\\views\\vialidades_urbanas\\dispositivos\\index.blade.php",
+              "ViewState": "AgIAAKsAAAAAAAAAAAAmwN0AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-08T00:56:38.362Z",
+              "WhenOpened": "2026-04-08T02:30:29.441Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "VialidadesUrbanasDispositivoController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\VialidadesUrbanasDispositivoController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\VialidadesUrbanasDispositivoController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\VialidadesUrbanasDispositivoController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Api\\VialidadesUrbanasDispositivoController.php",
+              "ViewState": "AgIAAJMBAAAAAAAAAAAmwMUBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-04-08T02:30:10.21Z",
               "EditorCaption": ""
             }
           ]

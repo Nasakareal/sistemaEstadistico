@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
@@ -14,6 +15,8 @@ use App\Models\Hechos;
 class Liberacion extends Model
 {
     use HasFactory;
+
+    protected const QR_STORAGE_DIR = 'liberaciones/qr';
 
     protected $table = 'liberaciones';
 
@@ -50,28 +53,73 @@ class Liberacion extends Model
     {
         static::created(function ($liberacion) {
             try {
-                $token = $liberacion->token_unico;
-
-                $url = url('/liberacion/qr/' . $token);
-
-                $qrCode = Builder::create()
-                    ->data($url)
-                    ->encoding(new Encoding('UTF-8'))
-                    ->errorCorrectionLevel(new ErrorCorrectionLevelHigh())
-                    ->size(200)
-                    ->margin(10)
-                    ->logoPath(public_path('guardiacivil.png'))
-                    ->logoResizeToWidth(100)
-                    ->build();
-
-                $fileName = 'liberaciones/qr/QR_' . $token . '.png';
-                Storage::disk('public')->put($fileName, $qrCode->getString());
-
-                $liberacion->qr_path = 'storage/' . $fileName;
-                $liberacion->save();
-            } catch (\Exception $e) {
-                \Log::error('Error al generar el QR para liberación: ' . $e->getMessage());
+                $liberacion->regenerarQr();
+            } catch (\Throwable $e) {
+                Log::error('Error al generar el QR para liberación: ' . $e->getMessage());
             }
         });
+    }
+
+    public function regenerarQr(): void
+    {
+        if (empty($this->token_unico)) {
+            throw new \RuntimeException('La liberación no tiene token para generar el QR.');
+        }
+
+        $url = url('/liberacion/qr/' . $this->token_unico);
+        $qrCode = static::buildQrCode($url);
+        $fileName = static::QR_STORAGE_DIR . '/QR_' . $this->token_unico . '.png';
+        $qrPath = 'storage/' . $fileName;
+
+        Storage::disk('public')->put($fileName, $qrCode->getString());
+
+        $shouldPersistPath = $this->qr_path !== $qrPath;
+        $this->qr_path = $qrPath;
+
+        if ($this->exists && $shouldPersistPath) {
+            $this->saveQuietly();
+        }
+    }
+
+    protected static function buildQrCode(string $url)
+    {
+        foreach (static::qrLogoCandidates() as $logoPath) {
+            if (!is_file($logoPath)) {
+                continue;
+            }
+
+            try {
+                return static::makeQrBuilder($url)
+                    ->logoPath($logoPath)
+                    ->logoResizeToWidth(60)
+                    ->build();
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo usar un logo al generar el QR de liberación.', [
+                    'logo_path' => $logoPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return static::makeQrBuilder($url)->build();
+    }
+
+    protected static function makeQrBuilder(string $url): Builder
+    {
+        return Builder::create()
+            ->data($url)
+            ->encoding(new Encoding('UTF-8'))
+            ->errorCorrectionLevel(new ErrorCorrectionLevelHigh())
+            ->size(200)
+            ->margin(10);
+    }
+
+    protected static function qrLogoCandidates(): array
+    {
+        return array_values(array_unique([
+            public_path('img/blanco.png'),
+            public_path('img/white.png'),
+            public_path('guardiacivil.png'),
+        ]));
     }
 }

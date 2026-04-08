@@ -8,12 +8,8 @@ use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 
 class LiberacionController extends Controller
 {
@@ -55,6 +51,8 @@ class LiberacionController extends Controller
     public function generarAcuse(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
+        $liberacion->regenerarQr();
+        $liberacion->refresh();
 
         $qrPath = public_path($liberacion->qr_path);
 

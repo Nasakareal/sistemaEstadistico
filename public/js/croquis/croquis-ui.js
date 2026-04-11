@@ -255,6 +255,14 @@ window.CroquisUI = (function () {
                 clearSubmenu();
                 editor.addElement(window.CroquisModels.glorieta(360, 260));
             },
+            agregarCarril: () => {
+                clearSubmenu();
+                editor.changeSelectedLanes(1);
+            },
+            quitarCarril: () => {
+                clearSubmenu();
+                editor.changeSelectedLanes(-1);
+            },
 
             agregarTexto: () => {
                 clearSubmenu();

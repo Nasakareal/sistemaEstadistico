@@ -16,20 +16,38 @@
                 <div class="card-body">
                     <form action="{{ route('roles.update', $role->id) }}" method="POST">
                         @csrf
-                        @method('PUT') <!-- Para actualizar usamos PUT -->
+                        @method('PUT')
+
                         <div class="row justify-content-center">
-                            <!-- Nombre del Rol -->
+
                             <div class="col-md-8">
                                 <div class="form-group">
                                     <label for="name">Nombre del Rol</label>
-                                    <input type="text" name="name" id="name" class="form-control" 
-                                           value="{{ old('name', $role->name) }}" 
+                                    <input type="text" name="name" id="name" class="form-control"
+                                           value="{{ old('name', $role->name) }}"
                                            placeholder="Ingrese el nuevo nombre del rol" required>
                                 </div>
                             </div>
+
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="unidad_id">Unidad</label>
+                                    <select name="unidad_id" id="unidad_id" class="form-control">
+                                        <option value="">-- GLOBAL (todas las unidades) --</option>
+                                        @foreach ($unidades as $unidad)
+                                            <option value="{{ $unidad->id }}"
+                                                {{ old('unidad_id', $role->unidad_id) == $unidad->id ? 'selected' : '' }}>
+                                                {{ $unidad->nombre }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
                         </div>
 
                         <hr>
+
                         <div class="row">
                             <div class="col-md-12 text-center">
                                 <div class="form-group">
@@ -42,6 +60,7 @@
                                 </div>
                             </div>
                         </div>
+
                     </form>
                 </div>
             </div>

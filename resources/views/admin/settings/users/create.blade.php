@@ -61,17 +61,19 @@
                                     <label for="role">Rol</label>
                                     <select name="role" id="role"
                                             class="form-control @error('role') is-invalid @enderror" required>
-                                        <option value="" disabled selected>Seleccione un rol</option>
+                                        <option value="" disabled {{ old('role') ? '' : 'selected' }}>Seleccione un rol</option>
                                         @foreach ($roles as $role)
-                                            <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
-                                                {{ $role->name }}
+                                            <option value="{{ $role->name }}"
+                                                    data-unidad-id="{{ $role->unidad_id }}"
+                                                    {{ old('role') == $role->name ? 'selected' : '' }}>
+                                                {{ $role->name }}{{ $role->unidad ? ' - '.$role->unidad->nombre : ' - GLOBAL' }}
                                             </option>
                                         @endforeach
                                     </select>
                                     @error('role')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Si el rol es Coordinador, puedes asignarle varias unidades abajo.</small>
+                                    <small class="text-muted">Solo aparecen los roles que puedes asignar.</small>
                                 </div>
                             </div>
 
@@ -105,7 +107,7 @@
                                     <label for="unidad_id">Unidad (principal)</label>
                                     <select name="unidad_id" id="unidad_id"
                                             class="form-control @error('unidad_id') is-invalid @enderror">
-                                        <option value="" selected>Sin unidad</option>
+                                        <option value="">Sin unidad</option>
                                         @foreach ($unidades as $u)
                                             <option value="{{ $u->id }}" {{ old('unidad_id', $unidadIdDefault) == $u->id ? 'selected' : '' }}>
                                                 {{ $u->nombre }}
@@ -115,7 +117,7 @@
                                     @error('unidad_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Para Subdirector/Encargado normalmente va aquí.</small>
+                                    <small class="text-muted">La unidad principal debe coincidir con el rol si el rol pertenece a una unidad específica.</small>
                                 </div>
                             </div>
 
@@ -124,7 +126,7 @@
                                     <label for="turno_id">Turno</label>
                                     <select name="turno_id" id="turno_id"
                                             class="form-control @error('turno_id') is-invalid @enderror">
-                                        <option value="" selected>Sin turno</option>
+                                        <option value="">Sin turno</option>
                                         @foreach ($turnos as $t)
                                             <option value="{{ $t->id }}" {{ old('turno_id') == $t->id ? 'selected' : '' }}>
                                                 {{ $t->nombre }}
@@ -134,7 +136,7 @@
                                     @error('turno_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Para Encargados (jefes de turno) esto es clave.</small>
+                                    <small class="text-muted">Para Encargados o jefes de turno esto es importante.</small>
                                 </div>
                             </div>
 
@@ -143,7 +145,7 @@
                                     <label for="patrulla_id">Patrulla (número económico)</label>
                                     <select name="patrulla_id" id="patrulla_id"
                                             class="form-control @error('patrulla_id') is-invalid @enderror">
-                                        <option value="" selected>Sin patrulla</option>
+                                        <option value="">Sin patrulla</option>
                                         @foreach ($patrullas as $p)
                                             <option value="{{ $p->id }}" {{ old('patrulla_id') == $p->id ? 'selected' : '' }}>
                                                 {{ $p->numero_economico }}
@@ -153,7 +155,7 @@
                                     @error('patrulla_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Esto es del usuario (su unidad móvil), no del hecho.</small>
+                                    <small class="text-muted">Esto es del usuario, no del hecho.</small>
                                 </div>
                             </div>
                         </div>
@@ -174,9 +176,7 @@
                                     @error('delegacion_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">
-                                        Solo aplica si la unidad principal es DELEGACIONES. Si cambias la unidad, se limpia automáticamente.
-                                    </small>
+                                    <small class="text-muted">Solo aplica si la unidad principal es DELEGACIONES.</small>
                                 </div>
                             </div>
                         </div>
@@ -197,9 +197,7 @@
                                     @error('destacamento_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">
-                                        Solo aplica si la unidad principal es CARRETERAS. Si cambias la unidad, se limpia automáticamente.
-                                    </small>
+                                    <small class="text-muted">Solo aplica si la unidad principal es CARRETERAS.</small>
                                 </div>
                             </div>
                         </div>
@@ -207,7 +205,7 @@
                         <div class="row" id="box_unidades_extra" style="display:none;">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label for="unidades_ids">Unidades adicionales (solo Coordinador)</label>
+                                    <label for="unidades_ids">Unidades adicionales</label>
                                     <select name="unidades_ids[]" id="unidades_ids"
                                             class="form-control @error('unidades_ids') is-invalid @enderror" multiple>
                                         @foreach ($unidades as $u)
@@ -222,7 +220,7 @@
                                     @error('unidades_ids.*')
                                         <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Si es Coordinador, aquí eliges las unidades que puede ver además de su unidad principal.</small>
+                                    <small class="text-muted">Solo aplica para roles globales como Coordinador, si así lo manejas.</small>
                                 </div>
                             </div>
                         </div>
@@ -282,20 +280,6 @@
         color: #ffffff !important;
     }
 
-    select.form-control option:checked,
-    .custom-select option:checked,
-    select option:checked {
-        background: #2563eb !important;
-        color: #ffffff !important;
-    }
-
-    select.form-control option:hover,
-    .custom-select option:hover,
-    select option:hover {
-        background: #1d4ed8 !important;
-        color: #ffffff !important;
-    }
-
     .form-control::placeholder {
         color: rgba(255, 255, 255, 0.65) !important;
     }
@@ -323,10 +307,7 @@
         font-weight: 700;
     }
 
-    .btn-primary {
-        border-radius: 16px !important;
-    }
-
+    .btn-primary,
     .btn-secondary {
         border-radius: 16px !important;
     }
@@ -339,11 +320,40 @@
             const UNIDAD_DELEGACIONES_ID = @json($unidadDelegacionesId);
             const UNIDAD_CARRETERAS_ID = @json($unidadCarreterasId);
 
+            function getSelectedRoleOption() {
+                const roleSelect = document.getElementById('role');
+                if (!roleSelect) return null;
+                return roleSelect.options[roleSelect.selectedIndex] || null;
+            }
+
             function toggleUnidadesExtra() {
-                const role = (document.getElementById('role')?.value || '');
+                const role = document.getElementById('role')?.value || '';
                 const box = document.getElementById('box_unidades_extra');
                 if (!box) return;
                 box.style.display = (role === 'Coordinador') ? '' : 'none';
+            }
+
+            function syncUnidadConRol() {
+                const roleOption = getSelectedRoleOption();
+                const unidadSelect = document.getElementById('unidad_id');
+
+                if (!roleOption || !unidadSelect) return;
+
+                const unidadRol = roleOption.getAttribute('data-unidad-id');
+
+                if (unidadRol && unidadRol !== 'null' && unidadRol !== '') {
+                    unidadSelect.value = unidadRol;
+                    unidadSelect.setAttribute('disabled', 'disabled');
+                } else {
+                    unidadSelect.removeAttribute('disabled');
+                }
+            }
+
+            function beforeSubmitEnableUnidad() {
+                const unidadSelect = document.getElementById('unidad_id');
+                if (unidadSelect) {
+                    unidadSelect.removeAttribute('disabled');
+                }
             }
 
             function toggleUbicacionEspecial() {
@@ -356,9 +366,8 @@
                 if (!unidadSel || !boxDelegacion || !boxDestacamento || !delegSel || !destacSel) return;
 
                 const unidadId = unidadSel.value ? parseInt(unidadSel.value, 10) : null;
-
-                const showDelegacion = (UNIDAD_DELEGACIONES_ID !== null && unidadId === parseInt(UNIDAD_DELEGACIONES_ID, 10));
-                const showDestacamento = (UNIDAD_CARRETERAS_ID !== null && unidadId === parseInt(UNIDAD_CARRETERAS_ID, 10));
+                const showDelegacion = UNIDAD_DELEGACIONES_ID !== null && unidadId === parseInt(UNIDAD_DELEGACIONES_ID, 10);
+                const showDestacamento = UNIDAD_CARRETERAS_ID !== null && unidadId === parseInt(UNIDAD_CARRETERAS_ID, 10);
 
                 boxDelegacion.style.display = showDelegacion ? '' : 'none';
                 boxDestacamento.style.display = showDestacamento ? '' : 'none';
@@ -374,11 +383,26 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 const roleSel = document.getElementById('role');
-                if (roleSel) roleSel.addEventListener('change', toggleUnidadesExtra);
-
                 const unidadSel = document.getElementById('unidad_id');
-                if (unidadSel) unidadSel.addEventListener('change', toggleUbicacionEspecial);
+                const form = document.querySelector('form');
 
+                if (roleSel) {
+                    roleSel.addEventListener('change', function () {
+                        syncUnidadConRol();
+                        toggleUnidadesExtra();
+                        toggleUbicacionEspecial();
+                    });
+                }
+
+                if (unidadSel) {
+                    unidadSel.addEventListener('change', toggleUbicacionEspecial);
+                }
+
+                if (form) {
+                    form.addEventListener('submit', beforeSubmitEnableUnidad);
+                }
+
+                syncUnidadConRol();
                 toggleUnidadesExtra();
                 toggleUbicacionEspecial();
             });

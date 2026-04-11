@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
+use App\Models\Unidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
@@ -19,6 +19,7 @@ class RoleController extends Controller
     private function queryRolesVisiblesParaActor()
     {
         return Role::query()
+            ->with('unidad')
             ->when(!$this->actorEsSuperadmin(), function ($q) {
                 $q->where('name', '!=', 'Superadmin');
             });
@@ -47,13 +48,19 @@ class RoleController extends Controller
 
     public function create()
     {
-        return view('admin.settings.roles.create');
+        $unidades = Unidad::query()
+            ->where('activa', 1)
+            ->orderBy('nombre')
+            ->get();
+
+        return view('admin.settings.roles.create', compact('unidades'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
+            'unidad_id' => 'nullable|exists:unidades,id',
         ]);
 
         $this->validarNombreRolPermitido($request->name);
@@ -61,6 +68,7 @@ class RoleController extends Controller
         Role::create([
             'name' => $request->name,
             'guard_name' => 'web',
+            'unidad_id' => $request->unidad_id ?: null,
         ]);
 
         return redirect()->route('roles.index')->with('success', 'Rol creado exitosamente.');
@@ -77,7 +85,12 @@ class RoleController extends Controller
     {
         $role = $this->buscarRolVisibleOFail($id);
 
-        return view('admin.settings.roles.edit', compact('role'));
+        $unidades = Unidad::query()
+            ->where('activa', 1)
+            ->orderBy('nombre')
+            ->get();
+
+        return view('admin.settings.roles.edit', compact('role', 'unidades'));
     }
 
     public function update(Request $request, $id)
@@ -86,12 +99,14 @@ class RoleController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
+            'unidad_id' => 'nullable|exists:unidades,id',
         ]);
 
         $this->validarNombreRolPermitido($request->name);
 
         $role->update([
             'name' => $request->name,
+            'unidad_id' => $request->unidad_id ?: null,
         ]);
 
         return redirect()->route('roles.index')->with('success', 'Rol actualizado exitosamente.');

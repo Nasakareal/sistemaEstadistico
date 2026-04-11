@@ -17,6 +17,7 @@ window.CroquisEditor = (function () {
             this.offsetY = 0;
 
             this.resizeStart = null;
+            this.rotateStart = null;
             this.curveStart = null;
 
             this.seleccionado = null;
@@ -58,6 +59,19 @@ window.CroquisEditor = (function () {
             this.render();
             this.onChange(this.elementos);
             this.onSelectionChange(null);
+        }
+
+        changeSelectedLanes(delta) {
+            if (!this.seleccionado || typeof this.seleccionado.carriles === 'undefined') {
+                return false;
+            }
+
+            this.seleccionado.carriles = Math.max(1, this.seleccionado.carriles + delta);
+            this.render();
+            this.onChange(this.elementos);
+            this.onSelectionChange(this.seleccionado);
+
+            return true;
         }
 
         clear() {
@@ -155,19 +169,7 @@ window.CroquisEditor = (function () {
             if (el.tipo === 'glorieta') {
                 const outerRing = el.radioIsla + (el.carriles * el.anchoCarril);
                 const dist = Math.sqrt((p.x * p.x) + (p.y * p.y));
-                const ring = dist >= el.radioIsla && dist <= outerRing;
-
-                const accessH = (
-                    (p.x >= outerRing && p.x <= outerRing + el.largoAcceso && Math.abs(p.y) <= (el.carriles * el.anchoCarril) / 2) ||
-                    (p.x <= -outerRing && p.x >= -outerRing - el.largoAcceso && Math.abs(p.y) <= (el.carriles * el.anchoCarril) / 2)
-                );
-
-                const accessV = (
-                    (p.y >= outerRing && p.y <= outerRing + el.largoAcceso && Math.abs(p.x) <= (el.carriles * el.anchoCarril) / 2) ||
-                    (p.y <= -outerRing && p.y >= -outerRing - el.largoAcceso && Math.abs(p.x) <= (el.carriles * el.anchoCarril) / 2)
-                );
-
-                return ring || accessH || accessV;
+                return dist >= el.radioIsla && dist <= outerRing;
             }
 
             return false;
@@ -213,6 +215,10 @@ window.CroquisEditor = (function () {
 
                     if (handle === 'rotate') {
                         this.rotating = true;
+                        this.rotateStart = {
+                            angle: Math.atan2(pos.y - el.y, pos.x - el.x),
+                            rotation: el.rotacion || 0
+                        };
                         return;
                     }
 
@@ -262,7 +268,18 @@ window.CroquisEditor = (function () {
 
             if (this.rotating) {
                 const angle = Math.atan2(pos.y - this.seleccionado.y, pos.x - this.seleccionado.x);
-                this.seleccionado.rotacion = Math.round((angle * 180 / Math.PI));
+                const start = this.rotateStart || { angle, rotation: this.seleccionado.rotacion || 0 };
+                let deltaAngle = (angle - start.angle) * 180 / Math.PI;
+
+                if (deltaAngle > 180) {
+                    deltaAngle -= 360;
+                }
+
+                if (deltaAngle < -180) {
+                    deltaAngle += 360;
+                }
+
+                this.seleccionado.rotacion = Math.round(start.rotation + deltaAngle);
                 this.render();
                 this.onChange(this.elementos);
                 return;
@@ -312,7 +329,6 @@ window.CroquisEditor = (function () {
 
                 if (el.tipo === 'glorieta') {
                     el.radioIsla = Math.max(15, original.radioIsla + (delta * 0.4));
-                    el.largoAcceso = Math.max(60, original.largoAcceso + (delta * 0.6));
                 }
 
                 this.render();
@@ -337,6 +353,7 @@ window.CroquisEditor = (function () {
             this.resizing = false;
             this.editingCurve = false;
             this.resizeStart = null;
+            this.rotateStart = null;
             this.canvas.classList.remove('dragging');
         }
 
@@ -356,11 +373,7 @@ window.CroquisEditor = (function () {
             }
 
             if (evt.ctrlKey || evt.metaKey) {
-                if (typeof el.carriles !== 'undefined') {
-                    el.carriles = Math.max(1, el.carriles + delta);
-                }
-                this.render();
-                this.onChange(this.elementos);
+                this.changeSelectedLanes(delta);
                 return;
             }
 
@@ -401,7 +414,6 @@ window.CroquisEditor = (function () {
 
             if (el.tipo === 'glorieta') {
                 el.radioIsla = Math.max(15, el.radioIsla + (delta * 6));
-                el.largoAcceso = Math.max(60, el.largoAcceso + (delta * 4));
             }
 
             this.render();
@@ -444,12 +456,14 @@ window.CroquisEditor = (function () {
 
             if ((evt.key === '+' || evt.key === '=') && typeof this.seleccionado.carriles !== 'undefined') {
                 evt.preventDefault();
-                this.seleccionado.carriles += 1;
+                this.changeSelectedLanes(1);
+                return;
             }
 
             if ((evt.key === '-' || evt.key === '_') && typeof this.seleccionado.carriles !== 'undefined') {
                 evt.preventDefault();
-                this.seleccionado.carriles = Math.max(1, this.seleccionado.carriles - 1);
+                this.changeSelectedLanes(-1);
+                return;
             }
 
             if (this.seleccionado.tipo === 'curva' && evt.key.toLowerCase() === 'q') {

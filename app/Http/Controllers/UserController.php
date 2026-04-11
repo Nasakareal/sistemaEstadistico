@@ -3,17 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Role;
 use App\Models\Unidad;
 use App\Models\Turno;
 use App\Models\Patrulla;
 use App\Models\Delegacion;
+use App\Models\Destacamento;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use App\Models\Destacamento;
 
 class UserController extends Controller
 {
@@ -70,26 +70,33 @@ class UserController extends Controller
             'password' => 'required|min:6|confirmed',
             'area' => 'nullable|string|max:30',
             'role' => 'required|exists:roles,name',
-
             'unidad_id' => 'nullable|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
-
             'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
-
             'unidades_ids' => 'nullable|array',
             'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
-        if (!$this->actorEsSuperadmin($actor) && $validatedData['role'] === 'Superadmin') {
-            abort(403, 'No autorizado.');
+        $rol = $this->buscarRolAsignableParaActor($actor, $validatedData['role']);
+
+        if (!$rol) {
+            throw ValidationException::withMessages([
+                'role' => 'No puedes asignar ese rol.',
+            ]);
         }
 
         $validatedData['unidad_id'] = $this->normalizarUnidadParaActor(
             $actor,
             $validatedData['unidad_id'] ?? null
         );
+
+        if (!$this->unidadEsCompatibleConRol($rol, $validatedData['unidad_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'unidad_id' => 'La unidad seleccionada no es compatible con el rol elegido.',
+            ]);
+        }
 
         if (!$this->patrullaPerteneceAUnidad(
             $validatedData['patrulla_id'] ?? null,
@@ -140,7 +147,7 @@ class UserController extends Controller
                 'destacamento_id' => $validatedData['destacamento_id'] ?? null,
             ]);
 
-            $user->assignRole($validatedData['role']);
+            $user->assignRole($rol->name);
 
             $user->unidades()->sync(!empty($unidadesExtra) ? $unidadesExtra : []);
 
@@ -231,23 +238,24 @@ class UserController extends Controller
             'area' => 'nullable|string|max:30',
             'role' => 'required|exists:roles,name',
             'password' => 'nullable|min:6|confirmed',
-
             'unidad_id' => 'nullable|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
-
             'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
-
             'unidades_ids' => 'nullable|array',
             'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
-        if (!$this->actorEsSuperadmin($actor) && $validatedData['role'] === 'Superadmin') {
-            abort(403, 'No autorizado.');
+        $rol = $this->buscarRolAsignableParaActor($actor, $validatedData['role']);
+
+        if (!$rol) {
+            throw ValidationException::withMessages([
+                'role' => 'No puedes asignar ese rol.',
+            ]);
         }
 
-        if ($user->hasRole('Superadmin') && $validatedData['role'] !== 'Superadmin') {
+        if ($user->hasRole('Superadmin') && $rol->name !== 'Superadmin') {
             $superadmins = User::role('Superadmin')->count();
 
             if ($superadmins <= 1) {
@@ -261,6 +269,12 @@ class UserController extends Controller
             $actor,
             $validatedData['unidad_id'] ?? null
         );
+
+        if (!$this->unidadEsCompatibleConRol($rol, $validatedData['unidad_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'unidad_id' => 'La unidad seleccionada no es compatible con el rol elegido.',
+            ]);
+        }
 
         if (!$this->patrullaPerteneceAUnidad(
             $validatedData['patrulla_id'] ?? null,
@@ -314,7 +328,7 @@ class UserController extends Controller
                 $user->save();
             }
 
-            $user->syncRoles([$validatedData['role']]);
+            $user->syncRoles([$rol->name]);
             $user->unidades()->sync($unidadesExtra);
 
             Log::info("Usuario actualizado exitosamente: {$user->name}");
@@ -497,11 +511,23 @@ class UserController extends Controller
 
     private function rolesDisponiblesParaActor(User $actor)
     {
-        return Role::query()
-            ->when(!$this->actorEsSuperadmin($actor), function ($q) {
-                $q->where('name', '!=', 'Superadmin');
-            })
-            ->get();
+        return $actor->rolesVisibles();
+    }
+
+    private function buscarRolAsignableParaActor(User $actor, string $roleName): ?Role
+    {
+        return $actor->rolesVisiblesQuery()
+            ->where('name', $roleName)
+            ->first();
+    }
+
+    private function unidadEsCompatibleConRol(Role $rol, ?int $unidadId): bool
+    {
+        if (is_null($rol->unidad_id)) {
+            return true;
+        }
+
+        return !is_null($unidadId) && (int) $rol->unidad_id === (int) $unidadId;
     }
 
     private function normalizarUnidadParaActor(User $actor, ?int $unidadId): ?int

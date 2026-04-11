@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -35,9 +36,9 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at'          => 'datetime',
-        'compartir_ubicacion'        => 'boolean',
-        'last_seen_at'               => 'datetime',
+        'email_verified_at' => 'datetime',
+        'compartir_ubicacion' => 'boolean',
+        'last_seen_at' => 'datetime',
         'disconnected_alert_sent_at' => 'datetime',
     ];
 
@@ -53,8 +54,7 @@ class User extends Authenticatable
 
     public function unidades()
     {
-        return $this->belongsToMany(\App\Models\Unidad::class, 'unidad_user', 'user_id', 'unidad_id')
-            ->withTimestamps();
+        return $this->belongsToMany(\App\Models\Unidad::class, 'unidad_user', 'user_id', 'unidad_id')->withTimestamps();
     }
 
     public function turno()
@@ -70,6 +70,11 @@ class User extends Authenticatable
     public function delegacion()
     {
         return $this->belongsTo(\App\Models\Delegacion::class, 'delegacion_id');
+    }
+
+    public function destacamento()
+    {
+        return $this->belongsTo(\App\Models\Destacamento::class, 'destacamento_id');
     }
 
     public function isSuperadmin(): bool
@@ -138,8 +143,43 @@ class User extends Authenticatable
         return $this->canBeDemotedFromSuperadmin();
     }
 
-    public function destacamento()
+    public function puedeVerRol(Role $role): bool
     {
-        return $this->belongsTo(\App\Models\Destacamento::class, 'destacamento_id');
+        if ($this->isSuperadmin()) {
+            return true;
+        }
+
+        if ($role->name === 'Superadmin') {
+            return false;
+        }
+
+        if (is_null($role->unidad_id)) {
+            return true;
+        }
+
+        return !is_null($this->unidad_id) && (int) $role->unidad_id === (int) $this->unidad_id;
+    }
+
+    public function rolesVisiblesQuery()
+    {
+        return Role::query()
+            ->with('unidad')
+            ->when(!$this->isSuperadmin(), function ($q) {
+                $q->where('name', '!=', 'Superadmin')
+                    ->where(function ($sub) {
+                        $sub->whereNull('unidad_id');
+
+                        if (!is_null($this->unidad_id)) {
+                            $sub->orWhere('unidad_id', $this->unidad_id);
+                        }
+                    });
+            });
+    }
+
+    public function rolesVisibles(): Collection
+    {
+        return $this->rolesVisiblesQuery()
+            ->orderBy('name')
+            ->get();
     }
 }

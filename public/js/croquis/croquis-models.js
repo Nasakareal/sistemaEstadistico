@@ -76,7 +76,7 @@ window.CroquisModels = (function () {
             ...base('calle', x, y),
             largo: 260,
             anchoCarril: 28,
-            carriles: 2
+            carriles: 1
         };
     }
 
@@ -85,7 +85,7 @@ window.CroquisModels = (function () {
             ...base('curva', x, y),
             radioInterno: 45,
             anchoCarril: 28,
-            carriles: 2,
+            carriles: 1,
             angulo: 90
         };
     }
@@ -95,7 +95,7 @@ window.CroquisModels = (function () {
             ...base('cruce', x, y),
             largo: 220,
             anchoCarril: 28,
-            carriles: 2
+            carriles: 1
         };
     }
 
@@ -105,7 +105,7 @@ window.CroquisModels = (function () {
             largoBase: 220,
             largoBrazo: 140,
             anchoCarril: 28,
-            carriles: 2
+            carriles: 1
         };
     }
 
@@ -114,7 +114,7 @@ window.CroquisModels = (function () {
             ...base('glorieta', x, y),
             radioIsla: 40,
             anchoCarril: 24,
-            carriles: 2,
+            carriles: 1,
             largoAcceso: 140
         };
     }
@@ -176,7 +176,7 @@ window.CroquisModels = (function () {
                 ...baseData,
                 largo: Number(raw.largo ?? raw.w ?? 260),
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 2))
+                carriles: Math.max(1, Number(raw.carriles ?? 1))
             };
         }
 
@@ -185,7 +185,7 @@ window.CroquisModels = (function () {
                 ...baseData,
                 radioInterno: Number(raw.radioInterno ?? raw.radio ?? 45),
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 2)),
+                carriles: Math.max(1, Number(raw.carriles ?? 1)),
                 angulo: Math.min(180, Math.max(30, Number(raw.angulo ?? 90)))
             };
         }
@@ -195,7 +195,7 @@ window.CroquisModels = (function () {
                 ...baseData,
                 largo: Number(raw.largo ?? raw.size ?? 220),
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 2))
+                carriles: Math.max(1, Number(raw.carriles ?? 1))
             };
         }
 
@@ -205,7 +205,7 @@ window.CroquisModels = (function () {
                 largoBase: Number(raw.largoBase ?? raw.size ?? 220),
                 largoBrazo: Number(raw.largoBrazo ?? 140),
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 2))
+                carriles: Math.max(1, Number(raw.carriles ?? 1))
             };
         }
 
@@ -214,7 +214,7 @@ window.CroquisModels = (function () {
                 ...baseData,
                 radioIsla: Number(raw.radioIsla ?? 40),
                 anchoCarril: Number(raw.anchoCarril ?? 24),
-                carriles: Math.max(1, Number(raw.carriles ?? 2)),
+                carriles: Math.max(1, Number(raw.carriles ?? 1)),
                 largoAcceso: Number(raw.largoAcceso ?? 140)
             };
         }

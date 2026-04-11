@@ -1,14 +1,6 @@
 {
   "ExpandedNodes": [
-    "",
-    "\\app",
-    "\\public",
-    "\\public\\js",
-    "\\public\\js\\croquis",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\croquis"
+    ""
   ],
-  "SelectedNode": "\\public\\js\\croquis\\croquis-renderer.js",
   "PreviewInSolutionExplorer": false
 }

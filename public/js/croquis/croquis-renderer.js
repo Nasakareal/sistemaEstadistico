@@ -75,7 +75,7 @@ window.CroquisRenderer = (function () {
         }
 
         if (el.tipo === 'glorieta') {
-            const outer = el.radioIsla + totalRoadWidth(el) + el.largoAcceso;
+            const outer = el.radioIsla + totalRoadWidth(el);
             return { w: outer * 2, h: outer * 2 };
         }
 
@@ -347,14 +347,6 @@ window.CroquisRenderer = (function () {
         ctx.arc(0, 0, Math.max(6, el.radioIsla - 4), 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = ROAD_FILL;
-        ctx.fillRect(-outer - el.largoAcceso, -ringWidth / 2, el.largoAcceso, ringWidth);
-        ctx.fillRect(outer, -ringWidth / 2, el.largoAcceso, ringWidth);
-        ctx.fillRect(-ringWidth / 2, -outer - el.largoAcceso, ringWidth, el.largoAcceso);
-        ctx.fillRect(-ringWidth / 2, outer, ringWidth, el.largoAcceso);
-
-        const divs = laneDividers(el.carriles, el.anchoCarril);
-
         ctx.save();
         ctx.strokeStyle = ROAD_LINE;
         ctx.lineWidth = 2;
@@ -366,33 +358,6 @@ window.CroquisRenderer = (function () {
             ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.stroke();
         }
-
-        divs.forEach(y => {
-            ctx.beginPath();
-            ctx.moveTo(-outer - el.largoAcceso, y);
-            ctx.lineTo(-outer, y);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(outer, y);
-            ctx.lineTo(outer + el.largoAcceso, y);
-            ctx.stroke();
-        });
-
-        ctx.save();
-        ctx.rotate(Math.PI / 2);
-        divs.forEach(y => {
-            ctx.beginPath();
-            ctx.moveTo(-outer - el.largoAcceso, y);
-            ctx.lineTo(-outer, y);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(outer, y);
-            ctx.lineTo(outer + el.largoAcceso, y);
-            ctx.stroke();
-        });
-        ctx.restore();
 
         ctx.restore();
 

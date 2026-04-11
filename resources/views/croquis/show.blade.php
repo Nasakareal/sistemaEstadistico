@@ -133,6 +133,11 @@
                     </div>
                 </div>
 
+                <div class="btn-group" role="group" aria-label="Carriles">
+                    <button type="button" class="btn btn-outline-secondary" data-croquis-action="quitarCarril">- Carril</button>
+                    <button type="button" class="btn btn-outline-secondary" data-croquis-action="agregarCarril">+ Carril</button>
+                </div>
+
                 <div class="btn-group">
                     <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         📍 Iconos
@@ -174,7 +179,7 @@
                 Círculo rojo: girar.
                 Círculo naranja: cambiar tamaño.
                 Círculo morado en la curva: abrir/cerrar la curva.
-                Ctrl + scroll: cambiar carriles.
+                + Carril / - Carril, Ctrl + scroll o teclas + / -: cambiar carriles.
                 Shift + scroll: girar.
                 Alt + scroll en curva: cambiar apertura.
                 Q / E en curva: cerrar o abrir.

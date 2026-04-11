@@ -72,6 +72,16 @@
   </style>
 </head>
 <body>
+@php
+  $croquisPreview = optional($hecho->croquis)->imagen_preview;
+  $croquisPreviewUrl = null;
+
+  if ($croquisPreview) {
+    $croquisPreviewUrl = \Illuminate\Support\Str::startsWith($croquisPreview, ['data:image', 'http://', 'https://'])
+      ? $croquisPreview
+      : asset($croquisPreview);
+  }
+@endphp
 <br><br>
   <div class="header">
     <img src="{{ asset('Favicons.ico') }}" alt="Favicon" class="favicon" width="50" height="50">
@@ -292,8 +302,13 @@
   @endif
 
   <br>
-  <div style="margin-top: 20px; text-align: center; border: 2px solid #000; padding: 20px;">
-    <h2 style="margin: 0; font-size: 24px;">CROQUIS DEL LUGAR DEL HECHO</h2>
+  <div style="margin-top: 20px; text-align: center; border: 2px solid #000; padding: 20px; min-height: 430px;">
+    <h2 style="margin: 0 0 14px 0; font-size: 24px;">CROQUIS DEL LUGAR DEL HECHO</h2>
+    @if($croquisPreviewUrl)
+      <img src="{{ $croquisPreviewUrl }}" alt="Croquis del lugar del hecho" style="display: block; width: 100%; height: auto; margin: 0 auto;">
+    @else
+      <div style="height: 360px;"></div>
+    @endif
   </div>
 
 </body>

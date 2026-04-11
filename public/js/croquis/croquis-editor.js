@@ -120,8 +120,9 @@ window.CroquisEditor = (function () {
         isInsideElement(el, x, y) {
             const p = this.toLocal(el, x, y);
 
-            if (el.tipo === 'carro') {
-                return Math.abs(p.x) <= el.ancho / 2 && Math.abs(p.y) <= el.alto / 2;
+            if (['carro', 'vehiculo', 'icono', 'texto'].includes(el.tipo)) {
+                const bounds = this.getBounds(el);
+                return Math.abs(p.x) <= bounds.w / 2 && Math.abs(p.y) <= bounds.h / 2;
             }
 
             if (el.tipo === 'calle') {
@@ -279,6 +280,19 @@ window.CroquisEditor = (function () {
                     el.alto = Math.max(15, original.alto + (delta * 0.5));
                 }
 
+                if (el.tipo === 'vehiculo') {
+                    const startLocal = this.toLocal(original, this.resizeStart.mouseX, this.resizeStart.mouseY);
+                    const currentLocal = this.toLocal(original, pos.x, pos.y);
+                    el.ancho = Math.max(20, original.ancho + (currentLocal.x - startLocal.x));
+                    el.alto = Math.max(20, original.alto + (currentLocal.y - startLocal.y));
+                }
+
+                if (el.tipo === 'icono') {
+                    const aspectRatio = original.alto / Math.max(1, original.ancho);
+                    el.ancho = Math.max(20, original.ancho + delta);
+                    el.alto = Math.max(20, el.ancho * aspectRatio);
+                }
+
                 if (el.tipo === 'calle') {
                     el.largo = Math.max(80, original.largo + delta);
                 }
@@ -360,6 +374,12 @@ window.CroquisEditor = (function () {
             if (el.tipo === 'carro') {
                 el.ancho = Math.max(25, el.ancho + (delta * 5));
                 el.alto = Math.max(15, el.alto + (delta * 3));
+            }
+
+            if (el.tipo === 'vehiculo' || el.tipo === 'icono') {
+                const aspectRatio = el.alto / Math.max(1, el.ancho);
+                el.ancho = Math.max(20, el.ancho + (delta * 5));
+                el.alto = Math.max(20, el.ancho * aspectRatio);
             }
 
             if (el.tipo === 'calle') {
@@ -448,6 +468,29 @@ window.CroquisEditor = (function () {
 
         render() {
             window.CroquisRenderer.render(this.ctx, this.canvas, this.elementos, this.assets);
+        }
+
+        getPreviewDataUrl() {
+            const seleccionado = this.seleccionado;
+            const seleccionados = this.elementos.map(el => el.seleccionado);
+
+            this.seleccionado = null;
+            this.elementos.forEach(el => el.seleccionado = false);
+            this.render();
+
+            let dataUrl = '';
+
+            try {
+                dataUrl = this.canvas.toDataURL('image/png');
+            } catch (e) {
+                dataUrl = '';
+            }
+
+            this.elementos.forEach((el, index) => el.seleccionado = seleccionados[index]);
+            this.seleccionado = seleccionado;
+            this.render();
+
+            return dataUrl;
         }
     }
 

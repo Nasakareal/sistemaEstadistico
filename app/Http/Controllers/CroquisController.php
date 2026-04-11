@@ -29,6 +29,9 @@ class CroquisController extends Controller
             'pdf_path' => ['nullable', 'string'],
         ]);
 
+        $croquisActual = Croquis::where('hecho_id', $hecho->id)->first();
+        $previewPath = $this->guardarPreview($request->imagen_preview, $hecho, optional($croquisActual)->imagen_preview);
+
         Croquis::updateOrCreate(
             ['hecho_id' => $hecho->id],
             [
@@ -37,7 +40,7 @@ class CroquisController extends Controller
                 'orientacion' => $request->orientacion,
                 'escala' => $request->escala,
                 'json_dibujo' => $request->json_dibujo,
-                'imagen_preview' => $request->imagen_preview,
+                'imagen_preview' => $previewPath,
                 'pdf_path' => $request->pdf_path,
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
@@ -67,13 +70,15 @@ class CroquisController extends Controller
             return $this->store($request, $hecho);
         }
 
+        $previewPath = $this->guardarPreview($request->imagen_preview, $hecho, $croquis->imagen_preview);
+
         $croquis->update([
             'titulo' => $request->titulo,
             'plantilla' => $request->plantilla,
             'orientacion' => $request->orientacion,
             'escala' => $request->escala,
             'json_dibujo' => $request->json_dibujo,
-            'imagen_preview' => $request->imagen_preview,
+            'imagen_preview' => $previewPath,
             'pdf_path' => $request->pdf_path,
             'updated_by' => auth()->id(),
         ]);
@@ -94,5 +99,36 @@ class CroquisController extends Controller
         return redirect()
             ->route('croquis.show', $hecho->id)
             ->with('success', 'Croquis eliminado correctamente.');
+    }
+
+    private function guardarPreview(?string $preview, Hechos $hecho, ?string $actual = null): ?string
+    {
+        if (!$preview) {
+            return $actual;
+        }
+
+        if (!preg_match('/^data:image\/png;base64,/', $preview)) {
+            return $actual;
+        }
+
+        $contenido = base64_decode(substr($preview, strpos($preview, ',') + 1), true);
+
+        if ($contenido === false) {
+            return $actual;
+        }
+
+        $directorioRelativo = 'img/croquis/previews';
+        $directorio = public_path($directorioRelativo);
+
+        if (!is_dir($directorio)) {
+            mkdir($directorio, 0775, true);
+        }
+
+        $nombreArchivo = 'hecho_' . $hecho->id . '_croquis.png';
+        $ruta = $directorio . DIRECTORY_SEPARATOR . $nombreArchivo;
+
+        file_put_contents($ruta, $contenido);
+
+        return $directorioRelativo . '/' . $nombreArchivo;
     }
 }

@@ -10,7 +10,7 @@ class DocumentoHechoController extends Controller
 {
     public function descargarDoc(Request $request, $hecho)
     {
-        $hecho = Hechos::with(['vehiculos.conductores', 'lesionados'])->findOrFail($hecho);
+        $hecho = Hechos::with(['vehiculos.conductores', 'lesionados', 'croquis'])->findOrFail($hecho);
         $html = view('hechos.reporte_docx', compact('hecho'))->render();
         $wordContent = <<<HTML
 <html xmlns:o="urn:schemas-microsoft-com:office:office"

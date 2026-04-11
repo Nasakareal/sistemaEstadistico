@@ -10,7 +10,7 @@ class DocumentoHechoController extends Controller
     public function descargarDocx($id)
     {
         // Obtener el hecho con los vehículos, conductores y lesionados relacionados
-        $hecho = Hechos::with(['vehiculos.conductores', 'lesionados'])->findOrFail($id);
+        $hecho = Hechos::with(['vehiculos.conductores', 'lesionados', 'croquis'])->findOrFail($id);
 
         // Renderizar la vista con los datos
         $html = view('hechos.reporte_docx', compact('hecho'))->render();

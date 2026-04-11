@@ -1,6 +1,12 @@
 window.CroquisUI = (function () {
-    function createImage(src) {
+    function createImage(src, onReady) {
         const img = new Image();
+
+        if (typeof onReady === 'function') {
+            img.addEventListener('load', onReady);
+            img.addEventListener('error', onReady);
+        }
+
         img.src = src;
         return img;
     }
@@ -8,68 +14,107 @@ window.CroquisUI = (function () {
     function init(options) {
         const canvas = document.getElementById(options.canvasId);
         const input = document.getElementById(options.inputId);
+        const previewInput = options.previewInputId ? document.getElementById(options.previewInputId) : null;
         const form = document.getElementById(options.formId);
         const submenuContainer = document.getElementById(options.submenuContainerId || 'croquisSubmenu');
 
         const ctx = canvas.getContext('2d');
 
         const dynamicIcons = Array.isArray(options.iconos) ? options.iconos : [];
+        const vehicleCategories = Array.isArray(options.vehiculos) ? options.vehiculos : [];
+        const defaultIcon = options.defaultIcono || null;
+        let editor = null;
+
+        function renderWhenAssetIsReady() {
+            if (editor) {
+                editor.render();
+            }
+        }
 
         const iconAssets = {};
         dynamicIcons.forEach(icono => {
             if (icono && icono.key && icono.src) {
-                iconAssets[icono.key] = createImage(icono.src);
+                iconAssets[icono.key] = createImage(icono.src, renderWhenAssetIsReady);
             }
         });
 
-        const vehicleCatalog = {
-            automovil: [
-                { nombre: 'Sedán', subtipo: 'sedan', src: '/img/croquis/vehiculos/automovil/sedan.png' },
-                { nombre: 'Hatchback', subtipo: 'hatchback', src: '/img/croquis/vehiculos/automovil/hatchback.png' },
-                { nombre: 'Coupé', subtipo: 'coupe', src: '/img/croquis/vehiculos/automovil/coupe.png' }
-            ],
-            camion: [
-                { nombre: 'Torton', subtipo: 'torton', src: '/img/croquis/vehiculos/camion/torton.png' },
-                { nombre: 'Rabón', subtipo: 'rabon', src: '/img/croquis/vehiculos/camion/rabon.png' }
-            ],
-            camioneta: [
-                { nombre: 'Pick-up', subtipo: 'pickup', src: '/img/croquis/vehiculos/camioneta/pickup.png' },
-                { nombre: 'SUV', subtipo: 'suv', src: '/img/croquis/vehiculos/camioneta/suv.png' },
-                { nombre: 'Van', subtipo: 'van', src: '/img/croquis/vehiculos/camioneta/van.png' }
-            ],
-            bicicleta: [
-                { nombre: 'Urbana', subtipo: 'urbana', src: '/img/croquis/vehiculos/bicicleta/urbana.png' },
-                { nombre: 'Montaña', subtipo: 'montana', src: '/img/croquis/vehiculos/bicicleta/montana.png' }
-            ],
-            motocicleta: [
-                { nombre: 'Deportiva', subtipo: 'deportiva', src: '/img/croquis/vehiculos/motocicleta/deportiva.png' },
-                { nombre: 'Trabajo', subtipo: 'trabajo', src: '/img/croquis/vehiculos/motocicleta/trabajo.png' }
-            ],
-            maquinaria: [
-                { nombre: 'Retroexcavadora', subtipo: 'retroexcavadora', src: '/img/croquis/vehiculos/maquinaria/retroexcavadora.png' },
-                { nombre: 'Tractor', subtipo: 'tractor', src: '/img/croquis/vehiculos/maquinaria/tractor.png' }
-            ]
-        };
+        const vehicleCatalog = {};
+        const vehicleAssets = {};
 
-        Object.keys(vehicleCatalog).forEach(categoria => {
-            vehicleCatalog[categoria] = vehicleCatalog[categoria].map(item => ({
-                ...item,
-                image: createImage(item.src)
-            }));
+        vehicleCategories.forEach(categoria => {
+            if (!categoria || !categoria.key) {
+                return;
+            }
+
+            const categoriaKey = categoria.key;
+            const items = Array.isArray(categoria.items) ? categoria.items : [];
+
+            vehicleCatalog[categoriaKey] = {
+                key: categoriaKey,
+                label: categoria.label || categoriaKey,
+                items: items.map(item => ({
+                    ...item,
+                    image: createImage(item.src, renderWhenAssetIsReady)
+                }))
+            };
+
+            vehicleAssets[categoriaKey] = {};
+
+            vehicleCatalog[categoriaKey].items.forEach(item => {
+                if (item.subtipo) {
+                    vehicleAssets[categoriaKey][item.subtipo] = item.image;
+                }
+            });
         });
+
+        function hasDefaultIcon(elementos) {
+            if (!defaultIcon || !defaultIcon.key) {
+                return true;
+            }
+
+            return elementos.some(el => {
+                return el.tipo === 'icono' && (el.clave === defaultIcon.key || el.nombre === defaultIcon.key);
+            });
+        }
+
+        function createDefaultIconElement() {
+            const size = 72;
+            const margin = 24;
+            const el = window.CroquisModels.icono(
+                canvas.width - (size / 2) - margin,
+                (size / 2) + margin,
+                defaultIcon.key,
+                defaultIcon.src
+            );
+
+            el.ancho = size;
+            el.alto = size;
+            return el;
+        }
+
+        function ensureDefaultElements(elementos) {
+            const list = Array.isArray(elementos) ? elementos : [];
+
+            if (defaultIcon && defaultIcon.key && defaultIcon.src && !hasDefaultIcon(list)) {
+                list.push(createDefaultIconElement());
+            }
+
+            return list;
+        }
 
         let elementos = [];
         if (options.initialData) {
             elementos = window.CroquisModels.deserialize(options.initialData);
         }
+        elementos = ensureDefaultElements(elementos);
 
-        const editor = new window.CroquisEditor({
+        editor = new window.CroquisEditor({
             canvas,
             ctx,
             elementos,
             assets: {
                 iconos: iconAssets,
-                vehiculos: vehicleCatalog
+                vehiculos: vehicleAssets
             },
             onChange: function (els) {
                 input.value = window.CroquisModels.serialize(els);
@@ -95,21 +140,27 @@ window.CroquisUI = (function () {
         function renderVehicleSubmenu(categoria) {
             if (!submenuContainer) return;
 
-            const items = vehicleCatalog[categoria] || [];
+            const categoriaData = vehicleCatalog[categoria] || { label: categoria, items: [] };
+            const items = categoriaData.items || [];
             submenuContainer.innerHTML = '';
-
-            if (!items.length) {
-                submenuContainer.style.display = 'none';
-                return;
-            }
 
             const wrap = document.createElement('div');
             wrap.className = 'croquis-submenu-panel';
 
             const title = document.createElement('div');
             title.className = 'croquis-submenu-title';
-            title.textContent = categoria.charAt(0).toUpperCase() + categoria.slice(1);
+            title.textContent = categoriaData.label || categoria.charAt(0).toUpperCase() + categoria.slice(1);
             wrap.appendChild(title);
+
+            if (!items.length) {
+                const empty = document.createElement('div');
+                empty.className = 'croquis-submenu-empty';
+                empty.textContent = 'Aún no hay imágenes en esta categoría.';
+                wrap.appendChild(empty);
+                submenuContainer.appendChild(wrap);
+                submenuContainer.style.display = 'block';
+                return;
+            }
 
             const grid = document.createElement('div');
             grid.className = 'croquis-submenu-grid';
@@ -130,15 +181,19 @@ window.CroquisUI = (function () {
                 btn.appendChild(span);
 
                 btn.addEventListener('click', function () {
-                    editor.addElement(
-                        window.CroquisModels.vehiculo(
-                            180,
-                            180,
-                            categoria,
-                            item.subtipo,
-                            item.src
-                        )
+                    const vehiculo = window.CroquisModels.vehiculo(
+                        180,
+                        180,
+                        categoria,
+                        item.subtipo,
+                        item.src
                     );
+
+                    const size = getDefaultVehicleSize(item);
+                    vehiculo.ancho = size.ancho;
+                    vehiculo.alto = size.alto;
+
+                    editor.addElement(vehiculo);
                     clearSubmenu();
                 });
 
@@ -148,6 +203,24 @@ window.CroquisUI = (function () {
             wrap.appendChild(grid);
             submenuContainer.appendChild(wrap);
             submenuContainer.style.display = 'block';
+        }
+
+        function getDefaultVehicleSize(item) {
+            const maxSize = 90;
+            const naturalWidth = Math.max(1, Number(item.anchoOriginal || item.ancho || maxSize));
+            const naturalHeight = Math.max(1, Number(item.altoOriginal || item.alto || maxSize));
+
+            if (naturalWidth >= naturalHeight) {
+                return {
+                    ancho: maxSize,
+                    alto: Math.max(20, Math.round(maxSize * (naturalHeight / naturalWidth)))
+                };
+            }
+
+            return {
+                ancho: Math.max(20, Math.round(maxSize * (naturalWidth / naturalHeight))),
+                alto: maxSize
+            };
         }
 
         function agregarIconoDinamico(iconKey) {
@@ -162,13 +235,6 @@ window.CroquisUI = (function () {
         }
 
         const actions = {
-            abrirMenuAutomovil: () => renderVehicleSubmenu('automovil'),
-            abrirMenuCamion: () => renderVehicleSubmenu('camion'),
-            abrirMenuCamioneta: () => renderVehicleSubmenu('camioneta'),
-            abrirMenuBicicleta: () => renderVehicleSubmenu('bicicleta'),
-            abrirMenuMotocicleta: () => renderVehicleSubmenu('motocicleta'),
-            abrirMenuMaquinaria: () => renderVehicleSubmenu('maquinaria'),
-
             agregarCalle: () => {
                 clearSubmenu();
                 editor.addElement(window.CroquisModels.calle(220, 180));
@@ -205,10 +271,13 @@ window.CroquisUI = (function () {
 
             limpiar: () => {
                 clearSubmenu();
-                editor.clear();
+                editor.setElementos(ensureDefaultElements([]));
             },
             guardar: () => {
                 input.value = window.CroquisModels.serialize(editor.elementos);
+                if (previewInput) {
+                    previewInput.value = editor.getPreviewDataUrl();
+                }
                 form.submit();
             }
         };
@@ -219,6 +288,13 @@ window.CroquisUI = (function () {
             if (actionName === 'agregarIconoDinamico') {
                 btn.addEventListener('click', function () {
                     agregarIconoDinamico(btn.getAttribute('data-icon-key'));
+                });
+                return;
+            }
+
+            if (actionName === 'abrirMenuVehiculo') {
+                btn.addEventListener('click', function () {
+                    renderVehicleSubmenu(btn.getAttribute('data-vehicle-category'));
                 });
                 return;
             }

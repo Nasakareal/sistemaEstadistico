@@ -52,6 +52,12 @@
     color: #343a40;
 }
 
+.croquis-submenu-empty {
+    color: #6c757d;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .croquis-submenu-grid {
     display: flex;
     flex-wrap: wrap;

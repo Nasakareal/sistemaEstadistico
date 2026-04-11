@@ -7,43 +7,94 @@
 @stop
 
 @section('css')
-    <link rel="stylesheet" href="{{ asset('css/croquis.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/croquis.css') }}?v={{ filemtime(public_path('css/croquis.css')) }}">
 @stop
 
 @section('content')
 @php
+    $extensionesCroquis = ['png', 'jpg', 'jpeg', 'webp'];
     $iconosPath = public_path('img/croquis/iconos');
-    $iconosCroquis = [];
+    $vehiculosPath = public_path('img/croquis/vehiculos');
 
-    if (is_dir($iconosPath)) {
-        $archivosIconos = collect(scandir($iconosPath))
-            ->filter(function ($archivo) use ($iconosPath) {
+    $obtenerImagenesCroquis = function ($path) use ($extensionesCroquis) {
+        if (!is_dir($path)) {
+            return collect();
+        }
+
+        return collect(scandir($path))
+            ->filter(function ($archivo) use ($path, $extensionesCroquis) {
                 if ($archivo === '.' || $archivo === '..') {
                     return false;
                 }
 
-                if (!is_file($iconosPath . DIRECTORY_SEPARATOR . $archivo)) {
+                if (!is_file($path . DIRECTORY_SEPARATOR . $archivo)) {
                     return false;
                 }
 
                 $extension = strtolower(pathinfo($archivo, PATHINFO_EXTENSION));
 
-                return in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true);
+                return in_array($extension, $extensionesCroquis, true);
             })
             ->sort()
             ->values();
+    };
 
-        $iconosCroquis = $archivosIconos->map(function ($archivo) {
+    $formatearNombreCroquis = function ($nombreBase) {
+        return (string) \Illuminate\Support\Str::of($nombreBase)->replace(['-', '_'], ' ')->title();
+    };
+
+    $iconosCroquis = $obtenerImagenesCroquis($iconosPath)
+        ->map(function ($archivo) use ($formatearNombreCroquis) {
             $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
-            $clave = \Illuminate\Support\Str::slug($nombreBase, '_');
 
             return [
-                'key' => $clave,
-                'label' => (string) \Illuminate\Support\Str::of($nombreBase)->replace(['-', '_'], ' ')->title(),
+                'key' => \Illuminate\Support\Str::slug($nombreBase, '_'),
+                'label' => $formatearNombreCroquis($nombreBase),
                 'src' => asset('img/croquis/iconos/' . $archivo),
             ];
-        })->values()->all();
-    }
+        })
+        ->values()
+        ->all();
+
+    $iconoCardinal = collect($iconosCroquis)->firstWhere('key', 'cardinal_points');
+
+    $categoriasVehiculos = [
+        'automovil' => 'Automóvil',
+        'camion' => 'Camión',
+        'camioneta' => 'Camioneta',
+        'bicicleta' => 'Bicicleta',
+        'motocicleta' => 'Motocicleta',
+        'maquinaria' => 'Maquinaria',
+    ];
+
+    $vehiculosCroquis = collect($categoriasVehiculos)
+        ->map(function ($label, $categoria) use ($vehiculosPath, $obtenerImagenesCroquis, $formatearNombreCroquis) {
+            $categoriaPath = $vehiculosPath . DIRECTORY_SEPARATOR . $categoria;
+            $items = $obtenerImagenesCroquis($categoriaPath)
+                ->map(function ($archivo) use ($categoria, $categoriaPath, $formatearNombreCroquis) {
+                    $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
+                    $imagenPath = $categoriaPath . DIRECTORY_SEPARATOR . $archivo;
+                    $dimensiones = @getimagesize($imagenPath) ?: [90, 90];
+
+                    return [
+                        'nombre' => $formatearNombreCroquis($nombreBase),
+                        'subtipo' => \Illuminate\Support\Str::slug($nombreBase, '_'),
+                        'src' => asset('img/croquis/vehiculos/' . $categoria . '/' . $archivo),
+                        'anchoOriginal' => $dimensiones[0],
+                        'altoOriginal' => $dimensiones[1],
+                    ];
+                })
+                ->values()
+                ->all();
+
+            return [
+                'key' => $categoria,
+                'label' => $label,
+                'items' => $items,
+            ];
+        })
+        ->values()
+        ->all();
 @endphp
 
 <div class="card">
@@ -57,12 +108,15 @@
                         🚗 Vehículos
                     </button>
                     <div class="dropdown-menu">
-                        <button type="button" class="dropdown-item" data-croquis-action="abrirMenuAutomovil">Automóvil</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="abrirMenuCamion">Camión</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="abrirMenuCamioneta">Camioneta</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="abrirMenuBicicleta">Bicicleta</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="abrirMenuMotocicleta">Motocicleta</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="abrirMenuMaquinaria">Maquinaria</button>
+                        @foreach($vehiculosCroquis as $categoriaVehiculo)
+                            <button
+                                type="button"
+                                class="dropdown-item"
+                                data-croquis-action="abrirMenuVehiculo"
+                                data-vehicle-category="{{ $categoriaVehiculo['key'] }}">
+                                {{ $categoriaVehiculo['label'] }}
+                            </button>
+                        @endforeach
                     </div>
                 </div>
 
@@ -124,12 +178,14 @@
                 Shift + scroll: girar.
                 Alt + scroll en curva: cambiar apertura.
                 Q / E en curva: cerrar o abrir.
+                En vehículos, el círculo naranja ajusta largo y alto; la rueda cambia el tamaño total.
                 Supr: borrar.
             </div>
 
             <form id="formCroquis" method="POST" action="{{ route('croquis.store', $hecho->id) }}">
                 @csrf
                 <input type="hidden" name="json_dibujo" id="croquisInput">
+                <input type="hidden" name="imagen_preview" id="croquisPreviewInput">
             </form>
 
         </div>
@@ -138,19 +194,22 @@
 @stop
 
 @section('js')
-    <script src="{{ asset('js/croquis/croquis-models.js') }}"></script>
-    <script src="{{ asset('js/croquis/croquis-renderer.js') }}"></script>
-    <script src="{{ asset('js/croquis/croquis-editor.js') }}"></script>
-    <script src="{{ asset('js/croquis/croquis-ui.js') }}"></script>
+    <script src="{{ asset('js/croquis/croquis-models.js') }}?v={{ filemtime(public_path('js/croquis/croquis-models.js')) }}"></script>
+    <script src="{{ asset('js/croquis/croquis-renderer.js') }}?v={{ filemtime(public_path('js/croquis/croquis-renderer.js')) }}"></script>
+    <script src="{{ asset('js/croquis/croquis-editor.js') }}?v={{ filemtime(public_path('js/croquis/croquis-editor.js')) }}"></script>
+    <script src="{{ asset('js/croquis/croquis-ui.js') }}?v={{ filemtime(public_path('js/croquis/croquis-ui.js')) }}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             CroquisUI.init({
                 canvasId: 'croquisCanvas',
                 inputId: 'croquisInput',
+                previewInputId: 'croquisPreviewInput',
                 formId: 'formCroquis',
                 submenuContainerId: 'croquisSubmenu',
                 iconos: @json($iconosCroquis),
+                vehiculos: @json($vehiculosCroquis),
+                defaultIcono: @json($iconoCardinal),
                 initialData: @json(
                     $croquis && $croquis->json_dibujo
                         ? json_decode($croquis->json_dibujo, true)

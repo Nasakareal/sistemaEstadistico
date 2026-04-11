@@ -13,14 +13,14 @@ window.CroquisUI = (function () {
 
         const ctx = canvas.getContext('2d');
 
-        const iconAssets = {
-            flecha: createImage(options.flechaImgSrc || '/img/croquis/iconos/flecha.png'),
-            semaforo: createImage(options.semaforoImgSrc || '/img/croquis/iconos/semaforo.png'),
-            alto: createImage(options.altoImgSrc || '/img/croquis/iconos/alto.png'),
-            impacto: createImage(options.impactoImgSrc || '/img/croquis/iconos/impacto.png'),
-            cono: createImage(options.conoImgSrc || '/img/croquis/iconos/cono.png'),
-            persona: createImage(options.personaImgSrc || '/img/croquis/iconos/persona.png')
-        };
+        const dynamicIcons = Array.isArray(options.iconos) ? options.iconos : [];
+
+        const iconAssets = {};
+        dynamicIcons.forEach(icono => {
+            if (icono && icono.key && icono.src) {
+                iconAssets[icono.key] = createImage(icono.src);
+            }
+        });
 
         const vehicleCatalog = {
             automovil: [
@@ -150,6 +150,17 @@ window.CroquisUI = (function () {
             submenuContainer.style.display = 'block';
         }
 
+        function agregarIconoDinamico(iconKey) {
+            const icono = dynamicIcons.find(item => item.key === iconKey);
+
+            if (!icono) {
+                return;
+            }
+
+            clearSubmenu();
+            editor.addElement(window.CroquisModels.icono(200, 200, icono.key, icono.src));
+        }
+
         const actions = {
             abrirMenuAutomovil: () => renderVehicleSubmenu('automovil'),
             abrirMenuCamion: () => renderVehicleSubmenu('camion'),
@@ -179,31 +190,6 @@ window.CroquisUI = (function () {
                 editor.addElement(window.CroquisModels.glorieta(360, 260));
             },
 
-            agregarFlecha: () => {
-                clearSubmenu();
-                editor.addElement(window.CroquisModels.icono(200, 200, 'flecha', '/img/croquis/iconos/flecha.png'));
-            },
-            agregarSemaforo: () => {
-                clearSubmenu();
-                editor.addElement(window.CroquisModels.icono(200, 200, 'semaforo', '/img/croquis/iconos/semaforo.png'));
-            },
-            agregarAlto: () => {
-                clearSubmenu();
-                editor.addElement(window.CroquisModels.icono(200, 200, 'alto', '/img/croquis/iconos/alto.png'));
-            },
-            agregarImpacto: () => {
-                clearSubmenu();
-                editor.addElement(window.CroquisModels.icono(200, 200, 'impacto', '/img/croquis/iconos/impacto.png'));
-            },
-            agregarCono: () => {
-                clearSubmenu();
-                editor.addElement(window.CroquisModels.icono(200, 200, 'cono', '/img/croquis/iconos/cono.png'));
-            },
-            agregarPersona: () => {
-                clearSubmenu();
-                editor.addElement(window.CroquisModels.icono(200, 200, 'persona', '/img/croquis/iconos/persona.png'));
-            },
-
             agregarTexto: () => {
                 clearSubmenu();
                 agregarTextoConPrompt('Texto');
@@ -229,6 +215,14 @@ window.CroquisUI = (function () {
 
         document.querySelectorAll('[data-croquis-action]').forEach(btn => {
             const actionName = btn.getAttribute('data-croquis-action');
+
+            if (actionName === 'agregarIconoDinamico') {
+                btn.addEventListener('click', function () {
+                    agregarIconoDinamico(btn.getAttribute('data-icon-key'));
+                });
+                return;
+            }
+
             if (actions[actionName]) {
                 btn.addEventListener('click', actions[actionName]);
             }

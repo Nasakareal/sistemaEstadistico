@@ -4,12 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
+    "\\public",
+    "\\public\\js",
+    "\\public\\js\\croquis",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\vialidades_urbanas",
-    "\\resources\\views\\vialidades_urbanas\\dispositivos"
+    "\\resources\\views\\croquis"
   ],
-  "SelectedNode": "\\resources\\views\\vialidades_urbanas\\dispositivos\\create.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\CroquisController.php",
   "PreviewInSolutionExplorer": false
 }

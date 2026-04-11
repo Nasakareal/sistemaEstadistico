@@ -11,6 +11,41 @@
 @stop
 
 @section('content')
+@php
+    $iconosPath = public_path('img/croquis/iconos');
+    $iconosCroquis = [];
+
+    if (is_dir($iconosPath)) {
+        $archivosIconos = collect(scandir($iconosPath))
+            ->filter(function ($archivo) use ($iconosPath) {
+                if ($archivo === '.' || $archivo === '..') {
+                    return false;
+                }
+
+                if (!is_file($iconosPath . DIRECTORY_SEPARATOR . $archivo)) {
+                    return false;
+                }
+
+                $extension = strtolower(pathinfo($archivo, PATHINFO_EXTENSION));
+
+                return in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true);
+            })
+            ->sort()
+            ->values();
+
+        $iconosCroquis = $archivosIconos->map(function ($archivo) {
+            $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
+            $clave = \Illuminate\Support\Str::slug($nombreBase, '_');
+
+            return [
+                'key' => $clave,
+                'label' => (string) \Illuminate\Support\Str::of($nombreBase)->replace(['-', '_'], ' ')->title(),
+                'src' => asset('img/croquis/iconos/' . $archivo),
+            ];
+        })->values()->all();
+    }
+@endphp
+
 <div class="card">
     <div class="card-body">
         <div class="croquis-wrap">
@@ -49,12 +84,13 @@
                         📍 Iconos
                     </button>
                     <div class="dropdown-menu">
-                        <button type="button" class="dropdown-item" data-croquis-action="agregarFlecha">Flecha de circulación</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="agregarSemaforo">Semáforo</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="agregarAlto">Señal de alto</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="agregarImpacto">Punto de impacto</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="agregarCono">Cono</button>
-                        <button type="button" class="dropdown-item" data-croquis-action="agregarPersona">Persona</button>
+                        @forelse($iconosCroquis as $icono)
+                            <button type="button" class="dropdown-item" data-croquis-action="agregarIconoDinamico" data-icon-key="{{ $icono['key'] }}">
+                                {{ $icono['label'] }}
+                            </button>
+                        @empty
+                            <button type="button" class="dropdown-item" disabled>No hay iconos disponibles</button>
+                        @endforelse
                     </div>
                 </div>
 
@@ -114,14 +150,7 @@
                 inputId: 'croquisInput',
                 formId: 'formCroquis',
                 submenuContainerId: 'croquisSubmenu',
-
-                flechaImgSrc: '{{ asset('img/croquis/iconos/flecha.png') }}',
-                semaforoImgSrc: '{{ asset('img/croquis/iconos/semaforo.png') }}',
-                altoImgSrc: '{{ asset('img/croquis/iconos/alto.png') }}',
-                impactoImgSrc: '{{ asset('img/croquis/iconos/impacto.png') }}',
-                conoImgSrc: '{{ asset('img/croquis/iconos/cono.png') }}',
-                personaImgSrc: '{{ asset('img/croquis/iconos/persona.png') }}',
-
+                iconos: @json($iconosCroquis),
                 initialData: @json(
                     $croquis && $croquis->json_dibujo
                         ? json_decode($croquis->json_dibujo, true)

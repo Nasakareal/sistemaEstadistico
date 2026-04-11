@@ -44,6 +44,18 @@ window.CroquisRenderer = (function () {
             return { w: el.ancho, h: el.alto };
         }
 
+        if (el.tipo === 'vehiculo') {
+            return { w: el.ancho || 90, h: el.alto || 50 };
+        }
+
+        if (el.tipo === 'icono') {
+            return { w: el.ancho || 36, h: el.alto || 36 };
+        }
+
+        if (el.tipo === 'texto') {
+            return { w: el.ancho || 120, h: el.alto || 24 };
+        }
+
         if (el.tipo === 'calle') {
             return { w: el.largo, h: totalRoadWidth(el) };
         }
@@ -128,6 +140,25 @@ window.CroquisRenderer = (function () {
         ctx.restore();
     }
 
+    function drawImageFallback(ctx, el, bg = '#999') {
+        const w = el.ancho || 40;
+        const h = el.alto || 40;
+
+        ctx.fillStyle = bg;
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-w / 2, -h / 2, w, h);
+
+        ctx.beginPath();
+        ctx.moveTo(-w / 2, -h / 2);
+        ctx.lineTo(w / 2, h / 2);
+        ctx.moveTo(w / 2, -h / 2);
+        ctx.lineTo(-w / 2, h / 2);
+        ctx.stroke();
+    }
+
     function drawCar(ctx, el, carroImg) {
         if (carroImg && carroImg.complete && carroImg.naturalWidth > 0) {
             ctx.drawImage(carroImg, -el.ancho / 2, -el.alto / 2, el.ancho, el.alto);
@@ -137,6 +168,76 @@ window.CroquisRenderer = (function () {
             ctx.fillStyle = '#222';
             ctx.fillRect(-el.ancho / 4, -el.alto / 3, el.ancho / 2, el.alto / 2);
         }
+
+        if (el.seleccionado) {
+            drawSelection(ctx, el);
+        }
+    }
+
+    function drawVehicle(ctx, el, assets = {}) {
+        const img = assets.vehiculos && assets.vehiculos[el.categoria] && assets.vehiculos[el.categoria][el.subtipo]
+            ? assets.vehiculos[el.categoria][el.subtipo]
+            : null;
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, -el.ancho / 2, -el.alto / 2, el.ancho, el.alto);
+        } else if (el.src) {
+            const temp = new Image();
+            temp.src = el.src;
+
+            if (temp.complete && temp.naturalWidth > 0) {
+                ctx.drawImage(temp, -el.ancho / 2, -el.alto / 2, el.ancho, el.alto);
+            } else {
+                drawImageFallback(ctx, el, '#6c757d');
+            }
+        } else {
+            drawImageFallback(ctx, el, '#6c757d');
+        }
+
+        if (el.seleccionado) {
+            drawSelection(ctx, el);
+        }
+    }
+
+    function drawIcon(ctx, el, assets = {}) {
+        const img = assets.iconos && (assets.iconos[el.clave] || assets.iconos[el.nombre]) ? (assets.iconos[el.clave] || assets.iconos[el.nombre]) : null;
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, -el.ancho / 2, -el.alto / 2, el.ancho, el.alto);
+        } else if (el.src) {
+            const temp = new Image();
+            temp.src = el.src;
+
+            if (temp.complete && temp.naturalWidth > 0) {
+                ctx.drawImage(temp, -el.ancho / 2, -el.alto / 2, el.ancho, el.alto);
+            } else {
+                drawImageFallback(ctx, el, '#17a2b8');
+            }
+        } else {
+            drawImageFallback(ctx, el, '#17a2b8');
+        }
+
+        if (el.seleccionado) {
+            drawSelection(ctx, el);
+        }
+    }
+
+    function drawText(ctx, el) {
+        const fontSize = el.fontSize || 20;
+        const fontFamily = el.fontFamily || 'Arial';
+        const contenido = el.contenido || 'Texto';
+
+        ctx.save();
+        ctx.font = fontSize + 'px ' + fontFamily;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#111';
+        ctx.fillText(contenido, 0, 0);
+
+        const metrics = ctx.measureText(contenido);
+        el.ancho = Math.max(40, Math.ceil(metrics.width) + 12);
+        el.alto = Math.max(24, Math.ceil(fontSize) + 8);
+        ctx.restore();
 
         if (el.seleccionado) {
             drawSelection(ctx, el);
@@ -306,6 +407,9 @@ window.CroquisRenderer = (function () {
         ctx.rotate((el.rotacion || 0) * Math.PI / 180);
 
         if (el.tipo === 'carro') drawCar(ctx, el, assets.carroImg);
+        if (el.tipo === 'vehiculo') drawVehicle(ctx, el, assets);
+        if (el.tipo === 'icono') drawIcon(ctx, el, assets);
+        if (el.tipo === 'texto') drawText(ctx, el);
         if (el.tipo === 'calle') drawStreet(ctx, el);
         if (el.tipo === 'curva') drawCurve(ctx, el);
         if (el.tipo === 'cruce') drawCross(ctx, el);

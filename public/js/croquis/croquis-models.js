@@ -10,9 +10,9 @@ window.CroquisModels = (function () {
 
         (elementos || []).forEach(el => {
             if (!el.id) return;
-            let match = String(el.id).match(/(\d+)$/);
+            const match = String(el.id).match(/(\d+)$/);
             if (match) {
-                let n = parseInt(match[1], 10);
+                const n = parseInt(match[1], 10);
                 if (n > max) max = n;
             }
         });
@@ -36,6 +36,38 @@ window.CroquisModels = (function () {
             ...base('carro', x, y),
             ancho: 60,
             alto: 30
+        };
+    }
+
+    function vehiculo(x = 200, y = 200, categoria = 'automovil', subtipo = 'sedan', src = '') {
+        return {
+            ...base('vehiculo', x, y),
+            categoria,
+            subtipo,
+            src,
+            ancho: 90,
+            alto: 50
+        };
+    }
+
+    function icono(x = 200, y = 200, clave = '', src = '') {
+        return {
+            ...base('icono', x, y),
+            clave,
+            src,
+            ancho: 36,
+            alto: 36
+        };
+    }
+
+    function texto(x = 250, y = 250, contenido = 'Texto') {
+        return {
+            ...base('texto', x, y),
+            contenido,
+            fontSize: 20,
+            fontFamily: 'Arial',
+            ancho: 120,
+            alto: 24
         };
     }
 
@@ -107,6 +139,38 @@ window.CroquisModels = (function () {
             };
         }
 
+        if (raw.tipo === 'vehiculo') {
+            return {
+                ...baseData,
+                categoria: String(raw.categoria ?? 'automovil'),
+                subtipo: String(raw.subtipo ?? 'sedan'),
+                src: String(raw.src ?? ''),
+                ancho: Number(raw.ancho ?? raw.w ?? 90),
+                alto: Number(raw.alto ?? raw.h ?? 50)
+            };
+        }
+
+        if (raw.tipo === 'icono') {
+            return {
+                ...baseData,
+                clave: String(raw.clave ?? raw.nombre ?? ''),
+                src: String(raw.src ?? ''),
+                ancho: Number(raw.ancho ?? raw.w ?? 36),
+                alto: Number(raw.alto ?? raw.h ?? 36)
+            };
+        }
+
+        if (raw.tipo === 'texto') {
+            return {
+                ...baseData,
+                contenido: String(raw.contenido ?? raw.texto ?? 'Texto'),
+                fontSize: Number(raw.fontSize ?? 20),
+                fontFamily: String(raw.fontFamily ?? 'Arial'),
+                ancho: Number(raw.ancho ?? raw.w ?? 120),
+                alto: Number(raw.alto ?? raw.h ?? 24)
+            };
+        }
+
         if (raw.tipo === 'calle') {
             return {
                 ...baseData,
@@ -159,7 +223,7 @@ window.CroquisModels = (function () {
     }
 
     function serialize(elementos) {
-        return JSON.stringify(elementos.map(el => {
+        return JSON.stringify((elementos || []).map(el => {
             const copy = { ...el };
             delete copy.seleccionado;
             return copy;
@@ -179,6 +243,9 @@ window.CroquisModels = (function () {
 
     return {
         carro,
+        vehiculo,
+        icono,
+        texto,
         calle,
         curva,
         cruce,

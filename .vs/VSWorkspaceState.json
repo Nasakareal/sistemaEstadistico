@@ -2,8 +2,6 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
     "\\public",
     "\\public\\js",
     "\\public\\js\\croquis",
@@ -11,6 +9,6 @@
     "\\resources\\views",
     "\\resources\\views\\croquis"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\CroquisController.php",
+  "SelectedNode": "\\public\\js\\croquis\\croquis-renderer.js",
   "PreviewInSolutionExplorer": false
 }

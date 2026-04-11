@@ -75,9 +75,15 @@
       }
       .croquis-box {
         border: 2px solid #000;
+        border-collapse: collapse;
+        page-break-inside: avoid;
+        text-align: center;
+        width: 100%;
+      }
+      .croquis-box td {
+        border: 0;
         padding: 12px;
         text-align: center;
-        min-height: 510px;
       }
       .croquis-title {
         margin: 0 0 12px 0;
@@ -322,21 +328,25 @@
     </table>
   @endif
 
-  <div class="croquis-page" style="page-break-before: always; text-align: center;">
-  <div class="croquis-box" style="border: 2px solid #000; padding: 12px; text-align: center; min-height: 510px;">
-    <h2 class="croquis-title" style="margin: 0 0 12px 0; font-size: 20px; font-weight: bold;">CROQUIS DEL LUGAR DEL HECHO</h2>
-    @if($croquisPreviewUrl)
-      <img
-        src="{{ $croquisPreviewUrl }}"
-        alt="Croquis del lugar del hecho"
-        class="croquis-preview"
-        width="648"
-        height="378"
-        style="display: block; width: 6.75in; height: 3.94in; margin: 0 auto;">
-    @else
-      <div style="height: 378px;"></div>
-    @endif
-  </div>
+  <div class="croquis-page">
+  <table class="croquis-box" style="border: 2px solid #000; border-collapse: collapse; page-break-inside: avoid; text-align: center; width: 100%;">
+    <tr>
+      <td style="border: 0; padding: 12px; text-align: center;">
+        <h2 class="croquis-title" style="margin: 0 0 12px 0; font-size: 20px; font-weight: bold;">CROQUIS DEL LUGAR DEL HECHO</h2>
+        @if($croquisPreviewUrl)
+          <img
+            src="{{ $croquisPreviewUrl }}"
+            alt="Croquis del lugar del hecho"
+            class="croquis-preview"
+            width="648"
+            height="378"
+            style="display: block; width: 6.75in; height: 3.94in; margin: 0 auto;">
+        @else
+          <div style="height: 378px;"></div>
+        @endif
+      </td>
+    </tr>
+  </table>
   </div>
 
 </body>

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Hechos;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class WhatsAppWebhookController extends Controller
 {
@@ -47,6 +50,14 @@ class WhatsAppWebhookController extends Controller
                         'display_phone_number' => $metadata['display_phone_number'] ?? null,
                         'phone_number_id' => $metadata['phone_number_id'] ?? null,
                     ]);
+
+                    $type = (string) ($message['type'] ?? '');
+                    $from = (string) ($message['from'] ?? '');
+                    $text = trim((string) ($message['text']['body'] ?? ''));
+
+                    if ($from !== '' && $type === 'text' && $text !== '') {
+                        $this->processIncomingText($from, $text);
+                    }
                 }
 
                 foreach (($value['statuses'] ?? []) as $status) {
@@ -71,5 +82,413 @@ class WhatsAppWebhookController extends Controller
         }
 
         return response()->json(['ok' => true], 200);
+    }
+
+    protected function processIncomingText(string $from, string $text): void
+    {
+        $original = trim($text);
+        $normalized = mb_strtoupper($original, 'UTF-8');
+
+        if (preg_match('/^PLACAS\s+(.+)$/u', $normalized, $matches)) {
+            $placa = trim($matches[1]);
+            $this->replyBusquedaPorPlacas($from, $placa);
+            return;
+        }
+
+        if (preg_match('/^DETALLE\s+([A-Z0-9\/\-\._]+)$/u', $normalized, $matches)) {
+            $folio = trim($matches[1]);
+            $this->replyDetallePorFolio($from, $folio);
+            return;
+        }
+
+        $this->sendText($from, "Escribe:\nPLACAS ABC123\n\nO:\nDETALLE 59564");
+    }
+
+    protected function replyBusquedaPorPlacas(string $from, string $placa): void
+    {
+        $resultados = $this->buscarHechosPorPlaca($placa);
+
+        if (count($resultados) === 0) {
+            $this->sendText($from, "No encontré hechos con las placas {$placa}.");
+            return;
+        }
+
+        $lines = [];
+        $lines[] = "Encontré " . count($resultados) . " hecho(s) con las placas {$placa}:";
+        $lines[] = '';
+
+        foreach ($resultados as $item) {
+            $lines[] = "{$item['id']} | {$item['folio']} | {$item['fecha']} {$item['hora']} | {$item['tipo']} | {$item['estado']}";
+        }
+
+        $lines[] = '';
+        $lines[] = 'Responde:';
+        $lines[] = 'DETALLE ' . $resultados[0]['id'];
+
+        $this->sendText($from, implode("\n", $lines));
+    }
+
+    protected function replyDetallePorFolio(string $from, string $folio): void
+    {
+        $detalle = $this->obtenerDetalleHechoPorFolio($folio);
+
+        if (!$detalle) {
+            $this->sendText($from, "No encontré el hecho {$folio}.");
+            return;
+        }
+
+        $texto = implode("\n", array_filter([
+            'GUARDIA CIVIL',
+            '',
+            $detalle['coordinacion'] ?? null,
+            '',
+            $detalle['unidad'] ?? null,
+            '',
+            $detalle['municipio'] ?? null,
+            '',
+            $detalle['sector'] ?? null,
+            '',
+            'TEMA: ' . ($detalle['tema'] ?? 'HECHO DE TRÁNSITO'),
+            '',
+            $detalle['descripcion'] ?? null,
+            '',
+            isset($detalle['vehiculo']) ? 'VEHÍCULO A)' : null,
+            $detalle['vehiculo'] ?? null,
+            '',
+            isset($detalle['grua']) ? 'Grúa: ' . $detalle['grua'] : null,
+            isset($detalle['corralon']) ? 'Corralón: ' . $detalle['corralon'] : null,
+            isset($detalle['servicio']) ? 'Servicio: ' . $detalle['servicio'] : null,
+            '',
+            isset($detalle['estado']) ? 'Hecho ' . $detalle['estado'] . '.' : null,
+            '',
+            isset($detalle['ubicacion']) ? 'Ubicación: ' . $detalle['ubicacion'] : null,
+            isset($detalle['google_maps']) ? 'Google Maps: ' . $detalle['google_maps'] : null,
+            '',
+            isset($detalle['informa']) ? 'INFORMA ' . $detalle['informa'] : null,
+        ]));
+
+        $this->sendText($from, $texto);
+
+        foreach (($detalle['fotos'] ?? []) as $foto) {
+            if (!empty($foto)) {
+                $this->sendImage($from, $foto);
+            }
+        }
+    }
+
+    protected function sendText(string $to, string $text): void
+    {
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+        $token = (string) config('services.whatsapp.token');
+
+        if ($phoneNumberId === '' || $token === '') {
+            Log::warning('WA sendText sin configuración', [
+                'to' => $to,
+            ]);
+            return;
+        }
+
+        $response = Http::withToken($token)
+            ->post("https://graph.facebook.com/v23.0/{$phoneNumberId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+                'type' => 'text',
+                'text' => [
+                    'preview_url' => false,
+                    'body' => $text,
+                ],
+            ]);
+
+        Log::info('WA sendText response', [
+            'to' => $to,
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
+    }
+
+    protected function sendImage(string $to, string $imageUrl): void
+    {
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+        $token = (string) config('services.whatsapp.token');
+
+        if ($phoneNumberId === '' || $token === '') {
+            Log::warning('WA sendImage sin configuración', [
+                'to' => $to,
+                'imageUrl' => $imageUrl,
+            ]);
+            return;
+        }
+
+        $response = Http::withToken($token)
+            ->post("https://graph.facebook.com/v23.0/{$phoneNumberId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+                'type' => 'image',
+                'image' => [
+                    'link' => $imageUrl,
+                ],
+            ]);
+
+        Log::info('WA sendImage response', [
+            'to' => $to,
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
+    }
+
+    public function sendTemplate(string $to, array $data): array
+    {
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+        $token = (string) config('services.whatsapp.token');
+
+        $response = Http::withToken($token)
+            ->post("https://graph.facebook.com/v23.0/{$phoneNumberId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+                'type' => 'template',
+                'template' => [
+                    'name' => 'notificacion_hecho_vial',
+                    'language' => [
+                        'code' => 'es_MX',
+                    ],
+                    'components' => [
+                        [
+                            'type' => 'body',
+                            'parameters' => [
+                                ['type' => 'text', 'text' => (string) ($data['ubicacion'] ?? '')],
+                                ['type' => 'text', 'text' => (string) ($data['fecha_hora'] ?? '')],
+                                ['type' => 'text', 'text' => (string) ($data['tipo'] ?? '')],
+                                ['type' => 'text', 'text' => (string) ($data['estado'] ?? '')],
+                                ['type' => 'text', 'text' => (string) ($data['folio'] ?? '')],
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $json = $response->json();
+
+        Log::info('WA sendTemplate response', [
+            'to' => $to,
+            'status' => $response->status(),
+            'body' => $json,
+        ]);
+
+        return [
+            'status' => $response->status(),
+            'body' => $json,
+        ];
+    }
+
+    protected function buscarHechosPorPlaca(string $placa): array
+    {
+        $placaNormalizada = $this->normalizarPlaca($placa);
+
+        $hechos = Hechos::query()
+            ->with(['vehiculos'])
+            ->whereHas('vehiculos', function ($query) use ($placaNormalizada) {
+                $query->whereRaw(
+                    "REPLACE(REPLACE(REPLACE(UPPER(placas), '-', ''), ' ', ''), '.', '') = ?",
+                    [$placaNormalizada]
+                );
+            })
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->limit(10)
+            ->get();
+
+        return $hechos->map(function (Hechos $hecho) use ($placaNormalizada) {
+            $vehiculo = $hecho->vehiculos->first(function ($vehiculo) use ($placaNormalizada) {
+                return $this->normalizarPlaca((string) $vehiculo->placas) === $placaNormalizada;
+            }) ?? $hecho->vehiculos->first();
+
+            return [
+                'id' => $hecho->id,
+                'folio' => $hecho->folio_c5i ?: $hecho->id,
+                'fecha' => optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha,
+                'hora' => $this->formatearHora((string) $hecho->hora),
+                'tipo' => (string) $hecho->tipo_hecho,
+                'estado' => (string) ($hecho->situacion ?: 'SIN ESTADO'),
+                'placas' => (string) ($vehiculo->placas ?? ''),
+            ];
+        })->values()->all();
+    }
+
+    protected function obtenerDetalleHechoPorFolio(string $folio): ?array
+    {
+        $hecho = Hechos::query()
+            ->with(['vehiculos'])
+            ->where(function ($query) use ($folio) {
+                $query->where('id', $folio)
+                    ->orWhere('folio_c5i', $folio);
+            })
+            ->first();
+
+        if (!$hecho) {
+            return null;
+        }
+
+        $vehiculo = $hecho->vehiculos->first();
+
+        $ubicacionPartes = array_filter([
+            $hecho->calle,
+            $hecho->colonia ? 'col. ' . $hecho->colonia : null,
+        ]);
+
+        $descripcion = trim(implode(' ', array_filter([
+            optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha,
+            $this->formatearHora((string) $hecho->hora),
+            'Hrs. Guardia Civil toma conocimiento en',
+            implode(', ', $ubicacionPartes) . '.',
+        ])));
+
+        $vehiculoTexto = null;
+        $grua = null;
+        $corralon = null;
+        $servicio = null;
+
+        if ($vehiculo) {
+            $vehiculoTexto = trim(implode(' ', array_filter([
+                'De la marca ' . $this->valorONoEspecificado($vehiculo->marca) . ',',
+                'tipo ' . $this->valorONoEspecificado($vehiculo->tipo) . ',',
+                $vehiculo->linea ? 'línea ' . $vehiculo->linea . ',' : null,
+                $vehiculo->color ? 'color ' . $vehiculo->color . ',' : null,
+                $vehiculo->placas ? 'placas ' . $vehiculo->placas . ',' : null,
+                $vehiculo->serie ? 'NIV ' . $vehiculo->serie . '.' : null,
+            ])));
+
+            $grua = $vehiculo->grua ?: null;
+            $corralon = $vehiculo->corralon ?: null;
+
+            $servicioPartes = array_filter([
+                'vehículo_id ' . $vehiculo->id,
+                $vehiculo->tipo ? 'tipo ' . $vehiculo->tipo : null,
+            ]);
+
+            $servicio = count($servicioPartes) > 0 ? implode(', ', $servicioPartes) . '.' : null;
+        }
+
+        $lat = $hecho->lat;
+        $lng = $hecho->lng;
+        $googleMaps = null;
+        $ubicacion = null;
+
+        if (!is_null($lat) && !is_null($lng) && $lat !== '' && $lng !== '') {
+            $ubicacion = "{$lat}, {$lng}";
+            $googleMaps = "https://www.google.com/maps?q={$lat},{$lng}";
+        }
+
+        $fotos = array_values(array_unique(array_filter(array_merge(
+            $this->extraerUrlsDesdeCampo($hecho->foto_lugar),
+            $this->extraerUrlsDesdeCampo($hecho->foto_situacion),
+            $vehiculo ? $this->extraerUrlsDesdeCampo($vehiculo->fotos) : []
+        ))));
+
+        return [
+            'coordinacion' => 'COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL',
+            'unidad' => 'UNIDAD DE ATENCIÓN A SINIESTROS',
+            'municipio' => (string) ($hecho->municipio ?: 'MORELIA'),
+            'sector' => $hecho->sector ? 'SECTOR ' . $hecho->sector : null,
+            'tema' => 'HECHO DE TRÁNSITO CLASIFICADO COMO ' . mb_strtoupper((string) ($hecho->tipo_hecho ?: 'SIN CLASIFICACIÓN'), 'UTF-8'),
+            'descripcion' => $descripcion,
+            'vehiculo' => $vehiculoTexto,
+            'grua' => $grua,
+            'corralon' => $corralon,
+            'servicio' => $servicio,
+            'estado' => mb_strtoupper((string) ($hecho->situacion ?: 'SIN ESTADO'), 'UTF-8'),
+            'ubicacion' => $ubicacion,
+            'google_maps' => $googleMaps,
+            'informa' => $hecho->unidad ? 'UNIDAD ' . $hecho->unidad : ($hecho->perito ?: null),
+            'fotos' => $fotos,
+        ];
+    }
+
+    protected function normalizarPlaca(string $placa): string
+    {
+        $placa = mb_strtoupper(trim($placa), 'UTF-8');
+        $placa = str_replace(['-', ' ', '.'], '', $placa);
+
+        return $placa;
+    }
+
+    protected function formatearHora(string $hora): string
+    {
+        if ($hora === '') {
+            return '';
+        }
+
+        return substr($hora, 0, 5);
+    }
+
+    protected function valorONoEspecificado(?string $valor): string
+    {
+        $valor = trim((string) $valor);
+
+        return $valor !== '' ? $valor : 'NO ESPECIFICADO';
+    }
+
+    protected function extraerUrlsDesdeCampo($valor): array
+    {
+        if (empty($valor)) {
+            return [];
+        }
+
+        if (is_array($valor)) {
+            return collect($valor)
+                ->flatMap(fn ($item) => $this->extraerUrlsDesdeCampo($item))
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        if (is_string($valor)) {
+            $trim = trim($valor);
+
+            if ($trim === '') {
+                return [];
+            }
+
+            $json = json_decode($trim, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $this->extraerUrlsDesdeCampo($json);
+            }
+
+            if (str_contains($trim, ',')) {
+                return collect(explode(',', $trim))
+                    ->map(fn ($item) => $this->pathToUrl($item))
+                    ->filter()
+                    ->values()
+                    ->all();
+            }
+
+            return array_filter([$this->pathToUrl($trim)]);
+        }
+
+        return [];
+    }
+
+    protected function pathToUrl(?string $path): ?string
+    {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        try {
+            return url(Storage::url($path));
+        } catch (\Throwable $e) {
+            Log::warning('WA pathToUrl error', [
+                'path' => $path,
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }

@@ -30,7 +30,34 @@ class WhatsAppWebhookController extends Controller
         Log::info('WA Cloud webhook', [
             'keys' => array_keys($payload),
             'has_entry' => isset($payload['entry']),
+            'payload' => $payload,
         ]);
+
+        $entries = $payload['entry'] ?? [];
+
+        foreach ($entries as $entry) {
+            $changes = $entry['changes'] ?? [];
+
+            foreach ($changes as $change) {
+                $value = $change['value'] ?? [];
+
+                $messages = $value['messages'] ?? [];
+                $contacts = $value['contacts'] ?? [];
+                $metadata = $value['metadata'] ?? [];
+
+                foreach ($messages as $message) {
+                    Log::info('WA mensaje recibido', [
+                        'from' => $message['from'] ?? null,
+                        'id' => $message['id'] ?? null,
+                        'timestamp' => $message['timestamp'] ?? null,
+                        'type' => $message['type'] ?? null,
+                        'text' => $message['text']['body'] ?? null,
+                        'contact' => $contacts[0] ?? null,
+                        'metadata' => $metadata,
+                    ]);
+                }
+            }
+        }
 
         return response()->json(['ok' => true], 200);
     }

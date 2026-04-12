@@ -3,33 +3,84 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 
 class WhatsAppCloudService
 {
-    public function sendText(string $toPhoneE164, string $message): array
+    public function sendText(string $to, string $body): array
     {
-        $version = config('services.whatsapp.graph_version');
-        $token = config('services.whatsapp.access_token');
-        $phoneNumberId = config('services.whatsapp.phone_number_id');
+        return $this->request([
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizeTo($to),
+            'type' => 'text',
+            'text' => [
+                'preview_url' => false,
+                'body' => $body,
+            ],
+        ]);
+    }
 
-        $url = "https://graph.facebook.com/{$version}/{$phoneNumberId}/messages";
+    public function sendTemplate(string $to, string $templateName, array $bodyParameters = [], string $language = 'es_MX'): array
+    {
+        $parameters = [];
 
-        $response = Http::withToken($token)
-            ->acceptJson()
-            ->post($url, [
-                'messaging_product' => 'whatsapp',
-                'to' => $toPhoneE164,
+        foreach ($bodyParameters as $value) {
+            $parameters[] = [
                 'type' => 'text',
-                'text' => [
-                    'preview_url' => false,
-                    'body' => $message,
-                ],
-            ]);
+                'text' => (string) $value,
+            ];
+        }
 
-        return [
-            'ok' => $response->successful(),
-            'status' => $response->status(),
-            'body' => $response->json(),
-        ];
+        return $this->request([
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizeTo($to),
+            'type' => 'template',
+            'template' => [
+                'name' => $templateName,
+                'language' => [
+                    'code' => $language,
+                ],
+                'components' => [
+                    [
+                        'type' => 'body',
+                        'parameters' => $parameters,
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    protected function request(array $payload): array
+    {
+        $graphVersion = (string) config('services.whatsapp.graph_version');
+        $accessToken = (string) config('services.whatsapp.access_token');
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+
+        if ($accessToken === '' || $phoneNumberId === '') {
+            throw new RuntimeException('Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID en el .env');
+        }
+
+        $url = "https://graph.facebook.com/{$graphVersion}/{$phoneNumberId}/messages";
+
+        $response = Http::withToken($accessToken)
+            ->acceptJson()
+            ->post($url, $payload);
+
+        if ($response->failed()) {
+            throw new RuntimeException('Error al enviar WhatsApp: '.$response->body());
+        }
+
+        return $response->json();
+    }
+
+    protected function normalizeTo(string $to): string
+    {
+        $to = preg_replace('/\D+/', '', $to ?? '');
+
+        if (strlen($to) === 10) {
+            return '52'.$to;
+        }
+
+        return $to;
     }
 }

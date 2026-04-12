@@ -27,33 +27,44 @@ class WhatsAppWebhookController extends Controller
     {
         $payload = $request->all();
 
-        Log::info('WA Cloud webhook', [
-            'keys' => array_keys($payload),
-            'has_entry' => isset($payload['entry']),
-            'payload' => $payload,
+        Log::info('WA Cloud webhook recibido', [
+            'object' => $payload['object'] ?? null,
+            'entries_count' => isset($payload['entry']) && is_array($payload['entry']) ? count($payload['entry']) : 0,
         ]);
 
-        $entries = $payload['entry'] ?? [];
-
-        foreach ($entries as $entry) {
-            $changes = $entry['changes'] ?? [];
-
-            foreach ($changes as $change) {
+        foreach (($payload['entry'] ?? []) as $entry) {
+            foreach (($entry['changes'] ?? []) as $change) {
                 $value = $change['value'] ?? [];
-
-                $messages = $value['messages'] ?? [];
-                $contacts = $value['contacts'] ?? [];
                 $metadata = $value['metadata'] ?? [];
 
-                foreach ($messages as $message) {
+                foreach (($value['messages'] ?? []) as $message) {
                     Log::info('WA mensaje recibido', [
                         'from' => $message['from'] ?? null,
                         'id' => $message['id'] ?? null,
                         'timestamp' => $message['timestamp'] ?? null,
                         'type' => $message['type'] ?? null,
                         'text' => $message['text']['body'] ?? null,
-                        'contact' => $contacts[0] ?? null,
-                        'metadata' => $metadata,
+                        'display_phone_number' => $metadata['display_phone_number'] ?? null,
+                        'phone_number_id' => $metadata['phone_number_id'] ?? null,
+                    ]);
+                }
+
+                foreach (($value['statuses'] ?? []) as $status) {
+                    Log::info('WA estado mensaje', [
+                        'id' => $status['id'] ?? null,
+                        'status' => $status['status'] ?? null,
+                        'timestamp' => $status['timestamp'] ?? null,
+                        'recipient_id' => $status['recipient_id'] ?? null,
+                        'conversation_id' => $status['conversation']['id'] ?? null,
+                        'conversation_origin' => $status['conversation']['origin']['type'] ?? null,
+                        'pricing_billable' => $status['pricing']['billable'] ?? null,
+                        'pricing_category' => $status['pricing']['category'] ?? null,
+                        'pricing_model' => $status['pricing']['pricing_model'] ?? null,
+                        'error_code' => $status['errors'][0]['code'] ?? null,
+                        'error_title' => $status['errors'][0]['title'] ?? null,
+                        'error_message' => $status['errors'][0]['message'] ?? null,
+                        'display_phone_number' => $metadata['display_phone_number'] ?? null,
+                        'phone_number_id' => $metadata['phone_number_id'] ?? null,
                     ]);
                 }
             }

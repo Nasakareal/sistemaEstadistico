@@ -29,9 +29,9 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
         $fechaTexto = mb_strtoupper($end->locale('es')->translatedFormat('l d/m/Y'), 'UTF-8');
         $horaTexto = $end->format('H:i');
-        $firma = (string) config('services.whatsapp.subdirector_firma');
+        $firma = (string) config('services.whatsapp.subdirector_firma', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ');
         $to = (string) ($this->option('to') ?: config('services.whatsapp.resumen_to') ?: config('services.whatsapp.default_to'));
-        $template = (string) config('services.whatsapp.resumen_template');
+        $template = (string) config('services.whatsapp.resumen_template', '');
 
         if ($to === '') {
             $this->error('No hay número destino. Define WHATSAPP_RESUMEN_TO o usa --to=');
@@ -61,19 +61,27 @@ class EnviarResumenSiniesrosWhatsApp extends Command
                 ]);
             }
 
-            Log::info('Resumen WhatsApp enviado', [
-                'to' => $to,
-                'start' => $start->toDateTimeString(),
-                'end' => $end->toDateTimeString(),
-                'hechos' => $totalHechos,
-                'lesionados' => $totalLesionados,
-                'fallecidos' => $totalFallecidos,
-                'response' => $response,
-            ]);
+            Log::info('Respuesta WhatsApp resumen siniestros', $response);
 
-            $this->info('Resumen enviado correctamente.');
+            $this->line('--- RESPUESTA META ---');
+            $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $this->line('--- MENSAJE ARMADO ---');
             $this->line($mensaje);
 
+            if (!($response['ok'] ?? false)) {
+                $this->error('Meta rechazó el envío.');
+                return self::FAILURE;
+            }
+
+            $body = $response['body'] ?? [];
+            $messageId = $body['messages'][0]['id'] ?? null;
+
+            if (!$messageId) {
+                $this->error('Meta respondió sin message id.');
+                return self::FAILURE;
+            }
+
+            $this->info('Mensaje aceptado por Meta. ID: '.$messageId);
             return self::SUCCESS;
         } catch (\Throwable $e) {
             Log::error('Error enviando resumen WhatsApp', [
@@ -141,7 +149,7 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
     protected function getTotalFallecidos(Carbon $start, Carbon $end): int
     {
-        if (! Schema::hasTable('hechos')) {
+        if (!Schema::hasTable('hechos')) {
             return 0;
         }
 
@@ -164,55 +172,6 @@ class EnviarResumenSiniesrosWhatsApp extends Command
                 return (int) $query
                     ->whereBetween('created_at', [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')])
                     ->sum($column);
-            }
-        }
-
-        if (! Schema::hasTable('lesionados')) {
-            return 0;
-        }
-
-        $lesionadoColumns = Schema::getColumnListing('lesionados');
-
-        if (in_array('fallecio', $lesionadoColumns, true)) {
-            $query = DB::table('lesionados')
-                ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
-                ->where('lesionados.fallecio', 1);
-
-            if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
-                return (int) $query
-                    ->whereRaw(
-                        "TIMESTAMP(hechos.fecha, COALESCE(NULLIF(hechos.hora, ''), '00:00:00')) >= ? AND TIMESTAMP(hechos.fecha, COALESCE(NULLIF(hechos.hora, ''), '00:00:00')) < ?",
-                        [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')]
-                    )
-                    ->count('lesionados.id');
-            }
-
-            return (int) $query
-                ->whereBetween('hechos.created_at', [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')])
-                ->count('lesionados.id');
-        }
-
-        foreach (['condicion', 'estado', 'tipo_lesion'] as $column) {
-            if (in_array($column, $lesionadoColumns, true)) {
-                $query = DB::table('lesionados')
-                    ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
-                    ->where(function ($q) use ($column) {
-                        $q->whereRaw("LOWER({$column}) like ?", ['%fallecid%'])
-                          ->orWhereRaw("LOWER({$column}) like ?", ['%muert%']);
-                    });
-
-                if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
-                    return (int) $query
-                        ->whereRaw(
-                            "TIMESTAMP(hechos.fecha, COALESCE(NULLIF(hechos.hora, ''), '00:00:00')) >= ? AND TIMESTAMP(hechos.fecha, COALESCE(NULLIF(hechos.hora, ''), '00:00:00')) < ?",
-                            [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')]
-                        )
-                        ->count('lesionados.id');
-                }
-
-                return (int) $query
-                    ->whereBetween('hechos.created_at', [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')])
-                    ->count('lesionados.id');
             }
         }
 

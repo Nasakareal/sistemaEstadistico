@@ -64,23 +64,21 @@ class WhatsAppCloudService
 
         $response = Http::withToken($accessToken)
             ->acceptJson()
+            ->asJson()
             ->post($url, $payload);
 
-        if ($response->failed()) {
-            throw new RuntimeException('Error al enviar WhatsApp: '.$response->body());
-        }
-
-        return $response->json();
+        return [
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'body' => $response->json(),
+            'raw' => $response->body(),
+            'payload' => $payload,
+            'url' => $url,
+        ];
     }
 
     protected function normalizeTo(string $to): string
     {
-        $to = preg_replace('/\D+/', '', $to ?? '');
-
-        if (strlen($to) === 10) {
-            return '52'.$to;
-        }
-
-        return $to;
+        return preg_replace('/\D+/', '', $to ?? '');
     }
 }

@@ -8,7 +8,15 @@ window.CroquisRenderer = (function () {
     const CURVE_COLOR = '#6f42c1';
 
     function totalRoadWidth(el) {
-        return el.carriles * el.anchoCarril;
+        return Math.max(1, Number(el.carriles) || 1) * Math.max(1, Number(el.anchoCarril) || 1);
+    }
+
+    function crossHorizontalLength(el) {
+        return Number(el.largoHorizontal ?? el.largo ?? 220);
+    }
+
+    function crossVerticalLength(el) {
+        return Number(el.largoVertical ?? el.largo ?? 220);
     }
 
     function laneDividers(carriles, anchoCarril) {
@@ -66,7 +74,11 @@ window.CroquisRenderer = (function () {
         }
 
         if (el.tipo === 'cruce') {
-            return { w: el.largo, h: el.largo };
+            const roadW = totalRoadWidth(el);
+            return {
+                w: Math.max(crossHorizontalLength(el), roadW),
+                h: Math.max(crossVerticalLength(el), roadW)
+            };
         }
 
         if (el.tipo === 'entronque') {
@@ -292,18 +304,19 @@ window.CroquisRenderer = (function () {
 
     function drawCross(ctx, el) {
         const roadW = totalRoadWidth(el);
-        const arm = el.largo;
+        const armH = crossHorizontalLength(el);
+        const armV = crossVerticalLength(el);
 
         ctx.fillStyle = ROAD_FILL;
-        ctx.fillRect(-arm / 2, -roadW / 2, arm, roadW);
-        ctx.fillRect(-roadW / 2, -arm / 2, roadW, arm);
+        ctx.fillRect(-armH / 2, -roadW / 2, armH, roadW);
+        ctx.fillRect(-roadW / 2, -armV / 2, roadW, armV);
 
         const divs = laneDividers(el.carriles, el.anchoCarril);
-        drawDashedLaneLines(ctx, -arm / 2, arm / 2, divs);
+        drawDashedLaneLines(ctx, -armH / 2, armH / 2, divs);
 
         ctx.save();
         ctx.rotate(Math.PI / 2);
-        drawDashedLaneLines(ctx, -arm / 2, arm / 2, divs);
+        drawDashedLaneLines(ctx, -armV / 2, armV / 2, divs);
         ctx.restore();
 
         if (el.seleccionado) {

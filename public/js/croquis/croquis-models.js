@@ -94,6 +94,8 @@ window.CroquisModels = (function () {
         return {
             ...base('cruce', x, y),
             largo: 220,
+            largoHorizontal: 220,
+            largoVertical: 220,
             anchoCarril: 28,
             carriles: 1
         };
@@ -191,9 +193,15 @@ window.CroquisModels = (function () {
         }
 
         if (raw.tipo === 'cruce') {
+            const largo = Number(raw.largo ?? raw.size ?? raw.largoHorizontal ?? raw.largoVertical ?? 220);
+            const largoHorizontal = Number(raw.largoHorizontal ?? raw.w ?? largo);
+            const largoVertical = Number(raw.largoVertical ?? raw.h ?? largo);
+
             return {
                 ...baseData,
-                largo: Number(raw.largo ?? raw.size ?? 220),
+                largo: Math.max(largo, largoHorizontal, largoVertical),
+                largoHorizontal,
+                largoVertical,
                 anchoCarril: Number(raw.anchoCarril ?? 28),
                 carriles: Math.max(1, Number(raw.carriles ?? 1))
             };

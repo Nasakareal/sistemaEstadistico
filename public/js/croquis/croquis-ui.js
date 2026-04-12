@@ -20,7 +20,19 @@ window.CroquisUI = (function () {
 
         const ctx = canvas.getContext('2d');
 
-        const dynamicIcons = Array.isArray(options.iconos) ? options.iconos : [];
+        const iconCategories = Array.isArray(options.iconosCategorias) ? options.iconosCategorias : [];
+        const flatIcons = Array.isArray(options.iconos) ? options.iconos : [];
+        const categorizedIcons = iconCategories.length
+            ? iconCategories.reduce((items, categoria) => {
+                const categoriaItems = Array.isArray(categoria.items) ? categoria.items : [];
+                return items.concat(categoriaItems.map(item => ({
+                    ...item,
+                    categoria: categoria.key
+                })));
+            }, [])
+            : [];
+        const dynamicIcons = iconCategories.length ? categorizedIcons : flatIcons;
+        const assetIcons = flatIcons.length ? flatIcons.concat(categorizedIcons) : dynamicIcons;
         const vehicleCategories = Array.isArray(options.vehiculos) ? options.vehiculos : [];
         const defaultIcon = options.defaultIcono || null;
         let editor = null;
@@ -32,10 +44,24 @@ window.CroquisUI = (function () {
         }
 
         const iconAssets = {};
-        dynamicIcons.forEach(icono => {
+        assetIcons.forEach(icono => {
             if (icono && icono.key && icono.src) {
                 iconAssets[icono.key] = createImage(icono.src, renderWhenAssetIsReady);
             }
+        });
+
+        const iconCatalog = {};
+
+        iconCategories.forEach(categoria => {
+            if (!categoria || !categoria.key) {
+                return;
+            }
+
+            iconCatalog[categoria.key] = {
+                key: categoria.key,
+                label: categoria.label || categoria.key,
+                items: Array.isArray(categoria.items) ? categoria.items : []
+            };
         });
 
         const vehicleCatalog = {};
@@ -135,6 +161,62 @@ window.CroquisUI = (function () {
             if (!submenuContainer) return;
             submenuContainer.innerHTML = '';
             submenuContainer.style.display = 'none';
+        }
+
+        function renderIconSubmenu(categoria) {
+            if (!submenuContainer) return;
+
+            const categoriaData = iconCatalog[categoria] || { label: categoria, items: [] };
+            const items = categoriaData.items || [];
+            submenuContainer.innerHTML = '';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'croquis-submenu-panel';
+
+            const title = document.createElement('div');
+            title.className = 'croquis-submenu-title';
+            title.textContent = categoriaData.label || categoria;
+            wrap.appendChild(title);
+
+            if (!items.length) {
+                const empty = document.createElement('div');
+                empty.className = 'croquis-submenu-empty';
+                empty.textContent = 'Aún no hay imágenes en esta categoría.';
+                wrap.appendChild(empty);
+                submenuContainer.appendChild(wrap);
+                submenuContainer.style.display = 'block';
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'croquis-submenu-grid';
+
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'croquis-submenu-item';
+
+                const img = document.createElement('img');
+                img.src = item.src;
+                img.alt = item.label || item.key;
+
+                const span = document.createElement('span');
+                span.textContent = item.label || item.key;
+
+                btn.appendChild(img);
+                btn.appendChild(span);
+
+                btn.addEventListener('click', function () {
+                    editor.addElement(window.CroquisModels.icono(200, 200, item.key, item.src));
+                    clearSubmenu();
+                });
+
+                grid.appendChild(btn);
+            });
+
+            wrap.appendChild(grid);
+            submenuContainer.appendChild(wrap);
+            submenuContainer.style.display = 'block';
         }
 
         function renderVehicleSubmenu(categoria) {
@@ -303,6 +385,13 @@ window.CroquisUI = (function () {
             if (actionName === 'abrirMenuVehiculo') {
                 btn.addEventListener('click', function () {
                     renderVehicleSubmenu(btn.getAttribute('data-vehicle-category'));
+                });
+                return;
+            }
+
+            if (actionName === 'abrirMenuIcono') {
+                btn.addEventListener('click', function () {
+                    renderIconSubmenu(btn.getAttribute('data-icon-category'));
                 });
                 return;
             }

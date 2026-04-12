@@ -7,7 +7,6 @@ use App\Models\Vehiculo;
 use App\Models\Conductor;
 use Illuminate\Support\Facades\DB;
 use App\Models\Grua;
-use App\Models\Servicios;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -203,8 +202,16 @@ class VehiculosController extends Controller
 
         $conductor = $vehiculo->conductores()->first();
         $gruas = Grua::orderBy('nombre')->get();
+        $servicioActual = $vehiculo->servicio;
+        $gruaActualId = optional($servicioActual)->grua_id;
 
-        return view('vehiculos.edit', compact('hecho', 'vehiculo', 'conductor', 'gruas'));
+        if (!$gruaActualId && !empty($vehiculo->grua) && strtoupper(trim($vehiculo->grua)) !== 'N/A') {
+            $gruaActualId = optional($gruas->first(function ($grua) use ($vehiculo) {
+                return strtoupper(trim($grua->nombre)) === strtoupper(trim($vehiculo->grua));
+            }))->id;
+        }
+
+        return view('vehiculos.edit', compact('hecho', 'vehiculo', 'conductor', 'gruas', 'servicioActual', 'gruaActualId'));
     }
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)

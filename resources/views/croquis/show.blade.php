@@ -43,7 +43,69 @@
         return (string) \Illuminate\Support\Str::of($nombreBase)->replace(['-', '_'], ' ')->title();
     };
 
-    $iconosCroquis = $obtenerImagenesCroquis($iconosPath)
+    $categoriasIconos = [
+        'general' => [
+            'label' => 'General',
+            'path' => $iconosPath,
+            'assetPath' => 'img/croquis/iconos',
+            'skipKeys' => ['pow', 'semaforo1', 'semaforo2'],
+        ],
+        'semaforos_senalamientos' => [
+            'label' => 'Semáforos y señalamientos',
+            'path' => $iconosPath . DIRECTORY_SEPARATOR . 'semaforos_senalamientos',
+            'assetPath' => 'img/croquis/iconos/semaforos_senalamientos',
+        ],
+        'construcciones' => [
+            'label' => 'Construcciones',
+            'path' => $iconosPath . DIRECTORY_SEPARATOR . 'construcciones',
+            'assetPath' => 'img/croquis/iconos/construcciones',
+        ],
+        'flechas_especiales' => [
+            'label' => 'Flechas e iconos especiales',
+            'path' => $iconosPath . DIRECTORY_SEPARATOR . 'flechas_especiales',
+            'assetPath' => 'img/croquis/iconos/flechas_especiales',
+        ],
+    ];
+
+    $iconosCategoriasCroquis = collect($categoriasIconos)
+        ->map(function ($config, $categoria) use ($obtenerImagenesCroquis, $formatearNombreCroquis) {
+            $items = $obtenerImagenesCroquis($config['path'])
+                ->filter(function ($archivo) use ($config) {
+                    $skipKeys = $config['skipKeys'] ?? [];
+
+                    if (!$skipKeys) {
+                        return true;
+                    }
+
+                    $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
+
+                    return !in_array(\Illuminate\Support\Str::slug($nombreBase, '_'), $skipKeys, true);
+                })
+                ->map(function ($archivo) use ($categoria, $config, $formatearNombreCroquis) {
+                    $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
+                    $keyBase = $categoria === 'general'
+                        ? $nombreBase
+                        : $categoria . '_' . $nombreBase;
+
+                    return [
+                        'key' => \Illuminate\Support\Str::slug($keyBase, '_'),
+                        'label' => $formatearNombreCroquis($nombreBase),
+                        'src' => asset($config['assetPath'] . '/' . $archivo),
+                    ];
+                })
+                ->values()
+                ->all();
+
+            return [
+                'key' => $categoria,
+                'label' => $config['label'],
+                'items' => $items,
+            ];
+        })
+        ->values()
+        ->all();
+
+    $iconosRaizCroquis = $obtenerImagenesCroquis($iconosPath)
         ->map(function ($archivo) use ($formatearNombreCroquis) {
             $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
 
@@ -53,6 +115,15 @@
                 'src' => asset('img/croquis/iconos/' . $archivo),
             ];
         })
+        ->values()
+        ->all();
+
+    $iconosCroquis = collect($iconosCategoriasCroquis)
+        ->flatMap(function ($categoria) {
+            return $categoria['items'];
+        })
+        ->merge($iconosRaizCroquis)
+        ->unique('key')
         ->values()
         ->all();
 
@@ -143,13 +214,15 @@
                         📍 Iconos
                     </button>
                     <div class="dropdown-menu">
-                        @forelse($iconosCroquis as $icono)
-                            <button type="button" class="dropdown-item" data-croquis-action="agregarIconoDinamico" data-icon-key="{{ $icono['key'] }}">
-                                {{ $icono['label'] }}
+                        @foreach($iconosCategoriasCroquis as $categoriaIcono)
+                            <button
+                                type="button"
+                                class="dropdown-item"
+                                data-croquis-action="abrirMenuIcono"
+                                data-icon-category="{{ $categoriaIcono['key'] }}">
+                                {{ $categoriaIcono['label'] }}
                             </button>
-                        @empty
-                            <button type="button" class="dropdown-item" disabled>No hay iconos disponibles</button>
-                        @endforelse
+                        @endforeach
                     </div>
                 </div>
 
@@ -183,7 +256,7 @@
                 Shift + scroll: girar.
                 Alt + scroll en curva: cambiar apertura.
                 Q / E en curva: cerrar o abrir.
-                En vehículos, el círculo naranja ajusta largo y alto; la rueda cambia el tamaño total.
+                En vehículos y vialidades, el círculo naranja ajusta largo y ancho; la rueda cambia el tamaño total.
                 Supr: borrar.
             </div>
 
@@ -213,6 +286,7 @@
                 formId: 'formCroquis',
                 submenuContainerId: 'croquisSubmenu',
                 iconos: @json($iconosCroquis),
+                iconosCategorias: @json($iconosCategoriasCroquis),
                 vehiculos: @json($vehiculosCroquis),
                 defaultIcono: @json($iconoCardinal),
                 initialData: @json(

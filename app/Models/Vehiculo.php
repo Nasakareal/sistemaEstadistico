@@ -47,4 +47,9 @@ class Vehiculo extends Model
     {
         return $this->hasMany(Servicio::class, 'vehiculo_id');
     }
+
+    public function servicio()
+    {
+        return $this->hasOne(Servicio::class, 'vehiculo_id')->latest();
+    }
 }

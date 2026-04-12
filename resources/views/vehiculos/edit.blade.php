@@ -53,13 +53,15 @@
                                     <label for="tipo_general">Tipo de Vehículo<span style="color: red">*</span></label>
                                     <select name="tipo_general" id="tipo_general" class="form-control" required>
                                         <option value="">-- Seleccione --</option>
-                                        <option value="semoviente">Semoviente</option>
-                                        <option value="automovil">Automóvil</option>
-                                        <option value="camion">Camión</option>
-                                        <option value="camioneta">Camioneta</option>
-                                        <option value="bicicleta">Bicicleta</option>
-                                        <option value="motocicleta">Motocicleta</option>
-                                        <option value="remolque">Remolque</option>
+                                        <option value="semoviente" {{ old('tipo_general', $vehiculo->tipo_general) == 'semoviente' ? 'selected' : '' }}>Semoviente</option>
+                                        <option value="automovil" {{ old('tipo_general', $vehiculo->tipo_general) == 'automovil' ? 'selected' : '' }}>Automóvil</option>
+                                        <option value="camion" {{ old('tipo_general', $vehiculo->tipo_general) == 'camion' ? 'selected' : '' }}>Camión</option>
+                                        <option value="camioneta" {{ old('tipo_general', $vehiculo->tipo_general) == 'camioneta' ? 'selected' : '' }}>Camioneta</option>
+                                        <option value="bicicleta" {{ old('tipo_general', $vehiculo->tipo_general) == 'bicicleta' ? 'selected' : '' }}>Bicicleta</option>
+                                        <option value="motocicleta" {{ old('tipo_general', $vehiculo->tipo_general) == 'motocicleta' ? 'selected' : '' }}>Motocicleta</option>
+                                        <option value="remolque" {{ old('tipo_general', $vehiculo->tipo_general) == 'remolque' ? 'selected' : '' }}>Remolque</option>
+                                        <option value="maquinaria" {{ old('tipo_general', $vehiculo->tipo_general) == 'maquinaria' ? 'selected' : '' }}>Maquinaria</option>
+                                        <option value="tren" {{ old('tipo_general', $vehiculo->tipo_general) == 'tren' ? 'selected' : '' }}>Tren</option>
                                     </select>
                                 </div>
                             </div>
@@ -101,7 +103,7 @@
                                         <label for="aseguradora">Aseguradora</label>
                                         <input type="text" name="aseguradora" id="aseguradora"
                                            class="form-control @error('aseguradora') is-invalid @enderror"
-                                           value="{{ old('aseguradora', optional($vehiculo->servicio)->aseguradora) }}"
+                                           value="{{ old('aseguradora', optional($servicioActual)->aseguradora ?? $vehiculo->aseguradora) }}"
                                            placeholder="Nombre de la aseguradora">
                                         @error('aseguradora')
                                             <span class="invalid-feedback" role="alert">
@@ -452,7 +454,7 @@
                                         <option value="">Seleccione una grúa</option>
                                         @foreach ($gruas as $grua)
                                             <option value="{{ $grua->id }}" 
-                                                {{ old('grua_id', optional($vehiculo->servicio)->grua_id) == $grua->id ? 'selected' : '' }}>
+                                                {{ old('grua_id', $gruaActualId) == $grua->id ? 'selected' : '' }}>
                                                 {{ $grua->nombre }}
                                             </option>
                                         @endforeach
@@ -725,14 +727,77 @@ document.addEventListener('DOMContentLoaded', function () {
     const tipo = document.getElementById('tipo');
 
     const carrocerias = {
-        automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
-        camion: ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
-        camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
-        motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
-        bicicleta: ['Montaña', 'Ruta', 'BMX'],
-        remolque: ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
-        semoviente: ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro']
-    };
+                automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
+
+                camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta', 'Van'],
+
+                camion: [
+                    'Caja seca',
+                    'Caja cerrada',
+                    'Caja abierta',
+                    'Plataforma',
+                    'Volteo',
+                    'Refrigerado',
+                    'Cisterna',
+                    'Pipa',
+                    'Grúa',
+                    'Torton',
+                    'Rabón',
+                    'Tracto',
+                    'Redilas'
+                ],
+
+                motocicleta: [
+                    'Trabajo',
+                    'Cruiser',
+                    'Doble Propósito',
+                    'Scooter',
+                    'Enduro',
+                    'Naked',
+                    'Pista',
+                    'Chopper',
+                    'Cuatrimoto'
+                ],
+
+                bicicleta: ['Montaña', 'Ruta', 'BMX', 'Urbana', 'Plegable'],
+
+                remolque: [
+                    'Plataforma',
+                    'Caja cerrada',
+                    'Caja seca',
+                    'Cama baja',
+                    'Refrigerado',
+                    'Volteo',
+                    'Góndola',
+                    'Dolly',
+                    'Portacontenedor'
+                ],
+
+                maquinaria: [
+                    'Retroexcavadora',
+                    'Excavadora',
+                    'Cargador frontal',
+                    'Motoconformadora',
+                    'Bulldozer',
+                    'Rodillo compactador',
+                    'Grúa industrial',
+                    'Montacargas',
+                    'Tractor agrícola',
+                    'Pavimentadora',
+                    'Compactadora'
+                ],
+
+                tren: [
+                    'Locomotora',
+                    'Vagón',
+                    'Tren de carga',
+                    'Tren de pasajeros',
+                    'Tranvía',
+                    'Metro'
+                ],
+
+                semoviente: ['Caballo', 'Burro', 'Vaca', 'Mula', 'Otro animal de tiro']
+            };
 
     function norm(s) {
         return (s || '')

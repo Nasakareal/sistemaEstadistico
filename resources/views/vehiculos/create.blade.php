@@ -60,6 +60,8 @@
                                         <option value="bicicleta" {{ old('tipo_general') == 'bicicleta' ? 'selected' : '' }}>Bicicleta</option>
                                         <option value="motocicleta" {{ old('tipo_general') == 'motocicleta' ? 'selected' : '' }}>Motocicleta</option>
                                         <option value="remolque" {{ old('tipo_general') == 'remolque' ? 'selected' : '' }}>Remolque</option>
+                                        <option value="maquinaria" {{ old('tipo_general') == 'maquinaria' ? 'selected' : '' }}>Maquinaria</option>
+                                        <option value="tren" {{ old('tipo_general') == 'tren' ? 'selected' : '' }}>Tren</option>
                                     </select>
                                 </div>
                             </div>
@@ -717,12 +719,75 @@
 
             const carrocerias = {
                 automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
-                camion: ['Autobus', 'Microbus', 'Caja seca', 'Plataforma', 'Volteo', 'Refrigerado', 'Tracto'],
-                camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta'],
-                motocicleta: ['Trabajo', 'Cruisier', 'Doble Propósito', 'Scooter', 'Enduro', 'Naked', 'Pista'],
-                bicicleta: ['Montaña', 'Ruta', 'BMX'],
-                remolque: ['Plataforma', 'Caja cerrada', 'Cama baja', 'Refrigerado'],
-                semoviente: ['Caballo', 'Burro', 'Vaca', 'Otro animal de tiro']
+
+                camioneta: ['Pick-up', 'Panel', 'Vagoneta', 'Furgoneta', 'Van'],
+
+                camion: [
+                    'Caja seca',
+                    'Caja cerrada',
+                    'Caja abierta',
+                    'Plataforma',
+                    'Volteo',
+                    'Refrigerado',
+                    'Cisterna',
+                    'Pipa',
+                    'Grúa',
+                    'Torton',
+                    'Rabón',
+                    'Tracto',
+                    'Redilas'
+                ],
+
+                motocicleta: [
+                    'Trabajo',
+                    'Cruiser',
+                    'Doble Propósito',
+                    'Scooter',
+                    'Enduro',
+                    'Naked',
+                    'Pista',
+                    'Chopper',
+                    'Cuatrimoto'
+                ],
+
+                bicicleta: ['Montaña', 'Ruta', 'BMX', 'Urbana', 'Plegable'],
+
+                remolque: [
+                    'Plataforma',
+                    'Caja cerrada',
+                    'Caja seca',
+                    'Cama baja',
+                    'Refrigerado',
+                    'Volteo',
+                    'Góndola',
+                    'Dolly',
+                    'Portacontenedor'
+                ],
+
+                maquinaria: [
+                    'Retroexcavadora',
+                    'Excavadora',
+                    'Cargador frontal',
+                    'Motoconformadora',
+                    'Bulldozer',
+                    'Rodillo compactador',
+                    'Grúa industrial',
+                    'Montacargas',
+                    'Tractor agrícola',
+                    'Pavimentadora',
+                    'Compactadora'
+                ],
+
+                tren: [
+                    'Locomotora',
+                    'Vagón',
+                    'Tren de carga',
+                    'Tren de pasajeros',
+                    'Tranvía',
+                    'Metro'
+                ],
+
+                semoviente: ['Caballo', 'Burro', 'Vaca', 'Mula', 'Otro animal de tiro']
             };
 
             tipoGeneral.addEventListener('change', function () {

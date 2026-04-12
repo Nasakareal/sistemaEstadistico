@@ -131,6 +131,24 @@ window.CroquisEditor = (function () {
             return Math.sqrt(Math.pow(ax - bx, 2) + Math.pow(ay - by, 2));
         }
 
+        totalRoadWidth(el) {
+            return Math.max(1, Number(el.carriles) || 1) * Math.max(1, Number(el.anchoCarril) || 1);
+        }
+
+        setTotalRoadWidth(el, totalWidth) {
+            const carriles = Math.max(1, Number(el.carriles) || 1);
+            const minWidth = carriles * 10;
+            el.anchoCarril = Math.max(minWidth, totalWidth) / carriles;
+        }
+
+        crossHorizontalLength(el) {
+            return Number(el.largoHorizontal ?? el.largo ?? 220);
+        }
+
+        crossVerticalLength(el) {
+            return Number(el.largoVertical ?? el.largo ?? 220);
+        }
+
         isInsideElement(el, x, y) {
             const p = this.toLocal(el, x, y);
 
@@ -140,12 +158,12 @@ window.CroquisEditor = (function () {
             }
 
             if (el.tipo === 'calle') {
-                const h = el.carriles * el.anchoCarril;
+                const h = this.totalRoadWidth(el);
                 return Math.abs(p.x) <= el.largo / 2 && Math.abs(p.y) <= h / 2;
             }
 
             if (el.tipo === 'curva') {
-                const outer = el.radioInterno + (el.carriles * el.anchoCarril);
+                const outer = el.radioInterno + this.totalRoadWidth(el);
                 const dist = Math.sqrt((p.x * p.x) + (p.y * p.y));
                 const ang = Math.atan2(p.y, p.x);
                 const limite = (el.angulo || 90) * Math.PI / 180;
@@ -153,9 +171,9 @@ window.CroquisEditor = (function () {
             }
 
             if (el.tipo === 'cruce') {
-                const roadW = el.carriles * el.anchoCarril;
-                const insideH = Math.abs(p.x) <= el.largo / 2 && Math.abs(p.y) <= roadW / 2;
-                const insideV = Math.abs(p.x) <= roadW / 2 && Math.abs(p.y) <= el.largo / 2;
+                const roadW = this.totalRoadWidth(el);
+                const insideH = Math.abs(p.x) <= this.crossHorizontalLength(el) / 2 && Math.abs(p.y) <= roadW / 2;
+                const insideV = Math.abs(p.x) <= roadW / 2 && Math.abs(p.y) <= this.crossVerticalLength(el) / 2;
                 return insideH || insideV;
             }
 
@@ -167,7 +185,7 @@ window.CroquisEditor = (function () {
             }
 
             if (el.tipo === 'glorieta') {
-                const outerRing = el.radioIsla + (el.carriles * el.anchoCarril);
+                const outerRing = el.radioIsla + this.totalRoadWidth(el);
                 const dist = Math.sqrt((p.x * p.x) + (p.y * p.y));
                 return dist >= el.radioIsla && dist <= outerRing;
             }
@@ -291,17 +309,19 @@ window.CroquisEditor = (function () {
                 const delta = Math.max(dx, dy);
                 const el = this.seleccionado;
                 const original = this.resizeStart.original;
+                const startLocal = this.toLocal(original, this.resizeStart.mouseX, this.resizeStart.mouseY);
+                const currentLocal = this.toLocal(original, pos.x, pos.y);
+                const localDx = currentLocal.x - startLocal.x;
+                const localDy = currentLocal.y - startLocal.y;
 
                 if (el.tipo === 'carro') {
-                    el.ancho = Math.max(25, original.ancho + delta);
-                    el.alto = Math.max(15, original.alto + (delta * 0.5));
+                    el.ancho = Math.max(25, original.ancho + localDx);
+                    el.alto = Math.max(15, original.alto + localDy);
                 }
 
                 if (el.tipo === 'vehiculo') {
-                    const startLocal = this.toLocal(original, this.resizeStart.mouseX, this.resizeStart.mouseY);
-                    const currentLocal = this.toLocal(original, pos.x, pos.y);
-                    el.ancho = Math.max(20, original.ancho + (currentLocal.x - startLocal.x));
-                    el.alto = Math.max(20, original.alto + (currentLocal.y - startLocal.y));
+                    el.ancho = Math.max(20, original.ancho + localDx);
+                    el.alto = Math.max(20, original.alto + localDy);
                 }
 
                 if (el.tipo === 'icono') {
@@ -311,20 +331,24 @@ window.CroquisEditor = (function () {
                 }
 
                 if (el.tipo === 'calle') {
-                    el.largo = Math.max(80, original.largo + delta);
+                    el.largo = Math.max(80, original.largo + localDx);
+                    this.setTotalRoadWidth(el, this.totalRoadWidth(original) + localDy);
                 }
 
                 if (el.tipo === 'curva') {
-                    el.radioInterno = Math.max(15, original.radioInterno + delta);
+                    el.radioInterno = Math.max(15, original.radioInterno + localDx);
+                    this.setTotalRoadWidth(el, this.totalRoadWidth(original) + localDy);
                 }
 
                 if (el.tipo === 'cruce') {
-                    el.largo = Math.max(100, original.largo + delta);
+                    el.largoHorizontal = Math.max(100, this.crossHorizontalLength(original) + localDx);
+                    el.largoVertical = Math.max(100, this.crossVerticalLength(original) + localDy);
+                    el.largo = Math.max(el.largoHorizontal, el.largoVertical);
                 }
 
                 if (el.tipo === 'entronque') {
-                    el.largoBase = Math.max(100, original.largoBase + delta);
-                    el.largoBrazo = Math.max(60, original.largoBrazo + (delta * 0.7));
+                    el.largoBase = Math.max(100, original.largoBase + localDx);
+                    el.largoBrazo = Math.max(60, original.largoBrazo + localDy);
                 }
 
                 if (el.tipo === 'glorieta') {
@@ -397,14 +421,18 @@ window.CroquisEditor = (function () {
 
             if (el.tipo === 'calle') {
                 el.largo = Math.max(80, el.largo + (delta * 12));
+                this.setTotalRoadWidth(el, this.totalRoadWidth(el) + (delta * 4));
             }
 
             if (el.tipo === 'curva') {
                 el.radioInterno = Math.max(15, el.radioInterno + (delta * 8));
+                this.setTotalRoadWidth(el, this.totalRoadWidth(el) + (delta * 4));
             }
 
             if (el.tipo === 'cruce') {
-                el.largo = Math.max(100, el.largo + (delta * 12));
+                el.largoHorizontal = Math.max(100, this.crossHorizontalLength(el) + (delta * 12));
+                el.largoVertical = Math.max(100, this.crossVerticalLength(el) + (delta * 12));
+                el.largo = Math.max(el.largoHorizontal, el.largoVertical);
             }
 
             if (el.tipo === 'entronque') {

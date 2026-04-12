@@ -1,10 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\vehiculos"
+    "\\config"
   ],
-  "SelectedNode": "\\resources\\views\\vehiculos\\edit.blade.php",
+  "SelectedNode": "\\config\\services.php",
   "PreviewInSolutionExplorer": false
 }

@@ -30,10 +30,6 @@ return [
         'morelia_polygon' => [],
     ],
 
-    'wabot' => [
-        'secret' => env('WABOT_INCOMING_SECRET', ''),
-    ],
-
     'firebase' => [
         'project_id' => env('FIREBASE_PROJECT_ID'),
         'service_account' => env('FIREBASE_SERVICE_ACCOUNT'),
@@ -43,6 +39,7 @@ return [
         'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v19.0'),
         'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
-        'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
+        'verify_token' => env('WHATSAPP_VERIFY_TOKEN', 'seguridadvial_token'),
     ],
+
 ];

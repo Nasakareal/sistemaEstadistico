@@ -30,8 +30,7 @@
               "RelativeToolTip": "app\\Models\\Hechos.php",
               "ViewState": "AgIAAGgAAAAAAAAAAAAmwJoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-12T08:52:56.042Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-12T08:52:56.042Z"
             },
             {
               "$type": "Document",
@@ -41,7 +40,7 @@
               "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
               "RelativeToolTip": "app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
-              "ViewState": "AgIAALsBAAAAAAAAAAAmwO4BAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAALwBAAAAAAAAAAAmwO4BAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-04-12T05:35:27.401Z",
               "EditorCaption": ""

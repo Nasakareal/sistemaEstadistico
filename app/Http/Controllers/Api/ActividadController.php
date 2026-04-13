@@ -656,13 +656,13 @@ class ActividadController extends Controller
         $texto = "GUARDIA CIVIL\n\n";
         $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n\n";
 
-        if ($actividad->unidad?->nombre) {
+        if (optional($actividad->unidad)->nombre) {
             $texto .= $actividad->unidad->nombre . "\n\n";
         }
 
-        if ($actividad->delegacion?->nombre) {
+        if (optional($actividad->delegacion)->nombre) {
             $texto .= $actividad->delegacion->nombre . "\n\n";
-        } elseif ($actividad->destacamento?->nombre) {
+        } elseif (optional($actividad->destacamento)->nombre) {
             $texto .= $actividad->destacamento->nombre . "\n\n";
         }
 

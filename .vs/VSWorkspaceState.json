@@ -1,11 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\puestas_disposicion"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\FeedController.php",
+  "SelectedNode": "\\resources\\views\\puestas_disposicion\\create.blade.php",
   "PreviewInSolutionExplorer": false
 }

@@ -148,10 +148,28 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="area">Área</label>
-                                    <input type="text" name="area" id="area"
-                                           class="form-control"
-                                           value="{{ $unidadNombre }}" readonly>
+                                    @if($puedeSeleccionarUnidad ?? false)
+                                        <label for="unidad_id">Unidad / Área</label>
+                                        <select name="unidad_id" id="unidad_id"
+                                                class="form-control @error('unidad_id') is-invalid @enderror" required>
+                                            <option value="" disabled {{ old('unidad_id', $unidadSeleccionadaId ?? null) ? '' : 'selected' }}>Seleccione una unidad</option>
+                                            @foreach(($unidades ?? collect()) as $unidad)
+                                                <option value="{{ $unidad->id }}"
+                                                        data-next="{{ $numerosSiguientesPorUnidad[(int)$unidad->id] ?? 1 }}"
+                                                        {{ (int)old('unidad_id', $unidadSeleccionadaId ?? 0) === (int)$unidad->id ? 'selected' : '' }}>
+                                                    {{ $unidad->nombre }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('unidad_id')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    @else
+                                        <label for="area">Área</label>
+                                        <input type="text" name="area" id="area"
+                                               class="form-control"
+                                               value="{{ $unidadNombre }}" readonly>
+                                    @endif
                                 </div>
                             </div>
 
@@ -561,6 +579,9 @@
             const contenedorPersonas = document.getElementById('contenedorPersonas');
             const contenedorVehiculos = document.getElementById('contenedorVehiculos');
             const contenedorObjetos = document.getElementById('contenedorObjetos');
+            const unidadSelect = document.getElementById('unidad_id');
+            const numeroPreview = document.getElementById('numero_puesta_preview');
+            const anioPuesta = @json(now()->year);
 
             function valor(v) {
                 return v ?? '';
@@ -858,6 +879,15 @@
 
             document.getElementById('btnAgregarObjeto')?.addEventListener('click', function () {
                 agregarObjeto();
+            });
+
+            unidadSelect?.addEventListener('change', function () {
+                const selected = unidadSelect.options[unidadSelect.selectedIndex];
+                const siguiente = selected?.dataset?.next || '1';
+
+                if (numeroPreview) {
+                    numeroPreview.value = `${siguiente}/${anioPuesta}`;
+                }
             });
 
             document.addEventListener('DOMContentLoaded', function () {

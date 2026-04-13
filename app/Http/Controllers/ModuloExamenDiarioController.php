@@ -66,7 +66,7 @@ class ModuloExamenDiarioController extends Controller
                 $validated['permiso'];
 
             if (!isset($validated['informado_por']) || trim((string)$validated['informado_por']) === '') {
-                $validated['informado_por'] = Auth::user()?->name;
+                $validated['informado_por'] = optional(Auth::user())->name;
             }
 
             $registro = ModuloExamenDiario::create($validated);
@@ -142,7 +142,7 @@ class ModuloExamenDiarioController extends Controller
                 $validated['permiso'];
 
             if (!isset($validated['informado_por']) || trim((string)$validated['informado_por']) === '') {
-                $validated['informado_por'] = $modulo_examen_diario->informado_por ?? Auth::user()?->name;
+                $validated['informado_por'] = $modulo_examen_diario->informado_por ?? optional(Auth::user())->name;
             }
 
             $modulo_examen_diario->update($validated);

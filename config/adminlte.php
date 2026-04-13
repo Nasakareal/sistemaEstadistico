@@ -226,6 +226,7 @@ return [
             'text'    => 'Puestas a Disposición',
             'icon'    => 'fas fa-gavel',
             'classes' => 'bg-blue text-white',
+            'can'     => 'menu-puestas-disposicion',
             'submenu' => [
                 [
                     'text'    => 'Listado de Puestas a Disposición',
@@ -239,21 +240,21 @@ return [
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'puestas-disposicion/create',
-                    'can'     => 'crear puestas a disposicion',
+                    'can'     => 'menu-puestas-disposicion-crear',
                 ],
                 [
                     'text'    => 'Listado de Dictámenes',
                     'icon'    => 'fas fa-gavel',
                     'classes' => 'text-white',
                     'url'     => 'dictamenes',
-                    'can'     => 'ver dictamenes',
+                    'can'     => 'menu-dictamenes',
                 ],
                 [
                     'text'    => 'Solicitar número Dictamen',
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'dictamenes/create',
-                    'can'     => 'crear dictamenes',
+                    'can'     => 'menu-dictamenes-crear',
                 ],
             ],
         ],

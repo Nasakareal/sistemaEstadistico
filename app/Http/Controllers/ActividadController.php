@@ -437,9 +437,9 @@ class ActividadController extends Controller
             $fotoPrincipal = $actividad->fotos()->orderBy('orden')->orderBy('id')->first();
 
             $actividad->update([
-                'foto_path'            => $fotoPrincipal?->foto_path,
-                'foto_nombre_original' => $fotoPrincipal?->foto_nombre_original,
-                'foto_hash'            => $fotoPrincipal?->foto_hash,
+                'foto_path'            => optional($fotoPrincipal)->foto_path,
+                'foto_nombre_original' => optional($fotoPrincipal)->foto_nombre_original,
+                'foto_hash'            => optional($fotoPrincipal)->foto_hash,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');

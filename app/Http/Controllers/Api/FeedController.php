@@ -31,14 +31,15 @@ class FeedController extends Controller
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
 
-        $hechos = $this->queryHechos($unidadIds)->limit($limit)->get();
-        $actividades = $this->queryActividades($unidadIds)->limit($limit)->get();
-        $carreteras = $this->queryCarreteras($unidadIds)->limit($limit)->get();
-        $vialidades = $this->queryVialidades($unidadIds)->limit($limit)->get();
+        $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds), $limit);
+        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds), $limit);
+        $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds), $limit);
+        $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds), $limit);
 
         $items = $hechos->concat($actividades)->concat($carreteras)->concat($vialidades)
             ->sortByDesc('created_at')
-            ->values();
+            ->values()
+            ->take($limit);
 
         $mapped = $items->map(function ($row) {
             $fotoUrl = null;
@@ -46,7 +47,7 @@ class FeedController extends Controller
             if (isset($row->foto_path) && !empty($row->foto_path)) {
                 $path = ltrim((string)$row->foto_path, '/');
 
-                if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                if ($this->startsWith($path, 'http://') || $this->startsWith($path, 'https://')) {
                     $fotoUrl = $path;
                 } else {
                     $fotoUrl = asset('storage/' . $path);
@@ -71,6 +72,7 @@ class FeedController extends Controller
             'count' => $mapped->count(),
             'puede_filtrar_unidades' => $contexto['puede_filtrar'],
             'unidad_ids_aplicadas' => $unidadIds,
+            'unidades_filtrables' => $contexto['unidades_filtrables'],
             'data' => $mapped,
         ]);
     }
@@ -113,6 +115,7 @@ class FeedController extends Controller
                 'next_cursor' => null,
                 'puede_filtrar_unidades' => $contexto['puede_filtrar'],
                 'unidad_ids_aplicadas' => $unidadIds,
+                'unidades_filtrables' => $contexto['unidades_filtrables'],
                 'data' => [],
             ]);
         }
@@ -129,11 +132,12 @@ class FeedController extends Controller
                     $w->where('created_at', '<', $createdAt)
                         ->orWhere(function ($w2) use ($createdAt, $typeOrder, $itemId) {
                             $w2->where('created_at', '=', $createdAt)
-                                ->where('type_order', '>', $typeOrder)
-                                ->orWhere(function ($w3) use ($createdAt, $typeOrder, $itemId) {
-                                    $w3->where('created_at', '=', $createdAt)
-                                        ->where('type_order', '=', $typeOrder)
-                                        ->where('item_id', '<', $itemId);
+                                ->where(function ($w3) use ($typeOrder, $itemId) {
+                                    $w3->where('type_order', '>', $typeOrder)
+                                        ->orWhere(function ($w4) use ($typeOrder, $itemId) {
+                                            $w4->where('type_order', '=', $typeOrder)
+                                                ->where('item_id', '<', $itemId);
+                                        });
                                 });
                         });
                 });
@@ -157,7 +161,7 @@ class FeedController extends Controller
             if (isset($row->foto_path) && !empty($row->foto_path)) {
                 $path = ltrim((string)$row->foto_path, '/');
 
-                if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                if ($this->startsWith($path, 'http://') || $this->startsWith($path, 'https://')) {
                     $fotoUrl = $path;
                 } else {
                     $fotoUrl = asset('storage/' . $path);
@@ -201,6 +205,7 @@ class FeedController extends Controller
             'next_cursor' => $nextCursor,
             'puede_filtrar_unidades' => $contexto['puede_filtrar'],
             'unidad_ids_aplicadas' => $unidadIds,
+            'unidades_filtrables' => $contexto['unidades_filtrables'],
             'data' => $mapped,
         ]);
     }
@@ -211,14 +216,18 @@ class FeedController extends Controller
 
         if ($puedeFiltrar) {
             $unidadIds = $this->parseUnidadIds($request);
+            $unidadesFiltrables = $this->obtenerUnidadesFiltrables();
 
             if (empty($unidadIds)) {
-                $unidadIds = $this->obtenerUnidadIdsActivas();
+                $unidadIds = $unidadesFiltrables->pluck('id')->map(function ($id) {
+                    return (int)$id;
+                })->values()->all();
             }
 
             return [
                 'puede_filtrar' => true,
                 'unidad_ids' => array_values(array_unique(array_map('intval', $unidadIds))),
+                'unidades_filtrables' => $unidadesFiltrables->values()->all(),
             ];
         }
 
@@ -227,6 +236,7 @@ class FeedController extends Controller
         return [
             'puede_filtrar' => false,
             'unidad_ids' => $unidadIds,
+            'unidades_filtrables' => [],
         ];
     }
 
@@ -245,7 +255,15 @@ class FeedController extends Controller
 
     private function parseUnidadIds(Request $request): array
     {
-        $raw = $request->query('unidad_ids', []);
+        $raw = $request->query('unidad_ids', null);
+
+        if ($raw === null || $raw === '' || $raw === []) {
+            $raw = $request->query('unidad_id', null);
+        }
+
+        if ($raw === null || $raw === '' || $raw === []) {
+            $raw = $request->query('unidad', []);
+        }
 
         if (is_string($raw)) {
             $raw = explode(',', $raw);
@@ -273,26 +291,48 @@ class FeedController extends Controller
             ->whereIn('id', $ids)
             ->where('activa', 1)
             ->pluck('id')
-            ->map(fn ($id) => (int)$id)
+            ->map(function ($id) {
+                return (int)$id;
+            })
             ->values()
             ->all();
     }
 
-    private function obtenerUnidadIdsActivas(): array
+    private function obtenerRowsFeed($source, int $limit): Collection
+    {
+        if ($source instanceof Collection) {
+            return $source->take($limit)->values();
+        }
+
+        return $source->limit($limit)->get();
+    }
+
+    private function obtenerUnidadesFiltrables(): Collection
     {
         return DB::table('unidades')
             ->where('activa', 1)
-            ->pluck('id')
-            ->map(fn ($id) => (int)$id)
-            ->values()
-            ->all();
+            ->orderBy('id')
+            ->get(['id', 'nombre', 'slug'])
+            ->map(function ($unidad) {
+                return [
+                    'id' => (int)$unidad->id,
+                    'nombre' => (string)$unidad->nombre,
+                    'slug' => (string)$unidad->slug,
+                ];
+            });
     }
 
     private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1)
     {
+        if (empty($unidadIds)) {
+            return $forUnion ? null : collect();
+        }
+
         $q = DB::table('hechos as h')
-            ->join('users as u', 'u.id', '=', 'h.created_by')
-            ->whereIn('u.unidad_id', $unidadIds);
+            ->leftJoin('users as u', 'u.id', '=', 'h.created_by');
+
+        $unidadSql = Schema::hasColumn('hechos', 'unidad_org_id') ? 'COALESCE(h.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
+        $q->whereIn(DB::raw($unidadSql), $unidadIds);
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -301,7 +341,7 @@ class FeedController extends Controller
                 h.id as item_id,
                 h.created_by as user_id,
                 u.name as user_name,
-                u.unidad_id as unidad_id,
+                {$unidadSql} as unidad_id,
                 CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
                 COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
                 h.created_at as created_at
@@ -313,7 +353,7 @@ class FeedController extends Controller
             h.id as item_id,
             h.created_by as user_id,
             u.name as user_name,
-            u.unidad_id as unidad_id,
+            {$unidadSql} as unidad_id,
             CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
             COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
             h.created_at as created_at
@@ -322,9 +362,15 @@ class FeedController extends Controller
 
     private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2)
     {
+        if (empty($unidadIds)) {
+            return $forUnion ? null : collect();
+        }
+
         $q = DB::table('actividades as a')
-            ->join('users as u', 'u.id', '=', 'a.created_by')
-            ->whereIn('u.unidad_id', $unidadIds);
+            ->leftJoin('users as u', 'u.id', '=', 'a.created_by');
+
+        $unidadSql = Schema::hasColumn('actividades', 'unidad_org_id') ? 'COALESCE(a.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
+        $q->whereIn(DB::raw($unidadSql), $unidadIds);
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -333,7 +379,7 @@ class FeedController extends Controller
                 a.id as item_id,
                 a.created_by as user_id,
                 u.name as user_name,
-                u.unidad_id as unidad_id,
+                {$unidadSql} as unidad_id,
                 a.nombre as resumen,
                 a.foto_path as foto_path,
                 a.created_at as created_at
@@ -345,7 +391,7 @@ class FeedController extends Controller
             a.id as item_id,
             a.created_by as user_id,
             u.name as user_name,
-            u.unidad_id as unidad_id,
+            {$unidadSql} as unidad_id,
             a.nombre as resumen,
             a.foto_path as foto_path,
             a.created_at as created_at
@@ -486,13 +532,27 @@ class FeedController extends Controller
             if ($txt === 'col.' || $txt === 'col') $txt = '';
         }
 
-        return $txt !== '' ? $txt : match ($type) {
-            'HECHO' => 'Hecho registrado',
-            'ACTIVIDAD' => 'Actividad registrada',
-            'CARRETERAS' => 'Registro de carreteras',
-            'VIALIDADES' => 'Registro de vialidades',
-            default => 'Registro',
-        };
+        if ($txt !== '') {
+            return $txt;
+        }
+
+        switch ($type) {
+            case 'HECHO':
+                return 'Hecho registrado';
+            case 'ACTIVIDAD':
+                return 'Actividad registrada';
+            case 'CARRETERAS':
+                return 'Registro de carreteras';
+            case 'VIALIDADES':
+                return 'Registro de vialidades';
+            default:
+                return 'Registro';
+        }
+    }
+
+    private function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 
     private function encodeCursor(array $data): string

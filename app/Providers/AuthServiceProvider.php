@@ -15,23 +15,40 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         Gate::before(function ($user, $ability) {
-            return $user->hasRole('Superadmin') ? true : null;
+            if ($user->hasRole('Superadmin')) {
+                return true;
+            }
+
+            if (
+                in_array($ability, ['ver puestas a disposicion', 'crear puestas a disposicion'], true)
+                && !empty($user->unidad_id)
+            ) {
+                return true;
+            }
+
+            return null;
         });
 
         Gate::define('menu-dictamenes', function ($user) {
             return $user->can('ver dictamenes')
-                && (
-                    $user->perteneceAUnidad('siniestros')
-                    || (int) $user->unidad_id === 3
-                );
+                && $user->perteneceAUnidad('siniestros');
         });
 
         Gate::define('menu-dictamenes-crear', function ($user) {
             return $user->can('crear dictamenes')
-                && (
-                    $user->perteneceAUnidad('siniestros')
-                    || (int) $user->unidad_id === 3
+                && $user->perteneceAUnidad('siniestros');
+        });
+
+        Gate::define('menu-puestas-disposicion', function ($user) {
+            return $user->can('ver puestas a disposicion')
+                || (
+                    $user->can('ver dictamenes')
+                    && $user->perteneceAUnidad('siniestros')
                 );
+        });
+
+        Gate::define('menu-puestas-disposicion-crear', function ($user) {
+            return $user->can('crear puestas a disposicion');
         });
 
         Gate::define('menu-delegaciones', function ($user) {

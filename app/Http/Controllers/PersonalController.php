@@ -35,7 +35,7 @@ class PersonalController extends Controller
 
     private function unidadIdActor(): ?int
     {
-        return $this->actor()?->unidad_id;
+        return optional($this->actor())->unidad_id;
     }
 
     private function queryPersonalVisibleParaActor()

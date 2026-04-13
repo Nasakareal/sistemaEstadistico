@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class PuestaDisposicionController extends Controller
 {
@@ -34,12 +35,22 @@ class PuestaDisposicionController extends Controller
         return $usuario && $usuario->hasRole('Superadmin');
     }
 
+    private function puedeVerTodasLasUnidades($usuario): bool
+    {
+        return $this->esSuperadmin($usuario) || (int)($usuario->unidad_id ?? 0) === 3;
+    }
+
+    private function puedeSeleccionarUnidadRegistro($usuario): bool
+    {
+        return $this->esSuperadmin($usuario) || empty($usuario->unidad_id);
+    }
+
     private function queryVisibleByUser($usuario)
     {
         $query = PuestaDisposicion::query()
             ->with(['unidad', 'delegacion', 'destacamento', 'creador']);
 
-        if ($this->esSuperadmin($usuario)) {
+        if ($this->puedeVerTodasLasUnidades($usuario)) {
             return $query;
         }
 
@@ -92,6 +103,29 @@ class PuestaDisposicionController extends Controller
         return Unidad::where('id', $unidadId)->value('nombre') ?: 'SIN ASIGNAR';
     }
 
+    private function obtenerUnidadesActivas()
+    {
+        return Unidad::query()
+            ->where('activa', 1)
+            ->orderBy('id')
+            ->get(['id', 'nombre']);
+    }
+
+    private function resolverUnidadRegistro(Request $request, $usuario): int
+    {
+        $unidadId = $this->puedeSeleccionarUnidadRegistro($usuario)
+            ? (int)$request->input('unidad_id')
+            : (int)($usuario->unidad_id ?? 0);
+
+        if (!$unidadId || !Unidad::where('id', $unidadId)->where('activa', 1)->exists()) {
+            throw ValidationException::withMessages([
+                'unidad_id' => 'Seleccione una unidad válida para la puesta a disposición.',
+            ]);
+        }
+
+        return $unidadId;
+    }
+
     public function index(Request $request)
     {
         $usuario = auth()->user();
@@ -131,26 +165,47 @@ class PuestaDisposicionController extends Controller
     {
         $usuario = auth()->user();
         $anioActual = now()->year;
+        $unidades = $this->obtenerUnidadesActivas();
+        $puedeSeleccionarUnidad = $this->puedeSeleccionarUnidadRegistro($usuario);
 
-        $unidadNombre = $this->obtenerNombreUnidad($usuario->unidad_id);
+        $unidadSeleccionadaId = $puedeSeleccionarUnidad
+            ? (int)old('unidad_id', $usuario->unidad_id ?: optional($unidades->first())->id)
+            : (int)$usuario->unidad_id;
+
+        $unidadNombre = $this->obtenerNombreUnidad($unidadSeleccionadaId);
 
         $ultimoRegistro = PuestaDisposicion::query()
             ->where('anio', $anioActual)
-            ->where('unidad_id', $usuario->unidad_id)
+            ->where('unidad_id', $unidadSeleccionadaId)
             ->orderByDesc('numero_puesta')
             ->first();
 
         $numeroSiguiente = $ultimoRegistro ? ($ultimoRegistro->numero_puesta + 1) : 1;
+        $numerosSiguientesPorUnidad = [];
+
+        foreach ($unidades as $unidad) {
+            $ultimoPorUnidad = PuestaDisposicion::query()
+                ->where('anio', $anioActual)
+                ->where('unidad_id', $unidad->id)
+                ->max('numero_puesta');
+
+            $numerosSiguientesPorUnidad[(int)$unidad->id] = $ultimoPorUnidad ? ((int)$ultimoPorUnidad + 1) : 1;
+        }
 
         return view('puestas_disposicion.create', compact(
             'numeroSiguiente',
-            'unidadNombre'
+            'unidadNombre',
+            'unidades',
+            'puedeSeleccionarUnidad',
+            'unidadSeleccionadaId',
+            'numerosSiguientesPorUnidad'
         ));
     }
 
     public function store(Request $request)
     {
         $usuario = auth()->user();
+        $unidadRegistroId = $this->resolverUnidadRegistro($request, $usuario);
 
         $request->merge([
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
@@ -159,7 +214,7 @@ class PuestaDisposicionController extends Controller
             'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
             'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
             'autoridad_receptora'   => $this->normalizarTextoNullable($request->input('autoridad_receptora')),
-            'area'                  => $this->obtenerNombreUnidad($usuario->unidad_id),
+            'area'                  => $this->obtenerNombreUnidad($unidadRegistroId),
             'carpeta_investigacion' => $this->normalizarTextoNullable($request->input('carpeta_investigacion')),
             'oficio'                => $this->normalizarTextoNullable($request->input('oficio')),
             'lugar_puesta'          => $this->normalizarTextoNullable($request->input('lugar_puesta')),
@@ -172,6 +227,7 @@ class PuestaDisposicionController extends Controller
             'motivo'                => 'required|string|max:150',
             'estatus'               => 'nullable|string|max:100',
             'nombre_policia'        => 'required|string|max:255',
+            'unidad_id'             => $this->puedeSeleccionarUnidadRegistro($usuario) ? 'required|integer|exists:unidades,id' : 'nullable',
             'nombre_mp'             => 'nullable|string|max:255',
             'autoridad_receptora'   => 'nullable|string|max:255',
             'area'                  => 'nullable|string|max:255',
@@ -235,7 +291,7 @@ class PuestaDisposicionController extends Controller
 
             $ultimoRegistro = PuestaDisposicion::query()
                 ->where('anio', $anioActual)
-                ->where('unidad_id', $usuario->unidad_id)
+                ->where('unidad_id', $unidadRegistroId)
                 ->orderByDesc('numero_puesta')
                 ->lockForUpdate()
                 ->first();
@@ -251,7 +307,7 @@ class PuestaDisposicionController extends Controller
                 'nombre_policia'        => $request->input('nombre_policia'),
                 'nombre_mp'             => $request->input('nombre_mp'),
                 'autoridad_receptora'   => $request->input('autoridad_receptora'),
-                'area'                  => $this->obtenerNombreUnidad($usuario->unidad_id),
+                'area'                  => $this->obtenerNombreUnidad($unidadRegistroId),
                 'carpeta_investigacion' => $request->input('carpeta_investigacion'),
                 'oficio'                => $request->input('oficio'),
                 'fecha_puesta'          => $request->input('fecha_puesta'),
@@ -259,7 +315,7 @@ class PuestaDisposicionController extends Controller
                 'lugar_puesta'          => $request->input('lugar_puesta'),
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
-                'unidad_id'             => $usuario->unidad_id,
+                'unidad_id'             => $unidadRegistroId,
                 'delegacion_id'         => $usuario->delegacion_id,
                 'destacamento_id'       => $usuario->destacamento_id,
                 'archivo_puesta'        => $archivoPuesta,

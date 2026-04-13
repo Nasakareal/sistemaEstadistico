@@ -1,12 +1,14 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Console\\Commands\\siniestros",
-    "\\app\\Services"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\actividades",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\parte_novedades"
   ],
-  "SelectedNode": "\\app\\Services\\ActividadInformeService.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\actividades\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

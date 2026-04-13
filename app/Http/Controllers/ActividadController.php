@@ -278,6 +278,7 @@ class ActividadController extends Controller
             'creador',
             'actualizador',
             'revisor',
+            'vehiculos',
         ]);
 
         return view('actividades.show', compact('actividad'));
@@ -306,6 +307,8 @@ class ActividadController extends Controller
             ->where('activo', 1)
             ->orderBy('nombre')
             ->get();
+
+        $actividad->load('vehiculos');
 
         return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias'));
     }
@@ -965,5 +968,85 @@ class ActividadController extends Controller
             'texto' => trim($texto),
             'fotos' => [],
         ]);
+    }
+
+    public function storeVehiculo(Request $request, Actividad $actividad)
+    {
+        $this->authorize('editar actividades');
+
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'marca' => 'nullable|string|max:255',
+            'modelo' => 'nullable|string|max:255',
+            'tipo' => 'nullable|string|max:255',
+            'linea' => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:255',
+            'placas' => 'nullable|string|max:50',
+            'estado_placas' => 'nullable|string|max:255',
+            'serie' => 'nullable|string|max:255',
+            'capacidad_personas' => 'nullable|integer|min:1',
+            'tipo_servicio' => 'nullable|string|max:255',
+            'tarjeta_circulacion_nombre' => 'nullable|string|max:255',
+            'grua' => 'nullable|string|max:255',
+            'corralon' => 'nullable|string|max:255',
+            'aseguradora' => 'nullable|string|max:255',
+            'antecedente_vehiculo' => 'nullable|integer|min:0|max:1',
+            'monto_danos' => 'nullable|numeric|min:0',
+            'partes_danadas' => 'nullable|string',
+        ]);
+
+        return DB::transaction(function () use ($actividad, $validated) {
+            $vehiculo = \App\Models\Vehiculo::create([
+                'client_uuid' => (string) Str::uuid(),
+                'marca' => $this->toUpperOrNull($validated['marca'] ?? null),
+                'modelo' => $this->toUpperOrNull($validated['modelo'] ?? null),
+                'tipo' => $this->toUpperOrNull($validated['tipo'] ?? null),
+                'linea' => $this->toUpperOrNull($validated['linea'] ?? null),
+                'color' => $this->toUpperOrNull($validated['color'] ?? null),
+                'placas' => $this->toUpperOrNull($validated['placas'] ?? null),
+                'estado_placas' => $this->toUpperOrNull($validated['estado_placas'] ?? null),
+                'serie' => $this->toUpperOrNull($validated['serie'] ?? null),
+                'capacidad_personas' => $validated['capacidad_personas'] ?? null,
+                'tipo_servicio' => $this->toUpperOrNull($validated['tipo_servicio'] ?? null),
+                'tarjeta_circulacion_nombre' => $this->toUpperOrNull($validated['tarjeta_circulacion_nombre'] ?? null),
+                'grua' => $this->toUpperOrNull($validated['grua'] ?? null),
+                'corralon' => $this->toUpperOrNull($validated['corralon'] ?? null),
+                'aseguradora' => $this->toUpperOrNull($validated['aseguradora'] ?? null),
+                'fotos' => null,
+                'antecedente_vehiculo' => (int) ($validated['antecedente_vehiculo'] ?? 0),
+                'monto_danos' => $validated['monto_danos'] ?? 0,
+                'partes_danadas' => $this->toUpperOrNull($validated['partes_danadas'] ?? null),
+            ]);
+
+            $actividad->vehiculos()->syncWithoutDetaching([$vehiculo->id]);
+
+            return back()->with('success', 'Vehículo agregado correctamente.');
+        });
+    }
+
+    public function destroyVehiculo(Actividad $actividad, $vehiculoId)
+    {
+        $this->authorize('editar actividades');
+
+        $usuario = Auth::user();
+
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $actividad->vehiculos()->detach($vehiculoId);
+
+        return back()->with('success', 'Vehículo desvinculado correctamente.');
     }
 }

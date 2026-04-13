@@ -52,4 +52,9 @@ class Vehiculo extends Model
     {
         return $this->hasOne(Servicio::class, 'vehiculo_id')->latest();
     }
+
+    public function actividades()
+    {
+        return $this->belongsToMany(\App\Models\Actividad::class, 'actividad_vehiculo', 'vehiculo_id', 'actividad_id')->withTimestamps();
+    }
 }

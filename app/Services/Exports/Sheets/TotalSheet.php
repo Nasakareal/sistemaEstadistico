@@ -110,20 +110,9 @@ class TotalSheet
 
         $estadoFuerza = min($monosAB, $hechosCount);
 
-        $patrullaIdsAB = $this->patrullaIdsEnServicioTurnoAB($momento);
-
         $kmTotalDia = (int) DB::table('patrulla_kilometrajes')
             ->where('fecha', $fechaReporte)
-            ->whereIn('patrulla_id', $patrullaIdsAB)
             ->sum(DB::raw('COALESCE(kilometros_recorridos, 0)'));
-
-        $patrullasTrabajando = (int) DB::table('patrulla_kilometrajes')
-            ->where('fecha', $fechaReporte)
-            ->whereIn('patrulla_id', $patrullaIdsAB)
-            ->distinct()
-            ->count('patrulla_id');
-
-        $unidadesPatrullaje = min($monosAB, $patrullasTrabajando);
 
         $template = $this->templateCompleto();
 

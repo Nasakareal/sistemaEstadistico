@@ -112,4 +112,9 @@ class Actividad extends Model
     {
         return $this->hasMany(ActividadFoto::class, 'actividad_id')->orderBy('orden');
     }
+
+    public function vehiculos()
+    {
+        return $this->belongsToMany(\App\Models\Vehiculo::class, 'actividad_vehiculo', 'actividad_id', 'vehiculo_id')->withTimestamps();
+    }
 }

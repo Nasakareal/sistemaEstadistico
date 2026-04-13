@@ -73,6 +73,20 @@
                                         $horaMostrar = !empty($hecho->hora)
                                             ? substr((string) $hecho->hora, 0, 5)
                                             : '';
+
+                                        $usuario = auth()->user();
+                                        $esUnidadSeguridadVial = (int) ($usuario->unidad_id ?? 0) === 3;
+                                        $soloLecturaSeguridadVial = $esUnidadSeguridadVial;
+
+                                        $puedeMarcarRelevante = !$soloLecturaSeguridadVial
+                                            && ($usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector'));
+
+                                        $puedeEditarHecho = !$soloLecturaSeguridadVial
+                                            && !empty($hecho->puede_editar)
+                                            && $hecho->puede_editar;
+
+                                        $puedeEliminarHecho = !$soloLecturaSeguridadVial
+                                            && ($usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador'));
                                     @endphp
 
                                     <tr>
@@ -107,7 +121,7 @@
                                         <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
 
                                         <td class="text-center">
-                                            @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador') || auth()->user()->hasRole('Subdirector'))
+                                            @if($puedeMarcarRelevante)
                                                 @if($hecho->es_relevante)
                                                     <form action="{{ route('hechos.desmarcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
                                                         @csrf
@@ -139,13 +153,13 @@
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
 
-                                            @if(!empty($hecho->puede_editar) && $hecho->puede_editar)
+                                            @if($puedeEditarHecho)
                                                 <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
                                                     <i class="fa-solid fa-pencil"></i>
                                                 </a>
                                             @endif
 
-                                            @if(!empty($hecho->puede_editar) && $hecho->puede_editar)
+                                            @if($puedeEditarHecho)
                                                 <a href="{{ route('croquis.show', $hecho->id) }}" class="btn btn-primary btn-sm" title="{{ !empty($hecho->tiene_croquis) && $hecho->tiene_croquis ? 'Editar croquis' : 'Crear croquis' }}">
                                                     <i class="fa-solid fa-draw-polygon"></i>
                                                 </a>
@@ -164,7 +178,7 @@
                                                 <i class="fa-brands fa-whatsapp"></i>
                                             </button>
 
-                                            @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Administrador'))
+                                            @if($puedeEliminarHecho)
                                                 <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
                                                     @csrf
                                                     @method('DELETE')

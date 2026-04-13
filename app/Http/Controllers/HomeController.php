@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Personal;
-use App\Models\Delegacion;
 use App\Services\EstadoFuerzaService;
 use App\Services\OperativosService;
 use App\Services\TurnoService;
@@ -52,10 +51,10 @@ class HomeController extends Controller
             $turnoActivoNombre = (string) $turnoActivo->nombre;
         }
 
-        $qPersonales = Personal::with(['turno','incidencias.tipo'])
+        $qPersonales = Personal::with(['turno', 'incidencias.tipo'])
             ->where('estatus', 'ACTIVO');
 
-        if (!$usuario->hasRole('Superadmin')) {
+        if (!$this->puedeVerTodo($usuario)) {
             if (!empty($usuario->unidad_id)) {
                 $qPersonales->where('unidad_id', (int) $usuario->unidad_id);
             } else {
@@ -74,7 +73,7 @@ class HomeController extends Controller
             }
         }
 
-        $operativosEnServicio = $this->operativosService->contarEnServicio($momento, $this->estadoFuerzaService);
+        $operativosEnServicio = $this->contarOperativosEnServicio($momento);
         $administrativosEnServicio = $this->contarAdministrativosEnServicio($momento);
 
         return view('home', [
@@ -139,7 +138,7 @@ class HomeController extends Controller
                 a.created_at as created_at
             ");
 
-        if (!$usuario->hasRole('Superadmin')) {
+        if (!$this->puedeVerTodo($usuario)) {
             if ($unidadId > 0) {
                 $hechosQ->where('h.unidad_org_id', $unidadId);
 
@@ -157,18 +156,18 @@ class HomeController extends Controller
         if ($cursorCreatedAt && $cursorId) {
             $hechosQ->where(function ($q) use ($cursorCreatedAt, $cursorId) {
                 $q->where('h.created_at', '<', $cursorCreatedAt)
-                  ->orWhere(function ($q2) use ($cursorCreatedAt, $cursorId) {
-                      $q2->where('h.created_at', '=', $cursorCreatedAt)
-                         ->where('h.id', '<', (int) $cursorId);
-                  });
+                    ->orWhere(function ($q2) use ($cursorCreatedAt, $cursorId) {
+                        $q2->where('h.created_at', '=', $cursorCreatedAt)
+                            ->where('h.id', '<', (int) $cursorId);
+                    });
             });
 
             $actividadesQ->where(function ($q) use ($cursorCreatedAt, $cursorId) {
                 $q->where('a.created_at', '<', $cursorCreatedAt)
-                  ->orWhere(function ($q2) use ($cursorCreatedAt, $cursorId) {
-                      $q2->where('a.created_at', '=', $cursorCreatedAt)
-                         ->where('a.id', '<', (int) $cursorId);
-                  });
+                    ->orWhere(function ($q2) use ($cursorCreatedAt, $cursorId) {
+                        $q2->where('a.created_at', '=', $cursorCreatedAt)
+                            ->where('a.id', '<', (int) $cursorId);
+                    });
             });
         }
 
@@ -195,14 +194,14 @@ class HomeController extends Controller
             }
 
             return [
-                'type'       => $row->type,
-                'id'         => (int) $row->item_id,
-                'user_id'    => (int) $row->user_id,
-                'user_name'  => $row->user_name,
-                'resumen'    => $this->limpiaResumen($row->resumen, $row->type),
-                'foto_url'   => $foto_url,
+                'type' => $row->type,
+                'id' => (int) $row->item_id,
+                'user_id' => (int) $row->user_id,
+                'user_name' => $row->user_name,
+                'resumen' => $this->limpiaResumen($row->resumen, $row->type),
+                'foto_url' => $foto_url,
                 'created_at' => (string) $row->created_at,
-                'show_url'   => $row->type === 'HECHO'
+                'show_url' => $row->type === 'HECHO'
                     ? route('hechos.show', $row->item_id)
                     : route('actividades.show', $row->item_id),
             ];
@@ -236,6 +235,44 @@ class HomeController extends Controller
         return $txt !== '' ? $txt : ($type === 'HECHO' ? 'Hecho registrado' : 'Actividad registrada');
     }
 
+    private function contarOperativosEnServicio(Carbon $momento): int
+    {
+        $usuario = Auth::user();
+
+        $momento = $momento->copy()->timezone('America/Mexico_City');
+
+        $q = Personal::query()
+            ->with(['incidencias.tipo', 'turno'])
+            ->where('estatus', 'ACTIVO');
+
+        if (!$this->puedeVerTodo($usuario)) {
+            if (!empty($usuario->unidad_id)) {
+                $q->where('unidad_id', (int) $usuario->unidad_id);
+            } else {
+                $q->whereRaw('1=0');
+            }
+        }
+
+        if (Schema::hasColumn('personals', 'es_operativo')) {
+            $q->where('es_operativo', 1);
+        } elseif (Schema::hasColumn('personals', 'tipo')) {
+            $q->whereRaw('UPPER(TRIM(tipo)) = ?', ['OPERATIVO']);
+        } elseif (Schema::hasColumn('personals', 'categoria')) {
+            $q->whereRaw('UPPER(TRIM(categoria)) = ?', ['OPERATIVO']);
+        }
+
+        $personales = $q->get();
+
+        $count = 0;
+        foreach ($personales as $p) {
+            if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
     private function contarAdministrativosEnServicio(Carbon $momento): int
     {
         $usuario = Auth::user();
@@ -246,7 +283,7 @@ class HomeController extends Controller
             ->with(['incidencias.tipo', 'turno'])
             ->where('estatus', 'ACTIVO');
 
-        if (!$usuario->hasRole('Superadmin')) {
+        if (!$this->puedeVerTodo($usuario)) {
             if (!empty($usuario->unidad_id)) {
                 $q->where('unidad_id', (int) $usuario->unidad_id);
             } else {
@@ -272,5 +309,18 @@ class HomeController extends Controller
         }
 
         return $count;
+    }
+
+    private function puedeVerTodo($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        if (method_exists($usuario, 'hasRole') && $usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        return (int) $usuario->unidad_id === 3;
     }
 }

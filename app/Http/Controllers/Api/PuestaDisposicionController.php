@@ -11,6 +11,7 @@ use App\Models\Unidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -93,6 +94,83 @@ class PuestaDisposicionController extends Controller
     {
         if ($valor===null || trim((string)$valor)==='') return null;
         return strtoupper(trim((string)$valor));
+    }
+
+    private function prepararRequestStore(Request $request,int $unidadRegistroId): void
+    {
+        $request->merge([
+            'tipo_puesta'=>$this->normalizarTextoRequerido($request->input('tipo_puesta')),
+            'motivo'=>$this->normalizarTextoRequerido($request->input('motivo')),
+            'estatus'=>'ACTIVA',
+            'nombre_policia'=>$this->normalizarTextoRequerido($request->input('nombre_policia')),
+            'nombre_mp'=>$this->normalizarTextoNullable($request->input('nombre_mp')),
+            'autoridad_receptora'=>$this->normalizarTextoNullable($request->input('autoridad_receptora')),
+            'area'=>$this->obtenerNombreUnidad($unidadRegistroId),
+            'carpeta_investigacion'=>$this->normalizarTextoNullable($request->input('carpeta_investigacion')),
+            'oficio'=>$this->normalizarTextoNullable($request->input('oficio')),
+            'lugar_puesta'=>$this->normalizarTextoNullable($request->input('lugar_puesta')),
+            'narrativa'=>$this->normalizarTextoLargoNullable($request->input('narrativa')),
+            'observaciones'=>$this->normalizarTextoLargoNullable($request->input('observaciones')),
+        ]);
+    }
+
+    private function validarStore(Request $request,$usuario): void
+    {
+        $request->validate([
+            'tipo_puesta'=>'required|string|max:100',
+            'motivo'=>'required|string|max:150',
+            'estatus'=>'nullable|string|max:100',
+            'nombre_policia'=>'required|string|max:255',
+            'unidad_id'=>$this->puedeSeleccionarUnidadRegistro($usuario) ? 'required|integer|exists:unidades,id' : 'nullable',
+            'nombre_mp'=>'nullable|string|max:255',
+            'autoridad_receptora'=>'nullable|string|max:255',
+            'area'=>'nullable|string|max:255',
+            'carpeta_investigacion'=>'nullable|string|max:255',
+            'oficio'=>'nullable|string|max:255',
+            'fecha_puesta'=>'required|date',
+            'hora_puesta'=>'nullable|date_format:H:i',
+            'lugar_puesta'=>'nullable|string|max:255',
+            'narrativa'=>'nullable|string',
+            'observaciones'=>'nullable|string',
+            'archivo_puesta'=>'nullable|file|mimes:pdf|max:10240',
+
+            'personas'=>'nullable|array',
+            'personas.*.nombre_completo'=>'nullable|string|max:255',
+            'personas.*.alias'=>'nullable|string|max:255',
+            'personas.*.edad'=>'nullable|integer|min:0|max:150',
+            'personas.*.sexo'=>'nullable|string|max:20',
+            'personas.*.fecha_nacimiento'=>'nullable|date',
+            'personas.*.curp'=>'nullable|string|max:50',
+            'personas.*.rfc'=>'nullable|string|max:30',
+            'personas.*.domicilio'=>'nullable|string',
+            'personas.*.calidad'=>'nullable|string|max:100',
+            'personas.*.delito_o_motivo'=>'nullable|string|max:255',
+            'personas.*.orden_aprehension'=>'nullable|boolean',
+            'personas.*.mandamiento_judicial'=>'nullable|string|max:255',
+            'personas.*.observaciones'=>'nullable|string',
+
+            'vehiculos'=>'nullable|array',
+            'vehiculos.*.tipo'=>'nullable|string|max:100',
+            'vehiculos.*.marca'=>'nullable|string|max:100',
+            'vehiculos.*.submarca'=>'nullable|string|max:100',
+            'vehiculos.*.modelo'=>'nullable|string|max:20',
+            'vehiculos.*.color'=>'nullable|string|max:100',
+            'vehiculos.*.placas'=>'nullable|string|max:50',
+            'vehiculos.*.serie'=>'nullable|string|max:100',
+            'vehiculos.*.calidad'=>'nullable|string|max:100',
+            'vehiculos.*.motivo_relacion'=>'nullable|string|max:255',
+            'vehiculos.*.con_reporte_robo'=>'nullable|boolean',
+            'vehiculos.*.numero_reporte_robo'=>'nullable|string|max:255',
+            'vehiculos.*.observaciones'=>'nullable|string',
+
+            'objetos'=>'nullable|array',
+            'objetos.*.tipo_objeto'=>'nullable|string|max:100',
+            'objetos.*.descripcion'=>'nullable|string',
+            'objetos.*.cantidad'=>'nullable|numeric|min:0',
+            'objetos.*.unidad_medida'=>'nullable|string|max:50',
+            'objetos.*.cadena_custodia'=>'nullable|string|max:255',
+            'objetos.*.observaciones'=>'nullable|string',
+        ]);
     }
 
     private function guardarDetalles(PuestaDisposicion $puesta, Request $request): void
@@ -181,10 +259,22 @@ class PuestaDisposicionController extends Controller
     {
         $usuario=Auth::user();
         $unidadRegistroId=$this->resolverUnidadRegistro($request,$usuario);
+        $this->prepararRequestStore($request,$unidadRegistroId);
+        $this->validarStore($request,$usuario);
 
-        DB::beginTransaction();
+        Log::info('Puesta a disposicion API: solicitud recibida', [
+            'user_id'=>$usuario ? $usuario->id : null,
+            'unidad_id'=>$unidadRegistroId,
+            'tipo_puesta'=>$request->input('tipo_puesta'),
+            'personas'=>count($request->input('personas', [])),
+            'vehiculos'=>count($request->input('vehiculos', [])),
+            'objetos'=>count($request->input('objetos', [])),
+            'tiene_archivo'=>$request->hasFile('archivo_puesta'),
+        ]);
 
         try {
+            DB::beginTransaction();
+
             $anioActual=now()->year;
 
             $ultimo=PuestaDisposicion::where('anio',$anioActual)
@@ -203,20 +293,20 @@ class PuestaDisposicionController extends Controller
             $puesta=PuestaDisposicion::create([
                 'numero_puesta'=>$numero,
                 'anio'=>$anioActual,
-                'tipo_puesta'=>$this->normalizarTextoRequerido($request->tipo_puesta),
-                'motivo'=>$this->normalizarTextoRequerido($request->motivo),
+                'tipo_puesta'=>$request->input('tipo_puesta'),
+                'motivo'=>$request->input('motivo'),
                 'estatus'=>'ACTIVA',
-                'nombre_policia'=>$this->normalizarTextoRequerido($request->nombre_policia),
-                'nombre_mp'=>$this->normalizarTextoNullable($request->nombre_mp),
-                'autoridad_receptora'=>$this->normalizarTextoNullable($request->autoridad_receptora),
+                'nombre_policia'=>$request->input('nombre_policia'),
+                'nombre_mp'=>$request->input('nombre_mp'),
+                'autoridad_receptora'=>$request->input('autoridad_receptora'),
                 'area'=>$this->obtenerNombreUnidad($unidadRegistroId),
-                'carpeta_investigacion'=>$this->normalizarTextoNullable($request->carpeta_investigacion),
-                'oficio'=>$this->normalizarTextoNullable($request->oficio),
-                'fecha_puesta'=>$request->fecha_puesta,
-                'hora_puesta'=>$request->hora_puesta,
-                'lugar_puesta'=>$this->normalizarTextoNullable($request->lugar_puesta),
-                'narrativa'=>$this->normalizarTextoLargoNullable($request->narrativa),
-                'observaciones'=>$this->normalizarTextoLargoNullable($request->observaciones),
+                'carpeta_investigacion'=>$request->input('carpeta_investigacion'),
+                'oficio'=>$request->input('oficio'),
+                'fecha_puesta'=>$request->input('fecha_puesta'),
+                'hora_puesta'=>$request->input('hora_puesta'),
+                'lugar_puesta'=>$request->input('lugar_puesta'),
+                'narrativa'=>$request->input('narrativa'),
+                'observaciones'=>$request->input('observaciones'),
                 'archivo_puesta'=>$archivo,
                 'unidad_id'=>$unidadRegistroId,
                 'delegacion_id'=>$usuario->delegacion_id,
@@ -232,6 +322,13 @@ class PuestaDisposicionController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Puesta a disposicion API: error al guardar', [
+                'user_id'=>$usuario ? $usuario->id : null,
+                'unidad_id'=>$unidadRegistroId,
+                'error'=>$e->getMessage(),
+                'trace'=>$e->getTraceAsString(),
+            ]);
+
             return response()->json(['error'=>$e->getMessage()],500);
         }
     }

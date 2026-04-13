@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class FeedController extends Controller
 {
@@ -15,142 +18,124 @@ class FeedController extends Controller
 
     public function index(Request $request)
     {
-        $v = (string) $request->query('v', '1');
+        $v = (string)$request->query('v', '1');
         if ($v === '2') {
             return $this->indexV2($request);
         }
 
-        $limit = (int) $request->query('limit', 50);
+        $usuario = Auth::user();
+        $limit = (int)$request->query('limit', 50);
         if ($limit < 1) $limit = 1;
         if ($limit > 50) $limit = 50;
 
-        $hechos = DB::table('hechos as h')
-            ->join('users as u', 'u.id', '=', 'h.created_by')
-            ->selectRaw("
-                'HECHO' as type,
-                h.id as item_id,
-                h.created_by as user_id,
-                u.name as user_name,
-                CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
-                COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
-                h.created_at as created_at
-            ")
-            ->orderByDesc('h.created_at')
-            ->orderByDesc('h.id')
-            ->limit($limit)
-            ->get();
+        $contexto = $this->resolverContextoUnidades($request, $usuario);
+        $unidadIds = $contexto['unidad_ids'];
 
-        $actividades = DB::table('actividades as a')
-            ->join('users as u', 'u.id', '=', 'a.created_by')
-            ->selectRaw("
-                'ACTIVIDAD' as type,
-                a.id as item_id,
-                a.created_by as user_id,
-                u.name as user_name,
-                a.nombre as resumen,
-                a.foto_path as foto_path,
-                a.created_at as created_at
-            ")
-            ->orderByDesc('a.created_at')
-            ->orderByDesc('a.id')
-            ->limit($limit)
-            ->get();
+        $hechos = $this->queryHechos($unidadIds)->limit($limit)->get();
+        $actividades = $this->queryActividades($unidadIds)->limit($limit)->get();
+        $carreteras = $this->queryCarreteras($unidadIds)->limit($limit)->get();
+        $vialidades = $this->queryVialidades($unidadIds)->limit($limit)->get();
 
-        $items = $hechos->concat($actividades)
+        $items = $hechos->concat($actividades)->concat($carreteras)->concat($vialidades)
             ->sortByDesc('created_at')
             ->values();
 
         $mapped = $items->map(function ($row) {
-            $foto_url = null;
+            $fotoUrl = null;
 
-            if (!empty($row->foto_path)) {
-                $path = ltrim((string) $row->foto_path, '/');
+            if (isset($row->foto_path) && !empty($row->foto_path)) {
+                $path = ltrim((string)$row->foto_path, '/');
 
                 if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-                    $foto_url = $path;
+                    $fotoUrl = $path;
                 } else {
-                    $foto_url = asset('storage/' . $path);
+                    $fotoUrl = asset('storage/' . $path);
                 }
             }
 
             return [
-                'type'       => $row->type,
-                'id'         => (int) $row->item_id,
-                'user_id'    => (int) $row->user_id,
-                'user_name'  => $row->user_name,
-                'resumen'    => $this->limpiaResumen($row->resumen, $row->type),
-                'foto_url'   => $foto_url,
+                'type' => $row->type,
+                'id' => (int)$row->item_id,
+                'user_id' => (int)$row->user_id,
+                'user_name' => $row->user_name,
+                'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
+                'resumen' => $this->limpiaResumen($row->resumen, $row->type),
+                'foto_url' => $fotoUrl,
                 'created_at' => $row->created_at,
-                'show_url'   => $row->type === 'HECHO'
-                    ? route('hechos.show', $row->item_id)
-                    : route('actividades.show', $row->item_id),
+                'show_url' => $this->resolverShowUrl($row),
             ];
         });
 
         return response()->json([
             'limit_each' => $limit,
             'count' => $mapped->count(),
+            'puede_filtrar_unidades' => $contexto['puede_filtrar'],
+            'unidad_ids_aplicadas' => $unidadIds,
             'data' => $mapped,
         ]);
     }
 
     private function indexV2(Request $request)
     {
-        $limit = (int) $request->query('limit', 20);
+        $usuario = Auth::user();
+        $limit = (int)$request->query('limit', 20);
         if ($limit < 1) $limit = 1;
         if ($limit > 50) $limit = 50;
 
-        $cursor = (string) $request->query('cursor', '');
+        $cursor = (string)$request->query('cursor', '');
         $cursorData = $this->decodeCursor($cursor);
+        $contexto = $this->resolverContextoUnidades($request, $usuario);
+        $unidadIds = $contexto['unidad_ids'];
 
-        $hechos = DB::table('hechos as h')
-            ->join('users as u', 'u.id', '=', 'h.created_by')
-            ->selectRaw("
-                'HECHO' as type,
-                1 as type_order,
-                h.id as item_id,
-                h.created_by as user_id,
-                u.name as user_name,
-                CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
-                COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
-                h.created_at as created_at
-            ");
+        $sources = collect([
+            $this->queryHechos($unidadIds, true, 1),
+            $this->queryActividades($unidadIds, true, 2),
+            $this->queryCarreteras($unidadIds, true, 3),
+            $this->queryVialidades($unidadIds, true, 4),
+        ])->filter();
 
-        $actividades = DB::table('actividades as a')
-            ->join('users as u', 'u.id', '=', 'a.created_by')
-            ->selectRaw("
-                'ACTIVIDAD' as type,
-                2 as type_order,
-                a.id as item_id,
-                a.created_by as user_id,
-                u.name as user_name,
-                a.nombre as resumen,
-                a.foto_path as foto_path,
-                a.created_at as created_at
-            ");
+        $union = null;
 
-        $union = $hechos->unionAll($actividades);
+        foreach ($sources as $query) {
+            if ($union === null) {
+                $union = $query;
+            } else {
+                $union->unionAll($query);
+            }
+        }
 
-        $q = DB::query()
-            ->fromSub($union, 'f');
+        if ($union === null) {
+            return response()->json([
+                'version' => 2,
+                'limit' => $limit,
+                'count' => 0,
+                'has_more' => false,
+                'next_cursor' => null,
+                'puede_filtrar_unidades' => $contexto['puede_filtrar'],
+                'unidad_ids_aplicadas' => $unidadIds,
+                'data' => [],
+            ]);
+        }
+
+        $q = DB::query()->fromSub($union, 'f');
 
         if ($cursorData) {
-            $created_at = $cursorData['created_at'] ?? null;
-            $type_order = isset($cursorData['type_order']) ? (int) $cursorData['type_order'] : null;
-            $item_id    = isset($cursorData['item_id']) ? (int) $cursorData['item_id'] : null;
+            $createdAt = $cursorData['created_at'] ?? null;
+            $typeOrder = isset($cursorData['type_order']) ? (int)$cursorData['type_order'] : null;
+            $itemId = isset($cursorData['item_id']) ? (int)$cursorData['item_id'] : null;
 
-            if ($created_at && $type_order && $item_id) {
-                $q->where(function ($w) use ($created_at, $type_order, $item_id) {
-                    $w->where('created_at', '<', $created_at)
-                      ->orWhere(function ($w2) use ($created_at, $type_order, $item_id) {
-                          $w2->where('created_at', '=', $created_at)
-                             ->where('type_order', '>', $type_order)
-                             ->orWhere(function ($w3) use ($created_at, $type_order, $item_id) {
-                                 $w3->where('created_at', '=', $created_at)
-                                    ->where('type_order', '=', $type_order)
-                                    ->where('item_id', '<', $item_id);
-                             });
-                      });
+            if ($createdAt && $typeOrder && $itemId) {
+                $q->where(function ($w) use ($createdAt, $typeOrder, $itemId) {
+                    $w->where('created_at', '<', $createdAt)
+                        ->orWhere(function ($w2) use ($createdAt, $typeOrder, $itemId) {
+                            $w2->where('created_at', '=', $createdAt)
+                                ->where('type_order', '>', $typeOrder)
+                                ->orWhere(function ($w3) use ($createdAt, $typeOrder, $itemId) {
+                                    $w3->where('created_at', '=', $createdAt)
+                                        ->where('type_order', '=', $typeOrder)
+                                        ->where('item_id', '<', $itemId);
+                                });
+                        });
                 });
             }
         }
@@ -161,46 +146,45 @@ class FeedController extends Controller
             ->limit($limit + 1)
             ->get();
 
-        $has_more = $rows->count() > $limit;
-        if ($has_more) {
+        $hasMore = $rows->count() > $limit;
+        if ($hasMore) {
             $rows = $rows->take($limit)->values();
         }
 
         $mapped = $rows->map(function ($row) {
-            $foto_url = null;
+            $fotoUrl = null;
 
-            if (!empty($row->foto_path)) {
-                $path = ltrim((string) $row->foto_path, '/');
+            if (isset($row->foto_path) && !empty($row->foto_path)) {
+                $path = ltrim((string)$row->foto_path, '/');
 
                 if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-                    $foto_url = $path;
+                    $fotoUrl = $path;
                 } else {
-                    $foto_url = asset('storage/' . $path);
+                    $fotoUrl = asset('storage/' . $path);
                 }
             }
 
             return [
-                'type'       => $row->type,
-                'id'         => (int) $row->item_id,
-                'user_id'    => (int) $row->user_id,
-                'user_name'  => $row->user_name,
-                'resumen'    => $this->limpiaResumen($row->resumen, $row->type),
-                'foto_url'   => $foto_url,
+                'type' => $row->type,
+                'id' => (int)$row->item_id,
+                'user_id' => (int)$row->user_id,
+                'user_name' => $row->user_name,
+                'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
+                'resumen' => $this->limpiaResumen($row->resumen, $row->type),
+                'foto_url' => $fotoUrl,
                 'created_at' => $row->created_at,
-                'show_url'   => $row->type === 'HECHO'
-                    ? route('hechos.show', $row->item_id)
-                    : route('actividades.show', $row->item_id),
-                '_type_order' => (int) $row->type_order,
+                'show_url' => $this->resolverShowUrl($row),
+                '_type_order' => (int)$row->type_order,
             ];
         });
 
-        $next_cursor = null;
+        $nextCursor = null;
         if ($mapped->count() > 0) {
             $last = $mapped->last();
-            $next_cursor = $this->encodeCursor([
+            $nextCursor = $this->encodeCursor([
                 'created_at' => $last['created_at'],
                 'type_order' => $last['_type_order'],
-                'item_id'    => $last['id'],
+                'item_id' => $last['id'],
             ]);
         }
 
@@ -213,15 +197,288 @@ class FeedController extends Controller
             'version' => 2,
             'limit' => $limit,
             'count' => $mapped->count(),
-            'has_more' => $has_more,
-            'next_cursor' => $next_cursor,
+            'has_more' => $hasMore,
+            'next_cursor' => $nextCursor,
+            'puede_filtrar_unidades' => $contexto['puede_filtrar'],
+            'unidad_ids_aplicadas' => $unidadIds,
             'data' => $mapped,
         ]);
     }
 
+    private function resolverContextoUnidades(Request $request, $usuario): array
+    {
+        $puedeFiltrar = $this->puedeFiltrarUnidades($usuario);
+
+        if ($puedeFiltrar) {
+            $unidadIds = $this->parseUnidadIds($request);
+
+            if (empty($unidadIds)) {
+                $unidadIds = $this->obtenerUnidadIdsActivas();
+            }
+
+            return [
+                'puede_filtrar' => true,
+                'unidad_ids' => array_values(array_unique(array_map('intval', $unidadIds))),
+            ];
+        }
+
+        $unidadIds = $usuario && $usuario->unidad_id ? [(int)$usuario->unidad_id] : [];
+
+        return [
+            'puede_filtrar' => false,
+            'unidad_ids' => $unidadIds,
+        ];
+    }
+
+    private function puedeFiltrarUnidades($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        if (method_exists($usuario, 'hasRole') && $usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        return (int)$usuario->unidad_id === 3;
+    }
+
+    private function parseUnidadIds(Request $request): array
+    {
+        $raw = $request->query('unidad_ids', []);
+
+        if (is_string($raw)) {
+            $raw = explode(',', $raw);
+        }
+
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        $ids = collect($raw)
+            ->map(function ($value) {
+                return (int)$value;
+            })
+            ->filter(function ($value) {
+                return $value > 0;
+            })
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return DB::table('unidades')
+            ->whereIn('id', $ids)
+            ->where('activa', 1)
+            ->pluck('id')
+            ->map(fn ($id) => (int)$id)
+            ->values()
+            ->all();
+    }
+
+    private function obtenerUnidadIdsActivas(): array
+    {
+        return DB::table('unidades')
+            ->where('activa', 1)
+            ->pluck('id')
+            ->map(fn ($id) => (int)$id)
+            ->values()
+            ->all();
+    }
+
+    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1)
+    {
+        $q = DB::table('hechos as h')
+            ->join('users as u', 'u.id', '=', 'h.created_by')
+            ->whereIn('u.unidad_id', $unidadIds);
+
+        if ($forUnion) {
+            return $q->selectRaw("
+                'HECHO' as type,
+                ? as type_order,
+                h.id as item_id,
+                h.created_by as user_id,
+                u.name as user_name,
+                u.unidad_id as unidad_id,
+                CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
+                COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
+                h.created_at as created_at
+            ", [$typeOrder]);
+        }
+
+        return $q->selectRaw("
+            'HECHO' as type,
+            h.id as item_id,
+            h.created_by as user_id,
+            u.name as user_name,
+            u.unidad_id as unidad_id,
+            CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
+            COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
+            h.created_at as created_at
+        ")->orderByDesc('h.created_at')->orderByDesc('h.id');
+    }
+
+    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2)
+    {
+        $q = DB::table('actividades as a')
+            ->join('users as u', 'u.id', '=', 'a.created_by')
+            ->whereIn('u.unidad_id', $unidadIds);
+
+        if ($forUnion) {
+            return $q->selectRaw("
+                'ACTIVIDAD' as type,
+                ? as type_order,
+                a.id as item_id,
+                a.created_by as user_id,
+                u.name as user_name,
+                u.unidad_id as unidad_id,
+                a.nombre as resumen,
+                a.foto_path as foto_path,
+                a.created_at as created_at
+            ", [$typeOrder]);
+        }
+
+        return $q->selectRaw("
+            'ACTIVIDAD' as type,
+            a.id as item_id,
+            a.created_by as user_id,
+            u.name as user_name,
+            u.unidad_id as unidad_id,
+            a.nombre as resumen,
+            a.foto_path as foto_path,
+            a.created_at as created_at
+        ")->orderByDesc('a.created_at')->orderByDesc('a.id');
+    }
+
+    private function queryCarreteras(array $unidadIds, bool $forUnion = false, int $typeOrder = 3)
+    {
+        if (!Schema::hasTable('operativo_dispositivos') || !in_array(4, $unidadIds, true)) {
+            return $forUnion ? null : collect();
+        }
+
+        $q = DB::table('operativo_dispositivos as od')
+            ->join('users as u', 'u.id', '=', 'od.created_by')
+            ->where('od.unidad_org_id', 4);
+
+        if ($forUnion) {
+            return $q->selectRaw("
+                'CARRETERAS' as type,
+                ? as type_order,
+                od.id as item_id,
+                od.created_by as user_id,
+                u.name as user_name,
+                od.unidad_org_id as unidad_id,
+                CONCAT(
+                    TRIM(COALESCE(od.asunto,'')),
+                    CASE
+                        WHEN COALESCE(TRIM(od.carretera),'') <> '' THEN CONCAT(' - ', TRIM(od.carretera))
+                        ELSE ''
+                    END,
+                    CASE
+                        WHEN COALESCE(TRIM(od.tramo),'') <> '' THEN CONCAT(' / ', TRIM(od.tramo))
+                        ELSE ''
+                    END
+                ) as resumen,
+                NULL as foto_path,
+                od.created_at as created_at
+            ", [$typeOrder]);
+        }
+
+        return $q->selectRaw("
+            'CARRETERAS' as type,
+            od.id as item_id,
+            od.created_by as user_id,
+            u.name as user_name,
+            od.unidad_org_id as unidad_id,
+            CONCAT(
+                TRIM(COALESCE(od.asunto,'')),
+                CASE
+                    WHEN COALESCE(TRIM(od.carretera),'') <> '' THEN CONCAT(' - ', TRIM(od.carretera))
+                    ELSE ''
+                END,
+                CASE
+                    WHEN COALESCE(TRIM(od.tramo),'') <> '' THEN CONCAT(' / ', TRIM(od.tramo))
+                    ELSE ''
+                END
+            ) as resumen,
+            NULL as foto_path,
+            od.created_at as created_at
+        ")->orderByDesc('od.created_at')->orderByDesc('od.id');
+    }
+
+    private function queryVialidades(array $unidadIds, bool $forUnion = false, int $typeOrder = 4)
+    {
+        if (!Schema::hasTable('vialidad_dispositivos') || !Schema::hasTable('vialidad_dispositivo_detalles') || !in_array(5, $unidadIds, true)) {
+            return $forUnion ? null : collect();
+        }
+
+        $q = DB::table('vialidad_dispositivos as vd')
+            ->join('users as u', 'u.id', '=', 'vd.created_by');
+
+        if (Schema::hasColumn('vialidad_dispositivos', 'unidad_id')) {
+            $q->where('vd.unidad_id', 5);
+        } elseif (Schema::hasColumn('users', 'unidad_id')) {
+            $q->where('u.unidad_id', 5);
+        }
+
+        $resumenSql = "COALESCE((
+            SELECT CONCAT(
+                TRIM(COALESCE(vdd.titulo,'')),
+                CASE
+                    WHEN COALESCE(TRIM(vdd.contenido),'') <> '' THEN CONCAT(': ', TRIM(vdd.contenido))
+                    ELSE ''
+                END
+            )
+            FROM vialidad_dispositivo_detalles vdd
+            WHERE vdd.vialidad_dispositivo_id = vd.id
+            ORDER BY vdd.orden ASC, vdd.id ASC
+            LIMIT 1
+        ), 'Registro de vialidades')";
+
+        if ($forUnion) {
+            return $q->selectRaw("
+                'VIALIDADES' as type,
+                ? as type_order,
+                vd.id as item_id,
+                vd.created_by as user_id,
+                u.name as user_name,
+                " . (Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id') . " as unidad_id,
+                {$resumenSql} as resumen,
+                NULL as foto_path,
+                vd.created_at as created_at
+            ", [$typeOrder]);
+        }
+
+        return $q->selectRaw("
+            'VIALIDADES' as type,
+            vd.id as item_id,
+            vd.created_by as user_id,
+            u.name as user_name,
+            " . (Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id') . " as unidad_id,
+            {$resumenSql} as resumen,
+            NULL as foto_path,
+            vd.created_at as created_at
+        ")->orderByDesc('vd.created_at')->orderByDesc('vd.id');
+    }
+
+    private function resolverShowUrl($row): ?string
+    {
+        if ($row->type === 'HECHO') {
+            return route('hechos.show', $row->item_id);
+        }
+
+        if ($row->type === 'ACTIVIDAD') {
+            return route('actividades.show', $row->item_id);
+        }
+
+        return null;
+    }
+
     private function limpiaResumen($resumen, string $type): string
     {
-        $txt = trim((string) $resumen);
+        $txt = trim((string)$resumen);
 
         if ($type === 'HECHO') {
             $txt = preg_replace('/\s+/', ' ', $txt);
@@ -229,7 +486,13 @@ class FeedController extends Controller
             if ($txt === 'col.' || $txt === 'col') $txt = '';
         }
 
-        return $txt !== '' ? $txt : ($type === 'HECHO' ? 'Hecho registrado' : 'Actividad registrada');
+        return $txt !== '' ? $txt : match ($type) {
+            'HECHO' => 'Hecho registrado',
+            'ACTIVIDAD' => 'Actividad registrada',
+            'CARRETERAS' => 'Registro de carreteras',
+            'VIALIDADES' => 'Registro de vialidades',
+            default => 'Registro',
+        };
     }
 
     private function encodeCursor(array $data): string

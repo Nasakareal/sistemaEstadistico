@@ -1,14 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\actividades",
-    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\parte_novedades"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\actividades\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\FeedController.php",
   "PreviewInSolutionExplorer": false
 }

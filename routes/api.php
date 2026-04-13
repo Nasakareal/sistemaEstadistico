@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\PeritoHomeController;
 use App\Http\Controllers\Api\GuardianesCaminoController as ApiGuardianesCaminoController;
 use App\Http\Controllers\Api\GuardianesCaminoDispositivoController as ApiGuardianesCaminoDispositivoController;
 use App\Http\Controllers\Api\AgenteUpecHomeController;
+use App\Http\Controllers\Api\PuestaDisposicionController;
 
 Route::post('/wabot/incoming', [WabotIncomingController::class, 'handle']);
 Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
@@ -131,6 +132,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dictamenes/{dictamen}', [DictamenController::class, 'show'])->middleware('can:ver dictamenes');
     Route::put('/dictamenes/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes');
     Route::delete('/dictamenes/{dictamen}', [DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes');
+
+    Route::prefix('puestas-disposicion')->middleware('can:ver puestas a disposicion')->group(function () {
+        Route::get('/', [PuestaDisposicionController::class, 'index'])->name('api.puestas_disposicion.index');
+        Route::post('/', [PuestaDisposicionController::class, 'store'])->middleware('can:crear puestas a disposicion')->name('api.puestas_disposicion.store');
+        Route::get('/{puestaDisposicion}', [PuestaDisposicionController::class, 'show'])->name('api.puestas_disposicion.show');
+        Route::put('/{puestaDisposicion}', [PuestaDisposicionController::class, 'update'])->middleware('can:editar puestas a disposicion')->name('api.puestas_disposicion.update');
+        Route::delete('/{puestaDisposicion}', [PuestaDisposicionController::class, 'destroy'])->middleware('can:eliminar puestas a disposicion')->name('api.puestas_disposicion.destroy');
+    });
 
     Route::get('/gruas', [GruaController::class, 'index'])->middleware('can:ver gruas');
     Route::get('/gruas/listado', [GruaController::class, 'listado'])->middleware('can:ver gruas');

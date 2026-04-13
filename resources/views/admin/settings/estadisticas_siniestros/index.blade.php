@@ -86,6 +86,21 @@
 
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">
+                <div class="sv-card__icon bg-danger">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Actividades</div>
+                    <div class="sv-card__desc">Consulta y descarga del informe diario de actividades en PDF.</div>
+                    <a href="{{ route('settings.estadisticas_siniestros.actividades') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
                 <div class="sv-card__icon bg-primary">
                     <i class="fa-solid fa-map-location-dot"></i>
                 </div>

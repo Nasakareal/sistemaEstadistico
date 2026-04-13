@@ -2,7 +2,11 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Models"
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Console\\Commands\\siniestros",
+    "\\app\\Services"
   ],
+  "SelectedNode": "\\app\\Services\\ActividadInformeService.php",
   "PreviewInSolutionExplorer": false
 }

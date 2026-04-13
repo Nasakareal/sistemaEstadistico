@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Personal;
 use App\Services\EstadoFuerzaService;
 use App\Services\TurnoService;
+use App\Services\ActividadInformeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
@@ -15,11 +16,16 @@ class EstadisticasSiniestrosSettingsController extends Controller
 {
     protected TurnoService $turnoService;
     protected EstadoFuerzaService $estadoFuerzaService;
+    protected ActividadInformeService $actividadInformeService;
 
-    public function __construct(TurnoService $turnoService, EstadoFuerzaService $estadoFuerzaService)
-    {
+    public function __construct(
+        TurnoService $turnoService,
+        EstadoFuerzaService $estadoFuerzaService,
+        ActividadInformeService $actividadInformeService
+    ) {
         $this->turnoService = $turnoService;
         $this->estadoFuerzaService = $estadoFuerzaService;
+        $this->actividadInformeService = $actividadInformeService;
     }
 
     public function index()
@@ -430,5 +436,62 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 'IV' => ['nombre' => 'República', 'romano' => 'IV'],
             ],
         ]);
+    }
+
+    public function actividades(Request $request)
+    {
+        $fecha = $request->input('fecha', now('America/Mexico_City')->toDateString());
+
+        $disk = Storage::disk('local');
+        $directorio = 'cortes/actividades';
+
+        if (!$disk->exists($directorio)) {
+            $disk->makeDirectory($directorio);
+        }
+
+        $cortes = collect($disk->files($directorio))
+            ->filter(function ($file) {
+                return preg_match('/actividades_\d{4}-\d{2}-\d{2}\.pdf$/', basename($file));
+            })
+            ->map(function ($file) {
+                $nombre = basename($file);
+
+                preg_match('/actividades_(\d{4}-\d{2}-\d{2})\.pdf$/', $nombre, $matches);
+
+                return [
+                    'archivo' => $nombre,
+                    'ruta' => $file,
+                    'fecha' => $matches[1] ?? null,
+                    'url_descarga' => route('settings.estadisticas_siniestros.actividades.descargar', $matches[1] ?? null),
+                ];
+            })
+            ->filter(fn ($item) => !empty($item['fecha']))
+            ->sortByDesc('fecha')
+            ->values();
+
+        return view('admin.settings.estadisticas_siniestros.actividades.index', compact('cortes', 'fecha'));
+    }
+
+    public function descargarActividades(string $fecha)
+    {
+        $nombreArchivo = 'actividades_' . $fecha . '.pdf';
+        $ruta = storage_path('app/cortes/actividades/' . $nombreArchivo);
+
+        abort_unless(file_exists($ruta), 404);
+
+        return response()->download(
+            $ruta,
+            $nombreArchivo,
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    public function generarActividades(Request $request, string $fecha)
+    {
+        $this->actividadInformeService->generarYGuardarEnCortes($fecha, $request);
+
+        return redirect()
+            ->route('settings.estadisticas_siniestros.actividades')
+            ->with('success', 'PDF generado correctamente');
     }
 }

@@ -583,6 +583,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/mini-parte/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarMiniParte'])->name('settings.estadisticas_siniestros.mini_parte.descargar');
         Route::get('/excel-novedades', [EstadisticasSiniestrosSettingsController::class, 'excelNovedades'])->name('settings.estadisticas_siniestros.excel_novedades');
         Route::get('/excel-novedades/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarExcelNovedades'])->name('settings.estadisticas_siniestros.excel_novedades.descargar');
+        Route::get('/actividades', [EstadisticasSiniestrosSettingsController::class, 'actividades'])->name('settings.estadisticas_siniestros.actividades');
+        Route::get('/actividades/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarActividades'])->name('settings.estadisticas_siniestros.actividades.descargar');
         Route::get('/sectorizaciones', [EstadisticasSiniestrosSettingsController::class, 'sectorizaciones'])->name('settings.estadisticas_siniestros.sectorizaciones');
         Route::get('/sectorizaciones/gestionar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'gestionarSectorizacion'])->name('settings.estadisticas_siniestros.sectorizaciones.gestionar');
         Route::get('/sectorizaciones/data/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'dataSectorizacion'])->name('settings.estadisticas_siniestros.sectorizaciones.data');

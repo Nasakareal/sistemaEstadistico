@@ -47,6 +47,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
             ->withoutOverlapping();
 
+        $schedule->command('siniestros:generar-actividad-informe-diario')
+            ->timezone('America/Mexico_City')
+            ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-siniestros')
             ->dailyAt('18:00')
             ->timezone('America/Mexico_City')

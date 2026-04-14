@@ -152,6 +152,24 @@ class ActividadController extends Controller
             'destacamento_id'                => 'nullable|integer',
             'fotos'                          => 'required|array|min:1',
             'fotos.*'                        => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'vehiculos'                      => 'nullable|array',
+            'vehiculos.*.marca'              => 'required|string|max:50',
+            'vehiculos.*.modelo'             => 'nullable|string|max:10',
+            'vehiculos.*.tipo'               => 'required|string|max:50',
+            'vehiculos.*.linea'              => 'required|string|max:50',
+            'vehiculos.*.color'              => 'required|string|max:30',
+            'vehiculos.*.placas'             => 'nullable|string|max:15',
+            'vehiculos.*.estado_placas'      => 'nullable|string|max:15',
+            'vehiculos.*.serie'              => 'nullable|string|max:17',
+            'vehiculos.*.capacidad_personas' => 'required|integer|min:0',
+            'vehiculos.*.tipo_servicio'      => 'required|string|max:50',
+            'vehiculos.*.tarjeta_circulacion_nombre' => 'nullable|string|max:60',
+            'vehiculos.*.grua'               => 'nullable|string|max:255',
+            'vehiculos.*.corralon'           => 'nullable|string|max:255',
+            'vehiculos.*.aseguradora'        => 'nullable|string|max:100',
+            'vehiculos.*.antecedente_vehiculo' => 'nullable|boolean',
+            'vehiculos.*.monto_danos'        => 'nullable|numeric|min:0',
+            'vehiculos.*.partes_danadas'     => 'nullable|string',
         ]);
 
         $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
@@ -252,6 +270,10 @@ class ActividadController extends Controller
                     'foto_nombre_original' => $fotoPrincipal->foto_nombre_original,
                     'foto_hash'            => $fotoPrincipal->foto_hash,
                 ]);
+            }
+
+            foreach (($validated['vehiculos'] ?? []) as $vehiculoData) {
+                $this->crearVehiculoParaActividad($actividad, $vehiculoData);
             }
 
             return redirect()->route('actividades.index')->with('success', 'Actividad creada correctamente.');
@@ -983,50 +1005,10 @@ class ActividadController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
-            'marca' => 'nullable|string|max:255',
-            'modelo' => 'nullable|string|max:255',
-            'tipo' => 'nullable|string|max:255',
-            'linea' => 'nullable|string|max:255',
-            'color' => 'nullable|string|max:255',
-            'placas' => 'nullable|string|max:50',
-            'estado_placas' => 'nullable|string|max:255',
-            'serie' => 'nullable|string|max:255',
-            'capacidad_personas' => 'nullable|integer|min:1',
-            'tipo_servicio' => 'nullable|string|max:255',
-            'tarjeta_circulacion_nombre' => 'nullable|string|max:255',
-            'grua' => 'nullable|string|max:255',
-            'corralon' => 'nullable|string|max:255',
-            'aseguradora' => 'nullable|string|max:255',
-            'antecedente_vehiculo' => 'nullable|integer|min:0|max:1',
-            'monto_danos' => 'nullable|numeric|min:0',
-            'partes_danadas' => 'nullable|string',
-        ]);
+        $validated = $this->validarVehiculoRequest($request);
 
         return DB::transaction(function () use ($actividad, $validated) {
-            $vehiculo = \App\Models\Vehiculo::create([
-                'client_uuid' => (string) Str::uuid(),
-                'marca' => $this->toUpperOrNull($validated['marca'] ?? null),
-                'modelo' => $this->toUpperOrNull($validated['modelo'] ?? null),
-                'tipo' => $this->toUpperOrNull($validated['tipo'] ?? null),
-                'linea' => $this->toUpperOrNull($validated['linea'] ?? null),
-                'color' => $this->toUpperOrNull($validated['color'] ?? null),
-                'placas' => $this->toUpperOrNull($validated['placas'] ?? null),
-                'estado_placas' => $this->toUpperOrNull($validated['estado_placas'] ?? null),
-                'serie' => $this->toUpperOrNull($validated['serie'] ?? null),
-                'capacidad_personas' => $validated['capacidad_personas'] ?? null,
-                'tipo_servicio' => $this->toUpperOrNull($validated['tipo_servicio'] ?? null),
-                'tarjeta_circulacion_nombre' => $this->toUpperOrNull($validated['tarjeta_circulacion_nombre'] ?? null),
-                'grua' => $this->toUpperOrNull($validated['grua'] ?? null),
-                'corralon' => $this->toUpperOrNull($validated['corralon'] ?? null),
-                'aseguradora' => $this->toUpperOrNull($validated['aseguradora'] ?? null),
-                'fotos' => null,
-                'antecedente_vehiculo' => (int) ($validated['antecedente_vehiculo'] ?? 0),
-                'monto_danos' => $validated['monto_danos'] ?? 0,
-                'partes_danadas' => $this->toUpperOrNull($validated['partes_danadas'] ?? null),
-            ]);
-
-            $actividad->vehiculos()->syncWithoutDetaching([$vehiculo->id]);
+            $this->crearVehiculoParaActividad($actividad, $validated);
 
             return back()->with('success', 'Vehículo agregado correctamente.');
         });
@@ -1048,5 +1030,92 @@ class ActividadController extends Controller
         $actividad->vehiculos()->detach($vehiculoId);
 
         return back()->with('success', 'Vehículo desvinculado correctamente.');
+    }
+
+    private function validarVehiculoRequest(Request $request): array
+    {
+        $request->merge($this->normalizarVehiculoData($request->only(array_keys($this->vehiculoRules()))));
+
+        return $request->validate($this->vehiculoRules());
+    }
+
+    private function vehiculoRules(): array
+    {
+        return [
+            'marca' => 'required|string|max:50',
+            'modelo' => 'nullable|string|max:10',
+            'tipo' => 'required|string|max:50',
+            'linea' => 'required|string|max:50',
+            'color' => 'required|string|max:30',
+            'placas' => 'nullable|string|max:15',
+            'estado_placas' => 'nullable|string|max:15',
+            'serie' => 'nullable|string|max:17',
+            'capacidad_personas' => 'required|integer|min:0',
+            'tipo_servicio' => 'required|string|max:50',
+            'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
+            'grua' => 'nullable|string|max:255',
+            'corralon' => 'nullable|string|max:255',
+            'aseguradora' => 'nullable|string|max:100',
+            'antecedente_vehiculo' => 'nullable|boolean',
+            'monto_danos' => 'nullable|numeric|min:0',
+            'partes_danadas' => 'nullable|string',
+        ];
+    }
+
+    private function normalizarVehiculoData(array $data): array
+    {
+        foreach ([
+            'marca',
+            'modelo',
+            'tipo',
+            'linea',
+            'color',
+            'placas',
+            'estado_placas',
+            'serie',
+            'tipo_servicio',
+            'tarjeta_circulacion_nombre',
+            'grua',
+            'corralon',
+            'aseguradora',
+            'partes_danadas',
+        ] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = trim((string) $data[$field]);
+            }
+        }
+
+        return $data;
+    }
+
+    private function crearVehiculoParaActividad(Actividad $actividad, array $data): \App\Models\Vehiculo
+    {
+        $data = $this->normalizarVehiculoData($data);
+
+        $vehiculo = \App\Models\Vehiculo::create([
+            'client_uuid' => (string) Str::uuid(),
+            'marca' => $this->toUpperOrNull($data['marca'] ?? null),
+            'modelo' => $this->toUpperOrNull($data['modelo'] ?? null),
+            'tipo' => $this->toUpperOrNull($data['tipo'] ?? null),
+            'linea' => $this->toUpperOrNull($data['linea'] ?? null),
+            'color' => $this->toUpperOrNull($data['color'] ?? null),
+            'placas' => $this->toUpperOrNull(str_replace('-', '', (string) ($data['placas'] ?? ''))),
+            'estado_placas' => $this->toUpperOrNull($data['estado_placas'] ?? null),
+            'serie' => $this->toUpperOrNull(str_replace('-', '', (string) ($data['serie'] ?? ''))),
+            'capacidad_personas' => $data['capacidad_personas'] ?? 0,
+            'tipo_servicio' => $this->toUpperOrNull($data['tipo_servicio'] ?? null),
+            'tarjeta_circulacion_nombre' => $this->toUpperOrNull($data['tarjeta_circulacion_nombre'] ?? null),
+            'grua' => $this->toUpperOrNull($data['grua'] ?? null),
+            'corralon' => $this->toUpperOrNull($data['corralon'] ?? null),
+            'aseguradora' => $this->toUpperOrNull($data['aseguradora'] ?? null),
+            'fotos' => null,
+            'antecedente_vehiculo' => (int) ($data['antecedente_vehiculo'] ?? 0),
+            'monto_danos' => $data['monto_danos'] ?? 0,
+            'partes_danadas' => $this->toUpperOrNull($data['partes_danadas'] ?? null),
+        ]);
+
+        $actividad->vehiculos()->syncWithoutDetaching([$vehiculo->id]);
+
+        return $vehiculo;
     }
 }

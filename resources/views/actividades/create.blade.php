@@ -419,6 +419,8 @@
                             </div>
                         </div>
 
+                        @include('actividades.partials.vehiculos_create')
+
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
@@ -467,6 +469,8 @@
                         </div>
 
                     </form>
+
+                    @include('actividades.partials.vehiculo_modal_create')
                 </div>
             </div>
         </div>
@@ -537,6 +541,8 @@
             color: rgba(234,240,255,.75);
             word-break: break-word;
         }
+
+        @include('actividades.partials.vehiculos_styles')
     </style>
 @stop
 
@@ -818,4 +824,6 @@
             });
         @endif
     </script>
+
+    @include('actividades.partials.vehiculos_scripts', ['modo' => 'create', 'vehiculosIniciales' => old('vehiculos', [])])
 @stop

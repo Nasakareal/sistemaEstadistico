@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views"
+    "\\config"
   ],
-  "SelectedNode": "\\resources\\views\\hechos",
+  "SelectedNode": "\\config\\services.php",
   "PreviewInSolutionExplorer": false
 }

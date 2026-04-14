@@ -51,6 +51,10 @@
                 ]
             ]);
         }
+
+        $vehiculosActividad = $actividad->relationLoaded('vehiculos')
+            ? $actividad->vehiculos
+            : $actividad->vehiculos()->orderBy('vehiculos.id')->get();
     @endphp
 
     <div class="row">
@@ -304,6 +308,121 @@
                 </div>
             </div>
 
+            <div class="card card-outline card-info mb-4 actividad-vehiculos-card">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
+                    <div>
+                        <h3 class="card-title mb-0">
+                            <i class="fa-solid fa-car-side"></i> Vehículos relacionados
+                        </h3>
+                        <div class="help-muted mt-1">Datos del vehículo vinculados a esta actividad.</div>
+                    </div>
+
+                    <div class="d-flex align-items-center" style="gap:8px; flex-wrap:wrap;">
+                        <span class="badge badge-light vehiculo-total-badge">
+                            Total: {{ $vehiculosActividad->count() }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    @if ($vehiculosActividad->count())
+                        <div class="vehiculos-grid">
+                            @foreach ($vehiculosActividad as $vehiculo)
+                                @php
+                                    $placas = trim((string) ($vehiculo->placas ?? ''));
+                                    $placasFmt = $placas !== '' ? $placas : 'SIN PLACAS';
+                                    $marcaLinea = trim(collect([$vehiculo->marca ?? null, $vehiculo->linea ?? null])->filter()->implode(' '));
+                                    $marcaLinea = $marcaLinea !== '' ? $marcaLinea : 'VEHÍCULO';
+                                    $modelo = trim((string) ($vehiculo->modelo ?? ''));
+                                    $tipo = trim((string) ($vehiculo->tipo ?? ''));
+                                    $color = trim((string) ($vehiculo->color ?? ''));
+                                    $servicio = trim((string) ($vehiculo->tipo_servicio ?? ''));
+                                    $grua = trim((string) ($vehiculo->grua ?? ''));
+                                    $corralon = trim((string) ($vehiculo->corralon ?? ''));
+                                    $aseguradora = trim((string) ($vehiculo->aseguradora ?? ''));
+                                    $serie = trim((string) ($vehiculo->serie ?? ''));
+                                @endphp
+
+                                <div class="vehiculo-card">
+                                    <div class="vehiculo-card-head">
+                                        <div class="min-w-0">
+                                            <div class="vehiculo-title text-truncate">{{ $marcaLinea }}</div>
+                                            <div class="vehiculo-subtitle">
+                                                {{ $modelo !== '' ? 'Modelo ' . $modelo : 'Modelo no especificado' }}
+                                            </div>
+                                        </div>
+
+                                        <span class="vehiculo-placa">
+                                            <i class="fa-solid fa-id-card"></i> {{ $placasFmt }}
+                                        </span>
+                                    </div>
+
+                                    <div class="vehiculo-card-body">
+                                        <div class="vehiculo-chip-row">
+                                            <span class="vehiculo-chip">
+                                                <i class="fa-solid fa-car-rear"></i> {{ $tipo !== '' ? $tipo : 'Tipo N/D' }}
+                                            </span>
+                                            <span class="vehiculo-chip">
+                                                <i class="fa-solid fa-palette"></i> {{ $color !== '' ? $color : 'Color N/D' }}
+                                            </span>
+                                            <span class="vehiculo-chip">
+                                                <i class="fa-solid fa-user-group"></i> {{ (int) ($vehiculo->capacidad_personas ?? 0) }}
+                                            </span>
+                                        </div>
+
+                                        <div class="vehiculo-mini-grid">
+                                            <div>
+                                                <span>Servicio</span>
+                                                <strong>{{ $servicio !== '' ? $servicio : '—' }}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Serie</span>
+                                                <strong>{{ $serie !== '' ? $serie : '—' }}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Grúa</span>
+                                                <strong>{{ $grua !== '' ? $grua : '—' }}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Corralón</span>
+                                                <strong>{{ $corralon !== '' ? $corralon : '—' }}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Aseguradora</span>
+                                                <strong>{{ $aseguradora !== '' ? $aseguradora : '—' }}</strong>
+                                            </div>
+                                            <div>
+                                                <span>Daños</span>
+                                                <strong>
+                                                    {{ $vehiculo->monto_danos !== null ? '$' . number_format((float) $vehiculo->monto_danos, 2) : '—' }}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        @if(!empty($vehiculo->partes_danadas))
+                                            <div class="vehiculo-nota">
+                                                <span>Partes dañadas</span>
+                                                <p>{{ $vehiculo->partes_danadas }}</p>
+                                            </div>
+                                        @endif
+
+                                        <div class="vehiculo-card-actions">
+                                            <span class="badge {{ $vehiculo->antecedente_vehiculo ? 'badge-danger' : 'badge-success' }}">
+                                                Antecedente: {{ $vehiculo->antecedente_vehiculo ? 'SÍ' : 'NO' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="alert alert-info mb-0">
+                            No hay vehículos vinculados a esta actividad.
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             <div class="card card-outline card-primary">
                 <div class="card-header">
                     <h3 class="card-title">Fotos</h3>
@@ -346,6 +465,7 @@
             </div>
         </div>
     </div>
+
 @stop
 
 @section('css')
@@ -364,6 +484,140 @@
             display: flex;
             align-items: center;
         }
+
+        .vehiculo-total-badge {
+            font-size: .9rem;
+            padding: .4rem .6rem;
+        }
+
+        .vehiculos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
+        }
+
+        .vehiculo-card {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(255,255,255,.04);
+            box-shadow: 0 10px 24px rgba(0,0,0,.18);
+        }
+
+        .vehiculo-card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,.10);
+            background: rgba(255,255,255,.05);
+        }
+
+        .min-w-0 {
+            min-width: 0;
+        }
+
+        .vehiculo-title {
+            color: #eaf0ff;
+            font-weight: 800;
+            font-size: 1rem;
+            line-height: 1.15;
+        }
+
+        .vehiculo-subtitle {
+            color: rgba(234,240,255,.68);
+            font-weight: 600;
+            font-size: .86rem;
+            margin-top: 4px;
+        }
+
+        .vehiculo-placa {
+            color: #0f172a;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: .35rem .55rem;
+            font-weight: 800;
+            font-size: .82rem;
+            white-space: nowrap;
+        }
+
+        .vehiculo-card-body {
+            padding: 12px;
+        }
+
+        .vehiculo-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .vehiculo-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #eaf0ff;
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 8px;
+            padding: .35rem .55rem;
+            font-weight: 700;
+            font-size: .84rem;
+        }
+
+        .vehiculo-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .vehiculo-mini-grid div,
+        .vehiculo-nota {
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(0,0,0,.14);
+            padding: 8px 10px;
+            min-width: 0;
+        }
+
+        .vehiculo-mini-grid span,
+        .vehiculo-nota span {
+            display: block;
+            color: rgba(234,240,255,.62);
+            font-size: .76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .vehiculo-mini-grid strong {
+            display: block;
+            color: #eaf0ff;
+            font-size: .9rem;
+            line-height: 1.25;
+            word-break: break-word;
+        }
+
+        .vehiculo-nota {
+            margin-top: 8px;
+        }
+
+        .vehiculo-nota p {
+            color: #eaf0ff;
+            margin: 4px 0 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .vehiculo-card-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
 
         .text-wrap-block {
             white-space: pre-wrap;
@@ -493,6 +747,18 @@
                     });
                 });
             }
+
+            @if (session('success'))
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        position: 'center',
+                        icon: 'success',
+                        title: '{{ session('success') }}',
+                        showConfirmButton: false,
+                        timer: 2500
+                    });
+                }
+            @endif
         });
     </script>
 @stop

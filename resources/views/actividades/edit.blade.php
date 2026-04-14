@@ -542,6 +542,8 @@
                         </div>
 
                     </form>
+
+                    @include('actividades.partials.vehiculos_edit', ['actividad' => $actividad])
                 </div>
             </div>
         </div>
@@ -613,6 +615,8 @@
             color: rgba(234,240,255,.75);
             word-break: break-word;
         }
+
+        @include('actividades.partials.vehiculos_styles')
     </style>
 @stop
 
@@ -806,4 +810,6 @@
             });
         @endif
     </script>
+
+    @include('actividades.partials.vehiculos_scripts', ['modo' => 'edit'])
 @stop

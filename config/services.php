@@ -35,7 +35,12 @@ return [
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN', 'seguridadvial_token'),
         'default_to' => env('WHATSAPP_DEFAULT_TO'),
-        'resumen_to' => env('WHATSAPP_RESUMEN_TO'),
-        'subdirector_firma' => env('WHATSAPP_SUBDIRECTOR_FIRMA', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ'),
+
+        'siniestros' => [
+            'to' => env('WHATSAPP_SINIESTROS_TO'),
+            'firma' => env('WHATSAPP_SINIESTROS_FIRMA', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ'),
+            'resumen_to' => env('WHATSAPP_SINIESTROS_RESUMEN_TO'),
+            'tarjeta_hechos_to' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TO'),
+        ],
     ],
 ];

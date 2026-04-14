@@ -56,6 +56,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('18:00')
             ->timezone('America/Mexico_City')
             ->withoutOverlapping();
+
+        $schedule->command('whatsapp:tarjeta-hechos')
+            ->dailyAt('18:01')
+            ->timezone('America/Mexico_City')
+            ->withoutOverlapping();
     }
 
     protected function commands()

@@ -18,23 +18,34 @@ class EnviarResumenSiniesrosWhatsApp extends Command
     {
         $timezone = 'America/Mexico_City';
         $now = Carbon::now($timezone);
-        $cutoff = Carbon::now($timezone)->setTime(18, 0, 0);
+        $cutoffToday = Carbon::today($timezone)->setTime(18, 0, 0);
 
-        $end = $now->greaterThanOrEqualTo($cutoff) ? $cutoff->copy() : $cutoff->copy()->subDay();
+        $end = $now->greaterThanOrEqualTo($cutoffToday)
+            ? $cutoffToday->copy()
+            : $cutoffToday->copy()->subDay();
+
         $start = $end->copy()->subDay();
 
         $totalHechos = $this->getTotalHechos($start, $end);
         $totalLesionados = $this->getTotalLesionados($start, $end);
         $totalFallecidos = $this->getTotalFallecidos($start, $end);
 
-        $fechaTexto = mb_strtoupper($end->locale('es')->translatedFormat('l d/m/Y'), 'UTF-8');
+        $fechaTexto = mb_strtoupper($end->copy()->locale('es')->translatedFormat('l d/m/Y'), 'UTF-8');
         $horaTexto = $end->format('H:i');
-        $firma = (string) config('services.whatsapp.subdirector_firma', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ');
-        $to = (string) ($this->option('to') ?: config('services.whatsapp.resumen_to') ?: config('services.whatsapp.default_to'));
+
+        $firma = (string) config('services.whatsapp.siniestros.firma', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ');
+
+        $to = (string) (
+            $this->option('to')
+            ?: config('services.whatsapp.siniestros.resumen_to')
+            ?: config('services.whatsapp.siniestros.to')
+            ?: config('services.whatsapp.default_to')
+        );
+
         $template = (string) config('services.whatsapp.resumen_template', '');
 
         if ($to === '') {
-            $this->error('No hay número destino. Define WHATSAPP_RESUMEN_TO o usa --to=');
+            $this->error('No hay número destino. Define WHATSAPP_SINIESTROS_RESUMEN_TO o usa --to=');
             return self::FAILURE;
         }
 
@@ -96,18 +107,18 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
     protected function buildMessage(string $fechaTexto, string $horaTexto, int $hechos, int $lesionados, int $fallecidos, string $firma): string
     {
-        return "GUARDIA CIVIL.\n\n".
-            "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL.\n\n".
-            "UNIDAD DE ATENCIÓN A SINIESTROS.\n\n".
-            "ASUNTO: NOVEDADES {$fechaTexto}\n".
-            "{$horaTexto} HRS.\n\n".
-            "POR ESTE CONDUCTO ME PERMITO INFORMAR, EL PASE DE LISTA AL PERSONAL Y LAS NOVEDADES DE LOS HECHOS DE TRÁNSITO OCURRIDOS DURANTE LAS ÚLTIMAS 24 HRS.\n\n".
-            "TOTAL: ".$this->pad($hechos)." HECHOS DE TRÁNSITO.\n\n".
-            $this->pad($lesionados)." LESIONADOS\n".
-            $this->pad($fallecidos)." FALLECIDOS\n\n".
-            "PARA CONOCIMIENTO DE LA SUPERIORIDAD.\n\n".
-            "RESPETUOSAMENTE:\n".
-            $firma;
+        return "GUARDIA CIVIL.\n\n"
+            ."COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL.\n\n"
+            ."UNIDAD DE ATENCIÓN A SINIESTROS.\n\n"
+            ."ASUNTO: NOVEDADES {$fechaTexto}\n"
+            ."{$horaTexto} HRS.\n\n"
+            ."POR ESTE CONDUCTO ME PERMITO INFORMAR, LAS NOVEDADES DE LOS HECHOS DE TRÁNSITO OCURRIDOS DURANTE LAS ÚLTIMAS 24 HRS.\n\n"
+            ."TOTAL: ".$this->pad($hechos)." HECHOS DE TRÁNSITO.\n\n"
+            .$this->pad($lesionados)." LESIONADOS\n"
+            .$this->pad($fallecidos)." FALLECIDOS\n\n"
+            ."PARA CONOCIMIENTO DE LA SUPERIORIDAD.\n\n"
+            ."RESPETUOSAMENTE:\n"
+            .$firma;
     }
 
     protected function getTotalHechos(Carbon $start, Carbon $end): int
@@ -130,6 +141,10 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
     protected function getTotalLesionados(Carbon $start, Carbon $end): int
     {
+        if (!Schema::hasTable('lesionados')) {
+            return 0;
+        }
+
         $query = DB::table('lesionados')
             ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id');
 

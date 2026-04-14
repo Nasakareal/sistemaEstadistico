@@ -597,6 +597,13 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/relacion-armamento/descargar', [EstadisticasSiniestrosSettingsController::class, 'descargarRelacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento.descargar');
     });
 
+    Route::prefix('estadisticas-vialidad')->group(function () {
+        Route::get('/', [EstadisticasVialidadSettingsController::class, 'index'])->name('settings.estadisticas_vialidad.index');
+
+        Route::get('/informe-gestion', [EstadisticasVialidadSettingsController::class, 'informeGestion'])->name('settings.estadisticas_vialidad.informe_gestion');
+        Route::get('/informe-gestion/descargar/{fecha}', [EstadisticasVialidadSettingsController::class, 'descargarInformeGestion'])->name('settings.estadisticas_vialidad.informe_gestion.descargar');
+    });
+
     Route::prefix('estadisticas-carreteras')->group(function () {
         Route::get('/', [EstadisticasCarreterasSettingsController::class, 'index'])->name('settings.estadisticas_carreteras.index');
         Route::get('/excel-novedades', [EstadisticasCarreterasSettingsController::class, 'excelNovedades'])->name('settings.estadisticas_carreteras.excel_novedades');

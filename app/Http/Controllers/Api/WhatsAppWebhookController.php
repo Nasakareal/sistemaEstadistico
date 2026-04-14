@@ -101,7 +101,7 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
-        $this->sendText($from, "Escribe:\nPLACAS ABC123\n\nO:\nDETALLE 59564");
+        $this->sendText($from, "Escribe:\n\nPLACAS ABC123\n\nO:\n\nDETALLE 59564");
     }
 
     protected function replyBusquedaPorPlacas(string $from, string $placa): void
@@ -113,19 +113,19 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
-        $lines = [];
-        $lines[] = 'Encontré ' . count($resultados) . " hecho(s) con las placas {$placa}:";
-        $lines[] = '';
+        $lineas = [];
+        $lineas[] = 'Encontré ' . count($resultados) . " hecho(s) con las placas {$placa}:";
+        $lineas[] = '';
 
         foreach ($resultados as $item) {
-            $lines[] = "{$item['id']} | {$item['folio']} | {$item['fecha']} {$item['hora']} | {$item['tipo']} | {$item['estado']}";
+            $lineas[] = "{$item['id']} | {$item['folio']} | {$item['fecha']} {$item['hora']} | {$item['tipo']} | {$item['estado']}";
         }
 
-        $lines[] = '';
-        $lines[] = 'Responde:';
-        $lines[] = 'DETALLE ' . $resultados[0]['id'];
+        $lineas[] = '';
+        $lineas[] = 'Responde:';
+        $lineas[] = 'DETALLE ' . $resultados[0]['id'];
 
-        $this->sendText($from, implode("\n", $lines));
+        $this->sendText($from, implode("\n", $lineas));
     }
 
     protected function replyDetallePorFolio(string $from, string $folio): void
@@ -137,35 +137,46 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
-        $texto = implode("\n", array_filter([
-            'GUARDIA CIVIL',
-            '',
-            $detalle['coordinacion'] ?? null,
-            '',
-            $detalle['unidad'] ?? null,
-            '',
-            $detalle['municipio'] ?? null,
-            '',
-            $detalle['sector'] ?? null,
-            '',
-            'TEMA: ' . ($detalle['tema'] ?? 'HECHO DE TRÁNSITO'),
-            '',
-            $detalle['descripcion'] ?? null,
-            '',
-            isset($detalle['vehiculo']) ? 'VEHÍCULO A)' : null,
-            $detalle['vehiculo'] ?? null,
-            '',
-            isset($detalle['grua']) ? 'Grúa: ' . $detalle['grua'] : null,
-            isset($detalle['corralon']) ? 'Corralón: ' . $detalle['corralon'] : null,
-            isset($detalle['servicio']) ? 'Servicio: ' . $detalle['servicio'] : null,
-            '',
-            isset($detalle['estado']) ? 'Hecho ' . $detalle['estado'] . '.' : null,
-            '',
-            isset($detalle['ubicacion']) ? 'Ubicación: ' . $detalle['ubicacion'] : null,
-            isset($detalle['google_maps']) ? 'Google Maps: ' . $detalle['google_maps'] : null,
-            '',
-            isset($detalle['informa']) ? 'INFORMA ' . $detalle['informa'] : null,
-        ]));
+        $bloques = [];
+
+        $bloques[] = 'GUARDIA CIVIL';
+        $bloques[] = $detalle['coordinacion'] ?? '';
+        $bloques[] = $detalle['unidad'] ?? '';
+        $bloques[] = $detalle['municipio'] ?? '';
+
+        if (!empty($detalle['sector'])) {
+            $bloques[] = $detalle['sector'];
+        }
+
+        $bloques[] = 'TEMA: ' . ($detalle['tema'] ?? 'HECHO DE TRÁNSITO');
+        $bloques[] = $detalle['descripcion'] ?? '';
+
+        if (!empty($detalle['vehiculos_texto'])) {
+            $bloques[] = 'Lugar donde se encuentran:';
+            $bloques[] = $detalle['vehiculos_texto'];
+        }
+
+        if (!empty($detalle['estado'])) {
+            $bloques[] = 'Hecho ' . $detalle['estado'] . '.';
+        }
+
+        $ubicacionExtra = [];
+        if (!empty($detalle['ubicacion'])) {
+            $ubicacionExtra[] = 'Ubicación: ' . $detalle['ubicacion'];
+        }
+        if (!empty($detalle['google_maps'])) {
+            $ubicacionExtra[] = 'Google Maps: ' . $detalle['google_maps'];
+        }
+        if (!empty($ubicacionExtra)) {
+            $bloques[] = implode("\n", $ubicacionExtra);
+        }
+
+        if (!empty($detalle['informa'])) {
+            $bloques[] = 'INFORMA ' . $detalle['informa'];
+        }
+
+        $bloques = array_values(array_filter($bloques, fn ($item) => $item !== null && trim((string) $item) !== ''));
+        $texto = implode("\n\n", $bloques);
 
         $this->sendText($from, $texto);
 
@@ -397,8 +408,6 @@ class WhatsAppWebhookController extends Controller
             return null;
         }
 
-        $vehiculo = $hecho->vehiculos->first();
-
         $ubicacionPartes = array_filter([
             $hecho->calle,
             $hecho->colonia ? 'col. ' . $hecho->colonia : null,
@@ -411,32 +420,6 @@ class WhatsAppWebhookController extends Controller
             implode(', ', $ubicacionPartes) . '.',
         ])));
 
-        $vehiculoTexto = null;
-        $grua = null;
-        $corralon = null;
-        $servicio = null;
-
-        if ($vehiculo) {
-            $vehiculoTexto = trim(implode(' ', array_filter([
-                'De la marca ' . $this->valorONoEspecificado($vehiculo->marca) . ',',
-                'tipo ' . $this->valorONoEspecificado($vehiculo->tipo) . ',',
-                $vehiculo->linea ? 'línea ' . $vehiculo->linea . ',' : null,
-                $vehiculo->color ? 'color ' . $vehiculo->color . ',' : null,
-                $vehiculo->placas ? 'placas ' . $vehiculo->placas . ',' : null,
-                $vehiculo->serie ? 'NIV ' . $vehiculo->serie . '.' : null,
-            ])));
-
-            $grua = $vehiculo->grua ?: null;
-            $corralon = $vehiculo->corralon ?: null;
-
-            $servicioPartes = array_filter([
-                'vehículo_id ' . $vehiculo->id,
-                $vehiculo->tipo ? 'tipo ' . $vehiculo->tipo : null,
-            ]);
-
-            $servicio = count($servicioPartes) > 0 ? implode(', ', $servicioPartes) . '.' : null;
-        }
-
         $lat = $hecho->lat;
         $lng = $hecho->lng;
         $googleMaps = null;
@@ -447,10 +430,30 @@ class WhatsAppWebhookController extends Controller
             $googleMaps = "https://www.google.com/maps?q={$lat},{$lng}";
         }
 
+        $vehiculosTexto = [];
+        $fotosVehiculos = [];
+
+        foreach (($hecho->vehiculos ?? []) as $index => $vehiculo) {
+            $etiqueta = chr(65 + $index) . ')';
+
+            $lineasVehiculo = [];
+            $lineasVehiculo[] = 'VEHÍCULO ' . $etiqueta;
+            $lineasVehiculo[] = $this->buildVehiculoDescripcion($vehiculo);
+
+            $ocupantes = $this->buildVehiculoOcupantes($vehiculo);
+            if ($ocupantes !== '') {
+                $lineasVehiculo[] = $ocupantes;
+            }
+
+            $vehiculosTexto[] = implode("\n", array_filter($lineasVehiculo, fn ($item) => trim((string) $item) !== ''));
+
+            $fotosVehiculos = array_merge($fotosVehiculos, $this->extraerUrlsDesdeCampo($vehiculo->fotos ?? null));
+        }
+
         $fotos = array_values(array_unique(array_filter(array_merge(
             $this->extraerUrlsDesdeCampo($hecho->foto_lugar),
             $this->extraerUrlsDesdeCampo($hecho->foto_situacion),
-            $vehiculo ? $this->extraerUrlsDesdeCampo($vehiculo->fotos) : []
+            $fotosVehiculos
         ))));
 
         return [
@@ -460,16 +463,81 @@ class WhatsAppWebhookController extends Controller
             'sector' => $hecho->sector ? 'SECTOR ' . $hecho->sector : null,
             'tema' => 'HECHO DE TRÁNSITO CLASIFICADO COMO ' . mb_strtoupper((string) ($hecho->tipo_hecho ?: 'SIN CLASIFICACIÓN'), 'UTF-8'),
             'descripcion' => $descripcion,
-            'vehiculo' => $vehiculoTexto,
-            'grua' => $grua,
-            'corralon' => $corralon,
-            'servicio' => $servicio,
+            'vehiculos_texto' => implode("\n\n", $vehiculosTexto),
             'estado' => mb_strtoupper((string) ($hecho->situacion ?: 'SIN ESTADO'), 'UTF-8'),
             'ubicacion' => $ubicacion,
             'google_maps' => $googleMaps,
             'informa' => $hecho->unidad ? 'UNIDAD ' . $hecho->unidad : ($hecho->perito ?: null),
             'fotos' => $fotos,
         ];
+    }
+
+    protected function buildVehiculoDescripcion($vehiculo): string
+    {
+        $partes = [];
+
+        $partes[] = 'De la marca ' . $this->valorONoEspecificado($vehiculo->marca ?? null);
+        $partes[] = 'tipo ' . $this->valorONoEspecificado($vehiculo->tipo ?? null);
+
+        if (!empty($vehiculo->linea)) {
+            $partes[] = 'línea ' . trim((string) $vehiculo->linea);
+        }
+
+        if (!empty($vehiculo->color)) {
+            $partes[] = 'color ' . trim((string) $vehiculo->color);
+        }
+
+        if (!empty($vehiculo->placas)) {
+            $partes[] = 'placas ' . trim((string) $vehiculo->placas);
+        }
+
+        if (!empty($vehiculo->serie)) {
+            $partes[] = 'NIV ' . trim((string) $vehiculo->serie);
+        }
+
+        return implode(', ', $partes) . '.';
+    }
+
+    protected function buildVehiculoOcupantes($vehiculo): string
+    {
+        $nombre = $this->firstFilled([
+            $vehiculo->nombre_conductor ?? null,
+            $vehiculo->conductor_nombre ?? null,
+            $vehiculo->nombre_persona ?? null,
+            $vehiculo->responsable ?? null,
+            $vehiculo->propietario ?? null,
+        ]);
+
+        $edad = $this->firstFilled([
+            $vehiculo->edad_conductor ?? null,
+            $vehiculo->conductor_edad ?? null,
+            $vehiculo->edad_persona ?? null,
+            $vehiculo->edad ?? null,
+        ]);
+
+        if ($nombre === '') {
+            return '';
+        }
+
+        $texto = 'Manifiesta viajar a bordo el C. ' . $nombre;
+
+        if ($edad !== '') {
+            $texto .= ' de ' . $edad . ' años';
+        }
+
+        return $texto . '.';
+    }
+
+    protected function firstFilled(array $values): string
+    {
+        foreach ($values as $value) {
+            $value = trim((string) $value);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     protected function getWhatsAppConfig(): array

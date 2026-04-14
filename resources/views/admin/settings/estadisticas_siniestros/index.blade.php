@@ -101,6 +101,21 @@
 
         <div class="col-md-3 col-sm-6 col-12">
             <div class="sv-card">
+                <div class="sv-card__icon bg-dark">
+                    <i class="fa-solid fa-gun"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Relación de Armamento</div>
+                    <div class="sv-card__desc">Consulta dinámica del armamento asignado al personal activo.</div>
+                    <a href="{{ route('settings.estadisticas_siniestros.relacion_armamento') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
                 <div class="sv-card__icon bg-primary">
                     <i class="fa-solid fa-map-location-dot"></i>
                 </div>

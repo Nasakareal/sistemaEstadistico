@@ -131,18 +131,33 @@
     margin-top: 12px;
 }
 
+.modal-actividad-vehiculo {
+    z-index: 2055 !important;
+}
+
 .modal-actividad-vehiculo .modal-content {
     color: #eaf0ff;
-    background: #1f2937;
-    border: 1px solid rgba(255,255,255,.12);
+    background: #111827 !important;
+    border: 1px solid rgba(255,255,255,.22);
     border-radius: 10px;
     overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,.65);
+    opacity: 1 !important;
 }
 
 .modal-actividad-vehiculo .modal-header,
 .modal-actividad-vehiculo .modal-footer {
     border-color: rgba(255,255,255,.12);
-    background: rgba(0,0,0,.18);
+    background: #0b1220 !important;
+}
+
+.modal-actividad-vehiculo .modal-body {
+    background: #111827 !important;
+}
+
+.modal-backdrop.show {
+    opacity: .75;
+    z-index: 2050;
 }
 
 .modal-actividad-vehiculo .close {

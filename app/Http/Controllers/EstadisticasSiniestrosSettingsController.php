@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use App\Models\PersonalAsignacion;
 
 
 class EstadisticasSiniestrosSettingsController extends Controller
@@ -493,5 +494,135 @@ class EstadisticasSiniestrosSettingsController extends Controller
         return redirect()
             ->route('settings.estadisticas_siniestros.actividades')
             ->with('success', 'PDF generado correctamente');
+    }
+
+    public function relacionArmamento()
+    {
+        return view('admin.settings.estadisticas_siniestros.relacion_armamento.index');
+    }
+
+    public function dataRelacionArmamento(Request $request)
+    {
+        $rows = $this->obtenerRelacionArmamento($request);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $rows,
+        ]);
+    }
+
+    public function descargarRelacionArmamento(Request $request)
+    {
+        $rows = $this->obtenerRelacionArmamento($request);
+
+        $filename = "relacion_armamento.csv";
+
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+        ];
+
+        $callback = function() use ($rows) {
+            $file = fopen('php://output', 'w');
+
+            fputcsv($file, [
+                'Número',
+                'Elemento',
+                'Grado',
+                'Unidad',
+                'Tipo',
+                'Clase',
+                'Marca',
+                'Modelo',
+                'Matrícula',
+                'Calibre',
+                'Cargadores',
+                'Cartuchos'
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($file, [
+                    $row['index'],
+                    $row['elemento'],
+                    $row['grado'],
+                    $row['unidad'],
+                    $row['tipo'],
+                    $row['clase'],
+                    $row['marca'],
+                    $row['modelo'],
+                    $row['matricula'],
+                    $row['calibre'],
+                    $row['cargadores'],
+                    $row['cartuchos'],
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    protected function obtenerRelacionArmamento(Request $request): array
+    {
+        $asignaciones = PersonalAsignacion::query()
+            ->with([
+                'personal.unidad:id,nombre',
+                'armamento:id,unidad_id,tipo,clase,marca,modelo,matricula,serie,calibre,cargadores_cantidad,cartuchos_cantidad,estatus,deleted_at',
+            ])
+            ->whereNotNull('armamento_id')
+            ->where('activo', 1)
+            ->whereNull('fecha_fin')
+            ->whereHas('personal', function ($query) {
+                $query->whereNull('deleted_at')
+                    ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO']);
+            })
+            ->whereHas('armamento', function ($query) {
+                $query->whereNull('deleted_at')
+                    ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO']);
+            })
+            ->get();
+
+        $rows = [];
+
+        $agrupado = $asignaciones->groupBy(function ($asignacion) {
+            return $asignacion->personal_id;
+        });
+
+        foreach ($agrupado as $grupo) {
+
+            $ordenados = $grupo->sortBy(function ($asignacion) {
+                return strtoupper($asignacion->armamento->tipo ?? '');
+            });
+
+            foreach ($ordenados as $asignacion) {
+
+                $personal = $asignacion->personal;
+                $armamento = $asignacion->armamento;
+
+                $rows[] = [
+                    'elemento' => trim(collect([
+                        $personal->nombre ?? '',
+                        $personal->ap_paterno ?? '',
+                        $personal->ap_materno ?? '',
+                    ])->filter()->implode(' ')),
+                    'grado' => $personal->grado ?? '',
+                    'unidad' => optional($personal->unidad)->nombre ?? ($personal->area ?? ''),
+                    'tipo' => $armamento->tipo ?? '',
+                    'clase' => $armamento->clase ?? '',
+                    'marca' => $armamento->marca ?? '',
+                    'modelo' => $armamento->modelo ?? '',
+                    'matricula' => $armamento->matricula ?? '',
+                    'calibre' => $armamento->calibre ?? '',
+                    'cargadores' => $armamento->cargadores_cantidad ?? 0,
+                    'cartuchos' => $armamento->cartuchos_cantidad ?? 0,
+                ];
+            }
+        }
+
+        return collect($rows)->values()->map(function ($row, $index) {
+            $row['index'] = $index + 1;
+            return $row;
+        })->all();
     }
 }

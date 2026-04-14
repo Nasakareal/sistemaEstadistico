@@ -38,9 +38,7 @@
             'grua',
             'corralon',
             'aseguradora',
-            'antecedente_vehiculo',
-            'monto_danos',
-            'partes_danadas'
+            'antecedente_vehiculo'
         ];
 
         function escapeHtml(value) {

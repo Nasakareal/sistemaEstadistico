@@ -83,7 +83,7 @@
                         <input type="hidden" name="destacamento_id" value="{{ old('destacamento_id') }}">
 
                         <div class="row">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="fecha">Fecha<span style="color:red">*</span></label>
                                     <input type="date"
@@ -100,7 +100,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="hora">Hora</label>
                                     <input type="time"
@@ -116,7 +116,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <div class="form-group">
                                     <label for="lugar">Lugar</label>
                                     <input type="text"
@@ -132,9 +132,7 @@
                                     @enderror
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="municipio">Municipio</label>
@@ -145,55 +143,6 @@
                                            value="{{ old('municipio', 'MORELIA') }}"
                                            placeholder="Ej. MORELIA">
                                     @error('municipio')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="carretera">Carretera</label>
-                                    <input type="text"
-                                           name="carretera"
-                                           id="carretera"
-                                           class="form-control @error('carretera') is-invalid @enderror"
-                                           value="{{ old('carretera') }}">
-                                    @error('carretera')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="tramo">Tramo</label>
-                                    <input type="text"
-                                           name="tramo"
-                                           id="tramo"
-                                           class="form-control @error('tramo') is-invalid @enderror"
-                                           value="{{ old('tramo') }}">
-                                    @error('tramo')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="kilometro">Kilómetro</label>
-                                    <input type="text"
-                                           name="kilometro"
-                                           id="kilometro"
-                                           class="form-control @error('kilometro') is-invalid @enderror"
-                                           value="{{ old('kilometro') }}"
-                                           placeholder="Ej. KM 12+500">
-                                    @error('kilometro')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>

@@ -84,7 +84,7 @@
                         <input type="hidden" name="destacamento_id" value="{{ old('destacamento_id', $actividad->destacamento_id) }}">
 
                         <div class="row">
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="fecha">Fecha<span style="color:red">*</span></label>
                                     <input type="date"
@@ -101,7 +101,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="hora">Hora</label>
                                     <input type="time"
@@ -117,7 +117,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <div class="form-group">
                                     <label for="lugar">Lugar</label>
                                     <input type="text"
@@ -133,9 +133,7 @@
                                     @enderror
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="municipio">Municipio</label>
@@ -152,143 +150,63 @@
                                     @enderror
                                 </div>
                             </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="carretera">Carretera</label>
-                                    <input type="text"
-                                           name="carretera"
-                                           id="carretera"
-                                           class="form-control @error('carretera') is-invalid @enderror"
-                                           value="{{ old('carretera', $actividad->carretera) }}">
-                                    @error('carretera')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="tramo">Tramo</label>
-                                    <input type="text"
-                                           name="tramo"
-                                           id="tramo"
-                                           class="form-control @error('tramo') is-invalid @enderror"
-                                           value="{{ old('tramo', $actividad->tramo) }}">
-                                    @error('tramo')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="kilometro">Kilómetro</label>
-                                    <input type="text"
-                                           name="kilometro"
-                                           id="kilometro"
-                                           class="form-control @error('kilometro') is-invalid @enderror"
-                                           value="{{ old('kilometro', $actividad->kilometro) }}"
-                                           placeholder="Ej. KM 12+500">
-                                    @error('kilometro')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="lat">Latitud</label>
-                                    <input type="number"
-                                           step="0.0000001"
-                                           name="lat"
-                                           id="lat"
-                                           class="form-control @error('lat') is-invalid @enderror"
-                                           value="{{ old('lat', $actividad->lat) }}"
-                                           placeholder="19.7000000">
-                                    @error('lat')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="lng">Longitud</label>
-                                    <input type="number"
-                                           step="0.0000001"
-                                           name="lng"
-                                           id="lng"
-                                           class="form-control @error('lng') is-invalid @enderror"
-                                           value="{{ old('lng', $actividad->lng) }}"
-                                           placeholder="-101.1900000">
-                                    @error('lng')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="fuente_ubicacion">Fuente ubicación</label>
-                                    <select name="fuente_ubicacion"
-                                            id="fuente_ubicacion"
-                                            class="form-control @error('fuente_ubicacion') is-invalid @enderror">
-                                        <option value="">Seleccione...</option>
-                                        <option value="GPS_APP" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'GPS_APP' ? 'selected' : '' }}>GPS_APP</option>
-                                        <option value="GPS_WEB" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'GPS_WEB' ? 'selected' : '' }}>GPS_WEB</option>
-                                        <option value="MANUAL" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'MANUAL' ? 'selected' : '' }}>MANUAL</option>
-                                        <option value="REFERENCIA" {{ old('fuente_ubicacion', $actividad->fuente_ubicacion) == 'REFERENCIA' ? 'selected' : '' }}>REFERENCIA</option>
-                                    </select>
-                                    @error('fuente_ubicacion')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="nota_geo">Nota geo</label>
-                                    <input type="text"
-                                           name="nota_geo"
-                                           id="nota_geo"
-                                           class="form-control @error('nota_geo') is-invalid @enderror"
-                                           value="{{ old('nota_geo', $actividad->nota_geo) }}"
-                                           placeholder="Ej. ACC:5.2">
-                                    @error('nota_geo')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="lat" id="lat" value="{{ old('lat', $actividad->lat) }}">
+                        <input type="hidden" name="lng" id="lng" value="{{ old('lng', $actividad->lng) }}">
+                        <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion', $actividad->fuente_ubicacion) }}">
+                        <input type="hidden" name="nota_geo" id="nota_geo" value="{{ old('nota_geo', $actividad->nota_geo) }}">
+                        <input type="hidden" name="coordenadas_texto" id="coordenadas_texto" value="{{ old('coordenadas_texto', $actividad->coordenadas_texto) }}">
 
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label for="coordenadas_texto">Coordenadas / referencia</label>
-                                    <textarea name="coordenadas_texto"
-                                              id="coordenadas_texto"
-                                              rows="2"
-                                              class="form-control @error('coordenadas_texto') is-invalid @enderror"
-                                              placeholder="Ej. 19.7000000, -101.1900000 o referencia de ubicación">{{ old('coordenadas_texto', $actividad->coordenadas_texto) }}</textarea>
+                                    <label>Ubicación</label>
+
+                                    <div class="d-flex flex-wrap align-items-center" style="gap:10px;">
+                                        <button type="button" id="btnUbicacion" class="btn btn-info">
+                                            <i class="fa-solid fa-location-crosshairs"></i> Usar mi ubicación
+                                        </button>
+
+                                        <span id="ubicacion_estado" class="help-muted">
+                                            {{ old('lat', $actividad->lat) && old('lng', $actividad->lng) ? 'Ubicación capturada correctamente.' : 'Aún no se ha capturado la ubicación.' }}
+                                        </span>
+                                    </div>
+
+                                    <div id="ubicacion_preview_wrap" class="mt-2" style="{{ old('lat', $actividad->lat) && old('lng', $actividad->lng) ? '' : 'display:none;' }}">
+                                        <div class="form-control">
+                                            <span id="ubicacion_preview_texto">
+                                                {{ old('lat', $actividad->lat) && old('lng', $actividad->lng) ? old('lat', $actividad->lat) . ', ' . old('lng', $actividad->lng) : '' }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    @error('lat')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
+                                    @error('lng')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
+                                    @error('fuente_ubicacion')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
+                                    @error('nota_geo')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+
                                     @error('coordenadas_texto')
-                                        <span class="invalid-feedback" role="alert">
+                                        <span class="invalid-feedback d-block" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
@@ -632,6 +550,16 @@
             const fotoName = document.getElementById('foto_name');
             const previewWrap = document.getElementById('preview_wrap');
 
+            const latInput = document.getElementById('lat');
+            const lngInput = document.getElementById('lng');
+            const fuenteInput = document.getElementById('fuente_ubicacion');
+            const notaGeoInput = document.getElementById('nota_geo');
+            const coordenadasTextoInput = document.getElementById('coordenadas_texto');
+            const btnUbicacion = document.getElementById('btnUbicacion');
+            const ubicacionEstado = document.getElementById('ubicacion_estado');
+            const ubicacionPreviewWrap = document.getElementById('ubicacion_preview_wrap');
+            const ubicacionPreviewTexto = document.getElementById('ubicacion_preview_texto');
+
             function setSubcatDisabled(msg) {
                 if (!subcatSelect) return;
                 subcatSelect.disabled = true;
@@ -751,6 +679,79 @@
                 });
             }
 
+            function actualizarPreviewUbicacion(lat, lng) {
+                if (!lat || !lng) {
+                    if (ubicacionPreviewWrap) ubicacionPreviewWrap.style.display = 'none';
+                    if (ubicacionPreviewTexto) ubicacionPreviewTexto.textContent = '';
+                    return;
+                }
+
+                if (ubicacionPreviewTexto) {
+                    ubicacionPreviewTexto.textContent = `${lat}, ${lng}`;
+                }
+
+                if (ubicacionPreviewWrap) {
+                    ubicacionPreviewWrap.style.display = '';
+                }
+            }
+
+            if (btnUbicacion) {
+                btnUbicacion.addEventListener('click', function () {
+                    if (!navigator.geolocation) {
+                        if (ubicacionEstado) {
+                            ubicacionEstado.textContent = 'Este dispositivo o navegador no permite geolocalización.';
+                        }
+                        return;
+                    }
+
+                    if (ubicacionEstado) {
+                        ubicacionEstado.textContent = 'Obteniendo ubicación...';
+                    }
+
+                    btnUbicacion.disabled = true;
+
+                    navigator.geolocation.getCurrentPosition(
+                        function (position) {
+                            const lat = Number(position.coords.latitude).toFixed(7);
+                            const lng = Number(position.coords.longitude).toFixed(7);
+                            const accuracy = position.coords.accuracy ? Number(position.coords.accuracy).toFixed(1) : null;
+
+                            if (latInput) latInput.value = lat;
+                            if (lngInput) lngInput.value = lng;
+                            if (fuenteInput) fuenteInput.value = 'GPS_WEB';
+                            if (notaGeoInput) notaGeoInput.value = accuracy ? `ACC:${accuracy}m` : 'GPS_WEB';
+                            if (coordenadasTextoInput) coordenadasTextoInput.value = `${lat}, ${lng}`;
+
+                            actualizarPreviewUbicacion(lat, lng);
+
+                            if (ubicacionEstado) {
+                                ubicacionEstado.textContent = 'Ubicación capturada correctamente.';
+                            }
+
+                            btnUbicacion.disabled = false;
+                        },
+                        function (error) {
+                            let mensaje = 'No se pudo obtener la ubicación.';
+
+                            if (error && error.code === 1) mensaje = 'Permiso de ubicación denegado.';
+                            if (error && error.code === 2) mensaje = 'Ubicación no disponible.';
+                            if (error && error.code === 3) mensaje = 'Tiempo de espera agotado al obtener la ubicación.';
+
+                            if (ubicacionEstado) {
+                                ubicacionEstado.textContent = mensaje;
+                            }
+
+                            btnUbicacion.disabled = false;
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 15000,
+                            maximumAge: 0
+                        }
+                    );
+                });
+            }
+
             if (nombreInput) {
                 nombreInput.addEventListener('input', function () {
                     if (this.value !== nombreActual) {
@@ -779,6 +780,11 @@
                     setSubcatDisabled('Seleccione una categoría primero...');
                 }
             }
+
+            actualizarPreviewUbicacion(
+                latInput ? latInput.value : '',
+                lngInput ? lngInput.value : ''
+            );
 
             if (fotoInput) {
                 fotoInput.addEventListener('change', function () {

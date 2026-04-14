@@ -592,6 +592,9 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/sectorizaciones/data/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'dataSectorizacion'])->name('settings.estadisticas_siniestros.sectorizaciones.data');
         Route::post('/sectorizaciones/guardar', [EstadisticasSiniestrosSettingsController::class, 'guardarSectorizacion'])->name('settings.estadisticas_siniestros.sectorizaciones.guardar');
         Route::get('/sectorizaciones/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarSectorizacion'])->name('settings.estadisticas_siniestros.sectorizaciones.descargar');
+        Route::get('/relacion-armamento', [EstadisticasSiniestrosSettingsController::class, 'relacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento');
+        Route::get('/relacion-armamento/data', [EstadisticasSiniestrosSettingsController::class, 'dataRelacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento.data');
+        Route::get('/relacion-armamento/descargar', [EstadisticasSiniestrosSettingsController::class, 'descargarRelacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento.descargar');
     });
 
     Route::prefix('estadisticas-carreteras')->group(function () {

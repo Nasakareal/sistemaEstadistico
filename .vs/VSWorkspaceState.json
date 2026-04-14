@@ -2,8 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Models",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros",
+    "\\resources\\views\\admin\\settings\\estadisticas_siniestros\\parte_novedades",
+    "\\resources\\views\\gruas"
   ],
+  "SelectedNode": "\\resources\\views\\gruas\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

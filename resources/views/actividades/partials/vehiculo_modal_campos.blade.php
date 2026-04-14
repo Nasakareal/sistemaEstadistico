@@ -185,29 +185,3 @@
         </div>
     </div>
 </div>
-
-<div class="vehiculo-section-title">
-    <span>Daños</span>
-</div>
-
-<div class="row">
-    <div class="col-md-3">
-        <div class="form-group">
-            <label for="vehiculo_monto_danos">Monto de daños</label>
-            <input type="number" name="monto_danos" id="vehiculo_monto_danos" class="form-control @error('monto_danos') is-invalid @enderror" value="{{ old('monto_danos') }}" min="0" step="0.01" placeholder="0.00">
-            @error('monto_danos')
-                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-            @enderror
-        </div>
-    </div>
-
-    <div class="col-md-9">
-        <div class="form-group">
-            <label for="vehiculo_partes_danadas">Partes dañadas</label>
-            <textarea name="partes_danadas" id="vehiculo_partes_danadas" rows="2" class="form-control js-uppercase @error('partes_danadas') is-invalid @enderror" placeholder="Describa daños visibles, si aplica">{{ old('partes_danadas') }}</textarea>
-            @error('partes_danadas')
-                <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-            @enderror
-        </div>
-    </div>
-</div>

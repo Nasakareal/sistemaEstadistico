@@ -114,7 +114,7 @@ class WhatsAppWebhookController extends Controller
         }
 
         $lines = [];
-        $lines[] = "Encontré " . count($resultados) . " hecho(s) con las placas {$placa}:";
+        $lines[] = 'Encontré ' . count($resultados) . " hecho(s) con las placas {$placa}:";
         $lines[] = '';
 
         foreach ($resultados as $item) {
@@ -176,20 +176,24 @@ class WhatsAppWebhookController extends Controller
         }
     }
 
-    protected function sendText(string $to, string $text): void
+    protected function sendText(string $to, string $text): array
     {
-        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
-        $token = (string) config('services.whatsapp.token');
+        $config = $this->getWhatsAppConfig();
 
-        if ($phoneNumberId === '' || $token === '') {
+        if ($config['phone_number_id'] === '' || $config['token'] === '') {
             Log::warning('WA sendText sin configuración', [
                 'to' => $to,
             ]);
-            return;
+
+            return [
+                'ok' => false,
+                'status' => 0,
+                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
+            ];
         }
 
-        $response = Http::withToken($token)
-            ->post("https://graph.facebook.com/v23.0/{$phoneNumberId}/messages", [
+        $response = Http::withToken($config['token'])
+            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
                 'messaging_product' => 'whatsapp',
                 'to' => $to,
                 'type' => 'text',
@@ -199,28 +203,40 @@ class WhatsAppWebhookController extends Controller
                 ],
             ]);
 
+        $json = $response->json();
+
         Log::info('WA sendText response', [
             'to' => $to,
             'status' => $response->status(),
-            'body' => $response->json(),
+            'body' => $json,
         ]);
+
+        return [
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'body' => $json,
+        ];
     }
 
-    protected function sendImage(string $to, string $imageUrl): void
+    protected function sendImage(string $to, string $imageUrl): array
     {
-        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
-        $token = (string) config('services.whatsapp.token');
+        $config = $this->getWhatsAppConfig();
 
-        if ($phoneNumberId === '' || $token === '') {
+        if ($config['phone_number_id'] === '' || $config['token'] === '') {
             Log::warning('WA sendImage sin configuración', [
                 'to' => $to,
                 'imageUrl' => $imageUrl,
             ]);
-            return;
+
+            return [
+                'ok' => false,
+                'status' => 0,
+                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
+            ];
         }
 
-        $response = Http::withToken($token)
-            ->post("https://graph.facebook.com/v23.0/{$phoneNumberId}/messages", [
+        $response = Http::withToken($config['token'])
+            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
                 'messaging_product' => 'whatsapp',
                 'to' => $to,
                 'type' => 'image',
@@ -229,38 +245,63 @@ class WhatsAppWebhookController extends Controller
                 ],
             ]);
 
+        $json = $response->json();
+
         Log::info('WA sendImage response', [
             'to' => $to,
             'status' => $response->status(),
-            'body' => $response->json(),
+            'body' => $json,
         ]);
+
+        return [
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'body' => $json,
+        ];
     }
 
     public function sendTemplate(string $to, array $data): array
     {
-        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
-        $token = (string) config('services.whatsapp.token');
+        $config = $this->getWhatsAppConfig();
 
-        $response = Http::withToken($token)
-            ->post("https://graph.facebook.com/v23.0/{$phoneNumberId}/messages", [
+        if ($config['phone_number_id'] === '' || $config['token'] === '') {
+            Log::warning('WA sendTemplate sin configuración', [
+                'to' => $to,
+                'template' => $data['template'] ?? 'notificacion_hecho_vial',
+            ]);
+
+            return [
+                'ok' => false,
+                'status' => 0,
+                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
+            ];
+        }
+
+        $templateName = (string) ($data['template'] ?? 'notificacion_hecho_vial');
+        $languageCode = (string) ($data['language'] ?? 'es_MX');
+
+        $parameters = [];
+        foreach (($data['parameters'] ?? []) as $parameter) {
+            $parameters[] = [
+                'type' => 'text',
+                'text' => (string) $parameter,
+            ];
+        }
+
+        $response = Http::withToken($config['token'])
+            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
                 'messaging_product' => 'whatsapp',
                 'to' => $to,
                 'type' => 'template',
                 'template' => [
-                    'name' => 'notificacion_hecho_vial',
+                    'name' => $templateName,
                     'language' => [
-                        'code' => 'es_MX',
+                        'code' => $languageCode,
                     ],
                     'components' => [
                         [
                             'type' => 'body',
-                            'parameters' => [
-                                ['type' => 'text', 'text' => (string) ($data['ubicacion'] ?? '')],
-                                ['type' => 'text', 'text' => (string) ($data['fecha_hora'] ?? '')],
-                                ['type' => 'text', 'text' => (string) ($data['tipo'] ?? '')],
-                                ['type' => 'text', 'text' => (string) ($data['estado'] ?? '')],
-                                ['type' => 'text', 'text' => (string) ($data['folio'] ?? '')],
-                            ],
+                            'parameters' => $parameters,
                         ],
                     ],
                 ],
@@ -275,9 +316,37 @@ class WhatsAppWebhookController extends Controller
         ]);
 
         return [
+            'ok' => $response->successful(),
             'status' => $response->status(),
             'body' => $json,
         ];
+    }
+
+    public function sendHechoTemplate(string $to, Hechos $hecho): array
+    {
+        $hecho->loadMissing('vehiculos');
+
+        $ubicacion = trim(implode(', ', array_filter([
+            $hecho->calle,
+            $hecho->colonia ? 'col. ' . $hecho->colonia : null,
+        ])));
+
+        $fechaHora = trim(implode(' ', array_filter([
+            !empty($hecho->fecha) ? optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha : null,
+            $this->formatearHora((string) $hecho->hora),
+        ])));
+
+        return $this->sendTemplate($to, [
+            'template' => 'notificacion_hecho_vial',
+            'language' => 'es_MX',
+            'parameters' => [
+                $ubicacion !== '' ? $ubicacion : 'SIN UBICACIÓN',
+                $fechaHora !== '' ? $fechaHora : 'SIN FECHA',
+                (string) ($hecho->tipo_hecho ?: 'SIN TIPO'),
+                (string) ($hecho->situacion ?: 'SIN ESTADO'),
+                (string) ($hecho->folio_c5i ?: $hecho->id),
+            ],
+        ]);
     }
 
     protected function buscarHechosPorPlaca(string $placa): array
@@ -400,6 +469,23 @@ class WhatsAppWebhookController extends Controller
             'google_maps' => $googleMaps,
             'informa' => $hecho->unidad ? 'UNIDAD ' . $hecho->unidad : ($hecho->perito ?: null),
             'fotos' => $fotos,
+        ];
+    }
+
+    protected function getWhatsAppConfig(): array
+    {
+        $graphVersion = (string) config('services.whatsapp.graph_version', 'v19.0');
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+        $token = (string) (
+            config('services.whatsapp.token')
+            ?: config('services.whatsapp.access_token')
+            ?: env('WHATSAPP_ACCESS_TOKEN')
+        );
+
+        return [
+            'graph_version' => $graphVersion !== '' ? $graphVersion : 'v19.0',
+            'phone_number_id' => $phoneNumberId,
+            'token' => $token,
         ];
     }
 

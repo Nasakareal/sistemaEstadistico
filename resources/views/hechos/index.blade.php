@@ -159,11 +159,9 @@
                                                 </a>
                                             @endif
 
-                                            @if($puedeEditarHecho)
                                                 <a href="{{ route('croquis.show', $hecho->id) }}" class="btn btn-primary btn-sm" title="{{ !empty($hecho->tiene_croquis) && $hecho->tiene_croquis ? 'Editar croquis' : 'Crear croquis' }}">
                                                     <i class="fa-solid fa-draw-polygon"></i>
                                                 </a>
-                                            @endif
 
                                             <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
                                                 <i class="fas fa-download"></i>

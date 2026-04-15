@@ -2,10 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
-    "\\routes"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppLink.php",
+  "SelectedNode": "\\resources\\views\\hechos\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

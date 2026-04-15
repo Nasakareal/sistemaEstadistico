@@ -3,14 +3,37 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use App\Services\WhatsApp\WhatsAppInboundService;
+use App\Services\WhatsApp\WhatsAppUserResolverService;
+use App\Services\WhatsApp\WhatsAppMenuService;
+use App\Services\WhatsApp\WhatsAppStateService;
+use App\Services\WhatsApp\WhatsAppQueryService;
 
 class WhatsAppWebhookController extends Controller
 {
+    protected WhatsAppInboundService $inboundService;
+    protected WhatsAppUserResolverService $userResolverService;
+    protected WhatsAppMenuService $menuService;
+    protected WhatsAppStateService $stateService;
+    protected WhatsAppQueryService $queryService;
+
+    public function __construct(
+        WhatsAppInboundService $inboundService,
+        WhatsAppUserResolverService $userResolverService,
+        WhatsAppMenuService $menuService,
+        WhatsAppStateService $stateService,
+        WhatsAppQueryService $queryService
+    ) {
+        $this->inboundService = $inboundService;
+        $this->userResolverService = $userResolverService;
+        $this->menuService = $menuService;
+        $this->stateService = $stateService;
+        $this->queryService = $queryService;
+    }
+
     public function verify(Request $request)
     {
         $mode = $request->query('hub_mode') ?? $request->query('hub.mode');
@@ -35,154 +58,239 @@ class WhatsAppWebhookController extends Controller
             'entries_count' => isset($payload['entry']) && is_array($payload['entry']) ? count($payload['entry']) : 0,
         ]);
 
-        foreach (($payload['entry'] ?? []) as $entry) {
-            foreach (($entry['changes'] ?? []) as $change) {
-                $value = $change['value'] ?? [];
-                $metadata = $value['metadata'] ?? [];
+        $messages = $this->inboundService->extractMessages($payload);
+        $statuses = $this->inboundService->extractStatuses($payload);
 
-                foreach (($value['messages'] ?? []) as $message) {
-                    Log::info('WA mensaje recibido', [
-                        'from' => $message['from'] ?? null,
-                        'id' => $message['id'] ?? null,
-                        'timestamp' => $message['timestamp'] ?? null,
-                        'type' => $message['type'] ?? null,
-                        'text' => $message['text']['body'] ?? null,
-                        'display_phone_number' => $metadata['display_phone_number'] ?? null,
-                        'phone_number_id' => $metadata['phone_number_id'] ?? null,
-                    ]);
+        foreach ($statuses as $status) {
+            Log::info('WA estado mensaje', $status);
+        }
 
-                    $type = (string) ($message['type'] ?? '');
-                    $from = (string) ($message['from'] ?? '');
-                    $text = trim((string) ($message['text']['body'] ?? ''));
-
-                    if ($from !== '' && $type === 'text' && $text !== '') {
-                        $this->processIncomingText($from, $text);
-                    }
-                }
-
-                foreach (($value['statuses'] ?? []) as $status) {
-                    Log::info('WA estado mensaje', [
-                        'id' => $status['id'] ?? null,
-                        'status' => $status['status'] ?? null,
-                        'timestamp' => $status['timestamp'] ?? null,
-                        'recipient_id' => $status['recipient_id'] ?? null,
-                        'conversation_id' => $status['conversation']['id'] ?? null,
-                        'conversation_origin' => $status['conversation']['origin']['type'] ?? null,
-                        'pricing_billable' => $status['pricing']['billable'] ?? null,
-                        'pricing_category' => $status['pricing']['category'] ?? null,
-                        'pricing_model' => $status['pricing']['pricing_model'] ?? null,
-                        'error_code' => $status['errors'][0]['code'] ?? null,
-                        'error_title' => $status['errors'][0]['title'] ?? null,
-                        'error_message' => $status['errors'][0]['message'] ?? null,
-                        'display_phone_number' => $metadata['display_phone_number'] ?? null,
-                        'phone_number_id' => $metadata['phone_number_id'] ?? null,
-                    ]);
-                }
+        foreach ($messages as $message) {
+            try {
+                $this->processIncomingMessage($message);
+            } catch (\Throwable $e) {
+                Log::error('WA error procesando mensaje', [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'from' => $message['from'] ?? null,
+                    'type' => $message['type'] ?? null,
+                ]);
             }
         }
 
         return response()->json(['ok' => true], 200);
     }
 
-    protected function processIncomingText(string $from, string $text): void
+    protected function processIncomingMessage(array $message): void
     {
-        $original = trim($text);
-        $normalized = mb_strtoupper($original, 'UTF-8');
+        $from = $this->normalizePhone((string) ($message['from'] ?? ''));
+        $type = (string) ($message['type'] ?? '');
 
-        if (preg_match('/^PLACAS\s+(.+)$/u', $normalized, $matches)) {
-            $placa = trim($matches[1]);
-            $this->replyBusquedaPorPlacas($from, $placa);
+        if ($from === '') {
+            Log::warning('WA mensaje sin remitente válido', ['message' => $message]);
             return;
         }
 
-        if (preg_match('/^DETALLE\s+([A-Z0-9\/\-\._]+)$/u', $normalized, $matches)) {
-            $folio = trim($matches[1]);
-            $this->replyDetallePorFolio($from, $folio);
+        $input = $this->inboundService->extractUserInput($message);
+
+        Log::info('WA mensaje procesable', [
+            'from' => $from,
+            'type' => $type,
+            'input_type' => $input['type'] ?? null,
+            'input_value' => $input['value'] ?? null,
+        ]);
+
+        $user = $this->userResolverService->findAuthorizedUserByPhone($from);
+
+        if (!$user) {
+            $this->sendText($from, 'Número no autorizado para consultas.');
             return;
         }
 
-        $this->sendText($from, "Escribe:\n\nPLACAS ABC123\n\nO:\n\nDETALLE 59564");
+        $context = $this->userResolverService->resolveContext($user);
+        $state = $this->stateService->getContext($from);
+
+        if ($this->isResetCommand((string) ($input['value'] ?? ''))) {
+            $this->stateService->clear($from);
+            $this->startConversation($from, $user, $context);
+            return;
+        }
+
+        if (empty($state)) {
+            $this->startConversation($from, $user, $context);
+            return;
+        }
+
+        $step = (string) ($state['step'] ?? '');
+
+        if ($step === 'choose_module') {
+            $this->handleChooseModule($from, $user, $context, $input);
+            return;
+        }
+
+        if ($step === 'choose_action') {
+            $this->handleChooseAction($from, $user, $context, $state, $input);
+            return;
+        }
+
+        if ($step === 'await_param') {
+            $this->handleAwaitParam($from, $user, $context, $state, $input);
+            return;
+        }
+
+        $this->stateService->clear($from);
+        $this->startConversation($from, $user, $context);
     }
 
-    protected function replyBusquedaPorPlacas(string $from, string $placa): void
+    protected function startConversation(string $from, $user, array $context): void
     {
-        $resultados = $this->buscarHechosPorPlaca($placa);
+        if (($context['acceso_total'] ?? false) === true) {
+            $this->stateService->putContext($from, [
+                'user_id' => $user->id,
+                'step' => 'choose_module',
+                'module' => null,
+                'action' => null,
+                'scope' => $context,
+            ]);
 
-        if (count($resultados) === 0) {
-            $this->sendText($from, "No encontré hechos con las placas {$placa}.");
+            $packet = $this->menuService->buildRootMenu($user, $context);
+            $this->sendPacket($from, $packet);
             return;
         }
 
-        $lineas = [];
-        $lineas[] = 'Encontré ' . count($resultados) . " hecho(s) con las placas {$placa}:";
-        $lineas[] = '';
+        $module = $context['default_module'] ?? ($context['modules'][0] ?? null);
 
-        foreach ($resultados as $item) {
-            $lineas[] = "{$item['id']} | {$item['folio']} | {$item['fecha']} {$item['hora']} | {$item['tipo']} | {$item['estado']}";
+        if (!$module) {
+            $this->sendText($from, 'Tu usuario no tiene módulos disponibles para consulta.');
+            return;
         }
 
-        $lineas[] = '';
-        $lineas[] = 'Responde:';
-        $lineas[] = 'DETALLE ' . $resultados[0]['id'];
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'choose_action',
+            'module' => $module,
+            'action' => null,
+            'scope' => $context,
+        ]);
 
-        $this->sendText($from, implode("\n", $lineas));
+        $packet = $this->menuService->buildModuleMenu($user, $context, $module);
+        $this->sendPacket($from, $packet);
     }
 
-    protected function replyDetallePorFolio(string $from, string $folio): void
+    protected function handleChooseModule(string $from, $user, array $context, array $input): void
     {
-        $detalle = $this->obtenerDetalleHechoPorFolio($folio);
+        $module = $this->menuService->resolveModuleSelection($input, $context);
 
-        if (!$detalle) {
-            $this->sendText($from, "No encontré el hecho {$folio}.");
+        if (!$module) {
+            $packet = $this->menuService->buildRootMenu($user, $context, 'Selecciona una unidad válida.');
+            $this->sendPacket($from, $packet);
             return;
         }
 
-        $bloques = [];
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'choose_action',
+            'module' => $module,
+            'action' => null,
+            'scope' => $context,
+        ]);
 
-        $bloques[] = 'GUARDIA CIVIL';
-        $bloques[] = $detalle['coordinacion'] ?? '';
-        $bloques[] = $detalle['unidad'] ?? '';
-        $bloques[] = $detalle['municipio'] ?? '';
+        $packet = $this->menuService->buildModuleMenu($user, $context, $module);
+        $this->sendPacket($from, $packet);
+    }
 
-        if (!empty($detalle['sector'])) {
-            $bloques[] = $detalle['sector'];
+    protected function handleChooseAction(string $from, $user, array $context, array $state, array $input): void
+    {
+        $module = (string) ($state['module'] ?? '');
+        $action = $this->menuService->resolveActionSelection($input, $module, $context);
+
+        if (!$action) {
+            $packet = $this->menuService->buildModuleMenu($user, $context, $module, 'Selecciona una opción válida.');
+            $this->sendPacket($from, $packet);
+            return;
         }
 
-        $bloques[] = 'TEMA: ' . ($detalle['tema'] ?? 'HECHO DE TRÁNSITO');
-        $bloques[] = $detalle['descripcion'] ?? '';
+        if (($action['requires_param'] ?? false) === false) {
+            $result = $this->queryService->executeImmediate($user, $context, $module, $action['key']);
+            $this->sendPacket($from, $result);
 
-        if (!empty($detalle['vehiculos_texto'])) {
-            $bloques[] = 'Lugar donde se encuentran:';
-            $bloques[] = $detalle['vehiculos_texto'];
+            $this->stateService->putContext($from, [
+                'user_id' => $user->id,
+                'step' => 'choose_action',
+                'module' => $module,
+                'action' => null,
+                'scope' => $context,
+            ]);
+
+            $packet = $this->menuService->buildModuleMenu($user, $context, $module);
+            $this->sendPacket($from, $packet);
+            return;
         }
 
-        if (!empty($detalle['estado'])) {
-            $bloques[] = 'Hecho ' . $detalle['estado'] . '.';
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'await_param',
+            'module' => $module,
+            'action' => $action['key'],
+            'param_type' => $action['param_type'] ?? 'text',
+            'scope' => $context,
+        ]);
+
+        $prompt = $this->menuService->buildActionPrompt($module, $action['key'], $context);
+        $this->sendPacket($from, $prompt);
+    }
+
+    protected function handleAwaitParam(string $from, $user, array $context, array $state, array $input): void
+    {
+        $module = (string) ($state['module'] ?? '');
+        $action = (string) ($state['action'] ?? '');
+        $paramType = (string) ($state['param_type'] ?? 'text');
+        $value = trim((string) ($input['value'] ?? ''));
+
+        if ($value === '') {
+            $prompt = $this->menuService->buildActionPrompt($module, $action, $context, 'Necesito un valor para continuar.');
+            $this->sendPacket($from, $prompt);
+            return;
         }
 
-        $ubicacionExtra = [];
-        if (!empty($detalle['ubicacion'])) {
-            $ubicacionExtra[] = 'Ubicación: ' . $detalle['ubicacion'];
-        }
-        if (!empty($detalle['google_maps'])) {
-            $ubicacionExtra[] = 'Google Maps: ' . $detalle['google_maps'];
-        }
-        if (!empty($ubicacionExtra)) {
-            $bloques[] = implode("\n", $ubicacionExtra);
+        $result = $this->queryService->executeWithParam(
+            user: $user,
+            context: $context,
+            module: $module,
+            action: $action,
+            paramType: $paramType,
+            value: $value
+        );
+
+        $this->sendPacket($from, $result);
+
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'choose_action',
+            'module' => $module,
+            'action' => null,
+            'scope' => $context,
+        ]);
+
+        $packet = $this->menuService->buildModuleMenu($user, $context, $module);
+        $this->sendPacket($from, $packet);
+    }
+
+    protected function sendPacket(string $to, array $packet): void
+    {
+        if (!empty($packet['text'])) {
+            $this->sendText($to, (string) $packet['text']);
         }
 
-        if (!empty($detalle['informa'])) {
-            $bloques[] = 'INFORMA ' . $detalle['informa'];
+        if (!empty($packet['interactive']) && is_array($packet['interactive'])) {
+            $this->sendInteractive($to, $packet['interactive']);
         }
 
-        $bloques = array_values(array_filter($bloques, fn ($item) => $item !== null && trim((string) $item) !== ''));
-        $texto = implode("\n\n", $bloques);
-
-        $this->sendText($from, $texto);
-
-        foreach (($detalle['fotos'] ?? []) as $foto) {
-            if (!empty($foto)) {
-                $this->sendImage($from, $foto);
+        if (!empty($packet['images']) && is_array($packet['images'])) {
+            foreach ($packet['images'] as $imageUrl) {
+                if (!empty($imageUrl)) {
+                    $this->sendImage($to, (string) $imageUrl);
+                }
             }
         }
     }
@@ -192,9 +300,7 @@ class WhatsAppWebhookController extends Controller
         $config = $this->getWhatsAppConfig();
 
         if ($config['phone_number_id'] === '' || $config['token'] === '') {
-            Log::warning('WA sendText sin configuración', [
-                'to' => $to,
-            ]);
+            Log::warning('WA sendText sin configuración', ['to' => $to]);
 
             return [
                 'ok' => false,
@@ -217,6 +323,43 @@ class WhatsAppWebhookController extends Controller
         $json = $response->json();
 
         Log::info('WA sendText response', [
+            'to' => $to,
+            'status' => $response->status(),
+            'body' => $json,
+        ]);
+
+        return [
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'body' => $json,
+        ];
+    }
+
+    protected function sendInteractive(string $to, array $interactive): array
+    {
+        $config = $this->getWhatsAppConfig();
+
+        if ($config['phone_number_id'] === '' || $config['token'] === '') {
+            Log::warning('WA sendInteractive sin configuración', ['to' => $to]);
+
+            return [
+                'ok' => false,
+                'status' => 0,
+                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
+            ];
+        }
+
+        $response = Http::withToken($config['token'])
+            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+                'type' => 'interactive',
+                'interactive' => $interactive,
+            ]);
+
+        $json = $response->json();
+
+        Log::info('WA sendInteractive response', [
             'to' => $to,
             'status' => $response->status(),
             'body' => $json,
@@ -271,275 +414,6 @@ class WhatsAppWebhookController extends Controller
         ];
     }
 
-    public function sendTemplate(string $to, array $data): array
-    {
-        $config = $this->getWhatsAppConfig();
-
-        if ($config['phone_number_id'] === '' || $config['token'] === '') {
-            Log::warning('WA sendTemplate sin configuración', [
-                'to' => $to,
-                'template' => $data['template'] ?? 'notificacion_hecho_vial',
-            ]);
-
-            return [
-                'ok' => false,
-                'status' => 0,
-                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
-            ];
-        }
-
-        $templateName = (string) ($data['template'] ?? 'notificacion_hecho_vial');
-        $languageCode = (string) ($data['language'] ?? 'es_MX');
-
-        $parameters = [];
-        foreach (($data['parameters'] ?? []) as $parameter) {
-            $parameters[] = [
-                'type' => 'text',
-                'text' => (string) $parameter,
-            ];
-        }
-
-        $response = Http::withToken($config['token'])
-            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
-                'messaging_product' => 'whatsapp',
-                'to' => $to,
-                'type' => 'template',
-                'template' => [
-                    'name' => $templateName,
-                    'language' => [
-                        'code' => $languageCode,
-                    ],
-                    'components' => [
-                        [
-                            'type' => 'body',
-                            'parameters' => $parameters,
-                        ],
-                    ],
-                ],
-            ]);
-
-        $json = $response->json();
-
-        Log::info('WA sendTemplate response', [
-            'to' => $to,
-            'status' => $response->status(),
-            'body' => $json,
-        ]);
-
-        return [
-            'ok' => $response->successful(),
-            'status' => $response->status(),
-            'body' => $json,
-        ];
-    }
-
-    public function sendHechoTemplate(string $to, Hechos $hecho): array
-    {
-        $hecho->loadMissing('vehiculos');
-
-        $ubicacion = trim(implode(', ', array_filter([
-            $hecho->calle,
-            $hecho->colonia ? 'col. ' . $hecho->colonia : null,
-        ])));
-
-        $fechaHora = trim(implode(' ', array_filter([
-            !empty($hecho->fecha) ? optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha : null,
-            $this->formatearHora((string) $hecho->hora),
-        ])));
-
-        return $this->sendTemplate($to, [
-            'template' => 'notificacion_hecho_vial',
-            'language' => 'es_MX',
-            'parameters' => [
-                $ubicacion !== '' ? $ubicacion : 'SIN UBICACIÓN',
-                $fechaHora !== '' ? $fechaHora : 'SIN FECHA',
-                (string) ($hecho->tipo_hecho ?: 'SIN TIPO'),
-                (string) ($hecho->situacion ?: 'SIN ESTADO'),
-                (string) ($hecho->folio_c5i ?: $hecho->id),
-            ],
-        ]);
-    }
-
-    protected function buscarHechosPorPlaca(string $placa): array
-    {
-        $placaNormalizada = $this->normalizarPlaca($placa);
-
-        $hechos = Hechos::query()
-            ->with(['vehiculos'])
-            ->whereHas('vehiculos', function ($query) use ($placaNormalizada) {
-                $query->whereRaw(
-                    "REPLACE(REPLACE(REPLACE(UPPER(placas), '-', ''), ' ', ''), '.', '') = ?",
-                    [$placaNormalizada]
-                );
-            })
-            ->orderByDesc('fecha')
-            ->orderByDesc('hora')
-            ->limit(10)
-            ->get();
-
-        return $hechos->map(function (Hechos $hecho) use ($placaNormalizada) {
-            $vehiculo = $hecho->vehiculos->first(function ($vehiculo) use ($placaNormalizada) {
-                return $this->normalizarPlaca((string) $vehiculo->placas) === $placaNormalizada;
-            }) ?? $hecho->vehiculos->first();
-
-            return [
-                'id' => $hecho->id,
-                'folio' => $hecho->folio_c5i ?: $hecho->id,
-                'fecha' => optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha,
-                'hora' => $this->formatearHora((string) $hecho->hora),
-                'tipo' => (string) $hecho->tipo_hecho,
-                'estado' => (string) ($hecho->situacion ?: 'SIN ESTADO'),
-                'placas' => (string) ($vehiculo->placas ?? ''),
-            ];
-        })->values()->all();
-    }
-
-    protected function obtenerDetalleHechoPorFolio(string $folio): ?array
-    {
-        $hecho = Hechos::query()
-            ->with(['vehiculos'])
-            ->where(function ($query) use ($folio) {
-                $query->where('id', $folio)
-                    ->orWhere('folio_c5i', $folio);
-            })
-            ->first();
-
-        if (!$hecho) {
-            return null;
-        }
-
-        $ubicacionPartes = array_filter([
-            $hecho->calle,
-            $hecho->colonia ? 'col. ' . $hecho->colonia : null,
-        ]);
-
-        $descripcion = trim(implode(' ', array_filter([
-            optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha,
-            $this->formatearHora((string) $hecho->hora),
-            'Hrs. Guardia Civil toma conocimiento en',
-            implode(', ', $ubicacionPartes) . '.',
-        ])));
-
-        $lat = $hecho->lat;
-        $lng = $hecho->lng;
-        $googleMaps = null;
-        $ubicacion = null;
-
-        if (!is_null($lat) && !is_null($lng) && $lat !== '' && $lng !== '') {
-            $ubicacion = "{$lat}, {$lng}";
-            $googleMaps = "https://www.google.com/maps?q={$lat},{$lng}";
-        }
-
-        $vehiculosTexto = [];
-        $fotosVehiculos = [];
-
-        foreach (($hecho->vehiculos ?? []) as $index => $vehiculo) {
-            $etiqueta = chr(65 + $index) . ')';
-
-            $lineasVehiculo = [];
-            $lineasVehiculo[] = 'VEHÍCULO ' . $etiqueta;
-            $lineasVehiculo[] = $this->buildVehiculoDescripcion($vehiculo);
-
-            $ocupantes = $this->buildVehiculoOcupantes($vehiculo);
-            if ($ocupantes !== '') {
-                $lineasVehiculo[] = $ocupantes;
-            }
-
-            $vehiculosTexto[] = implode("\n", array_filter($lineasVehiculo, fn ($item) => trim((string) $item) !== ''));
-
-            $fotosVehiculos = array_merge($fotosVehiculos, $this->extraerUrlsDesdeCampo($vehiculo->fotos ?? null));
-        }
-
-        $fotos = array_values(array_unique(array_filter(array_merge(
-            $this->extraerUrlsDesdeCampo($hecho->foto_lugar),
-            $this->extraerUrlsDesdeCampo($hecho->foto_situacion),
-            $fotosVehiculos
-        ))));
-
-        return [
-            'coordinacion' => 'COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL',
-            'unidad' => 'UNIDAD DE ATENCIÓN A SINIESTROS',
-            'municipio' => (string) ($hecho->municipio ?: 'MORELIA'),
-            'sector' => $hecho->sector ? 'SECTOR ' . $hecho->sector : null,
-            'tema' => 'HECHO DE TRÁNSITO CLASIFICADO COMO ' . mb_strtoupper((string) ($hecho->tipo_hecho ?: 'SIN CLASIFICACIÓN'), 'UTF-8'),
-            'descripcion' => $descripcion,
-            'vehiculos_texto' => implode("\n\n", $vehiculosTexto),
-            'estado' => mb_strtoupper((string) ($hecho->situacion ?: 'SIN ESTADO'), 'UTF-8'),
-            'ubicacion' => $ubicacion,
-            'google_maps' => $googleMaps,
-            'informa' => $hecho->unidad ? 'UNIDAD ' . $hecho->unidad : ($hecho->perito ?: null),
-            'fotos' => $fotos,
-        ];
-    }
-
-    protected function buildVehiculoDescripcion($vehiculo): string
-    {
-        $partes = [];
-
-        $partes[] = 'De la marca ' . $this->valorONoEspecificado($vehiculo->marca ?? null);
-        $partes[] = 'tipo ' . $this->valorONoEspecificado($vehiculo->tipo ?? null);
-
-        if (!empty($vehiculo->linea)) {
-            $partes[] = 'línea ' . trim((string) $vehiculo->linea);
-        }
-
-        if (!empty($vehiculo->color)) {
-            $partes[] = 'color ' . trim((string) $vehiculo->color);
-        }
-
-        if (!empty($vehiculo->placas)) {
-            $partes[] = 'placas ' . trim((string) $vehiculo->placas);
-        }
-
-        if (!empty($vehiculo->serie)) {
-            $partes[] = 'NIV ' . trim((string) $vehiculo->serie);
-        }
-
-        return implode(', ', $partes) . '.';
-    }
-
-    protected function buildVehiculoOcupantes($vehiculo): string
-    {
-        $nombre = $this->firstFilled([
-            $vehiculo->nombre_conductor ?? null,
-            $vehiculo->conductor_nombre ?? null,
-            $vehiculo->nombre_persona ?? null,
-            $vehiculo->responsable ?? null,
-            $vehiculo->propietario ?? null,
-        ]);
-
-        $edad = $this->firstFilled([
-            $vehiculo->edad_conductor ?? null,
-            $vehiculo->conductor_edad ?? null,
-            $vehiculo->edad_persona ?? null,
-            $vehiculo->edad ?? null,
-        ]);
-
-        if ($nombre === '') {
-            return '';
-        }
-
-        $texto = 'Manifiesta viajar a bordo el C. ' . $nombre;
-
-        if ($edad !== '') {
-            $texto .= ' de ' . $edad . ' años';
-        }
-
-        return $texto . '.';
-    }
-
-    protected function firstFilled(array $values): string
-    {
-        foreach ($values as $value) {
-            $value = trim((string) $value);
-            if ($value !== '') {
-                return $value;
-            }
-        }
-
-        return '';
-    }
-
     protected function getWhatsAppConfig(): array
     {
         $graphVersion = (string) config('services.whatsapp.graph_version', 'v19.0');
@@ -557,92 +431,15 @@ class WhatsAppWebhookController extends Controller
         ];
     }
 
-    protected function normalizarPlaca(string $placa): string
+    protected function normalizePhone(string $value): string
     {
-        $placa = mb_strtoupper(trim($placa), 'UTF-8');
-        $placa = str_replace(['-', ' ', '.'], '', $placa);
-
-        return $placa;
+        return preg_replace('/\D+/', '', $value);
     }
 
-    protected function formatearHora(string $hora): string
+    protected function isResetCommand(string $value): bool
     {
-        if ($hora === '') {
-            return '';
-        }
+        $value = mb_strtoupper(trim($value), 'UTF-8');
 
-        return substr($hora, 0, 5);
-    }
-
-    protected function valorONoEspecificado(?string $valor): string
-    {
-        $valor = trim((string) $valor);
-
-        return $valor !== '' ? $valor : 'NO ESPECIFICADO';
-    }
-
-    protected function extraerUrlsDesdeCampo($valor): array
-    {
-        if (empty($valor)) {
-            return [];
-        }
-
-        if (is_array($valor)) {
-            return collect($valor)
-                ->flatMap(fn ($item) => $this->extraerUrlsDesdeCampo($item))
-                ->filter()
-                ->values()
-                ->all();
-        }
-
-        if (is_string($valor)) {
-            $trim = trim($valor);
-
-            if ($trim === '') {
-                return [];
-            }
-
-            $json = json_decode($trim, true);
-
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $this->extraerUrlsDesdeCampo($json);
-            }
-
-            if (str_contains($trim, ',')) {
-                return collect(explode(',', $trim))
-                    ->map(fn ($item) => $this->pathToUrl($item))
-                    ->filter()
-                    ->values()
-                    ->all();
-            }
-
-            return array_filter([$this->pathToUrl($trim)]);
-        }
-
-        return [];
-    }
-
-    protected function pathToUrl(?string $path): ?string
-    {
-        $path = trim((string) $path);
-
-        if ($path === '') {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        try {
-            return url(Storage::url($path));
-        } catch (\Throwable $e) {
-            Log::warning('WA pathToUrl error', [
-                'path' => $path,
-                'message' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
+        return in_array($value, ['MENU', 'MENÚ', 'INICIO', 'HOLA', 'RESET'], true);
     }
 }

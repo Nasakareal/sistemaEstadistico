@@ -44,11 +44,11 @@
 
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="area">Área</label>
-                                    <input type="text" name="area" id="area"
-                                           class="form-control @error('area') is-invalid @enderror"
-                                           value="{{ old('area') }}" placeholder="Ingrese el área">
-                                    @error('area')
+                                    <label for="telefono">Teléfono WhatsApp</label>
+                                    <input type="text" name="telefono" id="telefono"
+                                           class="form-control @error('telefono') is-invalid @enderror"
+                                           value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
+                                    @error('telefono')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
@@ -66,7 +66,7 @@
                                             <option value="{{ $role->name }}"
                                                     data-unidad-id="{{ $role->unidad_id }}"
                                                     {{ old('role') == $role->name ? 'selected' : '' }}>
-                                                {{ $role->name }}{{ $role->unidad ? ' - '.$role->unidad->nombre : ' - GLOBAL' }}
+                                                {{ $role->name }}{{ !is_null($role->unidad_id) ? ' - UNIDAD' : ' - GLOBAL' }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -326,6 +326,12 @@
                 return roleSelect.options[roleSelect.selectedIndex] || null;
             }
 
+            function limpiarTelefonoInput() {
+                const telefonoInput = document.getElementById('telefono');
+                if (!telefonoInput) return;
+                telefonoInput.value = telefonoInput.value.replace(/\D+/g, '');
+            }
+
             function toggleUnidadesExtra() {
                 const role = document.getElementById('role')?.value || '';
                 const box = document.getElementById('box_unidades_extra');
@@ -384,6 +390,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const roleSel = document.getElementById('role');
                 const unidadSel = document.getElementById('unidad_id');
+                const telefonoInput = document.getElementById('telefono');
                 const form = document.querySelector('form');
 
                 if (roleSel) {
@@ -398,13 +405,22 @@
                     unidadSel.addEventListener('change', toggleUbicacionEspecial);
                 }
 
+                if (telefonoInput) {
+                    telefonoInput.addEventListener('input', limpiarTelefonoInput);
+                    telefonoInput.addEventListener('blur', limpiarTelefonoInput);
+                }
+
                 if (form) {
-                    form.addEventListener('submit', beforeSubmitEnableUnidad);
+                    form.addEventListener('submit', function () {
+                        limpiarTelefonoInput();
+                        beforeSubmitEnableUnidad();
+                    });
                 }
 
                 syncUnidadConRol();
                 toggleUnidadesExtra();
                 toggleUbicacionEspecial();
+                limpiarTelefonoInput();
             });
         })();
 

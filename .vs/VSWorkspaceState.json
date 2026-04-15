@@ -6,8 +6,9 @@
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
     "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Services\\WhatsAppCloudService.php",
+  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppRenderService.php",
   "PreviewInSolutionExplorer": false
 }

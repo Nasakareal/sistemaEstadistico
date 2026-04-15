@@ -34,8 +34,10 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Área</label>
-                                <p class="form-control-static">{{ $user->area ?? 'No especificada' }}</p>
+                                <label>Teléfono WhatsApp</label>
+                                <p class="form-control-static">
+                                    {{ $user->telefono ? '+52 '.$user->telefono : 'Sin teléfono' }}
+                                </p>
                             </div>
                         </div>
 

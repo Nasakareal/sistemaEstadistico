@@ -114,7 +114,7 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             ."UNIDAD DE ATENCIÓN A SINIESTROS.\n\n"
             ."ASUNTO: NOVEDADES {$fechaTexto}\n"
             ."{$horaTexto} HRS.\n\n"
-            ."POR ESTE CONDUCTO ME PERMITO INFORMAR, EL PASE DE LISTA AL PERSONAL Y LAS NOVEDADES DE LOS HECHOS DE TRÁNSITO OCURRIDOS DURANTE LAS ÚLTIMAS 24 HRS.\n\n"
+            ."POR ESTE CONDUCTO ME PERMITO INFORMAR, LAS NOVEDADES DE LOS HECHOS DE TRÁNSITO OCURRIDOS DURANTE LAS ÚLTIMAS 24 HRS.\n\n"
             ."TOTAL: ".$this->pad($hechos)." HECHOS DE TRÁNSITO.\n\n"
             .$this->pad($lesionados)." LESIONADOS\n"
             .$this->pad($fallecidos)." FALLECIDOS\n\n"

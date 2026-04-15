@@ -32,11 +32,9 @@ use App\Http\Controllers\Api\GuardianesCaminoDispositivoController as ApiGuardia
 use App\Http\Controllers\Api\AgenteUpecHomeController;
 use App\Http\Controllers\Api\PuestaDisposicionController;
 
-Route::post('/wabot/incoming', [WabotIncomingController::class, 'handle']);
-Route::post('/bot/c5i/reco', [BotC5IController::class, 'recommend']);
-Route::post('/c5i/report', [C5IInboundController::class, 'handle']);
 Route::get('/whatsapp/webhook', [WhatsAppWebhookController::class, 'verify']);
 Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);
+
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);

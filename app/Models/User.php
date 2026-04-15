@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Spatie\Permission\Models\Role;
 
 class User extends Authenticatable
 {
@@ -18,6 +19,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'telefono',
         'password',
         'estado',
         'foto_perfil',
@@ -163,7 +165,6 @@ class User extends Authenticatable
     public function rolesVisiblesQuery()
     {
         return Role::query()
-            ->with('unidad')
             ->when(!$this->isSuperadmin(), function ($q) {
                 $q->where('name', '!=', 'Superadmin')
                     ->where(function ($sub) {
@@ -181,5 +182,28 @@ class User extends Authenticatable
         return $this->rolesVisiblesQuery()
             ->orderBy('name')
             ->get();
+    }
+
+    public function setTelefonoAttribute($value)
+    {
+        if (!$value) {
+            $this->attributes['telefono'] = null;
+            return;
+        }
+
+        $numero = preg_replace('/\D/', '', $value);
+
+        if ($numero === '') {
+            $this->attributes['telefono'] = null;
+            return;
+        }
+
+        if (strlen($numero) === 10) {
+            $numero = '521' . $numero;
+        } elseif (strlen($numero) === 12 && str_starts_with($numero, '52')) {
+            $numero = '521' . substr($numero, 2);
+        }
+
+        $this->attributes['telefono'] = $numero;
     }
 }

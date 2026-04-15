@@ -67,6 +67,7 @@ class UserController extends Controller
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'telefono' => 'nullable|string|max:30',
             'password' => 'required|min:6|confirmed',
             'area' => 'nullable|string|max:30',
             'role' => 'required|exists:roles,name',
@@ -78,6 +79,18 @@ class UserController extends Controller
             'unidades_ids' => 'nullable|array',
             'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
+
+        $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
+
+        if (!is_null($validatedData['telefono'])) {
+            $exists = User::query()->where('telefono', $validatedData['telefono'])->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    'telefono' => 'El teléfono ya está registrado en otro usuario.',
+                ]);
+            }
+        }
 
         $rol = $this->buscarRolAsignableParaActor($actor, $validatedData['role']);
 
@@ -137,6 +150,7 @@ class UserController extends Controller
             $user = User::create([
                 'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
+                'telefono' => $validatedData['telefono'],
                 'password' => bcrypt($validatedData['password']),
                 'estado' => 'Activo',
                 'area' => $validatedData['area'] ?? null,
@@ -235,6 +249,7 @@ class UserController extends Controller
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
+            'telefono' => 'nullable|string|max:30',
             'area' => 'nullable|string|max:30',
             'role' => 'required|exists:roles,name',
             'password' => 'nullable|min:6|confirmed',
@@ -246,6 +261,21 @@ class UserController extends Controller
             'unidades_ids' => 'nullable|array',
             'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
+
+        $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
+
+        if (!is_null($validatedData['telefono'])) {
+            $exists = User::query()
+                ->where('telefono', $validatedData['telefono'])
+                ->where('id', '!=', $user->id)
+                ->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    'telefono' => 'El teléfono ya está registrado en otro usuario.',
+                ]);
+            }
+        }
 
         $rol = $this->buscarRolAsignableParaActor($actor, $validatedData['role']);
 
@@ -315,6 +345,7 @@ class UserController extends Controller
             $user->update([
                 'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
+                'telefono' => $validatedData['telefono'],
                 'area' => $validatedData['area'] ?? null,
                 'unidad_id' => $validatedData['unidad_id'] ?? null,
                 'turno_id' => $validatedData['turno_id'] ?? null,
@@ -405,6 +436,33 @@ class UserController extends Controller
         $user->save();
 
         return redirect()->route('profile')->with('success', '¡Contraseña actualizada correctamente!');
+    }
+
+    private function normalizarTelefonoMx(?string $telefono): ?string
+    {
+        if (is_null($telefono) || trim($telefono) === '') {
+            return null;
+        }
+
+        $telefono = preg_replace('/\D+/', '', $telefono);
+
+        if ($telefono === '') {
+            return null;
+        }
+
+        if (strlen($telefono) === 10) {
+            return '521' . $telefono;
+        }
+
+        if (strlen($telefono) === 12 && str_starts_with($telefono, '52')) {
+            return '521' . substr($telefono, 2);
+        }
+
+        if (strlen($telefono) === 13 && str_starts_with($telefono, '521')) {
+            return $telefono;
+        }
+
+        return $telefono;
     }
 
     private function unidadCarreterasId(): ?int

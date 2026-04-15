@@ -2,8 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Models"
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Models\\User.php",
+  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppLink.php",
   "PreviewInSolutionExplorer": false
 }

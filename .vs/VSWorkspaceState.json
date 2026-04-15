@@ -2,13 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
-    "\\routes"
+    "\\app\\Models"
   ],
-  "SelectedNode": "\\app\\Services\\WhatsApp\\WhatsAppRenderService.php",
+  "SelectedNode": "\\app\\Models\\User.php",
   "PreviewInSolutionExplorer": false
 }

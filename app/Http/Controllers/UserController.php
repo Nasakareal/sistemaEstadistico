@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Role;
 use App\Models\Unidad;
 use App\Models\Turno;
 use App\Models\Patrulla;
@@ -14,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {

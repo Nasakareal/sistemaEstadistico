@@ -2,10 +2,12 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\config"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Services",
+    "\\routes"
   ],
-  "SelectedNode": "\\config\\services.php",
+  "SelectedNode": "\\app\\Services\\WhatsAppCloudService.php",
   "PreviewInSolutionExplorer": false
 }

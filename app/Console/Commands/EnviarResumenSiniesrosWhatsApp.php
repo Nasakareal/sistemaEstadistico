@@ -33,7 +33,10 @@ class EnviarResumenSiniesrosWhatsApp extends Command
         $fechaTexto = mb_strtoupper($end->copy()->locale('es')->translatedFormat('l d/m/Y'), 'UTF-8');
         $horaTexto = $end->format('H:i');
 
-        $firma = (string) config('services.whatsapp.siniestros.firma', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ');
+        $firma = (string) config(
+            'services.whatsapp.siniestros.firma',
+            'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ'
+        );
 
         $to = (string) (
             $this->option('to')
@@ -42,7 +45,7 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             ?: config('services.whatsapp.default_to')
         );
 
-        $template = (string) config('services.whatsapp.resumen_template', '');
+        $template = (string) config('services.whatsapp.siniestros.resumen_template', '');
 
         if ($to === '') {
             $this->error('No hay número destino. Define WHATSAPP_SINIESTROS_RESUMEN_TO o usa --to=');
@@ -68,7 +71,6 @@ class EnviarResumenSiniesrosWhatsApp extends Command
                     $this->pad($totalHechos),
                     $this->pad($totalLesionados),
                     $this->pad($totalFallecidos),
-                    $firma,
                 ]);
             }
 
@@ -112,7 +114,7 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             ."UNIDAD DE ATENCIÓN A SINIESTROS.\n\n"
             ."ASUNTO: NOVEDADES {$fechaTexto}\n"
             ."{$horaTexto} HRS.\n\n"
-            ."POR ESTE CONDUCTO ME PERMITO INFORMAR, LAS NOVEDADES DE LOS HECHOS DE TRÁNSITO OCURRIDOS DURANTE LAS ÚLTIMAS 24 HRS.\n\n"
+            ."POR ESTE CONDUCTO ME PERMITO INFORMAR, EL PASE DE LISTA AL PERSONAL Y LAS NOVEDADES DE LOS HECHOS DE TRÁNSITO OCURRIDOS DURANTE LAS ÚLTIMAS 24 HRS.\n\n"
             ."TOTAL: ".$this->pad($hechos)." HECHOS DE TRÁNSITO.\n\n"
             .$this->pad($lesionados)." LESIONADOS\n"
             .$this->pad($fallecidos)." FALLECIDOS\n\n"

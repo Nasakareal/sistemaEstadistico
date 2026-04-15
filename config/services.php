@@ -41,6 +41,8 @@ return [
             'firma' => env('WHATSAPP_SINIESTROS_FIRMA', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ'),
             'resumen_to' => env('WHATSAPP_SINIESTROS_RESUMEN_TO'),
             'tarjeta_hechos_to' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TO'),
+            'resumen_template' => env('WHATSAPP_SINIESTROS_RESUMEN_TEMPLATE'),
+            'tarjeta_hechos_template' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TEMPLATE'),
         ],
     ],
 ];

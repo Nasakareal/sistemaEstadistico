@@ -52,9 +52,9 @@ class WhatsAppCloudService
 
     protected function request(array $payload): array
     {
-        $graphVersion = (string) config('services.whatsapp.graph_version');
-        $accessToken = (string) config('services.whatsapp.access_token');
-        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+        $graphVersion = (string) config('services.whatsapp.graph_version', 'v19.0');
+        $accessToken = (string) config('services.whatsapp.token', '');
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id', '');
 
         if ($accessToken === '' || $phoneNumberId === '') {
             throw new RuntimeException('Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID en el .env');

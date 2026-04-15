@@ -28,7 +28,10 @@ class EnviarTarjetaHechosWhatsApp extends Command
 
         $totales = $this->getTotales($start, $end);
 
-        $firma = (string) config('services.whatsapp.siniestros.firma', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ');
+        $firma = (string) config(
+            'services.whatsapp.siniestros.firma',
+            'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ'
+        );
 
         $to = (string) (
             $this->option('to')
@@ -37,7 +40,7 @@ class EnviarTarjetaHechosWhatsApp extends Command
             ?: config('services.whatsapp.default_to')
         );
 
-        $template = (string) config('services.whatsapp.tarjeta_hechos_template', '');
+        $template = (string) config('services.whatsapp.siniestros.tarjeta_hechos_template', '');
 
         if ($to === '') {
             $this->error('No hay número destino. Define WHATSAPP_SINIESTROS_TARJETA_HECHOS_TO o usa --to=');
@@ -66,7 +69,6 @@ class EnviarTarjetaHechosWhatsApp extends Command
                     $this->pad($totales['resueltos']),
                     $this->pad($totales['pendientes']),
                     $this->pad($totales['turnados']),
-                    $firma,
                 ]);
             }
 
@@ -118,6 +120,7 @@ class EnviarTarjetaHechosWhatsApp extends Command
             ."- ".$this->pad($totales['salida_superficie'])." Salida de la superficie de rodamiento.\n"
             ."- ".$this->pad($totales['subida_camellon'])." Subida a camellón\n"
             ."- ".$this->pad($totales['caida_cuneta'])." Caída a cuneta\n"
+            ."- ".$this->pad($totales['caida_cuneta'])." Caída a cuneta\n"
             ."- ".$this->pad($totales['caida_motocicleta'])." Caída de motocicleta\n"
             ."- ".$this->pad($totales['incidente'])." Incidente\n"
             ."- ".$this->pad($totales['reporte'])." Reporte\n"
@@ -141,6 +144,7 @@ class EnviarTarjetaHechosWhatsApp extends Command
             'volcadura' => 0,
             'salida_superficie' => 0,
             'subida_camellon' => 0,
+            'caida_cuneta' => 0,
             'caida_cuneta' => 0,
             'caida_motocicleta' => 0,
             'incidente' => 0,

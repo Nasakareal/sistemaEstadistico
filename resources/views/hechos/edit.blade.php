@@ -471,7 +471,7 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-8">
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="causas">Causas<span style="color: red">*</span></label>
                                     <input type="text" name="causas" id="causas"
@@ -479,6 +479,19 @@
                                            value="{{ old('causas', $hecho->causas) }}"
                                            placeholder="Ingrese las causas" required>
                                     @error('causas')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="responsable">Responsable<span style="color: red">*</span></label>
+                                    <input type="text" name="responsable" id="responsable"
+                                           class="form-control @error('responsable') is-invalid @enderror"
+                                           value="{{ old('responsable', $hecho->responsable) }}"
+                                           placeholder="Ingrese el responsable" required>
+                                    @error('responsable')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>

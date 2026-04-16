@@ -87,6 +87,7 @@ class HechosController extends Controller
             'control_transito' => 'required|string|max:50',
             'checaron_antecedentes' => 'nullable|boolean',
             'causas' => 'required|string|max:255',
+            'responsable' => 'nullable|string|max:255',
             'colision_camino' => 'required|string|max:255',
             'situacion' => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
@@ -152,8 +153,7 @@ class HechosController extends Controller
 
         $hecho = Hechos::create($validated);
 
-        app(HechoRevisionNotificationService::class)
-            ->notificarJefesDeGrupoPorHechoPendiente($hecho);
+        app(HechoRevisionNotificationService::class)->notificarJefesDeGrupoPorHechoPendiente($hecho);
 
         $updates = [];
 
@@ -174,7 +174,7 @@ class HechosController extends Controller
         if ($situacion === 'TURNADO' && $dictamenId) {
             $dictamen = Dictamen::query()->findOrFail($dictamenId);
 
-            if (!empty($dictamen->hecho_id) && (int)$dictamen->hecho_id !== (int)$hecho->id) {
+            if (!empty($dictamen->hecho_id) && (int) $dictamen->hecho_id !== (int) $hecho->id) {
                 return redirect()->route('hechos.edit', $hecho->id)
                     ->withErrors(['dictamen_id' => 'Ese dictamen ya está ligado a otro hecho.'])
                     ->withInput();
@@ -319,6 +319,7 @@ class HechosController extends Controller
             'control_transito' => 'required|string|max:50',
             'checaron_antecedentes' => 'nullable|boolean',
             'causas' => 'required|string|max:255',
+            'responsable' => 'nullable|string|max:255',
             'colision_camino' => 'required|string|max:255',
             'situacion' => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
             'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',

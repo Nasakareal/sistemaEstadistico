@@ -29,12 +29,25 @@ class WhatsAppLink
         $lines[] = "";
 
         $tema = "TEMA: HECHO DE TRÁNSITO CLASIFICADO COMO " . self::upper($hecho->tipo_hecho);
-        if (!empty($hecho->causas)) $tema .= " POR " . self::upper($hecho->causas);
+        if (!empty($hecho->causas)) {
+            $tema .= " POR " . self::upper($hecho->causas);
+        }
         $lines[] = $tema;
         $lines[] = "";
 
-        $fechaHora = trim(($hecho->fecha ?? '') . ' ' . ($hecho->hora ?? ''));
-        $ubic = $hecho->ubicacion_formateada ?: trim(($hecho->calle ?? '') . " " . ($hecho->entre_calles ?? ''));
+        $fecha = !empty($hecho->fecha) ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d') : '';
+        $hora = !empty($hecho->hora) ? substr((string) $hecho->hora, 0, 5) : '';
+        $fechaHora = trim($fecha . ' ' . $hora);
+        $ubic = trim((string) ($hecho->calle ?? ''));
+
+        if (!empty($hecho->colonia)) {
+            $ubic .= ', col. ' . trim((string) $hecho->colonia);
+        }
+
+        if ($ubic === '') {
+            $ubic = $hecho->ubicacion_formateada ?: trim((string) ($hecho->entre_calles ?? ''));
+        }
+
         $lines[] = "{$fechaHora} Hrs. Guardia Civil toma conocimiento en {$ubic}.";
         $lines[] = "";
         $lines[] = "Lugar donde se encuentran:";
@@ -49,24 +62,21 @@ class WhatsAppLink
                 $lines[] = "VEHÍCULO {$letter})";
 
                 $marca = $v->marca ?: "NO VISIBLE";
-                $tipo  = $v->tipo ?: "SIN DATO";
+                $tipo = $v->tipo ?: "SIN DATO";
                 $linea = $v->linea ?: "SIN DATO";
                 $color = $v->color ?: "SIN DATO";
                 $placas = $v->placas ?: "SIN PLACAS";
-                $serie  = $v->serie ?: "SIN DATO";
+                $serie = $v->serie ?: "SIN DATO";
 
                 $lines[] = "De la marca {$marca}, tipo {$tipo}, línea {$linea}, color {$color}, placas {$placas}, NIV {$serie}.";
 
                 if ($v->conductores && $v->conductores->count() > 0) {
                     $c = $v->conductores->first();
                     $nombre = $c->nombre ?: "SIN DATO";
-                    $edad   = $c->edad ?: "S/E";
+                    $edad = $c->edad ?: "S/E";
                     $lines[] = "Manifiesta viajar a bordo el C. {$nombre} de {$edad} años.";
                 }
 
-                // ----------------------------
-                // GRÚA / CORRALÓN (desde vehiculos)
-                // ----------------------------
                 $gruaVeh = isset($v->grua) ? trim((string) $v->grua) : '';
                 $corralonVeh = isset($v->corralon) ? trim((string) $v->corralon) : '';
 
@@ -78,9 +88,6 @@ class WhatsAppLink
                     $lines[] = "Corralón: " . self::upper($corralonVeh) . ".";
                 }
 
-                // ----------------------------
-                // SERVICIO (desde tabla servicios)
-                // ----------------------------
                 $serv = DB::table('servicios')
                     ->where('vehiculo_id', $v->id)
                     ->orderByDesc('id')
@@ -117,18 +124,25 @@ class WhatsAppLink
             $lines[] = "SIN DATOS DE VEHÍCULOS CAPTURADOS.";
         }
 
+        if (!empty($hecho->responsable)) {
+            $lines[] = "";
+            $lines[] = "RESPONSABLE: " . self::upper($hecho->responsable) . ".";
+        }
+
         $situacion = $hecho->situacion ?: "SIN DATO";
         $lines[] = "";
         $lines[] = "Hecho " . self::upper($situacion) . ".";
 
         if (method_exists($hecho, 'lesionados')) {
             $lesionados = $hecho->lesionados()->get();
+
             if ($lesionados->count() > 0) {
                 $lines[] = "";
                 $lines[] = "De este hecho de tránsito resultan lesionados:";
+
                 foreach ($lesionados as $l) {
                     $nombreL = $l->nombre ?: "SIN DATO";
-                    $edadL   = $l->edad ?: "S/E";
+                    $edadL = $l->edad ?: "S/E";
                     $lines[] = "- {$nombreL} de {$edadL} años.";
                 }
             }
@@ -153,7 +167,11 @@ class WhatsAppLink
     private static function upper(?string $s): string
     {
         $s = trim((string) $s);
-        if ($s === '') return 'SIN DATO';
+
+        if ($s === '') {
+            return 'SIN DATO';
+        }
+
         return Str::upper($s);
     }
 
@@ -165,6 +183,7 @@ class WhatsAppLink
     private static function isNA(?string $s): bool
     {
         $s = Str::upper(trim((string) $s));
+
         return $s === 'N/A' || $s === 'NA' || $s === 'NO' || $s === 'NO SE UTILIZA' || $s === 'SIN DATO';
     }
 }

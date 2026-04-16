@@ -48,7 +48,7 @@
             'label' => 'General',
             'path' => $iconosPath,
             'assetPath' => 'img/croquis/iconos',
-            'skipKeys' => ['pow', 'semaforo1', 'semaforo2'],
+            'skipKeys' => ['pow', 'semaforo1', 'semaforo2', 'animal', 'cow', 'horse', 'peaton_1', 'peaton_2', 'peaton_3'],
         ],
         'semaforos_senalamientos' => [
             'label' => 'Semáforos y señalamientos',
@@ -130,19 +130,53 @@
     $iconoCardinal = collect($iconosCroquis)->firstWhere('key', 'cardinal_points');
 
     $categoriasVehiculos = [
-        'automovil' => 'Automóvil',
-        'camion' => 'Camión',
-        'camioneta' => 'Camioneta',
-        'bicicleta' => 'Bicicleta',
-        'motocicleta' => 'Motocicleta',
-        'maquinaria' => 'Maquinaria',
+        'automovil' => [
+            'label' => 'Automóvil',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'automovil',
+            'assetPath' => 'img/croquis/vehiculos/automovil',
+        ],
+        'camion' => [
+            'label' => 'Camión',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'camion',
+            'assetPath' => 'img/croquis/vehiculos/camion',
+        ],
+        'camioneta' => [
+            'label' => 'Camioneta',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'camioneta',
+            'assetPath' => 'img/croquis/vehiculos/camioneta',
+        ],
+        'bicicleta' => [
+            'label' => 'Bicicleta',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'bicicleta',
+            'assetPath' => 'img/croquis/vehiculos/bicicleta',
+        ],
+        'motocicleta' => [
+            'label' => 'Motocicleta',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'motocicleta',
+            'assetPath' => 'img/croquis/vehiculos/motocicleta',
+        ],
+        'maquinaria' => [
+            'label' => 'Maquinaria',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'maquinaria',
+            'assetPath' => 'img/croquis/vehiculos/maquinaria',
+        ],
+        'peatones' => [
+            'label' => 'Peatones',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'peatones',
+            'assetPath' => 'img/croquis/vehiculos/peatones',
+        ],
+        'animales' => [
+            'label' => 'Animales',
+            'path' => $vehiculosPath . DIRECTORY_SEPARATOR . 'animales',
+            'assetPath' => 'img/croquis/vehiculos/animales',
+        ],
     ];
 
     $vehiculosCroquis = collect($categoriasVehiculos)
-        ->map(function ($label, $categoria) use ($vehiculosPath, $obtenerImagenesCroquis, $formatearNombreCroquis) {
-            $categoriaPath = $vehiculosPath . DIRECTORY_SEPARATOR . $categoria;
+        ->map(function ($config, $categoria) use ($obtenerImagenesCroquis, $formatearNombreCroquis) {
+            $categoriaPath = $config['path'];
             $items = $obtenerImagenesCroquis($categoriaPath)
-                ->map(function ($archivo) use ($categoria, $categoriaPath, $formatearNombreCroquis) {
+                ->map(function ($archivo) use ($categoria, $categoriaPath, $config, $formatearNombreCroquis) {
                     $nombreBase = pathinfo($archivo, PATHINFO_FILENAME);
                     $imagenPath = $categoriaPath . DIRECTORY_SEPARATOR . $archivo;
                     $dimensiones = @getimagesize($imagenPath) ?: [90, 90];
@@ -150,7 +184,7 @@
                     return [
                         'nombre' => $formatearNombreCroquis($nombreBase),
                         'subtipo' => \Illuminate\Support\Str::slug($nombreBase, '_'),
-                        'src' => asset('img/croquis/vehiculos/' . $categoria . '/' . $archivo),
+                        'src' => asset($config['assetPath'] . '/' . $archivo),
                         'anchoOriginal' => $dimensiones[0],
                         'altoOriginal' => $dimensiones[1],
                     ];
@@ -160,7 +194,7 @@
 
             return [
                 'key' => $categoria,
-                'label' => $label,
+                'label' => $config['label'],
                 'items' => $items,
             ];
         })

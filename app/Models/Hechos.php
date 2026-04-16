@@ -37,6 +37,7 @@ class Hechos extends Model
         'control_transito',
         'checaron_antecedentes',
         'causas',
+        'responsable',
         'colision_camino',
         'situacion',
         'oficio_mp',

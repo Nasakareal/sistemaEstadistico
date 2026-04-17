@@ -179,6 +179,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'update'])->middleware('can:editar lesionados');
     Route::delete('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'destroy'])->middleware('can:eliminar lesionados');
 
+    Route::get('/hechos/{hecho}/croquis', [CroquisController::class, 'show'])->middleware('can:ver hechos');
+    Route::post('/hechos/{hecho}/croquis', [CroquisController::class, 'store'])->middleware('can:editar hechos');
+    Route::put('/hechos/{hecho}/croquis', [CroquisController::class, 'update'])->middleware('can:editar hechos');
+    Route::delete('/hechos/{hecho}/croquis', [CroquisController::class, 'destroy'])->middleware('can:editar hechos');
+
     Route::post('/location', [LocationController::class, 'store']);
     Route::get('/location/last', [LocationController::class, 'last']);
     Route::get('/users/{user}/location/last', [LocationController::class, 'lastByUser']);

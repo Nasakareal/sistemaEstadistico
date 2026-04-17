@@ -133,6 +133,21 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
+        if ($step === 'choose_quick_stat_action') {
+            $this->handleChooseQuickStatAction($from, $user, $context, $state, $input);
+            return;
+        }
+
+        if ($step === 'choose_quick_stat_filter') {
+            $this->handleChooseQuickStatFilter($from, $user, $context, $state, $input);
+            return;
+        }
+
+        if ($step === 'choose_quick_stat_period') {
+            $this->handleChooseQuickStatPeriod($from, $user, $context, $state, $input);
+            return;
+        }
+
         if ($step === 'await_param') {
             $this->handleAwaitParam($from, $user, $context, $state, $input);
             return;
@@ -210,6 +225,20 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
+        if ($action['key'] === 'estadisticas_rapidas') {
+            $this->stateService->putContext($from, [
+                'user_id' => $user->id,
+                'step' => 'choose_quick_stat_action',
+                'module' => $module,
+                'action' => null,
+                'scope' => $context,
+            ]);
+
+            $packet = $this->menuService->buildQuickStatsMenu($user, $context);
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
         if (($action['requires_param'] ?? false) === false) {
             $result = $this->queryService->executeImmediate($user, $context, $module, $action['key']);
             $this->sendPacket($from, $result);
@@ -238,6 +267,141 @@ class WhatsAppWebhookController extends Controller
 
         $prompt = $this->menuService->buildActionPrompt($module, $action['key'], $context);
         $this->sendPacket($from, $prompt);
+    }
+
+    protected function handleChooseQuickStatAction(string $from, $user, array $context, array $state, array $input): void
+    {
+        $module = (string) ($state['module'] ?? 'siniestros');
+        $action = $this->menuService->resolveActionSelection($input, $module, $context);
+
+        if (!$action) {
+            $packet = $this->menuService->buildQuickStatsMenu($user, $context, 'Selecciona una estadística válida.');
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
+        if ($action['key'] === 'estadistica_situacion') {
+            $this->stateService->putContext($from, [
+                'user_id' => $user->id,
+                'step' => 'choose_quick_stat_filter',
+                'module' => $module,
+                'action' => $action['key'],
+                'filter_field' => 'situacion',
+                'scope' => $context,
+            ]);
+
+            $packet = $this->menuService->buildSituacionMenu();
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
+        if ($action['key'] === 'estadistica_tipo_hecho') {
+            $this->stateService->putContext($from, [
+                'user_id' => $user->id,
+                'step' => 'choose_quick_stat_filter',
+                'module' => $module,
+                'action' => $action['key'],
+                'filter_field' => 'tipo_hecho',
+                'scope' => $context,
+            ]);
+
+            $packet = $this->menuService->buildTipoHechoMenu();
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'choose_quick_stat_period',
+            'module' => $module,
+            'action' => $action['key'],
+            'filters' => [],
+            'scope' => $context,
+        ]);
+
+        $packet = $this->menuService->buildQuickStatsPeriodMenu($action['key']);
+        $this->sendPacket($from, $packet);
+    }
+
+    protected function handleChooseQuickStatFilter(string $from, $user, array $context, array $state, array $input): void
+    {
+        $action = (string) ($state['action'] ?? '');
+        $expectedField = (string) ($state['filter_field'] ?? '');
+        $filter = $this->menuService->resolveFilterSelection($input);
+
+        if (!$filter || ($filter['field'] ?? '') !== $expectedField) {
+            if ($expectedField === 'situacion') {
+                $packet = $this->menuService->buildSituacionMenu('Selecciona una situación válida.');
+                $this->sendPacket($from, $packet);
+                return;
+            }
+
+            if ($expectedField === 'tipo_hecho') {
+                $packet = $this->menuService->buildTipoHechoMenu('Selecciona un tipo de hecho válido.');
+                $this->sendPacket($from, $packet);
+                return;
+            }
+
+            $this->sendText($from, 'No pude identificar el filtro solicitado.');
+            return;
+        }
+
+        $filters = [
+            $filter['field'] => $filter['value'],
+        ];
+
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'choose_quick_stat_period',
+            'module' => (string) ($state['module'] ?? 'siniestros'),
+            'action' => $action,
+            'filters' => $filters,
+            'scope' => $context,
+        ]);
+
+        $packet = $this->menuService->buildQuickStatsPeriodMenu($action);
+        $this->sendPacket($from, $packet);
+    }
+
+    protected function handleChooseQuickStatPeriod(string $from, $user, array $context, array $state, array $input): void
+    {
+        $period = $this->menuService->resolvePeriodSelection($input);
+        $action = (string) ($state['action'] ?? '');
+
+        if (!$period || ($period['action'] ?? '') !== $action) {
+            $packet = $this->menuService->buildQuickStatsPeriodMenu($action, 'Selecciona un periodo válido.');
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
+        if (($period['period'] ?? '') === 'personalizado') {
+            $packet = $this->menuService->buildQuickStatsPeriodMenu($action, 'Por ahora usa Hoy, Ayer, Este mes o Mes anterior.');
+            $this->sendPacket($from, $packet);
+            return;
+        }
+
+        $filters = is_array($state['filters'] ?? null) ? $state['filters'] : [];
+
+        $result = $this->queryService->executeQuickStat(
+            user: $user,
+            context: $context,
+            action: $action,
+            period: (string) $period['period'],
+            filters: $filters
+        );
+
+        $this->sendPacket($from, $result);
+
+        $this->stateService->putContext($from, [
+            'user_id' => $user->id,
+            'step' => 'choose_action',
+            'module' => (string) ($state['module'] ?? 'siniestros'),
+            'action' => null,
+            'scope' => $context,
+        ]);
+
+        $packet = $this->menuService->buildModuleMenu($user, $context, (string) ($state['module'] ?? 'siniestros'));
+        $this->sendPacket($from, $packet);
     }
 
     protected function handleAwaitParam(string $from, $user, array $context, array $state, array $input): void

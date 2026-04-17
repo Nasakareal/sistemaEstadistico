@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\GuardianesCaminoController as ApiGuardianesCaminoCo
 use App\Http\Controllers\Api\GuardianesCaminoDispositivoController as ApiGuardianesCaminoDispositivoController;
 use App\Http\Controllers\Api\AgenteUpecHomeController;
 use App\Http\Controllers\Api\PuestaDisposicionController;
+use App\Http\Controllers\Api\CroquisController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);

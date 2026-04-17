@@ -4,13 +4,8 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\estadisticas_globales"
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\CroquisController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -67,14 +67,24 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
+        $esDelegaciones = (int) ($usuario->unidad_id ?? 0) === 2;
+
+        $reglaFolio = $esDelegaciones
+            ? 'nullable|string|max:20|unique:hechos,folio_c5i'
+            : 'required|string|max:20|unique:hechos,folio_c5i';
+
+        $reglaSector = $esDelegaciones
+            ? 'nullable|string|max:100'
+            : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
+
         $validated = $request->validate([
-            'folio_c5i' => 'required|string|max:20|unique:hechos,folio_c5i',
+            'folio_c5i' => $reglaFolio,
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
             'hora' => $usuario->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
             'fecha' => 'required|date',
-            'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
+            'sector' => $reglaSector,
             'calle' => 'required|string|max:255',
             'colonia' => 'required|string|max:255',
             'entre_calles' => 'nullable|string|max:255',
@@ -108,6 +118,14 @@ class HechosController extends Controller
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
+        if (empty($validated['folio_c5i'])) {
+            $validated['folio_c5i'] = null;
+        }
+
+        if ($esDelegaciones && empty($validated['sector'])) {
+            $validated['sector'] = 'DELEGACIONES';
+        }
+
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
         $validated['danos_patrimoniales'] = $request->has('danos_patrimoniales');
 
@@ -117,7 +135,7 @@ class HechosController extends Controller
         }
 
         $situacion = (string)($validated['situacion'] ?? '');
-        if ($situacion === 'RESUELTO') {
+        if (!$esDelegaciones && $situacion === 'RESUELTO') {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             ]);
@@ -294,19 +312,34 @@ class HechosController extends Controller
         $quitarFotoLugar = (string) $request->input('quitar_foto_lugar', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
-        $validated = $request->validate([
-            'folio_c5i' => [
+        $esDelegaciones = (int) ($usuario->unidad_id ?? 0) === 2;
+
+        $reglaFolio = $esDelegaciones
+            ? [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+            ]
+            : [
                 'required',
                 'string',
-                'max:255',
-                Rule::unique('hechos')->ignore($hecho->id),
-            ],
+                'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+            ];
+
+        $reglaSector = $esDelegaciones
+            ? 'nullable|string|max:100'
+            : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
+
+        $validated = $request->validate([
+            'folio_c5i' => $reglaFolio,
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
             'hora' => $usuario->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
             'fecha' => 'required|date',
-            'sector' => 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO',
+            'sector' => $reglaSector,
             'calle' => 'required|string|max:255',
             'colonia' => 'required|string|max:255',
             'entre_calles' => 'nullable|string|max:255',
@@ -340,6 +373,14 @@ class HechosController extends Controller
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
+        if (empty($validated['folio_c5i'])) {
+            $validated['folio_c5i'] = null;
+        }
+
+        if ($esDelegaciones && empty($validated['sector'])) {
+            $validated['sector'] = 'DELEGACIONES';
+        }
+
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
         $validated['danos_patrimoniales'] = $request->has('danos_patrimoniales');
 
@@ -350,7 +391,7 @@ class HechosController extends Controller
 
         $situacion = (string) ($validated['situacion'] ?? '');
 
-        if ($situacion === 'RESUELTO') {
+        if (!$esDelegaciones && $situacion === 'RESUELTO') {
             $hayFotoGuardada = !empty($hecho->foto_situacion) && !$quitarFotoSituacion;
 
             if (!$hayFotoGuardada && !$request->hasFile('foto_situacion')) {
@@ -452,7 +493,30 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        if (!$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin')) {
+        if (!$usuario) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para eliminar este hecho.');
+        }
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if (
+            !$usuario->hasRole('Superadmin') &&
+            !(
+                $usuario->hasRole('Administrador')
+                && in_array($unidadId, [1, 2, 4], true)
+            )
+        ) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para eliminar este hecho.');
+        }
+
+        if ($unidadId === 3) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para eliminar este hecho.');
         }
 
@@ -460,6 +524,7 @@ class HechosController extends Controller
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
                 Storage::disk('public')->delete($hecho->foto_lugar);
             }
+
             if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
                 Storage::disk('public')->delete($hecho->foto_situacion);
             }
@@ -572,21 +637,23 @@ class HechosController extends Controller
 
     private function applyHechosVisibilityScope($query, $usuario): void
     {
-        if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Jefe de Grupo')
-            || $usuario->hasRole('Coordinador')
-        ) {
+        if (!$usuario) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        if ($usuario->hasRole('Superadmin')) {
             return;
         }
 
         $unidadId = (int) ($usuario->unidad_id ?? 0);
 
-        $UNIDAD_CARRETERAS_ID = 4;
+        if ($unidadId === 3) {
+            return;
+        }
 
-        if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
-            $query->where('unidad_org_id', $UNIDAD_CARRETERAS_ID);
+        if ($unidadId === 4) {
+            $query->where('unidad_org_id', 4);
             return;
         }
 
@@ -622,6 +689,11 @@ class HechosController extends Controller
             return;
         }
 
+        if ($unidadId === 1) {
+            $query->where('unidad_org_id', 1);
+            return;
+        }
+
         if ($unidadId > 0) {
             $query->where('unidad_org_id', $unidadId);
             return;
@@ -632,6 +704,10 @@ class HechosController extends Controller
 
     private function userCanEditHecho($usuario, Hechos $hecho): bool
     {
+        if (!$usuario) {
+            return false;
+        }
+
         $q = Hechos::query()->whereKey($hecho->id);
         $this->applyHechosVisibilityScope($q, $usuario);
 
@@ -639,9 +715,18 @@ class HechosController extends Controller
             return false;
         }
 
+        if ($usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if ($unidadId === 3) {
+            return false;
+        }
+
         if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
+            $usuario->hasRole('Administrador')
             || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Jefe de Grupo')
             || $usuario->hasRole('Subdirector')
@@ -665,6 +750,8 @@ class HechosController extends Controller
 
     public function seguimiento(Request $request)
     {
+        $usuario = auth()->user();
+
         $periodo = strtoupper($request->get('periodo', 'SEMANA'));
         $situacion = strtoupper($request->get('situacion', 'PENDIENTE'));
 
@@ -690,21 +777,48 @@ class HechosController extends Controller
         $inicioAnio = $hoy->copy()->startOfYear();
         $finAnio = $hoy->copy()->endOfYear();
 
+        $querySemanaPendiente = Hechos::query()->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'PENDIENTE');
+        $this->applyHechosVisibilityScope($querySemanaPendiente, $usuario);
+
+        $querySemanaTurnado = Hechos::query()->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'TURNADO');
+        $this->applyHechosVisibilityScope($querySemanaTurnado, $usuario);
+
+        $querySemanaResuelto = Hechos::query()->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'RESUELTO');
+        $this->applyHechosVisibilityScope($querySemanaResuelto, $usuario);
+
+        $queryMesPendiente = Hechos::query()->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'PENDIENTE');
+        $this->applyHechosVisibilityScope($queryMesPendiente, $usuario);
+
+        $queryMesTurnado = Hechos::query()->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'TURNADO');
+        $this->applyHechosVisibilityScope($queryMesTurnado, $usuario);
+
+        $queryMesResuelto = Hechos::query()->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'RESUELTO');
+        $this->applyHechosVisibilityScope($queryMesResuelto, $usuario);
+
+        $queryAnioPendiente = Hechos::query()->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'PENDIENTE');
+        $this->applyHechosVisibilityScope($queryAnioPendiente, $usuario);
+
+        $queryAnioTurnado = Hechos::query()->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'TURNADO');
+        $this->applyHechosVisibilityScope($queryAnioTurnado, $usuario);
+
+        $queryAnioResuelto = Hechos::query()->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'RESUELTO');
+        $this->applyHechosVisibilityScope($queryAnioResuelto, $usuario);
+
         $conteos = [
             'semana' => [
-                'PENDIENTE' => Hechos::whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'PENDIENTE')->count(),
-                'TURNADO' => Hechos::whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'TURNADO')->count(),
-                'RESUELTO' => Hechos::whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'RESUELTO')->count(),
+                'PENDIENTE' => $querySemanaPendiente->count(),
+                'TURNADO' => $querySemanaTurnado->count(),
+                'RESUELTO' => $querySemanaResuelto->count(),
             ],
             'mes' => [
-                'PENDIENTE' => Hechos::whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'PENDIENTE')->count(),
-                'TURNADO' => Hechos::whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'TURNADO')->count(),
-                'RESUELTO' => Hechos::whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'RESUELTO')->count(),
+                'PENDIENTE' => $queryMesPendiente->count(),
+                'TURNADO' => $queryMesTurnado->count(),
+                'RESUELTO' => $queryMesResuelto->count(),
             ],
             'anio' => [
-                'PENDIENTE' => Hechos::whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'PENDIENTE')->count(),
-                'TURNADO' => Hechos::whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'TURNADO')->count(),
-                'RESUELTO' => Hechos::whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'RESUELTO')->count(),
+                'PENDIENTE' => $queryAnioPendiente->count(),
+                'TURNADO' => $queryAnioTurnado->count(),
+                'RESUELTO' => $queryAnioResuelto->count(),
             ],
         ];
 
@@ -719,6 +833,8 @@ class HechosController extends Controller
         }
 
         $query->where('situacion', $situacion);
+
+        $this->applyHechosVisibilityScope($query, $usuario);
 
         $hechos = $query->orderByDesc('fecha')->orderByDesc('hora')->paginate(20)->withQueryString();
 

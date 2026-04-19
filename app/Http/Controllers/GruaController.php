@@ -18,7 +18,10 @@ class GruaController extends Controller
 
             if (
                 !$usuario ||
-                (!$usuario->hasRole('Superadmin') && (int)$usuario->unidad_id !== 1)
+                (
+                    !$usuario->hasRole('Superadmin') &&
+                    !in_array((int) $usuario->unidad_id, [1, 2, 3], true)
+                )
             ) {
                 abort(403);
             }
@@ -29,9 +32,19 @@ class GruaController extends Controller
 
     public function index()
     {
-        $gruas = Grua::with(['unidades', 'delegaciones'])
-            ->orderBy('nombre')
-            ->get();
+        $usuario = Auth::user();
+
+        $query = Grua::with(['unidades', 'delegaciones'])
+            ->orderBy('nombre');
+
+        if (
+            !$usuario->hasRole('Superadmin') &&
+            (int) $usuario->unidad_id === 2
+        ) {
+            $query->whereHas('delegaciones');
+        }
+
+        $gruas = $query->get();
 
         return view('gruas.index', compact('gruas'));
     }

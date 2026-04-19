@@ -234,7 +234,6 @@ class GruaController extends Controller
             ];
         }
 
-        // === AQUÍ ESTÁ EL ARREGLO: sacar hecho_id desde hecho_vehiculo ===
         $hvSub = DB::table('hecho_vehiculo')
             ->select([
                 'vehiculo_id',

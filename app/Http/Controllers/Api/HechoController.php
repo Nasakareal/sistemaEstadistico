@@ -147,15 +147,25 @@ class HechoController extends Controller
 
         $this->normalizeCatalogFields($request);
 
+        $esDelegaciones = (int) ($user->unidad_id ?? 0) === 2;
+
+        $reglaFolio = $esDelegaciones
+            ? 'nullable|string|max:20|unique:hechos,folio_c5i'
+            : 'required|string|max:20|unique:hechos,folio_c5i';
+
+        $reglaSector = $esDelegaciones
+            ? 'nullable|string|max:100'
+            : ['required', 'string', Rule::in(self::SECTORES)];
+
         $rules = [
             'client_uuid' => 'nullable|string|max:36',
-            'folio_c5i' => 'required|string|max:20',
+            'folio_c5i' => $reglaFolio,
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
             'hora' => $user->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
             'fecha' => 'required|date',
-            'sector' => ['required', 'string', Rule::in(self::SECTORES)],
+            'sector' => $reglaSector,
             'calle' => 'required|string|max:255',
             'colonia' => 'required|string|max:255',
             'entre_calles' => 'nullable|string|max:255',
@@ -194,10 +204,10 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request) {
+        $validator->after(function ($v) use ($request, $esDelegaciones) {
             $situacion = strtoupper($this->removeAccents((string) $request->input('situacion', '')));
 
-            if ($situacion === 'RESUELTO' && !$request->hasFile('foto_situacion')) {
+            if (!$esDelegaciones && $situacion === 'RESUELTO' && !$request->hasFile('foto_situacion')) {
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
             }
 
@@ -215,6 +225,14 @@ class HechoController extends Controller
         }
 
         $validated = $validator->validated();
+
+        if (array_key_exists('folio_c5i', $validated) && empty($validated['folio_c5i'])) {
+            $validated['folio_c5i'] = null;
+        }
+
+        if ($esDelegaciones && empty($validated['sector'])) {
+            $validated['sector'] = 'DELEGACIONES';
+        }
 
         if (!empty($validated['client_uuid'])) {
             $hechoExistente = Hechos::query()->where('client_uuid', $validated['client_uuid'])->first();
@@ -265,6 +283,11 @@ class HechoController extends Controller
 
         if (!$request->has('danos_patrimoniales')) {
             $validated['danos_patrimoniales'] = 0;
+        }
+
+        if (!$validated['danos_patrimoniales']) {
+            $validated['propiedades_afectadas'] = null;
+            $validated['monto_danos_patrimoniales'] = null;
         }
 
         if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
@@ -372,17 +395,36 @@ class HechoController extends Controller
 
         $this->normalizeCatalogFields($request);
 
-        $rules = [
-            'folio_c5i' => [
-                'sometimes', 'required', 'string', 'max:20',
+        $esDelegaciones = (int) ($user->unidad_id ?? 0) === 2;
+
+        $reglaFolio = $esDelegaciones
+            ? [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:20',
                 Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
-            ],
+            ]
+            : [
+                'sometimes',
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+            ];
+
+        $reglaSector = $esDelegaciones
+            ? 'sometimes|nullable|string|max:100'
+            : ['sometimes', 'required', 'string', Rule::in(self::SECTORES)];
+
+        $rules = [
+            'folio_c5i' => $reglaFolio,
             'perito' => 'sometimes|required|string|max:255',
             'autorizacion_practico' => 'sometimes|nullable|string|max:255',
             'unidad' => 'sometimes|required|string|max:50',
             'hora' => $user->hasRole('Perito') ? 'sometimes|nullable' : 'sometimes|required|date_format:H:i',
             'fecha' => 'sometimes|required|date',
-            'sector' => ['sometimes', 'required', 'string', Rule::in(self::SECTORES)],
+            'sector' => $reglaSector,
             'calle' => 'sometimes|required|string|max:255',
             'colonia' => 'sometimes|required|string|max:255',
             'entre_calles' => 'sometimes|nullable|string|max:255',
@@ -420,14 +462,14 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $hecho) {
+        $validator->after(function ($v) use ($request, $hecho, $esDelegaciones) {
             $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string) $request->input('situacion')))
                 : null;
 
             $situacionEfectiva = $situacionNueva ?? strtoupper((string) ($hecho->situacion ?? ''));
 
-            if ($situacionEfectiva === 'RESUELTO') {
+            if (!$esDelegaciones && $situacionEfectiva === 'RESUELTO') {
                 $yaTieneFoto = !empty($hecho->foto_situacion);
                 $vieneArchivo = $request->hasFile('foto_situacion');
 
@@ -450,6 +492,14 @@ class HechoController extends Controller
         }
 
         $validated = $validator->validated();
+
+        if (array_key_exists('folio_c5i', $validated) && empty($validated['folio_c5i'])) {
+            $validated['folio_c5i'] = null;
+        }
+
+        if ($esDelegaciones && array_key_exists('sector', $validated) && empty($validated['sector'])) {
+            $validated['sector'] = 'DELEGACIONES';
+        }
 
         $dictamenId = $validated['dictamen_id'] ?? null;
         $dictamenIdProvided = array_key_exists('dictamen_id', $validated);
@@ -492,6 +542,11 @@ class HechoController extends Controller
 
         if ($request->has('propiedades_afectadas') && trim((string) $request->input('propiedades_afectadas')) === '') {
             $validated['propiedades_afectadas'] = null;
+        }
+
+        if (array_key_exists('danos_patrimoniales', $validated) && !$validated['danos_patrimoniales']) {
+            $validated['propiedades_afectadas'] = null;
+            $validated['monto_danos_patrimoniales'] = null;
         }
 
         $validated['updated_by'] = $user->id;

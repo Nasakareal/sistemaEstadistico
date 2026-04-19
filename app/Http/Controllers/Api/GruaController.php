@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Delegacion;
 use App\Models\Grua;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -10,11 +11,15 @@ use Illuminate\Support\Facades\DB;
 
 class GruaController extends Controller
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+    private const UNIDAD_DELEGACIONES_ID = 2;
+    private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
+
     public function index(Request $request)
     {
-        $gruas = Grua::query()
-            ->withCount('servicios as total_servicios')
+        $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at'])
+            ->withCount('servicios as total_servicios')
             ->orderBy('nombre')
             ->get();
 
@@ -25,9 +30,9 @@ class GruaController extends Controller
 
     public function show(Request $request, int $id)
     {
-        $grua = Grua::query()
-            ->withCount('servicios as total_servicios')
+        $grua = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at', 'updated_at'])
+            ->withCount('servicios as total_servicios')
             ->findOrFail($id);
 
         return response()->json([
@@ -39,7 +44,7 @@ class GruaController extends Controller
     {
         $q = trim((string) $request->query('q'));
 
-        $gruas = Grua::query()
+        $gruas = $this->visibleGruasQuery($request)
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('nombre', 'like', "%{$q}%")
@@ -60,10 +65,7 @@ class GruaController extends Controller
     {
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
-        $gruasIds = $request->query('gruas', []);
-        if (!is_array($gruasIds)) {
-            $gruasIds = [$gruasIds];
-        }
+        $gruasIds = $this->normalizeIds($request->query('gruas', []));
 
         $serviciosSub = DB::table('servicios')
             ->select([
@@ -72,9 +74,12 @@ class GruaController extends Controller
                 DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
+            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
+                $q->whereIn('grua_id', $gruasIds);
+            })
             ->groupBy('grua_id');
 
-        $rows = Grua::query()
+        $rows = $this->visibleGruasQuery($request)
             ->leftJoinSub($serviciosSub, 'ss', function ($join) {
                 $join->on('gruas.id', '=', 'ss.grua_id');
             })
@@ -103,18 +108,22 @@ class GruaController extends Controller
     {
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
-        $gruasIds = $request->query('gruas', []);
-        if (!is_array($gruasIds)) {
-            $gruasIds = [$gruasIds];
-        }
+        $gruasIds = $this->normalizeIds($request->query('gruas', []));
 
-        $gruas = Grua::query()
+        $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre'])
             ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
                 $q->whereIn('id', $gruasIds);
             })
             ->orderBy('nombre')
             ->get();
+
+        $allowedGruaIds = $gruas
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->all();
 
         $servicios = DB::table('servicios')
             ->select([
@@ -123,9 +132,7 @@ class GruaController extends Controller
                 DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
-            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
-                $q->whereIn('grua_id', $gruasIds);
-            })
+            ->whereIn('grua_id', $allowedGruaIds)
             ->groupBy('grua_id')
             ->get();
 
@@ -137,6 +144,12 @@ class GruaController extends Controller
             ];
         }
 
+        $allowedGruaNames = $gruas
+            ->pluck('nombre')
+            ->filter()
+            ->values()
+            ->all();
+
         $tipos = DB::table('vehiculos')
             ->select([
                 'grua',
@@ -144,6 +157,7 @@ class GruaController extends Controller
                 DB::raw('COUNT(*) as c'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
+            ->whereIn('grua', $allowedGruaNames)
             ->whereNotNull('grua')
             ->where('grua', '<>', 'N/A')
             ->where('grua', '<>', '')
@@ -200,18 +214,22 @@ class GruaController extends Controller
     {
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
-        $gruasIds = $request->query('gruas', []);
-        if (!is_array($gruasIds)) {
-            $gruasIds = [$gruasIds];
-        }
+        $gruasIds = $this->normalizeIds($request->query('gruas', []));
 
-        $gruas = Grua::query()
+        $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre'])
             ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
                 $q->whereIn('id', $gruasIds);
             })
             ->orderBy('nombre')
             ->get();
+
+        $allowedGruaIds = $gruas
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->all();
 
         $serviciosAgg = DB::table('servicios')
             ->select([
@@ -220,9 +238,7 @@ class GruaController extends Controller
                 DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
-            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
-                $q->whereIn('grua_id', $gruasIds);
-            })
+            ->whereIn('grua_id', $allowedGruaIds)
             ->groupBy('grua_id')
             ->get();
 
@@ -261,9 +277,7 @@ class GruaController extends Controller
                 'v.color',
             ])
             ->whereBetween('s.created_at', [$fromDate, $toDate])
-            ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
-                $q->whereIn('s.grua_id', $gruasIds);
-            })
+            ->whereIn('s.grua_id', $allowedGruaIds)
             ->orderBy('s.grua_id')
             ->orderByDesc('s.created_at')
             ->get();
@@ -320,6 +334,108 @@ class GruaController extends Controller
             ],
             'data' => $data,
         ]);
+    }
+
+    private function visibleGruasQuery(Request $request)
+    {
+        $query = Grua::query();
+        $this->applyVisibilityScope($query, $request->user());
+        return $query;
+    }
+
+    private function applyVisibilityScope($query, $usuario): void
+    {
+        if (!$usuario) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if ($usuario->hasRole('Superadmin') || $unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+            return;
+        }
+
+        if ($unidadId === self::UNIDAD_SINIESTROS_ID) {
+            $query->whereHas('unidades', function ($q) {
+                $q->where('unidades.id', self::UNIDAD_SINIESTROS_ID);
+            });
+            return;
+        }
+
+        if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
+            $delegacionIds = $this->delegacionIdsVisibles($usuario);
+
+            if (empty($delegacionIds)) {
+                $query->whereHas('delegaciones');
+                return;
+            }
+
+            $query->whereHas('delegaciones', function ($q) use ($delegacionIds) {
+                $q->whereIn('delegaciones.id', $delegacionIds);
+            });
+            return;
+        }
+
+        if ($unidadId > 0) {
+            $query->whereHas('unidades', function ($q) use ($unidadId) {
+                $q->where('unidades.id', $unidadId);
+            });
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
+    }
+
+    private function delegacionIdsVisibles($usuario): array
+    {
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+        if ($delegacionId <= 0) {
+            return [];
+        }
+
+        if (!$usuario->hasRole('Subdirector')) {
+            return [$delegacionId];
+        }
+
+        $esRegional = Delegacion::query()
+            ->whereKey($delegacionId)
+            ->whereNull('delegacion_padre_id')
+            ->exists();
+
+        if (!$esRegional) {
+            return [$delegacionId];
+        }
+
+        return Delegacion::query()
+            ->where('id', $delegacionId)
+            ->orWhere('delegacion_padre_id', $delegacionId)
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->all();
+    }
+
+    private function normalizeIds($ids): array
+    {
+        if (!is_array($ids)) {
+            $ids = explode(',', (string) $ids);
+        }
+
+        return collect($ids)
+            ->flatMap(function ($id) {
+                return is_string($id) ? explode(',', $id) : [$id];
+            })
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->filter(function ($id) {
+                return $id > 0;
+            })
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function resolveDateRange(Request $request): array

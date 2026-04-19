@@ -99,6 +99,22 @@ class AuthServiceProvider extends ServiceProvider
                 );
         });
 
+        Gate::define('menu-estadisticas-generales', function ($user) {
+            return (
+                $user->can('ver estadisticas globales')
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 3
+                )
+            ) || (
+                $user->can('ver estadisticas carreteras')
+                && (
+                    $user->perteneceAUnidad('carreteras')
+                    || (int) $user->unidad_id === 3
+                )
+            );
+        });
+
         Gate::define('menu-guardianes-camino', function ($user) {
             return $user->can('ver operativos carreteras')
                 && (
@@ -145,6 +161,13 @@ class AuthServiceProvider extends ServiceProvider
                     $user->perteneceAUnidad('vialidades-urbanas')
                     || (int) $user->unidad_id === 3
                 );
+        });
+
+        Gate::define('menu-actividades', function ($user) {
+            return !(
+                $user->perteneceAUnidad('carreteras')
+                && (int) $user->unidad_id !== 3
+            );
         });
     }
 }

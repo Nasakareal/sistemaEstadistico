@@ -1,10 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\servicios"
+    "\\app",
+    "\\app\\Providers"
   ],
-  "SelectedNode": "\\resources\\views\\servicios\\grafico.blade.php",
+  "SelectedNode": "\\app\\Providers\\AuthServiceProvider.php",
   "PreviewInSolutionExplorer": false
 }

@@ -93,57 +93,6 @@ class WhatsAppWebhookController extends Controller
 
         $input = $this->inboundService->extractUserInput($message);
 
-        if (($input['type'] ?? '') === 'text') {
-
-            $mensajeTexto = trim((string) ($input['value'] ?? ''));
-
-            if ($mensajeTexto !== '') {
-
-                try {
-                    $openai = app(\App\Services\OpenAIService::class);
-                    $resultado = $openai->interpretar($mensajeTexto);
-
-                    $texto = $resultado['output'][0]['content'][0]['text'] ?? null;
-                    $json = json_decode($texto, true);
-
-                    if ($json && isset($json['accion'])) {
-
-                        switch ($json['accion']) {
-
-                            case 'contar_hechos':
-                                $fecha = now();
-
-                                if (($json['filtros']['fecha'] ?? '') === 'ayer') {
-                                    $fecha = now()->subDay();
-                                }
-
-                                if (($json['filtros']['fecha'] ?? '') === 'antier') {
-                                    $fecha = now()->subDays(2);
-                                }
-
-                                $total = \App\Models\Hechos::whereDate('fecha', $fecha)->count();
-                                $this->sendText($from, "TOTAL DE HECHOS HOY: " . $total);
-                                return;
-
-                            case 'detalle_hecho':
-                                $hecho = \App\Models\Hechos::find($json['id']);
-
-                                if (!$hecho) {
-                                    $this->sendText($from, "Hecho no encontrado");
-                                    return;
-                                }
-
-                                $this->sendText($from, "HECHO {$hecho->id} - {$hecho->tipo_hecho}");
-                                return;
-                        }
-                    }
-
-                } catch (\Throwable $e) {
-                    \Log::error('Error OpenAI', ['error' => $e->getMessage()]);
-                }
-            }
-        }
-
         Log::info('WA mensaje procesable', [
             'from' => $from,
             'type' => $type,
@@ -159,6 +108,74 @@ class WhatsAppWebhookController extends Controller
         }
 
         $context = $this->userResolverService->resolveContext($user);
+
+        if (($input['type'] ?? '') === 'text') {
+            $mensajeTexto = trim((string) ($input['value'] ?? ''));
+
+            if (
+                $mensajeTexto !== ''
+                && !$this->isResetCommand($mensajeTexto)
+                && !in_array(mb_strtolower($mensajeTexto, 'UTF-8'), ['1', '2', '3', '4', '5', '6'], true)
+                && !str_starts_with((string) ($input['value'] ?? ''), 'module:')
+                && !str_starts_with((string) ($input['value'] ?? ''), 'action:')
+                && !str_starts_with((string) ($input['value'] ?? ''), 'filter:')
+                && !str_starts_with((string) ($input['value'] ?? ''), 'period:')
+            ) {
+                try {
+                    $openai = app(\App\Services\OpenAIService::class);
+                    $resultado = $openai->interpretar($mensajeTexto);
+
+                    \Log::info('OPENAI RESPUESTA', $resultado);
+
+                    $texto = $resultado['output'][0]['content'][0]['text'] ?? null;
+                    $json = json_decode($texto, true);
+
+                    if ($json && isset($json['accion']) && $json['accion'] !== 'no_valida') {
+                        switch ($json['accion']) {
+                            case 'contar_hechos':
+                                $fecha = now();
+
+                                if (($json['filtros']['fecha'] ?? '') === 'ayer') {
+                                    $fecha = now()->subDay();
+                                }
+
+                                if (($json['filtros']['fecha'] ?? '') === 'antier') {
+                                    $fecha = now()->subDays(2);
+                                }
+
+                                $total = \App\Models\Hechos::whereDate('fecha', $fecha)->count();
+
+                                $etiquetaFecha = 'HOY';
+
+                                if (($json['filtros']['fecha'] ?? '') === 'ayer') {
+                                    $etiquetaFecha = 'AYER';
+                                }
+
+                                if (($json['filtros']['fecha'] ?? '') === 'antier') {
+                                    $etiquetaFecha = 'ANTIER';
+                                }
+
+                                $this->sendText($from, "TOTAL DE HECHOS {$etiquetaFecha}: {$total}");
+                                return;
+
+                            case 'detalle_hecho':
+                                $hecho = \App\Models\Hechos::find($json['id'] ?? null);
+
+                                if (!$hecho) {
+                                    $this->sendText($from, 'Hecho no encontrado');
+                                    return;
+                                }
+
+                                $this->sendText($from, "HECHO {$hecho->id} - {$hecho->tipo_hecho}");
+                                return;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::error('Error OpenAI', ['error' => $e->getMessage()]);
+                }
+            }
+        }
+
         $state = $this->stateService->getContext($from);
 
         if ($this->isResetCommand((string) ($input['value'] ?? ''))) {

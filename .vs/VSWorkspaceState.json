@@ -2,8 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Providers"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
+    "\\config"
   ],
-  "SelectedNode": "\\app\\Providers\\AuthServiceProvider.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\WhatsAppWebhookController.php",
   "PreviewInSolutionExplorer": false
 }

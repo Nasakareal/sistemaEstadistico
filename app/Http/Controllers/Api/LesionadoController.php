@@ -5,12 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Hechos;
 use App\Models\Lesionado;
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 
 class LesionadoController extends Controller
 {
     public function index(Hechos $hecho)
     {
+        if (!HechoAccess::canView(request()->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para consultar este hecho.',
+            ], 403);
+        }
+
         $lesionados = $hecho->lesionados()->orderByDesc('id')->get();
 
         return response()->json([
@@ -32,6 +39,12 @@ class LesionadoController extends Controller
             return response()->json([
                 'message' => 'No existe un hecho válido para relacionar el lesionado.',
             ], 404);
+        }
+
+        if (!HechoAccess::canEdit($request->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
         }
 
         $validated = $this->validatePayload($request);
@@ -69,6 +82,12 @@ class LesionadoController extends Controller
 
     public function show(Hechos $hecho, Lesionado $lesionado)
     {
+        if (!HechoAccess::canView(request()->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para consultar este hecho.',
+            ], 403);
+        }
+
         $this->ensureBelongsToHecho($hecho, $lesionado);
 
         return response()->json([
@@ -78,6 +97,12 @@ class LesionadoController extends Controller
 
     public function update(Request $request, Hechos $hecho, Lesionado $lesionado)
     {
+        if (!HechoAccess::canEdit($request->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
+
         $this->ensureBelongsToHecho($hecho, $lesionado);
 
         $validated = $this->validatePayload($request);
@@ -95,6 +120,12 @@ class LesionadoController extends Controller
      */
     public function destroy(Hechos $hecho, Lesionado $lesionado)
     {
+        if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
+
         $this->ensureBelongsToHecho($hecho, $lesionado);
 
         $lesionado->delete();

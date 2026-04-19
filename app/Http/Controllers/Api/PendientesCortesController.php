@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Hechos;
 use App\Models\PendientesCorte;
 use App\Models\PendientesCorteDetalle;
+use App\Support\HechoAccess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,12 @@ class PendientesCortesController extends Controller
 {
     public function index(Request $request)
     {
+        if (!HechoAccess::canUseHechosModule($request->user())) {
+            return response()->json([
+                'message' => 'No tienes permiso para consultar hechos desde esta unidad.',
+            ], 403);
+        }
+
         $perPage = (int) $request->query('per_page', 30);
         if ($perPage <= 0) $perPage = 30;
         if ($perPage > 100) $perPage = 100;
@@ -33,6 +40,12 @@ class PendientesCortesController extends Controller
 
     public function show(Request $request, PendientesCorte $corte)
     {
+        if (!HechoAccess::canUseHechosModule($request->user())) {
+            return response()->json([
+                'message' => 'No tienes permiso para consultar hechos desde esta unidad.',
+            ], 403);
+        }
+
         $tz = 'America/Mexico_City';
 
         $prevDate = Carbon::parse($corte->corte_fecha, $tz)->subWeek()->toDateString();

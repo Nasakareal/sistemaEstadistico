@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use App\Services\OpenAIService;
 
 class WhatsAppCloudService
 {
@@ -80,5 +81,37 @@ class WhatsAppCloudService
     protected function normalizeTo(string $to): string
     {
         return preg_replace('/\D+/', '', $to ?? '');
+    }
+
+    public function procesarMensajeEntrante(string $mensaje): string
+    {
+        $openai = app(OpenAIService::class);
+        $resultado = $openai->interpretar($mensaje);
+
+        $texto = $resultado['output'][0]['content'][0]['text'] ?? null;
+
+        $json = json_decode($texto, true);
+
+        if (!$json || !isset($json['accion'])) {
+            return "No entendí el comando";
+        }
+
+        switch ($json['accion']) {
+
+            case 'contar_hechos':
+                $total = \App\Models\Hechos::whereDate('fecha', now())->count();
+                return "TOTAL DE HECHOS HOY: " . $total;
+
+            case 'detalle_hecho':
+                $hecho = \App\Models\Hechos::find($json['id']);
+
+                if (!$hecho) {
+                    return "Hecho no encontrado";
+                }
+
+                return "HECHO {$hecho->id} - {$hecho->tipo_hecho}";
+        }
+
+        return "Acción no válida";
     }
 }

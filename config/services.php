@@ -45,4 +45,8 @@ return [
             'tarjeta_hechos_template' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TEMPLATE'),
         ],
     ],
+
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+    ],
 ];

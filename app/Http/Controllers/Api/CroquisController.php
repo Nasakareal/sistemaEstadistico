@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Croquis;
 use App\Models\Hechos;
 use App\Services\CroquisPreviewService;
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 
 class CroquisController extends Controller
@@ -19,6 +20,13 @@ class CroquisController extends Controller
 
     public function show(Hechos $hecho)
     {
+        if (!HechoAccess::canView(request()->user(), $hecho)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No tienes permiso para consultar este hecho.',
+            ], 403);
+        }
+
         $croquis = Croquis::where('hecho_id', $hecho->id)
             ->latest('id')
             ->first();
@@ -40,6 +48,13 @@ class CroquisController extends Controller
 
     public function store(Request $request, Hechos $hecho)
     {
+        if (!HechoAccess::canEdit($request->user(), $hecho)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
+
         $request->validate([
             'json_dibujo' => ['nullable', 'string'],
             'titulo' => ['nullable', 'string', 'max:255'],
@@ -81,6 +96,13 @@ class CroquisController extends Controller
 
     public function update(Request $request, Hechos $hecho)
     {
+        if (!HechoAccess::canEdit($request->user(), $hecho)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
+
         $request->validate([
             'json_dibujo' => ['nullable', 'string'],
             'titulo' => ['nullable', 'string', 'max:255'],
@@ -123,6 +145,13 @@ class CroquisController extends Controller
 
     public function destroy(Hechos $hecho)
     {
+        if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
+
         $croquis = Croquis::where('hecho_id', $hecho->id)->first();
 
         if (!$croquis) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\PermissionRegistrar;
@@ -25,7 +26,7 @@ class AuthController extends Controller
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $role = $user->roles()->pluck('name')->first();
-        $permissions = $user->getAllPermissions()->pluck('name')->values();
+        $permissions = $this->permissionsForUser($user);
 
         $isSubdirector = $user->hasRole('Subdirector');
         $isJefeGrupo = $user->hasRole('Jefe de Grupo');
@@ -59,7 +60,7 @@ class AuthController extends Controller
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $role = $user->roles()->pluck('name')->first();
-        $permissions = $user->getAllPermissions()->pluck('name')->values();
+        $permissions = $this->permissionsForUser($user);
 
         $isSubdirector = $user->hasRole('Subdirector');
         $isJefeGrupo = $user->hasRole('Jefe de Grupo');
@@ -91,7 +92,7 @@ class AuthController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return response()->json($user->getAllPermissions()->pluck('name')->values());
+        return response()->json($this->permissionsForUser($user));
     }
 
     public function logout(Request $request)
@@ -99,5 +100,13 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Sesión cerrada']);
+    }
+
+    private function permissionsForUser($user)
+    {
+        return HechoAccess::filterPermissionsForUser(
+            $user->getAllPermissions()->pluck('name'),
+            $user
+        );
     }
 }

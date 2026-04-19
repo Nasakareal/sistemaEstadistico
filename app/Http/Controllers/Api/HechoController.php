@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Models\Dictamen;
+use App\Support\HechoAccess;
 use Illuminate\Support\Facades\DB;
 
 class HechoController extends Controller
@@ -144,6 +145,12 @@ class HechoController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+
+        if (!HechoAccess::canUseHechosModule($user)) {
+            return response()->json([
+                'message' => 'No tienes permiso para registrar hechos desde esta unidad.',
+            ], 403);
+        }
 
         $this->normalizeCatalogFields($request);
 
@@ -392,6 +399,12 @@ class HechoController extends Controller
     public function update(Request $request, Hechos $hecho)
     {
         $user = $request->user();
+
+        if (!HechoAccess::canEdit($user, $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
 
         $this->normalizeCatalogFields($request);
 
@@ -654,6 +667,12 @@ class HechoController extends Controller
 
     public function subirDescargo(Request $request, Hechos $hecho)
     {
+        if (!HechoAccess::canEdit($request->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para editar este hecho.',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'descargo' => 'required|file|mimes:pdf,jpeg,png|max:5120',
         ], $this->messages());
@@ -679,6 +698,7 @@ class HechoController extends Controller
 
         $data['foto_lugar_url']     = $this->publicStoragePath($hecho->foto_lugar);
         $data['foto_situacion_url'] = $this->publicStoragePath($hecho->foto_situacion);
+        $data['puede_editar'] = HechoAccess::canEdit(request()->user(), $hecho);
 
         return $data;
     }
@@ -802,83 +822,12 @@ class HechoController extends Controller
 
     private function applyHechosVisibilityScope($query, $usuario): void
     {
-        if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Coordinador')
-        ) {
-            return;
-        }
-
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
-        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
-
-        $UNIDAD_CARRETERAS_ID = 4;
-
-        $query->where(function ($q) use ($usuario, $unidadId, $delegacionId, $UNIDAD_CARRETERAS_ID) {
-            $q->where('created_by', $usuario->id);
-
-            if ($UNIDAD_CARRETERAS_ID > 0 && $unidadId === $UNIDAD_CARRETERAS_ID) {
-                $q->orWhere('unidad_org_id', $UNIDAD_CARRETERAS_ID);
-                return;
-            }
-
-            if ($unidadId === 2) {
-                if ($delegacionId <= 0) {
-                    return;
-                }
-
-                $esRegional = \App\Models\Delegacion::query()
-                    ->where('id', $delegacionId)
-                    ->whereNull('delegacion_padre_id')
-                    ->exists();
-
-                if ($usuario->hasRole('Subdirector')) {
-                    if ($esRegional) {
-                        $ids = \App\Models\Delegacion::query()
-                            ->where('id', $delegacionId)
-                            ->orWhere('delegacion_padre_id', $delegacionId)
-                            ->pluck('id')
-                            ->toArray();
-
-                        $q->orWhereIn('delegacion_id', $ids);
-                    } else {
-                        $q->orWhere('delegacion_id', $delegacionId);
-                    }
-                } else {
-                    $q->orWhere('delegacion_id', $delegacionId);
-                }
-
-                return;
-            }
-
-            if ($unidadId > 0) {
-                $q->orWhere('unidad_org_id', $unidadId);
-                return;
-            }
-        });
+        HechoAccess::applyVisibilityScope($query, $usuario);
     }
 
     private function userCanEditHecho($usuario, \App\Models\Hechos $hecho): bool
     {
-        if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
-            || $usuario->hasRole('Subdirector')
-        ) {
-            $q = \App\Models\Hechos::query()->whereKey($hecho->id);
-            $this->applyHechosVisibilityScope($q, $usuario);
-            return $q->exists();
-        }
-
-        if ((int) $usuario->id === (int) ($hecho->created_by ?? 0)) {
-            $q = \App\Models\Hechos::query()->whereKey($hecho->id);
-            $this->applyHechosVisibilityScope($q, $usuario);
-            return $q->exists();
-        }
-
-        return false;
+        return HechoAccess::canEdit($usuario, $hecho);
     }
 
     public function whatsappLink(Request $request, Hechos $hecho)

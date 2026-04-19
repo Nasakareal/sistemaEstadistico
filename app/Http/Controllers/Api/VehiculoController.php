@@ -7,6 +7,7 @@ use App\Models\Hechos;
 use App\Models\Vehiculo;
 use App\Models\Conductor;
 use App\Models\Grua;
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,10 @@ class VehiculoController extends Controller
     public function index(Hechos $hecho)
     {
         try {
+            if (!HechoAccess::canView(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para consultar este hecho.', 403);
+            }
+
             return $this->ok('Vehículos del hecho.', $hecho->vehiculos()->with('conductores')->get());
         } catch (Throwable $e) {
             return $this->fail('Ocurrió un error al cargar los vehículos.', 500);
@@ -38,6 +43,10 @@ class VehiculoController extends Controller
 
             if (!$hecho) {
                 return $this->fail('No existe un hecho válido para relacionar el vehículo.', 404);
+            }
+
+            if (!HechoAccess::canEdit($request->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
             }
 
             $validated = $this->validateRequest($request);
@@ -151,6 +160,10 @@ class VehiculoController extends Controller
     public function show(Hechos $hecho, Vehiculo $vehiculo)
     {
         try {
+            if (!HechoAccess::canView(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para consultar este hecho.', 403);
+            }
+
             if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
@@ -182,6 +195,10 @@ class VehiculoController extends Controller
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
         try {
+            if (!HechoAccess::canEdit($request->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
             if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
@@ -256,6 +273,10 @@ class VehiculoController extends Controller
     public function destroy(Hechos $hecho, Vehiculo $vehiculo)
     {
         try {
+            if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
             if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
@@ -284,6 +305,10 @@ class VehiculoController extends Controller
     public function foto(Hechos $hecho, Vehiculo $vehiculo)
     {
         try {
+            if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
             if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
@@ -301,6 +326,10 @@ class VehiculoController extends Controller
     public function fotoUpdate(Request $request, Hechos $hecho, Vehiculo $vehiculo)
     {
         try {
+            if (!HechoAccess::canEdit($request->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
             if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }
@@ -349,6 +378,10 @@ class VehiculoController extends Controller
     public function fotoDestroy(Hechos $hecho, Vehiculo $vehiculo)
     {
         try {
+            if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
             if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
                 return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
             }

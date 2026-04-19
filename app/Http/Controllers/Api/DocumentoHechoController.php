@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Hechos;
 use App\Services\CroquisPreviewService;
+use App\Support\HechoAccess;
 
 class DocumentoHechoController extends Controller
 {
@@ -19,6 +20,12 @@ class DocumentoHechoController extends Controller
     public function descargarDoc(Request $request, $hecho)
     {
         $hecho = Hechos::with(['vehiculos.conductores', 'lesionados', 'croquis'])->findOrFail($hecho);
+
+        if (!HechoAccess::canView($request->user(), $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para consultar este hecho.',
+            ], 403);
+        }
 
         if ($hecho->croquis) {
             $this->croquisPreviewService->ensure($hecho->croquis, $hecho);

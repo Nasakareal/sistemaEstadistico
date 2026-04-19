@@ -570,6 +570,12 @@ class ActividadController extends Controller
         }
 
         if ($unidadId === 2) {
+            $this->scopeActividadesUnidad($query, 2);
+
+            if ($this->esRolAdministrativoUnidad($usuario)) {
+                return;
+            }
+
             $delegacionId = (int) ($usuario->delegacion_id ?? 0);
 
             if ($delegacionId <= 0) {
@@ -582,7 +588,7 @@ class ActividadController extends Controller
                 ->whereNull('delegacion_padre_id')
                 ->exists();
 
-            if ($usuario->hasRole('Subdirector')) {
+            if ($this->puedeVerDelegacionesHijas($usuario)) {
                 if ($esRegional) {
                     $ids = Delegacion::query()
                         ->where('id', $delegacionId)
@@ -602,7 +608,7 @@ class ActividadController extends Controller
         }
 
         if ($unidadId > 0) {
-            $query->where('unidad_org_id', $unidadId);
+            $this->scopeActividadesUnidad($query, $unidadId);
             return;
         }
 
@@ -759,6 +765,31 @@ class ActividadController extends Controller
         }
 
         return mb_strtoupper($value, 'UTF-8');
+    }
+
+    private function puedeVerDelegacionesHijas($usuario): bool
+    {
+        return $usuario->hasRole('Delegado');
+    }
+
+    private function esRolAdministrativoUnidad($usuario): bool
+    {
+        return $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector');
+    }
+
+    private function scopeActividadesUnidad($query, int $unidadId): void
+    {
+        $query->where(function ($q) use ($unidadId) {
+            $q->where('unidad_org_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_org_id')
+                        ->whereHas('creador', function ($creador) use ($unidadId) {
+                            $creador->where('unidad_id', $unidadId);
+                        });
+                });
+        });
     }
 
     public function compartir(Actividad $actividad)

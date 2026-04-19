@@ -7,6 +7,24 @@ class WhatsAppMenuService
     public function buildRootMenu($user, array $context, ?string $message = null): array
     {
         $text = $message ?: 'Selecciona la unidad que deseas consultar.';
+        $modules = is_array($context['modules'] ?? null) ? $context['modules'] : [];
+        $rows = [];
+
+        foreach ($modules as $module) {
+            $rows[] = [
+                'id' => 'module:' . $module,
+                'title' => $this->moduleTitle($module),
+                'description' => $this->moduleDescription($module),
+            ];
+        }
+
+        if (empty($rows)) {
+            $rows[] = [
+                'id' => 'module:siniestros',
+                'title' => 'Siniestros',
+                'description' => 'Hechos, personal y estadísticas',
+            ];
+        }
 
         return [
             'text' => "Hola {$user->name}.\n\n{$text}",
@@ -27,23 +45,7 @@ class WhatsAppMenuService
                     'sections' => [
                         [
                             'title' => 'Unidades',
-                            'rows' => [
-                                [
-                                    'id' => 'module:siniestros',
-                                    'title' => 'Siniestros',
-                                    'description' => 'Hechos, placas, folios y estadísticas',
-                                ],
-                                [
-                                    'id' => 'module:carreteras',
-                                    'title' => 'Carreteras',
-                                    'description' => 'Actividades y dispositivos',
-                                ],
-                                [
-                                    'id' => 'module:vialidades',
-                                    'title' => 'Vialidades Urbanas',
-                                    'description' => 'Operativos y dispositivos',
-                                ],
-                            ],
+                            'rows' => $rows,
                         ],
                     ],
                 ],
@@ -57,26 +59,69 @@ class WhatsAppMenuService
         $text = $message ?: "Menú de {$title}.";
 
         if ($module === 'siniestros') {
-            $rows = $context['solo_propios']
+            $rows = $context['solo_propios'] ?? false
                 ? [
                     ['id' => 'action:mis_hechos_hoy', 'title' => 'Mis hechos de hoy', 'description' => 'Solo los tuyos'],
                     ['id' => 'action:mis_hechos_placas', 'title' => 'Mis hechos por placas', 'description' => 'Buscar por placas'],
                     ['id' => 'action:mi_detalle_folio', 'title' => 'Mi detalle por ID', 'description' => 'Buscar por ID'],
-                    ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados, motos y más'],
+                    ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados y tipos'],
+                    ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
+                    ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                    ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
+                    ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
                 ]
                 : [
                     ['id' => 'action:hechos_hoy', 'title' => 'Hechos de hoy', 'description' => 'Listado de hoy'],
                     ['id' => 'action:hechos_placas', 'title' => 'Hechos por placas', 'description' => 'Buscar por placas'],
                     ['id' => 'action:detalle_folio', 'title' => 'Detalle por ID', 'description' => 'Buscar por ID'],
-                    ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados, motos y más'],
+                    ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados y tipos'],
+                    ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
+                    ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                    ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
+                    ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
                 ];
-        } elseif ($module === 'carreteras' || $module === 'vialidades') {
+        } elseif ($module === 'carreteras') {
             $rows = [
-                ['id' => 'action:no_disponible', 'title' => 'Pendiente', 'description' => 'Se habilita después'],
+                ['id' => 'action:operativos_hoy', 'title' => 'Operativos de hoy', 'description' => 'PSV, RSV, CASCO y más'],
+                ['id' => 'action:operativos_tipo', 'title' => 'Operativos por tipo', 'description' => 'Filtrar por dispositivo'],
+                ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
+                ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
+                ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
+            ];
+        } elseif ($module === 'vialidades') {
+            $rows = [
+                ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Operativos, apoyos y labores'],
+                ['id' => 'action:actividades_rango', 'title' => 'Actividades por rango', 'description' => 'Consultar por fechas'],
+                ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
+                ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+            ];
+        } elseif ($module === 'delegaciones') {
+            $rows = [
+                ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
+                ['id' => 'action:actividades_rango', 'title' => 'Actividades por rango', 'description' => 'Consultar por fechas'],
+                ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
+                ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+            ];
+        } elseif ($module === 'fomento') {
+            $rows = [
+                ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Proximidad y labores'],
+                ['id' => 'action:actividades_rango', 'title' => 'Actividades por rango', 'description' => 'Consultar por fechas'],
+                ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+            ];
+        } elseif ($module === 'coordinacion' || $module === 'seguridad_vial') {
+            $rows = [
+                ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen de hechos'],
+                ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
+                ['id' => 'action:operativos_hoy', 'title' => 'Operativos de hoy', 'description' => 'Dispositivos de carreteras'],
+                ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
+                ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
             ];
         } else {
             $rows = [
-                ['id' => 'action:no_disponible', 'title' => 'Pendiente', 'description' => 'Se habilita después'],
+                ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Consulta rápida'],
+                ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
             ];
         }
 
@@ -340,6 +385,49 @@ class WhatsAppMenuService
         ];
     }
 
+    public function buildOperativoTipoMenu(?string $message = null): array
+    {
+        $text = $message ?: 'Selecciona el tipo de operativo o dispositivo.';
+
+        return [
+            'text' => "{$text}\n\nPuedes escribir MENÚ para reiniciar.",
+            'interactive' => [
+                'type' => 'list',
+                'header' => [
+                    'type' => 'text',
+                    'text' => 'Tipo de operativo',
+                ],
+                'body' => [
+                    'text' => 'Elige un tipo',
+                ],
+                'footer' => [
+                    'text' => 'Carreteras',
+                ],
+                'action' => [
+                    'button' => 'Ver opciones',
+                    'sections' => [
+                        [
+                            'title' => 'Dispositivos',
+                            'rows' => [
+                                ['id' => 'filter:tipo_operativo:PSV', 'title' => 'PSV', 'description' => 'Puesto de Seguridad y Vigilancia'],
+                                ['id' => 'filter:tipo_operativo:RSV', 'title' => 'RSV', 'description' => 'Recorridos de Seguridad y Vigilancia'],
+                                ['id' => 'filter:tipo_operativo:CASCO', 'title' => 'CASCO', 'description' => 'Dispositivo casco'],
+                                ['id' => 'filter:tipo_operativo:CINTURÓN', 'title' => 'Cinturón', 'description' => 'Dispositivo cinturón'],
+                                ['id' => 'filter:tipo_operativo:CARRUSEL', 'title' => 'Carrusel', 'description' => 'Dispositivo carrusel'],
+                                ['id' => 'filter:tipo_operativo:CORDILLERA', 'title' => 'Cordillera', 'description' => 'Operativo cordillera'],
+                                ['id' => 'filter:tipo_operativo:ACOMPAÑAMIENTOS', 'title' => 'Acompañamientos', 'description' => 'Escoltas y caravanas'],
+                                ['id' => 'filter:tipo_operativo:ABANDERAMIENTOS', 'title' => 'Abanderamientos', 'description' => 'Eventos y siniestros'],
+                                ['id' => 'filter:tipo_operativo:AUXILIOS VIALES', 'title' => 'Auxilios viales', 'description' => 'Apoyo vial'],
+                                ['id' => 'filter:tipo_operativo:CABALLERO DEL CAMINO', 'title' => 'Caballero del camino', 'description' => 'Proximidad social'],
+                                ['id' => 'filter:tipo_operativo:ATENCIÓN A REPORTES C5', 'title' => 'Atención a reportes C5', 'description' => 'Folio atendido'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     public function resolveModuleSelection(array $input, array $context): ?string
     {
         $value = trim((string) ($input['value'] ?? ''));
@@ -379,6 +467,13 @@ class WhatsAppMenuService
             'estadistica_fallecidos' => ['key' => 'estadistica_fallecidos', 'requires_param' => false],
             'estadistica_situacion' => ['key' => 'estadistica_situacion', 'requires_param' => false],
             'estadistica_tipo_hecho' => ['key' => 'estadistica_tipo_hecho', 'requires_param' => false],
+            'personal_armado' => ['key' => 'personal_armado', 'requires_param' => false],
+            'personal_activo' => ['key' => 'personal_activo', 'requires_param' => false],
+            'actividades_hoy' => ['key' => 'actividades_hoy', 'requires_param' => false],
+            'actividades_rango' => ['key' => 'actividades_rango', 'requires_param' => true, 'param_type' => 'rango_fechas'],
+            'operativos_hoy' => ['key' => 'operativos_hoy', 'requires_param' => false],
+            'operativos_tipo' => ['key' => 'operativos_tipo', 'requires_param' => false],
+            'puestas_hoy' => ['key' => 'puestas_hoy', 'requires_param' => false],
             'no_disponible' => ['key' => 'no_disponible', 'requires_param' => false],
         ];
 
@@ -431,6 +526,8 @@ class WhatsAppMenuService
             $text = "Escribe las placas.\n\nEjemplo:\nABC123";
         } elseif (in_array($action, ['detalle_folio', 'mi_detalle_folio'], true)) {
             $text = "Escribe el ID del hecho.\n\nEjemplo:\n59564";
+        } elseif ($action === 'actividades_rango') {
+            $text = "Escribe el rango de fechas.\n\nEjemplo:\n2026-04-01 al 2026-04-15";
         } elseif (in_array($action, [
             'estadistica_resumen_general',
             'estadistica_motocicletas',
@@ -464,8 +561,36 @@ class WhatsAppMenuService
                 return 'Carreteras';
             case 'vialidades':
                 return 'Vialidades Urbanas';
+            case 'delegaciones':
+                return 'Delegaciones';
+            case 'fomento':
+                return 'Fomento a la Cultura Vial';
+            case 'coordinacion':
+            case 'seguridad_vial':
+                return 'Coordinación';
             default:
                 return 'Consultas';
+        }
+    }
+
+    protected function moduleDescription(string $module): string
+    {
+        switch ($module) {
+            case 'siniestros':
+                return 'Hechos, personal, puestas y estadísticas';
+            case 'carreteras':
+                return 'Actividades, dispositivos y personal';
+            case 'vialidades':
+                return 'Actividades y personal';
+            case 'delegaciones':
+                return 'Actividades y personal';
+            case 'fomento':
+                return 'Proximidad social y actividades';
+            case 'coordinacion':
+            case 'seguridad_vial':
+                return 'Consulta general';
+            default:
+                return 'Consultas disponibles';
         }
     }
 }

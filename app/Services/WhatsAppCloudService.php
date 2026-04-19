@@ -53,7 +53,11 @@ class WhatsAppCloudService
     protected function request(array $payload): array
     {
         $graphVersion = (string) config('services.whatsapp.graph_version', 'v19.0');
-        $accessToken = (string) config('services.whatsapp.token', '');
+        $accessToken = (string) (
+            config('services.whatsapp.token')
+            ?: config('services.whatsapp.access_token')
+            ?: env('WHATSAPP_ACCESS_TOKEN')
+        );
         $phoneNumberId = (string) config('services.whatsapp.phone_number_id', '');
 
         if ($accessToken === '' || $phoneNumberId === '') {

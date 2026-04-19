@@ -49,6 +49,25 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar lesionados',
             'eliminar lesionados',
 
+            // Actividades
+            'ver actividades',
+            'crear actividades',
+            'editar actividades',
+            'eliminar actividades',
+
+            // Operativos de carreteras
+            'ver operativos carreteras',
+            'crear operativos carreteras',
+            'editar operativos carreteras',
+            'eliminar operativos carreteras',
+            'ver estadisticas carreteras',
+
+            // Operativos de vialidades urbanas
+            'ver operativos vialidades',
+            'crear operativos vialidades',
+            'editar operativos vialidades',
+            'eliminar operativos vialidades',
+
             // Grúas
             'ver gruas',
             'crear gruas',
@@ -92,36 +111,67 @@ class RolesAndPermissionsSeeder extends Seeder
         }
 
         // Definición de roles y permisos asignados
+        $operacionHechos = [
+            'ver hechos',
+            'crear hechos',
+            'editar hechos',
+            'ver vehiculos',
+            'crear vehiculos',
+            'editar vehiculos',
+            'ver lesionados',
+            'crear lesionados',
+            'editar lesionados',
+            'ver actividades',
+            'crear actividades',
+            'editar actividades',
+        ];
+
+        $delegadoPermissions = [
+            'ver hechos',
+            'crear hechos',
+            'ver vehiculos',
+            'crear vehiculos',
+            'ver lesionados',
+            'crear lesionados',
+            'ver actividades',
+            'crear actividades',
+        ];
+
         $roles = [
             // Superadmin: SIEMPRE TODO
             'Superadmin' => $permissions,
 
             'Administrador' => $permissions,
 
-            'Subdirector' => [
+            'Subdirector' => array_merge($operacionHechos, [
                 'ver configuraciones',
-                'ver hechos',
-                'crear hechos',
-                'editar hechos',
                 'eliminar hechos',
                 'ver dictamenes',
                 'crear dictamenes',
                 'editar dictamenes',
-            ],
-            'Empleado' => [
-                'ver hechos',
-                'crear hechos',
-                'editar hechos',
-            ],
+            ]),
+            'Administrativo' => $operacionHechos,
+            'Delegado' => $delegadoPermissions,
+            'Empleado' => $operacionHechos,
             'Observador' => [
                 'ver hechos',
+                'ver actividades',
             ],
         ];
 
-        DB::transaction(function () use ($roles) {
+        $roleUnidadIds = [
+            'Delegado' => 2,
+        ];
+
+        DB::transaction(function () use ($roles, $roleUnidadIds) {
 
             foreach ($roles as $roleName => $rolePermissions) {
                 $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+
+                if (Schema::hasColumn('roles', 'unidad_id') && array_key_exists($roleName, $roleUnidadIds)) {
+                    $role->unidad_id = $roleUnidadIds[$roleName];
+                    $role->save();
+                }
 
                 $permissionsToAssign = Permission::whereIn('name', $rolePermissions)->get();
                 $role->syncPermissions($permissionsToAssign);

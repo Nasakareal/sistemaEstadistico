@@ -67,13 +67,13 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        $esDelegaciones = (int) ($usuario->unidad_id ?? 0) === 2;
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
 
-        $reglaFolio = $esDelegaciones
+        $reglaFolio = $usaReglasFlexibles
             ? 'nullable|string|max:20|unique:hechos,folio_c5i'
             : 'required|string|max:20|unique:hechos,folio_c5i';
 
-        $reglaSector = $esDelegaciones
+        $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
             : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
 
@@ -122,8 +122,8 @@ class HechosController extends Controller
             $validated['folio_c5i'] = null;
         }
 
-        if ($esDelegaciones && empty($validated['sector'])) {
-            $validated['sector'] = 'DELEGACIONES';
+        if ($usaReglasFlexibles && empty($validated['sector'])) {
+            $validated['sector'] = $this->sectorPredeterminadoHechos($usuario);
         }
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
@@ -135,7 +135,7 @@ class HechosController extends Controller
         }
 
         $situacion = (string)($validated['situacion'] ?? '');
-        if (!$esDelegaciones && $situacion === 'RESUELTO') {
+        if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             ]);
@@ -312,9 +312,9 @@ class HechosController extends Controller
         $quitarFotoLugar = (string) $request->input('quitar_foto_lugar', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
-        $esDelegaciones = (int) ($usuario->unidad_id ?? 0) === 2;
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
 
-        $reglaFolio = $esDelegaciones
+        $reglaFolio = $usaReglasFlexibles
             ? [
                 'nullable',
                 'string',
@@ -328,7 +328,7 @@ class HechosController extends Controller
                 Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
             ];
 
-        $reglaSector = $esDelegaciones
+        $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
             : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
 
@@ -377,8 +377,8 @@ class HechosController extends Controller
             $validated['folio_c5i'] = null;
         }
 
-        if ($esDelegaciones && empty($validated['sector'])) {
-            $validated['sector'] = 'DELEGACIONES';
+        if ($usaReglasFlexibles && empty($validated['sector'])) {
+            $validated['sector'] = $this->sectorPredeterminadoHechos($usuario);
         }
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
@@ -391,12 +391,12 @@ class HechosController extends Controller
 
         $situacion = (string) ($validated['situacion'] ?? '');
 
-        if (!$esDelegaciones && $situacion === 'RESUELTO') {
+        if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $hayFotoGuardada = !empty($hecho->foto_situacion) && !$quitarFotoSituacion;
 
             if (!$hayFotoGuardada && !$request->hasFile('foto_situacion')) {
                 return back()
-                    ->withErrors(['foto_situacion' => 'La foto de la situación es obligatoria cuando la situación es RESUELTO.'])
+                    ->withErrors(['foto_situacion' => 'La foto de la situación es obligatoria cuando la situación es RESUELTO o TURNADO.'])
                     ->withInput();
             }
         }
@@ -653,11 +653,17 @@ class HechosController extends Controller
         }
 
         if ($unidadId === 4) {
-            $query->where('unidad_org_id', 4);
+            $this->scopeHechosUnidad($query, 4);
             return;
         }
 
         if ($unidadId === 2) {
+            $this->scopeHechosUnidad($query, 2);
+
+            if ($this->esRolAdministrativoUnidad($usuario)) {
+                return;
+            }
+
             $delegacionId = (int) ($usuario->delegacion_id ?? 0);
 
             if ($delegacionId <= 0) {
@@ -670,7 +676,7 @@ class HechosController extends Controller
                 ->whereNull('delegacion_padre_id')
                 ->exists();
 
-            if ($usuario->hasRole('Subdirector')) {
+            if ($this->puedeVerDelegacionesHijas($usuario)) {
                 if ($esRegional) {
                     $ids = Delegacion::query()
                         ->where('id', $delegacionId)
@@ -690,12 +696,12 @@ class HechosController extends Controller
         }
 
         if ($unidadId === 1) {
-            $query->where('unidad_org_id', 1);
+            $this->scopeHechosUnidad($query, 1);
             return;
         }
 
         if ($unidadId > 0) {
-            $query->where('unidad_org_id', $unidadId);
+            $this->scopeHechosUnidad($query, $unidadId);
             return;
         }
 
@@ -746,6 +752,31 @@ class HechosController extends Controller
         }
 
         return false;
+    }
+
+    private function puedeVerDelegacionesHijas($usuario): bool
+    {
+        return $usuario->hasRole('Delegado');
+    }
+
+    private function esRolAdministrativoUnidad($usuario): bool
+    {
+        return $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector');
+    }
+
+    private function scopeHechosUnidad($query, int $unidadId): void
+    {
+        $query->where(function ($q) use ($unidadId) {
+            $q->where('unidad_org_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_org_id')
+                        ->whereHas('creator', function ($creator) use ($unidadId) {
+                            $creator->where('unidad_id', $unidadId);
+                        });
+                });
+        });
     }
 
     public function seguimiento(Request $request)
@@ -1094,5 +1125,17 @@ class HechosController extends Controller
             'foto' => $fotos[0] ?? null,
             'fotos' => $fotos,
         ]);
+    }
+
+    private function usaReglasFlexiblesHechos($usuario): bool
+    {
+        return in_array((int) ($usuario->unidad_id ?? 0), [2, 4], true);
+    }
+
+    private function sectorPredeterminadoHechos($usuario): string
+    {
+        return (int) ($usuario->unidad_id ?? 0) === 4
+            ? 'PROTECCION A CARRETERAS'
+            : 'DELEGACIONES';
     }
 }

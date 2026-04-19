@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Delegacion;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,8 +32,8 @@ class FeedController extends Controller
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
 
-        $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds), $limit);
-        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds), $limit);
+        $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds, false, 1, $usuario), $limit);
+        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario), $limit);
         $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds), $limit);
         $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds), $limit);
 
@@ -90,8 +91,8 @@ class FeedController extends Controller
         $unidadIds = $contexto['unidad_ids'];
 
         $sources = collect([
-            $this->queryHechos($unidadIds, true, 1),
-            $this->queryActividades($unidadIds, true, 2),
+            $this->queryHechos($unidadIds, true, 1, $usuario),
+            $this->queryActividades($unidadIds, true, 2, $usuario),
             $this->queryCarreteras($unidadIds, true, 3),
             $this->queryVialidades($unidadIds, true, 4),
         ])->filter();
@@ -322,7 +323,68 @@ class FeedController extends Controller
             });
     }
 
-    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1)
+    private function applyDelegacionesScope($query, $usuario, string $column): void
+    {
+        if (!$usuario || (int) ($usuario->unidad_id ?? 0) !== 2) {
+            return;
+        }
+
+        if ($this->esRolAdministrativoUnidad($usuario)) {
+            return;
+        }
+
+        $ids = $this->delegacionIdsVisibles($usuario);
+        if (empty($ids)) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        $query->whereIn($column, $ids);
+    }
+
+    private function delegacionIdsVisibles($usuario): array
+    {
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+        if ($delegacionId <= 0) {
+            return [];
+        }
+
+        if (!$this->puedeVerDelegacionesHijas($usuario)) {
+            return [$delegacionId];
+        }
+
+        $esRegional = Delegacion::query()
+            ->whereKey($delegacionId)
+            ->whereNull('delegacion_padre_id')
+            ->exists();
+
+        if (!$esRegional) {
+            return [$delegacionId];
+        }
+
+        return Delegacion::query()
+            ->where('id', $delegacionId)
+            ->orWhere('delegacion_padre_id', $delegacionId)
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->all();
+    }
+
+    private function puedeVerDelegacionesHijas($usuario): bool
+    {
+        return $usuario->hasRole('Delegado');
+    }
+
+    private function esRolAdministrativoUnidad($usuario): bool
+    {
+        return $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector');
+    }
+
+    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null)
     {
         if (empty($unidadIds)) {
             return $forUnion ? null : collect();
@@ -333,6 +395,7 @@ class FeedController extends Controller
 
         $unidadSql = Schema::hasColumn('hechos', 'unidad_org_id') ? 'COALESCE(h.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
+        $this->applyDelegacionesScope($q, $usuario, 'h.delegacion_id');
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -360,7 +423,7 @@ class FeedController extends Controller
         ")->orderByDesc('h.created_at')->orderByDesc('h.id');
     }
 
-    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2)
+    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2, $usuario = null)
     {
         if (empty($unidadIds)) {
             return $forUnion ? null : collect();
@@ -371,6 +434,7 @@ class FeedController extends Controller
 
         $unidadSql = Schema::hasColumn('actividades', 'unidad_org_id') ? 'COALESCE(a.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
+        $this->applyDelegacionesScope($q, $usuario, 'a.delegacion_id');
 
         if ($forUnion) {
             return $q->selectRaw("

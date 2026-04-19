@@ -42,17 +42,19 @@
                                 </div>
                             </div>
 
+                            @role('Superadmin')
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="telefono">Teléfono WhatsApp</label>
                                     <input type="text" name="telefono" id="telefono"
-                                           class="form-control @error('telefono') is-invalid @enderror"
-                                           value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
+                                            class="form-control @error('telefono') is-invalid @enderror"
+                                            value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
                                     @error('telefono')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
+                            @endrole
                         </div>
 
                         <div class="row">

@@ -22,13 +22,23 @@ class WhatsAppUserResolverService
 
     public function resolveContext(User $user): array
     {
+        $unidadSlug = optional($user->unidad)->slug;
+        $module = $this->mapUnidadSlugToModule($unidadSlug);
+
         if ($user->hasRole('Superadmin')) {
             return [
                 'acceso_total' => true,
-                'modules' => ['siniestros', 'carreteras', 'vialidades'],
+                'modules' => [
+                    'siniestros',
+                    'delegaciones',
+                    'seguridad_vial',
+                    'carreteras',
+                    'vialidades',
+                    'fomento',
+                ],
                 'default_module' => null,
                 'solo_propios' => false,
-                'unidad_slug' => optional($user->unidad)->slug,
+                'unidad_slug' => $unidadSlug,
                 'unidad_id' => $user->unidad_id,
             ];
         }
@@ -36,10 +46,17 @@ class WhatsAppUserResolverService
         if ($user->hasRole('Coordinador') && (int) $user->unidad_id === 3) {
             return [
                 'acceso_total' => true,
-                'modules' => ['siniestros', 'carreteras', 'vialidades'],
+                'modules' => [
+                    'siniestros',
+                    'delegaciones',
+                    'seguridad_vial',
+                    'carreteras',
+                    'vialidades',
+                    'fomento',
+                ],
                 'default_module' => null,
                 'solo_propios' => false,
-                'unidad_slug' => optional($user->unidad)->slug,
+                'unidad_slug' => $unidadSlug,
                 'unidad_id' => $user->unidad_id,
             ];
         }
@@ -55,12 +72,10 @@ class WhatsAppUserResolverService
             ];
         }
 
-        $unidadSlug = optional($user->unidad)->slug;
-
         return [
             'acceso_total' => false,
-            'modules' => [$this->mapUnidadSlugToModule($unidadSlug)],
-            'default_module' => $this->mapUnidadSlugToModule($unidadSlug),
+            'modules' => [$module],
+            'default_module' => $module,
             'solo_propios' => false,
             'unidad_slug' => $unidadSlug,
             'unidad_id' => $user->unidad_id,
@@ -72,10 +87,22 @@ class WhatsAppUserResolverService
         switch ($slug) {
             case 'siniestros':
                 return 'siniestros';
+
+            case 'delegaciones':
+                return 'delegaciones';
+
+            case 'seguridad-vial':
+                return 'seguridad_vial';
+
             case 'carreteras':
                 return 'carreteras';
+
             case 'vialidades-urbanas':
                 return 'vialidades';
+
+            case 'cultura-vial':
+                return 'fomento';
+
             default:
                 return 'siniestros';
         }

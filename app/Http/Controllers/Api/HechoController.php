@@ -154,13 +154,13 @@ class HechoController extends Controller
 
         $this->normalizeCatalogFields($request);
 
-        $esDelegaciones = (int) ($user->unidad_id ?? 0) === 2;
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
 
-        $reglaFolio = $esDelegaciones
+        $reglaFolio = $usaReglasFlexibles
             ? 'nullable|string|max:20|unique:hechos,folio_c5i'
             : 'required|string|max:20|unique:hechos,folio_c5i';
 
-        $reglaSector = $esDelegaciones
+        $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
             : ['required', 'string', Rule::in(self::SECTORES)];
 
@@ -211,11 +211,11 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $esDelegaciones) {
+        $validator->after(function ($v) use ($request, $usaReglasFlexibles) {
             $situacion = strtoupper($this->removeAccents((string) $request->input('situacion', '')));
 
-            if (!$esDelegaciones && $situacion === 'RESUELTO' && !$request->hasFile('foto_situacion')) {
-                $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
+            if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
+                $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
             }
 
             $hasLat = $request->filled('lat');
@@ -237,8 +237,8 @@ class HechoController extends Controller
             $validated['folio_c5i'] = null;
         }
 
-        if ($esDelegaciones && empty($validated['sector'])) {
-            $validated['sector'] = 'DELEGACIONES';
+        if ($usaReglasFlexibles && empty($validated['sector'])) {
+            $validated['sector'] = $this->sectorPredeterminadoHechos($user);
         }
 
         if (!empty($validated['client_uuid'])) {
@@ -408,9 +408,9 @@ class HechoController extends Controller
 
         $this->normalizeCatalogFields($request);
 
-        $esDelegaciones = (int) ($user->unidad_id ?? 0) === 2;
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
 
-        $reglaFolio = $esDelegaciones
+        $reglaFolio = $usaReglasFlexibles
             ? [
                 'sometimes',
                 'nullable',
@@ -426,7 +426,7 @@ class HechoController extends Controller
                 Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
             ];
 
-        $reglaSector = $esDelegaciones
+        $reglaSector = $usaReglasFlexibles
             ? 'sometimes|nullable|string|max:100'
             : ['sometimes', 'required', 'string', Rule::in(self::SECTORES)];
 
@@ -475,19 +475,19 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $hecho, $esDelegaciones) {
+        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles) {
             $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string) $request->input('situacion')))
                 : null;
 
             $situacionEfectiva = $situacionNueva ?? strtoupper((string) ($hecho->situacion ?? ''));
 
-            if (!$esDelegaciones && $situacionEfectiva === 'RESUELTO') {
+            if (!$usaReglasFlexibles && in_array($situacionEfectiva, ['RESUELTO', 'TURNADO'], true)) {
                 $yaTieneFoto = !empty($hecho->foto_situacion);
                 $vieneArchivo = $request->hasFile('foto_situacion');
 
                 if (!$yaTieneFoto && !$vieneArchivo) {
-                    $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO debes subir la foto de situación.');
+                    $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
                 }
             }
 
@@ -510,8 +510,8 @@ class HechoController extends Controller
             $validated['folio_c5i'] = null;
         }
 
-        if ($esDelegaciones && array_key_exists('sector', $validated) && empty($validated['sector'])) {
-            $validated['sector'] = 'DELEGACIONES';
+        if ($usaReglasFlexibles && array_key_exists('sector', $validated) && empty($validated['sector'])) {
+            $validated['sector'] = $this->sectorPredeterminadoHechos($user);
         }
 
         $dictamenId = $validated['dictamen_id'] ?? null;
@@ -717,6 +717,18 @@ class HechoController extends Controller
             'message' => $first ?: 'Revisa los campos marcados e inténtalo de nuevo.',
             'errors'  => $errors,
         ], 422);
+    }
+
+    private function usaReglasFlexiblesHechos($user): bool
+    {
+        return in_array((int) ($user->unidad_id ?? 0), [2, 4], true);
+    }
+
+    private function sectorPredeterminadoHechos($user): string
+    {
+        return (int) ($user->unidad_id ?? 0) === 4
+            ? 'PROTECCION A CARRETERAS'
+            : 'DELEGACIONES';
     }
 
     private function messages(): array

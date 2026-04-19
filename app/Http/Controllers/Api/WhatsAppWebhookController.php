@@ -123,58 +123,15 @@ class WhatsAppWebhookController extends Controller
             ) {
                 try {
                     $openai = app(\App\Services\OpenAIService::class);
-                    $resultado = $openai->interpretar($mensajeTexto);
+                    $json = $openai->interpretar($mensajeTexto);
 
-                    \Log::info('OPENAI RESPUESTA', $resultado);
+                    \Log::info('OPENAI RESPUESTA', $json);
 
-                    $texto = null;
+                    if (is_array($json) && isset($json['accion']) && $json['accion'] !== 'no_valida') {
+                        $respondido = $this->resolverConsultaOpenAI($from, $user, $context, $json);
 
-                    foreach ($resultado['output'] ?? [] as $item) {
-                        if (($item['type'] ?? '') === 'message') {
-                            $texto = $item['content'][0]['text'] ?? null;
-                            break;
-                        }
-                    }
-                    $json = json_decode($texto, true);
-
-                    if ($json && isset($json['accion']) && $json['accion'] !== 'no_valida') {
-                        switch ($json['accion']) {
-                            case 'contar_hechos':
-                                $fecha = now();
-
-                                if (($json['filtros']['fecha'] ?? '') === 'ayer') {
-                                    $fecha = now()->subDay();
-                                }
-
-                                if (($json['filtros']['fecha'] ?? '') === 'antier') {
-                                    $fecha = now()->subDays(2);
-                                }
-
-                                $total = \App\Models\Hechos::whereDate('fecha', $fecha)->count();
-
-                                $etiquetaFecha = 'HOY';
-
-                                if (($json['filtros']['fecha'] ?? '') === 'ayer') {
-                                    $etiquetaFecha = 'AYER';
-                                }
-
-                                if (($json['filtros']['fecha'] ?? '') === 'antier') {
-                                    $etiquetaFecha = 'ANTIER';
-                                }
-
-                                $this->sendText($from, "TOTAL DE HECHOS {$etiquetaFecha}: {$total}");
-                                return;
-
-                            case 'detalle_hecho':
-                                $hecho = \App\Models\Hechos::find($json['id'] ?? null);
-
-                                if (!$hecho) {
-                                    $this->sendText($from, 'Hecho no encontrado');
-                                    return;
-                                }
-
-                                $this->sendText($from, "HECHO {$hecho->id} - {$hecho->tipo_hecho}");
-                                return;
+                        if ($respondido) {
+                            return;
                         }
                     }
                 } catch (\Throwable $e) {
@@ -513,6 +470,517 @@ class WhatsAppWebhookController extends Controller
 
         $packet = $this->menuService->buildModuleMenu($user, $context, $module);
         $this->sendPacket($from, $packet);
+    }
+
+    protected function resolverConsultaOpenAI(string $from, $user, array $context, array $json): bool
+    {
+        switch ($json['accion']) {
+            case 'contar_hechos':
+            case 'estadistica_hechos':
+                return $this->resolverEstadisticaHechos($from, $user, $context, $json);
+
+            case 'detalle_hecho':
+                return $this->resolverDetalleHecho($from, $user, $context, $json);
+
+            case 'personal_armado':
+                return $this->resolverPersonalArmado($from, $user, $context, $json);
+
+            case 'personal_activo':
+                return $this->resolverPersonalActivo($from, $user, $context, $json);
+
+            case 'estadistica_actividades':
+                return $this->resolverEstadisticaActividades($from, $user, $context, $json);
+
+            case 'lista_actividades':
+                return $this->resolverListaActividades($from, $user, $context, $json);
+
+            case 'estadistica_operativos':
+                return $this->resolverEstadisticaOperativos($from, $user, $context, $json);
+
+            case 'lista_operativos':
+                return $this->resolverListaOperativos($from, $user, $context, $json);
+
+            case 'estadistica_puestas_disposicion':
+                return $this->resolverEstadisticaPuestas($from, $user, $context, $json);
+
+            case 'lista_puestas_disposicion':
+                return $this->resolverListaPuestas($from, $user, $context, $json);
+
+            case 'detalle_puesta_disposicion':
+                return $this->resolverDetallePuesta($from, $user, $context, $json);
+
+            default:
+                return false;
+        }
+    }
+
+    protected function resolverUnidadConsulta($user, array $json): ?int
+    {
+        $unidadSolicitada = isset($json['unidad_id']) && $json['unidad_id'] !== null
+            ? (int) $json['unidad_id']
+            : null;
+
+        if ($user->hasRole('Superadmin')) {
+            return $unidadSolicitada ?: ($user->unidad_id ? (int) $user->unidad_id : null);
+        }
+
+        return $user->unidad_id ? (int) $user->unidad_id : null;
+    }
+
+    protected function aplicarFiltrosFechaHora($query, array $filtros, string $campoFecha = 'fecha', ?string $campoHora = 'hora')
+    {
+        if (!empty($filtros['fecha'])) {
+            $query->whereDate($campoFecha, $filtros['fecha']);
+        } else {
+            if (!empty($filtros['fecha_inicio'])) {
+                $query->whereDate($campoFecha, '>=', $filtros['fecha_inicio']);
+            }
+
+            if (!empty($filtros['fecha_fin'])) {
+                $query->whereDate($campoFecha, '<=', $filtros['fecha_fin']);
+            }
+        }
+
+        if ($campoHora) {
+            if (!empty($filtros['hora_inicio'])) {
+                $query->whereTime($campoHora, '>=', $filtros['hora_inicio']);
+            }
+
+            if (!empty($filtros['hora_fin'])) {
+                $query->whereTime($campoHora, '<=', $filtros['hora_fin']);
+            }
+        }
+
+        return $query;
+    }
+
+    protected function obtenerNombreUnidad(?int $unidadId): ?string
+    {
+        if (!$unidadId) {
+            return null;
+        }
+
+        $unidad = \App\Models\Unidad::find($unidadId);
+
+        return $unidad?->nombre;
+    }
+
+    protected function construirLineaUnidad(?int $unidadId): string
+    {
+        if (!$unidadId || $unidadId === 3) {
+            return '';
+        }
+
+        $nombre = $this->obtenerNombreUnidad($unidadId);
+
+        if (!$nombre) {
+            return '';
+        }
+
+        return mb_strtoupper(trim($nombre), 'UTF-8') . ".\n\n";
+    }
+
+    protected function resolverEstadisticaHechos(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\Hechos::query();
+
+        if ($unidadId) {
+            $query->where('unidad_org_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
+
+        if (!empty($filtros['tipo_hecho'])) {
+            $query->where('tipo_hecho', $filtros['tipo_hecho']);
+        }
+
+        if (!empty($filtros['situacion'])) {
+            $query->where('situacion', $filtros['situacion']);
+        }
+
+        $hechos = (clone $query)->count();
+        $lesionados = \App\Models\Lesionado::query()
+            ->whereIn('hecho_id', (clone $query)->select('id'))
+            ->count();
+        $fallecidos = \App\Models\Lesionado::query()
+            ->whereIn('hecho_id', (clone $query)->select('id'))
+            ->where('tipo_lesion', 'LIKE', '%fallecid%')
+            ->count();
+        $resueltos = (clone $query)->where('situacion', 'RESUELTO')->count();
+        $pendientes = (clone $query)->where('situacion', 'PENDIENTE')->count();
+        $turnados = (clone $query)->where('situacion', 'TURNADO')->count();
+        $reportes = (clone $query)->where('situacion', 'REPORTE')->count();
+
+        $tipos = (clone $query)
+            ->selectRaw('tipo_hecho, COUNT(*) as total')
+            ->groupBy('tipo_hecho')
+            ->orderByDesc('total')
+            ->limit(3)
+            ->get();
+
+        $periodo = 'SIN PERIODO ESPECIFICADO';
+
+        if (!empty($filtros['fecha'])) {
+            $periodo = $filtros['fecha'];
+        } elseif (!empty($filtros['fecha_inicio']) || !empty($filtros['fecha_fin'])) {
+            $periodo = ($filtros['fecha_inicio'] ?? '...') . ' al ' . ($filtros['fecha_fin'] ?? '...');
+        }
+
+        $texto = "GUARDIA CIVIL\n";
+        $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL.\n\n";
+        $texto .= $this->construirLineaUnidad($unidadId);
+        $texto .= "ASUNTO: Estadística rápida de siniestros.\n\n";
+        $texto .= "PERIODO: {$periodo}.\n\n";
+        $texto .= "RESULTADO:\n";
+        $texto .= "- Hechos: {$hechos}\n";
+        $texto .= "- Lesionados: {$lesionados}\n";
+        $texto .= "- Fallecidos: {$fallecidos}\n";
+        $texto .= "- Resueltos: {$resueltos}\n";
+        $texto .= "- Pendientes: {$pendientes}\n";
+        $texto .= "- Turnado: {$turnados}\n";
+        $texto .= "- Reporte: {$reportes}\n";
+
+        foreach ($tipos as $tipo) {
+            $texto .= "- {$tipo->tipo_hecho}: {$tipo->total}\n";
+        }
+
+        $texto .= "\nPARA CONOCIMIENTO DE LA SUPERIORIDAD.";
+
+        $this->sendText($from, $texto);
+        return true;
+    }
+
+    protected function resolverDetalleHecho(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $hechoId = $json['id'] ?? null;
+
+        if (!$hechoId) {
+            $this->sendText($from, 'Hecho no encontrado');
+            return true;
+        }
+
+        $query = \App\Models\Hechos::query()->where('id', $hechoId);
+
+        if ($unidadId) {
+            $query->where('unidad_org_id', $unidadId);
+        }
+
+        $hecho = $query->first();
+
+        if (!$hecho) {
+            $this->sendText($from, 'Hecho no encontrado');
+            return true;
+        }
+
+        $texto = "HECHO {$hecho->id}\n";
+        $texto .= "FECHA: {$hecho->fecha}\n";
+        $texto .= "HORA: {$hecho->hora}\n";
+        $texto .= "TIPO: {$hecho->tipo_hecho}\n";
+        $texto .= "SITUACIÓN: {$hecho->situacion}\n";
+        $texto .= "MUNICIPIO: {$hecho->municipio}\n";
+        $texto .= "LUGAR: " . trim(($hecho->calle ?? '') . ' ' . ($hecho->entre_calles ?? '')) . "\n";
+        $texto .= "PERITO: {$hecho->perito}";
+
+        $this->sendText($from, $texto);
+        return true;
+    }
+
+    protected function resolverPersonalArmado(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+
+        $rows = \App\Models\PersonalAsignacion::query()
+            ->join('personals', 'personal_asignacions.personal_id', '=', 'personals.id')
+            ->join('armamentos', 'personal_asignacions.armamento_id', '=', 'armamentos.id')
+            ->where('personal_asignacions.activo', 1)
+            ->when($unidadId, fn ($q) => $q->where('personals.unidad_id', $unidadId))
+            ->where('personals.estatus', 'ACTIVO')
+            ->select([
+                'personals.nombre',
+                'personals.ap_paterno',
+                'personals.ap_materno',
+                'personals.grado',
+                'personals.puesto',
+                'armamentos.tipo',
+                'armamentos.marca',
+                'armamentos.modelo',
+                'armamentos.matricula',
+                'armamentos.calibre',
+            ])
+            ->orderBy('personals.nombre')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $this->sendText($from, 'No se encontraron elementos armados.');
+            return true;
+        }
+
+        $texto = "RELACIÓN DE PERSONAL ARMADO\n\n";
+
+        foreach ($rows as $row) {
+            $nombre = trim($row->nombre . ' ' . $row->ap_paterno . ' ' . $row->ap_materno);
+            $arma = trim($row->tipo . ' ' . $row->marca . ' ' . $row->modelo);
+
+            $texto .= "- {$nombre}\n";
+            $texto .= "  {$row->grado} / {$row->puesto}\n";
+            $texto .= "  {$arma}\n";
+            $texto .= "  Matrícula: {$row->matricula} | Calibre: {$row->calibre}\n\n";
+        }
+
+        $this->sendText($from, trim($texto));
+        return true;
+    }
+
+    protected function resolverPersonalActivo(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+
+        $rows = \App\Models\Personal::query()
+            ->when($unidadId, fn ($q) => $q->where('unidad_id', $unidadId))
+            ->where('estatus', 'ACTIVO')
+            ->orderBy('nombre')
+            ->get(['nombre', 'ap_paterno', 'ap_materno', 'grado', 'puesto']);
+
+        if ($rows->isEmpty()) {
+            $this->sendText($from, 'No se encontró personal activo.');
+            return true;
+        }
+
+        $texto = "PERSONAL ACTIVO\n\n";
+
+        foreach ($rows as $row) {
+            $nombre = trim($row->nombre . ' ' . $row->ap_paterno . ' ' . $row->ap_materno);
+            $texto .= "- {$nombre} | {$row->grado} | {$row->puesto}\n";
+        }
+
+        $this->sendText($from, trim($texto));
+        return true;
+    }
+
+    protected function resolverEstadisticaActividades(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\Actividad::query();
+
+        if ($unidadId) {
+            $query->where('unidad_org_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
+
+        $total = $query->count();
+
+        $this->sendText($from, "TOTAL DE ACTIVIDADES: {$total}");
+        return true;
+    }
+
+    protected function resolverListaActividades(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\Actividad::query();
+
+        if ($unidadId) {
+            $query->where('unidad_org_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
+
+        $rows = $query->orderByDesc('fecha')->orderByDesc('hora')->limit(20)->get();
+
+        if ($rows->isEmpty()) {
+            $this->sendText($from, 'No se encontraron actividades.');
+            return true;
+        }
+
+        $texto = "LISTA DE ACTIVIDADES\n\n";
+
+        foreach ($rows as $row) {
+            $texto .= "- {$row->fecha} {$row->hora} | {$row->nombre}\n";
+        }
+
+        $this->sendText($from, trim($texto));
+        return true;
+    }
+
+    protected function resolverEstadisticaOperativos(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\OperativoDispositivo::query();
+
+        if ($unidadId) {
+            $query->where('unidad_org_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
+
+        if (!empty($filtros['tipo_operativo'])) {
+            $query->where('tipo_reporte', $filtros['tipo_operativo']);
+        }
+
+        $total = (clone $query)->count();
+        $vehiculosInspeccionados = (clone $query)->sum('vehiculos_inspeccionados');
+        $personasInspeccionadas = (clone $query)->sum('personas_inspeccionadas');
+        $vehiculosImpactados = (clone $query)->sum('vehiculos_impactados');
+        $personasImpactadas = (clone $query)->sum('personas_impactadas');
+        $estadoFuerza = (clone $query)->sum('estado_fuerza_participante');
+        $kilometros = (clone $query)->sum('kilometros_recorridos');
+
+        $texto = "ESTADÍSTICA DE OPERATIVOS\n\n";
+        $texto .= "- Registros: {$total}\n";
+        $texto .= "- Vehículos inspeccionados: {$vehiculosInspeccionados}\n";
+        $texto .= "- Personas inspeccionadas: {$personasInspeccionadas}\n";
+        $texto .= "- Vehículos impactados: {$vehiculosImpactados}\n";
+        $texto .= "- Personas impactadas: {$personasImpactadas}\n";
+        $texto .= "- Estado de fuerza: {$estadoFuerza}\n";
+        $texto .= "- Kilómetros recorridos: {$kilometros}";
+
+        $this->sendText($from, $texto);
+        return true;
+    }
+
+    protected function resolverListaOperativos(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\OperativoDispositivo::query();
+
+        if ($unidadId) {
+            $query->where('unidad_org_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
+
+        if (!empty($filtros['tipo_operativo'])) {
+            $query->where('tipo_reporte', $filtros['tipo_operativo']);
+        }
+
+        $rows = $query->orderByDesc('fecha')->orderByDesc('hora')->limit(20)->get();
+
+        if ($rows->isEmpty()) {
+            $this->sendText($from, 'No se encontraron operativos.');
+            return true;
+        }
+
+        $texto = "LISTA DE OPERATIVOS\n\n";
+
+        foreach ($rows as $row) {
+            $texto .= "- {$row->fecha} {$row->hora} | {$row->tipo_reporte} | {$row->asunto}\n";
+        }
+
+        $this->sendText($from, trim($texto));
+        return true;
+    }
+
+    protected function resolverEstadisticaPuestas(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\PuestaDisposicion::query();
+
+        if ($unidadId) {
+            $query->where('unidad_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha_puesta', 'hora_puesta');
+
+        if (!empty($filtros['tipo_puesta'])) {
+            $query->where('tipo_puesta', $filtros['tipo_puesta']);
+        }
+
+        if (!empty($filtros['estatus'])) {
+            $query->where('estatus', $filtros['estatus']);
+        }
+
+        $total = $query->count();
+
+        $this->sendText($from, "TOTAL DE PUESTAS A DISPOSICIÓN: {$total}");
+        return true;
+    }
+
+    protected function resolverListaPuestas(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $filtros = $json['filtros'] ?? [];
+
+        $query = \App\Models\PuestaDisposicion::query();
+
+        if ($unidadId) {
+            $query->where('unidad_id', $unidadId);
+        }
+
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha_puesta', 'hora_puesta');
+
+        if (!empty($filtros['tipo_puesta'])) {
+            $query->where('tipo_puesta', $filtros['tipo_puesta']);
+        }
+
+        if (!empty($filtros['estatus'])) {
+            $query->where('estatus', $filtros['estatus']);
+        }
+
+        $rows = $query->orderByDesc('fecha_puesta')->orderByDesc('hora_puesta')->limit(20)->get();
+
+        if ($rows->isEmpty()) {
+            $this->sendText($from, 'No se encontraron puestas a disposición.');
+            return true;
+        }
+
+        $texto = "LISTA DE PUESTAS A DISPOSICIÓN\n\n";
+
+        foreach ($rows as $row) {
+            $texto .= "- {$row->fecha_puesta} {$row->hora_puesta} | {$row->numero_puesta} | {$row->tipo_puesta} | {$row->estatus}\n";
+        }
+
+        $this->sendText($from, trim($texto));
+        return true;
+    }
+
+    protected function resolverDetallePuesta(string $from, $user, array $context, array $json): bool
+    {
+        $unidadId = $this->resolverUnidadConsulta($user, $json);
+        $puestaId = $json['id'] ?? null;
+
+        if (!$puestaId) {
+            $this->sendText($from, 'Puesta a disposición no encontrada');
+            return true;
+        }
+
+        $query = \App\Models\PuestaDisposicion::query()->where('id', $puestaId);
+
+        if ($unidadId) {
+            $query->where('unidad_id', $unidadId);
+        }
+
+        $puesta = $query->first();
+
+        if (!$puesta) {
+            $this->sendText($from, 'Puesta a disposición no encontrada');
+            return true;
+        }
+
+        $texto = "PUESTA A DISPOSICIÓN {$puesta->id}\n";
+        $texto .= "NÚMERO: {$puesta->numero_puesta}\n";
+        $texto .= "FECHA: {$puesta->fecha_puesta}\n";
+        $texto .= "HORA: {$puesta->hora_puesta}\n";
+        $texto .= "TIPO: {$puesta->tipo_puesta}\n";
+        $texto .= "ESTATUS: {$puesta->estatus}\n";
+        $texto .= "POLICÍA: {$puesta->nombre_policia}\n";
+        $texto .= "MP: {$puesta->nombre_mp}";
+
+        $this->sendText($from, $texto);
+        return true;
     }
 
     protected function sendPacket(string $to, array $packet): void

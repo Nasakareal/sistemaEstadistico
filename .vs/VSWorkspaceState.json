@@ -3,7 +3,13 @@
     "",
     "\\app",
     "\\app\\Services",
-    "\\app\\Services\\WhatsApp"
+    "\\app\\Services\\WhatsApp",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\users"
   ],
+  "SelectedNode": "\\resources\\views\\admin\\settings\\users\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

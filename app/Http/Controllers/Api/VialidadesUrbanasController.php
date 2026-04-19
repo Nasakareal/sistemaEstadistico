@@ -63,6 +63,10 @@ class VialidadesUrbanasController extends Controller
     {
         $usuario = auth()->user();
 
+        if (!$this->canUseVialidadesUrbanas($usuario)) {
+            abort(403, 'No tienes acceso a este módulo.');
+        }
+
         $validated = $request->validate([
             'vialidad_dispositivo_catalogo_id' => [
                 'required',
@@ -545,15 +549,21 @@ class VialidadesUrbanasController extends Controller
 
     private function applyVisibilityScope($query, $usuario): void
     {
-        if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
-            || (int) $usuario->unidad_id === 3
-        ) {
+        if ($this->canUseVialidadesUrbanas($usuario)) {
             return;
         }
 
-        $query->where('unidad_id', 5);
+        $query->whereRaw('1=0');
+    }
+
+    private function canUseVialidadesUrbanas($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return $usuario->hasRole('Superadmin')
+            || in_array((int) ($usuario->unidad_id ?? 0), [3, 5], true);
     }
 
     private function normalizeText($value): ?string

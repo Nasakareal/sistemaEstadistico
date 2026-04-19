@@ -16,7 +16,11 @@ class WhatsAppRenderService
 
         $bloques[] = 'GUARDIA CIVIL';
         $bloques[] = $detalle['coordinacion'] ?? '';
-        $bloques[] = $detalle['unidad'] ?? '';
+
+        if (!empty($detalle['unidad'])) {
+            $bloques[] = $detalle['unidad'];
+        }
+
         $bloques[] = $detalle['municipio'] ?? '';
 
         if (!empty($detalle['sector'])) {
@@ -36,12 +40,15 @@ class WhatsAppRenderService
         }
 
         $ubicacionExtra = [];
+
         if (!empty($detalle['ubicacion'])) {
             $ubicacionExtra[] = 'Ubicación: ' . $detalle['ubicacion'];
         }
+
         if (!empty($detalle['google_maps'])) {
             $ubicacionExtra[] = 'Google Maps: ' . $detalle['google_maps'];
         }
+
         if (!empty($ubicacionExtra)) {
             $bloques[] = implode("\n", $ubicacionExtra);
         }
@@ -60,7 +67,7 @@ class WhatsAppRenderService
 
     protected function obtenerDetalleHecho(Hechos $hecho): array
     {
-        $hecho->loadMissing(['vehiculos']);
+        $hecho->loadMissing(['vehiculos', 'unidadOrg']);
 
         $ubicacionPartes = array_filter([
             $hecho->calle,
@@ -68,7 +75,7 @@ class WhatsAppRenderService
         ]);
 
         $descripcion = trim(implode(' ', array_filter([
-            optional($hecho->fecha)->format('Y-m-d') ?: (string) $hecho->fecha,
+            (string) $hecho->fecha,
             $this->formatearHora((string) $hecho->hora),
             'Hrs. Guardia Civil toma conocimiento en',
             implode(', ', $ubicacionPartes) . '.',
@@ -95,6 +102,7 @@ class WhatsAppRenderService
             $lineasVehiculo[] = $this->buildVehiculoDescripcion($vehiculo);
 
             $ocupantes = $this->buildVehiculoOcupantes($vehiculo);
+
             if ($ocupantes !== '') {
                 $lineasVehiculo[] = $ocupantes;
             }
@@ -110,8 +118,8 @@ class WhatsAppRenderService
         ))));
 
         return [
-            'coordinacion' => 'COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL',
-            'unidad' => 'UNIDAD DE ATENCIÓN A SINIESTROS',
+            'coordinacion' => 'COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL',
+            'unidad' => $this->resolverLineaUnidad($hecho),
             'municipio' => (string) ($hecho->municipio ?: 'MORELIA'),
             'sector' => $hecho->sector ? 'SECTOR ' . $hecho->sector : null,
             'tema' => 'HECHO DE TRÁNSITO CLASIFICADO COMO ' . mb_strtoupper((string) ($hecho->tipo_hecho ?: 'SIN CLASIFICACIÓN'), 'UTF-8'),
@@ -123,6 +131,31 @@ class WhatsAppRenderService
             'informa' => $hecho->unidad ? 'UNIDAD ' . $hecho->unidad : ($hecho->perito ?: null),
             'fotos' => $fotos,
         ];
+    }
+
+    protected function resolverLineaUnidad(Hechos $hecho): string
+    {
+        $unidadId = $hecho->unidad_org_id ? (int) $hecho->unidad_org_id : null;
+        $unidadNombre = mb_strtoupper(trim((string) optional($hecho->unidadOrg)->nombre), 'UTF-8');
+
+        if (!$unidadId || $unidadId === 3) {
+            return '';
+        }
+
+        switch ($unidadId) {
+            case 1:
+                return 'UNIDAD DE ATENCIÓN A SINIESTROS';
+            case 2:
+                return 'DELEGACIONES';
+            case 4:
+                return 'PROTECCIÓN A CARRETERAS';
+            case 5:
+                return 'PROTECCIÓN A VIALIDADES URBANAS';
+            case 6:
+                return 'FOMENTO A LA CULTURA VIAL';
+            default:
+                return $unidadNombre;
+        }
     }
 
     protected function buildVehiculoDescripcion($vehiculo): string
@@ -185,6 +218,7 @@ class WhatsAppRenderService
     {
         foreach ($values as $value) {
             $value = trim((string) $value);
+
             if ($value !== '') {
                 return $value;
             }

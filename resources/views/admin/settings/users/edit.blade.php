@@ -44,6 +44,7 @@
                                 </div>
                             </div>
 
+                            @role('Superadmin')
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="telefono">Teléfono WhatsApp</label>
@@ -53,8 +54,10 @@
                                     @error('telefono')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
+                                    <small class="text-muted">Solo Superadmin puede editar números para acceso por WhatsApp.</small>
                                 </div>
                             </div>
+                            @endrole
                         </div>
 
                         <div class="row">

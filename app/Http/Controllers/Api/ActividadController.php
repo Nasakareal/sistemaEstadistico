@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Actividad;
 use App\Models\ActividadCategoria;
 use App\Models\ActividadSubcategoria;
+use App\Models\Delegacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -781,12 +782,41 @@ class ActividadController extends Controller
         }
 
         if ($unidadId === 2) {
-            $query->where('delegacion_id', $usuario->delegacion_id);
+            $this->scopeActividadesUnidad($query, 2);
+
+            if ($this->esRolAdministrativoUnidad($usuario)) {
+                return;
+            }
+
+            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+            if ($delegacionId <= 0) {
+                $query->whereRaw('1=0');
+                return;
+            }
+
+            $esRegional = Delegacion::query()
+                ->where('id', $delegacionId)
+                ->whereNull('delegacion_padre_id')
+                ->exists();
+
+            if ($this->puedeVerDelegacionesHijas($usuario) && $esRegional) {
+                $ids = Delegacion::query()
+                    ->where('id', $delegacionId)
+                    ->orWhere('delegacion_padre_id', $delegacionId)
+                    ->pluck('id')
+                    ->toArray();
+
+                $query->whereIn('delegacion_id', $ids);
+                return;
+            }
+
+            $query->where('delegacion_id', $delegacionId);
             return;
         }
 
         if ($unidadId > 0) {
-            $query->where('unidad_org_id', $unidadId);
+            $this->scopeActividadesUnidad($query, $unidadId);
             return;
         }
 
@@ -827,6 +857,31 @@ class ActividadController extends Controller
         }
 
         return asset('storage/' . ltrim($storedPath, '/'));
+    }
+
+    private function puedeVerDelegacionesHijas($usuario): bool
+    {
+        return $usuario->hasRole('Delegado');
+    }
+
+    private function esRolAdministrativoUnidad($usuario): bool
+    {
+        return $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector');
+    }
+
+    private function scopeActividadesUnidad($query, int $unidadId): void
+    {
+        $query->where(function ($q) use ($unidadId) {
+            $q->where('unidad_org_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_org_id')
+                        ->whereHas('creador', function ($creador) use ($unidadId) {
+                            $creador->where('unidad_id', $unidadId);
+                        });
+                });
+        });
     }
 
     public function storeVehiculo(Request $request, Actividad $actividad)

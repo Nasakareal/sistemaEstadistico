@@ -127,7 +127,14 @@ class WhatsAppWebhookController extends Controller
 
                     \Log::info('OPENAI RESPUESTA', $resultado);
 
-                    $texto = $resultado['output'][0]['content'][0]['text'] ?? null;
+                    $texto = null;
+
+                    foreach ($resultado['output'] ?? [] as $item) {
+                        if (($item['type'] ?? '') === 'message') {
+                            $texto = $item['content'][0]['text'] ?? null;
+                            break;
+                        }
+                    }
                     $json = json_decode($texto, true);
 
                     if ($json && isset($json['accion']) && $json['accion'] !== 'no_valida') {

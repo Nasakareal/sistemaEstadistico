@@ -122,11 +122,12 @@ class ServicioController extends Controller
 
         $gruasSeleccionadas = $request->input('gruas', []);
         if (is_string($gruasSeleccionadas)) {
-            $gruasSeleccionadas = array_filter(array_map('trim', explode(',', $gruasSeleccionadas)));
+            $gruasSeleccionadas = array_filter(array_map('intval', explode(',', $gruasSeleccionadas)));
         }
         if (!is_array($gruasSeleccionadas)) {
             $gruasSeleccionadas = [];
         }
+        $gruasSeleccionadas = array_values(array_unique(array_filter(array_map('intval', $gruasSeleccionadas))));
 
         $delegacionesSeleccionadas = $request->input('delegaciones', []);
         if (is_string($delegacionesSeleccionadas)) {
@@ -157,18 +158,20 @@ class ServicioController extends Controller
         $delegacionesCatalogo = $this->obtenerDelegacionesCatalogo($usuario, $origen, $delegacionIdsPermitidas);
 
         $gruasCatalogo = $this->construirConsultaGruasSegunOrigen($usuario, $origen, $delegacionesSeleccionadas)
-            ->select('gruas.id', 'gruas.nombre')
-            ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
-                $q->whereIn('gruas.nombre', $gruasSeleccionadas);
-            })
+            ->select('gruas.id', 'gruas.nombre', 'gruas.direccion')
             ->orderBy('gruas.nombre')
+            ->orderBy('gruas.direccion')
             ->distinct()
-            ->get();
+            ->get()
+            ->map(function ($grua) {
+                $grua->label = trim($grua->nombre . ' - ' . ($grua->direccion ?? ''));
+                return $grua;
+            });
 
         $query = $this->construirConsultaGruasSegunOrigen($usuario, $origen, $delegacionesSeleccionadas)
-            ->select('gruas.id', 'gruas.nombre')
+            ->select('gruas.id', 'gruas.nombre', 'gruas.direccion')
             ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
-                $q->whereIn('gruas.nombre', $gruasSeleccionadas);
+                $q->whereIn('gruas.id', $gruasSeleccionadas);
             })
             ->with(['servicios' => function ($q) use ($from, $to) {
                 $q->select('id', 'vehiculo_id', 'grua_id', 'tipo_vehiculo', 'aseguradora', 'created_at')
@@ -178,6 +181,7 @@ class ServicioController extends Controller
                     }]);
             }])
             ->orderBy('gruas.nombre')
+            ->orderBy('gruas.direccion')
             ->distinct();
 
         $gruasServicios = $query->get()->map(function ($grua) {
@@ -213,6 +217,8 @@ class ServicioController extends Controller
             return [
                 'id' => $grua->id,
                 'nombre' => $grua->nombre,
+                'direccion' => $grua->direccion,
+                'label' => trim($grua->nombre . ' - ' . ($grua->direccion ?? '')),
                 'servicios_count' => $servicios->count(),
                 'fecha_ultimo_servicio' => optional($servicios->max('created_at'))->toDateTimeString(),
                 'vehiculos' => $vehiculos,
@@ -320,7 +326,11 @@ class ServicioController extends Controller
             return [];
         }
 
-        if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
+        if (
+            $usuario->hasRole('Superadmin')
+            || (int)$usuario->unidad_id === 3
+            || ((int)$usuario->unidad_id === 2 && $usuario->hasRole('Administrador'))
+        ) {
             return Delegacion::query()
                 ->where('activa', 1)
                 ->pluck('id')

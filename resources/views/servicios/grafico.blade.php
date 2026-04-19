@@ -74,8 +74,8 @@
                                     <label for="gruas">Grúas</label>
                                     <select name="gruas[]" id="gruas" class="form-control select2" multiple>
                                         @foreach($gruasCatalogo as $grua)
-                                            <option value="{{ $grua->nombre }}" {{ in_array($grua->nombre, $gruasSeleccionadas ?? [], true) ? 'selected' : '' }}>
-                                                {{ $grua->nombre }}
+                                            <option value="{{ $grua->id }}" {{ in_array((int)$grua->id, $gruasSeleccionadas ?? [], true) ? 'selected' : '' }}>
+                                                {{ $grua->label }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -459,7 +459,7 @@
                         <div class="sv-grua__head">
                             <div>
                                 <div class="sv-grua__title">
-                                    <i class="fa-solid fa-truck-moving mr-2"></i>${g.nombre}
+                                    <i class="fa-solid fa-truck-moving mr-2"></i>${g.label || g.nombre}
                                 </div>
                                 <div class="sv-grua__meta">
                                     Último servicio: ${fechaUlt ? fechaUlt : '—'}
@@ -501,7 +501,7 @@
         const canvasElem = document.getElementById('grafico-servicios');
         const ctx = canvasElem.getContext('2d');
 
-        const labels = serviciosData.map(i => i.nombre);
+        const labels = serviciosData.map(i => i.label || i.nombre);
         const values = serviciosData.map(i => toInt(i.servicios_count));
 
         let chart = new Chart(ctx, {

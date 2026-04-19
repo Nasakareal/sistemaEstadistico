@@ -8,12 +8,12 @@
 
         <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
             <a class="btn btn-outline-secondary"
-               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->subDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}{{ !empty($origen) ? '&origen='.$origen : '' }}">
+               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->subDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}{{ !empty($delegacionesSeleccionadas) ? '&delegaciones='.implode(',', $delegacionesSeleccionadas) : '' }}{{ !empty($origen) ? '&origen='.$origen : '' }}">
                 <i class="fa-solid fa-chevron-left"></i>
             </a>
 
             <a class="btn btn-outline-secondary"
-               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->addDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}{{ !empty($origen) ? '&origen='.$origen : '' }}">
+               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->addDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}{{ !empty($delegacionesSeleccionadas) ? '&delegaciones='.implode(',', $delegacionesSeleccionadas) : '' }}{{ !empty($origen) ? '&origen='.$origen : '' }}">
                 <i class="fa-solid fa-chevron-right"></i>
             </a>
 
@@ -54,7 +54,22 @@
                                 </div>
                             @endif
 
-                            <div class="col-md-{{ (!empty($puedeFiltrarOrigen) && $puedeFiltrarOrigen) ? '6' : '9' }}">
+                            @if(!empty($puedeFiltrarDelegaciones) && $puedeFiltrarDelegaciones)
+                                <div class="col-md-{{ (!empty($puedeFiltrarOrigen) && $puedeFiltrarOrigen) ? '3' : '4' }}">
+                                    <div class="form-group">
+                                        <label for="delegaciones">Delegaciones</label>
+                                        <select name="delegaciones[]" id="delegaciones" class="form-control select2" multiple>
+                                            @foreach($delegacionesCatalogo as $delegacion)
+                                                <option value="{{ $delegacion->id }}" {{ in_array($delegacion->id, $delegacionesSeleccionadas ?? [], true) ? 'selected' : '' }}>
+                                                    {{ $delegacion->nombre }}{{ !empty($delegacion->clave) ? ' ('.$delegacion->clave.')' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="col-md-{{ (!empty($puedeFiltrarOrigen) && $puedeFiltrarOrigen) ? ((!empty($puedeFiltrarDelegaciones) && $puedeFiltrarDelegaciones) ? '3' : '6') : ((!empty($puedeFiltrarDelegaciones) && $puedeFiltrarDelegaciones) ? '5' : '9') }}">
                                 <div class="form-group">
                                     <label for="gruas">Grúas</label>
                                     <select name="gruas[]" id="gruas" class="form-control select2" multiple>
@@ -83,9 +98,19 @@
                         @if(($origen ?? '') === 'siniestros')
                             Mostrando únicamente grúas asignadas a <b>Siniestros</b>.
                         @elseif(($origen ?? '') === 'delegaciones')
-                            Mostrando únicamente grúas asignadas a <b>Delegaciones</b>.
+                            Mostrando únicamente grúas de <b>Delegaciones</b>
+                            @if(!empty($delegacionesSeleccionadas))
+                                filtradas por las delegaciones seleccionadas.
+                            @else
+                                .
+                            @endif
                         @else
-                            Mostrando grúas de <b>Siniestros</b> y <b>Delegaciones</b>.
+                            Mostrando grúas de <b>Siniestros</b> y <b>Delegaciones</b>
+                            @if(!empty($delegacionesSeleccionadas))
+                                con delegaciones filtradas.
+                            @else
+                                .
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -259,7 +284,7 @@
     <script>
         $(document).ready(function () {
             $('.select2').select2({
-                placeholder: 'Selecciona una o más grúas',
+                placeholder: 'Selecciona una o más opciones',
                 allowClear: true,
                 width: '100%'
             });

@@ -3,8 +3,8 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\servicios"
+    "\\resources\\views\\gruas"
   ],
-  "SelectedNode": "\\resources\\views\\servicios\\grafico.blade.php",
+  "SelectedNode": "\\resources\\views\\gruas\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

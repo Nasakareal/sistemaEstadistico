@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Servicio;
 use App\Models\Grua;
+use App\Models\Delegacion;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -119,13 +120,22 @@ class ServicioController extends Controller
         $from = $a->copy()->startOfWeek(Carbon::MONDAY);
         $to = $from->copy()->addDays(6)->endOfDay();
 
-        $gruasSeleccionadas = $request->input('gruas');
+        $gruasSeleccionadas = $request->input('gruas', []);
         if (is_string($gruasSeleccionadas)) {
             $gruasSeleccionadas = array_filter(array_map('trim', explode(',', $gruasSeleccionadas)));
         }
         if (!is_array($gruasSeleccionadas)) {
             $gruasSeleccionadas = [];
         }
+
+        $delegacionesSeleccionadas = $request->input('delegaciones', []);
+        if (is_string($delegacionesSeleccionadas)) {
+            $delegacionesSeleccionadas = array_filter(array_map('intval', explode(',', $delegacionesSeleccionadas)));
+        }
+        if (!is_array($delegacionesSeleccionadas)) {
+            $delegacionesSeleccionadas = [];
+        }
+        $delegacionesSeleccionadas = array_values(array_unique(array_filter(array_map('intval', $delegacionesSeleccionadas))));
 
         $origen = $request->input('origen');
 
@@ -141,7 +151,12 @@ class ServicioController extends Controller
             abort(403);
         }
 
-        $gruasCatalogo = $this->construirConsultaGruasSegunOrigen($usuario, $origen)
+        $delegacionIdsPermitidas = $this->obtenerIdsDelegacionesPermitidas($usuario, $origen);
+        $delegacionesSeleccionadas = $this->normalizarDelegacionesSeleccionadas($delegacionesSeleccionadas, $delegacionIdsPermitidas, $usuario, $origen);
+
+        $delegacionesCatalogo = $this->obtenerDelegacionesCatalogo($usuario, $origen, $delegacionIdsPermitidas);
+
+        $gruasCatalogo = $this->construirConsultaGruasSegunOrigen($usuario, $origen, $delegacionesSeleccionadas)
             ->select('gruas.id', 'gruas.nombre')
             ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
                 $q->whereIn('gruas.nombre', $gruasSeleccionadas);
@@ -150,7 +165,7 @@ class ServicioController extends Controller
             ->distinct()
             ->get();
 
-        $query = $this->construirConsultaGruasSegunOrigen($usuario, $origen)
+        $query = $this->construirConsultaGruasSegunOrigen($usuario, $origen, $delegacionesSeleccionadas)
             ->select('gruas.id', 'gruas.nombre')
             ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
                 $q->whereIn('gruas.nombre', $gruasSeleccionadas);
@@ -206,13 +221,16 @@ class ServicioController extends Controller
 
         return view('servicios.grafico', [
             'gruasCatalogo' => $gruasCatalogo,
+            'delegacionesCatalogo' => $delegacionesCatalogo,
             'gruasServicios' => $gruasServicios,
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'anchor' => $a->toDateString(),
             'gruasSeleccionadas' => $gruasSeleccionadas,
+            'delegacionesSeleccionadas' => $delegacionesSeleccionadas,
             'origen' => $origen,
             'puedeFiltrarOrigen' => $usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3,
+            'puedeFiltrarDelegaciones' => in_array($origen, ['delegaciones', 'todos'], true),
         ]);
     }
 
@@ -224,7 +242,7 @@ class ServicioController extends Controller
         return redirect()->route('servicios.index', $grua->id)->with('success', 'Servicio eliminado correctamente.');
     }
 
-    private function construirConsultaGruasSegunOrigen($usuario, string $origen)
+    private function construirConsultaGruasSegunOrigen($usuario, string $origen, array $delegacionesSeleccionadas = [])
     {
         $query = Grua::query();
 
@@ -237,34 +255,32 @@ class ServicioController extends Controller
         }
 
         if ($origen === 'delegaciones') {
-            $delegacionIds = $this->obtenerIdsDelegacionesUsuario($usuario);
+            $delegacionIds = !empty($delegacionesSeleccionadas)
+                ? $delegacionesSeleccionadas
+                : $this->obtenerIdsDelegacionesPermitidas($usuario, $origen);
 
-            if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
-                $query->whereHas('delegaciones');
+            if (empty($delegacionIds)) {
+                $query->whereRaw('1 = 0');
             } else {
-                if (empty($delegacionIds)) {
-                    $query->whereRaw('1 = 0');
-                } else {
-                    $query->whereHas('delegaciones', function ($q) use ($delegacionIds) {
-                        $q->whereIn('delegaciones.id', $delegacionIds);
-                    });
-                }
+                $query->whereHas('delegaciones', function ($q) use ($delegacionIds) {
+                    $q->whereIn('delegaciones.id', $delegacionIds);
+                });
             }
 
             return $query;
         }
 
         if ($origen === 'todos') {
-            $delegacionIds = $this->obtenerIdsDelegacionesUsuario($usuario);
+            $delegacionIds = !empty($delegacionesSeleccionadas)
+                ? $delegacionesSeleccionadas
+                : $this->obtenerIdsDelegacionesPermitidas($usuario, $origen);
 
-            $query->where(function ($q) use ($usuario, $delegacionIds) {
+            $query->where(function ($q) use ($delegacionIds) {
                 $q->whereHas('unidades', function ($sub) {
                     $sub->where('unidades.id', 1);
                 });
 
-                if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
-                    $q->orWhereHas('delegaciones');
-                } elseif (!empty($delegacionIds)) {
+                if (!empty($delegacionIds)) {
                     $q->orWhereHas('delegaciones', function ($sub) use ($delegacionIds) {
                         $sub->whereIn('delegaciones.id', $delegacionIds);
                     });
@@ -296,6 +312,64 @@ class ServicioController extends Controller
             ->toArray();
 
         return array_values(array_unique(array_merge($ids, $idsPivot)));
+    }
+
+    private function obtenerIdsDelegacionesPermitidas($usuario, string $origen): array
+    {
+        if (!in_array($origen, ['delegaciones', 'todos'], true)) {
+            return [];
+        }
+
+        if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
+            return Delegacion::query()
+                ->where('activa', 1)
+                ->pluck('id')
+                ->map(function ($id) {
+                    return (int)$id;
+                })
+                ->toArray();
+        }
+
+        if ((int)$usuario->unidad_id === 2) {
+            return $this->obtenerIdsDelegacionesUsuario($usuario);
+        }
+
+        return [];
+    }
+
+    private function normalizarDelegacionesSeleccionadas(array $delegacionesSeleccionadas, array $delegacionIdsPermitidas, $usuario, string $origen): array
+    {
+        if (!in_array($origen, ['delegaciones', 'todos'], true)) {
+            return [];
+        }
+
+        if (empty($delegacionIdsPermitidas)) {
+            return [];
+        }
+
+        if (empty($delegacionesSeleccionadas)) {
+            if ((int)$usuario->unidad_id === 2 && !$usuario->hasRole('Superadmin')) {
+                return $delegacionIdsPermitidas;
+            }
+
+            return $origen === 'delegaciones' ? $delegacionIdsPermitidas : [];
+        }
+
+        return array_values(array_intersect($delegacionesSeleccionadas, $delegacionIdsPermitidas));
+    }
+
+    private function obtenerDelegacionesCatalogo($usuario, string $origen, array $delegacionIdsPermitidas)
+    {
+        if (!in_array($origen, ['delegaciones', 'todos'], true) || empty($delegacionIdsPermitidas)) {
+            return collect();
+        }
+
+        return Delegacion::query()
+            ->select('id', 'clave', 'nombre', 'municipio')
+            ->whereIn('id', $delegacionIdsPermitidas)
+            ->where('activa', 1)
+            ->orderBy('nombre')
+            ->get();
     }
 
     private function autorizarAccesoAGrua(Grua $grua): void

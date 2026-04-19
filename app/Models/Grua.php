@@ -48,13 +48,13 @@ class Grua extends Model
 
     public function unidades()
     {
-        return $this->belongsToMany(Unidad::class, 'unidad_grua', 'grua_id', 'unidad_id')
+        return $this->belongsToMany(\App\Models\Unidad::class, 'unidad_grua', 'grua_id', 'unidad_id')
             ->withTimestamps();
     }
 
     public function delegaciones()
     {
-        return $this->belongsToMany(Delegacion::class, 'delegacion_grua', 'grua_id', 'delegacion_id')
+        return $this->belongsToMany(\App\Models\Delegacion::class, 'delegacion_grua', 'grua_id', 'delegacion_id')
             ->withTimestamps();
     }
 }

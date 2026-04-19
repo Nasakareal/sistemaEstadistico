@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Grua;
+use App\Models\Delegacion;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class GruaController extends Controller
 {
@@ -36,7 +38,12 @@ class GruaController extends Controller
 
     public function create()
     {
-        return view('gruas.create');
+        $delegaciones = Delegacion::where('activa', 1)
+            ->where('nombre', '!=', 'Morelia')
+            ->orderBy('nombre')
+            ->get();
+
+        return view('gruas.create', compact('delegaciones'));
     }
 
     public function store(Request $request)
@@ -47,17 +54,54 @@ class GruaController extends Controller
             'ubicacion_corralon' => 'nullable|string',
             'telefono' => 'nullable|string|max:15',
             'email' => 'nullable|email',
+            'tipo_asignacion' => 'required|in:siniestros,delegaciones',
+            'delegaciones' => 'nullable|array',
+            'delegaciones.*' => 'integer|exists:delegaciones,id',
         ]);
 
-        $data = $request->all();
+        $tipoAsignacion = $request->input('tipo_asignacion');
 
-        $data['nombre'] = strtoupper($data['nombre']);
-        $data['direccion'] = strtoupper($data['direccion'] ?? '');
-        $data['ubicacion_corralon'] = strtoupper($data['ubicacion_corralon'] ?? '');
-        $data['telefono'] = strtoupper($data['telefono'] ?? '');
-        $data['email'] = strtoupper($data['email'] ?? '');
+        if ($tipoAsignacion === 'delegaciones' && empty($request->delegaciones)) {
+            return back()->withErrors([
+                'delegaciones' => 'Selecciona al menos una delegación'
+            ])->withInput();
+        }
 
-        Grua::create($data);
+        DB::transaction(function () use ($request, $tipoAsignacion) {
+            $data = $request->only([
+                'nombre',
+                'direccion',
+                'ubicacion_corralon',
+                'telefono',
+                'email',
+            ]);
+
+            $data['nombre'] = strtoupper(trim($data['nombre']));
+            $data['direccion'] = filled($data['direccion'] ?? null) ? strtoupper(trim($data['direccion'])) : null;
+            $data['ubicacion_corralon'] = filled($data['ubicacion_corralon'] ?? null) ? strtoupper(trim($data['ubicacion_corralon'])) : null;
+            $data['telefono'] = filled($data['telefono'] ?? null) ? strtoupper(trim($data['telefono'])) : null;
+            $data['email'] = filled($data['email'] ?? null) ? strtoupper(trim($data['email'])) : null;
+
+            $grua = Grua::create($data);
+
+            if ($tipoAsignacion === 'siniestros') {
+                $grua->unidades()->sync([1]);
+                $grua->delegaciones()->detach();
+            }
+
+            if ($tipoAsignacion === 'delegaciones') {
+                $delegaciones = collect($request->delegaciones ?? [])
+                    ->map(function ($id) {
+                        return (int)$id;
+                    })
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
+                $grua->unidades()->detach(1);
+                $grua->delegaciones()->sync($delegaciones);
+            }
+        });
 
         return redirect()->route('gruas.index')
             ->with('success', 'Grúa registrada correctamente.');
@@ -74,7 +118,12 @@ class GruaController extends Controller
     {
         $grua = Grua::with(['unidades', 'delegaciones'])->findOrFail($id);
 
-        return view('gruas.edit', compact('grua'));
+        $delegaciones = Delegacion::where('activa', 1)
+            ->where('nombre', '!=', 'Morelia')
+            ->orderBy('nombre')
+            ->get();
+
+        return view('gruas.edit', compact('grua', 'delegaciones'));
     }
 
     public function update(Request $request, $id)
@@ -85,19 +134,56 @@ class GruaController extends Controller
             'ubicacion_corralon' => 'nullable|string',
             'telefono' => 'nullable|string|max:15',
             'email' => 'nullable|email',
+            'tipo_asignacion' => 'required|in:siniestros,delegaciones',
+            'delegaciones' => 'nullable|array',
+            'delegaciones.*' => 'integer|exists:delegaciones,id',
         ]);
+
+        $tipoAsignacion = $request->input('tipo_asignacion');
+
+        if ($tipoAsignacion === 'delegaciones' && empty($request->delegaciones)) {
+            return back()->withErrors([
+                'delegaciones' => 'Selecciona al menos una delegación'
+            ])->withInput();
+        }
 
         $grua = Grua::findOrFail($id);
 
-        $data = $request->all();
+        DB::transaction(function () use ($request, $grua, $tipoAsignacion) {
+            $data = $request->only([
+                'nombre',
+                'direccion',
+                'ubicacion_corralon',
+                'telefono',
+                'email',
+            ]);
 
-        $data['nombre'] = strtoupper($data['nombre']);
-        $data['direccion'] = strtoupper($data['direccion'] ?? '');
-        $data['ubicacion_corralon'] = strtoupper($data['ubicacion_corralon'] ?? '');
-        $data['telefono'] = strtoupper($data['telefono'] ?? '');
-        $data['email'] = strtoupper($data['email'] ?? '');
+            $data['nombre'] = strtoupper(trim($data['nombre']));
+            $data['direccion'] = filled($data['direccion'] ?? null) ? strtoupper(trim($data['direccion'])) : null;
+            $data['ubicacion_corralon'] = filled($data['ubicacion_corralon'] ?? null) ? strtoupper(trim($data['ubicacion_corralon'])) : null;
+            $data['telefono'] = filled($data['telefono'] ?? null) ? strtoupper(trim($data['telefono'])) : null;
+            $data['email'] = filled($data['email'] ?? null) ? strtoupper(trim($data['email'])) : null;
 
-        $grua->update($data);
+            $grua->update($data);
+
+            if ($tipoAsignacion === 'siniestros') {
+                $grua->unidades()->sync([1]);
+                $grua->delegaciones()->detach();
+            }
+
+            if ($tipoAsignacion === 'delegaciones') {
+                $delegaciones = collect($request->delegaciones ?? [])
+                    ->map(function ($id) {
+                        return (int)$id;
+                    })
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
+                $grua->unidades()->detach(1);
+                $grua->delegaciones()->sync($delegaciones);
+            }
+        });
 
         return redirect()->route('gruas.index')
             ->with('success', 'Grúa actualizada correctamente.');

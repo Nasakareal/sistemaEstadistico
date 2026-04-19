@@ -60,19 +60,19 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="role">Rol</label>
-                                    <select name="role" id="role"
-                                            class="form-control @error('role') is-invalid @enderror" required>
-                                        <option value="" disabled {{ old('role') ? '' : 'selected' }}>Seleccione un rol</option>
+                                    <label for="role_id">Rol</label>
+                                    <select name="role_id" id="role_id"
+                                            class="form-control @error('role_id') is-invalid @enderror" required>
+                                        <option value="" disabled {{ old('role_id') ? '' : 'selected' }}>Seleccione un rol</option>
                                         @foreach ($roles as $role)
-                                            <option value="{{ $role->name }}"
+                                            <option value="{{ $role->id }}"
                                                     data-unidad-id="{{ $role->unidad_id }}"
-                                                    {{ old('role') == $role->name ? 'selected' : '' }}>
-                                                {{ $role->name }}{{ !is_null($role->unidad_id) ? ' - UNIDAD' : ' - GLOBAL' }}
+                                                    {{ (string) old('role_id') === (string) $role->id ? 'selected' : '' }}>
+                                                {{ $role->name }}{{ !is_null($role->unidad_id) ? ' - ' . ($role->unidad_nombre ?? 'SIN UNIDAD') : ' - GLOBAL' }}
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('role')
+                                    @error('role_id')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                     <small class="text-muted">Solo aparecen los roles que puedes asignar.</small>
@@ -323,7 +323,7 @@
             const UNIDAD_CARRETERAS_ID = @json($unidadCarreterasId);
 
             function getSelectedRoleOption() {
-                const roleSelect = document.getElementById('role');
+                const roleSelect = document.getElementById('role_id');
                 if (!roleSelect) return null;
                 return roleSelect.options[roleSelect.selectedIndex] || null;
             }
@@ -335,10 +335,14 @@
             }
 
             function toggleUnidadesExtra() {
-                const role = document.getElementById('role')?.value || '';
+                const roleSelect = document.getElementById('role_id');
+                const roleOption = roleSelect ? roleSelect.options[roleSelect.selectedIndex] : null;
+                const roleName = roleOption ? roleOption.text.split(' - ')[0].trim() : '';
                 const box = document.getElementById('box_unidades_extra');
+
                 if (!box) return;
-                box.style.display = (role === 'Coordinador') ? '' : 'none';
+
+                box.style.display = (roleName === 'Coordinador') ? '' : 'none';
             }
 
             function syncUnidadConRol() {
@@ -390,7 +394,7 @@
             }
 
             document.addEventListener('DOMContentLoaded', function () {
-                const roleSel = document.getElementById('role');
+                const roleSel = document.getElementById('role_id');
                 const unidadSel = document.getElementById('unidad_id');
                 const telefonoInput = document.getElementById('telefono');
                 const form = document.querySelector('form');

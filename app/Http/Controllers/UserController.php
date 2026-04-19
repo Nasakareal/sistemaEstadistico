@@ -70,7 +70,7 @@ class UserController extends Controller
             'telefono' => 'nullable|string|max:30',
             'password' => 'required|min:6|confirmed',
             'area' => 'nullable|string|max:30',
-            'role' => 'required|exists:roles,name',
+            'role_id' => 'required|integer|exists:roles,id',
             'unidad_id' => 'nullable|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
@@ -92,11 +92,11 @@ class UserController extends Controller
             }
         }
 
-        $rol = $this->buscarRolAsignableParaActor($actor, $validatedData['role']);
+        $rol = $this->buscarRolAsignableParaActor($actor, (int) $validatedData['role_id']);
 
         if (!$rol) {
             throw ValidationException::withMessages([
-                'role' => 'No puedes asignar ese rol.',
+                'role_id' => 'No puedes asignar ese rol.',
             ]);
         }
 
@@ -251,7 +251,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $id,
             'telefono' => 'nullable|string|max:30',
             'area' => 'nullable|string|max:30',
-            'role' => 'required|exists:roles,name',
+            'role_id' => 'required|integer|exists:roles,id',
             'password' => 'nullable|min:6|confirmed',
             'unidad_id' => 'nullable|exists:unidades,id',
             'turno_id' => 'nullable|exists:turnos,id',
@@ -277,11 +277,11 @@ class UserController extends Controller
             }
         }
 
-        $rol = $this->buscarRolAsignableParaActor($actor, $validatedData['role']);
+        $rol = $this->buscarRolAsignableParaActor($actor, (int) $validatedData['role_id']);
 
         if (!$rol) {
             throw ValidationException::withMessages([
-                'role' => 'No puedes asignar ese rol.',
+                'role_id' => 'No puedes asignar ese rol.',
             ]);
         }
 
@@ -569,13 +569,17 @@ class UserController extends Controller
 
     private function rolesDisponiblesParaActor(User $actor)
     {
-        return $actor->rolesVisibles();
+        return $actor->rolesVisiblesQuery()
+            ->leftJoin('unidades', 'roles.unidad_id', '=', 'unidades.id')
+            ->select('roles.*', 'unidades.nombre as unidad_nombre')
+            ->orderBy('roles.name')
+            ->get();
     }
 
-    private function buscarRolAsignableParaActor(User $actor, string $roleName): ?Role
+    private function buscarRolAsignableParaActor(User $actor, int $roleId): ?Role
     {
         return $actor->rolesVisiblesQuery()
-            ->where('name', $roleName)
+            ->where('id', $roleId)
             ->first();
     }
 

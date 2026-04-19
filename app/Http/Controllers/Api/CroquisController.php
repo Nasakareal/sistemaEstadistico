@@ -5,10 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Croquis;
 use App\Models\Hechos;
+use App\Services\CroquisPreviewService;
 use Illuminate\Http\Request;
 
 class CroquisController extends Controller
 {
+    private $previewService;
+
+    public function __construct(CroquisPreviewService $previewService)
+    {
+        $this->previewService = $previewService;
+    }
+
     public function show(Hechos $hecho)
     {
         $croquis = Croquis::where('hecho_id', $hecho->id)
@@ -60,10 +68,14 @@ class CroquisController extends Controller
             ]
         );
 
+        $croquis = $croquis->fresh();
+        $this->previewService->ensure($croquis, $hecho);
+        $croquis = $croquis->fresh();
+
         return response()->json([
             'ok' => true,
             'message' => 'Croquis guardado correctamente.',
-            'data' => $this->transformCroquis($croquis->fresh(), $hecho),
+            'data' => $this->transformCroquis($croquis, $hecho),
         ], 200);
     }
 
@@ -98,10 +110,14 @@ class CroquisController extends Controller
             'updated_by' => auth()->id(),
         ]);
 
+        $croquis = $croquis->fresh();
+        $this->previewService->ensure($croquis, $hecho);
+        $croquis = $croquis->fresh();
+
         return response()->json([
             'ok' => true,
             'message' => 'Croquis actualizado correctamente.',
-            'data' => $this->transformCroquis($croquis->fresh(), $hecho),
+            'data' => $this->transformCroquis($croquis, $hecho),
         ], 200);
     }
 

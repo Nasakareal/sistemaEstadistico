@@ -14,7 +14,7 @@
                     <h3 class="card-title">Llene los Datos del Elemento</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('personal.store') }}" method="POST">
+                    <form action="{{ route('personal.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
                         <div class="row">
@@ -32,6 +32,34 @@
                                     </select>
                                     @error('user_id')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="numero_empleado">Número de empleado</label>
+                                    <input type="text" name="numero_empleado" id="numero_empleado"
+                                           class="form-control @error('numero_empleado') is-invalid @enderror"
+                                           value="{{ old('numero_empleado') }}">
+                                    @error('numero_empleado')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="foto">Foto</label>
+                                    <input type="file" name="foto" id="foto"
+                                           class="form-control-file @error('foto') is-invalid @enderror"
+                                           accept="image/jpeg,image/png,image/webp">
+                                    @error('foto')
+                                        <span class="invalid-feedback d-block"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
@@ -179,7 +207,7 @@
                                             class="form-control @error('unidad_id') is-invalid @enderror" required>
                                         <option value="">Seleccione una unidad</option>
                                         @foreach ($unidades as $u)
-                                            <option value="{{ $u->id }}" {{ old('unidad_id') == $u->id ? 'selected' : '' }}>
+                                            <option value="{{ $u->id }}" {{ old('unidad_id', $unidadIdDefault ?? null) == $u->id ? 'selected' : '' }}>
                                                 {{ $u->nombre }}
                                             </option>
                                         @endforeach

@@ -4,13 +4,26 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Hechos;
+use App\Services\CroquisPreviewService;
 
 class DocumentoHechoController extends Controller
 {
+    private $croquisPreviewService;
+
+    public function __construct(CroquisPreviewService $croquisPreviewService)
+    {
+        $this->croquisPreviewService = $croquisPreviewService;
+    }
+
     public function descargarDocx($id)
     {
         // Obtener el hecho con los vehículos, conductores y lesionados relacionados
         $hecho = Hechos::with(['vehiculos.conductores', 'lesionados', 'croquis'])->findOrFail($id);
+
+        if ($hecho->croquis) {
+            $this->croquisPreviewService->ensure($hecho->croquis, $hecho);
+            $hecho->load('croquis');
+        }
 
         // Renderizar la vista con los datos
         $html = view('hechos.reporte_docx', compact('hecho'))->render();

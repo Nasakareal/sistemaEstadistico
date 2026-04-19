@@ -18,6 +18,9 @@ class PersonalContacto extends Model
         'valor',
         'es_principal',
         'observaciones',
+        'telefono_personal',
+        'telefono_secundario',
+        'correo_electronico',
     ];
 
     protected $casts = [
@@ -27,6 +30,6 @@ class PersonalContacto extends Model
 
     public function personal()
     {
-        return $this->belongsTo(\App\Models\Personal::class, 'personal_id');
+        return $this->belongsTo(Personal::class, 'personal_id');
     }
 }

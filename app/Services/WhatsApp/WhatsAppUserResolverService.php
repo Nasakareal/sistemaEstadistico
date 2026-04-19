@@ -69,12 +69,16 @@ class WhatsAppUserResolverService
 
     protected function mapUnidadSlugToModule(?string $slug): string
     {
-        return match ($slug) {
-            'siniestros' => 'siniestros',
-            'carreteras' => 'carreteras',
-            'vialidades-urbanas' => 'vialidades',
-            default => 'siniestros',
-        };
+        switch ($slug) {
+            case 'siniestros':
+                return 'siniestros';
+            case 'carreteras':
+                return 'carreteras';
+            case 'vialidades-urbanas':
+                return 'vialidades';
+            default:
+                return 'siniestros';
+        }
     }
 
     protected function normalizePhone(string $value): string

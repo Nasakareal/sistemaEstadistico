@@ -50,4 +50,10 @@ class Unidad extends Model
     {
         return $this->hasMany(Operativo::class, 'unidad_org_id');
     }
+
+    public function gruas()
+    {
+        return $this->belongsToMany(Grua::class, 'unidad_grua', 'unidad_id', 'grua_id')
+            ->withTimestamps();
+    }
 }

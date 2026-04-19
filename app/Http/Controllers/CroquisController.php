@@ -4,10 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Croquis;
 use App\Models\Hechos;
+use App\Services\CroquisPreviewService;
 use Illuminate\Http\Request;
 
 class CroquisController extends Controller
 {
+    private $previewService;
+
+    public function __construct(CroquisPreviewService $previewService)
+    {
+        $this->previewService = $previewService;
+    }
+
     public function show(Hechos $hecho)
     {
         $croquis = Croquis::where('hecho_id', $hecho->id)
@@ -32,7 +40,7 @@ class CroquisController extends Controller
         $croquisActual = Croquis::where('hecho_id', $hecho->id)->first();
         $previewPath = $this->guardarPreview($request->imagen_preview, $hecho, optional($croquisActual)->imagen_preview);
 
-        Croquis::updateOrCreate(
+        $croquis = Croquis::updateOrCreate(
             ['hecho_id' => $hecho->id],
             [
                 'titulo' => $request->titulo,
@@ -46,6 +54,8 @@ class CroquisController extends Controller
                 'updated_by' => auth()->id(),
             ]
         );
+
+        $this->previewService->ensure($croquis->fresh(), $hecho);
 
         return redirect()
             ->route('croquis.show', $hecho->id)
@@ -82,6 +92,8 @@ class CroquisController extends Controller
             'pdf_path' => $request->pdf_path,
             'updated_by' => auth()->id(),
         ]);
+
+        $this->previewService->ensure($croquis->fresh(), $hecho);
 
         return redirect()
             ->route('croquis.show', $hecho->id)

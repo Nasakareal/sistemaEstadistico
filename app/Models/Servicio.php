@@ -22,11 +22,11 @@ class Servicio extends Model
 
     public function grua()
     {
-        return $this->belongsTo(Grua::class);
+        return $this->belongsTo(Grua::class, 'grua_id');
     }
 
     public function vehiculo()
     {
-        return $this->belongsTo(Vehiculo::class);
+        return $this->belongsTo(Vehiculo::class, 'vehiculo_id');
     }
 }

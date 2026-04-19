@@ -37,6 +37,7 @@ use App\Http\Controllers\GruaGuardiaSctController;
 use App\Http\Controllers\GruaTramoController;
 use App\Http\Controllers\TramoLookupController;
 use App\Http\Controllers\DestacamentoController;
+use App\Http\Controllers\DestacamentoRedApoyoController;
 use App\Http\Controllers\WazeAlertWebController;
 use App\Http\Controllers\RiesgoDashboardController;
 use App\Http\Controllers\PuestaDisposicionController;
@@ -46,6 +47,8 @@ use App\Http\Controllers\PersonalDomicilioController;
 use App\Http\Controllers\PersonalEmergenciaController;
 use App\Http\Controllers\PersonalAsignacionController;
 use App\Http\Controllers\PersonalIncidenciaController;
+use App\Http\Controllers\PersonalDocumentoController;
+use App\Http\Controllers\PersonalFotoController;
 use App\Http\Controllers\DelegacionController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\BackupsSqlController;
@@ -498,6 +501,13 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::put('/{personal}/emergencias/{emergencia}', [PersonalEmergenciaController::class, 'update'])->middleware('can:editar personal')->name('personal.emergencias.update');
         Route::delete('/{personal}/emergencias/{emergencia}', [PersonalEmergenciaController::class, 'destroy'])->middleware('can:editar personal')->name('personal.emergencias.destroy');
 
+        Route::post('/{personal}/documentos', [PersonalDocumentoController::class, 'store'])->middleware('can:editar personal')->name('personal.documentos.store');
+        Route::put('/{personal}/documentos/{documento}', [PersonalDocumentoController::class, 'update'])->middleware('can:editar personal')->name('personal.documentos.update');
+        Route::delete('/{personal}/documentos/{documento}', [PersonalDocumentoController::class, 'destroy'])->middleware('can:editar personal')->name('personal.documentos.destroy');
+
+        Route::post('/{personal}/fotos', [PersonalFotoController::class, 'store'])->middleware('can:editar personal')->name('personal.fotos.store');
+        Route::delete('/{personal}/fotos/{foto}', [PersonalFotoController::class, 'destroy'])->middleware('can:editar personal')->name('personal.fotos.destroy');
+
         Route::get('/{personal}/incidencias/create', [PersonalIncidenciaController::class, 'create'])->middleware('can:editar personal')->name('personal.incidencias.create');
         Route::post('/{personal}/incidencias', [PersonalIncidenciaController::class, 'store'])->middleware('can:editar personal')->name('personal.incidencias.store');
         Route::get('/{personal}/incidencias/{incidencia}/edit', [PersonalIncidenciaController::class, 'edit'])->middleware('can:editar personal')->name('personal.incidencias.edit');
@@ -511,8 +521,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::post('/{personal}/asignaciones/{asignacion}/cerrar', [PersonalAsignacionController::class, 'cerrar'])->middleware('can:editar personal')->name('personal.asignaciones.cerrar');
         Route::delete('/{personal}/asignaciones/{asignacion}', [PersonalAsignacionController::class, 'destroy'])->middleware('can:editar personal')->name('personal.asignaciones.destroy');
 
-        Route::post('/{personal}/armamento/asignar',[PersonalAsignacionController::class,'asignarArmamento'])->middleware('can:editar personal')->name('personal.armamento.asignar');
-        Route::post('/{personal}/armamento/{asignacion}/quitar',[PersonalAsignacionController::class,'quitarArmamento'])->middleware('can:editar personal')->name('personal.armamento.quitar');
+        Route::post('/{personal}/armamento/asignar', [PersonalAsignacionController::class, 'asignarArmamento'])->middleware('can:editar personal')->name('personal.armamento.asignar');
+        Route::post('/{personal}/armamento/{asignacion}/quitar', [PersonalAsignacionController::class, 'quitarArmamento'])->middleware('can:editar personal')->name('personal.armamento.quitar');
     });
 
     Route::prefix('armamentos')->middleware('can:ver armamentos')->group(function () {
@@ -619,4 +629,3 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });
 
 Route::view('/privacy-policy', 'privacy_policy')->name('privacy.policy');
-

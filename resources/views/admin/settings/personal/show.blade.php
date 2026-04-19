@@ -7,15 +7,19 @@
 @stop
 
 @section('content')
+    @php
+        $nombreCompleto = trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? ''));
+        $fotoActual = $personal->foto ?: optional($personal->fotoPrincipal)->ruta;
+        $asignacionesActivas = $personal->asignaciones ? $personal->asignaciones->whereNull('fecha_fin') : collect();
+        $documentosPersonal = $personal->documentos ?? collect();
+    @endphp
+
     <div class="row">
         <div class="col-md-12">
 
-            {{-- INFO GENERAL --}}
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">
-                        Información General
-                    </h3>
+                    <h3 class="card-title">Información general</h3>
                     <div class="card-tools">
                         <a href="{{ route('personal.edit', $personal->id) }}" class="btn btn-success btn-sm">
                             <i class="fa-regular fa-pen-to-square"></i> Editar
@@ -27,85 +31,151 @@
                 </div>
 
                 <div class="card-body">
-
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <strong>Nombre completo:</strong><br>
-                            {{ trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? '')) }}
-                        </div>
-
-                        <div class="col-md-4">
-                            <strong>Unidad:</strong><br>
-                            {{ $personal->unidad->nombre ?? 'N/A' }}
-                        </div>
-
-                        <div class="col-md-4">
-                            <strong>Turno:</strong><br>
-                            {{ $personal->turno->nombre ?? 'N/A' }}
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Patrulla:</strong><br>
-                            {{ $personal->patrulla->numero_economico ?? 'Sin asignar' }}
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Usuario del sistema:</strong><br>
-                            @if(!empty($usuarioActual))
-                                {{ $usuarioActual->name }}{{ $usuarioActual->email ? ' — ' . $usuarioActual->email : '' }}
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            @if($fotoActual)
+                                <img src="{{ asset('storage/' . $fotoActual) }}" alt="Foto de {{ $nombreCompleto }}" class="img-fluid rounded personal-photo">
                             @else
-                                <span class="text-muted">Sin usuario</span>
+                                <div class="personal-photo-placeholder">
+                                    Sin foto
+                                </div>
                             @endif
                         </div>
+
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <strong>Nombre completo:</strong><br>
+                                    {{ $nombreCompleto ?: 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Número de empleado:</strong><br>
+                                    {{ $personal->numero_empleado ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Usuario del sistema:</strong><br>
+                                    @if($personal->user)
+                                        {{ $personal->user->name }}{{ $personal->user->email ? ' - ' . $personal->user->email : '' }}
+                                    @else
+                                        <span class="text-muted">Sin usuario</span>
+                                    @endif
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Unidad:</strong><br>
+                                    {{ $personal->unidad->nombre ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Turno:</strong><br>
+                                    {{ $personal->turno->nombre ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Patrulla:</strong><br>
+                                    {{ $personal->patrulla->numero_economico ?? 'Sin asignar' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Grado:</strong><br>
+                                    {{ $personal->grado ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Puesto:</strong><br>
+                                    {{ $personal->puesto ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Categoría:</strong><br>
+                                    {{ $personal->categoria ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Estatus:</strong><br>
+                                    <span class="badge badge-{{ ($personal->estatus ?? '') === 'ACTIVO' ? 'success' : 'secondary' }}">
+                                        {{ $personal->estatus ?? 'N/A' }}
+                                    </span>
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Adscripción:</strong><br>
+                                    {{ $personal->adscripcion ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>Área:</strong><br>
+                                    {{ $personal->area ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>CUIP:</strong><br>
+                                    {{ $personal->cuip ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>CURP:</strong><br>
+                                    {{ $personal->curp ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <strong>RFC:</strong><br>
+                                    {{ $personal->rfc ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-2 mb-3">
+                                    <strong>Ingreso:</strong><br>
+                                    {{ $personal->fecha_ingreso ? \Carbon\Carbon::parse($personal->fecha_ingreso)->format('d-m-Y') : 'N/A' }}
+                                </div>
+
+                                <div class="col-md-2 mb-3">
+                                    <strong>Baja:</strong><br>
+                                    {{ $personal->fecha_baja ? \Carbon\Carbon::parse($personal->fecha_baja)->format('d-m-Y') : 'N/A' }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-
-                    <hr>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <strong>Grado:</strong><br>
-                            {{ $personal->grado ?? 'N/A' }}
-                        </div>
-
-                        <div class="col-md-3">
-                            <strong>Estatus:</strong><br>
-                            <span class="badge badge-{{ ($personal->estatus ?? '') === 'ACTIVO' ? 'success' : 'secondary' }}">
-                                {{ $personal->estatus ?? 'N/A' }}
-                            </span>
-                        </div>
-
-                        <div class="col-md-3">
-                            <strong>Fecha de Ingreso:</strong><br>
-                            {{ $personal->fecha_ingreso ? \Carbon\Carbon::parse($personal->fecha_ingreso)->format('d-m-Y') : 'N/A' }}
-                        </div>
-
-                        <div class="col-md-3">
-                            <strong>Fecha de Baja:</strong><br>
-                            {{ $personal->fecha_baja ? \Carbon\Carbon::parse($personal->fecha_baja)->format('d-m-Y') : 'N/A' }}
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <strong>CURP:</strong><br>
-                            {{ $personal->curp ?? 'N/A' }}
-                        </div>
-
-                        <div class="col-md-4">
-                            <strong>RFC:</strong><br>
-                            {{ $personal->rfc ?? 'N/A' }}
-                        </div>
-
-                        <div class="col-md-4">
-                            <strong>CUIP:</strong><br>
-                            {{ $personal->cuip ?? 'N/A' }}
-                        </div>
-                    </div>
-
                 </div>
             </div>
 
-            {{-- CONTACTOS --}}
+            <div class="card card-outline card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title">Fotos</h3>
+                    <div class="card-tools">
+                        @can('editar personal')
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarFotos">
+                                <i class="fa-solid fa-plus"></i> Agregar fotos
+                            </button>
+                        @endcan
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if($personal->fotos && $personal->fotos->count())
+                        <div class="row">
+                            @foreach($personal->fotos as $foto)
+                                <div class="col-md-2 col-sm-4 mb-3">
+                                    <img src="{{ asset('storage/' . $foto->ruta) }}" alt="{{ $foto->nombre_original ?? 'Foto de personal' }}" class="img-fluid rounded personal-gallery-photo">
+                                    <div class="small text-muted mt-1 text-truncate">{{ $foto->nombre_original ?? basename($foto->ruta) }}</div>
+                                    @can('editar personal')
+                                        <form action="{{ route('personal.fotos.destroy', [$personal->id, $foto->id]) }}" method="POST" class="mt-1">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-danger btn-xs" onclick="return confirm('¿Eliminar esta foto?')">
+                                                <i class="fa-solid fa-trash"></i> Eliminar
+                                            </button>
+                                        </form>
+                                    @endcan
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-muted mb-0">No hay fotos registradas.</p>
+                    @endif
+                </div>
+            </div>
+
             <div class="card card-outline card-secondary">
                 <div class="card-header">
                     <h3 class="card-title">Contacto</h3>
@@ -117,31 +187,34 @@
                         @endcan
                     </div>
                 </div>
-
                 <div class="card-body">
                     @if($personal->contactos && $personal->contactos->count())
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm">
                                 <thead>
                                     <tr>
+                                        <th>Teléfono personal</th>
+                                        <th>Teléfono secundario</th>
+                                        <th>Correo</th>
                                         <th>Tipo</th>
                                         <th>Valor</th>
                                         <th>Principal</th>
                                         <th>Observaciones</th>
-                                        <th style="width: 140px;">Acciones</th>
+                                        <th style="width: 110px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($personal->contactos as $c)
                                         <tr>
-                                            <td>{{ $c->tipo }}</td>
-                                            <td>{{ $c->valor }}</td>
+                                            <td>{{ $c->telefono_personal ?? 'N/A' }}</td>
+                                            <td>{{ $c->telefono_secundario ?? 'N/A' }}</td>
+                                            <td>{{ $c->correo_electronico ?? 'N/A' }}</td>
+                                            <td>{{ $c->tipo ?? 'N/A' }}</td>
+                                            <td>{{ $c->valor ?? 'N/A' }}</td>
                                             <td>
-                                                @if($c->es_principal)
-                                                    <span class="badge badge-success">Sí</span>
-                                                @else
-                                                    <span class="badge badge-secondary">No</span>
-                                                @endif
+                                                <span class="badge badge-{{ $c->es_principal ? 'success' : 'secondary' }}">
+                                                    {{ $c->es_principal ? 'Sí' : 'No' }}
+                                                </span>
                                             </td>
                                             <td>{{ $c->observaciones ?? '' }}</td>
                                             <td>
@@ -166,19 +239,17 @@
                 </div>
             </div>
 
-            {{-- DOMICILIO --}}
             <div class="card card-outline card-secondary">
                 <div class="card-header">
                     <h3 class="card-title">Domicilio</h3>
                     <div class="card-tools">
                         @can('editar personal')
                             <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarDomicilio">
-                                <i class="fa-solid fa-plus"></i> Registrar/Actualizar domicilio
+                                <i class="fa-solid fa-plus"></i> Registrar domicilio
                             </button>
                         @endcan
                     </div>
                 </div>
-
                 <div class="card-body">
                     @php
                         $domActual = $personal->domicilioActual ?? null;
@@ -200,9 +271,6 @@
                         @endif
                     </div>
 
-                    <hr>
-
-                    <strong>Historial:</strong>
                     @if($personal->domicilios && $personal->domicilios->count())
                         <div class="table-responsive mt-2">
                             <table class="table table-bordered table-sm">
@@ -211,7 +279,7 @@
                                         <th>Domicilio</th>
                                         <th>Actual</th>
                                         <th>Registrado</th>
-                                        <th style="width: 140px;">Acciones</th>
+                                        <th style="width: 110px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -228,11 +296,9 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                @if($d->es_actual)
-                                                    <span class="badge badge-success">Sí</span>
-                                                @else
-                                                    <span class="badge badge-secondary">No</span>
-                                                @endif
+                                                <span class="badge badge-{{ $d->es_actual ? 'success' : 'secondary' }}">
+                                                    {{ $d->es_actual ? 'Sí' : 'No' }}
+                                                </span>
                                             </td>
                                             <td>{{ $d->created_at ? $d->created_at->format('d-m-Y H:i') : '' }}</td>
                                             <td>
@@ -240,7 +306,7 @@
                                                     <form action="{{ route('personal.domicilios.destroy', [$personal->id, $d->id]) }}" method="POST" class="d-inline">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este domicilio del historial?')">
+                                                        <button class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este domicilio?')">
                                                             <i class="fa-solid fa-trash"></i>
                                                         </button>
                                                     </form>
@@ -257,7 +323,6 @@
                 </div>
             </div>
 
-            {{-- EMERGENCIAS --}}
             <div class="card card-outline card-secondary">
                 <div class="card-header">
                     <h3 class="card-title">Contactos de emergencia</h3>
@@ -269,7 +334,6 @@
                         @endcan
                     </div>
                 </div>
-
                 <div class="card-body">
                     @if($personal->emergencias && $personal->emergencias->count())
                         <div class="table-responsive">
@@ -278,19 +342,19 @@
                                     <tr>
                                         <th>Nombre</th>
                                         <th>Parentesco</th>
-                                        <th>Teléfono</th>
+                                        <th>Teléfono emergencia</th>
                                         <th>Teléfono 2</th>
                                         <th>Dirección</th>
                                         <th>Observaciones</th>
-                                        <th style="width: 140px;">Acciones</th>
+                                        <th style="width: 110px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($personal->emergencias as $e)
                                         <tr>
-                                            <td>{{ $e->nombre }}</td>
+                                            <td>{{ $e->nombre_contacto ?? $e->nombre }}</td>
                                             <td>{{ $e->parentesco ?? '' }}</td>
-                                            <td>{{ $e->telefono }}</td>
+                                            <td>{{ $e->telefono_emergencia ?? $e->telefono }}</td>
                                             <td>{{ $e->telefono_2 ?? '' }}</td>
                                             <td>{{ $e->direccion ?? '' }}</td>
                                             <td>{{ $e->observaciones ?? '' }}</td>
@@ -316,11 +380,86 @@
                 </div>
             </div>
 
-            {{-- Incidencias --}}
+            <div class="card card-outline card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title">Documentos y oficios</h3>
+                    <div class="card-tools">
+                        @can('editar personal')
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarDocumento">
+                                <i class="fa-solid fa-plus"></i> Agregar documento
+                            </button>
+                        @endcan
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if($documentosPersonal->count())
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Oficio comisión secretario</th>
+                                        <th>Fecha oficio</th>
+                                        <th>Titular firma oficio</th>
+                                        <th>Archivo comisión</th>
+                                        <th>Oficio asignación</th>
+                                        <th>Fecha asignación</th>
+                                        <th>Titular firma asignación</th>
+                                        <th>Archivo asignación</th>
+                                        <th>Observaciones</th>
+                                        <th style="width: 110px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($documentosPersonal as $doc)
+                                        <tr>
+                                            <td>{{ $doc->numero ?? 'N/A' }}</td>
+                                            <td>{{ $doc->oficio_comision_secretario ?? 'N/A' }}</td>
+                                            <td>{{ $doc->fecha_oficio ? $doc->fecha_oficio->format('d-m-Y') : 'N/A' }}</td>
+                                            <td>{{ $doc->titular_firma_oficio ?? 'N/A' }}</td>
+                                            <td>
+                                                @if($doc->archivo_oficio_comision)
+                                                    <a href="{{ asset('storage/' . $doc->archivo_oficio_comision) }}" target="_blank">Ver archivo</a>
+                                                @else
+                                                    N/A
+                                                @endif
+                                            </td>
+                                            <td>{{ $doc->oficio_asignacion ?? 'N/A' }}</td>
+                                            <td>{{ $doc->fecha_asignacion ? $doc->fecha_asignacion->format('d-m-Y') : 'N/A' }}</td>
+                                            <td>{{ $doc->titular_firma_asignacion ?? 'N/A' }}</td>
+                                            <td>
+                                                @if($doc->archivo_oficio_asignacion)
+                                                    <a href="{{ asset('storage/' . $doc->archivo_oficio_asignacion) }}" target="_blank">Ver archivo</a>
+                                                @else
+                                                    N/A
+                                                @endif
+                                            </td>
+                                            <td>{{ $doc->observaciones ?? '' }}</td>
+                                            <td>
+                                                @can('editar personal')
+                                                    <form action="{{ route('personal.documentos.destroy', [$personal->id, $doc->id]) }}" method="POST" class="d-inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este documento?')">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                @endcan
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-muted mb-0">No hay documentos registrados.</p>
+                    @endif
+                </div>
+            </div>
+
             <div class="card card-outline card-warning">
                 <div class="card-header">
                     <h3 class="card-title">Incidencias</h3>
-
                     <div class="card-tools">
                         @can('editar personal')
                             <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarIncidencia">
@@ -329,7 +468,6 @@
                         @endcan
                     </div>
                 </div>
-
                 <div class="card-body">
                     @if($personal->incidencias && $personal->incidencias->count())
                         <div class="table-responsive">
@@ -337,20 +475,24 @@
                                 <thead>
                                     <tr>
                                         <th>Tipo</th>
-                                        <th>Fecha Inicio</th>
-                                        <th>Fecha Fin</th>
+                                        <th>Fecha inicio</th>
+                                        <th>Hora inicio</th>
+                                        <th>Fecha fin</th>
+                                        <th>Hora fin</th>
                                         <th>Folio</th>
                                         <th>Motivo</th>
                                         <th>Observaciones</th>
-                                        <th style="width: 140px;">Acciones</th>
+                                        <th style="width: 110px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($personal->incidencias as $inc)
                                         <tr>
                                             <td>{{ $inc->tipo->nombre ?? 'N/A' }}</td>
-                                            <td>{{ $inc->fecha_inicio ?? 'N/A' }}</td>
-                                            <td>{{ $inc->fecha_fin ?? 'N/A' }}</td>
+                                            <td>{{ $inc->fecha_inicio ? \Carbon\Carbon::parse($inc->fecha_inicio)->format('d-m-Y') : 'N/A' }}</td>
+                                            <td>{{ $inc->hora_inicio ?? 'N/A' }}</td>
+                                            <td>{{ $inc->fecha_fin ? \Carbon\Carbon::parse($inc->fecha_fin)->format('d-m-Y') : 'N/A' }}</td>
+                                            <td>{{ $inc->hora_fin ?? 'N/A' }}</td>
                                             <td>{{ $inc->folio ?? '' }}</td>
                                             <td>{{ $inc->motivo ?? '' }}</td>
                                             <td>{{ $inc->observaciones ?? '' }}</td>
@@ -376,89 +518,140 @@
                 </div>
             </div>
 
-            {{-- Asignaciones --}}
             <div class="card card-outline card-info">
                 <div class="card-header">
-                    <h3 class="card-title">Asignaciones Activas</h3>
-
+                    <h3 class="card-title">Asignaciones activas</h3>
                     <div class="card-tools">
                         @can('editar personal')
-                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAsignarArmamento">
-                                <i class="fa-solid fa-plus"></i> Asignar armamento
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarAsignacion">
+                                <i class="fa-solid fa-plus"></i> Registrar asignación
                             </button>
                         @endcan
                     </div>
                 </div>
-
                 <div class="card-body">
-                    @php
-                        // Usamos las asignaciones ya cargadas en $personal, pero filtramos activas aquí mismo.
-                        $asignacionesArmamentoActivas = $personal->asignaciones
-                            ? $personal->asignaciones->whereNull('fecha_fin')
-                            : collect();
-                    @endphp
-
-                    @if($asignacionesArmamentoActivas->count())
+                    @if($asignacionesActivas->count())
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Tipo</th>
-                                        <th>Clase</th>
-                                        <th>Marca</th>
-                                        <th>Modelo</th>
-                                        <th>Matrícula</th>
-                                        <th>Serie</th>
-                                        <th>Calibre</th>
-                                        <th>Fecha Inicio</th>
-                                        <th>Fecha Fin</th>
-                                        <th>Estatus</th>
+                                        <th>Comisionado a</th>
+                                        <th>Ubicación interna</th>
+                                        <th>Municipio/localidad</th>
+                                        <th>Funciones</th>
+                                        <th>Horario</th>
+                                        <th>Contratación</th>
+                                        <th>DPC</th>
+                                        <th>Oficina pago</th>
+                                        <th>Armamento</th>
+                                        <th>Fecha inicio</th>
+                                        <th style="width: 140px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($asignacionesArmamentoActivas as $asig)
+                                    @foreach($asignacionesActivas as $asig)
                                         <tr>
-                                            <td>{{ $asig->armamento->tipo ?? '—' }}</td>
-                                            <td>{{ $asig->armamento->clase ?? '—' }}</td>
-                                            <td>{{ $asig->armamento->marca ?? '—' }}</td>
-                                            <td>{{ $asig->armamento->modelo ?? '—' }}</td>
-                                            <td>{{ $asig->armamento->matricula ?? '—' }}</td>
-                                            <td>{{ $asig->armamento->serie ?? '—' }}</td>
-                                            <td>{{ $asig->armamento->calibre ?? '—' }}</td>
-                                            <td>{{ $asig->fecha_asignacion ?? '—' }}</td>
-                                            <td>{{ $asig->fecha_fin ?? 'Activo' }}</td>
-                                            <td>{{ $asig->armamento->estatus ?? '—' }}</td>
+                                            <td>{{ $asig->comisionado_a ?? 'N/A' }}</td>
+                                            <td>{{ $asig->ubicacion_interna ?? 'N/A' }}</td>
+                                            <td>{{ $asig->municipio_localidad_servicio ?? 'N/A' }}</td>
+                                            <td>{{ $asig->funciones ?? 'N/A' }}</td>
+                                            <td>{{ $asig->horario ?? 'N/A' }}</td>
+                                            <td>{{ $asig->tipo_contratacion ?? 'N/A' }}</td>
+                                            <td>{{ $asig->dpc ?? 'N/A' }}</td>
+                                            <td>{{ $asig->oficina_pago ?? 'N/A' }}</td>
+                                            <td>
+                                                @if($asig->armamento)
+                                                    {{ $asig->armamento->tipo }} {{ $asig->armamento->clase }} {{ $asig->armamento->marca }} {{ $asig->armamento->modelo }}
+                                                    <br><small>Matrícula: {{ $asig->armamento->matricula ?? 'N/A' }} | Serie: {{ $asig->armamento->serie ?? 'N/A' }}</small>
+                                                @else
+                                                    N/A
+                                                @endif
+                                            </td>
+                                            <td>{{ $asig->fecha_asignacion ? \Carbon\Carbon::parse($asig->fecha_asignacion)->format('d-m-Y') : 'N/A' }}</td>
+                                            <td>
+                                                @can('editar personal')
+                                                    <form action="{{ route('personal.asignaciones.cerrar', [$personal->id, $asig->id]) }}" method="POST" class="d-inline">
+                                                        @csrf
+                                                        <button class="btn btn-warning btn-sm" onclick="return confirm('¿Cerrar esta asignación?')">
+                                                            Cerrar
+                                                        </button>
+                                                    </form>
+                                                    <form action="{{ route('personal.asignaciones.destroy', [$personal->id, $asig->id]) }}" method="POST" class="d-inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta asignación?')">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                @endcan
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
                     @else
-                        <p class="text-muted mb-0">No hay asignaciones activas de armamento.</p>
+                        <p class="text-muted mb-0">No hay asignaciones activas.</p>
                     @endif
                 </div>
             </div>
-
         </div>
     </div>
 
-    {{-- MODAL: AGREGAR CONTACTO --}}
-    <div class="modal fade modal-opaque" id="modalAgregarContacto" tabindex="-1" role="dialog" aria-labelledby="modalAgregarContactoLabel" aria-hidden="true">
+    <div class="modal fade modal-opaque" id="modalAgregarFotos" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <form method="POST" action="{{ route('personal.fotos.store', $personal->id) }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Agregar fotos</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group mb-0">
+                            <label>Fotos</label>
+                            <input type="file" name="fotos[]" class="form-control-file" accept="image/jpeg,image/png,image/webp" multiple required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade modal-opaque" id="modalAgregarContacto" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <form method="POST" action="{{ route('personal.contactos.store', $personal->id) }}">
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="modalAgregarContactoLabel">Agregar contacto</h5>
+                        <h5 class="modal-title">Agregar contacto</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Tipo</label>
-                            <select name="tipo" class="form-control" required>
+                            <label>Teléfono personal</label>
+                            <input type="text" name="telefono_personal" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono secundario</label>
+                            <input type="text" name="telefono_secundario" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Correo electrónico</label>
+                            <input type="email" name="correo_electronico" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo adicional</label>
+                            <select name="tipo" class="form-control">
+                                <option value="">Sin tipo adicional</option>
                                 <option value="CELULAR">CELULAR</option>
                                 <option value="CASA">CASA</option>
                                 <option value="OFICINA">OFICINA</option>
@@ -467,49 +660,41 @@
                                 <option value="OTRO">OTRO</option>
                             </select>
                         </div>
-
                         <div class="form-group">
-                            <label>Valor</label>
-                            <input type="text" name="valor" class="form-control" required>
+                            <label>Valor adicional</label>
+                            <input type="text" name="valor" class="form-control">
                         </div>
-
                         <div class="form-group">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="contacto_es_principal" name="es_principal" value="1">
                                 <label class="custom-control-label" for="contacto_es_principal">Marcar como principal</label>
                             </div>
-                            <small class="text-muted">Si marcas principal, el sistema debe quitar principal a los demás (en el controller).</small>
                         </div>
-
-                        <div class="form-group">
+                        <div class="form-group mb-0">
                             <label>Observaciones</label>
                             <input type="text" name="observaciones" class="form-control">
                         </div>
                     </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
-
                 </div>
             </form>
         </div>
     </div>
 
-    {{-- MODAL: AGREGAR DOMICILIO --}}
-    <div class="modal fade modal-opaque" id="modalAgregarDomicilio" tabindex="-1" role="dialog" aria-labelledby="modalAgregarDomicilioLabel" aria-hidden="true">
+    <div class="modal fade modal-opaque" id="modalAgregarDomicilio" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <form method="POST" action="{{ route('personal.domicilios.store', $personal->id) }}">
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="modalAgregarDomicilioLabel">Registrar / Actualizar domicilio</h5>
+                        <h5 class="modal-title">Registrar domicilio</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-
                     <div class="modal-body">
                         <div class="row">
                             <div class="col-md-6">
@@ -518,14 +703,12 @@
                                     <input type="text" name="calle" class="form-control" required>
                                 </div>
                             </div>
-
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Número ext</label>
                                     <input type="text" name="numero_ext" class="form-control" required>
                                 </div>
                             </div>
-
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Número int</label>
@@ -533,7 +716,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -541,14 +723,12 @@
                                     <input type="text" name="colonia" class="form-control" required>
                                 </div>
                             </div>
-
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Municipio</label>
                                     <input type="text" name="municipio" class="form-control" required>
                                 </div>
                             </div>
-
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Estado</label>
@@ -556,7 +736,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
@@ -564,7 +743,6 @@
                                     <input type="text" name="cp" class="form-control" required>
                                 </div>
                             </div>
-
                             <div class="col-md-9">
                                 <div class="form-group">
                                     <label>Referencias</label>
@@ -572,143 +750,285 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="form-group mb-0">
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" id="dom_es_actual" name="es_actual" value="1" checked>
                                 <label class="custom-control-label" for="dom_es_actual">Marcar como domicilio actual</label>
                             </div>
-                            <small class="text-muted">Si está marcado, el sistema debe poner en no-actual los demás domicilios (en el controller).</small>
                         </div>
                     </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
-
                 </div>
             </form>
         </div>
     </div>
 
-    {{-- MODAL: AGREGAR EMERGENCIA --}}
-    <div class="modal fade modal-opaque" id="modalAgregarEmergencia" tabindex="-1" role="dialog" aria-labelledby="modalAgregarEmergenciaLabel" aria-hidden="true">
+    <div class="modal fade modal-opaque" id="modalAgregarEmergencia" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <form method="POST" action="{{ route('personal.emergencias.store', $personal->id) }}">
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="modalAgregarEmergenciaLabel">Agregar contacto de emergencia</h5>
+                        <h5 class="modal-title">Agregar contacto de emergencia</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Nombre</label>
-                            <input type="text" name="nombre" class="form-control" required>
+                            <label>Nombre del contacto</label>
+                            <input type="text" name="nombre_contacto" class="form-control" required>
                         </div>
-
                         <div class="form-group">
                             <label>Parentesco</label>
                             <input type="text" name="parentesco" class="form-control">
                         </div>
-
                         <div class="form-group">
-                            <label>Teléfono</label>
-                            <input type="text" name="telefono" class="form-control" required>
+                            <label>Teléfono de emergencia</label>
+                            <input type="text" name="telefono_emergencia" class="form-control" required>
                         </div>
-
                         <div class="form-group">
                             <label>Teléfono 2</label>
                             <input type="text" name="telefono_2" class="form-control">
                         </div>
-
                         <div class="form-group">
                             <label>Dirección</label>
                             <input type="text" name="direccion" class="form-control">
                         </div>
-
-                        <div class="form-group">
+                        <div class="form-group mb-0">
                             <label>Observaciones</label>
                             <input type="text" name="observaciones" class="form-control">
                         </div>
                     </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
-
                 </div>
             </form>
         </div>
     </div>
 
-    {{-- MODAL: ASIGNAR ARMAMENTO --}}
-    <div class="modal fade modal-opaque" id="modalAsignarArmamento" tabindex="-1" role="dialog" aria-labelledby="modalAsignarArmamentoLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <form method="POST" action="{{ route('personal.asignaciones.store', $personal->id) }}">
+    <div class="modal fade modal-opaque" id="modalAgregarDocumento" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <form method="POST" action="{{ route('personal.documentos.store', $personal->id) }}" enctype="multipart/form-data">
                 @csrf
-
-                <input type="hidden" name="fecha_asignacion" value="{{ now()->toDateString() }}">
-
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="modalAsignarArmamentoLabel">Asignar armamento</h5>
+                        <h5 class="modal-title">Agregar documento u oficio</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-
                     <div class="modal-body">
-
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Oficio comisión secretario</label>
+                                    <input type="text" name="oficio_comision_secretario" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Fecha oficio</label>
+                                    <input type="date" name="fecha_oficio" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Titular firma oficio</label>
+                                    <input type="text" name="titular_firma_oficio" class="form-control">
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-group">
-                            <label>Armamento disponible</label>
-                            <select name="armamento_id" class="form-control" required>
-                                <option value="">-- Selecciona --</option>
-                                @foreach($armamentosDisponibles as $a)
-                                    <option value="{{ $a->id }}">
-                                        {{ $a->tipo }} | {{ $a->clase }} | {{ $a->marca }} {{ $a->modelo }} | Matrícula: {{ $a->matricula }} | Serie: {{ $a->serie }} | Cal: {{ $a->calibre }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <label>Archivo oficio comisión</label>
+                            <input type="file" name="archivo_oficio_comision" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
                         </div>
-
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Oficio asignación</label>
+                                    <input type="text" name="oficio_asignacion" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Fecha asignación</label>
+                                    <input type="date" name="fecha_asignacion" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Titular firma asignación</label>
+                                    <input type="text" name="titular_firma_asignacion" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Archivo oficio asignación</label>
+                            <input type="file" name="archivo_oficio_asignacion" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
+                        </div>
                         <div class="form-group mb-0">
-                            <label>Observaciones (opcional)</label>
-                            <input type="text" name="observaciones" class="form-control" placeholder="Ej: Entregado en buen estado">
+                            <label>Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="2"></textarea>
                         </div>
-
                     </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Asignar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
-
                 </div>
             </form>
         </div>
     </div>
 
-        {{-- MODAL: AGREGAR INCIDENCIA --}}
-    <div class="modal fade modal-opaque" id="modalAgregarIncidencia" tabindex="-1" role="dialog" aria-labelledby="modalAgregarIncidenciaLabel" aria-hidden="true">
+    <div class="modal fade modal-opaque" id="modalAgregarAsignacion" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <form method="POST" action="{{ route('personal.asignaciones.store', $personal->id) }}">
+                @csrf
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Registrar asignación</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Fecha de asignación</label>
+                                    <input type="date" name="fecha_asignacion" class="form-control" value="{{ now()->toDateString() }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Tipo contratación</label>
+                                    <select name="tipo_contratacion" class="form-control">
+                                        <option value="">Sin especificar</option>
+                                        <option value="BASE">BASE</option>
+                                        <option value="INTERINATO">INTERINATO</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Folio</label>
+                                    <input type="text" name="folio" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Comisionado a</label>
+                                    <input type="text" name="comisionado_a" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Ubicación interna</label>
+                                    <input type="text" name="ubicacion_interna" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Municipio/localidad de servicio</label>
+                                    <input type="text" name="municipio_localidad_servicio" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Funciones</label>
+                                    <input type="text" name="funciones" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Horario</label>
+                                    <input type="text" name="horario" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>DPC</label>
+                                    <input type="text" name="dpc" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Oficina de pago</label>
+                                    <input type="text" name="oficina_pago" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Actividades</label>
+                            <textarea name="actividades" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Documento relacionado</label>
+                                    <select name="documento_id" class="form-control">
+                                        <option value="">Sin documento</option>
+                                        @foreach($documentosPersonal as $doc)
+                                            <option value="{{ $doc->id }}">
+                                                {{ $doc->numero ?? $doc->oficio_asignacion ?? $doc->oficio_comision_secretario ?? ('Documento #' . $doc->id) }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Armamento disponible</label>
+                                    <select name="armamento_id" class="form-control">
+                                        <option value="">Sin armamento</option>
+                                        @foreach($armamentosDisponibles as $a)
+                                            <option value="{{ $a->id }}">
+                                                {{ $a->tipo }} | {{ $a->clase }} | {{ $a->marca }} {{ $a->modelo }} | Matrícula: {{ $a->matricula }} | Serie: {{ $a->serie }} | Cal: {{ $a->calibre }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label>Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade modal-opaque" id="modalAgregarIncidencia" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <form method="POST" action="{{ route('personal.incidencias.store', $personal->id) }}">
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="modalAgregarIncidenciaLabel">Agregar incidencia</h5>
+                        <h5 class="modal-title">Agregar incidencia</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-
                     <div class="modal-body">
-
                         <div class="form-group">
                             <label>Tipo</label>
                             <select name="tipo" class="form-control" required>
@@ -722,7 +1042,6 @@
                                 <option value="OTRO">OTRO</option>
                             </select>
                         </div>
-
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -730,7 +1049,6 @@
                                     <input type="date" name="fecha_inicio" class="form-control" required>
                                 </div>
                             </div>
-
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Fecha fin</label>
@@ -738,7 +1056,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -746,7 +1063,6 @@
                                     <input type="time" name="hora_inicio" class="form-control">
                                 </div>
                             </div>
-
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Hora fin</label>
@@ -754,29 +1070,23 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="form-group">
                             <label>Folio</label>
                             <input type="text" name="folio" class="form-control">
                         </div>
-
                         <div class="form-group">
                             <label>Motivo</label>
                             <input type="text" name="motivo" class="form-control">
                         </div>
-
                         <div class="form-group mb-0">
                             <label>Observaciones</label>
                             <input type="text" name="observaciones" class="form-control">
                         </div>
-
                     </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
-
                 </div>
             </form>
         </div>
@@ -785,14 +1095,36 @@
 
 @push('css')
 <style>
-    /* Fondo oscuro detrás del modal (backdrop) */
-    .modal-backdrop.show{
+    .personal-photo {
+        max-height: 220px;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .personal-photo-placeholder {
+        align-items: center;
+        background: #111827;
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 6px;
+        color: #e5e7eb;
+        display: flex;
+        height: 220px;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .personal-gallery-photo {
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .modal-backdrop.show {
         opacity: .85 !important;
     }
 
-    /* Modal NO transparente */
-    .modal-opaque .modal-content{
-        background-color: #1f2937 !important; /* oscuro sólido */
+    .modal-opaque .modal-content {
+        background-color: #1f2937 !important;
         opacity: 1 !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
@@ -802,18 +1134,17 @@
 
     .modal-opaque .modal-header,
     .modal-opaque .modal-body,
-    .modal-opaque .modal-footer{
+    .modal-opaque .modal-footer {
         background-color: transparent !important;
     }
 
-    /* Inputs dentro del modal (para que no se “mezclen” con el fondo) */
-    .modal-opaque .form-control{
+    .modal-opaque .form-control {
         background-color: #111827 !important;
         border: 1px solid rgba(255,255,255,.12) !important;
         color: #e5e7eb !important;
     }
 
-    .modal-opaque .form-control:focus{
+    .modal-opaque .form-control:focus {
         background-color: #0b1220 !important;
         border-color: rgba(59,130,246,.6) !important;
         box-shadow: 0 0 0 .2rem rgba(59,130,246,.25) !important;
@@ -821,12 +1152,40 @@
     }
 
     .modal-opaque label,
-    .modal-opaque .modal-title{
+    .modal-opaque .modal-title {
         color: #e5e7eb !important;
     }
 
-    .modal-opaque .text-muted{
+    .modal-opaque .text-muted {
         color: rgba(229,231,235,.7) !important;
     }
 </style>
 @endpush
+
+@section('js')
+<script>
+@if ($errors->any())
+Swal.fire({
+    icon: 'error',
+    title: 'Errores en el formulario',
+    html: `
+        <ul style="text-align:left;">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    `,
+    confirmButtonText: 'Aceptar'
+});
+@endif
+
+@if (session('success'))
+Swal.fire({
+    icon: 'success',
+    title: '{{ session('success') }}',
+    showConfirmButton: false,
+    timer: 3000
+});
+@endif
+</script>
+@stop

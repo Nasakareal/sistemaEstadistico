@@ -4,28 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-class PersonalEmergencia extends Model
+class PersonalFoto extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
-    protected $table = 'personal_emergencias';
+    protected $table = 'personal_fotos';
 
     protected $fillable = [
         'personal_id',
-        'nombre',
-        'parentesco',
-        'telefono',
-        'telefono_2',
-        'direccion',
-        'observaciones',
-        'telefono_emergencia',
-        'nombre_contacto',
+        'ruta',
+        'nombre_original',
+        'mime_type',
+        'tamano',
     ];
 
     protected $casts = [
         'personal_id' => 'integer',
+        'tamano' => 'integer',
     ];
 
     public function personal()

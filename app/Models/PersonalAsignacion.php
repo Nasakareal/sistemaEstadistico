@@ -20,6 +20,15 @@ class PersonalAsignacion extends Model
         'documento_id',
         'observaciones',
         'activo',
+        'comisionado_a',
+        'ubicacion_interna',
+        'municipio_localidad_servicio',
+        'funciones',
+        'actividades',
+        'horario',
+        'tipo_contratacion',
+        'dpc',
+        'oficina_pago',
     ];
 
     protected $casts = [
@@ -33,11 +42,16 @@ class PersonalAsignacion extends Model
 
     public function personal()
     {
-        return $this->belongsTo(\App\Models\Personal::class, 'personal_id');
+        return $this->belongsTo(Personal::class, 'personal_id');
     }
 
     public function armamento()
     {
-        return $this->belongsTo(\App\Models\Armamento::class, 'armamento_id');
+        return $this->belongsTo(Armamento::class, 'armamento_id');
+    }
+
+    public function documento()
+    {
+        return $this->belongsTo(PersonalDocumento::class, 'documento_id');
     }
 }

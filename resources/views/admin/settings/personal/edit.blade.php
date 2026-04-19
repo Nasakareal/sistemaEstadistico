@@ -14,7 +14,7 @@
                     <h3 class="card-title">Modificar Datos del Elemento</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('personal.update', $personal->id) }}" method="POST">
+                    <form action="{{ route('personal.update', $personal->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
 
@@ -43,6 +43,39 @@
                                     @error('user_id')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="numero_empleado">Número de empleado</label>
+                                    <input type="text" name="numero_empleado" id="numero_empleado"
+                                           class="form-control @error('numero_empleado') is-invalid @enderror"
+                                           value="{{ old('numero_empleado', $personal->numero_empleado) }}">
+                                    @error('numero_empleado')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="foto">Foto</label>
+                                    <input type="file" name="foto" id="foto"
+                                           class="form-control-file @error('foto') is-invalid @enderror"
+                                           accept="image/jpeg,image/png,image/webp">
+                                    @error('foto')
+                                        <span class="invalid-feedback d-block"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    @if($personal->foto)
+                                        <small class="form-text text-muted">
+                                            Foto actual: {{ basename($personal->foto) }}
+                                        </small>
+                                    @endif
                                 </div>
                             </div>
                         </div>

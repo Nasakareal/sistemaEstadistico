@@ -103,9 +103,9 @@ class PersonalController extends Controller
         return User::query()
             ->when(!$this->actorEsSuperadmin(), function ($q) {
                 $q->where('unidad_id', $this->unidadIdActor())
-                  ->whereDoesntHave('roles', function ($subQ) {
-                      $subQ->where('name', 'Superadmin');
-                  });
+                    ->whereDoesntHave('roles', function ($subQ) {
+                        $subQ->where('name', 'Superadmin');
+                    });
             })
             ->where(function ($q) use ($userIdActual) {
                 $q->whereDoesntHave('personal');
@@ -213,6 +213,8 @@ class PersonalController extends Controller
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'user_id' => 'nullable|exists:users,id|unique:personals,user_id',
 
+            'numero_empleado' => 'nullable|string|max:50',
+
             'nombre' => 'required|string|max:100',
             'ap_paterno' => 'nullable|string|max:100',
             'ap_materno' => 'nullable|string|max:100',
@@ -232,6 +234,8 @@ class PersonalController extends Controller
             'estatus' => 'required|string|max:30',
             'fecha_ingreso' => 'nullable|date',
             'fecha_baja' => 'nullable|date',
+
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $validated['unidad_id'] = $this->normalizarUnidadParaActor($validated['unidad_id'] ?? null);
@@ -265,7 +269,27 @@ class PersonalController extends Controller
                 }
             }
 
-            Personal::create($validated);
+            $fotoSubida = $request->file('foto');
+            unset($validated['foto']);
+
+            $personal = Personal::create($validated);
+
+            if ($fotoSubida) {
+                $rutaFoto = $fotoSubida->store('personals/fotos', 'public');
+
+                $personal->update([
+                    'foto' => $rutaFoto,
+                ]);
+
+                if (method_exists($personal, 'fotos')) {
+                    $personal->fotos()->create([
+                        'ruta' => $rutaFoto,
+                        'nombre_original' => $fotoSubida->getClientOriginalName(),
+                        'mime_type' => $fotoSubida->getClientMimeType(),
+                        'tamano' => $fotoSubida->getSize(),
+                    ]);
+                }
+            }
 
             return redirect()
                 ->route('personal.index')
@@ -290,13 +314,17 @@ class PersonalController extends Controller
             'turno',
             'patrulla',
             'rolesServicio',
-            'incidencias',
-            'documentos',
+            'incidencias.tipo',
+            'documentos.documentoTipo',
             'asignaciones',
             'contactos',
             'domicilios',
+            'domicilioActual',
             'emergencias',
+            'fotos',
+            'fotoPrincipal',
             'asignaciones.armamento',
+            'asignaciones.documento',
         ]);
 
         $asignacionesArmamentoActivas = PersonalAsignacion::query()
@@ -360,6 +388,8 @@ class PersonalController extends Controller
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'user_id' => 'nullable|exists:users,id|unique:personals,user_id,' . $personal->id,
 
+            'numero_empleado' => 'nullable|string|max:50',
+
             'nombre' => 'required|string|max:100',
             'ap_paterno' => 'nullable|string|max:100',
             'ap_materno' => 'nullable|string|max:100',
@@ -379,6 +409,8 @@ class PersonalController extends Controller
             'estatus' => 'required|string|max:30',
             'fecha_ingreso' => 'nullable|date',
             'fecha_baja' => 'nullable|date',
+
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $validated['unidad_id'] = $this->normalizarUnidadParaActor($validated['unidad_id'] ?? null);
@@ -413,7 +445,27 @@ class PersonalController extends Controller
                 }
             }
 
+            $fotoSubida = $request->file('foto');
+            unset($validated['foto']);
+
             $personal->update($validated);
+
+            if ($fotoSubida) {
+                $rutaFoto = $fotoSubida->store('personals/fotos', 'public');
+
+                $personal->update([
+                    'foto' => $rutaFoto,
+                ]);
+
+                if (method_exists($personal, 'fotos')) {
+                    $personal->fotos()->create([
+                        'ruta' => $rutaFoto,
+                        'nombre_original' => $fotoSubida->getClientOriginalName(),
+                        'mime_type' => $fotoSubida->getClientMimeType(),
+                        'tamano' => $fotoSubida->getSize(),
+                    ]);
+                }
+            }
 
             return redirect()
                 ->route('personal.index')

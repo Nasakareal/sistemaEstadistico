@@ -63,4 +63,10 @@ class Delegacion extends Model
     {
         return $this->hasMany(Operativo::class, 'delegacion_id');
     }
+
+    public function gruas()
+    {
+        return $this->belongsToMany(Grua::class, 'delegacion_grua', 'delegacion_id', 'grua_id')
+            ->withTimestamps();
+    }
 }

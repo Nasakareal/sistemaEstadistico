@@ -5,12 +5,26 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Hechos;
+use App\Services\CroquisPreviewService;
 
 class DocumentoHechoController extends Controller
 {
+    private $croquisPreviewService;
+
+    public function __construct(CroquisPreviewService $croquisPreviewService)
+    {
+        $this->croquisPreviewService = $croquisPreviewService;
+    }
+
     public function descargarDoc(Request $request, $hecho)
     {
         $hecho = Hechos::with(['vehiculos.conductores', 'lesionados', 'croquis'])->findOrFail($hecho);
+
+        if ($hecho->croquis) {
+            $this->croquisPreviewService->ensure($hecho->croquis, $hecho);
+            $hecho->load('croquis');
+        }
+
         $html = view('hechos.reporte_docx', compact('hecho'))->render();
         $wordContent = <<<HTML
 <html xmlns:o="urn:schemas-microsoft-com:office:office"

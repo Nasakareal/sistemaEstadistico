@@ -8,22 +8,12 @@
 
         <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
             <a class="btn btn-outline-secondary"
-               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->subDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}">
+               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->subDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}{{ !empty($origen) ? '&origen='.$origen : '' }}">
                 <i class="fa-solid fa-chevron-left"></i>
             </a>
 
-            <form method="GET" action="{{ url()->current() }}" class="d-flex align-items-center" style="gap:8px; margin:0;">
-                <input type="date" name="anchor" class="form-control" value="{{ $anchor }}" style="max-width:180px;">
-                @if(!empty($gruasSeleccionadas))
-                    <input type="hidden" name="gruas" value="{{ implode(',', $gruasSeleccionadas) }}">
-                @endif
-                <button class="btn btn-outline-primary" type="submit">
-                    <i class="fa-solid fa-calendar-days"></i> Ir
-                </button>
-            </form>
-
             <a class="btn btn-outline-secondary"
-               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->addDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}">
+               href="{{ url()->current() }}?anchor={{ \Carbon\Carbon::parse($anchor)->addDays(7)->toDateString() }}{{ !empty($gruasSeleccionadas) ? '&gruas='.implode(',', $gruasSeleccionadas) : '' }}{{ !empty($origen) ? '&origen='.$origen : '' }}">
                 <i class="fa-solid fa-chevron-right"></i>
             </a>
 
@@ -36,6 +26,71 @@
 
 @section('content')
     <div class="row">
+        <div class="col-md-12">
+            <div class="card card-outline card-primary sv-card">
+                <div class="card-header">
+                    <h3 class="card-title">Filtros</h3>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url()->current() }}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="anchor">Semana</label>
+                                    <input type="date" name="anchor" id="anchor" class="form-control" value="{{ $anchor }}">
+                                </div>
+                            </div>
+
+                            @if(!empty($puedeFiltrarOrigen) && $puedeFiltrarOrigen)
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="origen">Origen</label>
+                                        <select name="origen" id="origen" class="form-control">
+                                            <option value="todos" {{ ($origen ?? '') === 'todos' ? 'selected' : '' }}>Todos</option>
+                                            <option value="siniestros" {{ ($origen ?? '') === 'siniestros' ? 'selected' : '' }}>Siniestros</option>
+                                            <option value="delegaciones" {{ ($origen ?? '') === 'delegaciones' ? 'selected' : '' }}>Delegaciones</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="col-md-{{ (!empty($puedeFiltrarOrigen) && $puedeFiltrarOrigen) ? '6' : '9' }}">
+                                <div class="form-group">
+                                    <label for="gruas">Grúas</label>
+                                    <select name="gruas[]" id="gruas" class="form-control select2" multiple>
+                                        @foreach($gruasCatalogo as $grua)
+                                            <option value="{{ $grua->nombre }}" {{ in_array($grua->nombre, $gruasSeleccionadas ?? [], true) ? 'selected' : '' }}>
+                                                {{ $grua->nombre }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 d-flex flex-wrap" style="gap:8px;">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fa-solid fa-filter"></i> Aplicar filtros
+                                </button>
+
+                                <a class="btn btn-outline-secondary" href="{{ url()->current() }}">
+                                    <i class="fa-solid fa-rotate-left"></i> Limpiar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="sv-hint mt-3">
+                        @if(($origen ?? '') === 'siniestros')
+                            Mostrando únicamente grúas asignadas a <b>Siniestros</b>.
+                        @elseif(($origen ?? '') === 'delegaciones')
+                            Mostrando únicamente grúas asignadas a <b>Delegaciones</b>.
+                        @else
+                            Mostrando grúas de <b>Siniestros</b> y <b>Delegaciones</b>.
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="col-md-12">
             <div class="card card-outline card-primary sv-card">
@@ -203,7 +258,11 @@
 
     <script>
         $(document).ready(function () {
-            $('.select2').select2({ placeholder: 'Selecciona una o más grúas', allowClear: true });
+            $('.select2').select2({
+                placeholder: 'Selecciona una o más grúas',
+                allowClear: true,
+                width: '100%'
+            });
         });
 
         const serviciosDataRaw = @json($gruasServicios);
@@ -322,6 +381,7 @@
                 } else {
                     const asegKeys = Object.keys(aseguradoras);
                     let asegHtml = '';
+
                     if (asegKeys.length){
                         asegKeys.sort((a,b) => aseguradoras[b] - aseguradoras[a]);
                         const chips = asegKeys.map(k => `<span class="sv-badge">Aseg: ${k} (${aseguradoras[k]})</span>`).join(' ');
@@ -358,7 +418,7 @@
                         return `
                             <div class="sv-veh">
                                 <div class="sv-veh__title">
-                                    <i class="fa-solid ${tieneSeguro ? 'fa-shield-check' : 'fa-triangle-exclamation'}"></i>
+                                    <i class="fa-solid ${tieneSeguro ? 'fa-shield-alt' : 'fa-triangle-exclamation'}"></i>
                                     ${titleParts.length ? titleParts.join(' · ') : 'Vehículo'}
                                 </div>
                                 <div class="sv-veh__desc">${descParts.join(' · ')}</div>

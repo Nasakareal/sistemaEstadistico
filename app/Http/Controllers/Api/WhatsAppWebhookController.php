@@ -383,11 +383,11 @@ class WhatsAppWebhookController extends Controller
         $filters = is_array($state['filters'] ?? null) ? $state['filters'] : [];
 
         $result = $this->queryService->executeQuickStat(
-            user: $user,
-            context: $context,
-            action: $action,
-            period: (string) $period['period'],
-            filters: $filters
+            $user,
+            $context,
+            $action,
+            (string) $period['period'],
+            $filters
         );
 
         $this->sendPacket($from, $result);
@@ -418,12 +418,12 @@ class WhatsAppWebhookController extends Controller
         }
 
         $result = $this->queryService->executeWithParam(
-            user: $user,
-            context: $context,
-            module: $module,
-            action: $action,
-            paramType: $paramType,
-            value: $value
+            $user,
+            $context,
+            $module,
+            $action,
+            $paramType,
+            $value
         );
 
         $this->sendPacket($from, $result);

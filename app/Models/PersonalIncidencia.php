@@ -41,9 +41,8 @@ class PersonalIncidencia extends Model
         return $this->belongsTo(IncidenciaTipo::class, 'incidencia_tipo_id');
     }
 
-    // Si documento_id apunta a una tabla documentos:
     public function documento()
     {
-        return $this->belongsTo(Documento::class, 'documento_id');
+        return $this->belongsTo(PersonalDocumento::class, 'documento_id');
     }
 }

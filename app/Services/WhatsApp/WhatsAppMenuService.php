@@ -56,8 +56,8 @@ class WhatsAppMenuService
         $title = $this->moduleTitle($module);
         $text = $message ?: "Menú de {$title}.";
 
-        $rows = match ($module) {
-            'siniestros' => $context['solo_propios']
+        if ($module === 'siniestros') {
+            $rows = $context['solo_propios']
                 ? [
                     ['id' => 'action:mis_hechos_hoy', 'title' => 'Mis hechos de hoy', 'description' => 'Solo los tuyos'],
                     ['id' => 'action:mis_hechos_placas', 'title' => 'Mis hechos por placas', 'description' => 'Buscar por placas'],
@@ -69,17 +69,16 @@ class WhatsAppMenuService
                     ['id' => 'action:hechos_placas', 'title' => 'Hechos por placas', 'description' => 'Buscar por placas'],
                     ['id' => 'action:detalle_folio', 'title' => 'Detalle por ID', 'description' => 'Buscar por ID'],
                     ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados, motos y más'],
-                ],
-            'carreteras' => [
+                ];
+        } elseif ($module === 'carreteras' || $module === 'vialidades') {
+            $rows = [
                 ['id' => 'action:no_disponible', 'title' => 'Pendiente', 'description' => 'Se habilita después'],
-            ],
-            'vialidades' => [
+            ];
+        } else {
+            $rows = [
                 ['id' => 'action:no_disponible', 'title' => 'Pendiente', 'description' => 'Se habilita después'],
-            ],
-            default => [
-                ['id' => 'action:no_disponible', 'title' => 'Pendiente', 'description' => 'Se habilita después'],
-            ],
-        };
+            ];
+        }
 
         return [
             'text' => "{$text}\n\nPuedes escribir MENÚ para reiniciar.",
@@ -428,17 +427,24 @@ class WhatsAppMenuService
 
     public function buildActionPrompt(string $module, string $action, array $context, ?string $message = null): array
     {
-        $text = match ($action) {
-            'hechos_placas', 'mis_hechos_placas' => "Escribe las placas.\n\nEjemplo:\nABC123",
-            'detalle_folio', 'mi_detalle_folio' => "Escribe el ID del hecho.\n\nEjemplo:\n59564",
-            'estadistica_resumen_general' => "Selecciona el periodo a consultar.",
-            'estadistica_motocicletas' => "Selecciona el periodo a consultar.",
-            'estadistica_lesionados' => "Selecciona el periodo a consultar.",
-            'estadistica_fallecidos' => "Selecciona el periodo a consultar.",
-            'estadistica_situacion' => "Selecciona primero la situación y después el periodo.",
-            'estadistica_tipo_hecho' => "Selecciona primero el tipo de hecho y después el periodo.",
-            default => 'Escribe el dato solicitado.',
-        };
+        if (in_array($action, ['hechos_placas', 'mis_hechos_placas'], true)) {
+            $text = "Escribe las placas.\n\nEjemplo:\nABC123";
+        } elseif (in_array($action, ['detalle_folio', 'mi_detalle_folio'], true)) {
+            $text = "Escribe el ID del hecho.\n\nEjemplo:\n59564";
+        } elseif (in_array($action, [
+            'estadistica_resumen_general',
+            'estadistica_motocicletas',
+            'estadistica_lesionados',
+            'estadistica_fallecidos',
+        ], true)) {
+            $text = "Selecciona el periodo a consultar.";
+        } elseif ($action === 'estadistica_situacion') {
+            $text = "Selecciona primero la situación y después el periodo.";
+        } elseif ($action === 'estadistica_tipo_hecho') {
+            $text = "Selecciona primero el tipo de hecho y después el periodo.";
+        } else {
+            $text = 'Escribe el dato solicitado.';
+        }
 
         if ($message) {
             $text = $message . "\n\n" . $text;
@@ -451,11 +457,15 @@ class WhatsAppMenuService
 
     protected function moduleTitle(string $module): string
     {
-        return match ($module) {
-            'siniestros' => 'Siniestros',
-            'carreteras' => 'Carreteras',
-            'vialidades' => 'Vialidades Urbanas',
-            default => 'Consultas',
-        };
+        switch ($module) {
+            case 'siniestros':
+                return 'Siniestros';
+            case 'carreteras':
+                return 'Carreteras';
+            case 'vialidades':
+                return 'Vialidades Urbanas';
+            default:
+                return 'Consultas';
+        }
     }
 }

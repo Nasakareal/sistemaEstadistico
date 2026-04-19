@@ -32,6 +32,6 @@ class PersonalDomicilio extends Model
 
     public function personal()
     {
-        return $this->belongsTo(\App\Models\Personal::class, 'personal_id');
+        return $this->belongsTo(Personal::class, 'personal_id');
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Servicio;
 use App\Models\Grua;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ServicioController extends Controller
 {
@@ -18,7 +19,10 @@ class ServicioController extends Controller
 
             if (
                 !$usuario ||
-                (!$usuario->hasRole('Superadmin') && (int)$usuario->unidad_id !== 1)
+                (
+                    !$usuario->hasRole('Superadmin') &&
+                    !in_array((int)$usuario->unidad_id, [1, 2, 3], true)
+                )
             ) {
                 abort(403);
             }
@@ -29,17 +33,23 @@ class ServicioController extends Controller
 
     public function index(Grua $grua)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         $servicios = $grua->servicios;
         return view('servicios.index', compact('grua', 'servicios'));
     }
 
     public function create(Grua $grua)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         return view('servicios.create', compact('grua'));
     }
 
     public function store(Request $request, Grua $grua)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         $request->validate([
             'tipo_vehiculo' => 'required|string',
             'aseguradora' => 'nullable|string',
@@ -60,16 +70,22 @@ class ServicioController extends Controller
 
     public function show(Grua $grua, Servicio $servicio)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         return view('servicios.show', compact('grua', 'servicio'));
     }
 
     public function edit(Grua $grua, Servicio $servicio)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         return view('servicios.edit', compact('grua', 'servicio'));
     }
 
     public function update(Request $request, Grua $grua, Servicio $servicio)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         $request->validate([
             'tipo_vehiculo' => 'required|string',
             'aseguradora' => 'nullable|string',
@@ -90,6 +106,8 @@ class ServicioController extends Controller
 
     public function grafico(Request $request)
     {
+        $usuario = Auth::user();
+
         $anchor = $request->query('anchor');
 
         if ($anchor) {
@@ -109,15 +127,33 @@ class ServicioController extends Controller
             $gruasSeleccionadas = [];
         }
 
-        $gruasCatalogo = Grua::query()
-            ->select('id', 'nombre')
-            ->orderBy('nombre')
+        $origen = $request->input('origen');
+
+        if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
+            if (!in_array($origen, ['siniestros', 'delegaciones', 'todos'], true)) {
+                $origen = 'todos';
+            }
+        } elseif ((int)$usuario->unidad_id === 1) {
+            $origen = 'siniestros';
+        } elseif ((int)$usuario->unidad_id === 2) {
+            $origen = 'delegaciones';
+        } else {
+            abort(403);
+        }
+
+        $gruasCatalogo = $this->construirConsultaGruasSegunOrigen($usuario, $origen)
+            ->select('gruas.id', 'gruas.nombre')
+            ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
+                $q->whereIn('gruas.nombre', $gruasSeleccionadas);
+            })
+            ->orderBy('gruas.nombre')
+            ->distinct()
             ->get();
 
-        $query = Grua::query()
-            ->select('id', 'nombre')
+        $query = $this->construirConsultaGruasSegunOrigen($usuario, $origen)
+            ->select('gruas.id', 'gruas.nombre')
             ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
-                $q->whereIn('nombre', $gruasSeleccionadas);
+                $q->whereIn('gruas.nombre', $gruasSeleccionadas);
             })
             ->with(['servicios' => function ($q) use ($from, $to) {
                 $q->select('id', 'vehiculo_id', 'grua_id', 'tipo_vehiculo', 'aseguradora', 'created_at')
@@ -125,7 +161,9 @@ class ServicioController extends Controller
                     ->with(['vehiculo' => function ($v) {
                         $v->select('id', 'marca', 'modelo', 'tipo', 'linea', 'color', 'placas', 'aseguradora');
                     }]);
-            }]);
+            }])
+            ->orderBy('gruas.nombre')
+            ->distinct();
 
         $gruasServicios = $query->get()->map(function ($grua) {
             $servicios = $grua->servicios ?? collect();
@@ -173,12 +211,120 @@ class ServicioController extends Controller
             'to' => $to->toDateString(),
             'anchor' => $a->toDateString(),
             'gruasSeleccionadas' => $gruasSeleccionadas,
+            'origen' => $origen,
+            'puedeFiltrarOrigen' => $usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3,
         ]);
     }
 
     public function destroy(Grua $grua, Servicio $servicio)
     {
+        $this->autorizarAccesoAGrua($grua);
+
         $servicio->delete();
         return redirect()->route('servicios.index', $grua->id)->with('success', 'Servicio eliminado correctamente.');
+    }
+
+    private function construirConsultaGruasSegunOrigen($usuario, string $origen)
+    {
+        $query = Grua::query();
+
+        if ($origen === 'siniestros') {
+            $query->whereHas('unidades', function ($q) {
+                $q->where('unidades.id', 1);
+            });
+
+            return $query;
+        }
+
+        if ($origen === 'delegaciones') {
+            $delegacionIds = $this->obtenerIdsDelegacionesUsuario($usuario);
+
+            if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
+                $query->whereHas('delegaciones');
+            } else {
+                if (empty($delegacionIds)) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereHas('delegaciones', function ($q) use ($delegacionIds) {
+                        $q->whereIn('delegaciones.id', $delegacionIds);
+                    });
+                }
+            }
+
+            return $query;
+        }
+
+        if ($origen === 'todos') {
+            $delegacionIds = $this->obtenerIdsDelegacionesUsuario($usuario);
+
+            $query->where(function ($q) use ($usuario, $delegacionIds) {
+                $q->whereHas('unidades', function ($sub) {
+                    $sub->where('unidades.id', 1);
+                });
+
+                if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
+                    $q->orWhereHas('delegaciones');
+                } elseif (!empty($delegacionIds)) {
+                    $q->orWhereHas('delegaciones', function ($sub) use ($delegacionIds) {
+                        $sub->whereIn('delegaciones.id', $delegacionIds);
+                    });
+                }
+            });
+
+            return $query;
+        }
+
+        $query->whereRaw('1 = 0');
+
+        return $query;
+    }
+
+    private function obtenerIdsDelegacionesUsuario($usuario): array
+    {
+        $ids = [];
+
+        if (!empty($usuario->delegacion_id)) {
+            $ids[] = (int)$usuario->delegacion_id;
+        }
+
+        $idsPivot = DB::table('delegacion_user')
+            ->where('user_id', $usuario->id)
+            ->pluck('delegacion_id')
+            ->map(function ($id) {
+                return (int)$id;
+            })
+            ->toArray();
+
+        return array_values(array_unique(array_merge($ids, $idsPivot)));
+    }
+
+    private function autorizarAccesoAGrua(Grua $grua): void
+    {
+        $usuario = Auth::user();
+
+        if ($usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3) {
+            return;
+        }
+
+        if ((int)$usuario->unidad_id === 1) {
+            $permitida = $grua->unidades()->where('unidades.id', 1)->exists();
+
+            abort_unless($permitida, 403);
+
+            return;
+        }
+
+        if ((int)$usuario->unidad_id === 2) {
+            $delegacionIds = $this->obtenerIdsDelegacionesUsuario($usuario);
+
+            $permitida = !empty($delegacionIds)
+                && $grua->delegaciones()->whereIn('delegaciones.id', $delegacionIds)->exists();
+
+            abort_unless($permitida, 403);
+
+            return;
+        }
+
+        abort(403);
     }
 }

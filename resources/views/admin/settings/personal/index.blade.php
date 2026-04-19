@@ -24,7 +24,8 @@
                     <table id="personal" class="table table-striped table-bordered table-hover table-sm">
                         <thead>
                             <tr>
-                                <th><center>Número</center></th>
+                                <th><center>No.</center></th>
+                                <th><center>Número empleado</center></th>
                                 <th><center>Nombre</center></th>
                                 <th><center>Unidad</center></th>
                                 <th><center>Turno</center></th>
@@ -39,6 +40,7 @@
                             @foreach ($personals as $index => $personal)
                                 <tr>
                                     <td style="text-align: center">{{ $index + 1 }}</td>
+                                    <td>{{ $personal->numero_empleado ?? 'N/A' }}</td>
                                     <td>
                                         {{ trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? '')) }}
                                     </td>

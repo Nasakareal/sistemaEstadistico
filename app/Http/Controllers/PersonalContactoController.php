@@ -6,20 +6,70 @@ use App\Models\Personal;
 use App\Models\PersonalContacto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class PersonalContactoController extends Controller
 {
-    public function store(Request $request, Personal $personal)
+    private function datosValidados(Request $request): array
     {
         $validated = $request->validate([
-            'tipo' => 'required|string|max:30',
-            'valor' => 'required|string|max:191',
+            'tipo' => 'nullable|string|max:30',
+            'valor' => 'nullable|string|max:191',
+            'telefono_personal' => 'nullable|string|max:20',
+            'telefono_secundario' => 'nullable|string|max:20',
+            'correo_electronico' => 'nullable|email|max:191',
             'es_principal' => 'nullable|boolean',
             'observaciones' => 'nullable|string|max:255',
         ]);
 
+        foreach (['tipo', 'valor', 'telefono_personal', 'telefono_secundario', 'correo_electronico', 'observaciones'] as $campo) {
+            if (array_key_exists($campo, $validated) && is_string($validated[$campo])) {
+                $validated[$campo] = trim($validated[$campo]);
+                if ($validated[$campo] === '') {
+                    $validated[$campo] = null;
+                }
+            }
+        }
+
+        $valorPrincipal = $validated['valor']
+            ?? $validated['telefono_personal']
+            ?? $validated['telefono_secundario']
+            ?? $validated['correo_electronico']
+            ?? null;
+
+        if (!$valorPrincipal) {
+            throw ValidationException::withMessages([
+                'valor' => 'Registra al menos un teléfono, correo o valor de contacto.',
+            ]);
+        }
+
+        $tipo = $validated['tipo'] ?? null;
+
+        if (!$tipo) {
+            if (!empty($validated['telefono_personal'])) {
+                $tipo = 'TELEFONO_PERSONAL';
+            } elseif (!empty($validated['telefono_secundario'])) {
+                $tipo = 'TELEFONO_SECUNDARIO';
+            } elseif (!empty($validated['correo_electronico'])) {
+                $tipo = 'CORREO';
+            } else {
+                $tipo = 'OTRO';
+            }
+        }
+
+        $validated['tipo'] = $tipo;
+        $validated['valor'] = $valorPrincipal;
+        $validated['es_principal'] = (bool) $request->input('es_principal', false);
+
+        return $validated;
+    }
+
+    public function store(Request $request, Personal $personal)
+    {
+        $validated = $this->datosValidados($request);
+
         try {
-            $esPrincipal = (bool)($request->input('es_principal', false));
+            $esPrincipal = (bool) $validated['es_principal'];
 
             if ($esPrincipal) {
                 PersonalContacto::query()
@@ -32,6 +82,9 @@ class PersonalContactoController extends Controller
                 'tipo' => $validated['tipo'],
                 'valor' => $validated['valor'],
                 'es_principal' => $esPrincipal ? 1 : 0,
+                'telefono_personal' => $validated['telefono_personal'] ?? null,
+                'telefono_secundario' => $validated['telefono_secundario'] ?? null,
+                'correo_electronico' => $validated['correo_electronico'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
             ]);
 
@@ -50,19 +103,14 @@ class PersonalContactoController extends Controller
 
     public function update(Request $request, Personal $personal, PersonalContacto $contacto)
     {
-        $validated = $request->validate([
-            'tipo' => 'required|string|max:30',
-            'valor' => 'required|string|max:191',
-            'es_principal' => 'nullable|boolean',
-            'observaciones' => 'nullable|string|max:255',
-        ]);
+        $validated = $this->datosValidados($request);
 
         try {
             if ((int)$contacto->personal_id !== (int)$personal->id) {
                 return redirect()->back()->withErrors('Ese contacto no pertenece a este elemento.');
             }
 
-            $esPrincipal = (bool)($request->input('es_principal', false));
+            $esPrincipal = (bool) $validated['es_principal'];
 
             if ($esPrincipal) {
                 PersonalContacto::query()
@@ -75,6 +123,9 @@ class PersonalContactoController extends Controller
                 'tipo' => $validated['tipo'],
                 'valor' => $validated['valor'],
                 'es_principal' => $esPrincipal ? 1 : 0,
+                'telefono_personal' => $validated['telefono_personal'] ?? null,
+                'telefono_secundario' => $validated['telefono_secundario'] ?? null,
+                'correo_electronico' => $validated['correo_electronico'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
             ]);
 

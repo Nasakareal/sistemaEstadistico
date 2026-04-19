@@ -27,7 +27,10 @@ class GruaController extends Controller
 
     public function index()
     {
-        $gruas = Grua::all();
+        $gruas = Grua::with(['unidades', 'delegaciones'])
+            ->orderBy('nombre')
+            ->get();
+
         return view('gruas.index', compact('gruas'));
     }
 
@@ -41,6 +44,7 @@ class GruaController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:255',
             'direccion' => 'nullable|string',
+            'ubicacion_corralon' => 'nullable|string',
             'telefono' => 'nullable|string|max:15',
             'email' => 'nullable|email',
         ]);
@@ -49,6 +53,7 @@ class GruaController extends Controller
 
         $data['nombre'] = strtoupper($data['nombre']);
         $data['direccion'] = strtoupper($data['direccion'] ?? '');
+        $data['ubicacion_corralon'] = strtoupper($data['ubicacion_corralon'] ?? '');
         $data['telefono'] = strtoupper($data['telefono'] ?? '');
         $data['email'] = strtoupper($data['email'] ?? '');
 
@@ -60,13 +65,15 @@ class GruaController extends Controller
 
     public function show($id)
     {
-        $grua = Grua::findOrFail($id);
+        $grua = Grua::with(['unidades', 'delegaciones'])->findOrFail($id);
+
         return view('gruas.show', compact('grua'));
     }
 
     public function edit($id)
     {
-        $grua = Grua::findOrFail($id);
+        $grua = Grua::with(['unidades', 'delegaciones'])->findOrFail($id);
+
         return view('gruas.edit', compact('grua'));
     }
 
@@ -75,6 +82,7 @@ class GruaController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:255',
             'direccion' => 'nullable|string',
+            'ubicacion_corralon' => 'nullable|string',
             'telefono' => 'nullable|string|max:15',
             'email' => 'nullable|email',
         ]);
@@ -85,6 +93,7 @@ class GruaController extends Controller
 
         $data['nombre'] = strtoupper($data['nombre']);
         $data['direccion'] = strtoupper($data['direccion'] ?? '');
+        $data['ubicacion_corralon'] = strtoupper($data['ubicacion_corralon'] ?? '');
         $data['telefono'] = strtoupper($data['telefono'] ?? '');
         $data['email'] = strtoupper($data['email'] ?? '');
 

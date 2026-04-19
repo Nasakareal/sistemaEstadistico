@@ -28,7 +28,12 @@ class PersonalIncidenciaController extends Controller
             'tipo' => 'required|string|max:60',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'hora_inicio' => 'nullable|date_format:H:i',
+            'hora_fin' => 'nullable|date_format:H:i',
+            'folio' => 'nullable|string|max:60',
+            'motivo' => 'nullable|string|max:1000',
             'observaciones' => 'nullable|string|max:1000',
+            'documento_id' => 'nullable|integer',
         ]);
 
         try {
@@ -68,7 +73,12 @@ class PersonalIncidenciaController extends Controller
                 'incidencia_tipo_id' => $map[$validated['tipo']],
                 'fecha_inicio' => $validated['fecha_inicio'],
                 'fecha_fin' => $validated['fecha_fin'] ?? null,
+                'hora_inicio' => $validated['hora_inicio'] ?? null,
+                'hora_fin' => $validated['hora_fin'] ?? null,
+                'folio' => $validated['folio'] ?? null,
+                'motivo' => $validated['motivo'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
+                'documento_id' => $validated['documento_id'] ?? null,
                 'activo' => 1,
             ]);
 
@@ -94,7 +104,12 @@ class PersonalIncidenciaController extends Controller
             'tipo' => 'required|string|max:60',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'hora_inicio' => 'nullable|date_format:H:i',
+            'hora_fin' => 'nullable|date_format:H:i',
+            'folio' => 'nullable|string|max:60',
+            'motivo' => 'nullable|string|max:1000',
             'observaciones' => 'nullable|string|max:1000',
+            'documento_id' => 'nullable|integer',
         ]);
 
         try {
@@ -134,7 +149,12 @@ class PersonalIncidenciaController extends Controller
                 'incidencia_tipo_id' => $map[$validated['tipo']],
                 'fecha_inicio' => $validated['fecha_inicio'],
                 'fecha_fin' => $validated['fecha_fin'] ?? null,
+                'hora_inicio' => $validated['hora_inicio'] ?? null,
+                'hora_fin' => $validated['hora_fin'] ?? null,
+                'folio' => $validated['folio'] ?? null,
+                'motivo' => $validated['motivo'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
+                'documento_id' => $validated['documento_id'] ?? null,
             ]);
 
             return redirect()

@@ -111,7 +111,7 @@
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad (principal)</label>
                                     <select name="unidad_id" id="unidad_id"
-                                            class="form-control @error('unidad_id') is-invalid @enderror">
+                                        class="form-control @error('unidad_id') is-invalid @enderror">
                                         <option value="">Sin unidad</option>
                                         @foreach ($unidades as $u)
                                             <option value="{{ $u->id }}"
@@ -362,17 +362,10 @@
 
                 if (unidadRol && unidadRol !== 'null' && unidadRol !== '') {
                     unidadSelect.value = unidadRol;
-                    unidadSelect.setAttribute('disabled', 'disabled');
-                } else {
-                    unidadSelect.removeAttribute('disabled');
                 }
             }
 
             function beforeSubmitEnableUnidad() {
-                const unidadSelect = document.getElementById('unidad_id');
-                if (unidadSelect) {
-                    unidadSelect.removeAttribute('disabled');
-                }
             }
 
             function toggleUbicacionEspecial() {

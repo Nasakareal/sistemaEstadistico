@@ -11,8 +11,8 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\admin\\settings\\users\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\WhatsApp\\WhatsAppInboundService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\WhatsApp\\WhatsAppInboundService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\UserController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -32,9 +32,9 @@
               "RelativeDocumentMoniker": "resources\\views\\admin\\settings\\users\\edit.blade.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\users\\edit.blade.php",
               "RelativeToolTip": "resources\\views\\admin\\settings\\users\\edit.blade.php",
-              "ViewState": "AgIAABcAAAAAAAAAAAAWwC8AAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAHoBAAAAAAAAAAAWwJMBAABDAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-19T23:00:38.657Z",
+              "WhenOpened": "2026-04-19T23:24:40.497Z",
               "EditorCaption": ""
             },
             {
@@ -45,22 +45,22 @@
               "RelativeDocumentMoniker": "resources\\views\\admin\\settings\\users\\create.blade.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\users\\create.blade.php",
               "RelativeToolTip": "resources\\views\\admin\\settings\\users\\create.blade.php",
-              "ViewState": "AgIAABcAAAAAAAAAAAAWwDUAAAAtAAAAAAAAAA==",
+              "ViewState": "AgIAAHMBAAAAAAAAAAAWwIwBAABDAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-19T22:48:34.235Z",
+              "WhenOpened": "2026-04-19T23:21:01.206Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "WhatsAppInboundService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\WhatsApp\\WhatsAppInboundService.php",
-              "RelativeDocumentMoniker": "app\\Services\\WhatsApp\\WhatsAppInboundService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\WhatsApp\\WhatsAppInboundService.php",
-              "RelativeToolTip": "app\\Services\\WhatsApp\\WhatsAppInboundService.php",
-              "ViewState": "AgIAADIAAAAAAAAAAAAmwGQAAAAAAAAAAAAAAA==",
+              "Title": "UserController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\UserController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\UserController.php",
+              "ViewState": "AgIAACUCAAAAAAAAAAAWwDoCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-19T22:48:04.518Z",
+              "WhenOpened": "2026-04-19T23:20:50.523Z",
               "EditorCaption": ""
             }
           ]

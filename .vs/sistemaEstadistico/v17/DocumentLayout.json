@@ -32,7 +32,7 @@
               "RelativeDocumentMoniker": "resources\\views\\admin\\settings\\users\\edit.blade.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\users\\edit.blade.php",
               "RelativeToolTip": "resources\\views\\admin\\settings\\users\\edit.blade.php",
-              "ViewState": "AgIAAHoBAAAAAAAAAAAWwJMBAABDAAAAAAAAAA==",
+              "ViewState": "AgIAAFcAAAAAAAAAAAAWwHYAAAA/AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-04-19T23:24:40.497Z",
               "EditorCaption": ""
@@ -47,8 +47,7 @@
               "RelativeToolTip": "resources\\views\\admin\\settings\\users\\create.blade.php",
               "ViewState": "AgIAAHMBAAAAAAAAAAAWwIwBAABDAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-19T23:21:01.206Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-19T23:21:01.206Z"
             },
             {
               "$type": "Document",
@@ -60,8 +59,7 @@
               "RelativeToolTip": "app\\Http\\Controllers\\UserController.php",
               "ViewState": "AgIAACUCAAAAAAAAAAAWwDoCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-19T23:20:50.523Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-19T23:20:50.523Z"
             }
           ]
         }

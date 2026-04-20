@@ -7,6 +7,15 @@
 @stop
 
 @section('content')
+    @php
+        $usuario = auth()->user();
+        $esSuperadmin = $usuario && $usuario->hasRole('Superadmin');
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $puedeVerSiniestros = $esSuperadmin || $unidadId === 1 || $unidadId === 3;
+        $puedeVerDelegaciones = $esSuperadmin || $unidadId === 2 || $unidadId === 3;
+    @endphp
+
     <div class="row">
         <div class="col-md-12">
             <div class="card card-outline card-primary">
@@ -93,56 +102,52 @@
                                 <h5 class="mb-3">Asignación <span class="text-danger">*</span></h5>
                             </div>
 
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <div class="custom-control custom-radio custom-control-inline">
-                                        <input class="custom-control-input" type="radio" id="tipo_asignacion_siniestros" name="tipo_asignacion" value="siniestros" {{ old('tipo_asignacion') === 'siniestros' ? 'checked' : '' }} required>
-                                        <label for="tipo_asignacion_siniestros" class="custom-control-label">Siniestros</label>
+                            @if($puedeVerSiniestros)
+                                <div class="col-md-12">
+                                    <div class="form-group mb-2">
+                                        <div class="custom-control custom-checkbox">
+                                            <input class="custom-control-input" type="checkbox" id="unidad_siniestros" name="unidades[]" value="1"
+                                                {{ in_array(1, old('unidades', [])) ? 'checked' : '' }}>
+                                            <label for="unidad_siniestros" class="custom-control-label">Siniestros</label>
+                                        </div>
                                     </div>
+                                </div>
+                            @endif
 
-                                    <div class="custom-control custom-radio custom-control-inline">
-                                        <input class="custom-control-input" type="radio" id="tipo_asignacion_delegaciones" name="tipo_asignacion" value="delegaciones" {{ old('tipo_asignacion') === 'delegaciones' ? 'checked' : '' }} required>
-                                        <label for="tipo_asignacion_delegaciones" class="custom-control-label">Delegaciones</label>
+                            @if($puedeVerDelegaciones)
+                                <div class="col-md-12" id="contenedor_delegaciones">
+                                    <div class="form-group">
+                                        <label for="delegaciones">Delegaciones</label>
+                                        <select name="delegaciones[]" id="delegaciones" class="form-control select2 @error('delegaciones') is-invalid @enderror @error('delegaciones.*') is-invalid @enderror" multiple>
+                                            @foreach($delegaciones as $delegacion)
+                                                <option value="{{ $delegacion->id }}" {{ in_array($delegacion->id, old('delegaciones', [])) ? 'selected' : '' }}>
+                                                    {{ $delegacion->nombre }}{{ !empty($delegacion->clave) ? ' ('.$delegacion->clave.')' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <small class="form-text text-muted">Puede seleccionar una o varias delegaciones.</small>
+                                        @error('delegaciones')
+                                            <span class="invalid-feedback d-block" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                        @error('delegaciones.*')
+                                            <span class="invalid-feedback d-block" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
                                     </div>
-
-                                    @error('tipo_asignacion')
-                                        <span class="invalid-feedback d-block" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                    @error('asignacion')
-                                        <span class="invalid-feedback d-block" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
                                 </div>
-                            </div>
+                            @endif
 
-                            <div class="col-md-12" id="contenedor_delegaciones" style="{{ old('tipo_asignacion') === 'delegaciones' ? '' : 'display:none;' }}">
-                                <div class="form-group">
-                                    <label for="delegaciones">Delegaciones <span class="text-danger" id="delegaciones_required" style="{{ old('tipo_asignacion') === 'delegaciones' ? '' : 'display:none;' }}">*</span></label>
-                                    <select name="delegaciones[]" id="delegaciones" class="form-control select2 @error('delegaciones') is-invalid @enderror @error('delegaciones.*') is-invalid @enderror" multiple>
-                                        @foreach($delegaciones as $delegacion)
-                                            <option value="{{ $delegacion->id }}" {{ in_array($delegacion->id, old('delegaciones', [])) ? 'selected' : '' }}>
-                                                {{ $delegacion->nombre }}{{ !empty($delegacion->clave) ? ' ('.$delegacion->clave.')' : '' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('delegaciones')
-                                        <span class="invalid-feedback d-block" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                    @error('delegaciones.*')
-                                        <span class="invalid-feedback d-block" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
+                            @error('unidades')
+                                <div class="col-md-12">
+                                    <span class="invalid-feedback d-block" role="alert">
+                                        <strong>{{ $message }}</strong>
+                                    </span>
                                 </div>
-                            </div>
+                            @enderror
                         </div>
-
-                        <input type="hidden" name="unidad_siniestros_id" value="1">
 
                         <hr>
 
@@ -203,28 +208,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script>
         $(document).ready(function () {
-            $('#delegaciones').select2({
-                placeholder: 'Seleccione una o más delegaciones',
-                allowClear: true,
-                width: '100%'
-            });
-
-            function toggleDelegaciones() {
-                const esDelegaciones = $('#tipo_asignacion_delegaciones').is(':checked');
-
-                if (esDelegaciones) {
-                    $('#contenedor_delegaciones').slideDown(150);
-                    $('#delegaciones').prop('required', true);
-                    $('#delegaciones_required').show();
-                } else {
-                    $('#contenedor_delegaciones').slideUp(150);
-                    $('#delegaciones').prop('required', false).val(null).trigger('change');
-                    $('#delegaciones_required').hide();
-                }
-            }
-
-            $('input[name="tipo_asignacion"]').on('change', toggleDelegaciones);
-            toggleDelegaciones();
+            @if($puedeVerDelegaciones)
+                $('#delegaciones').select2({
+                    placeholder: 'Seleccione una o más delegaciones',
+                    allowClear: true,
+                    width: '100%'
+                });
+            @endif
         });
 
         @if ($errors->any())

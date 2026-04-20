@@ -21,7 +21,16 @@ class WhatsAppLink
         $lines[] = "";
         $lines[] = "COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL";
         $lines[] = "";
-        $lines[] = "UNIDAD DE ATENCIÓN A SINIESTROS";
+        $unidadTexto = match ((int) $hecho->unidad_org_id) {
+            1 => 'UNIDAD DE ATENCIÓN A SINIESTROS',
+            2 => 'UNIDAD DE DELEGACIONES',
+            4 => 'UNIDAD DE PROTECCIÓN A CARRETERAS',
+            default => DB::table('unidades')
+                ->where('id', $hecho->unidad_org_id)
+                ->value('nombre') ?: 'SIN DATO',
+        };
+
+        $lines[] = self::upper($unidadTexto);
         $lines[] = "";
         $lines[] = "MORELIA";
         $lines[] = "";
@@ -29,9 +38,6 @@ class WhatsAppLink
         $lines[] = "";
 
         $tema = "TEMA: HECHO DE TRÁNSITO CLASIFICADO COMO " . self::upper($hecho->tipo_hecho);
-        if (!empty($hecho->causas)) {
-            $tema .= " POR " . self::upper($hecho->causas);
-        }
         $lines[] = $tema;
         $lines[] = "";
 
@@ -137,13 +143,96 @@ class WhatsAppLink
             $lesionados = $hecho->lesionados()->get();
 
             if ($lesionados->count() > 0) {
-                $lines[] = "";
-                $lines[] = "De este hecho de tránsito resultan lesionados:";
+                $fallecidos = $lesionados->filter(function ($l) {
+                    return self::upper($l->tipo_lesion) === 'FALLECIDO';
+                });
 
-                foreach ($lesionados as $l) {
-                    $nombreL = $l->nombre ?: "SIN DATO";
-                    $edadL = $l->edad ?: "S/E";
-                    $lines[] = "- {$nombreL} de {$edadL} años.";
+                $lesionadosVivos = $lesionados->filter(function ($l) {
+                    return self::upper($l->tipo_lesion) !== 'FALLECIDO';
+                });
+
+                if ($fallecidos->count() > 0) {
+                    $lines[] = "";
+                    $lines[] = "De este hecho de tránsito resultan fallecidos:";
+
+                    foreach ($fallecidos as $l) {
+                        $nombreL = trim((string) ($l->nombre ?: 'SIN DATO'));
+                        $edadL = $l->edad ?: 'S/E';
+                        $sexoL = self::upper($l->sexo ?: 'SIN DATO');
+                        $paramedicoL = trim((string) ($l->paramedico ?: 'SIN DATO'));
+                        $ambulanciaL = trim((string) ($l->ambulancia ?: 'SIN DATO'));
+                        $observacionesL = trim((string) ($l->observaciones ?: ''));
+
+                        $texto = "- {$nombreL}, de {$edadL} años, sexo {$sexoL}, el cual falleció en el lugar.";
+
+                        if ($paramedicoL !== 'SIN DATO') {
+                            $texto .= " Confirma el deceso el paramédico {$paramedicoL}";
+                        }
+
+                        if ($ambulanciaL !== 'SIN DATO') {
+                            $texto .= ", a bordo de {$ambulanciaL}";
+                        }
+
+                        $texto .= ".";
+
+                        if ($observacionesL !== '') {
+                            $texto .= " Observaciones: {$observacionesL}.";
+                        }
+
+                        $lines[] = $texto;
+                    }
+                }
+
+                if ($lesionadosVivos->count() > 0) {
+                    $lines[] = "";
+                    $lines[] = "De este hecho de tránsito resultan lesionados:";
+
+                    foreach ($lesionadosVivos as $l) {
+                        $nombreL = trim((string) ($l->nombre ?: 'SIN DATO'));
+                        $edadL = $l->edad ?: 'S/E';
+                        $sexoL = self::upper($l->sexo ?: 'SIN DATO');
+                        $tipoLesionL = self::upper($l->tipo_lesion ?: 'SIN DATO');
+                        $hospitalL = trim((string) ($l->hospital ?: ''));
+                        $ambulanciaL = trim((string) ($l->ambulancia ?: ''));
+                        $paramedicoL = trim((string) ($l->paramedico ?: ''));
+                        $atencionSitioL = (int) ($l->atencion_en_sitio ?? 0);
+                        $hospitalizadoL = (int) ($l->hospitalizado ?? 0);
+                        $observacionesL = trim((string) ($l->observaciones ?: ''));
+
+                        $texto = "- {$nombreL}, de {$edadL} años, sexo {$sexoL}, presenta lesión {$tipoLesionL}.";
+
+                        if ($atencionSitioL === 1) {
+                            $texto .= " Recibió atención en el sitio.";
+                        }
+
+                        if ($hospitalizadoL === 1 && $hospitalL !== '') {
+                            $texto .= " Fue trasladado(a) al hospital {$hospitalL}";
+                        } elseif ($hospitalizadoL === 1) {
+                            $texto .= " Fue trasladado(a) a hospital";
+                        }
+
+                        if ($ambulanciaL !== '') {
+                            if ($hospitalizadoL === 1) {
+                                $texto .= " a bordo de la ambulancia {$ambulanciaL}";
+                            } else {
+                                $texto .= " Ambulancia: {$ambulanciaL}.";
+                            }
+                        }
+
+                        if ($hospitalizadoL === 1) {
+                            $texto .= ".";
+                        }
+
+                        if ($paramedicoL !== '') {
+                            $texto .= " Paramédico: {$paramedicoL}.";
+                        }
+
+                        if ($observacionesL !== '') {
+                            $texto .= " Observaciones: {$observacionesL}.";
+                        }
+
+                        $lines[] = $texto;
+                    }
                 }
             }
         }

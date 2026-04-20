@@ -19,6 +19,7 @@ class GruaController extends Controller
     {
         $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at'])
+            ->with('unidades:id,nombre,slug')
             ->withCount('servicios as total_servicios')
             ->orderBy('nombre')
             ->get();
@@ -32,6 +33,7 @@ class GruaController extends Controller
     {
         $grua = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at', 'updated_at'])
+            ->with('unidades:id,nombre,slug')
             ->withCount('servicios as total_servicios')
             ->findOrFail($id);
 
@@ -45,6 +47,7 @@ class GruaController extends Controller
         $q = trim((string) $request->query('q'));
 
         $gruas = $this->visibleGruasQuery($request)
+            ->with('unidades:id,nombre,slug')
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('nombre', 'like', "%{$q}%")
@@ -340,7 +343,29 @@ class GruaController extends Controller
     {
         $query = Grua::query();
         $this->applyVisibilityScope($query, $request->user());
+        $this->applyRequestedUnidadScope($query, $request);
         return $query;
+    }
+
+    private function applyRequestedUnidadScope($query, Request $request): void
+    {
+        $unidadId = (int) $request->query('unidad_id', 0);
+        if ($unidadId <= 0) {
+            return;
+        }
+
+        if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
+            $query->where(function ($q) use ($unidadId) {
+                $q->whereHas('unidades', function ($qq) use ($unidadId) {
+                    $qq->where('unidades.id', $unidadId);
+                })->orWhereHas('delegaciones');
+            });
+            return;
+        }
+
+        $query->whereHas('unidades', function ($q) use ($unidadId) {
+            $q->where('unidades.id', $unidadId);
+        });
     }
 
     private function applyVisibilityScope($query, $usuario): void

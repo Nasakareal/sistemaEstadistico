@@ -12,6 +12,13 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 
 class ParteNovedadesGenerator
 {
+    protected HechoNovedadesFormatter $hechoFormatter;
+
+    public function __construct(HechoNovedadesFormatter $hechoFormatter)
+    {
+        $this->hechoFormatter = $hechoFormatter;
+    }
+
     public function generar(string $fecha): string
     {
         $tz = 'America/Mexico_City';
@@ -160,9 +167,10 @@ class ParteNovedadesGenerator
                 'spaceBefore' => 0,
             ]);
 
-            $lesionadosTexto = $hecho->lesionados->count() > 0 ? 'CON LESIONADOS' : 'SIN LESIONADOS';
+            $resultadoTexto = $this->hechoFormatter->resultadoVictimasTexto($hecho);
+            $tituloTipoHecho = $this->hechoFormatter->tituloTipoHecho($hecho->tipo_hecho);
 
-            $textRun->addText("{$contador}.-" . strtoupper($hecho->tipo_hecho) . " ({$lesionadosTexto}) SECTOR " . strtoupper($hecho->sector) . ".- ", ['bold' => true]);
+            $textRun->addText("{$contador}.-{$tituloTipoHecho} ({$resultadoTexto}) SECTOR " . strtoupper($hecho->sector) . ".- ", ['bold' => true]);
 
             $textRun->addText("A las " . Carbon::parse($hecho->hora, $tz)->format('H:i') . " horas en {$hecho->calle}, de la colonia {$hecho->colonia}, lugar donde ");
 
@@ -236,45 +244,10 @@ class ParteNovedadesGenerator
                 $textRun->addText("no se encontró información de vehículos. ");
             }
 
-            $lesionados = $hecho->lesionados;
+            $lineasVictimas = $this->hechoFormatter->lineasVictimas($hecho);
 
-            if ($lesionados->count() > 0) {
-                foreach ($lesionados as $index => $l) {
-                    $linea = "Lesionado " . ($index + 1) . ": ";
-                    if ($l->nombre) {
-                        $linea .= "C. {$l->nombre}";
-                    }
-                    if ($l->edad) {
-                        $linea .= ", de {$l->edad} años";
-                    }
-                    if ($l->sexo) {
-                        $linea .= ", sexo {$l->sexo}";
-                    }
-                    if ($l->tipo_lesion) {
-                        $linea .= ", presenta lesión tipo {$l->tipo_lesion}";
-                    }
-                    if ($l->hospitalizado) {
-                        $linea .= ", fue hospitalizado";
-                        if ($l->hospital) {
-                            $linea .= " en {$l->hospital}";
-                        }
-                    } else {
-                        $linea .= ", no fue hospitalizado";
-                    }
-                    if ($l->atencion_en_sitio) {
-                        $linea .= ", recibió atención en el sitio";
-                    }
-                    if ($l->ambulancia) {
-                        $linea .= ", trasladado por la unidad {$l->ambulancia}";
-                    }
-                    if ($l->paramedico) {
-                        $linea .= ", atendido por el paramédico {$l->paramedico}";
-                    }
-                    if ($l->observaciones) {
-                        $linea .= ", observaciones: {$l->observaciones}";
-                    }
-                    $linea .= ".";
-
+            if (!empty($lineasVictimas)) {
+                foreach ($lineasVictimas as $linea) {
                     $section->addText($linea, [], [
                         'alignment' => Jc::BOTH,
                         'spaceAfter' => 0,
@@ -301,7 +274,7 @@ class ParteNovedadesGenerator
                 'spaceBefore' => 0,
             ]);
 
-            $montoTotal = $vehiculos->sum('monto_danos');
+            $montoTotal = $this->hechoFormatter->montoDanos($hecho);
 
             $section->addText(
                 strtoupper($hecho->situacion) . "\tDAÑOS APROXIMADOS $ " . number_format($montoTotal, 2),
@@ -441,7 +414,7 @@ class ParteNovedadesGenerator
         if ($turnoActivo) {
             $nombreTurno = strtoupper(trim((string) ($turnoActivo->nombre ?? '')));
             $slugTurno = strtoupper(trim((string) ($turnoActivo->slug ?? '')));
-            if (str_contains($nombreTurno, ' A') || $nombreTurno === 'A' || str_contains($slugTurno, 'A')) {
+            if (strpos($nombreTurno, ' A') !== false || $nombreTurno === 'A' || strpos($slugTurno, 'A') !== false) {
                 $turnoLetra = 'A';
             }
         }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Hechos;
 use App\Models\Personal;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
@@ -12,10 +13,12 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class ExcelNovedadesGenerator
 {
     protected EstadoFuerzaService $estadoService;
+    protected HechoNovedadesFormatter $hechoFormatter;
 
-    public function __construct(EstadoFuerzaService $estadoService)
+    public function __construct(EstadoFuerzaService $estadoService, HechoNovedadesFormatter $hechoFormatter)
     {
         $this->estadoService = $estadoService;
+        $this->hechoFormatter = $hechoFormatter;
     }
 
     public function generar(Carbon $corte): string
@@ -37,7 +40,12 @@ class ExcelNovedadesGenerator
 
         $this->llenarEstadoFuerza($spreadsheet->getSheetByName('EST. FUR') ?: $spreadsheet->getSheet(0), $corte);
 
+        $hechos = $this->hechosDelCorte($corte);
+        $this->llenarTotalSiniestros($spreadsheet->getSheetByName('TOTAL'), $hechos, $corte);
+        $this->llenarNovedadesRelevantes($spreadsheet->getSheetByName('NOV. REL'), $hechos);
+
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->setPreCalculateFormulas(false);
         $writer->save($rutaSalida);
 
         return $rutaSalida;
@@ -212,5 +220,200 @@ class ExcelNovedadesGenerator
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN);
+    }
+
+    protected function hechosDelCorte(Carbon $corte)
+    {
+        $tz = 'America/Mexico_City';
+        $fin = $corte->copy()->timezone($tz)->setTime(18, 0, 0);
+        $inicio = $fin->copy()->subDay();
+
+        return Hechos::with([
+            'vehiculos.conductores',
+            'vehiculos.servicios.grua',
+            'lesionados',
+        ])
+            ->where('unidad_org_id', 1)
+            ->whereBetween('created_at', [$inicio, $fin])
+            ->orderBy('fecha', 'asc')
+            ->orderBy('hora', 'asc')
+            ->get();
+    }
+
+    protected function llenarTotalSiniestros(?Worksheet $sheet, $hechos, Carbon $corte): void
+    {
+        if (!$sheet) {
+            return;
+        }
+
+        $sheet->setCellValue('C2', $corte->format('d/m/Y'));
+
+        $resueltos = 0;
+        $pendientes = 0;
+        $turnados = 0;
+        $tipoRows = $this->mapaFilasTiposHecho();
+        $tipoConteos = [];
+        $lesionados = 0;
+        $fallecidos = 0;
+        $danosVehiculos = 0.0;
+        $danosPatrimoniales = 0.0;
+
+        foreach ($tipoRows as $fila) {
+            $tipoConteos[$fila] = [
+                'cantidad' => 0,
+                'lesionados' => 0,
+                'fallecidos' => 0,
+            ];
+        }
+
+        foreach ($hechos as $hecho) {
+            $situacion = $this->normalizar((string) ($hecho->situacion ?? ''));
+
+            if ($situacion === 'RESUELTO') {
+                $resueltos++;
+            } elseif ($situacion === 'PENDIENTE') {
+                $pendientes++;
+            } elseif ($situacion === 'TURNADO') {
+                $turnados++;
+            }
+
+            $victimas = $this->hechoFormatter->contarVictimas($hecho);
+            $lesionados += $victimas['lesionados'];
+            $fallecidos += $victimas['fallecidos'];
+            $danosVehiculos += $this->hechoFormatter->montoDanosVehiculos($hecho);
+            $danosPatrimoniales += $this->hechoFormatter->montoDanosPatrimoniales($hecho);
+
+            $fila = $this->filaTipoHecho((string) ($hecho->tipo_hecho ?? ''));
+
+            if ($fila) {
+                $tipoConteos[$fila]['cantidad']++;
+                $tipoConteos[$fila]['lesionados'] += $victimas['lesionados'];
+                $tipoConteos[$fila]['fallecidos'] += $victimas['fallecidos'];
+            }
+        }
+
+        $sheet->setCellValue('D120', $resueltos);
+        $sheet->setCellValue('D121', $pendientes);
+        $sheet->setCellValue('D122', $turnados);
+        $sheet->setCellValue('D123', $hechos->count());
+
+        foreach ($tipoConteos as $fila => $conteos) {
+            $sheet->setCellValue("D{$fila}", $conteos['cantidad']);
+            $sheet->setCellValue("E{$fila}", $conteos['lesionados']);
+            $sheet->setCellValue("G{$fila}", $conteos['fallecidos']);
+        }
+
+        $sheet->setCellValue('D143', $hechos->count());
+        $sheet->setCellValue('E143', $lesionados);
+        $sheet->setCellValue('G143', $fallecidos);
+
+        $totalDanos = $danosVehiculos + $danosPatrimoniales;
+        $sheet->setCellValue('H146', $totalDanos);
+        $sheet->setCellValue('H147', $danosVehiculos);
+        $sheet->setCellValue('H148', $danosPatrimoniales);
+        $sheet->setCellValue('H149', $totalDanos);
+    }
+
+    protected function llenarNovedadesRelevantes(?Worksheet $sheet, $hechos): void
+    {
+        if (!$sheet) {
+            return;
+        }
+
+        $highestRow = max(13, $sheet->getHighestRow());
+
+        for ($row = 2; $row <= $highestRow; $row++) {
+            foreach (range('A', 'I') as $column) {
+                $sheet->setCellValue($column . $row, null);
+            }
+        }
+
+        $row = 2;
+
+        foreach ($hechos as $index => $hecho) {
+            $sheet->setCellValue("A{$row}", $index + 1);
+            $sheet->setCellValue("B{$row}", $this->horaTexto($hecho->hora ?? null));
+            $sheet->setCellValue("C{$row}", $this->ubicacionTexto($hecho));
+            $sheet->setCellValue("D{$row}", $this->hechoFormatter->descripcionHecho($hecho));
+            $sheet->setCellValue("E{$row}", $this->resolucionTexto($hecho));
+            $sheet->setCellValue("F{$row}", $this->hechoFormatter->vehiculosTexto($hecho));
+            $row++;
+        }
+    }
+
+    protected function mapaFilasTiposHecho(): array
+    {
+        return [
+            'EXPLOSION' => 126,
+            'INCENDIO' => 127,
+            'DESBARRANCAMIENTO' => 128,
+            'VOLCADURA' => 129,
+            'SALIDADESUPERFICIEDERODAMIENTO' => 130,
+            'SUBIDAALCAMELLON' => 131,
+            'CAIDADEMOTOCICLETA' => 132,
+            'COLISIONCONTRAOBJETOFIJO' => 133,
+            'COLISIONPORALCANCE' => 134,
+            'COLISIONPORNORESPETARSEMAFORO' => 135,
+            'COLISIONPORINVASIONDECARRIL' => 136,
+            'COLISIONPORCAMBIODECARRIL' => 137,
+            'COLISIONPORCORTEDECIRCULACION' => 138,
+            'COLISIONPORMANIOBRADEREVERSA' => 139,
+            'CAIDAALACUNETA' => 140,
+            'CAIDAACUATICADEVEHICULO' => 141,
+            'COLISIONCONPEATON' => 142,
+        ];
+    }
+
+    protected function filaTipoHecho(string $tipo): ?int
+    {
+        $mapa = $this->mapaFilasTiposHecho();
+        $normalizado = $this->normalizar($tipo);
+
+        return $mapa[$normalizado] ?? null;
+    }
+
+    protected function resolucionTexto($hecho): string
+    {
+        $partes = [];
+        $situacion = trim((string) ($hecho->situacion ?? ''));
+
+        if ($situacion !== '') {
+            $partes[] = mb_strtoupper($situacion, 'UTF-8');
+        }
+
+        $monto = $this->hechoFormatter->montoDanos($hecho);
+
+        if ($monto > 0) {
+            $partes[] = 'DAÑOS APROXIMADOS $ ' . number_format($monto, 2, '.', ',');
+        }
+
+        return implode(' | ', $partes);
+    }
+
+    protected function ubicacionTexto($hecho): string
+    {
+        $partes = array_filter([
+            trim((string) ($hecho->calle ?? '')),
+            trim((string) ($hecho->colonia ?? '')),
+            trim((string) ($hecho->municipio ?? '')),
+        ]);
+
+        return mb_strtoupper(implode(', ', $partes), 'UTF-8');
+    }
+
+    protected function horaTexto($hora): string
+    {
+        if ($hora instanceof \DateTimeInterface) {
+            return $hora->format('H:i');
+        }
+
+        $hora = trim((string) $hora);
+
+        return $hora !== '' ? substr($hora, 0, 5) : '';
+    }
+
+    protected function normalizar(string $value): string
+    {
+        return $this->hechoFormatter->normalizar($value);
     }
 }

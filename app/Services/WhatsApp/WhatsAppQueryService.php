@@ -221,9 +221,7 @@ class WhatsAppQueryService
             $this->whereUpperEquals($query, 'situacion', (string) $filters['situacion']);
         }
 
-        if (!empty($filters['tipo_hecho'])) {
-            $this->whereUpperEquals($query, 'tipo_hecho', (string) $filters['tipo_hecho']);
-        }
+        $this->aplicarFiltroTipoHecho($query, $filters);
 
         if ($action === 'estadistica_motocicletas') {
             $query->whereHas('vehiculos', function ($q) {
@@ -1086,9 +1084,7 @@ class WhatsAppQueryService
         $this->applyUnitFilter($query, 'unidad_org_id', $unidadId);
         $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
 
-        if (!empty($filtros['tipo_hecho'])) {
-            $this->whereUpperEquals($query, 'tipo_hecho', (string) $filtros['tipo_hecho']);
-        }
+        $this->aplicarFiltroTipoHecho($query, $filtros);
 
         if (!empty($filtros['situacion'])) {
             $this->whereUpperEquals($query, 'situacion', (string) $filtros['situacion']);
@@ -1224,6 +1220,55 @@ class WhatsAppQueryService
         }
 
         return $query;
+    }
+
+    protected function aplicarFiltroTipoHecho($query, array $filtros): void
+    {
+        if (empty($filtros['tipo_hecho'])) {
+            return;
+        }
+
+        $tipos = $this->resolverTerminosTipoHecho((string) $filtros['tipo_hecho']);
+
+        if (count($tipos) === 1) {
+            $this->whereUpperEquals($query, 'tipo_hecho', $tipos[0]);
+            return;
+        }
+
+        $query->where(function ($q) use ($tipos) {
+            foreach ($tipos as $tipo) {
+                $q->orWhereRaw("UPPER(TRIM(COALESCE(tipo_hecho, ''))) = ?", [$this->upper($tipo)]);
+            }
+        });
+    }
+
+    protected function resolverTerminosTipoHecho(string $tipo): array
+    {
+        $buscado = $this->normalizarTextoBusqueda($tipo);
+
+        $choques = [
+            'COLISIÓN POR ALCANCE',
+            'COLISIÓN POR CAMBIO DE CARRIL',
+            'COLISIÓN POR INVASIÓN DE CARRIL',
+            'COLISIÓN POR CORTE DE CIRCULACIÓN',
+            'COLISIÓN CONTRA OBJETO FIJO',
+            'COLISIÓN POR MANIOBRA DE REVERSA',
+            'COLISIÓN POR NO RESPETAR SEMÁFORO',
+        ];
+
+        if (in_array($buscado, ['CHOQUE', 'CHOQUES', 'COLISION', 'COLISIONES'], true)) {
+            return $choques;
+        }
+
+        if ($this->startsWith($buscado, 'CHOQUEPOR')) {
+            $tipo = 'COLISIÓN POR ' . trim(substr($this->upper($tipo), strlen('CHOQUE POR')));
+        } elseif ($this->startsWith($buscado, 'CHOQUECONTRA')) {
+            $tipo = 'COLISIÓN CONTRA ' . trim(substr($this->upper($tipo), strlen('CHOQUE CONTRA')));
+        } elseif ($this->startsWith($buscado, 'CHOQUECON')) {
+            $tipo = 'COLISIÓN CON ' . trim(substr($this->upper($tipo), strlen('CHOQUE CON')));
+        }
+
+        return [$this->upper($tipo)];
     }
 
     protected function aplicarFiltroTipoOperativo($query, array $filtros): void
@@ -1451,5 +1496,10 @@ class WhatsAppQueryService
         }
 
         return preg_replace('/[^A-Z0-9]+/', '', $value) ?: '';
+    }
+
+    protected function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 }

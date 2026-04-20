@@ -9,6 +9,12 @@ class OpenAIService
 {
     public function interpretar($mensaje)
     {
+        $local = $this->interpretarLocal((string) $mensaje);
+
+        if (($local['accion'] ?? 'no_valida') !== 'no_valida') {
+            return $local;
+        }
+
         $apiKey = (string) config('services.openai.key');
 
         if ($apiKey === '') {
@@ -61,6 +67,78 @@ class OpenAIService
         return $this->normalizarRespuesta($decoded);
     }
 
+    protected function interpretarLocal(string $mensaje): array
+    {
+        $texto = $this->normalizarTexto($mensaje);
+
+        if ($texto === '' || in_array($texto, ['hola', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches'], true)) {
+            return $this->respuestaNoValida();
+        }
+
+        $filtros = $this->filtrosBase();
+        $filtros = array_merge($filtros, $this->resolverFechasLocales($texto));
+        $unidadId = $this->resolverUnidadLocal($texto);
+        $id = null;
+
+        if (preg_match('/\b(?:hecho|folio|id)\s*(?:numero|num|no\.?)?\s*(\d+)\b/u', $texto, $matches)) {
+            $id = (int) $matches[1];
+
+            return $this->respuestaLocal('detalle_hecho', $unidadId, $id, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['personal armado', 'armamento', 'elementos armados', 'relacion de personal armado', 'relacion armado'])) {
+            return $this->respuestaLocal('personal_armado', $unidadId, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['personal activo', 'elementos activos'])) {
+            return $this->respuestaLocal('personal_activo', $unidadId, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['puesta a disposicion', 'puestas a disposicion', 'puesta disposicion', 'puestas disposicion'])) {
+            return $this->respuestaLocal('puestas_disposicion', $unidadId, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['operativo', 'operativos', 'dispositivo', 'dispositivos', 'guardianes del camino', 'psv', 'rsv', 'casco', 'cinturon', 'carrusel', 'cordillera', 'asiento seguro', 'acompanamiento', 'abanderamiento', 'auxilio vial', 'caballero del camino', 'c5'])) {
+            $filtros['tipo_operativo'] = $this->resolverTipoOperativoLocal($texto);
+
+            return $this->respuestaLocal(
+                $this->esLista($texto) ? 'lista_operativos' : 'operativos',
+                $unidadId ?: 4,
+                null,
+                $filtros
+            );
+        }
+
+        if ($this->contieneAlguno($texto, ['actividad', 'actividades', 'apoyo', 'apoyos', 'labor', 'labores', 'proximidad social'])) {
+            return $this->respuestaLocal(
+                $this->esLista($texto) ? 'lista_actividades' : 'actividades',
+                $unidadId,
+                null,
+                $filtros
+            );
+        }
+
+        if ($this->contieneAlguno($texto, ['hecho', 'hechos', 'siniestro', 'siniestros', 'choque', 'choques', 'accidente', 'accidentes', 'colision', 'colisiones', 'volcadura', 'volcaduras', 'atropello', 'atropellos'])) {
+            $tipoHecho = $this->resolverTipoHechoLocal($texto);
+
+            if ($tipoHecho !== null) {
+                $filtros['tipo_hecho'] = $tipoHecho;
+            }
+
+            if ($this->esLista($texto)) {
+                $accion = 'lista_hechos';
+            } elseif ($this->contieneAlguno($texto, ['estadistica', 'estadisticas', 'resumen', 'desglose'])) {
+                $accion = 'estadistica_hechos';
+            } else {
+                $accion = 'contar_hechos';
+            }
+
+            return $this->respuestaLocal($accion, $unidadId, null, $filtros);
+        }
+
+        return $this->respuestaNoValida();
+    }
+
     protected function promptSistema(): string
     {
         $hoy = now();
@@ -97,8 +175,12 @@ ACCIONES VÁLIDAS:
 - personal_armado
 - personal_activo
 - actividades
+- lista_actividades
 - operativos
+- lista_operativos
 - puestas_disposicion
+- lista_puestas_disposicion
+- detalle_puesta_disposicion
 
 ESTRUCTURA OBLIGATORIA:
 {
@@ -122,7 +204,7 @@ ESTRUCTURA OBLIGATORIA:
 }
 
 REGLAS DE ACCIÓN:
-- Si pide cuántos hechos hay, usa contar_hechos.
+- Si pide cuántos hechos, siniestros, accidentes, choques o colisiones hay, usa contar_hechos.
 - Si pide un hecho específico, usa detalle_hecho e incluye id.
 - Si pide lista de hechos, usa lista_hechos.
 - Si pide estadística, resumen o desglose de hechos, usa estadistica_hechos o resumen_hechos.
@@ -156,6 +238,7 @@ REGLAS DE FECHAS:
 
 REGLAS DE FILTROS:
 - Si menciona tipo de hecho, llena tipo_hecho en mayúsculas.
+- Si menciona choques o colisiones sin especificar subtipo, llena tipo_hecho = "CHOQUES".
 - Si menciona resuelto, pendiente, turnado o reporte, llena situacion en mayúsculas.
 - Si menciona tipo de operativo, llena tipo_operativo con el nombre en mayúsculas.
 - Si menciona tipo de puesta, llena tipo_puesta.
@@ -259,8 +342,15 @@ PROMPT;
             'personal_armado',
             'personal_activo',
             'actividades',
+            'estadistica_actividades',
+            'lista_actividades',
             'operativos',
+            'estadistica_operativos',
+            'lista_operativos',
             'puestas_disposicion',
+            'estadistica_puestas_disposicion',
+            'lista_puestas_disposicion',
+            'detalle_puesta_disposicion',
         ];
 
         if (!in_array($accion, $accionesValidas, true)) {
@@ -293,6 +383,233 @@ PROMPT;
                 : null,
             'filtros' => $filtros,
         ];
+    }
+
+    protected function respuestaLocal(string $accion, ?int $unidadId, ?int $id, array $filtros): array
+    {
+        return $this->normalizarRespuesta([
+            'accion' => $accion,
+            'unidad_id' => $unidadId,
+            'id' => $id,
+            'filtros' => $filtros,
+        ]);
+    }
+
+    protected function filtrosBase(): array
+    {
+        return [
+            'fecha' => null,
+            'fecha_inicio' => null,
+            'fecha_fin' => null,
+            'hora_inicio' => null,
+            'hora_fin' => null,
+            'tipo_hecho' => null,
+            'situacion' => null,
+            'tipo_operativo' => null,
+            'tipo_puesta' => null,
+            'estatus' => null,
+            'municipio' => null,
+            'delegacion_id' => null,
+        ];
+    }
+
+    protected function resolverUnidadLocal(string $texto): ?int
+    {
+        if ($this->contieneAlguno($texto, ['siniestros', 'siniestro'])) {
+            return 1;
+        }
+
+        if ($this->contieneAlguno($texto, ['delegaciones', 'delegacion'])) {
+            return 2;
+        }
+
+        if ($this->contieneAlguno($texto, ['coordinacion', 'seguridad vial'])) {
+            return 3;
+        }
+
+        if ($this->contieneAlguno($texto, ['carreteras', 'carretera', 'proteccion a carreteras'])) {
+            return 4;
+        }
+
+        if ($this->contieneAlguno($texto, ['vialidades', 'vialidad', 'vialidades urbanas'])) {
+            return 5;
+        }
+
+        return null;
+    }
+
+    protected function resolverFechasLocales(string $texto): array
+    {
+        $filtros = [];
+        $hoy = now();
+        $rangoFechaConMes = false;
+
+        if (preg_match('/\b(?:del\s+)?(\d{1,2})\s+(?:al|a)\s+(\d{1,2})\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+de\s+(\d{4}))?\b/u', $texto, $matches)) {
+            $rangoFechaConMes = true;
+            $mes = $this->numeroMes($matches[3]);
+            $anio = !empty($matches[4]) ? (int) $matches[4] : (int) $hoy->year;
+
+            if ($mes) {
+                $inicio = now()->setDate($anio, $mes, min((int) $matches[1], (int) $matches[2]))->startOfDay();
+                $fin = now()->setDate($anio, $mes, max((int) $matches[1], (int) $matches[2]))->startOfDay();
+
+                $filtros['fecha_inicio'] = $inicio->toDateString();
+                $filtros['fecha_fin'] = $fin->toDateString();
+            }
+        } elseif (preg_match('/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s+de\s+(\d{4}))?\b/u', $texto, $matches)) {
+            $mes = $this->numeroMes($matches[1]);
+            $anio = !empty($matches[2]) ? (int) $matches[2] : (int) $hoy->year;
+
+            if ($mes) {
+                $inicio = now()->setDate($anio, $mes, 1)->startOfMonth();
+                $fin = now()->setDate($anio, $mes, 1)->endOfMonth();
+
+                $filtros['fecha_inicio'] = $inicio->toDateString();
+                $filtros['fecha_fin'] = $fin->toDateString();
+            }
+        } elseif ($this->contieneAlguno($texto, ['hoy'])) {
+            $filtros['fecha'] = $hoy->toDateString();
+        } elseif ($this->contieneAlguno($texto, ['ayer'])) {
+            $filtros['fecha'] = now()->subDay()->toDateString();
+        } elseif ($this->contieneAlguno($texto, ['antier', 'anteayer'])) {
+            $filtros['fecha'] = now()->subDays(2)->toDateString();
+        } elseif ($this->contieneAlguno($texto, ['este mes'])) {
+            $filtros['fecha_inicio'] = now()->startOfMonth()->toDateString();
+            $filtros['fecha_fin'] = now()->endOfMonth()->toDateString();
+        } elseif ($this->contieneAlguno($texto, ['mes pasado', 'mes anterior'])) {
+            $filtros['fecha_inicio'] = now()->subMonthNoOverflow()->startOfMonth()->toDateString();
+            $filtros['fecha_fin'] = now()->subMonthNoOverflow()->endOfMonth()->toDateString();
+        } elseif ($this->contieneAlguno($texto, ['este ano', 'este año'])) {
+            $filtros['fecha_inicio'] = $hoy->copy()->startOfYear()->toDateString();
+            $filtros['fecha_fin'] = $hoy->copy()->endOfYear()->toDateString();
+        }
+
+        if (!$rangoFechaConMes && preg_match('/\b(?:de\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:a|al|-)\s*(\d{1,2})(?::(\d{2}))?\s*(?:hrs?|horas?)?\b/u', $texto, $matches)) {
+            $h1 = max(0, min(23, (int) $matches[1]));
+            $m1 = isset($matches[2]) && $matches[2] !== '' ? max(0, min(59, (int) $matches[2])) : 0;
+            $h2 = max(0, min(23, (int) $matches[3]));
+            $m2 = isset($matches[4]) && $matches[4] !== '' ? max(0, min(59, (int) $matches[4])) : 0;
+
+            $filtros['hora_inicio'] = sprintf('%02d:%02d:00', $h1, $m1);
+            $filtros['hora_fin'] = sprintf('%02d:%02d:00', $h2, $m2);
+        }
+
+        return $filtros;
+    }
+
+    protected function resolverTipoHechoLocal(string $texto): ?string
+    {
+        if ($this->contieneAlguno($texto, ['choque por alcance', 'colision por alcance'])) {
+            return 'COLISIÓN POR ALCANCE';
+        }
+
+        if ($this->contieneAlguno($texto, ['cambio de carril'])) {
+            return 'COLISIÓN POR CAMBIO DE CARRIL';
+        }
+
+        if ($this->contieneAlguno($texto, ['invasion de carril'])) {
+            return 'COLISIÓN POR INVASIÓN DE CARRIL';
+        }
+
+        if ($this->contieneAlguno($texto, ['corte de circulacion'])) {
+            return 'COLISIÓN POR CORTE DE CIRCULACIÓN';
+        }
+
+        if ($this->contieneAlguno($texto, ['objeto fijo'])) {
+            return 'COLISIÓN CONTRA OBJETO FIJO';
+        }
+
+        if ($this->contieneAlguno($texto, ['reversa'])) {
+            return 'COLISIÓN POR MANIOBRA DE REVERSA';
+        }
+
+        if ($this->contieneAlguno($texto, ['semaforo'])) {
+            return 'COLISIÓN POR NO RESPETAR SEMÁFORO';
+        }
+
+        if ($this->contieneAlguno($texto, ['volcadura', 'volcaduras'])) {
+            return 'VOLCADURA';
+        }
+
+        if ($this->contieneAlguno($texto, ['atropello', 'atropellos', 'peaton'])) {
+            return 'COLISIÓN CON PEATÓN';
+        }
+
+        if ($this->contieneAlguno($texto, ['choque', 'choques', 'colision', 'colisiones'])) {
+            return 'CHOQUES';
+        }
+
+        return null;
+    }
+
+    protected function resolverTipoOperativoLocal(string $texto): ?string
+    {
+        foreach ($this->guardianesDispositivos() as $dispositivo) {
+            $nombre = (string) ($dispositivo['nombre'] ?? '');
+            $aliases = (array) ($dispositivo['aliases'] ?? []);
+            $candidatos = array_merge([$nombre], $aliases);
+
+            foreach ($candidatos as $candidato) {
+                $normalizado = $this->normalizarTexto((string) $candidato);
+
+                if ($normalizado !== '' && strpos($texto, $normalizado) !== false) {
+                    return $nombre ?: (string) $candidato;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected function numeroMes(string $mes): ?int
+    {
+        $meses = [
+            'enero' => 1,
+            'febrero' => 2,
+            'marzo' => 3,
+            'abril' => 4,
+            'mayo' => 5,
+            'junio' => 6,
+            'julio' => 7,
+            'agosto' => 8,
+            'septiembre' => 9,
+            'setiembre' => 9,
+            'octubre' => 10,
+            'noviembre' => 11,
+            'diciembre' => 12,
+        ];
+
+        return $meses[$this->normalizarTexto($mes)] ?? null;
+    }
+
+    protected function esLista(string $texto): bool
+    {
+        return $this->contieneAlguno($texto, ['lista', 'listado', 'relacion', 'relación', 'dame los', 'dame las', 'muestrame', 'muéstrame']);
+    }
+
+    protected function contieneAlguno(string $texto, array $terminos): bool
+    {
+        foreach ($terminos as $termino) {
+            if (strpos($texto, $this->normalizarTexto((string) $termino)) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function normalizarTexto(string $texto): string
+    {
+        $texto = mb_strtolower(trim($texto), 'UTF-8');
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+
+        if ($ascii !== false) {
+            $texto = $ascii;
+        }
+
+        $texto = preg_replace('/[^a-z0-9]+/', ' ', $texto);
+
+        return trim((string) preg_replace('/\s+/', ' ', (string) $texto));
     }
 
     protected function respuestaNoValida(): array

@@ -15,6 +15,13 @@ use PhpOffice\PhpWord\SimpleType\TblWidth;
 
 class MiniParteGenerator
 {
+    protected HechoNovedadesFormatter $hechoFormatter;
+
+    public function __construct(HechoNovedadesFormatter $hechoFormatter)
+    {
+        $this->hechoFormatter = $hechoFormatter;
+    }
+
     public function generar(string $fecha): string
     {
         $tz = 'America/Mexico_City';
@@ -67,9 +74,12 @@ class MiniParteGenerator
             'VEH_INVOL_HT'               => 0,
         ];
 
-        $resumen['LESIONADOS'] = $hechos->sum(fn ($h) => $h->lesionados->count());
-
         foreach ($hechos as $h) {
+            $victimas = $this->hechoFormatter->contarVictimas($h);
+            $resumen['LESIONADOS'] += $victimas['lesionados'];
+            $resumen['DEFUNCIONES'] += $victimas['fallecidos'];
+            $resumen['VICTIMAS_TOTALES'] += $victimas['total'];
+
             switch ($h->tipo_hecho) {
                 case 'COLISIÓN POR ALCANCE':
                 case 'COLISIÓN POR CAMBIO DE CARRIL':
@@ -240,9 +250,7 @@ class MiniParteGenerator
 
         $montoDanios = 0.0;
         foreach ($hechos as $h) {
-            foreach ($h->vehiculos as $v) {
-                $montoDanios += (float)($v->monto_danos ?? 0);
-            }
+            $montoDanios += $this->hechoFormatter->montoDanos($h);
         }
 
         $montoFormateado = '$ ' . number_format($montoDanios, 2, '.', ',');
@@ -336,9 +344,9 @@ class MiniParteGenerator
 
         foreach ($conductores as $c) {
             $o = strtoupper(trim((string)($c->ocupacion ?? 'OTRO')));
-            if (str_contains($o, 'EMPLEADO')) $ocupaciones['EMPLEADO']++;
-            elseif (str_contains($o, 'CHOFER')) $ocupaciones['CHOFER']++;
-            elseif (str_contains($o, 'COMERCIANTE')) $ocupaciones['COMERCIANTE']++;
+            if (strpos($o, 'EMPLEADO') !== false) $ocupaciones['EMPLEADO']++;
+            elseif (strpos($o, 'CHOFER') !== false) $ocupaciones['CHOFER']++;
+            elseif (strpos($o, 'COMERCIANTE') !== false) $ocupaciones['COMERCIANTE']++;
             else $ocupaciones['OTRO']++;
         }
 

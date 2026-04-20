@@ -8,6 +8,46 @@ use Illuminate\Support\Facades\Storage;
 
 class WhatsAppRenderService
 {
+    public function renderReporte(?int $unidadId, string $asunto, string $periodo, array $lineas): string
+    {
+        $bloques = [];
+        $bloques[] = 'GUARDIA CIVIL';
+        $bloques[] = 'COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL.';
+
+        $unidad = $this->lineaUnidadPorId($unidadId);
+
+        if ($unidad !== '') {
+            $bloques[] = $unidad;
+        }
+
+        $resultado = ['RESULTADO:'];
+
+        foreach ($lineas as $linea) {
+            $linea = trim((string) $linea);
+
+            if ($linea === '') {
+                continue;
+            }
+
+            $linea = preg_replace('/^\s*[-*]\s*/', '', $linea);
+            $resultado[] = '* ' . $linea;
+        }
+
+        if (count($resultado) === 1) {
+            $resultado[] = '* Sin resultados.';
+        }
+
+        $bloques[] = 'ASUNTO: ' . trim($asunto) . '.';
+        $bloques[] = 'PERIODO: ' . trim($periodo) . '.';
+        $bloques[] = implode("\n\n", [
+            $resultado[0],
+            implode("\n", array_slice($resultado, 1)),
+        ]);
+        $bloques[] = 'PARA CONOCIMIENTO DE LA SUPERIORIDAD.';
+
+        return implode("\n\n", array_values(array_filter($bloques, fn ($item) => trim((string) $item) !== '')));
+    }
+
     public function renderDetalleHecho(Hechos $hecho): array
     {
         $detalle = $this->obtenerDetalleHecho($hecho);
@@ -67,7 +107,7 @@ class WhatsAppRenderService
 
     protected function obtenerDetalleHecho(Hechos $hecho): array
     {
-        $hecho->loadMissing(['vehiculos', 'unidadOrg']);
+        $hecho->loadMissing(['vehiculos', 'unidadOrganizacional']);
 
         $ubicacionPartes = array_filter([
             $hecho->calle,
@@ -136,7 +176,7 @@ class WhatsAppRenderService
     protected function resolverLineaUnidad(Hechos $hecho): string
     {
         $unidadId = $hecho->unidad_org_id ? (int) $hecho->unidad_org_id : null;
-        $unidadNombre = mb_strtoupper(trim((string) optional($hecho->unidadOrg)->nombre), 'UTF-8');
+        $unidadNombre = mb_strtoupper(trim((string) optional($hecho->unidadOrganizacional)->nombre), 'UTF-8');
 
         if (!$unidadId || $unidadId === 3) {
             return '';
@@ -155,6 +195,26 @@ class WhatsAppRenderService
                 return 'FOMENTO A LA CULTURA VIAL';
             default:
                 return $unidadNombre;
+        }
+    }
+
+    protected function lineaUnidadPorId(?int $unidadId): string
+    {
+        if (!$unidadId || $unidadId === 3) {
+            return '';
+        }
+
+        switch ((int) $unidadId) {
+            case 1:
+                return 'UNIDAD DE ATENCIÓN A SINIESTROS.';
+            case 2:
+                return 'DELEGACIONES.';
+            case 4:
+                return 'PROTECCIÓN A CARRETERAS.';
+            case 5:
+                return 'PROTECCIÓN A VIALIDADES URBANAS.';
+            default:
+                return '';
         }
     }
 
@@ -292,7 +352,7 @@ class WhatsAppRenderService
             return null;
         }
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        if ($this->startsWith($path, 'http://') || $this->startsWith($path, 'https://')) {
             return $path;
         }
 
@@ -306,5 +366,10 @@ class WhatsAppRenderService
 
             return null;
         }
+    }
+
+    protected function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 }

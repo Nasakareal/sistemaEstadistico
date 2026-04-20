@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
+use Illuminate\Support\Facades\Log;
 
 class WhatsAppCloudService
 {
@@ -50,6 +50,28 @@ class WhatsAppCloudService
         ]);
     }
 
+    public function sendInteractive(string $to, array $interactive): array
+    {
+        return $this->request([
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizeTo($to),
+            'type' => 'interactive',
+            'interactive' => $interactive,
+        ]);
+    }
+
+    public function sendImage(string $to, string $imageUrl): array
+    {
+        return $this->request([
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizeTo($to),
+            'type' => 'image',
+            'image' => [
+                'link' => $imageUrl,
+            ],
+        ]);
+    }
+
     protected function request(array $payload): array
     {
         $graphVersion = (string) config('services.whatsapp.graph_version', 'v19.0');
@@ -61,7 +83,19 @@ class WhatsAppCloudService
         $phoneNumberId = (string) config('services.whatsapp.phone_number_id', '');
 
         if ($accessToken === '' || $phoneNumberId === '') {
-            throw new RuntimeException('Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID en el .env');
+            Log::warning('WA Cloud sin configuración', [
+                'to' => $payload['to'] ?? null,
+                'type' => $payload['type'] ?? null,
+            ]);
+
+            return [
+                'ok' => false,
+                'status' => 0,
+                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
+                'raw' => null,
+                'payload' => $payload,
+                'url' => null,
+            ];
         }
 
         $url = "https://graph.facebook.com/{$graphVersion}/{$phoneNumberId}/messages";
@@ -70,6 +104,13 @@ class WhatsAppCloudService
             ->acceptJson()
             ->asJson()
             ->post($url, $payload);
+
+        Log::info('WA Cloud response', [
+            'to' => $payload['to'] ?? null,
+            'type' => $payload['type'] ?? null,
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
 
         return [
             'ok' => $response->successful(),

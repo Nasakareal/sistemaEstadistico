@@ -3,42 +3,104 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class OpenAIService
 {
     public function interpretar($mensaje)
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . config('services.openai.key'),
-            'Content-Type'  => 'application/json',
-        ])->post('https://api.openai.com/v1/responses', [
-            'model' => 'gpt-5-mini',
-            'input' => [
-                [
-                    'role' => 'system',
-                    'content' => '
+        $apiKey = (string) config('services.openai.key');
+
+        if ($apiKey === '') {
+            return $this->respuestaNoValida();
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(20)->post('https://api.openai.com/v1/responses', [
+                'model' => config('services.openai.model', 'gpt-5-mini'),
+                'input' => [
+                    [
+                        'role' => 'system',
+                        'content' => $this->promptSistema(),
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => (string) $mensaje,
+                    ],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('OpenAI interpretar error', ['error' => $e->getMessage()]);
+
+            return $this->respuestaNoValida();
+        }
+
+        if (!$response->successful()) {
+            Log::warning('OpenAI interpretar respuesta no exitosa', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return $this->respuestaNoValida();
+        }
+
+        $data = $response->json();
+        $text = $data['output_text']
+            ?? $data['output'][0]['content'][0]['text']
+            ?? '{"accion":"no_valida"}';
+
+        $decoded = json_decode($this->limpiarJson((string) $text), true);
+
+        if (!is_array($decoded)) {
+            return $this->respuestaNoValida();
+        }
+
+        return $this->normalizarRespuesta($decoded);
+    }
+
+    protected function promptSistema(): string
+    {
+        $hoy = now();
+        $ayer = now()->subDay();
+        $antier = now()->subDays(2);
+        $inicioMes = now()->startOfMonth();
+        $finMes = now()->endOfMonth();
+        $inicioMesAnterior = now()->subMonthNoOverflow()->startOfMonth();
+        $finMesAnterior = now()->subMonthNoOverflow()->endOfMonth();
+        $anio = (int) now()->year;
+        $sinonimosOperativos = $this->sinonimosOperativosPrompt();
+        $tiposOperativos = $this->tiposOperativosPrompt();
+
+        return <<<PROMPT
 Eres un intérprete de comandos para un sistema de seguridad vial.
 
 REGLAS:
-- SOLO respondes JSON válido
-- NO explicas nada
-- NO uses markdown
-- NO inventas datos
-- NO redactas resultados finales
-- SOLO interpretas la intención del usuario y la conviertes a JSON
-- Si no corresponde a una consulta válida del sistema, responde exactamente:
-{"accion":"no_valida"}
+- SOLO respondes JSON válido.
+- NO explicas nada.
+- NO uses markdown.
+- NO inventas datos.
+- NO redactas resultados finales.
+- Si no corresponde a una consulta válida del sistema, responde exactamente {"accion":"no_valida"}.
+
+FECHA ACTUAL:
+{$hoy->toDateString()}
 
 ACCIONES VÁLIDAS:
 - contar_hechos
 - detalle_hecho
 - lista_hechos
 - estadistica_hechos
+- resumen_hechos
 - personal_armado
 - personal_activo
-- resumen_hechos
+- actividades
+- operativos
+- puestas_disposicion
 
-ESTRUCTURA GENERAL:
+ESTRUCTURA OBLIGATORIA:
 {
   "accion": "nombre_accion",
   "unidad_id": null,
@@ -48,100 +110,193 @@ ESTRUCTURA GENERAL:
     "fecha_inicio": null,
     "fecha_fin": null,
     "hora_inicio": null,
-    "hora_fin": null
+    "hora_fin": null,
+    "tipo_hecho": null,
+    "situacion": null,
+    "tipo_operativo": null,
+    "tipo_puesta": null,
+    "estatus": null,
+    "municipio": null,
+    "delegacion_id": null
   }
 }
 
-REGLAS DE INTERPRETACIÓN:
-- Si el usuario pide un hecho específico, usa "detalle_hecho" e incluye "id"
-- Si el usuario pide conteo simple, usa "contar_hechos"
-- Si el usuario pide estadística por periodo, usa "estadistica_hechos"
-- Si el usuario pide lista o relación de personal armado, usa "personal_armado"
-- Si el usuario pide personal activo, usa "personal_activo"
-- Si el usuario pide lista de hechos, usa "lista_hechos"
-- Si el usuario pide resumen general, usa "resumen_hechos"
-
-REGLAS DE FECHAS:
-- Hoy = fecha actual
-- Ayer = un día antes
-- Antier = dos días antes
-- Si pide un mes completo, usa fecha_inicio y fecha_fin
-- Si pide un rango, usa fecha_inicio y fecha_fin
-- Si pide horas, llena hora_inicio y hora_fin en formato HH:MM:SS
-- Si no especifica fecha, deja todos los campos de fecha en null
+REGLAS DE ACCIÓN:
+- Si pide cuántos hechos hay, usa contar_hechos.
+- Si pide un hecho específico, usa detalle_hecho e incluye id.
+- Si pide lista de hechos, usa lista_hechos.
+- Si pide estadística, resumen o desglose de hechos, usa estadistica_hechos o resumen_hechos.
+- Si pide personal armado, relación de armamento o lista de elementos armados, usa personal_armado.
+- Si pide personal activo, usa personal_activo.
+- Si pide actividades, apoyos, labores o proximidad social, usa actividades.
+- Si pide operativos, dispositivos o cualquiera de los tipos del catálogo de carreteras, usa operativos.
+- Si pide puestas a disposición, usa puestas_disposicion.
 
 REGLAS DE UNIDAD:
-- Si el usuario menciona una unidad específica, llena unidad_id
-- Si no menciona unidad, deja unidad_id en null
-- No inventes unidad_id si no está claro
+- Si menciona siniestros, unidad_id = 1.
+- Si menciona delegaciones, unidad_id = 2.
+- Si menciona coordinación, coordinacion o seguridad vial, unidad_id = 3.
+- Si menciona carreteras o protección a carreteras, unidad_id = 4.
+- Si menciona vialidades, vialidades urbanas o protección a vialidades urbanas, unidad_id = 5.
+- Si dice mi unidad, mis hechos, mi personal, mis actividades o no menciona unidad, unidad_id = null.
+- Nunca inventes unidad_id si no está claro.
 
-MAPEO DE UNIDADES:
-- siniestros = 1
-- delegaciones = 2
-- seguridad vial = 3
-- fomento = 3
-- carreteras = 4
-- vialidades = 5
-- vialidades urbanas = 5
+REGLAS DE FECHAS:
+- Hoy = {$hoy->toDateString()}.
+- Ayer = {$ayer->toDateString()}.
+- Antier = {$antier->toDateString()}.
+- Este mes = {$inicioMes->toDateString()} al {$finMes->toDateString()}.
+- Mes anterior = {$inicioMesAnterior->toDateString()} al {$finMesAnterior->toDateString()}.
+- Este año = {$anio}-01-01 al {$anio}-12-31.
+- Si pide fecha exacta, usa fecha.
+- Si pide rango o mes completo, usa fecha_inicio y fecha_fin.
+- Si pide horas, usa hora_inicio y hora_fin en formato HH:MM:SS.
+- Si no especifica fecha, deja fecha, fecha_inicio y fecha_fin en null.
+- Si menciona un mes sin año, usa {$anio}.
 
-FORMATO DE FECHAS:
-- YYYY-MM-DD
-- horas en HH:MM:SS
+REGLAS DE FILTROS:
+- Si menciona tipo de hecho, llena tipo_hecho en mayúsculas.
+- Si menciona resuelto, pendiente, turnado o reporte, llena situacion en mayúsculas.
+- Si menciona tipo de operativo, llena tipo_operativo con el nombre en mayúsculas.
+- Si menciona tipo de puesta, llena tipo_puesta.
+- Si menciona estatus de puesta, llena estatus en mayúsculas.
+- Si menciona municipio, llena municipio.
+- Si menciona delegación por id numérico, llena delegacion_id.
+
+SINÓNIMOS DE OPERATIVOS DE CARRETERAS:
+{$sinonimosOperativos}
+
+TIPOS DE OPERATIVO VÁLIDOS EN CARRETERAS:
+{$tiposOperativos}
 
 EJEMPLOS:
-
 Usuario: cuantos hechos hay hoy
-Respuesta:
-{"accion":"contar_hechos","unidad_id":null,"id":null,"filtros":{"fecha":"2026-04-19","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null}}
+Respuesta: {"accion":"contar_hechos","unidad_id":null,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
-Usuario: dame el hecho 45
-Respuesta:
-{"accion":"detalle_hecho","unidad_id":null,"id":45,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null}}
+Usuario: dame el hecho 59564
+Respuesta: {"accion":"detalle_hecho","unidad_id":null,"id":59564,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
-Usuario: cuantos hechos hubo en enero en siniestros
-Respuesta:
-{"accion":"estadistica_hechos","unidad_id":1,"id":null,"filtros":{"fecha":null,"fecha_inicio":"2026-01-01","fecha_fin":"2026-01-31","hora_inicio":null,"hora_fin":null}}
+Usuario: dame mi personal armado
+Respuesta: {"accion":"personal_armado","unidad_id":null,"id":null,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
-Usuario: cuantos hechos hubo del 14 al 20 de febrero en siniestros
-Respuesta:
-{"accion":"estadistica_hechos","unidad_id":1,"id":null,"filtros":{"fecha":null,"fecha_inicio":"2026-02-14","fecha_fin":"2026-02-20","hora_inicio":null,"hora_fin":null}}
+Usuario: cuantas actividades hubo hoy
+Respuesta: {"accion":"actividades","unidad_id":null,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
-Usuario: dame la lista de mi personal armado
-Respuesta:
-{"accion":"personal_armado","unidad_id":null,"id":null,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null}}
+Usuario: cuantos operativos hubo hoy en carreteras
+Respuesta: {"accion":"operativos","unidad_id":4,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
-Usuario: dame la relacion de mi personal armado
-Respuesta:
-{"accion":"personal_armado","unidad_id":null,"id":null,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null}}
-
-Usuario: cuantos hechos hubo hoy de 06:00 a 12:00 en carreteras
-Respuesta:
-{"accion":"estadistica_hechos","unidad_id":4,"id":null,"filtros":{"fecha":"2026-04-19","fecha_inicio":null,"fecha_fin":null,"hora_inicio":"06:00:00","hora_fin":"12:00:00"}}
+Usuario: cuantas puestas a disposición hubo hoy
+Respuesta: {"accion":"puestas_disposicion","unidad_id":null,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: hola como estas
-Respuesta:
-{"accion":"no_valida"}
+Respuesta: {"accion":"no_valida"}
+PROMPT;
+    }
 
-Usuario: buscame en internet accidentes
-Respuesta:
-{"accion":"no_valida"}
+    protected function limpiarJson(string $text): string
+    {
+        $text = trim($text);
+        $text = preg_replace('/^```(?:json)?\s*/i', '', $text);
+        $text = preg_replace('/\s*```$/', '', $text);
 
-Usuario: genera una imagen
-Respuesta:
-{"accion":"no_valida"}
-'
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $mensaje
-                ]
-            ]
-        ]);
+        return trim((string) $text);
+    }
 
-        $data = $response->json();
-        $text = $data['output'][0]['content'][0]['text'] ?? '{"accion":"no_valida"}';
-        $decoded = json_decode($text, true);
+    protected function sinonimosOperativosPrompt(): string
+    {
+        $terminos = [
+            'operativo',
+            'operativos',
+            'dispositivo',
+            'dispositivos',
+        ];
 
-        return is_array($decoded) ? $decoded : ['accion' => 'no_valida'];
+        foreach ($this->guardianesDispositivos() as $dispositivo) {
+            $terminos[] = (string) ($dispositivo['nombre'] ?? '');
+
+            foreach ((array) ($dispositivo['aliases'] ?? []) as $alias) {
+                $terminos[] = (string) $alias;
+            }
+        }
+
+        $terminos = array_values(array_unique(array_filter(array_map('trim', $terminos))));
+
+        return '- ' . implode("\n- ", $terminos);
+    }
+
+    protected function tiposOperativosPrompt(): string
+    {
+        $tipos = [];
+
+        foreach ($this->guardianesDispositivos() as $dispositivo) {
+            $nombre = trim((string) ($dispositivo['nombre'] ?? ''));
+
+            if ($nombre !== '') {
+                $tipos[] = $nombre;
+            }
+        }
+
+        return '- ' . implode("\n- ", $tipos);
+    }
+
+    protected function guardianesDispositivos(): array
+    {
+        $dispositivos = config('guardianes_camino.dispositivos', []);
+
+        return is_array($dispositivos) ? $dispositivos : [];
+    }
+
+    protected function normalizarRespuesta(array $decoded): array
+    {
+        $accion = (string) ($decoded['accion'] ?? 'no_valida');
+
+        $accionesValidas = [
+            'contar_hechos',
+            'detalle_hecho',
+            'lista_hechos',
+            'estadistica_hechos',
+            'resumen_hechos',
+            'personal_armado',
+            'personal_activo',
+            'actividades',
+            'operativos',
+            'puestas_disposicion',
+        ];
+
+        if (!in_array($accion, $accionesValidas, true)) {
+            return $this->respuestaNoValida();
+        }
+
+        $filtros = is_array($decoded['filtros'] ?? null) ? $decoded['filtros'] : [];
+        $filtros = array_merge([
+            'fecha' => null,
+            'fecha_inicio' => null,
+            'fecha_fin' => null,
+            'hora_inicio' => null,
+            'hora_fin' => null,
+            'tipo_hecho' => null,
+            'situacion' => null,
+            'tipo_operativo' => null,
+            'tipo_puesta' => null,
+            'estatus' => null,
+            'municipio' => null,
+            'delegacion_id' => null,
+        ], $filtros);
+
+        return [
+            'accion' => $accion,
+            'unidad_id' => isset($decoded['unidad_id']) && $decoded['unidad_id'] !== ''
+                ? $decoded['unidad_id']
+                : null,
+            'id' => isset($decoded['id']) && $decoded['id'] !== ''
+                ? $decoded['id']
+                : null,
+            'filtros' => $filtros,
+        ];
+    }
+
+    protected function respuestaNoValida(): array
+    {
+        return ['accion' => 'no_valida'];
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\WhatsAppCloudService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Services\WhatsApp\WhatsAppUserResolverService;
 use App\Services\WhatsApp\WhatsAppMenuService;
@@ -19,19 +20,22 @@ class WhatsAppWebhookController extends Controller
     protected WhatsAppMenuService $menuService;
     protected WhatsAppStateService $stateService;
     protected WhatsAppQueryService $queryService;
+    protected WhatsAppCloudService $cloudService;
 
     public function __construct(
         WhatsAppInboundService $inboundService,
         WhatsAppUserResolverService $userResolverService,
         WhatsAppMenuService $menuService,
         WhatsAppStateService $stateService,
-        WhatsAppQueryService $queryService
+        WhatsAppQueryService $queryService,
+        WhatsAppCloudService $cloudService
     ) {
         $this->inboundService = $inboundService;
         $this->userResolverService = $userResolverService;
         $this->menuService = $menuService;
         $this->stateService = $stateService;
         $this->queryService = $queryService;
+        $this->cloudService = $cloudService;
     }
 
     public function verify(Request $request)
@@ -116,10 +120,10 @@ class WhatsAppWebhookController extends Controller
                 $mensajeTexto !== ''
                 && !$this->isResetCommand($mensajeTexto)
                 && !in_array(mb_strtolower($mensajeTexto, 'UTF-8'), ['1', '2', '3', '4', '5', '6'], true)
-                && !str_starts_with((string) ($input['value'] ?? ''), 'module:')
-                && !str_starts_with((string) ($input['value'] ?? ''), 'action:')
-                && !str_starts_with((string) ($input['value'] ?? ''), 'filter:')
-                && !str_starts_with((string) ($input['value'] ?? ''), 'period:')
+                && !$this->startsWith((string) ($input['value'] ?? ''), 'module:')
+                && !$this->startsWith((string) ($input['value'] ?? ''), 'action:')
+                && !$this->startsWith((string) ($input['value'] ?? ''), 'filter:')
+                && !$this->startsWith((string) ($input['value'] ?? ''), 'period:')
             ) {
                 try {
                     $openai = app(\App\Services\OpenAIService::class);
@@ -474,44 +478,15 @@ class WhatsAppWebhookController extends Controller
 
     protected function resolverConsultaOpenAI(string $from, $user, array $context, array $json): bool
     {
-        switch ($json['accion']) {
-            case 'contar_hechos':
-            case 'estadistica_hechos':
-                return $this->resolverEstadisticaHechos($from, $user, $context, $json);
+        $packet = $this->queryService->executeOpenAI($user, $context, $json);
 
-            case 'detalle_hecho':
-                return $this->resolverDetalleHecho($from, $user, $context, $json);
-
-            case 'personal_armado':
-                return $this->resolverPersonalArmado($from, $user, $context, $json);
-
-            case 'personal_activo':
-                return $this->resolverPersonalActivo($from, $user, $context, $json);
-
-            case 'estadistica_actividades':
-                return $this->resolverEstadisticaActividades($from, $user, $context, $json);
-
-            case 'lista_actividades':
-                return $this->resolverListaActividades($from, $user, $context, $json);
-
-            case 'estadistica_operativos':
-                return $this->resolverEstadisticaOperativos($from, $user, $context, $json);
-
-            case 'lista_operativos':
-                return $this->resolverListaOperativos($from, $user, $context, $json);
-
-            case 'estadistica_puestas_disposicion':
-                return $this->resolverEstadisticaPuestas($from, $user, $context, $json);
-
-            case 'lista_puestas_disposicion':
-                return $this->resolverListaPuestas($from, $user, $context, $json);
-
-            case 'detalle_puesta_disposicion':
-                return $this->resolverDetallePuesta($from, $user, $context, $json);
-
-            default:
-                return false;
+        if (!$packet) {
+            return false;
         }
+
+        $this->sendPacket($from, $packet);
+
+        return true;
     }
 
     protected function resolverUnidadConsulta($user, array $json): ?int
@@ -562,7 +537,7 @@ class WhatsAppWebhookController extends Controller
 
         $unidad = \App\Models\Unidad::find($unidadId);
 
-        return $unidad?->nombre;
+        return $unidad ? $unidad->nombre : null;
     }
 
     protected function construirLineaUnidad(?int $unidadId): string
@@ -1004,121 +979,17 @@ class WhatsAppWebhookController extends Controller
 
     protected function sendText(string $to, string $text): array
     {
-        $config = $this->getWhatsAppConfig();
-
-        if ($config['phone_number_id'] === '' || $config['token'] === '') {
-            Log::warning('WA sendText sin configuración', ['to' => $to]);
-
-            return [
-                'ok' => false,
-                'status' => 0,
-                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
-            ];
-        }
-
-        $response = Http::withToken($config['token'])
-            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
-                'messaging_product' => 'whatsapp',
-                'to' => $to,
-                'type' => 'text',
-                'text' => [
-                    'preview_url' => false,
-                    'body' => $text,
-                ],
-            ]);
-
-        $json = $response->json();
-
-        Log::info('WA sendText response', [
-            'to' => $to,
-            'status' => $response->status(),
-            'body' => $json,
-        ]);
-
-        return [
-            'ok' => $response->successful(),
-            'status' => $response->status(),
-            'body' => $json,
-        ];
+        return $this->cloudService->sendText($to, $text);
     }
 
     protected function sendInteractive(string $to, array $interactive): array
     {
-        $config = $this->getWhatsAppConfig();
-
-        if ($config['phone_number_id'] === '' || $config['token'] === '') {
-            Log::warning('WA sendInteractive sin configuración', ['to' => $to]);
-
-            return [
-                'ok' => false,
-                'status' => 0,
-                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
-            ];
-        }
-
-        $response = Http::withToken($config['token'])
-            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
-                'messaging_product' => 'whatsapp',
-                'to' => $to,
-                'type' => 'interactive',
-                'interactive' => $interactive,
-            ]);
-
-        $json = $response->json();
-
-        Log::info('WA sendInteractive response', [
-            'to' => $to,
-            'status' => $response->status(),
-            'body' => $json,
-        ]);
-
-        return [
-            'ok' => $response->successful(),
-            'status' => $response->status(),
-            'body' => $json,
-        ];
+        return $this->cloudService->sendInteractive($to, $interactive);
     }
 
     protected function sendImage(string $to, string $imageUrl): array
     {
-        $config = $this->getWhatsAppConfig();
-
-        if ($config['phone_number_id'] === '' || $config['token'] === '') {
-            Log::warning('WA sendImage sin configuración', [
-                'to' => $to,
-                'imageUrl' => $imageUrl,
-            ]);
-
-            return [
-                'ok' => false,
-                'status' => 0,
-                'body' => ['error' => 'Configuración incompleta de WhatsApp.'],
-            ];
-        }
-
-        $response = Http::withToken($config['token'])
-            ->post("https://graph.facebook.com/{$config['graph_version']}/{$config['phone_number_id']}/messages", [
-                'messaging_product' => 'whatsapp',
-                'to' => $to,
-                'type' => 'image',
-                'image' => [
-                    'link' => $imageUrl,
-                ],
-            ]);
-
-        $json = $response->json();
-
-        Log::info('WA sendImage response', [
-            'to' => $to,
-            'status' => $response->status(),
-            'body' => $json,
-        ]);
-
-        return [
-            'ok' => $response->successful(),
-            'status' => $response->status(),
-            'body' => $json,
-        ];
+        return $this->cloudService->sendImage($to, $imageUrl);
     }
 
     protected function getWhatsAppConfig(): array
@@ -1148,5 +1019,10 @@ class WhatsAppWebhookController extends Controller
         $value = mb_strtoupper(trim($value), 'UTF-8');
 
         return in_array($value, ['MENU', 'MENÚ', 'INICIO', 'HOLA', 'RESET'], true);
+    }
+
+    protected function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 }

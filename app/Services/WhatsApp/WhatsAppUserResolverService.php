@@ -23,7 +23,8 @@ class WhatsAppUserResolverService
     public function resolveContext(User $user): array
     {
         $unidadSlug = optional($user->unidad)->slug;
-        $module = $this->mapUnidadSlugToModule($unidadSlug);
+        $unidadId = $user->unidad_id ? (int) $user->unidad_id : null;
+        $module = $this->mapUnidadIdToModule($unidadId) ?: $this->mapUnidadSlugToModule($unidadSlug);
 
         if ($user->hasRole('Superadmin')) {
             return [
@@ -31,58 +32,68 @@ class WhatsAppUserResolverService
                 'modules' => [
                     'siniestros',
                     'delegaciones',
-                    'seguridad_vial',
+                    'coordinacion',
                     'carreteras',
                     'vialidades',
-                    'fomento',
                 ],
                 'default_module' => null,
                 'solo_propios' => false,
                 'unidad_slug' => $unidadSlug,
-                'unidad_id' => $user->unidad_id,
+                'unidad_id' => $unidadId,
             ];
         }
 
-        if ($user->hasRole('Coordinador') && (int) $user->unidad_id === 3) {
+        if ($user->hasRole('Coordinador') && $unidadId === 3) {
             return [
                 'acceso_total' => true,
                 'modules' => [
                     'siniestros',
                     'delegaciones',
-                    'seguridad_vial',
+                    'coordinacion',
                     'carreteras',
                     'vialidades',
-                    'fomento',
                 ],
                 'default_module' => null,
                 'solo_propios' => false,
                 'unidad_slug' => $unidadSlug,
-                'unidad_id' => $user->unidad_id,
-            ];
-        }
-
-        if ($user->hasRole('Perito')) {
-            return [
-                'acceso_total' => false,
-                'modules' => ['siniestros'],
-                'default_module' => 'siniestros',
-                'solo_propios' => true,
-                'unidad_slug' => 'siniestros',
-                'unidad_id' => 1,
+                'unidad_id' => $unidadId,
             ];
         }
 
         return [
             'acceso_total' => false,
-            'modules' => [$module],
+            'modules' => $module ? [$module] : [],
             'default_module' => $module,
             'solo_propios' => false,
             'unidad_slug' => $unidadSlug,
-            'unidad_id' => $user->unidad_id,
+            'unidad_id' => $unidadId,
         ];
     }
 
-    protected function mapUnidadSlugToModule(?string $slug): string
+    protected function mapUnidadIdToModule(?int $unidadId): ?string
+    {
+        switch ($unidadId) {
+            case 1:
+                return 'siniestros';
+
+            case 2:
+                return 'delegaciones';
+
+            case 3:
+                return 'coordinacion';
+
+            case 4:
+                return 'carreteras';
+
+            case 5:
+                return 'vialidades';
+
+            default:
+                return null;
+        }
+    }
+
+    protected function mapUnidadSlugToModule(?string $slug): ?string
     {
         switch ($slug) {
             case 'siniestros':
@@ -92,7 +103,9 @@ class WhatsAppUserResolverService
                 return 'delegaciones';
 
             case 'seguridad-vial':
-                return 'seguridad_vial';
+            case 'coordinacion':
+            case 'coordinación':
+                return 'coordinacion';
 
             case 'carreteras':
                 return 'carreteras';
@@ -101,10 +114,10 @@ class WhatsAppUserResolverService
                 return 'vialidades';
 
             case 'cultura-vial':
-                return 'fomento';
+                return null;
 
             default:
-                return 'siniestros';
+                return null;
         }
     }
 
@@ -116,10 +129,15 @@ class WhatsAppUserResolverService
             return '521' . $value;
         }
 
-        if (strlen($value) === 12 && str_starts_with($value, '52')) {
+        if (strlen($value) === 12 && $this->startsWith($value, '52')) {
             return '521' . substr($value, 2);
         }
 
         return $value;
+    }
+
+    protected function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 }

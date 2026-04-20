@@ -1,14 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\users"
+    "\\config"
   ],
+  "SelectedNode": "\\config\\guardianes_camino.php",
   "PreviewInSolutionExplorer": false
 }

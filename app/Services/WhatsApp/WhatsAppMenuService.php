@@ -388,6 +388,30 @@ class WhatsAppMenuService
     public function buildOperativoTipoMenu(?string $message = null): array
     {
         $text = $message ?: 'Selecciona el tipo de operativo o dispositivo.';
+        $rows = [];
+
+        foreach ($this->guardianesDispositivos() as $dispositivo) {
+            $nombre = (string) ($dispositivo['nombre'] ?? '');
+
+            if ($nombre === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'id' => 'filter:tipo_operativo:' . $nombre,
+                'title' => (string) ($dispositivo['titulo_menu'] ?? $nombre),
+                'description' => (string) ($dispositivo['descripcion_menu'] ?? 'Dispositivo de carreteras'),
+            ];
+        }
+
+        $sections = [];
+
+        foreach (array_chunk($rows, 10) as $index => $chunk) {
+            $sections[] = [
+                'title' => $index === 0 ? 'Dispositivos' : 'Dispositivos ' . ($index + 1),
+                'rows' => $chunk,
+            ];
+        }
 
         return [
             'text' => "{$text}\n\nPuedes escribir MENÚ para reiniciar.",
@@ -405,24 +429,7 @@ class WhatsAppMenuService
                 ],
                 'action' => [
                     'button' => 'Ver opciones',
-                    'sections' => [
-                        [
-                            'title' => 'Dispositivos',
-                            'rows' => [
-                                ['id' => 'filter:tipo_operativo:PSV', 'title' => 'PSV', 'description' => 'Puesto de Seguridad y Vigilancia'],
-                                ['id' => 'filter:tipo_operativo:RSV', 'title' => 'RSV', 'description' => 'Recorridos de Seguridad y Vigilancia'],
-                                ['id' => 'filter:tipo_operativo:CASCO', 'title' => 'CASCO', 'description' => 'Dispositivo casco'],
-                                ['id' => 'filter:tipo_operativo:CINTURÓN', 'title' => 'Cinturón', 'description' => 'Dispositivo cinturón'],
-                                ['id' => 'filter:tipo_operativo:CARRUSEL', 'title' => 'Carrusel', 'description' => 'Dispositivo carrusel'],
-                                ['id' => 'filter:tipo_operativo:CORDILLERA', 'title' => 'Cordillera', 'description' => 'Operativo cordillera'],
-                                ['id' => 'filter:tipo_operativo:ACOMPAÑAMIENTOS', 'title' => 'Acompañamientos', 'description' => 'Escoltas y caravanas'],
-                                ['id' => 'filter:tipo_operativo:ABANDERAMIENTOS', 'title' => 'Abanderamientos', 'description' => 'Eventos y siniestros'],
-                                ['id' => 'filter:tipo_operativo:AUXILIOS VIALES', 'title' => 'Auxilios viales', 'description' => 'Apoyo vial'],
-                                ['id' => 'filter:tipo_operativo:CABALLERO DEL CAMINO', 'title' => 'Caballero del camino', 'description' => 'Proximidad social'],
-                                ['id' => 'filter:tipo_operativo:ATENCIÓN A REPORTES C5', 'title' => 'Atención a reportes C5', 'description' => 'Folio atendido'],
-                            ],
-                        ],
-                    ],
+                    'sections' => $sections,
                 ],
             ],
         ];
@@ -433,7 +440,7 @@ class WhatsAppMenuService
         $value = trim((string) ($input['value'] ?? ''));
         $value = mb_strtolower($value, 'UTF-8');
 
-        if (str_starts_with($value, 'module:')) {
+        if ($this->startsWith($value, 'module:')) {
             $value = substr($value, 7);
         }
 
@@ -449,7 +456,7 @@ class WhatsAppMenuService
         $value = trim((string) ($input['value'] ?? ''));
         $value = mb_strtolower($value, 'UTF-8');
 
-        if (str_starts_with($value, 'action:')) {
+        if ($this->startsWith($value, 'action:')) {
             $value = substr($value, 7);
         }
 
@@ -472,7 +479,7 @@ class WhatsAppMenuService
             'actividades_hoy' => ['key' => 'actividades_hoy', 'requires_param' => false],
             'actividades_rango' => ['key' => 'actividades_rango', 'requires_param' => true, 'param_type' => 'rango_fechas'],
             'operativos_hoy' => ['key' => 'operativos_hoy', 'requires_param' => false],
-            'operativos_tipo' => ['key' => 'operativos_tipo', 'requires_param' => false],
+            'operativos_tipo' => ['key' => 'operativos_tipo', 'requires_param' => true, 'param_type' => 'tipo_operativo'],
             'puestas_hoy' => ['key' => 'puestas_hoy', 'requires_param' => false],
             'no_disponible' => ['key' => 'no_disponible', 'requires_param' => false],
         ];
@@ -484,7 +491,7 @@ class WhatsAppMenuService
     {
         $value = trim((string) ($input['value'] ?? ''));
 
-        if (!str_starts_with($value, 'period:')) {
+        if (!$this->startsWith($value, 'period:')) {
             return null;
         }
 
@@ -504,7 +511,7 @@ class WhatsAppMenuService
     {
         $value = trim((string) ($input['value'] ?? ''));
 
-        if (!str_starts_with($value, 'filter:')) {
+        if (!$this->startsWith($value, 'filter:')) {
             return null;
         }
 
@@ -528,6 +535,8 @@ class WhatsAppMenuService
             $text = "Escribe el ID del hecho.\n\nEjemplo:\n59564";
         } elseif ($action === 'actividades_rango') {
             $text = "Escribe el rango de fechas.\n\nEjemplo:\n2026-04-01 al 2026-04-15";
+        } elseif ($action === 'operativos_tipo') {
+            $text = "Escribe el tipo de operativo.\n\nEjemplo:\nCASCO";
         } elseif (in_array($action, [
             'estadistica_resumen_general',
             'estadistica_motocicletas',
@@ -592,5 +601,17 @@ class WhatsAppMenuService
             default:
                 return 'Consultas disponibles';
         }
+    }
+
+    protected function guardianesDispositivos(): array
+    {
+        $dispositivos = config('guardianes_camino.dispositivos', []);
+
+        return is_array($dispositivos) ? $dispositivos : [];
+    }
+
+    protected function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 }

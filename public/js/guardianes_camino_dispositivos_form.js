@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function requiereApoyoUsuario(nombreNormalizado) {
         return (
+            nombreNormalizado.includes('CABALLERO DEL CAMINO') ||
             nombreNormalizado.includes('CABALLEROS DEL CAMINO') ||
             nombreNormalizado.includes('RSV') ||
             nombreNormalizado.includes('APOYO') ||

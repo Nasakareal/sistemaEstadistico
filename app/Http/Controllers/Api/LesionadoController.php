@@ -53,6 +53,8 @@ class LesionadoController extends Controller
             $lesionadoExistente = Lesionado::where('client_uuid', $validated['client_uuid'])->first();
 
             if ($lesionadoExistente) {
+                $hecho->actualizarEstadoCaptura();
+
                 return response()->json([
                     'message' => 'Lesionado ya existente.',
                     'created' => false,
@@ -68,6 +70,8 @@ class LesionadoController extends Controller
         $validated['hecho_id'] = $hecho->id;
 
         $lesionado = Lesionado::create($validated);
+
+        $hecho->actualizarEstadoCaptura();
 
         return response()->json([
             'message' => 'Lesionado agregado correctamente.',
@@ -109,15 +113,14 @@ class LesionadoController extends Controller
 
         $lesionado->update($validated);
 
+        $hecho->actualizarEstadoCaptura();
+
         return response()->json([
             'message' => 'Lesionado actualizado correctamente.',
             'data' => $lesionado->fresh(),
         ]);
     }
 
-    /**
-     * DELETE /api/hechos/{hecho}/lesionados/{lesionado}
-     */
     public function destroy(Hechos $hecho, Lesionado $lesionado)
     {
         if (!HechoAccess::canEdit(request()->user(), $hecho)) {
@@ -129,6 +132,8 @@ class LesionadoController extends Controller
         $this->ensureBelongsToHecho($hecho, $lesionado);
 
         $lesionado->delete();
+
+        $hecho->actualizarEstadoCaptura();
 
         return response()->json([
             'message' => 'Lesionado eliminado correctamente.',

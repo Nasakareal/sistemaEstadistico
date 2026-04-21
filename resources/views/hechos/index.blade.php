@@ -7,6 +7,11 @@
 @stop
 
 @section('content')
+    @php
+        $usuario = auth()->user();
+        $puedeFiltrarUnidad = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3;
+    @endphp
+
     <div class="row">
         <div class="col-md-12">
             <div class="card card-outline card-primary">
@@ -22,8 +27,8 @@
                 <div class="card-body">
 
                     <form method="GET" action="{{ route('hechos.index') }}" class="row mb-3" autocomplete="off">
-                        <div class="col-md-4">
-                            <label for="fecha_filtro">Filtrar por fecha:</label>
+                        <div class="col-md-3">
+                            <label for="fecha_filtro">Fecha:</label>
                             <input
                                 type="date"
                                 id="fecha_filtro"
@@ -33,7 +38,19 @@
                             >
                         </div>
 
-                        <div class="col-md-8 d-flex align-items-end">
+                        @if($puedeFiltrarUnidad)
+                        <div class="col-md-3">
+                            <label>Unidad:</label>
+                            <select name="unidad_filtro" class="form-control">
+                                <option value="">Todas</option>
+                                <option value="1" {{ request('unidad_filtro') == 1 ? 'selected' : '' }}>Siniestros</option>
+                                <option value="2" {{ request('unidad_filtro') == 2 ? 'selected' : '' }}>Delegaciones</option>
+                                <option value="4" {{ request('unidad_filtro') == 4 ? 'selected' : '' }}>Carreteras</option>
+                            </select>
+                        </div>
+                        @endif
+
+                        <div class="col-md-6 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary mr-2">
                                 <i class="fa-solid fa-filter"></i> Filtrar
                             </button>
@@ -53,6 +70,7 @@
                                     <th class="text-center">Ubicación</th>
                                     <th class="text-center">Foto Lugar</th>
                                     <th class="text-center">Estado</th>
+                                    <th class="text-center">Captura</th>
                                     <th class="text-center">Relevante</th>
                                     <th class="text-center">Revisado por</th>
                                     <th class="text-center">Creado por</th>
@@ -74,7 +92,8 @@
                                             ? substr((string) $hecho->hora, 0, 5)
                                             : '';
 
-                                        $usuario = auth()->user();
+                                        $esIncompleto = !$hecho->captura_completa;
+
                                         $esUnidadSeguridadVial = (int) ($usuario->unidad_id ?? 0) === 3;
                                         $soloLecturaSeguridadVial = $esUnidadSeguridadVial;
 
@@ -89,7 +108,7 @@
                                             && ($usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador'));
                                     @endphp
 
-                                    <tr>
+                                    <tr class="{{ $esIncompleto ? 'table-danger' : '' }}">
                                         <td>{{ $hecho->id }}</td>
 
                                         <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
@@ -109,6 +128,14 @@
                                         <td>{{ $hecho->situacion }}</td>
 
                                         <td>
+                                            @if ($hecho->captura_completa)
+                                                <span class="badge badge-success">COMPLETO</span>
+                                            @else
+                                                <span class="badge badge-danger">INCOMPLETO</span>
+                                            @endif
+                                        </td>
+
+                                        <td>
                                             @if ($hecho->es_relevante)
                                                 <span class="badge badge-warning">SÍ</span>
                                             @else
@@ -125,54 +152,40 @@
                                                 @if($hecho->es_relevante)
                                                     <form action="{{ route('hechos.desmarcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
                                                         @csrf
-                                                        <button
-                                                            type="submit"
-                                                            class="btn btn-outline-danger btn-sm"
-                                                            onclick="return confirm('¿Quitar este hecho como relevante?');"
-                                                            title="Quitar relevante"
-                                                        >
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm">
                                                             <i class="fa-solid fa-star-half-stroke"></i>
                                                         </button>
                                                     </form>
                                                 @else
                                                     <form action="{{ route('hechos.marcarRelevante', $hecho->id) }}" method="POST" style="display:inline-block;">
                                                         @csrf
-                                                        <button
-                                                            type="submit"
-                                                            class="btn btn-outline-warning btn-sm"
-                                                            onclick="return confirm('¿Marcar este hecho como relevante?');"
-                                                            title="Marcar relevante"
-                                                        >
+                                                        <button type="submit" class="btn btn-outline-warning btn-sm">
                                                             <i class="fa-solid fa-star"></i>
                                                         </button>
                                                     </form>
                                                 @endif
                                             @endif
 
-                                            <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm" title="Ver">
+                                            <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
 
                                             @if($puedeEditarHecho)
-                                                <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm" title="Editar">
+                                                <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">
                                                     <i class="fa-solid fa-pencil"></i>
                                                 </a>
                                             @endif
 
-                                                <a href="{{ route('croquis.show', $hecho->id) }}" class="btn btn-primary btn-sm" title="{{ !empty($hecho->tiene_croquis) && $hecho->tiene_croquis ? 'Editar croquis' : 'Crear croquis' }}">
-                                                    <i class="fa-solid fa-draw-polygon"></i>
-                                                </a>
+                                            <a href="{{ route('croquis.show', $hecho->id) }}" class="btn btn-primary btn-sm">
+                                                <i class="fa-solid fa-draw-polygon"></i>
+                                            </a>
 
-                                            <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
+                                            <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-download"></i>
                                             </a>
 
-                                            <button
-                                                type="button"
-                                                class="btn btn-success btn-sm btn-compartir-hecho"
-                                                data-url="{{ route('hechos.compartir', $hecho->id) }}"
-                                                title="Compartir nativo por WhatsApp"
-                                            >
+                                            <button type="button" class="btn btn-success btn-sm btn-compartir-hecho"
+                                                data-url="{{ route('hechos.compartir', $hecho->id) }}">
                                                 <i class="fa-brands fa-whatsapp"></i>
                                             </button>
 
@@ -180,12 +193,7 @@
                                                 <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button
-                                                        type="submit"
-                                                        class="btn btn-danger btn-sm"
-                                                        onclick="return confirm('¿Estás seguro de eliminar este hecho?');"
-                                                        title="Eliminar"
-                                                    >
+                                                    <button type="submit" class="btn btn-danger btn-sm">
                                                         <i class="fa-solid fa-trash"></i>
                                                     </button>
                                                 </form>
@@ -197,15 +205,7 @@
                         </table>
                     </div>
 
-                    @if($hechos->isEmpty())
-                        <div class="text-center text-muted mt-3">
-                            No hay hechos para la fecha seleccionada.
-                        </div>
-                    @endif
-
-                    <div class="mt-3">
-                        {{ $hechos->links() }}
-                    </div>
+                    {{ $hechos->links() }}
                 </div>
             </div>
         </div>

@@ -158,92 +158,96 @@ class VehiculosController extends Controller
             }
         }
 
-        $vehiculo = Vehiculo::create([
-            'marca'                      => $validated['marca'],
-            'modelo'                     => $validated['modelo'] ? strtoupper($validated['modelo']) : null,
-            'tipo'                       => $validated['tipo'],
-            'linea'                      => $validated['linea'],
-            'color'                      => $validated['color'],
-            'placas'                     => $validated['placas'],
-            'estado_placas'              => $validated['estado_placas'],
-            'serie'                      => $validated['serie'],
-            'capacidad_personas'         => $validated['capacidad_personas'],
-            'tipo_servicio'              => $validated['tipo_servicio'],
-            'tarjeta_circulacion_nombre' => $validated['tarjeta_circulacion_nombre'],
-            'grua'                       => $nombreGrua,
-            'corralon'                   => $validated['corralon'] !== '' ? $validated['corralon'] : 'N/A',
-            'aseguradora'                => $validated['aseguradora'] !== '' ? $validated['aseguradora'] : null,
-            'monto_danos'                => $validated['monto_danos'],
-            'partes_danadas'             => $validated['partes_danadas'],
-            'antecedente_vehiculo'       => $validated['antecedente_vehiculo'],
-        ]);
+        DB::transaction(function () use ($validated, $hecho, $nombreGrua) {
+            $vehiculo = Vehiculo::create([
+                'marca'                      => $validated['marca'],
+                'modelo'                     => $validated['modelo'] ? strtoupper($validated['modelo']) : null,
+                'tipo'                       => $validated['tipo'],
+                'linea'                      => $validated['linea'],
+                'color'                      => $validated['color'],
+                'placas'                     => $validated['placas'],
+                'estado_placas'              => $validated['estado_placas'],
+                'serie'                      => $validated['serie'],
+                'capacidad_personas'         => $validated['capacidad_personas'],
+                'tipo_servicio'              => $validated['tipo_servicio'],
+                'tarjeta_circulacion_nombre' => $validated['tarjeta_circulacion_nombre'],
+                'grua'                       => $nombreGrua,
+                'corralon'                   => $validated['corralon'] !== '' ? $validated['corralon'] : 'N/A',
+                'aseguradora'                => $validated['aseguradora'] !== '' ? $validated['aseguradora'] : null,
+                'monto_danos'                => $validated['monto_danos'],
+                'partes_danadas'             => $validated['partes_danadas'],
+                'antecedente_vehiculo'       => $validated['antecedente_vehiculo'],
+            ]);
 
-        $hecho->vehiculos()->attach($vehiculo->id);
+            $hecho->vehiculos()->attach($vehiculo->id);
 
-        $fechaServicio = now()->format('Y-m-d H:i:s');
+            $fechaServicio = now()->format('Y-m-d H:i:s');
 
-        if (!empty($hecho->fecha)) {
-            $fechaBase = \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d');
-            $horaBase = !empty($hecho->hora)
-                ? \Carbon\Carbon::parse($hecho->hora)->format('H:i:s')
-                : '12:00:00';
+            if (!empty($hecho->fecha)) {
+                $fechaBase = \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d');
+                $horaBase = !empty($hecho->hora)
+                    ? \Carbon\Carbon::parse($hecho->hora)->format('H:i:s')
+                    : '12:00:00';
 
-            $fechaServicio = $fechaBase . ' ' . $horaBase;
-        }
-
-        if (!empty($validated['grua_id'])) {
-            $unidadId = 1;
-            $delegacionId = null;
-
-            if (!empty($hecho->delegacion_id)) {
-                $unidadId = 2;
-                $delegacionId = $hecho->delegacion_id;
+                $fechaServicio = $fechaBase . ' ' . $horaBase;
             }
 
-            DB::table('servicios')->insert([
-                'vehiculo_id'   => $vehiculo->id,
-                'grua_id'       => $validated['grua_id'],
-                'unidad_id'     => $unidadId,
-                'delegacion_id' => $delegacionId,
-                'tipo_vehiculo' => $validated['tipo'],
-                'aseguradora'   => $validated['aseguradora'],
-                'created_at'    => $fechaServicio,
-                'updated_at'    => now(),
+            if (!empty($validated['grua_id'])) {
+                $unidadId = 1;
+                $delegacionId = null;
+
+                if (!empty($hecho->delegacion_id)) {
+                    $unidadId = 2;
+                    $delegacionId = $hecho->delegacion_id;
+                }
+
+                DB::table('servicios')->insert([
+                    'vehiculo_id'   => $vehiculo->id,
+                    'grua_id'       => $validated['grua_id'],
+                    'unidad_id'     => $unidadId,
+                    'delegacion_id' => $delegacionId,
+                    'tipo_vehiculo' => $validated['tipo'],
+                    'aseguradora'   => $validated['aseguradora'],
+                    'created_at'    => $fechaServicio,
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            if (
+                !empty($validated['conductor_nombre']) ||
+                !empty($validated['telefono']) ||
+                !empty($validated['domicilio'])
+            ) {
+                $conductor = Conductor::create([
+                    'nombre'                  => $validated['conductor_nombre'],
+                    'telefono'                => $validated['telefono'] ?? null,
+                    'domicilio'               => strtoupper((string) ($validated['domicilio'] ?? '')),
+                    'sexo'                    => strtoupper((string) ($validated['sexo'] ?? '')),
+                    'ocupacion'               => strtoupper((string) ($validated['ocupacion'] ?? '')),
+                    'edad'                    => $validated['edad'] ?? null,
+                    'tipo_licencia'           => strtoupper((string) ($validated['tipo_licencia'] ?? '')),
+                    'estado_licencia'         => strtoupper((string) ($validated['estado_licencia'] ?? '')),
+                    'vigencia_licencia'       => $validated['permanente'] ? null : ($validated['vigencia_licencia'] ?? null),
+                    'numero_licencia'         => strtoupper((string) ($validated['numero_licencia'] ?? '')),
+                    'permanente'              => $validated['permanente'],
+                    'cinturon'                => $validated['cinturon'],
+                    'antecedentes'            => $validated['antecedente_conductor'],
+                    'certificado_lesiones'    => $validated['certificado_lesiones'],
+                    'certificado_alcoholemia' => $validated['certificado_alcoholemia'],
+                    'aliento_etilico'         => $validated['aliento_etilico'],
+                ]);
+
+                $vehiculo->conductores()->attach($conductor->id);
+            }
+
+            $hecho->update([
+                'danos_patrimoniales'       => strtoupper((string) ($validated['danos_patrimoniales'] ?? '')),
+                'propiedades_afectadas'     => strtoupper((string) ($validated['propiedad'] ?? '')),
+                'monto_danos_patrimoniales' => $validated['monto_danos_patrimoniales'] ?? null,
             ]);
-        }
 
-        if (
-            !empty($validated['conductor_nombre']) ||
-            !empty($validated['telefono']) ||
-            !empty($validated['domicilio'])
-        ) {
-            $conductor = Conductor::create([
-                'nombre'                  => $validated['conductor_nombre'],
-                'telefono'                => $validated['telefono'] ?? null,
-                'domicilio'               => strtoupper((string) ($validated['domicilio'] ?? '')),
-                'sexo'                    => strtoupper((string) ($validated['sexo'] ?? '')),
-                'ocupacion'               => strtoupper((string) ($validated['ocupacion'] ?? '')),
-                'edad'                    => $validated['edad'] ?? null,
-                'tipo_licencia'           => strtoupper((string) ($validated['tipo_licencia'] ?? '')),
-                'estado_licencia'         => strtoupper((string) ($validated['estado_licencia'] ?? '')),
-                'vigencia_licencia'       => $validated['permanente'] ? null : ($validated['vigencia_licencia'] ?? null),
-                'numero_licencia'         => strtoupper((string) ($validated['numero_licencia'] ?? '')),
-                'permanente'              => $validated['permanente'],
-                'cinturon'                => $validated['cinturon'],
-                'antecedentes'            => $validated['antecedente_conductor'],
-                'certificado_lesiones'    => $validated['certificado_lesiones'],
-                'certificado_alcoholemia' => $validated['certificado_alcoholemia'],
-                'aliento_etilico'         => $validated['aliento_etilico'],
-            ]);
-
-            $vehiculo->conductores()->attach($conductor->id);
-        }
-
-        $hecho->update([
-            'danos_patrimoniales'       => strtoupper((string) ($validated['danos_patrimoniales'] ?? '')),
-            'propiedades_afectadas'     => strtoupper((string) ($validated['propiedad'] ?? '')),
-            'monto_danos_patrimoniales' => $validated['monto_danos_patrimoniales'] ?? null,
-        ]);
+            $hecho->actualizarEstadoCaptura();
+        });
 
         return redirect()
             ->route('vehiculos.index', $hecho->id)
@@ -541,6 +545,8 @@ class VehiculosController extends Controller
                 'propiedades_afectadas'     => strtoupper((string)($validated['propiedad'] ?? '')),
                 'monto_danos_patrimoniales' => $validated['monto_danos_patrimoniales'] ?? null,
             ]);
+
+            $hecho->actualizarEstadoCaptura();
         });
 
         return redirect()
@@ -554,17 +560,21 @@ class VehiculosController extends Controller
             abort(404, 'El vehículo no pertenece a este hecho.');
         }
 
-        if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-            Storage::disk('public')->delete($vehiculo->fotos);
-        }
+        DB::transaction(function () use ($hecho, $vehiculo) {
+            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
+                Storage::disk('public')->delete($vehiculo->fotos);
+            }
 
-        foreach ($vehiculo->conductores as $conductor) {
-            $vehiculo->conductores()->detach($conductor->id);
-            $conductor->delete();
-        }
+            foreach ($vehiculo->conductores as $conductor) {
+                $vehiculo->conductores()->detach($conductor->id);
+                $conductor->delete();
+            }
 
-        $vehiculo->hechos()->detach();
-        $vehiculo->delete();
+            $vehiculo->hechos()->detach();
+            $vehiculo->delete();
+
+            $hecho->actualizarEstadoCaptura();
+        });
 
         return back()->with('success', 'Vehículo y conductor(es) eliminados correctamente.');
     }

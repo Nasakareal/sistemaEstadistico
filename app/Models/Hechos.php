@@ -66,6 +66,14 @@ class Hechos extends Model
         'revisado_por',
         'revisado_at',
         'observacion_revision',
+        'vehiculos_esperados',
+        'conductores_esperados',
+        'lesionados_esperados',
+        'vehiculos_capturados',
+        'conductores_capturados',
+        'lesionados_capturados',
+        'captura_completa',
+        'captura_completa_at',
     ];
 
     protected $casts = [
@@ -76,6 +84,14 @@ class Hechos extends Model
         'marcado_relevante_at' => 'datetime',
         'revisado_at' => 'datetime',
         'fecha' => 'date',
+        'vehiculos_esperados' => 'integer',
+        'conductores_esperados' => 'integer',
+        'lesionados_esperados' => 'integer',
+        'vehiculos_capturados' => 'integer',
+        'conductores_capturados' => 'integer',
+        'lesionados_capturados' => 'integer',
+        'captura_completa' => 'boolean',
+        'captura_completa_at' => 'datetime',
     ];
 
     public function vehiculos(): BelongsToMany
@@ -152,5 +168,29 @@ class Hechos extends Model
     public function getPuedeSalirEnResumenFormalAttribute(): bool
     {
         return $this->es_relevante && $this->estado_revision === 'aprobado';
+    }
+
+    public function actualizarEstadoCaptura(): void
+    {
+        $vehiculosCapturados = $this->vehiculos()->count();
+        $conductoresCapturados = \App\Models\Conductor::whereHas('vehiculos', function ($query) {
+            $query->whereHas('hechos', function ($subQuery) {
+                $subQuery->where('hechos.id', $this->id);
+            });
+        })->distinct('conductores.id')->count('conductores.id');
+        $lesionadosCapturados = $this->lesionados()->count();
+
+        $capturaCompleta =
+            $vehiculosCapturados === (int) $this->vehiculos_esperados &&
+            $conductoresCapturados === (int) $this->conductores_esperados &&
+            $lesionadosCapturados === (int) $this->lesionados_esperados;
+
+        $this->update([
+            'vehiculos_capturados' => $vehiculosCapturados,
+            'conductores_capturados' => $conductoresCapturados,
+            'lesionados_capturados' => $lesionadosCapturados,
+            'captura_completa' => $capturaCompleta,
+            'captura_completa_at' => $capturaCompleta ? now() : null,
+        ]);
     }
 }

@@ -185,6 +185,8 @@ class HechoController extends Controller
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
+        $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
 
         $reglaFolio = $usaReglasFlexibles
             ? ['nullable', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')]
@@ -218,10 +220,10 @@ class HechoController extends Controller
             'responsable' => 'nullable|string|max:255',
             'colision_camino' => 'required|string|max:255',
             'situacion' => ['required', 'string', Rule::in(self::SITUAS)],
-            'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
-            'vehiculos_mp' => 'required|integer|min:0',
-            'personas_mp' => 'required|integer|min:0',
-            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable',
+            'vehiculos_mp' => $puedeUsarDictamenes ? 'required|integer|min:0' : 'nullable|integer|min:0',
+            'personas_mp' => $puedeUsarDictamenes ? 'required|integer|min:0' : 'nullable|integer|min:0',
+            'dictamen_id' => $puedeUsarDictamenes ? 'nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'nullable',
             'danos_patrimoniales' => 'nullable|boolean',
             'propiedades_afectadas' => 'nullable|string|max:2000',
             'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
@@ -234,15 +236,43 @@ class HechoController extends Controller
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'vehiculos_esperados' => $debeCapturarTotalesEsperados ? 'required|integer|min:0' : 'nullable|integer|min:0',
+            'conductores_esperados' => $debeCapturarTotalesEsperados ? 'required|integer|min:0' : 'nullable|integer|min:0',
+            'lesionados_esperados' => $debeCapturarTotalesEsperados ? 'required|integer|min:0' : 'nullable|integer|min:0',
         ];
 
         $validator = Validator::make($request->all(), $rules, $this->messages());
 
-        $validator->after(function ($v) use ($request, $usaReglasFlexibles) {
+        $validator->after(function ($v) use ($request, $usaReglasFlexibles, $puedeUsarDictamenes, $debeCapturarTotalesEsperados) {
             $situacion = strtoupper($this->removeAccents((string) $request->input('situacion')));
 
             if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
+            }
+
+            if (!$puedeUsarDictamenes && $request->filled('dictamen_id')) {
+                $v->errors()->add('dictamen_id', 'Los dictámenes son exclusivos de siniestros.');
+            }
+
+            if (!$puedeUsarDictamenes && $situacion === 'TURNADO' && $request->filled('oficio_mp')) {
+                $v->errors()->add('oficio_mp', 'El oficio MP solo aplica para siniestros.');
+            }
+
+            if (!$puedeUsarDictamenes && $situacion === 'TURNADO' && ($request->filled('vehiculos_mp') || $request->filled('personas_mp'))) {
+                $v->errors()->add('vehiculos_mp', 'Vehículos MP y Personas MP solo aplican para siniestros.');
+            }
+
+            if ($debeCapturarTotalesEsperados) {
+                $vehiculosEsperados = (int) $request->input('vehiculos_esperados', 0);
+                $conductoresEsperados = (int) $request->input('conductores_esperados', 0);
+
+                if ($conductoresEsperados > $vehiculosEsperados) {
+                    $v->errors()->add('conductores_esperados', 'Los conductores no pueden ser mayores que los vehículos.');
+                }
+
+                if ($vehiculosEsperados === 0 && $conductoresEsperados > 0) {
+                    $v->errors()->add('vehiculos_esperados', 'No puede haber conductores si no hay vehículos.');
+                }
             }
         });
 
@@ -260,7 +290,7 @@ class HechoController extends Controller
             $validated['sector'] = $this->sectorPredeterminadoHechos($user);
         }
 
-        $dictamenId = $validated['dictamen_id'] ?? null;
+        $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
         unset($validated['dictamen_id'], $validated['foto_lugar'], $validated['foto_situacion']);
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
@@ -295,6 +325,24 @@ class HechoController extends Controller
             }
         }
 
+        if (!$debeCapturarTotalesEsperados) {
+            $validated['vehiculos_esperados'] = 0;
+            $validated['conductores_esperados'] = 0;
+            $validated['lesionados_esperados'] = 0;
+        }
+
+        $validated['vehiculos_capturados'] = 0;
+        $validated['conductores_capturados'] = 0;
+        $validated['lesionados_capturados'] = 0;
+        $validated['captura_completa'] = !$debeCapturarTotalesEsperados;
+        $validated['captura_completa_at'] = !$debeCapturarTotalesEsperados ? now() : null;
+
+        if (!$puedeUsarDictamenes) {
+            $validated['oficio_mp'] = null;
+            $validated['vehiculos_mp'] = 0;
+            $validated['personas_mp'] = 0;
+        }
+
         $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
         $validated['delegacion_id'] = $user->delegacion_id ?? null;
         $validated['created_by'] = $user->id;
@@ -313,6 +361,7 @@ class HechoController extends Controller
                 $request,
                 $validated,
                 $dictamenId,
+                $puedeUsarDictamenes,
                 &$hecho,
                 &$newFotoLugarPath,
                 &$newFotoSituacionPath
@@ -335,7 +384,9 @@ class HechoController extends Controller
                     $hecho->update($updates);
                 }
 
-                if (($validated['situacion'] ?? null) === 'TURNADO' && $dictamenId) {
+                $hecho->actualizarEstadoCaptura();
+
+                if ($puedeUsarDictamenes && ($validated['situacion'] ?? null) === 'TURNADO' && $dictamenId) {
                     $dictamen = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
 
                     if (!empty($dictamen->hecho_id) && (int) $dictamen->hecho_id !== (int) $hecho->id) {
@@ -392,6 +443,8 @@ class HechoController extends Controller
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
+        $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
 
         $reglaFolio = $usaReglasFlexibles
             ? [
@@ -436,10 +489,10 @@ class HechoController extends Controller
             'responsable' => 'sometimes|nullable|string|max:255',
             'colision_camino' => 'sometimes|required|string|max:255',
             'situacion' => ['sometimes', 'required', 'string', Rule::in(self::SITUAS)],
-            'oficio_mp' => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
-            'vehiculos_mp' => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
-            'personas_mp' => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
-            'dictamen_id' => 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'oficio_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO' : 'sometimes|nullable',
+            'vehiculos_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO' : 'sometimes|nullable|integer|min:0',
+            'personas_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO' : 'sometimes|nullable|integer|min:0',
+            'dictamen_id' => $puedeUsarDictamenes ? 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'sometimes|nullable',
             'danos_patrimoniales' => 'sometimes|nullable|boolean',
             'propiedades_afectadas' => 'sometimes|nullable|string|max:2000',
             'monto_danos_patrimoniales' => 'sometimes|nullable|numeric|min:0',
@@ -452,13 +505,16 @@ class HechoController extends Controller
             'place_id' => 'sometimes|nullable|string|max:128',
             'foto_lugar' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'vehiculos_esperados' => $debeCapturarTotalesEsperados ? 'sometimes|required|integer|min:0' : 'sometimes|nullable|integer|min:0',
+            'conductores_esperados' => $debeCapturarTotalesEsperados ? 'sometimes|required|integer|min:0' : 'sometimes|nullable|integer|min:0',
+            'lesionados_esperados' => $debeCapturarTotalesEsperados ? 'sometimes|required|integer|min:0' : 'sometimes|nullable|integer|min:0',
         ];
 
         $messages = $this->messages();
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles) {
+        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles, $puedeUsarDictamenes, $debeCapturarTotalesEsperados) {
             $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string) $request->input('situacion')))
                 : null;
@@ -481,6 +537,31 @@ class HechoController extends Controller
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
             }
+
+            if (!$puedeUsarDictamenes && $request->filled('dictamen_id')) {
+                $v->errors()->add('dictamen_id', 'Los dictámenes son exclusivos de siniestros.');
+            }
+
+            if (!$puedeUsarDictamenes && $situacionEfectiva === 'TURNADO' && $request->filled('oficio_mp')) {
+                $v->errors()->add('oficio_mp', 'El oficio MP solo aplica para siniestros.');
+            }
+
+            if (!$puedeUsarDictamenes && $situacionEfectiva === 'TURNADO' && ($request->filled('vehiculos_mp') || $request->filled('personas_mp'))) {
+                $v->errors()->add('vehiculos_mp', 'Vehículos MP y Personas MP solo aplican para siniestros.');
+            }
+
+            if ($debeCapturarTotalesEsperados) {
+                $vehiculosEsperados = $request->has('vehiculos_esperados') ? (int) $request->input('vehiculos_esperados') : (int) $hecho->vehiculos_esperados;
+                $conductoresEsperados = $request->has('conductores_esperados') ? (int) $request->input('conductores_esperados') : (int) $hecho->conductores_esperados;
+
+                if ($conductoresEsperados > $vehiculosEsperados) {
+                    $v->errors()->add('conductores_esperados', 'Los conductores no pueden ser mayores que los vehículos.');
+                }
+
+                if ($vehiculosEsperados === 0 && $conductoresEsperados > 0) {
+                    $v->errors()->add('vehiculos_esperados', 'No puede haber conductores si no hay vehículos.');
+                }
+            }
         });
 
         if ($validator->fails()) {
@@ -497,8 +578,8 @@ class HechoController extends Controller
             $validated['sector'] = $this->sectorPredeterminadoHechos($user);
         }
 
-        $dictamenId = $validated['dictamen_id'] ?? null;
-        $dictamenIdProvided = array_key_exists('dictamen_id', $validated);
+        $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
+        $dictamenIdProvided = $puedeUsarDictamenes && array_key_exists('dictamen_id', $validated);
         unset($validated['dictamen_id']);
 
         if ($request->has('checaron_antecedentes')) {
@@ -549,6 +630,12 @@ class HechoController extends Controller
             $validated['monto_danos_patrimoniales'] = null;
         }
 
+        if (!$puedeUsarDictamenes) {
+            $validated['oficio_mp'] = null;
+            $validated['vehiculos_mp'] = 0;
+            $validated['personas_mp'] = 0;
+        }
+
         $validated['updated_by'] = $user->id;
 
         unset($validated['unidad_org_id']);
@@ -565,6 +652,7 @@ class HechoController extends Controller
                 $validated,
                 $dictamenId,
                 $dictamenIdProvided,
+                $puedeUsarDictamenes,
                 &$newFotoLugarPath,
                 &$newFotoSituacionPath
             ) {
@@ -586,7 +674,7 @@ class HechoController extends Controller
 
                 $dictamenActual = $hecho->dictamen;
 
-                if ($situacion === 'TURNADO') {
+                if ($puedeUsarDictamenes && $situacion === 'TURNADO') {
                     if ($dictamenIdProvided) {
                         if ($dictamenActual && (string) $dictamenActual->id !== (string) $dictamenId) {
                             $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
@@ -635,6 +723,8 @@ class HechoController extends Controller
                 ],
             ], 422);
         }
+
+        $hecho->actualizarEstadoCaptura();
 
         if ($newFotoLugarPath && !empty($oldFotoLugar) && Storage::disk('public')->exists($oldFotoLugar)) {
             Storage::disk('public')->delete($oldFotoLugar);
@@ -844,6 +934,13 @@ class HechoController extends Controller
 
             'foto_lugar.max'        => 'La foto del lugar es muy pesada (máximo 5 MB).',
             'foto_situacion.max'    => 'La foto de situación es muy pesada (máximo 5 MB).',
+
+            'vehiculos_esperados.required' => 'Indica cuántos vehículos participaron.',
+            'vehiculos_esperados.integer' => 'En “Vehículos” solo se permiten números.',
+            'conductores_esperados.required' => 'Indica cuántos conductores participaron.',
+            'conductores_esperados.integer' => 'En “Conductores” solo se permiten números.',
+            'lesionados_esperados.required' => 'Indica cuántos lesionados hubo.',
+            'lesionados_esperados.integer' => 'En “Lesionados” solo se permiten números.',
         ];
     }
 
@@ -1108,5 +1205,27 @@ class HechoController extends Controller
         }
 
         return !$user->hasRole('Perito');
+    }
+
+    private function userCanUseDictamenes($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        return (int) ($user->unidad_id ?? 0) === 1;
+    }
+
+    private function userMustCaptureTotalesEsperados($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return (int) ($user->unidad_id ?? 0) === 2;
     }
 }

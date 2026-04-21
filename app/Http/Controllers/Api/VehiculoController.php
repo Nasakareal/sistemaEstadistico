@@ -66,6 +66,8 @@ class VehiculoController extends Controller
                         }
                     }
 
+                    $hecho->actualizarEstadoCaptura();
+
                     return response()->json([
                         'ok' => true,
                         'message' => 'Vehículo ya existente.',
@@ -137,6 +139,8 @@ class VehiculoController extends Controller
                         throw $e;
                     }
                 }
+
+                $hecho->actualizarEstadoCaptura();
 
                 return response()->json([
                     'ok' => true,
@@ -261,6 +265,8 @@ class VehiculoController extends Controller
                     }
                 }
 
+                $hecho->actualizarEstadoCaptura();
+
                 return $this->ok('Vehículo actualizado correctamente.', $vehiculo->fresh()->load('conductores'));
             });
 
@@ -297,6 +303,8 @@ class VehiculoController extends Controller
 
                 $vehiculo->conductores()->detach();
                 $vehiculo->delete();
+
+                $hecho->actualizarEstadoCaptura();
 
                 return $this->ok('Vehículo eliminado correctamente.', null);
             });

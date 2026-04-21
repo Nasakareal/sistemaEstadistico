@@ -20,22 +20,11 @@ class MapaPatrullasController extends Controller
 
     private function applyVisibility(User $actor, $query, bool $subdirectorSeesAllTurns = false)
     {
-        if ($this->roleIs($actor,'Superadmin') || $this->roleIs($actor,'Administrador')) return $query;
-
-        if ($this->roleIs($actor,'Subdirector')) {
-            if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
-            else $query->whereRaw('1=0');
-            return $query;
-        }
-
-        if ($this->roleIs($actor,'Jefe de Grupo')) {
-            if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
-            if ($actor->turno_id) $query->where('users.turno_id',$actor->turno_id);
-            return $query;
-        }
+        if ($this->roleIs($actor,'Superadmin')) return $query;
 
         if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
-        if ($actor->turno_id) $query->where('users.turno_id',$actor->turno_id);
+        else $query->whereRaw('1=0');
+
         return $query;
     }
 

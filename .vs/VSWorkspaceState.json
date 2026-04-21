@@ -3,7 +3,10 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos"
   ],
   "PreviewInSolutionExplorer": false
 }

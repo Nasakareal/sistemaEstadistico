@@ -46,6 +46,7 @@ class HechosController extends Controller
         $hechos->getCollection()->transform(function ($hecho) use ($usuario) {
             $hecho->puede_editar = $this->userCanEditHecho($usuario, $hecho);
             $hecho->tiene_croquis = !is_null($hecho->croquis);
+            $hecho->estado_captura = $hecho->captura_completa ? 'COMPLETO' : 'INCOMPLETO';
             return $hecho;
         });
 
@@ -82,7 +83,7 @@ class HechosController extends Controller
             ? 'nullable|string|max:100'
             : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
 
-        $validated = $request->validate([
+        $rules = [
             'folio_c5i' => $reglaFolio,
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
@@ -121,7 +122,15 @@ class HechosController extends Controller
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-        ]);
+        ];
+
+        if ((int) ($usuario->unidad_id ?? 0) === 2) {
+            $rules['vehiculos_esperados'] = 'required|integer|min:0';
+            $rules['conductores_esperados'] = 'required|integer|min:0';
+            $rules['lesionados_esperados'] = 'required|integer|min:0';
+        }
+
+        $validated = $request->validate($rules);
 
         if (empty($validated['folio_c5i'])) {
             $validated['folio_c5i'] = null;
@@ -140,6 +149,7 @@ class HechosController extends Controller
         }
 
         $situacion = (string) ($validated['situacion'] ?? '');
+
         if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -176,6 +186,8 @@ class HechosController extends Controller
         unset($validated['dictamen_id']);
 
         $hecho = Hechos::create($validated);
+
+        $hecho->actualizarEstadoCaptura();
 
         app(HechoRevisionNotificationService::class)->notificarJefesDeGrupoPorHechoPendiente($hecho);
 
@@ -339,7 +351,7 @@ class HechosController extends Controller
             ? 'nullable|string|max:100'
             : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
 
-        $validated = $request->validate([
+        $rules = [
             'folio_c5i' => $reglaFolio,
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
@@ -378,7 +390,15 @@ class HechosController extends Controller
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-        ]);
+        ];
+
+        if ((int) ($usuario->unidad_id ?? 0) === 2) {
+            $rules['vehiculos_esperados'] = 'required|integer|min:0';
+            $rules['conductores_esperados'] = 'required|integer|min:0';
+            $rules['lesionados_esperados'] = 'required|integer|min:0';
+        }
+
+        $validated = $request->validate($rules);
 
         if (empty($validated['folio_c5i'])) {
             $validated['folio_c5i'] = null;
@@ -471,6 +491,8 @@ class HechosController extends Controller
         unset($validated['dictamen_id']);
 
         $hecho->update($validated);
+
+        $hecho->actualizarEstadoCaptura();
 
         $dictamenActual = $hecho->dictamen;
 

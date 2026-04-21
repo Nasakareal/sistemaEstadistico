@@ -15,27 +15,12 @@ class MapaPatrullasController extends Controller
         $usersQuery = User::query()
             ->where('compartir_ubicacion', 1);
 
-        if ($actor->hasRole('Superadmin') || $actor->hasRole('Administrador')) {
-        } elseif ($actor->hasRole('Subdirector')) {
-            if ($actor->unidad_id) {
-                $usersQuery->where('unidad_id', $actor->unidad_id);
-            } else {
-                $usersQuery->whereRaw('1=0');
-            }
-        } elseif ($actor->hasRole('Jefe de Grupo')) {
-            if ($actor->unidad_id) {
-                $usersQuery->where('unidad_id', $actor->unidad_id);
-            }
-            if ($actor->turno_id) {
-                $usersQuery->where('turno_id', $actor->turno_id);
-            }
+        if ($actor->hasRole('Superadmin')) {
+            // Superadmin keeps the global view; every other role is scoped to its unit.
+        } elseif ($actor->unidad_id) {
+            $usersQuery->where('unidad_id', $actor->unidad_id);
         } else {
-            if ($actor->unidad_id) {
-                $usersQuery->where('unidad_id', $actor->unidad_id);
-            }
-            if ($actor->turno_id) {
-                $usersQuery->where('turno_id', $actor->turno_id);
-            }
+            $usersQuery->whereRaw('1=0');
         }
 
         $userIds = $usersQuery->pluck('id');

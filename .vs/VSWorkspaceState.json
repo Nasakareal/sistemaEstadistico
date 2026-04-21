@@ -1,10 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\hechos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\resources\\views\\hechos\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

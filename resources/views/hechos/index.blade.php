@@ -92,7 +92,9 @@
                                             ? substr((string) $hecho->hora, 0, 5)
                                             : '';
 
-                                        $esIncompleto = !$hecho->captura_completa;
+                                        $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+                                        $mostrarCaptura = $unidadReal === 2;
+                                        $esIncompletoDelegaciones = $mostrarCaptura && !$hecho->captura_completa;
 
                                         $esUnidadSeguridadVial = (int) ($usuario->unidad_id ?? 0) === 3;
                                         $soloLecturaSeguridadVial = $esUnidadSeguridadVial;
@@ -108,7 +110,7 @@
                                             && ($usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador'));
                                     @endphp
 
-                                    <tr class="{{ $esIncompleto ? 'table-danger' : '' }}">
+                                    <tr class="{{ $esIncompletoDelegaciones ? 'table-danger' : '' }}">
                                         <td>{{ $hecho->id }}</td>
 
                                         <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
@@ -128,10 +130,14 @@
                                         <td>{{ $hecho->situacion }}</td>
 
                                         <td>
-                                            @if ($hecho->captura_completa)
-                                                <span class="badge badge-success">COMPLETO</span>
+                                            @if ($mostrarCaptura)
+                                                @if ($hecho->captura_completa)
+                                                    <span class="badge badge-success">COMPLETO</span>
+                                                @else
+                                                    <span class="badge badge-danger">INCOMPLETO</span>
+                                                @endif
                                             @else
-                                                <span class="badge badge-danger">INCOMPLETO</span>
+                                                <span class="text-muted">—</span>
                                             @endif
                                         </td>
 

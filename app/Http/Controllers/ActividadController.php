@@ -172,25 +172,26 @@ class ActividadController extends Controller
             'vehiculos.*.partes_danadas'     => 'nullable|string',
         ]);
 
-        $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
+        $user = Auth::user();
+
+        $validated['nombre'] = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $validated['cantidad'] = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
-            $ok = ActividadSubcategoria::query()
-                ->where('id', $validated['actividad_subcategoria_id'])
-                ->where('actividad_categoria_id', $validated['actividad_categoria_id'])
-                ->exists();
+            $ok = $this->subcategoriaPermitidaParaUsuario(
+                (int) $validated['actividad_categoria_id'],
+                (int) $validated['actividad_subcategoria_id'],
+                $user
+            );
 
             if (!$ok) {
                 return back()->withErrors([
-                    'actividad_subcategoria_id' => 'La subcategoría no pertenece a la categoría seleccionada.',
+                    'actividad_subcategoria_id' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
                 ])->withInput();
             }
         }
 
-        return DB::transaction(function () use ($request, $validated) {
-            $user = Auth::user();
-
+        return DB::transaction(function () use ($request, $validated, $user) {
             $actividad = Actividad::create([
                 'client_uuid'                   => (string) Str::uuid(),
                 'sync_status'                   => 'local',
@@ -324,11 +325,10 @@ class ActividadController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $subcategorias = ActividadSubcategoria::query()
-            ->where('actividad_categoria_id', $actividad->actividad_categoria_id)
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get();
+        $subcategorias = $this->obtenerSubcategoriasDisponibles(
+            (int) $actividad->actividad_categoria_id,
+            $usuario
+        );
 
         $actividad->load('vehiculos');
 
@@ -377,34 +377,33 @@ class ActividadController extends Controller
             'fotos.*'                        => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
-        $validated['nombre'] = mb_strtoupper((string) (Auth::user()->name ?? ''), 'UTF-8');
+        $validated['nombre'] = mb_strtoupper((string) ($usuario->name ?? ''), 'UTF-8');
         $validated['cantidad'] = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
-            $ok = ActividadSubcategoria::query()
-                ->where('id', $validated['actividad_subcategoria_id'])
-                ->where('actividad_categoria_id', $validated['actividad_categoria_id'])
-                ->exists();
+            $ok = $this->subcategoriaPermitidaParaUsuario(
+                (int) $validated['actividad_categoria_id'],
+                (int) $validated['actividad_subcategoria_id'],
+                $usuario
+            );
 
             if (!$ok) {
                 return back()->withErrors([
-                    'actividad_subcategoria_id' => 'La subcategoría no pertenece a la categoría seleccionada.',
+                    'actividad_subcategoria_id' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
                 ])->withInput();
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $actividad) {
-            $user = Auth::user();
-
+        return DB::transaction(function () use ($request, $validated, $actividad, $usuario) {
             $actividad->update([
                 'sync_status'                   => $actividad->sync_status ?: 'local',
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
                 'nombre'                        => $validated['nombre'],
                 'cantidad'                      => 1,
-                'updated_by'                    => $user->id,
-                'unidad_org_id'                 => $actividad->unidad_org_id ?? $user->unidad_id,
-                'delegacion_id'                 => $actividad->delegacion_id ?? $user->delegacion_id,
+                'updated_by'                    => $usuario->id,
+                'unidad_org_id'                 => $actividad->unidad_org_id ?? $usuario->unidad_id,
+                'delegacion_id'                 => $actividad->delegacion_id ?? $usuario->delegacion_id,
                 'destacamento_id'               => $validated['destacamento_id'] ?? null,
                 'fecha'                         => $validated['fecha'],
                 'hora'                          => $validated['hora'] ?? null,
@@ -453,8 +452,8 @@ class ActividadController extends Controller
                         'foto_nombre_original' => $file->getClientOriginalName(),
                         'foto_hash'            => $fotoHash,
                         'orden'                => $ordenBase + $index,
-                        'created_by'           => $user->id,
-                        'updated_by'           => $user->id,
+                        'created_by'           => $usuario->id,
+                        'updated_by'           => $usuario->id,
                     ]);
                 }
             }
@@ -509,13 +508,59 @@ class ActividadController extends Controller
 
     public function subcategorias(ActividadCategoria $categoria)
     {
-        $items = ActividadSubcategoria::query()
-            ->where('actividad_categoria_id', $categoria->id)
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre']);
+        $usuario = Auth::user();
+
+        $items = $this->obtenerSubcategoriasDisponibles((int) $categoria->id, $usuario)
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'nombre' => $item->nombre,
+                ];
+            })
+            ->values();
 
         return response()->json($items);
+    }
+
+    private function obtenerSubcategoriasDisponibles(int $categoriaId, $usuario)
+    {
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $query = ActividadSubcategoria::query()
+            ->where('actividad_categoria_id', $categoriaId)
+            ->where('activo', 1);
+
+        if ($categoriaId === 10 && $unidadId === 2) {
+            $query->where('unidad_id', 2);
+        } else {
+            $query->where(function ($q) use ($unidadId) {
+                $q->whereNull('unidad_id')
+                  ->orWhere('unidad_id', $unidadId);
+            });
+        }
+
+        return $query->orderBy('nombre')->get();
+    }
+
+    private function subcategoriaPermitidaParaUsuario(int $categoriaId, int $subcategoriaId, $usuario): bool
+    {
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $query = ActividadSubcategoria::query()
+            ->where('id', $subcategoriaId)
+            ->where('actividad_categoria_id', $categoriaId)
+            ->where('activo', 1);
+
+        if ($categoriaId === 10 && $unidadId === 2) {
+            $query->where('unidad_id', 2);
+        } else {
+            $query->where(function ($q) use ($unidadId) {
+                $q->whereNull('unidad_id')
+                  ->orWhere('unidad_id', $unidadId);
+            });
+        }
+
+        return $query->exists();
     }
 
     private function buildQuery(Request $request, Carbon $inicioDia, Carbon $finDia)

@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers"
   ],
+  "SelectedNode": "\\app\\Http\\Controllers\\ActividadController.php",
   "PreviewInSolutionExplorer": false
 }

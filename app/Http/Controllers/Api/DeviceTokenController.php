@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DeviceToken;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class DeviceTokenController extends Controller
@@ -26,16 +27,30 @@ class DeviceTokenController extends Controller
 
         $user = $request->user();
 
-        DeviceToken::query()->updateOrCreate(
-            [
-                'user_id' => (int) $user->id,
-                'platform' => (string) $request->input('platform'),
-            ],
-            [
-                'token' => (string) $request->input('token'),
-                'last_seen_at' => Carbon::now('America/Mexico_City'),
-            ]
-        );
+        $token = (string) $request->input('token');
+        $platform = (string) $request->input('platform');
+        $now = Carbon::now('America/Mexico_City');
+
+        DB::transaction(function () use ($user, $token, $platform, $now) {
+            DeviceToken::query()
+                ->where('user_id', (int) $user->id)
+                ->where('platform', $platform)
+                ->where('token', '!=', $token)
+                ->delete();
+
+            DB::table('device_tokens')->upsert(
+                [[
+                    'user_id' => (int) $user->id,
+                    'token' => $token,
+                    'platform' => $platform,
+                    'last_seen_at' => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]],
+                ['token'],
+                ['user_id', 'platform', 'last_seen_at', 'updated_at']
+            );
+        });
 
         return response()->json([
             'message' => 'Token registrado.',

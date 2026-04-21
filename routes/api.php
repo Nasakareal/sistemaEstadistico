@@ -158,21 +158,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hechos', [HechoController::class, 'index'])->middleware('can:ver hechos');
     Route::post('/hechos', [HechoController::class, 'store'])->middleware('can:crear hechos');
     Route::get('/hechos/{hecho}', [HechoController::class, 'show'])->middleware('can:ver hechos');
-    Route::put('/hechos/{hecho}', [HechoController::class, 'update'])->middleware('can:editar hechos');
+    Route::put('/hechos/{hecho}', [HechoController::class, 'update']);
     Route::delete('/hechos/{hecho}', [HechoController::class, 'destroy'])->middleware('can:eliminar hechos');
-    Route::post('/hechos/{hecho}/descargo', [HechoController::class, 'subirDescargo'])->middleware('can:editar hechos');
+    Route::post('/hechos/{hecho}/descargo', [HechoController::class, 'subirDescargo']);
     Route::get('/hechos/{hecho}/native-share', [HechoController::class, 'nativeShare'])->middleware('can:ver hechos');
     Route::get('/hechos/{hecho}/whatsapp-link', [HechoController::class, 'whatsappLink'])->middleware('can:ver hechos');
 
-    Route::get('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'index'])->middleware('can:ver vehiculos');
-    Route::post('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'store'])->middleware('can:crear vehiculos');
-    Route::post('/vehiculos', [VehiculoController::class, 'store'])->middleware('can:crear vehiculos');
-    Route::get('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'show'])->middleware('can:ver vehiculos');
-    Route::put('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'update'])->middleware('can:editar vehiculos');
-    Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'destroy'])->middleware('can:eliminar vehiculos');
-    Route::get('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'foto'])->middleware('can:editar vehiculos');
-    Route::post('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoUpdate'])->middleware('can:editar vehiculos');
-    Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoDestroy'])->middleware('can:editar vehiculos');
+    Route::get('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'index']);
+    Route::post('/hechos/{hecho}/vehiculos', [VehiculoController::class, 'store']);
+    Route::post('/vehiculos', [VehiculoController::class, 'store']);
+    Route::get('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'show']);
+    Route::put('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'update']);
+    Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}', [VehiculoController::class, 'destroy']);
+    Route::get('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'foto']);
+    Route::post('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoUpdate']);
+    Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoDestroy']);
 
     Route::get('/hechos/{hecho}/lesionados', [LesionadoController::class, 'index'])->middleware('can:ver lesionados');
     Route::post('/hechos/{hecho}/lesionados', [LesionadoController::class, 'store'])->middleware('can:crear lesionados');
@@ -182,9 +182,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'destroy'])->middleware('can:eliminar lesionados');
 
     Route::get('/hechos/{hecho}/croquis', [CroquisController::class, 'show'])->middleware('can:ver hechos');
-    Route::post('/hechos/{hecho}/croquis', [CroquisController::class, 'store'])->middleware('can:editar hechos');
-    Route::put('/hechos/{hecho}/croquis', [CroquisController::class, 'update'])->middleware('can:editar hechos');
-    Route::delete('/hechos/{hecho}/croquis', [CroquisController::class, 'destroy'])->middleware('can:editar hechos');
+    Route::post('/hechos/{hecho}/croquis', [CroquisController::class, 'store']);
+    Route::put('/hechos/{hecho}/croquis', [CroquisController::class, 'update']);
+    Route::delete('/hechos/{hecho}/croquis', [CroquisController::class, 'destroy']);
 
     Route::post('/location', [LocationController::class, 'store']);
     Route::get('/location/last', [LocationController::class, 'last']);

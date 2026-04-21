@@ -29,6 +29,16 @@ class HechoAccess
         'eliminar lesionados',
     ];
 
+    private const PERMISOS_SINIESTROS_CAPTURA_PROPIA = [
+        'ver busqueda',
+        'ver hechos',
+        'editar hechos',
+        'ver vehiculos',
+        'crear vehiculos',
+        'editar vehiculos',
+        'eliminar vehiculos',
+    ];
+
     private const PERMISOS_CARRETERAS = [
         'ver operativos carreteras',
         'crear operativos carreteras',
@@ -60,6 +70,15 @@ class HechoAccess
     public static function filterPermissionsForUser($permissions, $usuario)
     {
         $permissions = collect($permissions)->values();
+
+        if ($usuario && (int) ($usuario->unidad_id ?? 0) === 1 && self::canUseHechosModule($usuario)) {
+            $permissions = $permissions
+                ->merge(self::PERMISOS_SINIESTROS_CAPTURA_PROPIA)
+                ->unique(function ($permission) {
+                    return mb_strtolower(trim((string) $permission), 'UTF-8');
+                })
+                ->values();
+        }
 
         if (!$usuario || $usuario->hasRole('Superadmin')) {
             return $permissions;
@@ -187,6 +206,10 @@ class HechoAccess
             }
 
             if ($usuario->hasRole('Perito')) {
+                if ((int) $usuario->id === (int) ($hecho->created_by ?? 0)) {
+                    return true;
+                }
+
                 $nombreUsuario = strtoupper(self::removeAccents(trim((string) ($usuario->name ?? ''))));
                 $nombrePeritoHecho = strtoupper(self::removeAccents(trim((string) ($hecho->perito ?? ''))));
 

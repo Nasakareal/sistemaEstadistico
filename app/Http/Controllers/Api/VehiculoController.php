@@ -108,6 +108,8 @@ class VehiculoController extends Controller
                         'client_uuid' => $validated['servicio_client_uuid'] ?? null,
                         'vehiculo_id' => $vehiculo->id,
                         'grua_id' => $validated['grua_id'],
+                        'unidad_id' => $this->servicioUnidadId($hecho),
+                        'delegacion_id' => $this->servicioDelegacionId($hecho),
                         'tipo_vehiculo' => $validated['tipo'],
                         'aseguradora' => $validated['aseguradora'] ?? '',
                         'created_at' => now(),
@@ -219,7 +221,7 @@ class VehiculoController extends Controller
                 return $this->validationFailed($dupErrors, 'Duplicado dentro del hecho. Revisa los campos marcados.', 409);
             }
 
-            return DB::transaction(function () use ($validated, $vehiculo) {
+            return DB::transaction(function () use ($validated, $vehiculo, $hecho) {
                 $payload = $this->onlyVehiculoForUpdate($validated);
                 $vehiculo->update($payload);
 
@@ -228,6 +230,8 @@ class VehiculoController extends Controller
                         ['vehiculo_id' => $vehiculo->id],
                         [
                             'grua_id'       => $validated['grua_id'],
+                            'unidad_id'     => $this->servicioUnidadId($hecho),
+                            'delegacion_id' => $this->servicioDelegacionId($hecho),
                             'tipo_vehiculo' => $validated['tipo'],
                             'aseguradora'   => $validated['aseguradora'] ?? '',
                             'updated_at'    => now(),
@@ -755,6 +759,20 @@ class VehiculoController extends Controller
             'vigencia_licencia' => 'vigencia de licencia',
             'numero_licencia' => 'número de licencia',
         ];
+    }
+
+    private function servicioUnidadId(Hechos $hecho): ?int
+    {
+        $unidadId = (int) ($hecho->unidad_org_id ?? $hecho->unidad_id ?? 0);
+
+        return $unidadId > 0 ? $unidadId : null;
+    }
+
+    private function servicioDelegacionId(Hechos $hecho): ?int
+    {
+        $delegacionId = (int) ($hecho->delegacion_id ?? 0);
+
+        return $delegacionId > 0 ? $delegacionId : null;
     }
 
     private function ok(string $message, $data)

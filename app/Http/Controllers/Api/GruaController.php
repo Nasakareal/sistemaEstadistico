@@ -20,7 +20,10 @@ class GruaController extends Controller
         $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at'])
             ->with('unidades:id,nombre,slug')
-            ->withCount('servicios as total_servicios')
+            ->with('delegaciones:id,clave,nombre,municipio')
+            ->withCount(['servicios as total_servicios' => function ($q) use ($request) {
+                $this->applyServiciosRequestScope($q, $request);
+            }])
             ->orderBy('nombre')
             ->get();
 
@@ -34,7 +37,10 @@ class GruaController extends Controller
         $grua = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at', 'updated_at'])
             ->with('unidades:id,nombre,slug')
-            ->withCount('servicios as total_servicios')
+            ->with('delegaciones:id,clave,nombre,municipio')
+            ->withCount(['servicios as total_servicios' => function ($q) use ($request) {
+                $this->applyServiciosRequestScope($q, $request);
+            }])
             ->findOrFail($id);
 
         return response()->json([
@@ -48,6 +54,7 @@ class GruaController extends Controller
 
         $gruas = $this->visibleGruasQuery($request)
             ->with('unidades:id,nombre,slug')
+            ->with('delegaciones:id,clave,nombre,municipio')
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('nombre', 'like', "%{$q}%")
@@ -61,6 +68,53 @@ class GruaController extends Controller
 
         return response()->json([
             'data' => $gruas,
+        ]);
+    }
+
+    public function delegaciones(Request $request)
+    {
+        $query = Delegacion::query()
+            ->select(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
+            ->where('activa', 1);
+
+        $usuario = $request->user();
+        if (!$this->tieneAccesoGlobal($usuario)) {
+            if ((int) ($usuario->unidad_id ?? 0) !== self::UNIDAD_DELEGACIONES_ID) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $delegacionIds = $this->delegacionIdsVisibles($usuario);
+                if (!empty($delegacionIds)) {
+                    $query->whereIn('id', $delegacionIds);
+                }
+            }
+        }
+
+        $delegaciones = $query
+            ->where(function ($q) {
+                $q->whereHas('gruas')
+                    ->orWhereExists(function ($qq) {
+                        $qq->selectRaw('1')
+                            ->from('servicios')
+                            ->whereColumn('servicios.delegacion_id', 'delegaciones.id')
+                            ->where('servicios.unidad_id', self::UNIDAD_DELEGACIONES_ID);
+                    });
+            })
+            ->orderBy('nombre')
+            ->get()
+            ->map(function (Delegacion $delegacion) {
+                return [
+                    'id' => (int) $delegacion->id,
+                    'clave' => $delegacion->clave,
+                    'nombre' => $delegacion->nombre,
+                    'nombre_con_clave' => $delegacion->nombre_con_clave,
+                    'municipio' => $delegacion->municipio,
+                    'delegacion_padre_id' => $delegacion->delegacion_padre_id ? (int) $delegacion->delegacion_padre_id : null,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'data' => $delegaciones,
         ]);
     }
 
@@ -79,8 +133,11 @@ class GruaController extends Controller
             ->whereBetween('created_at', [$fromDate, $toDate])
             ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
                 $q->whereIn('grua_id', $gruasIds);
-            })
-            ->groupBy('grua_id');
+            });
+
+        $this->applyServiciosRequestScope($serviciosSub, $request);
+
+        $serviciosSub->groupBy('grua_id');
 
         $rows = $this->visibleGruasQuery($request)
             ->leftJoinSub($serviciosSub, 'ss', function ($join) {
@@ -135,7 +192,11 @@ class GruaController extends Controller
                 DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
-            ->whereIn('grua_id', $allowedGruaIds)
+            ->whereIn('grua_id', $allowedGruaIds);
+
+        $this->applyServiciosRequestScope($servicios, $request);
+
+        $servicios = $servicios
             ->groupBy('grua_id')
             ->get();
 
@@ -147,43 +208,41 @@ class GruaController extends Controller
             ];
         }
 
-        $allowedGruaNames = $gruas
-            ->pluck('nombre')
-            ->filter()
-            ->values()
-            ->all();
+        $tipoExpr = "COALESCE(NULLIF(s.tipo_vehiculo, ''), NULLIF(v.tipo, ''))";
 
-        $tipos = DB::table('vehiculos')
+        $tipos = DB::table('servicios as s')
+            ->leftJoin('vehiculos as v', 'v.id', '=', 's.vehiculo_id')
             ->select([
-                'grua',
-                'tipo',
+                's.grua_id',
+                DB::raw("{$tipoExpr} as tipo"),
                 DB::raw('COUNT(*) as c'),
             ])
-            ->whereBetween('created_at', [$fromDate, $toDate])
-            ->whereIn('grua', $allowedGruaNames)
-            ->whereNotNull('grua')
-            ->where('grua', '<>', 'N/A')
-            ->where('grua', '<>', '')
-            ->whereNotNull('tipo')
-            ->where('tipo', '<>', '')
-            ->groupBy('grua', 'tipo')
-            ->orderBy('grua')
+            ->whereBetween('s.created_at', [$fromDate, $toDate])
+            ->whereIn('s.grua_id', $allowedGruaIds);
+
+        $this->applyServiciosRequestScope($tipos, $request, 's');
+
+        $tipos = $tipos
+            ->whereRaw("{$tipoExpr} IS NOT NULL")
+            ->groupBy('s.grua_id')
+            ->groupByRaw($tipoExpr)
+            ->orderBy('s.grua_id')
             ->orderByDesc('c')
             ->get();
 
-        $topTipoByNombre = [];
+        $topTipoByGruaId = [];
         foreach ($tipos as $t) {
-            $nombreGrua = (string) $t->grua;
+            $gruaId = (int) $t->grua_id;
             $tipo = (string) $t->tipo;
             $c = (int) $t->c;
 
-            if (!isset($topTipoByNombre[$nombreGrua])) {
-                $topTipoByNombre[$nombreGrua] = ['tipo' => $tipo, 'c' => $c];
+            if (!isset($topTipoByGruaId[$gruaId])) {
+                $topTipoByGruaId[$gruaId] = ['tipo' => $tipo, 'c' => $c];
                 continue;
             }
 
-            if ($c > $topTipoByNombre[$nombreGrua]['c']) {
-                $topTipoByNombre[$nombreGrua] = ['tipo' => $tipo, 'c' => $c];
+            if ($c > $topTipoByGruaId[$gruaId]['c']) {
+                $topTipoByGruaId[$gruaId] = ['tipo' => $tipo, 'c' => $c];
             }
         }
 
@@ -193,7 +252,7 @@ class GruaController extends Controller
             $nombre = (string) $g->nombre;
 
             $serv = $byGruaId[$id] ?? ['servicios_count' => 0, 'fecha_ultimo_servicio' => null];
-            $tipoTop = $topTipoByNombre[$nombre]['tipo'] ?? null;
+            $tipoTop = $topTipoByGruaId[$id]['tipo'] ?? null;
 
             $data[] = [
                 'id' => $id,
@@ -241,7 +300,11 @@ class GruaController extends Controller
                 DB::raw('MAX(created_at) as fecha_ultimo_servicio'),
             ])
             ->whereBetween('created_at', [$fromDate, $toDate])
-            ->whereIn('grua_id', $allowedGruaIds)
+            ->whereIn('grua_id', $allowedGruaIds);
+
+        $this->applyServiciosRequestScope($serviciosAgg, $request);
+
+        $serviciosAgg = $serviciosAgg
             ->groupBy('grua_id')
             ->get();
 
@@ -270,6 +333,8 @@ class GruaController extends Controller
                 's.id as servicio_id',
                 's.created_at as fecha_servicio',
                 's.vehiculo_id',
+                's.unidad_id',
+                's.delegacion_id',
                 'hv.hecho_id as hecho_id',
                 's.tipo_vehiculo',
                 's.aseguradora',
@@ -280,7 +345,11 @@ class GruaController extends Controller
                 'v.color',
             ])
             ->whereBetween('s.created_at', [$fromDate, $toDate])
-            ->whereIn('s.grua_id', $allowedGruaIds)
+            ->whereIn('s.grua_id', $allowedGruaIds);
+
+        $this->applyServiciosRequestScope($detalle, $request, 's');
+
+        $detalle = $detalle
             ->orderBy('s.grua_id')
             ->orderByDesc('s.created_at')
             ->get();
@@ -300,6 +369,8 @@ class GruaController extends Controller
                 'servicio_id' => (int) $d->servicio_id,
                 'fecha_servicio' => $d->fecha_servicio,
                 'vehiculo_id' => $d->vehiculo_id ? (int) $d->vehiculo_id : null,
+                'unidad_id' => $d->unidad_id ? (int) $d->unidad_id : null,
+                'delegacion_id' => $d->delegacion_id ? (int) $d->delegacion_id : null,
                 'hecho_id' => $d->hecho_id ? (int) $d->hecho_id : null,
                 'placas' => $d->placas,
                 'marca' => $d->marca,
@@ -349,17 +420,26 @@ class GruaController extends Controller
 
     private function applyRequestedUnidadScope($query, Request $request): void
     {
-        $unidadId = (int) $request->query('unidad_id', 0);
+        $unidadId = $this->requestedUnidadId($request);
         if ($unidadId <= 0) {
             return;
         }
 
         if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
+            $delegacionIds = $this->effectiveDelegacionIds($request);
+
             $query->where(function ($q) use ($unidadId) {
                 $q->whereHas('unidades', function ($qq) use ($unidadId) {
                     $qq->where('unidades.id', $unidadId);
                 })->orWhereHas('delegaciones');
             });
+
+            if (!empty($delegacionIds)) {
+                $query->whereHas('delegaciones', function ($q) use ($delegacionIds) {
+                    $q->whereIn('delegaciones.id', $delegacionIds);
+                });
+            }
+
             return;
         }
 
@@ -377,7 +457,7 @@ class GruaController extends Controller
 
         $unidadId = (int) ($usuario->unidad_id ?? 0);
 
-        if ($usuario->hasRole('Superadmin') || $unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+        if ($this->tieneAccesoGlobal($usuario)) {
             return;
         }
 
@@ -410,6 +490,86 @@ class GruaController extends Controller
         }
 
         $query->whereRaw('1 = 0');
+    }
+
+    private function applyServiciosRequestScope($query, Request $request, string $alias = ''): void
+    {
+        $col = function (string $column) use ($alias): string {
+            return $alias !== '' ? "{$alias}.{$column}" : $column;
+        };
+
+        $unidadId = $this->requestedUnidadId($request);
+        if ($unidadId > 0) {
+            $query->where($col('unidad_id'), $unidadId);
+        }
+
+        if ($unidadId !== self::UNIDAD_DELEGACIONES_ID) {
+            return;
+        }
+
+        $delegacionIds = $this->effectiveDelegacionIds($request);
+        if (!empty($delegacionIds)) {
+            $query->whereIn($col('delegacion_id'), $delegacionIds);
+        }
+    }
+
+    private function requestedUnidadId(Request $request): int
+    {
+        $unidadId = (int) $request->query('unidad_id', 0);
+        $usuario = $request->user();
+
+        if ($this->tieneAccesoGlobal($usuario)) {
+            return $unidadId > 0 ? $unidadId : 0;
+        }
+
+        $unidadUsuario = (int) ($usuario->unidad_id ?? 0);
+        if ($unidadUsuario > 0) {
+            return $unidadUsuario;
+        }
+
+        return $unidadId > 0 ? $unidadId : 0;
+    }
+
+    private function requestedDelegacionIds(Request $request): array
+    {
+        return collect([
+            ...$this->normalizeIds($request->query('delegacion_id', [])),
+            ...$this->normalizeIds($request->query('delegaciones', [])),
+        ])
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function effectiveDelegacionIds(Request $request): array
+    {
+        $requested = $this->requestedDelegacionIds($request);
+        $usuario = $request->user();
+
+        if ($this->tieneAccesoGlobal($usuario)) {
+            return $requested;
+        }
+
+        if ((int) ($usuario->unidad_id ?? 0) !== self::UNIDAD_DELEGACIONES_ID) {
+            return [];
+        }
+
+        $visible = $this->delegacionIdsVisibles($usuario);
+        if (empty($visible)) {
+            return $requested;
+        }
+
+        if (empty($requested)) {
+            return $visible;
+        }
+
+        return array_values(array_intersect($requested, $visible));
+    }
+
+    private function tieneAccesoGlobal($usuario): bool
+    {
+        return $usuario
+            && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID);
     }
 
     private function delegacionIdsVisibles($usuario): array

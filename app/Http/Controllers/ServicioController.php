@@ -173,9 +173,28 @@ class ServicioController extends Controller
             ->when(!empty($gruasSeleccionadas), function ($q) use ($gruasSeleccionadas) {
                 $q->whereIn('gruas.id', $gruasSeleccionadas);
             })
-            ->with(['servicios' => function ($q) use ($from, $to) {
-                $q->select('id', 'vehiculo_id', 'grua_id', 'tipo_vehiculo', 'aseguradora', 'created_at')
+            ->with(['servicios' => function ($q) use ($from, $to, $origen, $delegacionesSeleccionadas) {
+                $q->select('id', 'vehiculo_id', 'grua_id', 'unidad_id', 'delegacion_id', 'tipo_vehiculo', 'aseguradora', 'created_at')
                     ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
+                    ->when($origen === 'siniestros', function ($servicios) {
+                        $servicios->where('unidad_id', 1);
+                    })
+                    ->when($origen === 'delegaciones', function ($servicios) use ($delegacionesSeleccionadas) {
+                        $servicios->where('unidad_id', 2);
+
+                        if (!empty($delegacionesSeleccionadas)) {
+                            $servicios->whereIn('delegacion_id', $delegacionesSeleccionadas);
+                        }
+                    })
+                    ->when($origen === 'todos' && !empty($delegacionesSeleccionadas), function ($servicios) use ($delegacionesSeleccionadas) {
+                        $servicios->where(function ($q) use ($delegacionesSeleccionadas) {
+                            $q->where('unidad_id', 1)
+                                ->orWhere(function ($qq) use ($delegacionesSeleccionadas) {
+                                    $qq->where('unidad_id', 2)
+                                        ->whereIn('delegacion_id', $delegacionesSeleccionadas);
+                                });
+                        });
+                    })
                     ->with(['vehiculo' => function ($v) {
                         $v->select('id', 'marca', 'modelo', 'tipo', 'linea', 'color', 'placas', 'aseguradora');
                     }]);

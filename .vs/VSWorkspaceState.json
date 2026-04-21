@@ -1,13 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
     "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\gruas"
+    "\\resources\\views"
   ],
-  "SelectedNode": "\\resources\\views\\gruas\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

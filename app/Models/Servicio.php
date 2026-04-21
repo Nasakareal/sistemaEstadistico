@@ -13,6 +13,8 @@ class Servicio extends Model
         'client_uuid',
         'grua_id',
         'vehiculo_id',
+        'unidad_id',
+        'delegacion_id',
         'tipo_vehiculo',
         'aseguradora',
         'descripcion',

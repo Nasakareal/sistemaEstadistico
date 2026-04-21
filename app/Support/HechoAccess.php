@@ -149,20 +149,66 @@ class HechoAccess
             return false;
         }
 
-        if (
-            $usuario->hasRole('Superadmin')
-            || $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
-            || $usuario->hasRole('Subdirector')
-        ) {
-            return self::canView($usuario, $hecho);
-        }
-
-        if ((int) $usuario->id !== (int) ($hecho->created_by ?? 0)) {
+        if (!self::canView($usuario, $hecho)) {
             return false;
         }
 
-        return self::canView($usuario, $hecho);
+        if ($usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if ($unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+            return false;
+        }
+
+        if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
+            if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
+                return true;
+            }
+
+            if ($usuario->hasRole('Administrativo')) {
+                return (int) ($usuario->delegacion_id ?? 0) > 0
+                    && (int) ($hecho->delegacion_id ?? 0) === (int) ($usuario->delegacion_id ?? 0);
+            }
+
+            return (int) $usuario->id === (int) ($hecho->created_by ?? 0);
+        }
+
+        if ($unidadId === 1) {
+            if (
+                $usuario->hasRole('Administrador')
+                || $usuario->hasRole('Administrativo')
+                || $usuario->hasRole('Jefe de Grupo')
+                || $usuario->hasRole('Subdirector')
+            ) {
+                return true;
+            }
+
+            if ($usuario->hasRole('Perito')) {
+                $nombreUsuario = strtoupper(self::removeAccents(trim((string) ($usuario->name ?? ''))));
+                $nombrePeritoHecho = strtoupper(self::removeAccents(trim((string) ($hecho->perito ?? ''))));
+
+                return $nombreUsuario !== '' && $nombreUsuario === $nombrePeritoHecho;
+            }
+
+            return (int) $usuario->id === (int) ($hecho->created_by ?? 0);
+        }
+
+        if ($unidadId === self::UNIDAD_CARRETERAS_ID) {
+            if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
+                return true;
+            }
+
+            return (int) $usuario->id === (int) ($hecho->created_by ?? 0);
+        }
+
+        if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
+            return true;
+        }
+
+        return (int) $usuario->id === (int) ($hecho->created_by ?? 0);
     }
 
     private static function puedeVerDelegacionesHijas($usuario): bool
@@ -213,5 +259,22 @@ class HechoAccess
                 return (int) $id;
             })
             ->toArray();
+    }
+
+    private static function removeAccents(string $string): string
+    {
+        $unwanted_array = [
+            'Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U',
+            'À'=>'A','È'=>'E','Ì'=>'I','Ò'=>'O','Ù'=>'U',
+            'Â'=>'A','Ê'=>'E','Î'=>'I','Ô'=>'O','Û'=>'U',
+            'Ä'=>'A','Ë'=>'E','Ï'=>'I','Ö'=>'O','Ü'=>'U',
+            'á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U',
+            'à'=>'A','è'=>'E','ì'=>'I','ò'=>'O','ù'=>'U',
+            'â'=>'A','ê'=>'E','î'=>'I','ô'=>'O','û'=>'U',
+            'ä'=>'A','ë'=>'A','ï'=>'I','ö'=>'O','ü'=>'U',
+            'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
+        ];
+
+        return strtr($string, $unwanted_array);
     }
 }

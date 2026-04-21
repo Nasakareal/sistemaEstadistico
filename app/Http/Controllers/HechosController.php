@@ -67,7 +67,12 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
+        if ($this->userCannotCreateHecho($usuario)) {
+            return redirect()->route('hechos.index')->with('error', 'No tienes permiso para crear hechos.');
+        }
+
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
         $reglaFolio = $usaReglasFlexibles
             ? 'nullable|string|max:20|unique:hechos,folio_c5i'
@@ -82,8 +87,8 @@ class HechosController extends Controller
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
-            'hora' => $usuario->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
-            'fecha' => 'required|date',
+            'hora' => $puedeCapturarFechaHora ? 'required|date_format:H:i' : 'nullable',
+            'fecha' => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'sector' => $reglaSector,
             'calle' => 'required|string|max:255',
             'colonia' => 'required|string|max:255',
@@ -134,7 +139,7 @@ class HechosController extends Controller
             $validated['monto_danos_patrimoniales'] = null;
         }
 
-        $situacion = (string)($validated['situacion'] ?? '');
+        $situacion = (string) ($validated['situacion'] ?? '');
         if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -149,7 +154,8 @@ class HechosController extends Controller
         $validated['revisado_at'] = null;
         $validated['observacion_revision'] = null;
 
-        if ($usuario->hasRole('Perito')) {
+        if (!$puedeCapturarFechaHora) {
+            $validated['fecha'] = now('America/Mexico_City')->toDateString();
             $validated['hora'] = now('America/Mexico_City')->format('H:i');
         }
 
@@ -313,6 +319,7 @@ class HechosController extends Controller
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
         $reglaFolio = $usaReglasFlexibles
             ? [
@@ -337,8 +344,8 @@ class HechosController extends Controller
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
             'unidad' => 'required|string|max:50',
-            'hora' => $usuario->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
-            'fecha' => 'required|date',
+            'hora' => $puedeCapturarFechaHora ? 'required|date_format:H:i' : 'nullable',
+            'fecha' => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'sector' => $reglaSector,
             'calle' => 'required|string|max:255',
             'colonia' => 'required|string|max:255',
@@ -403,7 +410,11 @@ class HechosController extends Controller
 
         $validated['updated_by'] = $usuario->id;
 
-        if ($usuario->hasRole('Perito')) {
+        if (!$puedeCapturarFechaHora) {
+            $validated['fecha'] = !empty($hecho->fecha)
+                ? \Carbon\Carbon::parse($hecho->fecha)->toDateString()
+                : substr((string) $hecho->created_at, 0, 10);
+
             $validated['hora'] = !empty($hecho->hora)
                 ? substr((string) $hecho->hora, 0, 5)
                 : substr((string) $hecho->created_at, 11, 5);
@@ -660,7 +671,7 @@ class HechosController extends Controller
         if ($unidadId === 2) {
             $this->scopeHechosUnidad($query, 2);
 
-            if ($this->esRolAdministrativoUnidad($usuario)) {
+            if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
                 return;
             }
 
@@ -676,7 +687,11 @@ class HechosController extends Controller
                 ->whereNull('delegacion_padre_id')
                 ->exists();
 
-            if ($this->puedeVerDelegacionesHijas($usuario)) {
+            if (in_array(true, [
+                $usuario->hasRole('Delegado'),
+                $usuario->hasRole('Policía'),
+                $usuario->hasRole('Administrativo'),
+            ], true)) {
                 if ($esRegional) {
                     $ids = Delegacion::query()
                         ->where('id', $delegacionId)
@@ -688,10 +703,11 @@ class HechosController extends Controller
                 } else {
                     $query->where('delegacion_id', $delegacionId);
                 }
-            } else {
-                $query->where('delegacion_id', $delegacionId);
+
+                return;
             }
 
+            $query->where('delegacion_id', $delegacionId);
             return;
         }
 
@@ -752,18 +768,6 @@ class HechosController extends Controller
         }
 
         return false;
-    }
-
-    private function puedeVerDelegacionesHijas($usuario): bool
-    {
-        return $usuario->hasRole('Delegado');
-    }
-
-    private function esRolAdministrativoUnidad($usuario): bool
-    {
-        return $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
-            || $usuario->hasRole('Subdirector');
     }
 
     private function scopeHechosUnidad($query, int $unidadId): void
@@ -1125,6 +1129,43 @@ class HechosController extends Controller
             'foto' => $fotos[0] ?? null,
             'fotos' => $fotos,
         ]);
+    }
+
+    private function userCannotCreateHecho($usuario): bool
+    {
+        if (!$usuario) {
+            return true;
+        }
+
+        return (int) ($usuario->unidad_id ?? 0) === 2
+            && $usuario->hasRole('Administrativo');
+    }
+
+    private function userCanCaptureFechaHora($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        if ($usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if ($unidadId === 2) {
+            return $usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector');
+        }
+
+        if ($unidadId === 1) {
+            return !$usuario->hasRole('Perito');
+        }
+
+        if ($unidadId === 4) {
+            return false;
+        }
+
+        return !$usuario->hasRole('Perito');
     }
 
     private function usaReglasFlexiblesHechos($usuario): bool

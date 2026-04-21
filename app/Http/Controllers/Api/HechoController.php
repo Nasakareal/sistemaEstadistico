@@ -142,80 +142,100 @@ class HechoController extends Controller
         ], 200);
     }
 
-    public function store(Request $request)
+    public function update(Request $request, Hechos $hecho)
     {
         $user = $request->user();
 
-        if (!HechoAccess::canUseHechosModule($user)) {
+        if (!HechoAccess::canEdit($user, $hecho)) {
             return response()->json([
-                'message' => 'No tienes permiso para registrar hechos desde esta unidad.',
+                'message' => 'No tienes permiso para editar este hecho.',
             ], 403);
         }
 
         $this->normalizeCatalogFields($request);
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
 
         $reglaFolio = $usaReglasFlexibles
-            ? 'nullable|string|max:20|unique:hechos,folio_c5i'
-            : 'required|string|max:20|unique:hechos,folio_c5i';
+            ? [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+            ]
+            : [
+                'sometimes',
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+            ];
 
         $reglaSector = $usaReglasFlexibles
-            ? 'nullable|string|max:100'
-            : ['required', 'string', Rule::in(self::SECTORES)];
+            ? 'sometimes|nullable|string|max:100'
+            : ['sometimes', 'required', 'string', Rule::in(self::SECTORES)];
 
         $rules = [
-            'client_uuid' => 'nullable|string|max:36',
             'folio_c5i' => $reglaFolio,
-            'perito' => 'required|string|max:255',
-            'autorizacion_practico' => 'nullable|string|max:255',
-            'unidad' => 'required|string|max:50',
-            'hora' => $user->hasRole('Perito') ? 'nullable' : 'required|date_format:H:i',
-            'fecha' => 'required|date',
+            'perito' => 'sometimes|required|string|max:255',
+            'autorizacion_practico' => 'sometimes|nullable|string|max:255',
+            'unidad' => 'sometimes|required|string|max:50',
+            'hora' => $puedeCapturarFechaHora ? 'sometimes|required|date_format:H:i' : 'sometimes|nullable',
+            'fecha' => $puedeCapturarFechaHora ? 'sometimes|required|date' : 'sometimes|nullable',
             'sector' => $reglaSector,
-            'calle' => 'required|string|max:255',
-            'colonia' => 'required|string|max:255',
-            'entre_calles' => 'nullable|string|max:255',
-            'municipio' => 'required|string|max:100',
-            'tipo_hecho' => 'required|string|max:255',
-            'superficie_via' => 'required|string|max:50',
-            'tiempo' => ['required', 'string', Rule::in(self::TIEMPOS)],
-            'clima' => ['required', 'string', Rule::in(self::CLIMAS)],
-            'condiciones' => ['required', 'string', Rule::in(self::COND)],
-            'control_transito' => 'required|string|max:50',
-            'checaron_antecedentes' => 'nullable|boolean',
-            'causas' => 'required|string|max:255',
-            'responsable' => 'nullable|string|max:255',
-            'colision_camino' => 'required|string|max:255',
-            'situacion' => ['required', 'string', Rule::in(self::SITUAS)],
-            'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
-            'vehiculos_mp' => 'nullable|integer|min:0|required_if:situacion,TURNADO',
-            'personas_mp' => 'nullable|integer|min:0|required_if:situacion,TURNADO',
-            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
-            'danos_patrimoniales' => 'nullable|boolean',
-            'propiedades_afectadas' => 'nullable|string|max:2000',
-            'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
-            'lat' => 'required|numeric|between:-90,90',
-            'lng' => 'required|numeric|between:-180,180',
-            'calidad_geo' => 'nullable|string|max:20',
-            'nota_geo' => 'nullable|string|max:1000',
-            'fuente_ubicacion' => 'nullable|string|max:20',
-            'ubicacion_formateada' => 'nullable|string|max:2000',
-            'place_id' => 'nullable|string|max:128',
-            'coords_pair' => 'nullable',
-            'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'calle' => 'sometimes|required|string|max:255',
+            'colonia' => 'sometimes|required|string|max:255',
+            'entre_calles' => 'sometimes|nullable|string|max:255',
+            'municipio' => 'sometimes|required|string|max:100',
+            'tipo_hecho' => 'sometimes|required|string|max:255',
+            'superficie_via' => 'sometimes|required|string|max:50',
+            'tiempo' => ['sometimes', 'required', 'string', Rule::in(self::TIEMPOS)],
+            'clima' => ['sometimes', 'required', 'string', Rule::in(self::CLIMAS)],
+            'condiciones' => ['sometimes', 'required', 'string', Rule::in(self::COND)],
+            'control_transito' => 'sometimes|required|string|max:50',
+            'checaron_antecedentes' => 'sometimes|nullable|boolean',
+            'causas' => 'sometimes|required|string|max:255',
+            'responsable' => 'sometimes|nullable|string|max:255',
+            'colision_camino' => 'sometimes|required|string|max:255',
+            'situacion' => ['sometimes', 'required', 'string', Rule::in(self::SITUAS)],
+            'oficio_mp' => 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO',
+            'vehiculos_mp' => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
+            'personas_mp' => 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO',
+            'dictamen_id' => 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'danos_patrimoniales' => 'sometimes|nullable|boolean',
+            'propiedades_afectadas' => 'sometimes|nullable|string|max:2000',
+            'monto_danos_patrimoniales' => 'sometimes|nullable|numeric|min:0',
+            'lat' => 'sometimes|required|numeric|between:-90,90',
+            'lng' => 'sometimes|required|numeric|between:-180,180',
+            'calidad_geo' => 'sometimes|nullable|string|max:20',
+            'nota_geo' => 'sometimes|nullable|string|max:1000',
+            'fuente_ubicacion' => 'sometimes|nullable|string|max:20',
+            'ubicacion_formateada' => 'sometimes|nullable|string|max:2000',
+            'place_id' => 'sometimes|nullable|string|max:128',
+            'foto_lugar' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
         $messages = $this->messages();
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $usaReglasFlexibles) {
-            $situacion = strtoupper($this->removeAccents((string) $request->input('situacion', '')));
+        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles) {
+            $situacionNueva = $request->has('situacion')
+                ? strtoupper($this->removeAccents((string) $request->input('situacion')))
+                : null;
 
-            if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
-                $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
+            $situacionEfectiva = $situacionNueva ?? strtoupper((string) ($hecho->situacion ?? ''));
+
+            if (!$usaReglasFlexibles && in_array($situacionEfectiva, ['RESUELTO', 'TURNADO'], true)) {
+                $yaTieneFoto = !empty($hecho->foto_situacion);
+                $vieneArchivo = $request->hasFile('foto_situacion');
+
+                if (!$yaTieneFoto && !$vieneArchivo) {
+                    $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
+                }
             }
 
             $hasLat = $request->filled('lat');
@@ -237,42 +257,30 @@ class HechoController extends Controller
             $validated['folio_c5i'] = null;
         }
 
-        if ($usaReglasFlexibles && empty($validated['sector'])) {
+        if ($usaReglasFlexibles && array_key_exists('sector', $validated) && empty($validated['sector'])) {
             $validated['sector'] = $this->sectorPredeterminadoHechos($user);
         }
 
-        if (!empty($validated['client_uuid'])) {
-            $hechoExistente = Hechos::query()->where('client_uuid', $validated['client_uuid'])->first();
-
-            if ($hechoExistente) {
-                $hechoExistente->load(['vehiculos.conductores', 'lesionados']);
-
-                return response()->json([
-                    'message' => 'Hecho ya existente',
-                    'created' => false,
-                    'data' => $this->withFotoUrls($hechoExistente),
-                    'meta' => [
-                        'id' => $hechoExistente->id,
-                        'client_uuid' => $hechoExistente->client_uuid,
-                    ],
-                ], 200);
-            }
-        }
-
         $dictamenId = $validated['dictamen_id'] ?? null;
+        $dictamenIdProvided = array_key_exists('dictamen_id', $validated);
         unset($validated['dictamen_id']);
 
-        $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
-        $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
+        if ($request->has('checaron_antecedentes')) {
+            $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        }
+
+        if ($request->has('danos_patrimoniales')) {
+            $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
+        }
 
         foreach ($validated as $key => $value) {
-            if (is_string($value) && $key !== 'client_uuid') {
+            if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
         }
 
-        if ($user->hasRole('Perito')) {
-            $validated['hora'] = now('America/Mexico_City')->format('H:i');
+        if (!$puedeCapturarFechaHora) {
+            unset($validated['hora'], $validated['fecha']);
         }
 
         $hasCoords = $request->filled('lat') && $request->filled('lng');
@@ -280,21 +288,12 @@ class HechoController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_APP';
         }
 
-        if (!$request->filled('lat')) {
+        if ($request->has('lat') && !$request->filled('lat')) {
             $validated['lat'] = null;
         }
 
-        if (!$request->filled('lng')) {
+        if ($request->has('lng') && !$request->filled('lng')) {
             $validated['lng'] = null;
-        }
-
-        if (!$request->has('danos_patrimoniales')) {
-            $validated['danos_patrimoniales'] = 0;
-        }
-
-        if (!$validated['danos_patrimoniales']) {
-            $validated['propiedades_afectadas'] = null;
-            $validated['monto_danos_patrimoniales'] = null;
         }
 
         if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
@@ -305,56 +304,90 @@ class HechoController extends Controller
             $validated['propiedades_afectadas'] = null;
         }
 
-        $validated['created_by'] = $user->id;
-
-        $unidadOrg = (int) ($user->unidad_id ?? 0);
-        if ($unidadOrg <= 0) {
-            $unidadOrg = 1;
+        if (array_key_exists('danos_patrimoniales', $validated) && !$validated['danos_patrimoniales']) {
+            $validated['propiedades_afectadas'] = null;
+            $validated['monto_danos_patrimoniales'] = null;
         }
-        $validated['unidad_org_id'] = $unidadOrg;
 
-        $delegacionId = (int) ($user->delegacion_id ?? 0);
-        $validated['delegacion_id'] = $delegacionId > 0 ? $delegacionId : null;
+        $validated['updated_by'] = $user->id;
+
+        unset($validated['unidad_org_id']);
+
+        $newFotoLugarPath = null;
+        $newFotoSituacionPath = null;
+        $oldFotoLugar = $hecho->foto_lugar;
+        $oldFotoSituacion = $hecho->foto_situacion;
 
         try {
-            $hecho = null;
-
-            DB::transaction(function () use ($request, $validated, $dictamenId, $user, &$hecho) {
-                $hecho = Hechos::create($validated);
-
-                if ($user->hasRole('Perito')) {
-                    $hecho->hora = optional($hecho->created_at)->timezone('America/Mexico_City')->format('H:i');
-                    $hecho->save();
-                }
-
-                $updates = [];
-
+            DB::transaction(function () use (
+                $request,
+                $hecho,
+                $validated,
+                $dictamenId,
+                $dictamenIdProvided,
+                &$newFotoLugarPath,
+                &$newFotoSituacionPath
+            ) {
                 if ($request->hasFile('foto_lugar')) {
-                    $updates['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $validated['foto_lugar'] = $newFotoLugarPath;
                 }
 
                 if ($request->hasFile('foto_situacion')) {
-                    $updates['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $validated['foto_situacion'] = $newFotoSituacionPath;
                 }
 
-                if (!empty($updates)) {
-                    $hecho->update($updates);
-                }
+                $hecho->update($validated);
 
-                $situacion = strtoupper((string) ($validated['situacion'] ?? ''));
+                $situacion = $request->has('situacion')
+                    ? strtoupper($this->removeAccents((string) $request->input('situacion')))
+                    : strtoupper((string) ($hecho->situacion ?? ''));
 
-                if ($situacion === 'TURNADO' && $dictamenId) {
-                    $dictamen = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
+                $dictamenActual = $hecho->dictamen;
 
-                    if (!empty($dictamen->hecho_id) && (int) $dictamen->hecho_id !== (int) $hecho->id) {
-                        throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
+                if ($situacion === 'TURNADO') {
+                    if ($dictamenIdProvided) {
+                        if ($dictamenActual && (string) $dictamenActual->id !== (string) $dictamenId) {
+                            $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
+
+                            if ($dictamenActual) {
+                                $dictamenActual->hecho_id = null;
+                                $dictamenActual->save();
+                            }
+                        }
+
+                        if ($dictamenId) {
+                            $nuevo = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
+
+                            if (!empty($nuevo->hecho_id) && (int) $nuevo->hecho_id !== (int) $hecho->id) {
+                                throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
+                            }
+
+                            $nuevo->hecho_id = $hecho->id;
+                            $nuevo->save();
+                        }
                     }
+                } else {
+                    if ($dictamenActual) {
+                        $dictamenActual = Dictamen::query()->lockForUpdate()->find($dictamenActual->id);
 
-                    $dictamen->hecho_id = $hecho->id;
-                    $dictamen->save();
+                        if ($dictamenActual) {
+                            $dictamenActual->hecho_id = null;
+                            $dictamenActual->save();
+                        }
+                    }
                 }
             });
         } catch (\Throwable $e) {
+            if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
+                Storage::disk('public')->delete($newFotoLugarPath);
+            }
+
+            if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
+                Storage::disk('public')->delete($newFotoSituacionPath);
+            }
+
             return response()->json([
                 'message' => $e->getMessage(),
                 'errors' => [
@@ -363,17 +396,20 @@ class HechoController extends Controller
             ], 422);
         }
 
-        $hecho->load(['vehiculos.conductores', 'lesionados']);
+        if ($newFotoLugarPath && !empty($oldFotoLugar) && Storage::disk('public')->exists($oldFotoLugar)) {
+            Storage::disk('public')->delete($oldFotoLugar);
+        }
+
+        if ($newFotoSituacionPath && !empty($oldFotoSituacion) && Storage::disk('public')->exists($oldFotoSituacion)) {
+            Storage::disk('public')->delete($oldFotoSituacion);
+        }
+
+        $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
-            'message' => 'Hecho creado exitosamente',
-            'created' => true,
+            'message' => 'Hecho actualizado exitosamente',
             'data' => $this->withFotoUrls($hecho),
-            'meta' => [
-                'id' => $hecho->id,
-                'client_uuid' => $hecho->client_uuid,
-            ],
-        ], 201);
+        ], 200);
     }
 
     public function show(Hechos $hecho)
@@ -982,5 +1018,42 @@ class HechoController extends Controller
                 'fotos' => $fotos,
             ],
         ], 200);
+    }
+
+    private function userCannotCreateHecho($user): bool
+    {
+        if (!$user) {
+            return true;
+        }
+
+        return (int) ($user->unidad_id ?? 0) === 2
+            && $user->hasRole('Administrativo');
+    }
+
+    private function userCanCaptureFechaHora($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        $unidadId = (int) ($user->unidad_id ?? 0);
+
+        if ($unidadId === 2) {
+            return $user->hasRole('Administrador') || $user->hasRole('Subdirector');
+        }
+
+        if ($unidadId === 1) {
+            return !$user->hasRole('Perito');
+        }
+
+        if ($unidadId === 4) {
+            return false;
+        }
+
+        return !$user->hasRole('Perito');
     }
 }

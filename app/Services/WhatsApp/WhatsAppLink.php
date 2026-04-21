@@ -21,7 +21,10 @@ class WhatsAppLink
         $lines[] = "";
         $lines[] = "COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL";
         $lines[] = "";
-        $unidadTexto = match ((int) $hecho->unidad_org_id) {
+
+        $unidadId = (int) $hecho->unidad_org_id;
+
+        $unidadTexto = match ($unidadId) {
             1 => 'UNIDAD DE ATENCIÓN A SINIESTROS',
             2 => 'UNIDAD DE DELEGACIONES',
             4 => 'UNIDAD DE PROTECCIÓN A CARRETERAS',
@@ -32,10 +35,39 @@ class WhatsAppLink
 
         $lines[] = self::upper($unidadTexto);
         $lines[] = "";
-        $lines[] = "MORELIA";
-        $lines[] = "";
-        $lines[] = "SECTOR " . self::upper($hecho->sector);
-        $lines[] = "";
+
+        if ($unidadId === 1) {
+            $lines[] = "MORELIA";
+            $lines[] = "";
+
+            if (!empty($hecho->sector)) {
+                $lines[] = "SECTOR " . self::upper($hecho->sector);
+                $lines[] = "";
+            }
+        } elseif ($unidadId === 2) {
+            $delegacionNombre = null;
+
+            if (!empty($hecho->delegacion_id)) {
+                $delegacionNombre = DB::table('delegaciones')
+                    ->where('id', $hecho->delegacion_id)
+                    ->value('nombre');
+            }
+
+            if (!empty($delegacionNombre)) {
+                $lines[] = "DELEGACIÓN " . self::upper($delegacionNombre);
+                $lines[] = "";
+            }
+        } elseif ($unidadId === 4) {
+            $destacamentoNombre = DB::table('destacamentos')
+                ->where('clave', (string) $hecho->unidad)
+                ->where('unidad_id', 4)
+                ->value('nombre');
+
+            if (!empty($destacamentoNombre)) {
+                $lines[] = "DESTACAMENTO " . self::upper($destacamentoNombre);
+                $lines[] = "";
+            }
+        }
 
         $tema = "TEMA: HECHO DE TRÁNSITO CLASIFICADO COMO " . self::upper($hecho->tipo_hecho);
         $lines[] = $tema;

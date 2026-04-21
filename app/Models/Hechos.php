@@ -26,6 +26,7 @@ class Hechos extends Model
         'fecha',
         'sector',
         'calle',
+        'calle_norm',
         'colonia',
         'entre_calles',
         'municipio',

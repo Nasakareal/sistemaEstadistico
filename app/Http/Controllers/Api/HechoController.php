@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\StreetNormalizer;
 use App\Models\Hechos;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppLink;
+use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
 use App\Support\HechoAccess;
 use Illuminate\Support\Facades\DB;
@@ -140,6 +142,240 @@ class HechoController extends Controller
                 'last_page'    => $results->lastPage(),
             ],
         ], 200);
+    }
+
+    public function store(Request $request)
+    {
+        $user = $request->user();
+
+        if ($this->userCannotCreateHecho($user)) {
+            return response()->json([
+                'message' => 'No tienes permiso para crear hechos.',
+            ], 403);
+        }
+
+        $clientUuid = trim((string) $request->input('client_uuid', ''));
+        if ($clientUuid !== '') {
+            $hechoExistente = Hechos::query()
+                ->where('client_uuid', $clientUuid)
+                ->first();
+
+            if ($hechoExistente) {
+                if (!HechoAccess::canView($user, $hechoExistente)) {
+                    return response()->json([
+                        'message' => 'No tienes permiso para consultar este hecho.',
+                    ], 403);
+                }
+
+                $hechoExistente->load(['vehiculos.conductores', 'lesionados']);
+
+                return response()->json([
+                    'message' => 'Hecho ya existente.',
+                    'created' => false,
+                    'data' => $this->withFotoUrls($hechoExistente),
+                    'meta' => [
+                        'id' => $hechoExistente->id,
+                        'client_uuid' => $hechoExistente->client_uuid,
+                    ],
+                ], 200);
+            }
+        }
+
+        $this->normalizeCatalogFields($request);
+
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+
+        $reglaFolio = $usaReglasFlexibles
+            ? ['nullable', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')]
+            : ['required', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')];
+
+        $reglaSector = $usaReglasFlexibles
+            ? 'nullable|string|max:100'
+            : ['required', 'string', Rule::in(self::SECTORES)];
+
+        $rules = [
+            'client_uuid' => ['sometimes', 'nullable', 'string', 'max:36', Rule::unique('hechos', 'client_uuid')],
+            'folio_c5i' => $reglaFolio,
+            'perito' => 'required|string|max:255',
+            'autorizacion_practico' => 'nullable|string|max:255',
+            'unidad' => 'required|string|max:50',
+            'hora' => $puedeCapturarFechaHora ? 'required|date_format:H:i' : 'nullable',
+            'fecha' => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
+            'sector' => $reglaSector,
+            'calle' => 'required|string|max:255',
+            'colonia' => 'required|string|max:255',
+            'entre_calles' => 'nullable|string|max:255',
+            'municipio' => 'required|string|max:100',
+            'tipo_hecho' => 'required|string|max:255',
+            'superficie_via' => 'required|string|max:50',
+            'tiempo' => ['required', 'string', Rule::in(self::TIEMPOS)],
+            'clima' => ['required', 'string', Rule::in(self::CLIMAS)],
+            'condiciones' => ['required', 'string', Rule::in(self::COND)],
+            'control_transito' => 'required|string|max:50',
+            'checaron_antecedentes' => 'nullable|boolean',
+            'causas' => 'required|string|max:255',
+            'responsable' => 'nullable|string|max:255',
+            'colision_camino' => 'required|string|max:255',
+            'situacion' => ['required', 'string', Rule::in(self::SITUAS)],
+            'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
+            'vehiculos_mp' => 'required|integer|min:0',
+            'personas_mp' => 'required|integer|min:0',
+            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'danos_patrimoniales' => 'nullable|boolean',
+            'propiedades_afectadas' => 'nullable|string|max:2000',
+            'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'calidad_geo' => 'nullable|string|max:20',
+            'nota_geo' => 'nullable|string|max:1000',
+            'fuente_ubicacion' => 'nullable|string|max:20',
+            'ubicacion_formateada' => 'nullable|string|max:2000',
+            'place_id' => 'nullable|string|max:128',
+            'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ];
+
+        $validator = Validator::make($request->all(), $rules, $this->messages());
+
+        $validator->after(function ($v) use ($request, $usaReglasFlexibles) {
+            $situacion = strtoupper($this->removeAccents((string) $request->input('situacion')));
+
+            if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
+                $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator->errors()->toArray());
+        }
+
+        $validated = $validator->validated();
+
+        if (array_key_exists('folio_c5i', $validated) && empty($validated['folio_c5i'])) {
+            $validated['folio_c5i'] = null;
+        }
+
+        if ($usaReglasFlexibles && empty($validated['sector'])) {
+            $validated['sector'] = $this->sectorPredeterminadoHechos($user);
+        }
+
+        $dictamenId = $validated['dictamen_id'] ?? null;
+        unset($validated['dictamen_id'], $validated['foto_lugar'], $validated['foto_situacion']);
+
+        $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
+        $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
+
+        if (!$validated['danos_patrimoniales']) {
+            $validated['propiedades_afectadas'] = null;
+            $validated['monto_danos_patrimoniales'] = null;
+        }
+
+        if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {
+            $validated['monto_danos_patrimoniales'] = null;
+        }
+
+        if ($request->has('propiedades_afectadas') && trim((string) $request->input('propiedades_afectadas')) === '') {
+            $validated['propiedades_afectadas'] = null;
+        }
+
+        if (!$puedeCapturarFechaHora) {
+            $now = now('America/Mexico_City');
+            $validated['fecha'] = $now->toDateString();
+            $validated['hora'] = $now->format('H:i');
+        }
+
+        if ($request->filled('lat') && $request->filled('lng') && empty($validated['fuente_ubicacion'])) {
+            $validated['fuente_ubicacion'] = 'GPS_APP';
+        }
+
+        foreach ($validated as $key => $value) {
+            if (is_string($value) && !in_array($key, ['client_uuid', 'place_id'], true)) {
+                $validated[$key] = strtoupper($this->removeAccents($value));
+            }
+        }
+
+        $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
+        $validated['delegacion_id'] = $user->delegacion_id ?? null;
+        $validated['created_by'] = $user->id;
+        $validated['unidad_org_id'] = $user->unidad_id ?? null;
+        $validated['estado_revision'] = 'pendiente';
+        $validated['revisado_por'] = null;
+        $validated['revisado_at'] = null;
+        $validated['observacion_revision'] = null;
+
+        $hecho = null;
+        $newFotoLugarPath = null;
+        $newFotoSituacionPath = null;
+
+        try {
+            DB::transaction(function () use (
+                $request,
+                $validated,
+                $dictamenId,
+                &$hecho,
+                &$newFotoLugarPath,
+                &$newFotoSituacionPath
+            ) {
+                $hecho = Hechos::create($validated);
+
+                $updates = [];
+
+                if ($request->hasFile('foto_lugar')) {
+                    $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $updates['foto_lugar'] = $newFotoLugarPath;
+                }
+
+                if ($request->hasFile('foto_situacion')) {
+                    $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $updates['foto_situacion'] = $newFotoSituacionPath;
+                }
+
+                if (!empty($updates)) {
+                    $hecho->update($updates);
+                }
+
+                if (($validated['situacion'] ?? null) === 'TURNADO' && $dictamenId) {
+                    $dictamen = Dictamen::query()->lockForUpdate()->findOrFail($dictamenId);
+
+                    if (!empty($dictamen->hecho_id) && (int) $dictamen->hecho_id !== (int) $hecho->id) {
+                        throw new \RuntimeException('Ese dictamen ya está ligado a otro hecho.');
+                    }
+
+                    $dictamen->hecho_id = $hecho->id;
+                    $dictamen->save();
+                }
+            });
+        } catch (\Throwable $e) {
+            if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
+                Storage::disk('public')->delete($newFotoLugarPath);
+            }
+
+            if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
+                Storage::disk('public')->delete($newFotoSituacionPath);
+            }
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => [
+                    'hecho' => [$e->getMessage()],
+                ],
+            ], 422);
+        }
+
+        app(HechoRevisionNotificationService::class)->notificarJefesDeGrupoPorHechoPendiente($hecho);
+
+        $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
+
+        return response()->json([
+            'message' => 'Hecho creado exitosamente',
+            'created' => true,
+            'data' => $this->withFotoUrls($hecho),
+            'meta' => [
+                'id' => $hecho->id,
+                'client_uuid' => $hecho->client_uuid,
+            ],
+        ], 201);
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -277,6 +513,10 @@ class HechoController extends Controller
             if (is_string($value)) {
                 $validated[$key] = strtoupper($this->removeAccents($value));
             }
+        }
+
+        if (array_key_exists('calle', $validated)) {
+            $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
         }
 
         if (!$puedeCapturarFechaHora) {
@@ -429,6 +669,68 @@ class HechoController extends Controller
 
         return response()->json([
             'data' => $this->withFotoUrls($hecho),
+        ], 200);
+    }
+
+    public function destroy(Request $request, Hechos $hecho)
+    {
+        $user = $request->user();
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $user);
+
+        if (!$q->exists()) {
+            return response()->json([
+                'message' => 'No encontrado.',
+            ], 404);
+        }
+
+        if (!$this->userCanDeleteHecho($user)) {
+            return response()->json([
+                'message' => 'No tienes permiso para eliminar este hecho.',
+            ], 403);
+        }
+
+        try {
+            DB::transaction(function () use ($hecho) {
+                if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
+                    Storage::disk('public')->delete($hecho->foto_lugar);
+                }
+
+                if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
+                    Storage::disk('public')->delete($hecho->foto_situacion);
+                }
+
+                if (!empty($hecho->descargo_path) && Storage::disk('public')->exists($hecho->descargo_path)) {
+                    Storage::disk('public')->delete($hecho->descargo_path);
+                }
+
+                $dictamenActual = $hecho->dictamen;
+                if ($dictamenActual) {
+                    $dictamenActual->hecho_id = null;
+                    $dictamenActual->save();
+                }
+
+                $hecho->vehiculos()->detach();
+                $hecho->lesionados()->delete();
+
+                if ($hecho->croquis) {
+                    $hecho->croquis->delete();
+                }
+
+                $hecho->delete();
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'No se pudo eliminar el hecho. Revisa relaciones o llaves foráneas relacionadas.',
+                'errors' => [
+                    'hecho' => [$e->getMessage()],
+                ],
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Hecho eliminado exitosamente',
         ], 200);
     }
 
@@ -607,6 +909,26 @@ class HechoController extends Controller
     private function userCanEditHecho($usuario, \App\Models\Hechos $hecho): bool
     {
         return HechoAccess::canEdit($usuario, $hecho);
+    }
+
+    private function userCanDeleteHecho($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        if ($usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if ($unidadId === 3) {
+            return false;
+        }
+
+        return $usuario->hasRole('Administrador')
+            && in_array($unidadId, [1, 2, 4], true);
     }
 
     public function whatsappLink(Request $request, Hechos $hecho)

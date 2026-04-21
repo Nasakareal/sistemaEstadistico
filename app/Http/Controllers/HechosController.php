@@ -29,13 +29,29 @@ class HechosController extends Controller
         }
 
         $usuario = auth()->user();
+        $unidadFiltro = (string) $request->query('unidad_filtro', '');
 
         $hechosQuery = Hechos::query()
-            ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis'])
+            ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis', 'creator'])
             ->withCount('lesionados')
             ->whereDate('fecha', $fechaSeleccionada);
 
         $this->applyHechosVisibilityScope($hechosQuery, $usuario);
+
+        if (
+            ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3) &&
+            in_array($unidadFiltro, ['1', '2', '4'], true)
+        ) {
+            $hechosQuery->where(function ($query) use ($unidadFiltro) {
+                $query->where('unidad_org_id', (int) $unidadFiltro)
+                    ->orWhere(function ($legacy) use ($unidadFiltro) {
+                        $legacy->whereNull('unidad_org_id')
+                            ->whereHas('creator', function ($creator) use ($unidadFiltro) {
+                                $creator->where('unidad_id', (int) $unidadFiltro);
+                            });
+                    });
+            });
+        }
 
         $hechos = $hechosQuery
             ->orderByDesc('hora')
@@ -46,11 +62,17 @@ class HechosController extends Controller
         $hechos->getCollection()->transform(function ($hecho) use ($usuario) {
             $hecho->puede_editar = $this->userCanEditHecho($usuario, $hecho);
             $hecho->tiene_croquis = !is_null($hecho->croquis);
-            $hecho->estado_captura = $hecho->captura_completa ? 'COMPLETO' : 'INCOMPLETO';
+
+            $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+            $hecho->mostrar_captura = $unidadReal === 2;
+            $hecho->estado_captura = $unidadReal === 2
+                ? ($hecho->captura_completa ? 'COMPLETO' : 'INCOMPLETO')
+                : null;
+
             return $hecho;
         });
 
-        return view('hechos.index', compact('hechos', 'fechaSeleccionada'));
+        return view('hechos.index', compact('hechos', 'fechaSeleccionada', 'unidadFiltro'));
     }
 
     public function create()

@@ -66,6 +66,7 @@ use App\Http\Controllers\ZonaMapaController;
 
 use App\Http\Controllers\EstadisticasCarreterasSettingsController;
 use App\Http\Controllers\EstadisticasSiniestrosSettingsController;
+use App\Http\Controllers\EstadisticasDelegacionesSettingsController;
 
 use App\Http\Controllers\VialidadesUrbanasController;
 use App\Http\Controllers\VialidadesUrbanasDispositivoController;
@@ -605,6 +606,12 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/relacion-armamento', [EstadisticasSiniestrosSettingsController::class, 'relacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento');
         Route::get('/relacion-armamento/data', [EstadisticasSiniestrosSettingsController::class, 'dataRelacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento.data');
         Route::get('/relacion-armamento/descargar', [EstadisticasSiniestrosSettingsController::class, 'descargarRelacionArmamento'])->name('settings.estadisticas_siniestros.relacion_armamento.descargar');
+    });
+
+    Route::prefix('estadisticas-delegaciones')->group(function () {
+        Route::get('/', [EstadisticasDelegacionesSettingsController::class, 'index'])->name('settings.estadisticas_delegaciones.index');
+        Route::get('/excel-diario', [EstadisticasDelegacionesSettingsController::class, 'excelDiario'])->name('settings.estadisticas_delegaciones.excel_diario');
+        Route::get('/excel-diario/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_delegaciones.excel_diario.descargar');
     });
 
     Route::prefix('estadisticas-vialidad')->group(function () {

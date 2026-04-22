@@ -13,8 +13,8 @@ class AgenteUpecHomeController extends Controller
     {
         $tz = config('app.timezone', 'America/Mexico_City');
 
-        $wazeHours = (int) $request->get('waze_hours', 12);
-        $wazeHours = $wazeHours > 0 ? $wazeHours : 12;
+        $wazeMinutes = (int) $request->get('waze_minutes', 15);
+        $wazeMinutes = $wazeMinutes > 0 ? $wazeMinutes : 15;
 
         $tipo = strtoupper(trim((string) $request->get('tipo', 'TODOS')));
         $tiposPermitidos = ['TODOS', 'CHOQUES', 'CIERRES'];
@@ -23,7 +23,7 @@ class AgenteUpecHomeController extends Controller
             $tipo = 'TODOS';
         }
 
-        $wazeStart = Carbon::now($tz)->subHours($wazeHours);
+        $wazeStart = Carbon::now($tz)->subMinutes($wazeMinutes);
 
         $rows = DB::table('waze_alerts')
             ->select([
@@ -142,7 +142,7 @@ class AgenteUpecHomeController extends Controller
 
         return response()->json([
             'meta' => [
-                'waze_hours' => $wazeHours,
+                'waze_minutes' => $wazeMinutes,
                 'tipo' => $tipo,
                 'generated_at' => Carbon::now($tz)->toDateTimeString(),
                 'timezone' => $tz,
@@ -170,10 +170,10 @@ class AgenteUpecHomeController extends Controller
                 ['value' => 'CHOQUES', 'label' => 'Choques'],
                 ['value' => 'CIERRES', 'label' => 'Cierres carreteros'],
             ],
-            'waze_hours_options' => [1, 3, 6, 12, 24],
+            'waze_minutes_options' => [5, 10, 15, 20, 30],
             'default_values' => [
                 'tipo' => 'TODOS',
-                'waze_hours' => 12,
+                'waze_minutes' => 15,
             ],
         ], 200);
     }

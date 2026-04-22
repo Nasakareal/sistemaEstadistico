@@ -8,12 +8,12 @@ use App\Models\Turno;
 use App\Models\Patrulla;
 use App\Models\Delegacion;
 use App\Models\Destacamento;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -102,7 +102,8 @@ class UserController extends Controller
 
         $validatedData['unidad_id'] = $this->normalizarUnidadParaActor(
             $actor,
-            $validatedData['unidad_id'] ?? null
+            $validatedData['unidad_id'] ?? null,
+            $rol
         );
 
         if (!$this->unidadEsCompatibleConRol($rol, $validatedData['unidad_id'] ?? null)) {
@@ -297,7 +298,8 @@ class UserController extends Controller
 
         $validatedData['unidad_id'] = $this->normalizarUnidadParaActor(
             $actor,
-            $validatedData['unidad_id'] ?? null
+            $validatedData['unidad_id'] ?? null,
+            $rol
         );
 
         if (!$this->unidadEsCompatibleConRol($rol, $validatedData['unidad_id'] ?? null)) {
@@ -592,8 +594,12 @@ class UserController extends Controller
         return !is_null($unidadId) && (int) $rol->unidad_id === (int) $unidadId;
     }
 
-    private function normalizarUnidadParaActor(User $actor, ?int $unidadId): ?int
+    private function normalizarUnidadParaActor(User $actor, ?int $unidadId, ?Role $rol = null): ?int
     {
+        if ($rol && !is_null($rol->unidad_id)) {
+            return (int) $rol->unidad_id;
+        }
+
         if ($this->actorEsSuperadmin($actor)) {
             return $unidadId;
         }

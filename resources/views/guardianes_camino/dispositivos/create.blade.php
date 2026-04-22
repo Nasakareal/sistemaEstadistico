@@ -26,6 +26,7 @@
                         @include('guardianes_camino.dispositivos.partials._form_base')
                         @include('guardianes_camino.dispositivos.partials._campos_dinamicos')
                         @include('guardianes_camino.dispositivos.partials._resultados_extra')
+                        @include('guardianes_camino.dispositivos.partials._vehiculos_personas')
 
                         @if (view()->exists('guardianes_camino.dispositivos.partials._georreferencia'))
                             @include('guardianes_camino.dispositivos.partials._georreferencia')
@@ -77,6 +78,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <style>
+        @include('actividades.partials.vehiculos_styles')
+
         .form-group label {
             font-weight: bold;
             color: #eaf0ff;

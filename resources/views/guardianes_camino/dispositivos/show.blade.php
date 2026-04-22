@@ -93,6 +93,7 @@
         $tieneApoyoUsuario = filled($dispositivo->nombre_conductor) || filled($dispositivo->ocupacion_conductor) || filled($dispositivo->vehiculo_descripcion) || filled($dispositivo->placas_apoyado) || filled($dispositivo->procedencia) || filled($dispositivo->destino) || filled($dispositivo->motivo_apoyo) || (int) $dispositivo->acompanantes_cantidad > 0;
         $tieneResponsable = filled($dispositivo->cargo_responsable) || filled($dispositivo->nombre_responsable) || filled($dispositivo->elementos_participantes_texto);
         $tieneObservaciones = filled($dispositivo->observaciones);
+        $tieneRelacionados = $dispositivo->vehiculos->isNotEmpty() || $dispositivo->personas->isNotEmpty();
     @endphp
 
     <div class="row">
@@ -287,6 +288,84 @@
                                                 @endif
                                             @endforeach
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($tieneRelacionados)
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="card bg-dark h-100">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Vehículos relacionados</h3>
+                                    </div>
+                                    <div class="card-body table-responsive p-0">
+                                        @if($dispositivo->vehiculos->count())
+                                            <table class="table table-striped table-sm mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Vehículo</th>
+                                                        <th>Placas</th>
+                                                        <th>Rol</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($dispositivo->vehiculos as $vehiculo)
+                                                        <tr>
+                                                            <td>
+                                                                {{ trim(collect([$vehiculo->marca, $vehiculo->linea, $vehiculo->tipo, $vehiculo->color])->filter()->implode(' ')) ?: 'Vehículo sin descripción' }}
+                                                                @if(filled($vehiculo->pivot->observaciones))
+                                                                    <br><small>{{ $vehiculo->pivot->observaciones }}</small>
+                                                                @endif
+                                                            </td>
+                                                            <td>{{ $vehiculo->placas ?: 'Sin placas' }}</td>
+                                                            <td>{{ $vehiculo->pivot->rol ?: 'Sin rol' }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        @else
+                                            <div class="p-3">Sin vehículos relacionados.</div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card bg-dark h-100">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Personas relacionadas</h3>
+                                    </div>
+                                    <div class="card-body table-responsive p-0">
+                                        @if($dispositivo->personas->count())
+                                            <table class="table table-striped table-sm mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre</th>
+                                                        <th>Participación</th>
+                                                        <th>Teléfono</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($dispositivo->personas as $persona)
+                                                        <tr>
+                                                            <td>
+                                                                {{ $persona->nombre }}
+                                                                @if(filled($persona->observaciones))
+                                                                    <br><small>{{ $persona->observaciones }}</small>
+                                                                @endif
+                                                            </td>
+                                                            <td>{{ $persona->tipo_participacion ?: 'Sin tipo' }}</td>
+                                                            <td>{{ $persona->telefono ?: 'N/D' }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        @else
+                                            <div class="p-3">Sin personas relacionadas.</div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>

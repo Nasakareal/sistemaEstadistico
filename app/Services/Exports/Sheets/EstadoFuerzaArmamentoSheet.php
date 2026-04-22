@@ -205,7 +205,9 @@ class EstadoFuerzaArmamentoSheet
         $fecha = $corte->copy()->startOfDay()->toDateString();
 
         $personales = Personal::with(['turno', 'incidencias', 'unidad'])
+            ->whereNull('deleted_at')
             ->where('estatus', 'ACTIVO')
+            ->where('unidad_id', 1)
             ->get();
 
         $enServicioIds = [];
@@ -227,6 +229,7 @@ class EstadoFuerzaArmamentoSheet
             ])
             ->whereNull('deleted_at')
             ->where('estatus', 'ACTIVO')
+            ->where('unidad_id', 1)
             ->groupBy('unidad_id')
             ->get()
             ->keyBy('unidad_id');
@@ -235,6 +238,7 @@ class EstadoFuerzaArmamentoSheet
             ->select(['unidad_id', 'calibre', DB::raw('COALESCE(SUM(cartuchos_cantidad),0) as cartuchos_sum')])
             ->whereNull('deleted_at')
             ->where('estatus', 'ACTIVO')
+            ->where('unidad_id', 1)
             ->groupBy('unidad_id', 'calibre')
             ->get();
 

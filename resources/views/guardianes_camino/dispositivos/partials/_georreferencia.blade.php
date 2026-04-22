@@ -1,3 +1,10 @@
+@php
+    $dispositivoForm = $dispositivo ?? null;
+    $latValue = old('lat', $dispositivoForm->lat ?? '');
+    $lngValue = old('lng', $dispositivoForm->lng ?? '');
+    $calidadGeoValue = old('calidad_geo');
+@endphp
+
 <div id="seccion_georreferencia" class="d-none">
     <hr>
 
@@ -14,7 +21,7 @@
                     name="carretera"
                     id="carretera"
                     class="form-control @error('carretera') is-invalid @enderror"
-                    value="{{ old('carretera') }}"
+                    value="{{ old('carretera', $dispositivoForm->carretera ?? '') }}"
                     placeholder="Ejemplo: Autopista Siglo XXI"
                 >
                 @error('carretera')
@@ -31,7 +38,7 @@
                     name="tramo"
                     id="tramo"
                     class="form-control @error('tramo') is-invalid @enderror"
-                    value="{{ old('tramo') }}"
+                    value="{{ old('tramo', $dispositivoForm->tramo ?? '') }}"
                     placeholder="Ejemplo: Infiernillo - Las Cañas"
                 >
                 @error('tramo')
@@ -48,7 +55,7 @@
                     name="kilometro"
                     id="kilometro"
                     class="form-control @error('kilometro') is-invalid @enderror"
-                    value="{{ old('kilometro') }}"
+                    value="{{ old('kilometro', $dispositivoForm->kilometro ?? '') }}"
                     placeholder="Ejemplo: 217+500"
                 >
                 @error('kilometro')
@@ -57,10 +64,10 @@
             </div>
         </div>
 
-        <input type="hidden" name="lat" id="lat" value="{{ old('lat') }}">
-        <input type="hidden" name="lng" id="lng" value="{{ old('lng') }}">
-        <input type="hidden" name="coordenadas_texto" id="coordenadas_texto" value="{{ old('coordenadas_texto') }}">
-        <input type="hidden" name="calidad_geo" id="calidad_geo" value="{{ old('calidad_geo') }}">
+        <input type="hidden" name="lat" id="lat" value="{{ $latValue }}">
+        <input type="hidden" name="lng" id="lng" value="{{ $lngValue }}">
+        <input type="hidden" name="coordenadas_texto" id="coordenadas_texto" value="{{ old('coordenadas_texto', $dispositivoForm->coordenadas_texto ?? '') }}">
+        <input type="hidden" name="calidad_geo" id="calidad_geo" value="{{ $calidadGeoValue }}">
         <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion') }}">
 
         <div class="col-md-12">
@@ -73,9 +80,9 @@
                     </button>
 
                     <span id="geo_status" class="help-muted">
-                        @if(old('lat') && old('lng'))
-                            OK: {{ old('lat') }}, {{ old('lng') }}
-                            @if(old('calidad_geo')) (±{{ old('calidad_geo') }} m) @endif
+                        @if($latValue && $lngValue)
+                            OK: {{ $latValue }}, {{ $lngValue }}
+                            @if($calidadGeoValue) (±{{ $calidadGeoValue }} m) @endif
                         @else
                             Sin coordenadas
                         @endif
@@ -85,7 +92,7 @@
                         type="button"
                         class="btn btn-outline-danger btn-sm"
                         id="btn_geo_clear"
-                        style="{{ old('lat') && old('lng') ? 'display:inline-block;' : 'display:none;' }}"
+                        style="{{ $latValue && $lngValue ? 'display:inline-block;' : 'display:none;' }}"
                     >
                         <i class="fa-solid fa-trash"></i> Quitar
                     </button>

@@ -19,6 +19,7 @@ class BitacoraGenerator
         $fin    = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos', 'lesionados'])
+            ->where('unidad_org_id', 1)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
             ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")
@@ -140,7 +141,9 @@ class BitacoraGenerator
                 $vConGrua = $hecho->vehiculos->first(function ($v) {
                     return $v->grua !== null && trim((string)$v->grua) !== '' && strtolower(trim((string)$v->grua)) !== 'n/a';
                 });
-                if ($vConGrua) $grua = strtoupper(trim((string)$vConGrua->grua));
+                if ($vConGrua) {
+                    $grua = strtoupper(trim((string)$vConGrua->grua));
+                }
             }
 
             $personasLes = ($hecho->lesionados && $hecho->lesionados->count() > 0)

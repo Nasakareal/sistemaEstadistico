@@ -7,6 +7,7 @@
         </div>
 
         @php
+            $dispositivoForm = $dispositivo ?? null;
             $extras = [
                 'puestas_disposicion' => 'Puestas a disposición',
                 'vehiculos_recuperados' => 'Vehículos recuperados',
@@ -30,7 +31,7 @@
                         id="{{ $name }}"
                         min="0"
                         class="form-control @error($name) is-invalid @enderror"
-                        value="{{ old($name, 0) }}"
+                        value="{{ old($name, $dispositivoForm->{$name} ?? 0) }}"
                         disabled
                     >
                     @error($name)

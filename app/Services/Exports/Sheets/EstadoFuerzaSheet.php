@@ -188,6 +188,7 @@ class EstadoFuerzaSheet
 
         $personales = Personal::with(['turno', 'incidencias', 'unidad'])
             ->where('estatus', 'ACTIVO')
+            ->where('unidad_id', 1)
             ->get();
 
         $agrupado = [];

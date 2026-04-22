@@ -155,4 +155,19 @@ class OperativoDispositivo extends Model
     {
         return $this->belongsTo(User::class, 'revisado_por');
     }
+
+    public function vehiculos()
+    {
+        return $this->belongsToMany(
+            Vehiculo::class,
+            'operativo_dispositivo_vehiculo',
+            'operativo_dispositivo_id',
+            'vehiculo_id'
+        )->withPivot('rol', 'observaciones')->withTimestamps();
+    }
+
+    public function personas()
+    {
+        return $this->hasMany(OperativoDispositivoPersona::class, 'operativo_dispositivo_id');
+    }
 }

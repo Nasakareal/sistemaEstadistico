@@ -9,6 +9,7 @@ use App\Models\OperativoCatalogo;
 use App\Models\OperativoDispositivo;
 use App\Models\OperativoDispositivoCatalogo;
 use App\Models\OperativoDispositivoFoto;
+use App\Models\Vehiculo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -156,6 +157,51 @@ class GuardianesCaminoDispositivoController extends Controller
             'fotos_observaciones.*' => ['nullable', 'string', 'max:255'],
             'fotos_caption' => ['nullable', 'array'],
             'fotos_caption.*' => ['nullable', 'string', 'max:255'],
+
+            'vehiculos' => ['nullable', 'array'],
+            'vehiculos.*' => ['integer', 'exists:vehiculos,id'],
+            'vehiculos_nuevos' => ['nullable', 'array'],
+            'vehiculos_nuevos.*.rol' => ['nullable', 'string', 'max:100'],
+            'vehiculos_nuevos.*.observaciones' => ['nullable', 'string', 'max:255'],
+            'vehiculos_nuevos.*.marca' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
+            'vehiculos_nuevos.*.modelo' => ['nullable', 'string', 'max:10'],
+            'vehiculos_nuevos.*.tipo_general' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.tipo' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
+            'vehiculos_nuevos.*.linea' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
+            'vehiculos_nuevos.*.color' => ['required_with:vehiculos_nuevos', 'string', 'max:30'],
+            'vehiculos_nuevos.*.placas' => ['nullable', 'string', 'max:15', 'regex:/^[A-Z0-9]{5,15}$/i'],
+            'vehiculos_nuevos.*.estado_placas' => ['nullable', 'string', 'max:30'],
+            'vehiculos_nuevos.*.serie' => ['nullable', 'string', 'max:17', 'regex:/^[A-Z0-9]{6,17}$/i'],
+            'vehiculos_nuevos.*.capacidad_personas' => ['required_with:vehiculos_nuevos', 'integer', 'min:0'],
+            'vehiculos_nuevos.*.tipo_servicio' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
+            'vehiculos_nuevos.*.tarjeta_circulacion_nombre' => ['nullable', 'string', 'max:60'],
+            'vehiculos_nuevos.*.grua' => ['nullable', 'string', 'max:255'],
+            'vehiculos_nuevos.*.corralon' => ['nullable', 'string', 'max:255'],
+            'vehiculos_nuevos.*.aseguradora' => ['nullable', 'string', 'max:100'],
+            'vehiculos_nuevos.*.antecedente_vehiculo' => ['nullable', 'boolean'],
+            'vehiculos_nuevos.*.monto_danos' => ['required_with:vehiculos_nuevos', 'numeric', 'min:0'],
+            'vehiculos_nuevos.*.partes_danadas' => ['required_with:vehiculos_nuevos', 'string'],
+
+            'personas' => ['nullable', 'array'],
+            'personas.*.nombre' => ['nullable', 'string', 'max:255'],
+            'personas.*.tipo_participacion' => ['nullable', 'string', 'max:100'],
+            'personas.*.curp' => ['nullable', 'string', 'max:30'],
+            'personas.*.telefono' => ['nullable', 'digits:10'],
+            'personas.*.domicilio' => ['nullable', 'string', 'max:255'],
+            'personas.*.sexo' => ['nullable', 'string', 'in:MASCULINO,FEMENINO,OTRO'],
+            'personas.*.ocupacion' => ['nullable', 'string', 'max:255'],
+            'personas.*.edad' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'personas.*.tipo_licencia' => ['nullable', 'string', 'max:50'],
+            'personas.*.estado_licencia' => ['nullable', 'string', 'max:100'],
+            'personas.*.vigencia_licencia' => ['nullable', 'date'],
+            'personas.*.numero_licencia' => ['nullable', 'string', 'max:50'],
+            'personas.*.permanente' => ['nullable', 'boolean'],
+            'personas.*.cinturon' => ['nullable', 'boolean'],
+            'personas.*.antecedentes' => ['nullable', 'boolean'],
+            'personas.*.certificado_lesiones' => ['nullable', 'boolean'],
+            'personas.*.certificado_alcoholemia' => ['nullable', 'boolean'],
+            'personas.*.aliento_etilico' => ['nullable', 'boolean'],
+            'personas.*.observaciones' => ['nullable', 'string'],
         ];
     }
 
@@ -350,7 +396,7 @@ class GuardianesCaminoDispositivoController extends Controller
         $dispositivo->destino = $data['destino'] ?? null;
         $dispositivo->motivo_apoyo = $data['motivo_apoyo'] ?? null;
 
-        $dispositivo->cantidad = $data['cantidad'] ?? 0;
+        $dispositivo->cantidad = 1;
         $dispositivo->vehiculos_inspeccionados = $data['vehiculos_inspeccionados'] ?? 0;
         $dispositivo->personas_inspeccionadas = $data['personas_inspeccionadas'] ?? 0;
         $dispositivo->vehiculos_impactados = $data['vehiculos_impactados'] ?? 0;
@@ -439,6 +485,167 @@ class GuardianesCaminoDispositivoController extends Controller
         }
     }
 
+    protected function normalizarTextoRelacionado($valor): ?string
+    {
+        if ($valor === null) {
+            return null;
+        }
+
+        $texto = trim((string) $valor);
+
+        if ($texto === '') {
+            return null;
+        }
+
+        return mb_strtoupper($texto, 'UTF-8');
+    }
+
+    protected function normalizarTokenRelacionado($valor): ?string
+    {
+        $texto = $this->normalizarTextoRelacionado($valor);
+
+        if ($texto === null) {
+            return null;
+        }
+
+        $texto = preg_replace('/[\s\-\_\.,]+/u', '', $texto);
+
+        return $texto !== '' ? $texto : null;
+    }
+
+    protected function normalizarEstadoPlacasRelacionado($valor): ?string
+    {
+        $texto = $this->normalizarTokenRelacionado($valor);
+
+        if ($texto === null) {
+            return null;
+        }
+
+        return mb_substr($texto, 0, 15, 'UTF-8');
+    }
+
+    protected function boolRelacionado($valor): bool
+    {
+        $bool = filter_var($valor, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if ($bool !== null) {
+            return $bool;
+        }
+
+        return (int) $valor === 1;
+    }
+
+    protected function vehiculoNuevoPayload(array $vehiculo): array
+    {
+        return [
+            'client_uuid' => (string) Str::uuid(),
+            'marca' => $this->normalizarTextoRelacionado($vehiculo['marca'] ?? null),
+            'modelo' => $this->normalizarTextoRelacionado($vehiculo['modelo'] ?? null),
+            'tipo' => $this->normalizarTextoRelacionado($vehiculo['tipo'] ?? null),
+            'linea' => $this->normalizarTextoRelacionado($vehiculo['linea'] ?? null),
+            'color' => $this->normalizarTextoRelacionado($vehiculo['color'] ?? null),
+            'placas' => $this->normalizarTokenRelacionado($vehiculo['placas'] ?? null),
+            'estado_placas' => $this->normalizarEstadoPlacasRelacionado($vehiculo['estado_placas'] ?? null),
+            'serie' => $this->normalizarTokenRelacionado($vehiculo['serie'] ?? null),
+            'capacidad_personas' => (int) ($vehiculo['capacidad_personas'] ?? 0),
+            'tipo_servicio' => $this->normalizarTextoRelacionado($vehiculo['tipo_servicio'] ?? null),
+            'tarjeta_circulacion_nombre' => $this->normalizarTextoRelacionado($vehiculo['tarjeta_circulacion_nombre'] ?? null),
+            'grua' => $this->normalizarTextoRelacionado($vehiculo['grua'] ?? null),
+            'corralon' => $this->normalizarTextoRelacionado($vehiculo['corralon'] ?? null),
+            'aseguradora' => $this->normalizarTextoRelacionado($vehiculo['aseguradora'] ?? null),
+            'fotos' => null,
+            'antecedente_vehiculo' => $this->boolRelacionado($vehiculo['antecedente_vehiculo'] ?? false) ? 1 : 0,
+            'monto_danos' => $vehiculo['monto_danos'] ?? 0,
+            'partes_danadas' => $this->normalizarTextoRelacionado($vehiculo['partes_danadas'] ?? null),
+        ];
+    }
+
+    protected function crearVehiculosNuevos(OperativoDispositivo $dispositivo, Request $request): void
+    {
+        foreach ((array) $request->input('vehiculos_nuevos', []) as $vehiculo) {
+            if (!is_array($vehiculo) || empty($vehiculo['marca'])) {
+                continue;
+            }
+
+            $nuevo = Vehiculo::create($this->vehiculoNuevoPayload($vehiculo));
+
+            $dispositivo->vehiculos()->attach($nuevo->id, [
+                'rol' => $this->normalizarTextoRelacionado($vehiculo['rol'] ?? null),
+                'observaciones' => $this->normalizarTextoRelacionado($vehiculo['observaciones'] ?? null),
+            ]);
+        }
+    }
+
+    protected function personaRelacionadaPayload(array $persona): array
+    {
+        return [
+            'nombre' => $this->normalizarTextoRelacionado($persona['nombre'] ?? null),
+            'tipo_participacion' => $this->normalizarTextoRelacionado($persona['tipo_participacion'] ?? null),
+            'curp' => $this->normalizarTokenRelacionado($persona['curp'] ?? null),
+            'telefono' => $this->normalizarTokenRelacionado($persona['telefono'] ?? null),
+            'domicilio' => $this->normalizarTextoRelacionado($persona['domicilio'] ?? null),
+            'sexo' => $this->normalizarTextoRelacionado($persona['sexo'] ?? null),
+            'ocupacion' => $this->normalizarTextoRelacionado($persona['ocupacion'] ?? null),
+            'edad' => array_key_exists('edad', $persona) && $persona['edad'] !== '' ? (int) $persona['edad'] : null,
+            'tipo_licencia' => $this->normalizarTextoRelacionado($persona['tipo_licencia'] ?? null),
+            'estado_licencia' => $this->normalizarTextoRelacionado($persona['estado_licencia'] ?? null),
+            'vigencia_licencia' => $persona['vigencia_licencia'] ?? null,
+            'numero_licencia' => $this->normalizarTextoRelacionado($persona['numero_licencia'] ?? null),
+            'permanente' => $this->boolRelacionado($persona['permanente'] ?? false),
+            'cinturon' => $this->boolRelacionado($persona['cinturon'] ?? false),
+            'antecedentes' => $this->boolRelacionado($persona['antecedentes'] ?? false),
+            'certificado_lesiones' => $this->boolRelacionado($persona['certificado_lesiones'] ?? false),
+            'certificado_alcoholemia' => $this->boolRelacionado($persona['certificado_alcoholemia'] ?? false),
+            'aliento_etilico' => $this->boolRelacionado($persona['aliento_etilico'] ?? false),
+            'observaciones' => $this->normalizarTextoRelacionado($persona['observaciones'] ?? null),
+        ];
+    }
+
+    protected function personasRelacionadasPayload(Request $request): array
+    {
+        return collect($request->input('personas', []))
+            ->filter(fn($persona) => is_array($persona) && !empty($persona['nombre']))
+            ->map(fn($persona) => $this->personaRelacionadaPayload($persona))
+            ->values()
+            ->toArray();
+    }
+
+    protected function validarRelacionadosAdicionales(array $data): void
+    {
+        $placas = [];
+        $series = [];
+        $errores = [];
+
+        foreach (($data['vehiculos_nuevos'] ?? []) as $index => $vehiculo) {
+            $placa = $this->normalizarTokenRelacionado($vehiculo['placas'] ?? null);
+            $serie = $this->normalizarTokenRelacionado($vehiculo['serie'] ?? null);
+
+            if ($placa && empty($vehiculo['estado_placas'])) {
+                $errores["vehiculos_nuevos.$index.estado_placas"][] = 'Selecciona el estado de las placas.';
+            }
+
+            if ($placa && in_array($placa, $placas, true)) {
+                $errores["vehiculos_nuevos.$index.placas"][] = 'No repitas placas en los vehículos relacionados.';
+            }
+
+            if ($serie && in_array($serie, $series, true)) {
+                $errores["vehiculos_nuevos.$index.serie"][] = 'No repitas números de serie en los vehículos relacionados.';
+            }
+
+            if ($placa) {
+                $placas[] = $placa;
+            }
+
+            if ($serie) {
+                $series[] = $serie;
+            }
+        }
+
+        if (!empty($errores)) {
+            throw ValidationException::withMessages($errores);
+        }
+    }
+
     public function create(Request $request)
     {
         $operativo = $this->obtenerOperativoUnico();
@@ -480,6 +687,8 @@ class GuardianesCaminoDispositivoController extends Controller
             'destacamento',
             'usuario',
             'fotos',
+            'vehiculos',
+            'personas',
         ])->where('operativo_id', $operativo->id);
 
         if ($request->filled('fecha')) {
@@ -531,6 +740,7 @@ class GuardianesCaminoDispositivoController extends Controller
             $data = $validator->validated();
 
             $this->validarDatosOrganizacionFinal($data);
+            $this->validarRelacionadosAdicionales($data);
             $this->limpiarCamposNoAplicables($data, (int) $data['operativo_dispositivo_catalogo_id']);
 
             if (!empty($data['client_uuid'])) {
@@ -542,6 +752,8 @@ class GuardianesCaminoDispositivoController extends Controller
                     'destacamento',
                     'usuario',
                     'fotos',
+                    'vehiculos',
+                    'personas',
                 ])
                 ->where('operativo_id', $operativo->id)
                 ->where('client_uuid', $data['client_uuid'])
@@ -567,6 +779,18 @@ class GuardianesCaminoDispositivoController extends Controller
                 $this->llenarDispositivo($dispositivo, $operativo, $data, $request);
                 $dispositivo->save();
 
+                if ($request->filled('vehiculos')) {
+                    $dispositivo->vehiculos()->sync($request->vehiculos);
+                }
+
+                $this->crearVehiculosNuevos($dispositivo, $request);
+
+                $personas = $this->personasRelacionadasPayload($request);
+
+                if (!empty($personas)) {
+                    $dispositivo->personas()->createMany($personas);
+                }
+
                 $this->guardarFotos($request, $dispositivo);
             });
 
@@ -578,6 +802,8 @@ class GuardianesCaminoDispositivoController extends Controller
                 'destacamento',
                 'usuario',
                 'fotos',
+                'vehiculos',
+                'personas',
             ]);
 
             return response()->json([
@@ -606,6 +832,8 @@ class GuardianesCaminoDispositivoController extends Controller
             'destacamento',
             'usuario',
             'fotos',
+            'vehiculos',
+            'personas',
         ])
         ->where('operativo_id', $operativo->id)
         ->find($dispositivo);
@@ -626,7 +854,7 @@ class GuardianesCaminoDispositivoController extends Controller
         try {
             $operativo = $this->obtenerOperativoUnico();
 
-            $dispositivo = OperativoDispositivo::with('fotos')
+            $dispositivo = OperativoDispositivo::with(['fotos','vehiculos','personas',])
                 ->where('operativo_id', $operativo->id)
                 ->find($dispositivo);
 
@@ -655,11 +883,33 @@ class GuardianesCaminoDispositivoController extends Controller
             }
 
             $this->validarDatosOrganizacionFinal(array_merge($dispositivo->toArray(), $data));
+            $this->validarRelacionadosAdicionales($data);
             $this->limpiarCamposNoAplicables($data, (int) $data['operativo_dispositivo_catalogo_id']);
 
             DB::transaction(function () use ($request, $operativo, $data, $dispositivo) {
                 $this->llenarDispositivo($dispositivo, $operativo, $data, $request);
                 $dispositivo->save();
+
+                if ($request->has('vehiculos')) {
+                    $vehiculos = collect($request->input('vehiculos', []))
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                    $dispositivo->vehiculos()->sync($vehiculos);
+                }
+
+                $this->crearVehiculosNuevos($dispositivo, $request);
+
+                if ($request->has('personas')) {
+                    $dispositivo->personas()->delete();
+
+                    $personas = $this->personasRelacionadasPayload($request);
+
+                    if (!empty($personas)) {
+                        $dispositivo->personas()->createMany($personas);
+                    }
+                }
 
                 $this->guardarFotos($request, $dispositivo);
             });
@@ -672,6 +922,8 @@ class GuardianesCaminoDispositivoController extends Controller
                 'destacamento',
                 'usuario',
                 'fotos',
+                'vehiculos',
+                'personas',
             ]);
 
             return response()->json([
@@ -717,7 +969,13 @@ class GuardianesCaminoDispositivoController extends Controller
     {
         $operativo = $this->obtenerOperativoUnico();
 
-        $dispositivo = OperativoDispositivo::with(['catalogo', 'destacamento', 'fotos'])
+        $dispositivo = OperativoDispositivo::with([
+            'catalogo',
+            'destacamento',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ])
             ->where('operativo_id', $operativo->id)
             ->find($dispositivo);
 
@@ -782,6 +1040,38 @@ class GuardianesCaminoDispositivoController extends Controller
                 $texto .= "TIPO DE AUXILIO VIAL: {$dispositivo->tipo_auxilio_vial}\n\n";
             }
 
+            if ($dispositivo->vehiculos->isNotEmpty()) {
+                $texto .= "VEHÍCULOS RELACIONADOS\n";
+
+                foreach ($dispositivo->vehiculos as $vehiculo) {
+                    $descripcionVehiculo = trim(collect([
+                        $vehiculo->marca,
+                        $vehiculo->linea,
+                        $vehiculo->tipo,
+                        $vehiculo->color,
+                    ])->filter()->implode(' '));
+
+                    $placas = $vehiculo->placas ?: 'SIN PLACAS';
+
+                    $texto .= "- {$descripcionVehiculo} | PLACAS: {$placas}\n";
+                }
+
+                $texto .= "\n";
+            }
+
+            if ($dispositivo->personas->isNotEmpty()) {
+                $texto .= "PERSONAS RELACIONADAS\n";
+
+                foreach ($dispositivo->personas as $persona) {
+                    $nombre = $persona->nombre ?: 'SIN NOMBRE';
+                    $tipoParticipacion = $persona->tipo_participacion ?: 'SIN TIPO';
+
+                    $texto .= "- {$nombre} | {$tipoParticipacion}\n";
+                }
+
+                $texto .= "\n";
+            }
+
             $texto .= ($dispositivo->narrativa ?? '') . "\n\n";
             $texto .= "LA GUARDIA CIVIL NO TE MULTA, TE CUIDA EN EL CAMINO.\n\n";
             $texto .= "RESPETUOSAMENTE";
@@ -792,6 +1082,38 @@ class GuardianesCaminoDispositivoController extends Controller
 
             if ($dispositivo->lat && $dispositivo->lng) {
                 $texto .= "COORDENADAS\n{$dispositivo->lat},{$dispositivo->lng}\n\n";
+            }
+
+            if ($dispositivo->vehiculos->isNotEmpty()) {
+                $texto .= "VEHÍCULOS RELACIONADOS\n";
+
+                foreach ($dispositivo->vehiculos as $vehiculo) {
+                    $descripcionVehiculo = trim(collect([
+                        $vehiculo->marca,
+                        $vehiculo->linea,
+                        $vehiculo->tipo,
+                        $vehiculo->color,
+                    ])->filter()->implode(' '));
+
+                    $placas = $vehiculo->placas ?: 'SIN PLACAS';
+
+                    $texto .= "- {$descripcionVehiculo} | PLACAS: {$placas}\n";
+                }
+
+                $texto .= "\n";
+            }
+
+            if ($dispositivo->personas->isNotEmpty()) {
+                $texto .= "PERSONAS RELACIONADAS\n";
+
+                foreach ($dispositivo->personas as $persona) {
+                    $nombre = $persona->nombre ?: 'SIN NOMBRE';
+                    $tipoParticipacion = $persona->tipo_participacion ?: 'SIN TIPO';
+
+                    $texto .= "- {$nombre} | {$tipoParticipacion}\n";
+                }
+
+                $texto .= "\n";
             }
 
             $texto .= ($dispositivo->narrativa ?? '') . "\n\n";
@@ -888,6 +1210,9 @@ class GuardianesCaminoDispositivoController extends Controller
             'array' => 'Formato inválido.',
             'exists' => 'El valor seleccionado no existe.',
             'between' => 'El valor está fuera de rango.',
+            'regex' => 'Formato inválido.',
+            'digits' => 'Debe tener :digits dígitos.',
+            'in' => 'El valor seleccionado no es válido.',
 
             'operativo_dispositivo_catalogo_id.required' => 'Debes seleccionar un tipo de dispositivo.',
             'fecha.required' => 'Debes capturar la fecha.',

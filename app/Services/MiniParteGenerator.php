@@ -30,6 +30,7 @@ class MiniParteGenerator
         $fin    = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
+            ->where('unidad_org_id', 1)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
             ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")

@@ -7,6 +7,7 @@
         </div>
 
         @php
+            $dispositivoForm = $dispositivo ?? null;
             $campos = [
                 'vehiculos_inspeccionados' => ['Vehículos inspeccionados', 'number', '0'],
                 'personas_inspeccionadas' => ['Personas inspeccionadas', 'number', '0'],
@@ -38,7 +39,7 @@
                             name="{{ $name }}"
                             id="{{ $name }}"
                             class="form-control @error($name) is-invalid @enderror"
-                            value="{{ old($name, $default) }}"
+                            value="{{ old($name, $dispositivoForm->{$name} ?? $default) }}"
                             placeholder="Ejemplo: 25-1234 y 22-5678"
                             disabled
                         >
@@ -50,7 +51,7 @@
                             name="{{ $name }}"
                             id="{{ $name }}"
                             class="form-control @error($name) is-invalid @enderror"
-                            value="{{ old($name, $default) }}"
+                            value="{{ old($name, $dispositivoForm->{$name} ?? $default) }}"
                             disabled
                         >
                     @else
@@ -60,7 +61,7 @@
                             name="{{ $name }}"
                             id="{{ $name }}"
                             class="form-control @error($name) is-invalid @enderror"
-                            value="{{ old($name, $default) }}"
+                            value="{{ old($name, $dispositivoForm->{$name} ?? $default) }}"
                             disabled
                         >
                     @endif
@@ -82,10 +83,10 @@
                     disabled
                 >
                     <option value="">Seleccione una opción</option>
-                    <option value="ESCOLTA" {{ old('tipo_acompanamiento') == 'ESCOLTA' ? 'selected' : '' }}>Escolta</option>
-                    <option value="CARAVANA" {{ old('tipo_acompanamiento') == 'CARAVANA' ? 'selected' : '' }}>Caravana</option>
-                    <option value="EMERGENCIA" {{ old('tipo_acompanamiento') == 'EMERGENCIA' ? 'selected' : '' }}>Emergencia</option>
-                    <option value="OTRO" {{ old('tipo_acompanamiento') == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                    <option value="ESCOLTA" {{ old('tipo_acompanamiento', $dispositivoForm->tipo_acompanamiento ?? '') == 'ESCOLTA' ? 'selected' : '' }}>Escolta</option>
+                    <option value="CARAVANA" {{ old('tipo_acompanamiento', $dispositivoForm->tipo_acompanamiento ?? '') == 'CARAVANA' ? 'selected' : '' }}>Caravana</option>
+                    <option value="EMERGENCIA" {{ old('tipo_acompanamiento', $dispositivoForm->tipo_acompanamiento ?? '') == 'EMERGENCIA' ? 'selected' : '' }}>Emergencia</option>
+                    <option value="OTRO" {{ old('tipo_acompanamiento', $dispositivoForm->tipo_acompanamiento ?? '') == 'OTRO' ? 'selected' : '' }}>Otro</option>
                 </select>
 
                 @error('tipo_acompanamiento')
@@ -104,9 +105,9 @@
                     disabled
                 >
                     <option value="">Seleccione una opción</option>
-                    <option value="SINIESTROS" {{ old('tipo_abanderamiento') == 'SINIESTROS' ? 'selected' : '' }}>Siniestros</option>
-                    <option value="EVENTOS" {{ old('tipo_abanderamiento') == 'EVENTOS' ? 'selected' : '' }}>Eventos</option>
-                    <option value="OTRO" {{ old('tipo_abanderamiento') == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                    <option value="SINIESTROS" {{ old('tipo_abanderamiento', $dispositivoForm->tipo_abanderamiento ?? '') == 'SINIESTROS' ? 'selected' : '' }}>Siniestros</option>
+                    <option value="EVENTOS" {{ old('tipo_abanderamiento', $dispositivoForm->tipo_abanderamiento ?? '') == 'EVENTOS' ? 'selected' : '' }}>Eventos</option>
+                    <option value="OTRO" {{ old('tipo_abanderamiento', $dispositivoForm->tipo_abanderamiento ?? '') == 'OTRO' ? 'selected' : '' }}>Otro</option>
                 </select>
 
                 @error('tipo_abanderamiento')
@@ -125,9 +126,9 @@
                     disabled
                 >
                     <option value="">Seleccione una opción</option>
-                    <option value="FALLA MECANICA" {{ old('tipo_auxilio_vial') == 'FALLA MECANICA' ? 'selected' : '' }}>Falla mecánica</option>
-                    <option value="PEATON" {{ old('tipo_auxilio_vial') == 'PEATON' ? 'selected' : '' }}>Peatón</option>
-                    <option value="OTRO" {{ old('tipo_auxilio_vial') == 'OTRO' ? 'selected' : '' }}>Otro</option>
+                    <option value="FALLA MECANICA" {{ old('tipo_auxilio_vial', $dispositivoForm->tipo_auxilio_vial ?? '') == 'FALLA MECANICA' ? 'selected' : '' }}>Falla mecánica</option>
+                    <option value="PEATON" {{ old('tipo_auxilio_vial', $dispositivoForm->tipo_auxilio_vial ?? '') == 'PEATON' ? 'selected' : '' }}>Peatón</option>
+                    <option value="OTRO" {{ old('tipo_auxilio_vial', $dispositivoForm->tipo_auxilio_vial ?? '') == 'OTRO' ? 'selected' : '' }}>Otro</option>
                 </select>
 
                 @error('tipo_auxilio_vial')

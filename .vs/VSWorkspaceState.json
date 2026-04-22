@@ -1,11 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\guardianes_camino",
+    "\\resources\\views\\guardianes_camino\\dispositivos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\AgenteUpecHomeController.php",
   "PreviewInSolutionExplorer": false
 }

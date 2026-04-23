@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Operativo;
 use App\Models\OperativoCatalogo;
 use App\Models\OperativoDispositivo;
+use App\Services\GuardianesCaminoRevisionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -89,6 +90,7 @@ class GuardianesCaminoController extends Controller
                 DB::raw('GROUP_CONCAT(DISTINCT NULLIF(TRIM(crps_participantes), "") SEPARATOR " | ") as total_crps_participantes')
             )
             ->where('operativo_id', $operativoId)
+            ->aprobados()
             ->whereDate('fecha', $fecha)
             ->groupBy('operativo_dispositivo_catalogo_id')
             ->with('catalogo')
@@ -125,6 +127,7 @@ class GuardianesCaminoController extends Controller
                 DB::raw('GROUP_CONCAT(DISTINCT NULLIF(TRIM(crps_participantes), "") SEPARATOR " | ") as crps_participantes')
             )
             ->where('operativo_id', $operativoId)
+            ->aprobados()
             ->whereDate('fecha', $fecha)
             ->first();
     }
@@ -293,6 +296,7 @@ class GuardianesCaminoController extends Controller
             'fotos',
         ])
         ->where('operativo_id', $operativo->id)
+        ->aprobados()
         ->whereDate('fecha', $fecha)
         ->orderByDesc('fecha')
         ->orderByDesc('hora')
@@ -311,6 +315,9 @@ class GuardianesCaminoController extends Controller
 
         $fecha = $request->input('fecha');
 
+        $revision = app(GuardianesCaminoRevisionService::class);
+        $revision->assertPuedeRevisar(auth()->user());
+
         $query = OperativoDispositivo::with([
             'catalogo',
             'destacamento',
@@ -318,11 +325,9 @@ class GuardianesCaminoController extends Controller
             'revisadoPor',
             'fotos',
         ])
-        ->where('operativo_id', $operativo->id)
-        ->where(function ($q) {
-            $q->whereNull('estado_revision')
-              ->orWhere('estado_revision', 'pendiente');
-        });
+        ->where('operativo_id', $operativo->id);
+
+        $revision->aplicarScopePendientes($query, auth()->user());
 
         if ($fecha) {
             $query->whereDate('fecha', $fecha);
@@ -346,11 +351,11 @@ class GuardianesCaminoController extends Controller
 
         $fecha = $request->input('fecha');
 
-        $query = OperativoDispositivo::where('operativo_id', $operativo->id)
-            ->where(function ($q) {
-                $q->whereNull('estado_revision')
-                  ->orWhere('estado_revision', 'pendiente');
-            });
+        $revision = app(GuardianesCaminoRevisionService::class);
+        $revision->assertPuedeRevisar(auth()->user());
+
+        $query = OperativoDispositivo::where('operativo_id', $operativo->id);
+        $revision->aplicarScopePendientes($query, auth()->user());
 
         if ($fecha) {
             $query->whereDate('fecha', $fecha);
@@ -367,13 +372,8 @@ class GuardianesCaminoController extends Controller
             'observacion_revision' => ['nullable', 'string'],
         ]);
 
-        $dispositivo->update([
-            'estado_revision' => 'aprobado',
-            'revisado_por' => auth()->id(),
-            'revisado_at' => now(),
-            'observacion_revision' => $request->observacion_revision,
-            'updated_by' => auth()->id(),
-        ]);
+        app(GuardianesCaminoRevisionService::class)
+            ->aprobar($dispositivo, auth()->user(), $request->observacion_revision);
 
         return redirect()->back()->with('success', 'Dispositivo aprobado correctamente.');
     }
@@ -384,13 +384,8 @@ class GuardianesCaminoController extends Controller
             'observacion_revision' => ['required', 'string'],
         ]);
 
-        $dispositivo->update([
-            'estado_revision' => 'rechazado',
-            'revisado_por' => auth()->id(),
-            'revisado_at' => now(),
-            'observacion_revision' => $request->observacion_revision,
-            'updated_by' => auth()->id(),
-        ]);
+        app(GuardianesCaminoRevisionService::class)
+            ->rechazar($dispositivo, auth()->user(), $request->observacion_revision);
 
         return redirect()->back()->with('success', 'Dispositivo rechazado correctamente.');
     }

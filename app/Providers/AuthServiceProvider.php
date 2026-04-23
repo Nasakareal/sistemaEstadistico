@@ -140,10 +140,11 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('menu-guardianes-pendientes-revision', function ($user) {
-            return $user->can('ver operativos carreteras')
-                && (
+            return $user->isSuperadmin()
+                || (
                     (int) $user->unidad_id === 4
-                    || (int) $user->unidad_id === 3
+                    && $user->can('editar operativos carreteras')
+                    && $user->hasAnyRole(['RT', 'Encargado de Destacamento'])
                 );
         });
 

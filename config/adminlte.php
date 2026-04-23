@@ -478,6 +478,13 @@ return [
                     'route'   => 'guardianes_camino.index',
                     'can'     => 'menu-guardianes-camino',
                 ],
+                [
+                    'text'    => 'Pendientes de Revisión',
+                    'icon'    => 'fa-solid fa-clipboard-check',
+                    'classes' => 'text-white',
+                    'route'   => 'guardianes_camino.dispositivos.pendientes_revision',
+                    'can'     => 'menu-guardianes-pendientes-revision',
+                ],
             ],
         ],
 

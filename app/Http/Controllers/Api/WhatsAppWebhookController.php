@@ -790,7 +790,8 @@ class WhatsAppWebhookController extends Controller
         $unidadId = $this->resolverUnidadConsulta($user, $json);
         $filtros = $json['filtros'] ?? [];
 
-        $query = \App\Models\OperativoDispositivo::query();
+        $query = \App\Models\OperativoDispositivo::query()
+            ->aprobados();
 
         if ($unidadId) {
             $query->where('unidad_org_id', $unidadId);
@@ -828,7 +829,8 @@ class WhatsAppWebhookController extends Controller
         $unidadId = $this->resolverUnidadConsulta($user, $json);
         $filtros = $json['filtros'] ?? [];
 
-        $query = \App\Models\OperativoDispositivo::query();
+        $query = \App\Models\OperativoDispositivo::query()
+            ->aprobados();
 
         if ($unidadId) {
             $query->where('unidad_org_id', $unidadId);

@@ -603,6 +603,7 @@ class WhatsAppQueryService
         $filtros = $this->filtros($json);
         $query = OperativoDispositivo::query();
 
+        $query->aprobados();
         $this->applyUnitFilter($query, 'unidad_org_id', $unidadId);
         $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
         $this->aplicarFiltroTipoOperativo($query, $filtros);

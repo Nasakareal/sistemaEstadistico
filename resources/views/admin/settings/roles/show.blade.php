@@ -22,6 +22,14 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>Unidad</label>
+                                <p class="form-control-static">{{ $role->unidadEfectivaNombre() ?? 'GLOBAL' }}</p>
+                            </div>
+                        </div>
+                    </div>
                     <hr>
                     <div class="row">
                         <div class="col-md-12 text-center">

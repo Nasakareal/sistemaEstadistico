@@ -24,36 +24,44 @@
                             <tr>
                                 <th><center>Número</center></th>
                                 <th><center>Nombre del Rol</center></th>
+                                <th><center>Unidad</center></th>
                                 <th><center>Fecha de Creación</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($roles as $index => $rol)
+                                @php
+                                    $puedeAdministrar = in_array((int) $rol->id, $rolesAdministrables ?? [], true);
+                                    $unidadRolNombre = $rol->unidadEfectivaNombre();
+                                @endphp
                                 <tr>
                                     <td style="text-align: center">{{ $index + 1 }}</td>
                                     <td>{{ $rol->name }}</td>
+                                    <td>{{ $unidadRolNombre ?? 'GLOBAL' }}</td>
                                     <td>{{ $rol->created_at->format('d-m-Y') }}</td>
                                     <td style="text-align: center">
                                         <div class="btn-group" role="group">
                                             <a href="{{ url('/admin/settings/roles/' . $rol->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i> Ver
                                             </a>
-                                            <a href="{{ url('/admin/settings/roles/' . $rol->id . '/edit') }}" class="btn btn-success btn-sm">
-                                                <i class="fa-regular fa-pen-to-square"></i> Editar
-                                            </a>
-                                            <a href="{{ url('/admin/settings/roles/' . $rol->id . '/permissions') }}" class="btn btn-warning btn-sm">
-                                                <i class="fa-solid fa-key"></i> Permisos
-                                            </a>
-                                            {{-- Formulario de Eliminar --}}
-                                            <form action="{{ url('/admin/settings/roles/' . $rol->id) }}" 
-                                                  method="POST" style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="button" class="btn btn-danger btn-sm delete-btn">
-                                                    <i class="fa-regular fa-trash-can"></i> Eliminar
-                                                </button>
-                                            </form>
+                                            @if ($puedeAdministrar)
+                                                <a href="{{ url('/admin/settings/roles/' . $rol->id . '/edit') }}" class="btn btn-success btn-sm">
+                                                    <i class="fa-regular fa-pen-to-square"></i> Editar
+                                                </a>
+                                                <a href="{{ url('/admin/settings/roles/' . $rol->id . '/permissions') }}" class="btn btn-warning btn-sm">
+                                                    <i class="fa-solid fa-key"></i> Permisos
+                                                </a>
+                                                {{-- Formulario de Eliminar --}}
+                                                <form action="{{ url('/admin/settings/roles/' . $rol->id) }}" 
+                                                      method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="button" class="btn btn-danger btn-sm delete-btn">
+                                                        <i class="fa-regular fa-trash-can"></i> Eliminar
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>

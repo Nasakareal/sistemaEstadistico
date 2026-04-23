@@ -25,11 +25,11 @@ class AuthController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $role = $user->roles()->pluck('name')->first();
+        $role = $this->primaryRoleForUser($user);
         $permissions = $this->permissionsForUser($user);
 
-        $isSubdirector = $user->hasRole('Subdirector');
-        $isJefeGrupo = $user->hasRole('Jefe de Grupo');
+        $isSubdirector = $this->userHasCompatibleRole($user, 'Subdirector');
+        $isJefeGrupo = $this->userHasCompatibleRole($user, 'Jefe de Grupo');
 
         return response()->json([
             'token' => $user->createToken('mobile')->plainTextToken,
@@ -59,11 +59,11 @@ class AuthController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $role = $user->roles()->pluck('name')->first();
+        $role = $this->primaryRoleForUser($user);
         $permissions = $this->permissionsForUser($user);
 
-        $isSubdirector = $user->hasRole('Subdirector');
-        $isJefeGrupo = $user->hasRole('Jefe de Grupo');
+        $isSubdirector = $this->userHasCompatibleRole($user, 'Subdirector');
+        $isJefeGrupo = $this->userHasCompatibleRole($user, 'Jefe de Grupo');
 
         return response()->json([
             'user' => [
@@ -104,9 +104,38 @@ class AuthController extends Controller
 
     private function permissionsForUser($user)
     {
+        $user->loadMissing(['roles.permissions', 'permissions']);
+
+        $permissions = $user->roles
+            ->filter(fn ($role) => $user->puedeVerRol($role))
+            ->flatMap(fn ($role) => $role->permissions->pluck('name'))
+            ->merge($user->permissions->pluck('name'))
+            ->unique(function ($permission) {
+                return mb_strtolower(trim((string) $permission), 'UTF-8');
+            })
+            ->values();
+
         return HechoAccess::filterPermissionsForUser(
-            $user->getAllPermissions()->pluck('name'),
+            $permissions,
             $user
         );
+    }
+
+    private function primaryRoleForUser($user): ?string
+    {
+        $user->loadMissing('roles');
+
+        $role = $user->roles->first(fn ($role) => $user->puedeVerRol($role));
+
+        return $role ? $role->name : null;
+    }
+
+    private function userHasCompatibleRole($user, string $roleName): bool
+    {
+        $user->loadMissing('roles');
+
+        return $user->roles->contains(function ($role) use ($user, $roleName) {
+            return $role->name === $roleName && $user->puedeVerRol($role);
+        });
     }
 }

@@ -90,6 +90,7 @@ class GuardianesCaminoController extends Controller
                 DB::raw('GROUP_CONCAT(DISTINCT NULLIF(TRIM(crps_participantes), "") SEPARATOR " | ") as total_crps_participantes')
             )
             ->where('operativo_id', $operativoId)
+            ->aprobados()
             ->whereDate('fecha', $fecha)
             ->groupBy('operativo_dispositivo_catalogo_id')
             ->with('catalogo')
@@ -126,6 +127,7 @@ class GuardianesCaminoController extends Controller
                 DB::raw('GROUP_CONCAT(DISTINCT NULLIF(TRIM(crps_participantes), "") SEPARATOR " | ") as crps_participantes')
             )
             ->where('operativo_id', $operativoId)
+            ->aprobados()
             ->whereDate('fecha', $fecha)
             ->first();
     }
@@ -280,6 +282,7 @@ class GuardianesCaminoController extends Controller
                 'fotos',
             ])
             ->where('operativo_id', $operativo->id)
+            ->aprobados()
             ->whereDate('fecha', $fecha)
             ->orderByDesc('fecha')
             ->orderByDesc('hora')

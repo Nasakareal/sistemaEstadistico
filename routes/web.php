@@ -221,8 +221,8 @@ Route::prefix('guardianes-camino')->middleware(['auth', 'can:ver operativos carr
         Route::get('/pendientes-revision', [GuardianesCaminoDispositivoController::class, 'pendientesRevision'])->name('guardianes_camino.dispositivos.pendientes_revision');
         Route::get('/count-pendientes-revision', [GuardianesCaminoDispositivoController::class, 'countPendientesRevision'])->name('guardianes_camino.dispositivos.count_pendientes_revision');
 
-        Route::get('/create', [GuardianesCaminoDispositivoController::class, 'create'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.create');
-        Route::post('/', [GuardianesCaminoDispositivoController::class, 'store'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.store');
+        Route::get('/create', [GuardianesCaminoDispositivoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.dispositivos.create');
+        Route::post('/', [GuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('guardianes_camino.dispositivos.store');
 
         Route::get('/{dispositivo}', [GuardianesCaminoDispositivoController::class, 'show'])->name('guardianes_camino.dispositivos.show');
         Route::get('/{dispositivo}/edit', [GuardianesCaminoDispositivoController::class, 'edit'])->middleware('can:editar operativos carreteras')->name('guardianes_camino.dispositivos.edit');

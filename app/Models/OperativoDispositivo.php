@@ -8,6 +8,10 @@ class OperativoDispositivo extends Model
 {
     protected $table = 'operativo_dispositivos';
 
+    public const REVISION_PENDIENTE = 'pendiente';
+    public const REVISION_APROBADO = 'aprobado';
+    public const REVISION_RECHAZADO = 'rechazado';
+
     protected $fillable = [
         'client_uuid',
         'sync_status',
@@ -169,5 +173,23 @@ class OperativoDispositivo extends Model
     public function personas()
     {
         return $this->hasMany(OperativoDispositivoPersona::class, 'operativo_dispositivo_id');
+    }
+
+    public function scopeAprobados($query)
+    {
+        return $query->where('estado_revision', self::REVISION_APROBADO);
+    }
+
+    public function scopePendientesRevision($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('estado_revision')
+                ->orWhere('estado_revision', self::REVISION_PENDIENTE);
+        });
+    }
+
+    public function estaAprobado(): bool
+    {
+        return $this->estado_revision === self::REVISION_APROBADO;
     }
 }

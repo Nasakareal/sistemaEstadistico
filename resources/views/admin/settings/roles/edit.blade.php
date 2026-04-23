@@ -33,14 +33,19 @@
                                 <div class="form-group">
                                     <label for="unidad_id">Unidad</label>
                                     <select name="unidad_id" id="unidad_id" class="form-control">
-                                        <option value="">-- GLOBAL (todas las unidades) --</option>
+                                        @if ($puedeCrearRolGlobal ?? false)
+                                            <option value="">-- GLOBAL (todas las unidades) --</option>
+                                        @endif
                                         @foreach ($unidades as $unidad)
                                             <option value="{{ $unidad->id }}"
-                                                {{ old('unidad_id', $role->unidad_id) == $unidad->id ? 'selected' : '' }}>
+                                                {{ old('unidad_id', $role->unidadIdEfectiva() ?? ($unidadIdDefault ?? null)) == $unidad->id ? 'selected' : '' }}>
                                                 {{ $unidad->nombre }}
                                             </option>
                                         @endforeach
                                     </select>
+                                    @unless ($puedeCrearRolGlobal ?? false)
+                                        <small class="text-muted">Los administradores de unidad solo pueden conservar roles dentro de su propia unidad.</small>
+                                    @endunless
                                 </div>
                             </div>
 

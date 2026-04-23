@@ -154,25 +154,28 @@ class User extends Authenticatable
             return false;
         }
 
-        if (is_null($role->unidad_id)) {
+        $unidadRolId = $role->unidadIdEfectiva();
+
+        if (is_null($unidadRolId)) {
             return true;
         }
 
-        return !is_null($this->unidad_id) && (int) $role->unidad_id === (int) $this->unidad_id;
+        return !is_null($this->unidad_id) && (int) $unidadRolId === (int) $this->unidad_id;
     }
 
     public function rolesVisiblesQuery()
     {
         return Role::query()
             ->when(!$this->isSuperadmin(), function ($q) {
+                $unidadId = $this->unidad_id ? (int) $this->unidad_id : null;
+                $rolesExclusivosDeOtrasUnidades = Role::nombresExclusivosParaOtrasUnidades($unidadId);
+
                 $q->where('name', '!=', 'Superadmin')
                     ->where(function ($sub) {
-                        $sub->whereNull('unidad_id');
-
-                        if (!is_null($this->unidad_id)) {
-                            $sub->orWhere('unidad_id', $this->unidad_id);
-                        }
-                    });
+                        $sub->whereNull('unidad_id')
+                            ->orWhere('unidad_id', $this->unidad_id);
+                    })
+                    ->whereNotIn('name', $rolesExclusivosDeOtrasUnidades);
             });
     }
 
@@ -180,7 +183,9 @@ class User extends Authenticatable
     {
         return $this->rolesVisiblesQuery()
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->filter(fn (Role $role) => $this->puedeVerRol($role))
+            ->values();
     }
 
     public function setTelefonoAttribute($value)

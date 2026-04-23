@@ -512,7 +512,8 @@ class EstadisticasCarreterasController extends Controller
     private function baseOperativosQuery(Request $request)
     {
         $q = DB::table('operativo_dispositivos')
-            ->whereNotNull('operativo_dispositivos.id');
+            ->whereNotNull('operativo_dispositivos.id')
+            ->where('operativo_dispositivos.estado_revision', 'aprobado');
 
         $this->applyOperativosDateFilter($q, $request);
         $this->applyOperativosVisibilityScope($q, $request->user());

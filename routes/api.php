@@ -45,7 +45,7 @@ Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::prefix('perito-home')->group(function () {
+    Route::prefix('perito-home')->middleware(['role:Perito', 'unidad:siniestros'])->group(function () {
         Route::get('/mapa', [PeritoHomeController::class, 'mapa'])->name('api.perito_home.mapa');
         Route::get('/filtros', [PeritoHomeController::class, 'filtros'])->name('api.perito_home.filtros');
         Route::get('/hechos/{hecho}', [PeritoHomeController::class, 'show'])->name('api.perito_home.hechos.show');
@@ -63,9 +63,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/whatsapp', [ApiGuardianesCaminoController::class, 'whatsapp'])->name('api.guardianes_camino.whatsapp');
 
         Route::prefix('dispositivos')->group(function () {
-            Route::get('/create', [ApiGuardianesCaminoDispositivoController::class, 'create'])->name('api.guardianes_camino.dispositivos.create');
+            Route::get('/create', [ApiGuardianesCaminoDispositivoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.create');
             Route::get('/', [ApiGuardianesCaminoDispositivoController::class, 'index'])->name('api.guardianes_camino.dispositivos.index');
-            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->name('api.guardianes_camino.dispositivos.store');
+            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.store');
+            Route::get('/pendientes-revision', [ApiGuardianesCaminoDispositivoController::class, 'pendientesRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.pendientes_revision');
+            Route::get('/count-pendientes-revision', [ApiGuardianesCaminoDispositivoController::class, 'countPendientesRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.count_pendientes_revision');
+            Route::post('/{dispositivo}/aprobar-revision', [ApiGuardianesCaminoDispositivoController::class, 'aprobarRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.aprobar_revision');
+            Route::post('/{dispositivo}/rechazar-revision', [ApiGuardianesCaminoDispositivoController::class, 'rechazarRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.rechazar_revision');
             Route::get('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'show'])->name('api.guardianes_camino.dispositivos.show');
             Route::put('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'update'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.update');
             Route::delete('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'destroy'])->middleware('can:eliminar operativos carreteras')->name('api.guardianes_camino.dispositivos.destroy');

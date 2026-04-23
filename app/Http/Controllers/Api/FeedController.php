@@ -470,7 +470,8 @@ class FeedController extends Controller
 
         $q = DB::table('operativo_dispositivos as od')
             ->join('users as u', 'u.id', '=', 'od.created_by')
-            ->where('od.unidad_org_id', 4);
+            ->where('od.unidad_org_id', 4)
+            ->where('od.estado_revision', 'aprobado');
 
         if ($forUnion) {
             return $q->selectRaw("

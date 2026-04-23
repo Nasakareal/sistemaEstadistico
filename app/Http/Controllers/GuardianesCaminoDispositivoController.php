@@ -9,6 +9,7 @@ use App\Models\OperativoDispositivo;
 use App\Models\OperativoDispositivoCatalogo;
 use App\Models\OperativoDispositivoFoto;
 use App\Models\Vehiculo;
+use App\Services\GuardianesCaminoRevisionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -700,6 +701,10 @@ class GuardianesCaminoDispositivoController extends Controller
         $data['created_by'] = auth()->id();
         $data['updated_by'] = auth()->id();
         $data['cantidad'] = 1;
+        $data['estado_revision'] = OperativoDispositivo::REVISION_PENDIENTE;
+        $data['revisado_por'] = null;
+        $data['revisado_at'] = null;
+        $data['observacion_revision'] = null;
 
         $catalogo = OperativoDispositivoCatalogo::find($data['operativo_dispositivo_catalogo_id']);
         $nombre = mb_strtoupper(trim($catalogo->nombre ?? ''), 'UTF-8');
@@ -748,6 +753,8 @@ class GuardianesCaminoDispositivoController extends Controller
             $dispositivo->personas()->createMany($personas);
         }
 
+        app(GuardianesCaminoRevisionService::class)->notificarRevisionPendiente($dispositivo);
+
         return redirect()
             ->route('guardianes_camino.dispositivos.show', $dispositivo->id)
             ->with('success', 'Dispositivo registrado correctamente.');
@@ -771,6 +778,10 @@ class GuardianesCaminoDispositivoController extends Controller
             ->where('operativo_id', $operativo->id)
             ->findOrFail($dispositivo);
 
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            abort(403, 'Este dispositivo todavía está pendiente de revisión.');
+        }
+
         return view('guardianes_camino.dispositivos.show', compact('operativo', 'dispositivo'));
     }
 
@@ -781,6 +792,10 @@ class GuardianesCaminoDispositivoController extends Controller
         $dispositivo = OperativoDispositivo::with(['fotos','vehiculos','personas',])
             ->where('operativo_id', $operativo->id)
             ->findOrFail($dispositivo);
+
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            abort(403, 'Este dispositivo todavía está pendiente de revisión.');
+        }
 
         $catalogos = $this->obtenerCatalogos();
         $destacamentos = $this->obtenerDestacamentos();
@@ -807,6 +822,10 @@ class GuardianesCaminoDispositivoController extends Controller
         ])
             ->where('operativo_id', $operativo->id)
             ->findOrFail($id);
+
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            abort(403, 'Este dispositivo todavía está pendiente de revisión.');
+        }
 
         $this->inyectarDatosOrganizacion($request);
 
@@ -882,6 +901,10 @@ class GuardianesCaminoDispositivoController extends Controller
             ->where('operativo_id', $operativo->id)
             ->findOrFail($dispositivo);
 
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            abort(403, 'Este dispositivo todavía está pendiente de revisión.');
+        }
+
         foreach ($dispositivo->fotos as $foto) {
             if ($foto->ruta && Storage::disk('public')->exists($foto->ruta)) {
                 Storage::disk('public')->delete($foto->ruta);
@@ -911,6 +934,10 @@ class GuardianesCaminoDispositivoController extends Controller
         ])
             ->where('operativo_id', $operativo->id)
             ->findOrFail($dispositivo);
+
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            abort(403, 'Este dispositivo todavía está pendiente de revisión.');
+        }
 
         $tipo = strtoupper($dispositivo->catalogo->nombre ?? '');
 
@@ -1085,6 +1112,7 @@ class GuardianesCaminoDispositivoController extends Controller
             'personas',
         ])
         ->where('operativo_id', $operativo->id)
+        ->aprobados()
         ->whereDate('fecha', $fecha)
         ->orderByDesc('fecha')
         ->orderByDesc('hora')
@@ -1101,6 +1129,9 @@ class GuardianesCaminoDispositivoController extends Controller
 
         $fecha = $request->input('fecha');
 
+        $revision = app(GuardianesCaminoRevisionService::class);
+        $revision->assertPuedeRevisar(Auth::user());
+
         $query = OperativoDispositivo::with([
             'catalogo',
             'destacamento',
@@ -1110,11 +1141,9 @@ class GuardianesCaminoDispositivoController extends Controller
             'vehiculos',
             'personas',
         ])
-        ->where('operativo_id', $operativo->id)
-        ->where(function ($q) {
-            $q->whereNull('estado_revision')
-              ->orWhere('estado_revision', 'pendiente');
-        });
+        ->where('operativo_id', $operativo->id);
+
+        $revision->aplicarScopePendientes($query, Auth::user());
 
         if ($fecha) {
             $query->whereDate('fecha', $fecha);
@@ -1136,11 +1165,11 @@ class GuardianesCaminoDispositivoController extends Controller
 
         $fecha = $request->input('fecha');
 
-        $query = OperativoDispositivo::where('operativo_id', $operativo->id)
-            ->where(function ($q) {
-                $q->whereNull('estado_revision')
-                  ->orWhere('estado_revision', 'pendiente');
-            });
+        $revision = app(GuardianesCaminoRevisionService::class);
+        $revision->assertPuedeRevisar(Auth::user());
+
+        $query = OperativoDispositivo::where('operativo_id', $operativo->id);
+        $revision->aplicarScopePendientes($query, Auth::user());
 
         if ($fecha) {
             $query->whereDate('fecha', $fecha);
@@ -1159,13 +1188,8 @@ class GuardianesCaminoDispositivoController extends Controller
             'observacion_revision' => ['nullable', 'string'],
         ]);
 
-        $dispositivo->update([
-            'estado_revision' => 'aprobado',
-            'revisado_por' => Auth::id(),
-            'revisado_at' => now(),
-            'observacion_revision' => $request->observacion_revision,
-            'updated_by' => Auth::id(),
-        ]);
+        app(GuardianesCaminoRevisionService::class)
+            ->aprobar($dispositivo, Auth::user(), $request->observacion_revision);
 
         return redirect()->back()->with('success', 'Dispositivo aprobado correctamente.');
     }
@@ -1178,13 +1202,8 @@ class GuardianesCaminoDispositivoController extends Controller
             'observacion_revision' => ['required', 'string'],
         ]);
 
-        $dispositivo->update([
-            'estado_revision' => 'rechazado',
-            'revisado_por' => Auth::id(),
-            'revisado_at' => now(),
-            'observacion_revision' => $request->observacion_revision,
-            'updated_by' => Auth::id(),
-        ]);
+        app(GuardianesCaminoRevisionService::class)
+            ->rechazar($dispositivo, Auth::user(), $request->observacion_revision);
 
         return redirect()->back()->with('success', 'Dispositivo rechazado correctamente.');
     }

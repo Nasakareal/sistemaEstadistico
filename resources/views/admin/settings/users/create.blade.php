@@ -65,10 +65,14 @@
                                             class="form-control @error('role_id') is-invalid @enderror" required>
                                         <option value="" disabled {{ old('role_id') ? '' : 'selected' }}>Seleccione un rol</option>
                                         @foreach ($roles as $role)
+                                            @php
+                                                $unidadRolId = $role->unidadIdEfectiva();
+                                                $unidadRolNombre = $role->unidadEfectivaNombre();
+                                            @endphp
                                             <option value="{{ $role->id }}"
-                                                    data-unidad-id="{{ $role->unidad_id }}"
+                                                    data-unidad-id="{{ $unidadRolId }}"
                                                     {{ (string) old('role_id') === (string) $role->id ? 'selected' : '' }}>
-                                                {{ $role->name }}{{ !is_null($role->unidad_id) ? ' - ' . ($role->unidad_nombre ?? 'SIN UNIDAD') : ' - GLOBAL' }}
+                                                {{ $role->name }}{{ !is_null($unidadRolId) ? ' - ' . ($unidadRolNombre ?? 'SIN UNIDAD') : ' - GLOBAL' }}
                                             </option>
                                         @endforeach
                                     </select>

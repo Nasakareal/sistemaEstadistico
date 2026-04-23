@@ -10,6 +10,7 @@ use App\Models\OperativoDispositivo;
 use App\Models\OperativoDispositivoCatalogo;
 use App\Models\OperativoDispositivoFoto;
 use App\Models\Vehiculo;
+use App\Services\GuardianesCaminoRevisionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -439,6 +440,10 @@ class GuardianesCaminoDispositivoController extends Controller
 
         if (!$dispositivo->exists) {
             $dispositivo->created_by = $request->user()->id;
+            $dispositivo->estado_revision = OperativoDispositivo::REVISION_PENDIENTE;
+            $dispositivo->revisado_por = null;
+            $dispositivo->revisado_at = null;
+            $dispositivo->observacion_revision = null;
         }
 
         $dispositivo->updated_by = $request->user()->id;
@@ -691,6 +696,8 @@ class GuardianesCaminoDispositivoController extends Controller
             'personas',
         ])->where('operativo_id', $operativo->id);
 
+        $query->aprobados();
+
         if ($request->filled('fecha')) {
             $query->whereDate('fecha', $request->query('fecha'));
         }
@@ -806,6 +813,8 @@ class GuardianesCaminoDispositivoController extends Controller
                 'personas',
             ]);
 
+            app(GuardianesCaminoRevisionService::class)->notificarRevisionPendiente($dispositivo);
+
             return response()->json([
                 'message' => 'Dispositivo capturado correctamente.',
                 'created' => true,
@@ -818,6 +827,173 @@ class GuardianesCaminoDispositivoController extends Controller
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->errors());
         }
+    }
+
+    public function pendientesRevision(Request $request)
+    {
+        $operativo = $this->obtenerOperativoUnico();
+        $revision = app(GuardianesCaminoRevisionService::class);
+        $revision->assertPuedeRevisar($request->user());
+
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = $perPage > 0 ? min($perPage, 100) : 20;
+
+        $query = OperativoDispositivo::with([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ])->where('operativo_id', $operativo->id);
+
+        $revision->aplicarScopePendientes($query, $request->user());
+
+        if ($request->filled('fecha')) {
+            $query->whereDate('fecha', $request->query('fecha'));
+        }
+
+        $result = $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+
+        $data = array_map(function ($row) {
+            return $this->transformDispositivo($row);
+        }, $result->items());
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $result->currentPage(),
+                'per_page' => $result->perPage(),
+                'total' => $result->total(),
+                'last_page' => $result->lastPage(),
+            ],
+        ], 200);
+    }
+
+    public function countPendientesRevision(Request $request)
+    {
+        $operativo = $this->obtenerOperativoUnico();
+        $revision = app(GuardianesCaminoRevisionService::class);
+        $revision->assertPuedeRevisar($request->user());
+
+        $query = OperativoDispositivo::where('operativo_id', $operativo->id);
+        $revision->aplicarScopePendientes($query, $request->user());
+
+        if ($request->filled('fecha')) {
+            $query->whereDate('fecha', $request->query('fecha'));
+        }
+
+        return response()->json([
+            'total' => $query->count(),
+        ], 200);
+    }
+
+    public function aprobarRevision(Request $request, $dispositivo)
+    {
+        $request->validate([
+            'observacion_revision' => ['nullable', 'string'],
+        ]);
+
+        $operativo = $this->obtenerOperativoUnico();
+        $dispositivo = OperativoDispositivo::with([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ])
+        ->where('operativo_id', $operativo->id)
+        ->find($dispositivo);
+
+        if (!$dispositivo) {
+            return response()->json([
+                'message' => 'No encontrado.',
+            ], 404);
+        }
+
+        app(GuardianesCaminoRevisionService::class)
+            ->aprobar($dispositivo, $request->user(), $request->observacion_revision);
+
+        $dispositivo->refresh()->load([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ]);
+
+        return response()->json([
+            'message' => 'Dispositivo aprobado correctamente.',
+            'data' => $this->transformDispositivo($dispositivo),
+        ], 200);
+    }
+
+    public function rechazarRevision(Request $request, $dispositivo)
+    {
+        $request->validate([
+            'observacion_revision' => ['required', 'string'],
+        ]);
+
+        $operativo = $this->obtenerOperativoUnico();
+        $dispositivo = OperativoDispositivo::with([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ])
+        ->where('operativo_id', $operativo->id)
+        ->find($dispositivo);
+
+        if (!$dispositivo) {
+            return response()->json([
+                'message' => 'No encontrado.',
+            ], 404);
+        }
+
+        app(GuardianesCaminoRevisionService::class)
+            ->rechazar($dispositivo, $request->user(), $request->observacion_revision);
+
+        $dispositivo->refresh()->load([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'revisadoPor',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ]);
+
+        return response()->json([
+            'message' => 'Dispositivo rechazado correctamente.',
+            'data' => $this->transformDispositivo($dispositivo),
+        ], 200);
     }
 
     public function show($dispositivo)
@@ -844,6 +1020,12 @@ class GuardianesCaminoDispositivoController extends Controller
             ], 404);
         }
 
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            return response()->json([
+                'message' => 'Este dispositivo todavía está pendiente de revisión.',
+            ], 403);
+        }
+
         return response()->json([
             'data' => $this->transformDispositivo($dispositivo),
         ], 200);
@@ -862,6 +1044,12 @@ class GuardianesCaminoDispositivoController extends Controller
                 return response()->json([
                     'message' => 'No encontrado.',
                 ], 404);
+            }
+
+            if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo($request->user(), $dispositivo)) {
+                return response()->json([
+                    'message' => 'Este dispositivo todavía está pendiente de revisión.',
+                ], 403);
             }
 
             $this->inyectarDatosOrganizacion($request);
@@ -949,6 +1137,12 @@ class GuardianesCaminoDispositivoController extends Controller
             ], 404);
         }
 
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo($request->user(), $dispositivo)) {
+            return response()->json([
+                'message' => 'Este dispositivo todavía está pendiente de revisión.',
+            ], 403);
+        }
+
         DB::transaction(function () use ($dispositivo) {
             foreach ($dispositivo->fotos as $foto) {
                 if ($foto->ruta && Storage::disk('public')->exists($foto->ruta)) {
@@ -983,6 +1177,12 @@ class GuardianesCaminoDispositivoController extends Controller
             return response()->json([
                 'message' => 'No encontrado.',
             ], 404);
+        }
+
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo(Auth::user(), $dispositivo)) {
+            return response()->json([
+                'message' => 'Este dispositivo todavía está pendiente de revisión.',
+            ], 403);
         }
 
         $tipo = strtoupper($dispositivo->catalogo->nombre ?? '');

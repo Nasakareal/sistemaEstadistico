@@ -571,40 +571,45 @@ class UserController extends Controller
 
     private function rolesDisponiblesParaActor(User $actor)
     {
-        return $actor->rolesVisiblesQuery()
-            ->leftJoin('unidades', 'roles.unidad_id', '=', 'unidades.id')
-            ->select('roles.*', 'unidades.nombre as unidad_nombre')
+        return Role::query()
+            ->with('unidad')
             ->orderBy('roles.name')
-            ->get();
+            ->get()
+            ->filter(fn (Role $role) => $actor->puedeVerRol($role))
+            ->values();
     }
 
     private function buscarRolAsignableParaActor(User $actor, int $roleId): ?Role
     {
-        return $actor->rolesVisiblesQuery()
-            ->where('id', $roleId)
-            ->first();
+        $rol = Role::query()->with('unidad')->find($roleId);
+
+        if (!$rol || !$actor->puedeVerRol($rol)) {
+            return null;
+        }
+
+        return $rol;
     }
 
     private function unidadEsCompatibleConRol(Role $rol, ?int $unidadId): bool
     {
-        if (is_null($rol->unidad_id)) {
+        $unidadRolId = $rol->unidadIdEfectiva();
+
+        if (is_null($unidadRolId)) {
             return true;
         }
 
-        return !is_null($unidadId) && (int) $rol->unidad_id === (int) $unidadId;
+        return !is_null($unidadId) && (int) $unidadRolId === (int) $unidadId;
     }
 
     private function normalizarUnidadParaActor(User $actor, ?int $unidadId, ?Role $rol = null): ?int
     {
-        if ($rol && !is_null($rol->unidad_id)) {
-            return (int) $rol->unidad_id;
+        if (!$this->actorEsSuperadmin($actor)) {
+            return $actor->unidad_id;
         }
 
-        if ($this->actorEsSuperadmin($actor)) {
-            return $unidadId;
-        }
+        $unidadRolId = $rol ? $rol->unidadIdEfectiva() : null;
 
-        return $actor->unidad_id;
+        return !is_null($unidadRolId) ? (int) $unidadRolId : $unidadId;
     }
 
     private function patrullaPerteneceAUnidad(?int $patrullaId, ?int $unidadId): bool

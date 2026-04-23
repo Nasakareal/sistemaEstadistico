@@ -149,8 +149,27 @@ class RolesAndPermissionsSeeder extends Seeder
                 'ver dictamenes',
                 'crear dictamenes',
                 'editar dictamenes',
+                'ver operativos carreteras',
+                'ver estadisticas carreteras',
             ]),
-            'Administrativo' => $operacionHechos,
+            'Administrativo' => array_merge($operacionHechos, [
+                'ver operativos carreteras',
+                'ver estadisticas carreteras',
+            ]),
+            'Agente Upec' => [
+                'ver operativos carreteras',
+                'crear operativos carreteras',
+            ],
+            'RT' => [
+                'ver operativos carreteras',
+                'editar operativos carreteras',
+                'ver estadisticas carreteras',
+            ],
+            'Encargado de Destacamento' => [
+                'ver operativos carreteras',
+                'editar operativos carreteras',
+                'ver estadisticas carreteras',
+            ],
             'Delegado' => $delegadoPermissions,
             'Empleado' => $operacionHechos,
             'Observador' => [
@@ -161,6 +180,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $roleUnidadIds = [
             'Delegado' => 2,
+            'Agente Upec' => 4,
+            'RT' => 4,
+            'Encargado de Destacamento' => 4,
         ];
 
         DB::transaction(function () use ($roles, $roleUnidadIds) {

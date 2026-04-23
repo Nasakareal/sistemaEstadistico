@@ -114,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth','can:ver mapa'])->group(function () {
     Route::get('/mapa-incidencias', [MapaIncidenciasController::class,'index'])->name('mapa.incidencias.index');
     Route::get('/mapa-incidencias/data', [MapaIncidenciasController::class,'data'])->name('mapa.incidencias.data');
+    Route::get('/mapa-incidencias/hechos', [MapaIncidenciasController::class,'hechos'])->name('mapa.incidencias.hechos');
 });
 
 

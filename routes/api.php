@@ -86,6 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/profile', [AuthController::class, 'profile']);
+    Route::put('/profile/password', [AuthController::class, 'changePassword']);
     Route::get('/permissions', [AuthController::class, 'permissions']);
     Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
 

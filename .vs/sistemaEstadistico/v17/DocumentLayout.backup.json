@@ -3,12 +3,28 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\guardianes_camino\\dispositivos\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\guardianes_camino\\dispositivos\\create.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\OperativoDispositivo.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Models\\OperativoDispositivo.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -23,27 +39,80 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "create.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\guardianes_camino\\dispositivos\\create.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\guardianes_camino\\dispositivos\\create.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\guardianes_camino\\dispositivos\\create.blade.php",
-              "RelativeToolTip": "resources\\views\\guardianes_camino\\dispositivos\\create.blade.php",
-              "ViewState": "AgIAAG8AAAAAAAAAAAAmwJMAAAAeAAAAAAAAAA==",
+              "Title": "DelegacionesActividadesPruebaSeeder.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
+              "RelativeDocumentMoniker": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
+              "RelativeToolTip": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-22T03:32:03.884Z",
+              "WhenOpened": "2026-04-23T20:56:31.748Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "NovRelSheetService.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
+              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
+              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-04-23T20:49:38.065Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "MoreliaRpSheetService.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
+              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
+              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
+              "ViewState": "AgIAAIsAAAAAAAAAAAAmwL4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-04-23T20:29:16.135Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "OperativoDispositivo.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\OperativoDispositivo.php",
-              "RelativeDocumentMoniker": "app\\Models\\OperativoDispositivo.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Models\\OperativoDispositivo.php",
-              "RelativeToolTip": "app\\Models\\OperativoDispositivo.php",
-              "ViewState": "AgIAAHwAAAAAAAAAAAAmwKcAAAAAAAAAAAAAAA==",
+              "Title": "RegionalSheetService.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
+              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
+              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-22T02:49:16.909Z"
+              "WhenOpened": "2026-04-23T20:17:51.929Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "ExcelDelegacionesGenerator.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
+              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
+              "RelativeToolTip": "app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
+              "ViewState": "AgIAAB0AAAAAAAAAAAAmwEEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-04-23T19:54:04.916Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "GenerarExcelDelegacionesDiario.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
+              "RelativeDocumentMoniker": "app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
+              "RelativeToolTip": "app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAC0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2026-04-23T19:53:43.512Z",
+              "EditorCaption": ""
             }
           ]
         }

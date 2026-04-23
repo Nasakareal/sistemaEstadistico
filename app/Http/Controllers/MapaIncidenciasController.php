@@ -62,4 +62,83 @@ class MapaIncidenciasController extends Controller
             })
         ]);
     }
+
+    public function hechos(Request $request)
+    {
+        $lat = $request->query('lat');
+        $lng = $request->query('lng');
+        $desde = $request->query('desde');
+        $hasta = $request->query('hasta');
+        $tipo = $request->query('tipo_hecho');
+
+        $precision = (int) $request->query('precision', 3);
+        if ($precision < 2) {
+            $precision = 2;
+        }
+        if ($precision > 5) {
+            $precision = 5;
+        }
+
+        if ($lat === null || $lng === null || !is_numeric($lat) || !is_numeric($lng)) {
+            return response()->json([
+                'message' => 'Coordenadas inválidas.',
+            ], 422);
+        }
+
+        $lat = round((float) $lat, $precision);
+        $lng = round((float) $lng, $precision);
+
+        $rows = DB::table('hechos')
+            ->whereNotNull('lat')
+            ->whereNotNull('lng')
+            ->whereRaw('ROUND(lat, ?) = ?', [$precision, $lat])
+            ->whereRaw('ROUND(lng, ?) = ?', [$precision, $lng]);
+
+        if ($desde) {
+            $rows->whereDate('fecha', '>=', $desde);
+        }
+        if ($hasta) {
+            $rows->whereDate('fecha', '<=', $hasta);
+        }
+        if ($tipo) {
+            $rows->where('tipo_hecho', $tipo);
+        }
+
+        $hechos = $rows
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->limit(150)
+            ->get([
+                'id',
+                'folio_c5i',
+                'fecha',
+                'hora',
+                'tipo_hecho',
+                'situacion',
+                'calle',
+                'colonia',
+                'municipio',
+                'lat',
+                'lng',
+            ]);
+
+        return response()->json([
+            'data' => $hechos->map(function ($row) {
+                return [
+                    'id' => (int) $row->id,
+                    'folio_c5i' => $row->folio_c5i,
+                    'fecha' => $row->fecha,
+                    'hora' => $row->hora,
+                    'tipo_hecho' => $row->tipo_hecho,
+                    'situacion' => $row->situacion,
+                    'calle' => $row->calle,
+                    'colonia' => $row->colonia,
+                    'municipio' => $row->municipio,
+                    'lat' => $row->lat !== null ? (float) $row->lat : null,
+                    'lng' => $row->lng !== null ? (float) $row->lng : null,
+                    'show_url' => route('hechos.show', ['hecho' => $row->id]),
+                ];
+            })->values(),
+        ]);
+    }
 }

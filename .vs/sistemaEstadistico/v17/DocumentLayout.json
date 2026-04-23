@@ -3,16 +3,16 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
@@ -34,30 +34,30 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "DelegacionesActividadesPruebaSeeder.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
               "RelativeDocumentMoniker": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
               "RelativeToolTip": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAFwAAAAAAAAAAAAcwKIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-04-23T20:56:31.748Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "NovRelSheetService.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
               "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
               "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAACUAAAAAAAAAAAAcwFYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-04-23T20:49:38.065Z",
               "EditorCaption": ""
@@ -72,18 +72,17 @@
               "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
               "ViewState": "AgIAAIsAAAAAAAAAAAAmwL4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T20:29:16.135Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-23T20:29:16.135Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "RegionalSheetService.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
               "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
               "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAF8CAAAAAAAAAAAAAF8CAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-04-23T20:17:51.929Z",
               "EditorCaption": ""
@@ -98,8 +97,7 @@
               "RelativeToolTip": "app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
               "ViewState": "AgIAAB0AAAAAAAAAAAAmwEEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T19:54:04.916Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-23T19:54:04.916Z"
             },
             {
               "$type": "Document",
@@ -111,8 +109,7 @@
               "RelativeToolTip": "app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAC0AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T19:53:43.512Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-23T19:53:43.512Z"
             }
           ]
         }

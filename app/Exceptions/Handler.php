@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Redirect;
 use Throwable;
 
@@ -28,6 +29,26 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $exception)
     {
+        if ($request->is('api/*') || $request->expectsJson()) {
+            if ($exception instanceof AuthenticationException) {
+                return response()->json([
+                    'message' => 'No autenticado.',
+                ], 401);
+            }
+
+            if ($exception instanceof AuthorizationException) {
+                return response()->json([
+                    'message' => $exception->getMessage() ?: 'No autorizado.',
+                ], 403);
+            }
+
+            if ($this->isHttpException($exception)) {
+                return response()->json([
+                    'message' => $exception->getMessage() ?: 'Error HTTP ' . $exception->getStatusCode(),
+                ], $exception->getStatusCode());
+            }
+        }
+
         // Manejo de error 403 - Redirigir a la página de bienvenida
         if ($exception instanceof AuthorizationException) {
             return Redirect::route('welcome');

@@ -19,6 +19,10 @@ class VerificarUnidad
             return $next($request);
         }
 
+        if ((int) ($user->unidad_id ?? 0) === 3) {
+            return $next($request);
+        }
+
         if (!$user->tieneUnidad()) {
             abort(403, 'Tu usuario no tiene una unidad asignada.');
         }

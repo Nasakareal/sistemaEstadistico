@@ -19,6 +19,49 @@ class AuthServiceProvider extends ServiceProvider
                 return true;
             }
 
+            $carreterasAbilities = [
+                'ver operativos carreteras',
+                'crear operativos carreteras',
+                'editar operativos carreteras',
+                'eliminar operativos carreteras',
+                'ver estadisticas carreteras',
+            ];
+
+            if (in_array($ability, $carreterasAbilities, true)) {
+                $unidadOk = $user->perteneceAUnidad('carreteras') || (int) ($user->unidad_id ?? 0) === 3;
+                if (!$unidadOk) {
+                    return false;
+                }
+
+                if (
+                    $ability === 'ver operativos carreteras'
+                    && $user->hasAnyRole(['Administrador', 'Subdirector', 'Administrativo', 'Agente Upec', 'RT', 'Encargado de Destacamento'])
+                ) {
+                    return true;
+                }
+
+                if (
+                    $ability === 'crear operativos carreteras'
+                    && $user->hasAnyRole(['Administrador', 'Agente Upec'])
+                ) {
+                    return true;
+                }
+
+                if (
+                    in_array($ability, ['editar operativos carreteras', 'ver estadisticas carreteras'], true)
+                    && $user->hasAnyRole(['Administrador', 'Subdirector', 'Administrativo', 'RT', 'Encargado de Destacamento'])
+                ) {
+                    return true;
+                }
+
+                if (
+                    $ability === 'eliminar operativos carreteras'
+                    && $user->hasRole('Administrador')
+                ) {
+                    return true;
+                }
+            }
+
             if (
                 in_array($ability, ['ver puestas a disposicion', 'crear puestas a disposicion'], true)
                 && !empty($user->unidad_id)

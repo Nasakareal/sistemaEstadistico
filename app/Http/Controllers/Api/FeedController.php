@@ -34,7 +34,7 @@ class FeedController extends Controller
 
         $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds, false, 1, $usuario), $limit);
         $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario), $limit);
-        $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds), $limit);
+        $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds, false, 3, $usuario), $limit);
         $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds), $limit);
 
         $items = $hechos->concat($actividades)->concat($carreteras)->concat($vialidades)
@@ -93,7 +93,7 @@ class FeedController extends Controller
         $sources = collect([
             $this->queryHechos($unidadIds, true, 1, $usuario),
             $this->queryActividades($unidadIds, true, 2, $usuario),
-            $this->queryCarreteras($unidadIds, true, 3),
+            $this->queryCarreteras($unidadIds, true, 3, $usuario),
             $this->queryVialidades($unidadIds, true, 4),
         ])->filter();
 
@@ -462,16 +462,26 @@ class FeedController extends Controller
         ")->orderByDesc('a.created_at')->orderByDesc('a.id');
     }
 
-    private function queryCarreteras(array $unidadIds, bool $forUnion = false, int $typeOrder = 3)
+    private function queryCarreteras(array $unidadIds, bool $forUnion = false, int $typeOrder = 3, $usuario = null)
     {
         if (!Schema::hasTable('operativo_dispositivos') || !in_array(4, $unidadIds, true)) {
             return $forUnion ? null : collect();
         }
 
+        $fotoPathSql = $this->carreterasFotoPathSql();
+
         $q = DB::table('operativo_dispositivos as od')
             ->join('users as u', 'u.id', '=', 'od.created_by')
-            ->where('od.unidad_org_id', 4)
-            ->where('od.estado_revision', 'aprobado');
+            ->where('od.unidad_org_id', 4);
+
+        $userId = (int) ($usuario->id ?? 0);
+        $q->where(function ($w) use ($userId) {
+            $w->where('od.estado_revision', 'aprobado');
+
+            if ($userId > 0) {
+                $w->orWhere('od.user_id', $userId);
+            }
+        });
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -492,7 +502,7 @@ class FeedController extends Controller
                         ELSE ''
                     END
                 ) as resumen,
-                NULL as foto_path,
+                {$fotoPathSql} as foto_path,
                 od.created_at as created_at
             ", [$typeOrder]);
         }
@@ -514,9 +524,25 @@ class FeedController extends Controller
                     ELSE ''
                 END
             ) as resumen,
-            NULL as foto_path,
+            {$fotoPathSql} as foto_path,
             od.created_at as created_at
         ")->orderByDesc('od.created_at')->orderByDesc('od.id');
+    }
+
+    private function carreterasFotoPathSql(): string
+    {
+        if (!Schema::hasTable('operativo_dispositivo_fotos')) {
+            return 'NULL';
+        }
+
+        return "(
+            SELECT odf.ruta
+            FROM operativo_dispositivo_fotos odf
+            WHERE odf.operativo_dispositivo_id = od.id
+              AND (odf.incluida_en_compartido = 1 OR odf.incluida_en_compartido IS NULL)
+            ORDER BY odf.es_portada DESC, odf.orden ASC, odf.id ASC
+            LIMIT 1
+        )";
     }
 
     private function queryVialidades(array $unidadIds, bool $forUnion = false, int $typeOrder = 4)

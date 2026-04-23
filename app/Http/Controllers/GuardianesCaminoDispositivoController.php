@@ -187,8 +187,8 @@ class GuardianesCaminoDispositivoController extends Controller
             'vehiculos_nuevos.*.corralon' => ['nullable', 'string', 'max:255'],
             'vehiculos_nuevos.*.aseguradora' => ['nullable', 'string', 'max:100'],
             'vehiculos_nuevos.*.antecedente_vehiculo' => ['nullable', 'boolean'],
-            'vehiculos_nuevos.*.monto_danos' => ['required_with:vehiculos_nuevos', 'numeric', 'min:0'],
-            'vehiculos_nuevos.*.partes_danadas' => ['required_with:vehiculos_nuevos', 'string'],
+            'vehiculos_nuevos.*.monto_danos' => ['nullable', 'numeric', 'min:0'],
+            'vehiculos_nuevos.*.partes_danadas' => ['nullable', 'string'],
 
             'personas' => ['nullable', 'array'],
             'personas.*.nombre' => ['nullable', 'string', 'max:255'],
@@ -556,7 +556,7 @@ class GuardianesCaminoDispositivoController extends Controller
             'aseguradora' => $this->normalizarTextoRelacionado($vehiculo['aseguradora'] ?? null),
             'fotos' => null,
             'antecedente_vehiculo' => $this->boolRelacionado($vehiculo['antecedente_vehiculo'] ?? false) ? 1 : 0,
-            'monto_danos' => $vehiculo['monto_danos'] ?? 0,
+            'monto_danos' => $vehiculo['monto_danos'] ?? null,
             'partes_danadas' => $this->normalizarTextoRelacionado($vehiculo['partes_danadas'] ?? null),
         ];
     }

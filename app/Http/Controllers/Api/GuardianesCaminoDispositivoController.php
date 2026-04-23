@@ -860,6 +860,83 @@ class GuardianesCaminoDispositivoController extends Controller
         }
     }
 
+    public function storeFotos(Request $request, $dispositivo = null)
+    {
+        $operativo = $this->obtenerOperativoUnico();
+
+        $validator = Validator::make($request->all(), [
+            'client_uuid' => ['nullable', 'string', 'max:100'],
+            'fotos' => ['required', 'array', 'min:1'],
+            'fotos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'fotos_observaciones' => ['nullable', 'array'],
+            'fotos_caption' => ['nullable', 'array'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator->errors()->toArray());
+        }
+
+        $query = OperativoDispositivo::with([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ])->where('operativo_id', $operativo->id);
+
+        if ($dispositivo !== null) {
+            $dispositivo = $query->find($dispositivo);
+        } else {
+            $clientUuid = trim((string) $request->input('client_uuid', ''));
+            if ($clientUuid === '') {
+                return $this->validationErrorResponse([
+                    'client_uuid' => ['No se recibió el identificador local del dispositivo.'],
+                ]);
+            }
+
+            $dispositivo = $query->where('client_uuid', $clientUuid)->first();
+        }
+
+        if (!$dispositivo) {
+            return response()->json([
+                'message' => 'No encontrado.',
+            ], 404);
+        }
+
+        if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo($request->user(), $dispositivo)) {
+            return response()->json([
+                'message' => 'Este dispositivo todavía está pendiente de revisión.',
+            ], 403);
+        }
+
+        $this->guardarFotos($request, $dispositivo);
+
+        $dispositivo->refresh()->load([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ]);
+
+        return response()->json([
+            'message' => 'Fotos subidas correctamente.',
+            'data' => $this->transformDispositivo($dispositivo),
+            'meta' => [
+                'id' => $dispositivo->id,
+                'client_uuid' => $dispositivo->client_uuid,
+            ],
+        ], 201);
+    }
+
     public function pendientesRevision(Request $request)
     {
         $operativo = $this->obtenerOperativoUnico();

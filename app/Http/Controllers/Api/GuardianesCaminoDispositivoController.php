@@ -14,6 +14,7 @@ use App\Services\GuardianesCaminoRevisionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -162,19 +163,20 @@ class GuardianesCaminoDispositivoController extends Controller
             'vehiculos' => ['nullable', 'array'],
             'vehiculos.*' => ['integer', 'exists:vehiculos,id'],
             'vehiculos_nuevos' => ['nullable', 'array'],
+            'vehiculos_nuevos.*.client_uuid' => ['nullable', 'string', 'max:100'],
             'vehiculos_nuevos.*.rol' => ['nullable', 'string', 'max:100'],
             'vehiculos_nuevos.*.observaciones' => ['nullable', 'string', 'max:255'],
             'vehiculos_nuevos.*.marca' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
             'vehiculos_nuevos.*.modelo' => ['nullable', 'string', 'max:10'],
             'vehiculos_nuevos.*.tipo_general' => ['nullable', 'string', 'max:50'],
-            'vehiculos_nuevos.*.tipo' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
-            'vehiculos_nuevos.*.linea' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
-            'vehiculos_nuevos.*.color' => ['required_with:vehiculos_nuevos', 'string', 'max:30'],
+            'vehiculos_nuevos.*.tipo' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.linea' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.color' => ['nullable', 'string', 'max:30'],
             'vehiculos_nuevos.*.placas' => ['nullable', 'string', 'max:15', 'regex:/^[A-Z0-9]{5,15}$/i'],
             'vehiculos_nuevos.*.estado_placas' => ['nullable', 'string', 'max:30'],
             'vehiculos_nuevos.*.serie' => ['nullable', 'string', 'max:17', 'regex:/^[A-Z0-9]{6,17}$/i'],
-            'vehiculos_nuevos.*.capacidad_personas' => ['required_with:vehiculos_nuevos', 'integer', 'min:0'],
-            'vehiculos_nuevos.*.tipo_servicio' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
+            'vehiculos_nuevos.*.capacidad_personas' => ['nullable', 'integer', 'min:0'],
+            'vehiculos_nuevos.*.tipo_servicio' => ['nullable', 'string', 'max:50'],
             'vehiculos_nuevos.*.tarjeta_circulacion_nombre' => ['nullable', 'string', 'max:60'],
             'vehiculos_nuevos.*.grua' => ['nullable', 'string', 'max:255'],
             'vehiculos_nuevos.*.corralon' => ['nullable', 'string', 'max:255'],
@@ -263,6 +265,107 @@ class GuardianesCaminoDispositivoController extends Controller
         if (!empty($merge)) {
             $request->merge($merge);
         }
+    }
+
+    protected function decodificarListaJson(Request $request, string $campo): array
+    {
+        $raw = $request->input($campo);
+
+        if ($raw === null || trim((string) $raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode((string) $raw, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            throw ValidationException::withMessages([
+                $campo => ['El formato de los relacionados no es válido.'],
+            ]);
+        }
+
+        return array_values(array_filter($decoded, fn($item) => is_array($item)));
+    }
+
+    protected function resolverDispositivoRelacionado(Request $request, $dispositivo = null): ?OperativoDispositivo
+    {
+        $operativo = $this->obtenerOperativoUnico();
+
+        $query = OperativoDispositivo::with([
+            'catalogo',
+            'operativo',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'usuario',
+            'fotos',
+            'vehiculos',
+            'personas',
+        ])->where('operativo_id', $operativo->id);
+
+        if ($dispositivo !== null) {
+            return $query->find($dispositivo);
+        }
+
+        $clientUuid = trim((string) $request->input('client_uuid', ''));
+        if ($clientUuid === '') {
+            throw ValidationException::withMessages([
+                'client_uuid' => ['No se recibió el identificador local del dispositivo.'],
+            ]);
+        }
+
+        return $query->where('client_uuid', $clientUuid)->first();
+    }
+
+    protected function validarPayloadRelacionados(array $data): array
+    {
+        $validator = Validator::make($data, [
+            'vehiculos_nuevos' => ['nullable', 'array'],
+            'vehiculos_nuevos.*.client_uuid' => ['nullable', 'string', 'max:100'],
+            'vehiculos_nuevos.*.rol' => ['nullable', 'string', 'max:100'],
+            'vehiculos_nuevos.*.observaciones' => ['nullable', 'string', 'max:255'],
+            'vehiculos_nuevos.*.marca' => ['required_with:vehiculos_nuevos', 'string', 'max:50'],
+            'vehiculos_nuevos.*.modelo' => ['nullable', 'string', 'max:10'],
+            'vehiculos_nuevos.*.tipo_general' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.tipo' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.linea' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.color' => ['nullable', 'string', 'max:30'],
+            'vehiculos_nuevos.*.placas' => ['nullable', 'string', 'max:15', 'regex:/^[A-Z0-9]{5,15}$/i'],
+            'vehiculos_nuevos.*.estado_placas' => ['nullable', 'string', 'max:30'],
+            'vehiculos_nuevos.*.serie' => ['nullable', 'string', 'max:17', 'regex:/^[A-Z0-9]{6,17}$/i'],
+            'vehiculos_nuevos.*.capacidad_personas' => ['nullable', 'integer', 'min:0'],
+            'vehiculos_nuevos.*.tipo_servicio' => ['nullable', 'string', 'max:50'],
+            'vehiculos_nuevos.*.tarjeta_circulacion_nombre' => ['nullable', 'string', 'max:60'],
+            'vehiculos_nuevos.*.grua' => ['nullable', 'string', 'max:255'],
+            'vehiculos_nuevos.*.corralon' => ['nullable', 'string', 'max:255'],
+            'vehiculos_nuevos.*.aseguradora' => ['nullable', 'string', 'max:100'],
+            'vehiculos_nuevos.*.antecedente_vehiculo' => ['nullable', 'boolean'],
+            'personas' => ['nullable', 'array'],
+            'personas.*.nombre' => ['nullable', 'string', 'max:255'],
+            'personas.*.tipo_participacion' => ['nullable', 'string', 'max:100'],
+            'personas.*.curp' => ['nullable', 'string', 'max:30'],
+            'personas.*.telefono' => ['nullable', 'digits:10'],
+            'personas.*.domicilio' => ['nullable', 'string', 'max:255'],
+            'personas.*.sexo' => ['nullable', 'string', 'in:MASCULINO,FEMENINO,OTRO'],
+            'personas.*.ocupacion' => ['nullable', 'string', 'max:255'],
+            'personas.*.edad' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'personas.*.tipo_licencia' => ['nullable', 'string', 'max:50'],
+            'personas.*.estado_licencia' => ['nullable', 'string', 'max:100'],
+            'personas.*.vigencia_licencia' => ['nullable', 'date'],
+            'personas.*.numero_licencia' => ['nullable', 'string', 'max:50'],
+            'personas.*.permanente' => ['nullable', 'boolean'],
+            'personas.*.cinturon' => ['nullable', 'boolean'],
+            'personas.*.antecedentes' => ['nullable', 'boolean'],
+            'personas.*.certificado_lesiones' => ['nullable', 'boolean'],
+            'personas.*.certificado_alcoholemia' => ['nullable', 'boolean'],
+            'personas.*.aliento_etilico' => ['nullable', 'boolean'],
+            'personas.*.observaciones' => ['nullable', 'string'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
+        }
+
+        return $validator->validated();
     }
 
     protected function normalizarNombre(?string $valor): string
@@ -566,17 +669,17 @@ class GuardianesCaminoDispositivoController extends Controller
     protected function vehiculoNuevoPayload(array $vehiculo): array
     {
         return [
-            'client_uuid' => (string) Str::uuid(),
+            'client_uuid' => trim((string) ($vehiculo['client_uuid'] ?? '')) ?: (string) Str::uuid(),
             'marca' => $this->normalizarTextoRelacionado($vehiculo['marca'] ?? null),
             'modelo' => $this->normalizarTextoRelacionado($vehiculo['modelo'] ?? null),
-            'tipo' => $this->normalizarTextoRelacionado($vehiculo['tipo'] ?? null),
-            'linea' => $this->normalizarTextoRelacionado($vehiculo['linea'] ?? null),
-            'color' => $this->normalizarTextoRelacionado($vehiculo['color'] ?? null),
+            'tipo' => $this->normalizarTextoRelacionado($vehiculo['tipo'] ?? null) ?: 'NO ESPECIFICADO',
+            'linea' => $this->normalizarTextoRelacionado($vehiculo['linea'] ?? null) ?: 'NO ESPECIFICADA',
+            'color' => $this->normalizarTextoRelacionado($vehiculo['color'] ?? null) ?: 'NO ESPECIFICADO',
             'placas' => $this->normalizarTokenRelacionado($vehiculo['placas'] ?? null),
             'estado_placas' => $this->normalizarEstadoPlacasRelacionado($vehiculo['estado_placas'] ?? null),
             'serie' => $this->normalizarTokenRelacionado($vehiculo['serie'] ?? null),
             'capacidad_personas' => (int) ($vehiculo['capacidad_personas'] ?? 0),
-            'tipo_servicio' => $this->normalizarTextoRelacionado($vehiculo['tipo_servicio'] ?? null),
+            'tipo_servicio' => $this->normalizarTextoRelacionado($vehiculo['tipo_servicio'] ?? null) ?: 'PARTICULAR',
             'tarjeta_circulacion_nombre' => $this->normalizarTextoRelacionado($vehiculo['tarjeta_circulacion_nombre'] ?? null),
             'grua' => $this->normalizarTextoRelacionado($vehiculo['grua'] ?? null),
             'corralon' => $this->normalizarTextoRelacionado($vehiculo['corralon'] ?? null),
@@ -595,11 +698,21 @@ class GuardianesCaminoDispositivoController extends Controller
                 continue;
             }
 
-            $nuevo = Vehiculo::create($this->vehiculoNuevoPayload($vehiculo));
+            $payload = $this->vehiculoNuevoPayload($vehiculo);
+            $nuevo = Vehiculo::where('client_uuid', $payload['client_uuid'])->first();
 
-            $dispositivo->vehiculos()->attach($nuevo->id, [
-                'rol' => $this->normalizarTextoRelacionado($vehiculo['rol'] ?? null),
-                'observaciones' => $this->normalizarTextoRelacionado($vehiculo['observaciones'] ?? null),
+            if ($nuevo) {
+                $nuevo->fill($payload);
+                $nuevo->save();
+            } else {
+                $nuevo = Vehiculo::create($payload);
+            }
+
+            $dispositivo->vehiculos()->syncWithoutDetaching([
+                $nuevo->id => [
+                    'rol' => $this->normalizarTextoRelacionado($vehiculo['rol'] ?? null),
+                    'observaciones' => $this->normalizarTextoRelacionado($vehiculo['observaciones'] ?? null),
+                ],
             ]);
         }
     }
@@ -764,6 +877,15 @@ class GuardianesCaminoDispositivoController extends Controller
     public function store(Request $request)
     {
         try {
+            Log::info('guardianes.dispositivos.store.start', [
+                'user_id' => optional($request->user())->id,
+                'client_uuid' => $request->input('client_uuid'),
+                'has_vehiculos_nuevos' => $request->has('vehiculos_nuevos'),
+                'has_vehiculos_json' => $request->has('vehiculos_json'),
+                'has_fotos' => $request->hasFile('fotos'),
+                'content_type' => $request->header('content-type'),
+            ]);
+
             $operativo = $this->obtenerOperativoUnico();
 
             $this->inyectarDatosOrganizacion($request);
@@ -772,6 +894,11 @@ class GuardianesCaminoDispositivoController extends Controller
             $validator = Validator::make($request->all(), $this->reglasValidacion(false), $this->messages());
 
             if ($validator->fails()) {
+                Log::warning('guardianes.dispositivos.store.validation_failed', [
+                    'user_id' => optional($request->user())->id,
+                    'client_uuid' => $request->input('client_uuid'),
+                    'errors' => $validator->errors()->toArray(),
+                ]);
                 return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
@@ -856,6 +983,102 @@ class GuardianesCaminoDispositivoController extends Controller
                 ],
             ], 201);
         } catch (ValidationException $e) {
+            Log::warning('guardianes.dispositivos.store.validation_exception', [
+                'user_id' => optional($request->user())->id,
+                'client_uuid' => $request->input('client_uuid'),
+                'errors' => $e->errors(),
+            ]);
+            return $this->validationErrorResponse($e->errors());
+        }
+    }
+
+    public function storeRelacionados(Request $request, $dispositivo = null)
+    {
+        try {
+            Log::info('guardianes.dispositivos.relacionados.start', [
+                'user_id' => optional($request->user())->id,
+                'client_uuid' => $request->input('client_uuid'),
+                'dispositivo' => $dispositivo,
+                'vehiculos_json_len' => strlen((string) $request->input('vehiculos_json', '')),
+                'personas_json_len' => strlen((string) $request->input('personas_json', '')),
+                'content_type' => $request->header('content-type'),
+            ]);
+
+            $vehiculos = $this->decodificarListaJson($request, 'vehiculos_json');
+            $personas = $this->decodificarListaJson($request, 'personas_json');
+
+            if (empty($vehiculos) && empty($personas)) {
+                return $this->validationErrorResponse([
+                    'relacionados' => ['Agrega al menos un vehículo o una persona.'],
+                ]);
+            }
+
+            $data = $this->validarPayloadRelacionados([
+                'vehiculos_nuevos' => $vehiculos,
+                'personas' => $personas,
+            ]);
+
+            $this->validarRelacionadosAdicionales($data);
+
+            $dispositivo = $this->resolverDispositivoRelacionado($request, $dispositivo);
+
+            if (!$dispositivo) {
+                return response()->json([
+                    'message' => 'No encontrado.',
+                ], 404);
+            }
+
+            if (!app(GuardianesCaminoRevisionService::class)->puedeVerDispositivo($request->user(), $dispositivo)) {
+                return response()->json([
+                    'message' => 'Este dispositivo todavía está pendiente de revisión.',
+                ], 403);
+            }
+
+            $relacionadosRequest = Request::create('', 'POST', $data);
+            $relacionadosRequest->setUserResolver(fn() => $request->user());
+
+            DB::transaction(function () use ($dispositivo, $relacionadosRequest, $data) {
+                if (!empty($data['vehiculos_nuevos'])) {
+                    $this->crearVehiculosNuevos($dispositivo, $relacionadosRequest);
+                }
+
+                if (array_key_exists('personas', $data)) {
+                    $dispositivo->personas()->delete();
+
+                    $personas = $this->personasRelacionadasPayload($relacionadosRequest);
+                    if (!empty($personas)) {
+                        $dispositivo->personas()->createMany($personas);
+                    }
+                }
+            });
+
+            $dispositivo->refresh()->load([
+                'catalogo',
+                'operativo',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'usuario',
+                'fotos',
+                'vehiculos',
+                'personas',
+            ]);
+
+            return response()->json([
+                'message' => 'Relacionados guardados correctamente.',
+                'data' => $this->transformDispositivo($dispositivo),
+                'meta' => [
+                    'id' => $dispositivo->id,
+                    'client_uuid' => $dispositivo->client_uuid,
+                ],
+            ], 201);
+        } catch (ValidationException $e) {
+            Log::warning('guardianes.dispositivos.relacionados.validation_exception', [
+                'user_id' => optional($request->user())->id,
+                'client_uuid' => $request->input('client_uuid'),
+                'dispositivo' => $dispositivo,
+                'errors' => $e->errors(),
+            ]);
             return $this->validationErrorResponse($e->errors());
         }
     }

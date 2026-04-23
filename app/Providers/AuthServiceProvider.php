@@ -28,28 +28,42 @@ class AuthServiceProvider extends ServiceProvider
             ];
 
             if (in_array($ability, $carreterasAbilities, true)) {
-                $unidadOk = $user->perteneceAUnidad('carreteras') || (int) ($user->unidad_id ?? 0) === 3;
+                $carreterasCapturaRoles = ['Agente Upec', 'Agente UPEC'];
+                $carreterasRevisionRoles = ['RT', 'Encargado de Destacamento'];
+                $carreterasGestionRoles = ['Administrador', 'Subdirector', 'Administrativo'];
+                $carreterasTodosRoles = array_merge(
+                    $carreterasGestionRoles,
+                    $carreterasCapturaRoles,
+                    $carreterasRevisionRoles
+                );
+
+                $unidadId = (int) ($user->unidad_id ?? 0);
+                $tieneRolExclusivoCarreteras = $user->hasAnyRole(array_merge($carreterasCapturaRoles, $carreterasRevisionRoles));
+                $unidadOk = $user->perteneceAUnidad('carreteras')
+                    || in_array($unidadId, [3, 4], true)
+                    || $tieneRolExclusivoCarreteras;
+
                 if (!$unidadOk) {
                     return false;
                 }
 
                 if (
                     $ability === 'ver operativos carreteras'
-                    && $user->hasAnyRole(['Administrador', 'Subdirector', 'Administrativo', 'Agente Upec', 'RT', 'Encargado de Destacamento'])
+                    && $user->hasAnyRole($carreterasTodosRoles)
                 ) {
                     return true;
                 }
 
                 if (
                     $ability === 'crear operativos carreteras'
-                    && $user->hasAnyRole(['Administrador', 'Agente Upec'])
+                    && $user->hasAnyRole(array_merge(['Administrador'], $carreterasCapturaRoles))
                 ) {
                     return true;
                 }
 
                 if (
                     in_array($ability, ['editar operativos carreteras', 'ver estadisticas carreteras'], true)
-                    && $user->hasAnyRole(['Administrador', 'Subdirector', 'Administrativo', 'RT', 'Encargado de Destacamento'])
+                    && $user->hasAnyRole(array_merge($carreterasGestionRoles, $carreterasRevisionRoles))
                 ) {
                     return true;
                 }

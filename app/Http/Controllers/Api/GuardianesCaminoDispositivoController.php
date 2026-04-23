@@ -48,6 +48,49 @@ class GuardianesCaminoDispositivoController extends Controller
         return $operativo;
     }
 
+    protected function usuarioPuedeCrearDispositivo($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->isSuperadmin()) {
+            return true;
+        }
+
+        $rolesCaptura = ['Agente Upec', 'Agente UPEC'];
+        $rolesGestion = ['Administrador'];
+        $rolesCarreteras = array_merge($rolesCaptura, ['RT', 'Encargado de Destacamento']);
+        $unidadId = (int) ($user->unidad_id ?? 0);
+
+        $unidadOk = $user->perteneceAUnidad('carreteras')
+            || in_array($unidadId, [3, 4], true)
+            || $user->hasAnyRole($rolesCarreteras);
+
+        if (!$unidadOk) {
+            return false;
+        }
+
+        return $user->can('crear operativos carreteras')
+            || $user->hasAnyRole(array_merge($rolesGestion, $rolesCaptura));
+    }
+
+    protected function forbiddenCrearDispositivoResponse(Request $request)
+    {
+        $user = $request->user();
+
+        Log::warning('guardianes.dispositivos.crear.forbidden', [
+            'user_id' => optional($user)->id,
+            'unidad_id' => optional($user)->unidad_id,
+            'roles' => $user ? $user->getRoleNames()->values()->all() : [],
+            'client_uuid' => $request->input('client_uuid'),
+        ]);
+
+        return response()->json([
+            'message' => 'Tu usuario no tiene permiso para crear dispositivos de Carreteras.',
+        ], 403);
+    }
+
     protected function obtenerCatalogos()
     {
         return OperativoDispositivoCatalogo::query()
@@ -886,6 +929,10 @@ class GuardianesCaminoDispositivoController extends Controller
                 'content_type' => $request->header('content-type'),
             ]);
 
+            if (!$this->usuarioPuedeCrearDispositivo($request->user())) {
+                return $this->forbiddenCrearDispositivoResponse($request);
+            }
+
             $operativo = $this->obtenerOperativoUnico();
 
             $this->inyectarDatosOrganizacion($request);
@@ -1004,6 +1051,10 @@ class GuardianesCaminoDispositivoController extends Controller
                 'content_type' => $request->header('content-type'),
             ]);
 
+            if (!$this->usuarioPuedeCrearDispositivo($request->user())) {
+                return $this->forbiddenCrearDispositivoResponse($request);
+            }
+
             $vehiculos = $this->decodificarListaJson($request, 'vehiculos_json');
             $personas = $this->decodificarListaJson($request, 'personas_json');
 
@@ -1085,6 +1136,10 @@ class GuardianesCaminoDispositivoController extends Controller
 
     public function storeFotos(Request $request, $dispositivo = null)
     {
+        if (!$this->usuarioPuedeCrearDispositivo($request->user())) {
+            return $this->forbiddenCrearDispositivoResponse($request);
+        }
+
         $operativo = $this->obtenerOperativoUnico();
 
         $validator = Validator::make($request->all(), [

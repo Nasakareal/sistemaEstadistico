@@ -23,6 +23,13 @@ class VerificarUnidad
             return $next($request);
         }
 
+        if (
+            in_array('carreteras', $slugs, true)
+            && $user->hasAnyRole(['Agente Upec', 'Agente UPEC', 'RT', 'Encargado de Destacamento'])
+        ) {
+            return $next($request);
+        }
+
         if (!$user->tieneUnidad()) {
             abort(403, 'Tu usuario no tiene una unidad asignada.');
         }

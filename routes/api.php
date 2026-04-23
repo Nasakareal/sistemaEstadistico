@@ -57,21 +57,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/alertas/{id}', [AgenteUpecHomeController::class, 'show'])->name('api.agente_upec_home.alertas.show');
     });
 
-    Route::prefix('guardianes-camino')->middleware(['can:ver operativos carreteras', 'unidad:carreteras'])->group(function () {
+    Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {
         Route::get('/', [ApiGuardianesCaminoController::class, 'index'])->name('api.guardianes_camino.index');
         Route::get('/resumen', [ApiGuardianesCaminoController::class, 'resumen'])->name('api.guardianes_camino.resumen');
         Route::get('/whatsapp', [ApiGuardianesCaminoController::class, 'whatsapp'])->name('api.guardianes_camino.whatsapp');
 
         Route::prefix('dispositivos')->group(function () {
-            Route::get('/create', [ApiGuardianesCaminoDispositivoController::class, 'create'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.create');
+            Route::get('/create', [ApiGuardianesCaminoDispositivoController::class, 'create'])->name('api.guardianes_camino.dispositivos.create');
             Route::get('/', [ApiGuardianesCaminoDispositivoController::class, 'index'])->name('api.guardianes_camino.dispositivos.index');
-            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.store');
-            Route::post('/fotos', [ApiGuardianesCaminoDispositivoController::class, 'storeFotos'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.fotos.store_por_cliente');
-            Route::post('/relacionados', [ApiGuardianesCaminoDispositivoController::class, 'storeRelacionados'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.relacionados.store_por_cliente');
+            Route::post('/', [ApiGuardianesCaminoDispositivoController::class, 'store'])->name('api.guardianes_camino.dispositivos.store');
+            Route::post('/fotos', [ApiGuardianesCaminoDispositivoController::class, 'storeFotos'])->name('api.guardianes_camino.dispositivos.fotos.store_por_cliente');
+            Route::post('/relacionados', [ApiGuardianesCaminoDispositivoController::class, 'storeRelacionados'])->name('api.guardianes_camino.dispositivos.relacionados.store_por_cliente');
             Route::get('/pendientes-revision', [ApiGuardianesCaminoDispositivoController::class, 'pendientesRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.pendientes_revision');
             Route::get('/count-pendientes-revision', [ApiGuardianesCaminoDispositivoController::class, 'countPendientesRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.count_pendientes_revision');
-            Route::post('/{dispositivo}/fotos', [ApiGuardianesCaminoDispositivoController::class, 'storeFotos'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.fotos.store');
-            Route::post('/{dispositivo}/relacionados', [ApiGuardianesCaminoDispositivoController::class, 'storeRelacionados'])->middleware('can:crear operativos carreteras')->name('api.guardianes_camino.dispositivos.relacionados.store');
+            Route::post('/{dispositivo}/fotos', [ApiGuardianesCaminoDispositivoController::class, 'storeFotos'])->name('api.guardianes_camino.dispositivos.fotos.store');
+            Route::post('/{dispositivo}/relacionados', [ApiGuardianesCaminoDispositivoController::class, 'storeRelacionados'])->name('api.guardianes_camino.dispositivos.relacionados.store');
             Route::post('/{dispositivo}/aprobar-revision', [ApiGuardianesCaminoDispositivoController::class, 'aprobarRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.aprobar_revision');
             Route::post('/{dispositivo}/rechazar-revision', [ApiGuardianesCaminoDispositivoController::class, 'rechazarRevision'])->middleware('can:editar operativos carreteras')->name('api.guardianes_camino.dispositivos.rechazar_revision');
             Route::get('/{dispositivo}', [ApiGuardianesCaminoDispositivoController::class, 'show'])->name('api.guardianes_camino.dispositivos.show');

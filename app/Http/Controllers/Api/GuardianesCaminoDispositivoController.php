@@ -242,6 +242,29 @@ class GuardianesCaminoDispositivoController extends Controller
         }
     }
 
+    protected function normalizarRelacionadosJson(Request $request): void
+    {
+        $merge = [];
+
+        foreach ([
+            'vehiculos_nuevos_json' => 'vehiculos_nuevos',
+            'personas_json' => 'personas',
+        ] as $source => $target) {
+            if (!$request->filled($source) || $request->has($target)) {
+                continue;
+            }
+
+            $decoded = json_decode((string) $request->input($source), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $merge[$target] = $decoded;
+            }
+        }
+
+        if (!empty($merge)) {
+            $request->merge($merge);
+        }
+    }
+
     protected function normalizarNombre(?string $valor): string
     {
         $valor = (string) $valor;
@@ -744,6 +767,7 @@ class GuardianesCaminoDispositivoController extends Controller
             $operativo = $this->obtenerOperativoUnico();
 
             $this->inyectarDatosOrganizacion($request);
+            $this->normalizarRelacionadosJson($request);
 
             $validator = Validator::make($request->all(), $this->reglasValidacion(false), $this->messages());
 
@@ -1060,6 +1084,7 @@ class GuardianesCaminoDispositivoController extends Controller
             }
 
             $this->inyectarDatosOrganizacion($request);
+            $this->normalizarRelacionadosJson($request);
 
             $validator = Validator::make($request->all(), $this->reglasValidacion(true), $this->messages());
 

@@ -69,6 +69,7 @@ class OpenAIService
 
     protected function interpretarLocal(string $mensaje): array
     {
+        $mensajeOriginal = trim($mensaje);
         $texto = $this->normalizarTexto($mensaje);
 
         if ($texto === '' || in_array($texto, ['hola', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches'], true)) {
@@ -92,6 +93,48 @@ class OpenAIService
 
         if ($this->contieneAlguno($texto, ['personal activo', 'elementos activos'])) {
             return $this->respuestaLocal('personal_activo', $unidadId, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['lesionados', 'lesionado'])) {
+            return $this->respuestaLocal('estadistica_lesionados', $unidadId, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['fallecidos', 'fallecido', 'muertos', 'muerto'])) {
+            return $this->respuestaLocal('estadistica_fallecidos', $unidadId, null, $filtros);
+        }
+
+        if ($this->contieneAlguno($texto, ['motocicletas', 'motocicleta', 'motos', 'moto'])) {
+            return $this->respuestaLocal('estadistica_motocicletas', $unidadId, null, $filtros);
+        }
+
+        $situacion = $this->resolverSituacionLocal($texto);
+        if ($situacion !== null && $this->esConsultaEstadistica($texto)) {
+            $filtros['situacion'] = $situacion;
+
+            return $this->respuestaLocal('estadistica_situacion', $unidadId, null, $filtros);
+        }
+
+        $tipoHecho = $this->resolverTipoHechoLocal($texto);
+        if ($tipoHecho !== null && $this->esConsultaEstadistica($texto)) {
+            $filtros['tipo_hecho'] = $tipoHecho;
+
+            return $this->respuestaLocal('estadistica_tipo_hecho', $unidadId, null, $filtros);
+        }
+
+        if ($this->esConsultaDetallePersonal($texto)) {
+            $persona = $this->resolverBusquedaPersonalLocal($mensajeOriginal);
+
+            return $this->normalizarRespuesta([
+                'accion' => 'detalle_personal',
+                'unidad_id' => $unidadId,
+                'id' => null,
+                'persona' => $persona,
+                'filtros' => $filtros,
+            ]);
+        }
+
+        if ($this->esConsultaEstadistica($texto) && $this->contieneAlguno($texto, ['hecho', 'hechos', 'siniestro', 'siniestros', 'accidente', 'accidentes'])) {
+            return $this->respuestaLocal('estadistica_resumen_general', $unidadId, null, $filtros);
         }
 
         if ($this->contieneAlguno($texto, ['puesta a disposicion', 'puestas a disposicion', 'puesta disposicion', 'puestas disposicion'])) {
@@ -174,6 +217,13 @@ ACCIONES VÁLIDAS:
 - resumen_hechos
 - personal_armado
 - personal_activo
+- detalle_personal
+- estadistica_resumen_general
+- estadistica_motocicletas
+- estadistica_lesionados
+- estadistica_fallecidos
+- estadistica_situacion
+- estadistica_tipo_hecho
 - actividades
 - lista_actividades
 - operativos
@@ -187,6 +237,7 @@ ESTRUCTURA OBLIGATORIA:
   "accion": "nombre_accion",
   "unidad_id": null,
   "id": null,
+  "persona": null,
   "filtros": {
     "fecha": null,
     "fecha_inicio": null,
@@ -210,6 +261,13 @@ REGLAS DE ACCIÓN:
 - Si pide estadística, resumen o desglose de hechos, usa estadistica_hechos o resumen_hechos.
 - Si pide personal armado, relación de armamento o lista de elementos armados, usa personal_armado.
 - Si pide personal activo, usa personal_activo.
+- Si pide expediente, ficha, perfil, foto, patrulla o información de un elemento, usa detalle_personal y llena persona con el nombre, número de empleado, CUIP, CURP o RFC.
+- Si pide resumen general de hechos, usa estadistica_resumen_general.
+- Si pide lesionados, usa estadistica_lesionados.
+- Si pide fallecidos, usa estadistica_fallecidos.
+- Si pide motocicletas o motos, usa estadistica_motocicletas.
+- Si pide una estadística por situación, usa estadistica_situacion y llena situacion.
+- Si pide una estadística por tipo de hecho, usa estadistica_tipo_hecho y llena tipo_hecho.
 - Si pide actividades, apoyos, labores o proximidad social, usa actividades.
 - Si pide operativos, dispositivos o cualquiera de los tipos del catálogo de carreteras, usa operativos.
 - Si pide puestas a disposición, usa puestas_disposicion.
@@ -254,22 +312,31 @@ TIPOS DE OPERATIVO VÁLIDOS EN CARRETERAS:
 
 EJEMPLOS:
 Usuario: cuantos hechos hay hoy
-Respuesta: {"accion":"contar_hechos","unidad_id":null,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+Respuesta: {"accion":"contar_hechos","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: dame el hecho 59564
-Respuesta: {"accion":"detalle_hecho","unidad_id":null,"id":59564,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+Respuesta: {"accion":"detalle_hecho","unidad_id":null,"id":59564,"persona":null,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: dame mi personal armado
-Respuesta: {"accion":"personal_armado","unidad_id":null,"id":null,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+Respuesta: {"accion":"personal_armado","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: cuantas actividades hubo hoy
-Respuesta: {"accion":"actividades","unidad_id":null,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+Respuesta: {"accion":"actividades","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: cuantos operativos hubo hoy en carreteras
-Respuesta: {"accion":"operativos","unidad_id":4,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+Respuesta: {"accion":"operativos","unidad_id":4,"id":null,"persona":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: cuantas puestas a disposición hubo hoy
-Respuesta: {"accion":"puestas_disposicion","unidad_id":null,"id":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+Respuesta: {"accion":"puestas_disposicion","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+
+Usuario: dame el expediente del elemento Juan Pérez
+Respuesta: {"accion":"detalle_personal","unidad_id":null,"id":null,"persona":"Juan Pérez","filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+
+Usuario: cuantos lesionados hubo hoy
+Respuesta: {"accion":"estadistica_lesionados","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+
+Usuario: estadística de motocicletas este mes
+Respuesta: {"accion":"estadistica_motocicletas","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":null,"fecha_inicio":"{$inicioMes->toDateString()}","fecha_fin":"{$finMes->toDateString()}","hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: hola como estas
 Respuesta: {"accion":"no_valida"}
@@ -341,6 +408,13 @@ PROMPT;
             'resumen_hechos',
             'personal_armado',
             'personal_activo',
+            'detalle_personal',
+            'estadistica_resumen_general',
+            'estadistica_motocicletas',
+            'estadistica_lesionados',
+            'estadistica_fallecidos',
+            'estadistica_situacion',
+            'estadistica_tipo_hecho',
             'actividades',
             'estadistica_actividades',
             'lista_actividades',
@@ -380,6 +454,9 @@ PROMPT;
                 : null,
             'id' => isset($decoded['id']) && $decoded['id'] !== ''
                 ? $decoded['id']
+                : null,
+            'persona' => isset($decoded['persona']) && trim((string) $decoded['persona']) !== ''
+                ? trim((string) $decoded['persona'])
                 : null,
             'filtros' => $filtros,
         ];
@@ -542,6 +619,27 @@ PROMPT;
         return null;
     }
 
+    protected function resolverSituacionLocal(string $texto): ?string
+    {
+        if ($this->contieneAlguno($texto, ['resuelto', 'resueltos'])) {
+            return 'RESUELTO';
+        }
+
+        if ($this->contieneAlguno($texto, ['pendiente', 'pendientes'])) {
+            return 'PENDIENTE';
+        }
+
+        if ($this->contieneAlguno($texto, ['turnado', 'turnados'])) {
+            return 'TURNADO';
+        }
+
+        if ($this->contieneAlguno($texto, ['reporte', 'reportes'])) {
+            return 'REPORTE';
+        }
+
+        return null;
+    }
+
     protected function resolverTipoOperativoLocal(string $texto): ?string
     {
         foreach ($this->guardianesDispositivos() as $dispositivo) {
@@ -585,6 +683,83 @@ PROMPT;
     protected function esLista(string $texto): bool
     {
         return $this->contieneAlguno($texto, ['lista', 'listado', 'relacion', 'relación', 'dame los', 'dame las', 'muestrame', 'muéstrame']);
+    }
+
+    protected function esConsultaEstadistica(string $texto): bool
+    {
+        return $this->contieneAlguno($texto, [
+            'estadistica',
+            'estadisticas',
+            'resumen',
+            'desglose',
+            'cuantos',
+            'cuantas',
+            'conteo',
+            'total',
+        ]);
+    }
+
+    protected function esConsultaDetallePersonal(string $texto): bool
+    {
+        if ($this->contieneAlguno($texto, [
+            'expediente',
+            'ficha',
+            'perfil',
+            'detalle del elemento',
+            'detalle de personal',
+            'datos del elemento',
+            'informacion del elemento',
+            'info del elemento',
+            'foto del elemento',
+            'patrulla del elemento',
+            'asignacion del elemento',
+        ])) {
+            return true;
+        }
+
+        return (bool) preg_match(
+            '/\b(?:expediente|ficha|perfil|detalle|datos|informacion|info|foto|patrulla|asignacion)\s+(?:de|del|de la)\s+/u',
+            $texto
+        );
+    }
+
+    protected function resolverBusquedaPersonalLocal(string $mensaje): ?string
+    {
+        $mensaje = trim($mensaje);
+
+        if ($mensaje === '') {
+            return null;
+        }
+
+        if (preg_match(
+            '/(?:expediente|ficha|perfil|detalle|datos|informaci[oó]n|info|foto|patrulla|asignaci[oó]n)\s+(?:de|del|de la)\s+(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)?\s*(.+)$/iu',
+            $mensaje,
+            $matches
+        )) {
+            return $this->limpiarBusquedaPersonal($matches[1]);
+        }
+
+        if (preg_match(
+            '/\b(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)\s+(.+)$/iu',
+            $mensaje,
+            $matches
+        )) {
+            return $this->limpiarBusquedaPersonal($matches[1]);
+        }
+
+        if (preg_match('/\b(?:n[uú]mero\s+de\s+empleado|no\.?\s*empleado|empleado|cuip|curp|rfc|id)\s*[:#-]?\s*([A-Za-z0-9-]+)/iu', $mensaje, $matches)) {
+            return $this->limpiarBusquedaPersonal($matches[1]);
+        }
+
+        return null;
+    }
+
+    protected function limpiarBusquedaPersonal(string $valor): ?string
+    {
+        $valor = trim((string) preg_replace('/^(?:del?|de la|la|el)\s+/iu', '', trim($valor)));
+        $valor = trim($valor, " \t\n\r\0\x0B:,.?!");
+
+        return $valor !== '' ? $valor : null;
     }
 
     protected function contieneAlguno(string $texto, array $terminos): bool

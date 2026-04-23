@@ -3,6 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Models\Hechos;
+use App\Models\Personal;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -105,6 +106,28 @@ class WhatsAppRenderService
         ];
     }
 
+    public function renderDetallePersonal(Personal $personal): array
+    {
+        $detalle = $this->obtenerDetallePersonal($personal);
+        $bloques = [
+            'GUARDIA CIVIL',
+            'COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL',
+        ];
+
+        if ($detalle['unidad'] !== '') {
+            $bloques[] = $detalle['unidad'];
+        }
+
+        $bloques[] = 'EXPEDIENTE DE PERSONAL';
+        $bloques[] = implode("\n", $detalle['lineas']);
+        $bloques[] = 'PARA CONOCIMIENTO DE LA SUPERIORIDAD.';
+
+        return [
+            'text' => implode("\n\n", array_values(array_filter($bloques, fn ($item) => trim((string) $item) !== ''))),
+            'images' => $detalle['imagenes'],
+        ];
+    }
+
     protected function obtenerDetalleHecho(Hechos $hecho): array
     {
         $hecho->loadMissing(['vehiculos', 'unidadOrganizacional']);
@@ -170,6 +193,100 @@ class WhatsAppRenderService
             'google_maps' => $googleMaps,
             'informa' => $hecho->unidad ? 'UNIDAD ' . $hecho->unidad : ($hecho->perito ?: null),
             'fotos' => $fotos,
+        ];
+    }
+
+    protected function obtenerDetallePersonal(Personal $personal): array
+    {
+        $personal->loadMissing([
+            'unidad',
+            'turno',
+            'patrulla',
+            'user',
+            'fotoPrincipal',
+            'fotos',
+            'asignaciones.armamento',
+        ]);
+
+        $nombre = trim(implode(' ', array_filter([
+            $personal->nombre,
+            $personal->ap_paterno,
+            $personal->ap_materno,
+        ])));
+
+        $patrulla = $personal->patrulla ?: optional($personal->user)->patrulla;
+        $asignacionActiva = collect($personal->asignaciones ?? [])
+            ->first(function ($asignacion) {
+                return (bool) ($asignacion->activo ?? false) || empty($asignacion->fecha_fin);
+            });
+        $armamento = $asignacionActiva ? $asignacionActiva->armamento : null;
+
+        $lineas = [
+            'Nombre: ' . ($nombre !== '' ? $nombre : 'SIN NOMBRE'),
+            'Estatus: ' . ($personal->estatus ?: 'SIN ESTATUS'),
+            'Grado / puesto: ' . trim(($personal->grado ?: 'S/G') . ' / ' . ($personal->puesto ?: 'S/P')),
+            'Número de empleado: ' . ($personal->numero_empleado ?: 'S/N'),
+            'CUIP: ' . ($personal->cuip ?: 'S/D'),
+            'Categoría: ' . ($personal->categoria ?: 'S/D'),
+            'Unidad: ' . (optional($personal->unidad)->nombre ?: 'SIN UNIDAD'),
+            'Turno: ' . (optional($personal->turno)->nombre ?: 'SIN TURNO'),
+            'Adscripción: ' . ($personal->adscripcion ?: 'SIN ADSCRIPCIÓN'),
+            'Área: ' . ($personal->area ?: 'SIN ÁREA'),
+        ];
+
+        if ($patrulla) {
+            $patrullaPartes = array_filter([
+                $patrulla->numero_economico ?: null,
+                trim(implode(' ', array_filter([
+                    $patrulla->marca ?? null,
+                    $patrulla->linea ?? null,
+                    $patrulla->modelo ?? null,
+                ]))),
+                $patrulla->placas ? 'Placas ' . $patrulla->placas : null,
+            ]);
+
+            $lineas[] = 'Patrulla a cargo: ' . implode(' | ', $patrullaPartes);
+        } else {
+            $lineas[] = 'Patrulla a cargo: SIN ASIGNACIÓN';
+        }
+
+        if ($asignacionActiva) {
+            $asignacionResumen = array_filter([
+                $asignacionActiva->comisionado_a ? 'Comisionado a ' . $asignacionActiva->comisionado_a : null,
+                $asignacionActiva->municipio_localidad_servicio ?: null,
+                $asignacionActiva->funciones ?: null,
+                $asignacionActiva->horario ? 'Horario ' . $asignacionActiva->horario : null,
+            ]);
+
+            if (!empty($asignacionResumen)) {
+                $lineas[] = 'Asignación actual: ' . implode(' | ', $asignacionResumen);
+            }
+        }
+
+        if ($armamento) {
+            $armamentoResumen = array_filter([
+                trim(implode(' ', array_filter([
+                    $armamento->tipo ?? null,
+                    $armamento->marca ?? null,
+                    $armamento->modelo ?? null,
+                ]))),
+                $armamento->matricula ? 'Matrícula ' . $armamento->matricula : null,
+                $armamento->calibre ? 'Calibre ' . $armamento->calibre : null,
+            ]);
+
+            $lineas[] = 'Armamento actual: ' . implode(' | ', $armamentoResumen);
+        }
+
+        $imagenes = array_values(array_unique(array_filter(array_merge(
+            $this->extraerUrlsDesdeCampo($personal->foto ?? null),
+            $this->extraerUrlsDesdeCampo(optional($personal->fotoPrincipal)->ruta),
+            $this->extraerUrlsDesdeCampo(collect($personal->fotos ?? [])->pluck('ruta')->all())
+        ))));
+
+        return [
+            'unidad' => $this->lineaUnidadPorId($personal->unidad_id ? (int) $personal->unidad_id : null),
+            'lineas' => $lineas,
+            'imagenes' => array_slice($imagenes, 0, 3),
         ];
     }
 

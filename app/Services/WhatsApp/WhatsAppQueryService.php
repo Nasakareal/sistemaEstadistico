@@ -48,6 +48,17 @@ class WhatsAppQueryService
             case 'personal_activo':
                 return $this->personalActivoOpenAI($user, $context, $json);
 
+            case 'detalle_personal':
+                return $this->detallePersonalOpenAI($user, $context, $json);
+
+            case 'estadistica_resumen_general':
+            case 'estadistica_motocicletas':
+            case 'estadistica_lesionados':
+            case 'estadistica_fallecidos':
+            case 'estadistica_situacion':
+            case 'estadistica_tipo_hecho':
+                return $this->quickStatOpenAI($user, $context, $json);
+
             case 'actividades':
             case 'estadistica_actividades':
                 return $this->actividadesOpenAI($user, $context, $json, false);
@@ -190,6 +201,10 @@ class WhatsAppQueryService
             return $this->operativosPorTipo($user, $context, $module, $value);
         }
 
+        if ($action === 'expediente_personal') {
+            return $this->detallePersonalPorBusqueda($user, $context, $module, $value);
+        }
+
         return [
             'text' => 'No pude procesar esa consulta.',
         ];
@@ -205,188 +220,15 @@ class WhatsAppQueryService
             ];
         }
 
-        $unidadId = $this->resolveUnitIdFromContext($user, $context, null);
+        $filters = array_merge($filters, $this->buildFiltersForRange($desde, $hasta));
 
-        $query = Hechos::query()
-            ->whereDate('fecha', '>=', $desde)
-            ->whereDate('fecha', '<=', $hasta);
-
-        $this->applyUnitFilter($query, 'unidad_org_id', $unidadId);
-
-        if (!empty($context['solo_propios'])) {
-            $query->where('created_by', $user->id);
-        }
-
-        if (!empty($filters['situacion'])) {
-            $this->whereUpperEquals($query, 'situacion', (string) $filters['situacion']);
-        }
-
-        $this->aplicarFiltroTipoHecho($query, $filters);
-
-        if ($action === 'estadistica_motocicletas') {
-            $query->whereHas('vehiculos', function ($q) {
-                $q->whereIn('tipo', [
-                    'Trabajo',
-                    'Cruiser',
-                    'Doble Propósito',
-                    'Scooter',
-                    'Enduro',
-                    'Naked',
-                    'Pista',
-                    'Chopper',
-                    'Cuatrimoto',
-                ]);
-            });
-        }
-
-        if ($action === 'estadistica_situacion' && empty($filters['situacion'])) {
-            return [
-                'text' => 'Falta indicar la situación a consultar.',
-            ];
-        }
-
-        if ($action === 'estadistica_tipo_hecho' && empty($filters['tipo_hecho'])) {
-            return [
-                'text' => 'Falta indicar el tipo de hecho a consultar.',
-            ];
-        }
-
-        $hechos = (clone $query)->count();
-        $lesionadosBase = $this->lesionadosQueryFromHechos($query);
-        $lesionados = (clone $lesionadosBase)
-            ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> ?", ['FALLECIDO'])
-            ->count('lesionados.id');
-        $fallecidos = (clone $lesionadosBase)
-            ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = ?", ['FALLECIDO'])
-            ->count('lesionados.id');
-
-        $resueltos = $this->countBySituacion($query, 'RESUELTO');
-        $pendientes = $this->countBySituacion($query, 'PENDIENTE');
-        $turnados = $this->countBySituacion($query, 'TURNADO');
-        $reportes = $this->countBySituacion($query, 'REPORTE');
-
-        $tiposTop = (clone $query)
-            ->selectRaw("COALESCE(NULLIF(TRIM(tipo_hecho), ''), 'SIN TIPO') as label, COUNT(*) as total")
-            ->groupBy('label')
-            ->orderByDesc('total')
-            ->limit(3)
-            ->get();
-
-        if ($action === 'estadistica_lesionados') {
-            return [
-                'text' => $this->buildQuickMessage(
-                    'Estadística rápida de lesionados',
-                    $desde,
-                    $hasta,
-                    $unidadId,
-                    [
-                        'Lesionados: ' . $this->formatNumber($lesionados),
-                        'Hechos relacionados: ' . $this->formatNumber($hechos),
-                    ]
-                ),
-            ];
-        }
-
-        if ($action === 'estadistica_fallecidos') {
-            return [
-                'text' => $this->buildQuickMessage(
-                    'Estadística rápida de fallecidos',
-                    $desde,
-                    $hasta,
-                    $unidadId,
-                    [
-                        'Fallecidos: ' . $this->formatNumber($fallecidos),
-                        'Hechos relacionados: ' . $this->formatNumber($hechos),
-                    ]
-                ),
-            ];
-        }
-
-        if ($action === 'estadistica_motocicletas') {
-            return [
-                'text' => $this->buildQuickMessage(
-                    'Estadística rápida de motocicletas',
-                    $desde,
-                    $hasta,
-                    $unidadId,
-                    [
-                        'Hechos con motocicletas: ' . $this->formatNumber($hechos),
-                        'Lesionados: ' . $this->formatNumber($lesionados),
-                        'Fallecidos: ' . $this->formatNumber($fallecidos),
-                        'Resueltos: ' . $this->formatNumber($resueltos),
-                        'Pendientes: ' . $this->formatNumber($pendientes),
-                        'Turnado: ' . $this->formatNumber($turnados),
-                        'Reporte: ' . $this->formatNumber($reportes),
-                    ]
-                ),
-            ];
-        }
-
-        if ($action === 'estadistica_situacion') {
-            $situacion = (string) ($filters['situacion'] ?? 'SIN SITUACIÓN');
-
-            return [
-                'text' => $this->buildQuickMessage(
-                    'Estadística rápida por situación',
-                    $desde,
-                    $hasta,
-                    $unidadId,
-                    [
-                        "Situación: {$situacion}",
-                        'Hechos: ' . $this->formatNumber($hechos),
-                        'Lesionados: ' . $this->formatNumber($lesionados),
-                        'Fallecidos: ' . $this->formatNumber($fallecidos),
-                    ]
-                ),
-            ];
-        }
-
-        if ($action === 'estadistica_tipo_hecho') {
-            $tipoHecho = (string) ($filters['tipo_hecho'] ?? 'SIN TIPO');
-
-            return [
-                'text' => $this->buildQuickMessage(
-                    'Estadística rápida por tipo de hecho',
-                    $desde,
-                    $hasta,
-                    $unidadId,
-                    [
-                        "Tipo de hecho: {$tipoHecho}",
-                        'Hechos: ' . $this->formatNumber($hechos),
-                        'Lesionados: ' . $this->formatNumber($lesionados),
-                        'Fallecidos: ' . $this->formatNumber($fallecidos),
-                        'Resueltos: ' . $this->formatNumber($resueltos),
-                        'Pendientes: ' . $this->formatNumber($pendientes),
-                        'Turnado: ' . $this->formatNumber($turnados),
-                        'Reporte: ' . $this->formatNumber($reportes),
-                    ]
-                ),
-            ];
-        }
-
-        $lineasTop = [];
-
-        foreach ($tiposTop as $row) {
-            $lineasTop[] = $row->label . ': ' . $this->formatNumber((int) $row->total);
-        }
-
-        return [
-            'text' => $this->buildQuickMessage(
-                'Estadística rápida de siniestros',
-                $desde,
-                $hasta,
-                $unidadId,
-                array_merge([
-                    'Hechos: ' . $this->formatNumber($hechos),
-                    'Lesionados: ' . $this->formatNumber($lesionados),
-                    'Fallecidos: ' . $this->formatNumber($fallecidos),
-                    'Resueltos: ' . $this->formatNumber($resueltos),
-                    'Pendientes: ' . $this->formatNumber($pendientes),
-                    'Turnado: ' . $this->formatNumber($turnados),
-                    'Reporte: ' . $this->formatNumber($reportes),
-                ], $lineasTop)
-            ),
-        ];
+        return $this->buildQuickStatPacket(
+            $user,
+            $context,
+            $action,
+            $filters,
+            $this->resolveUnitIdFromContext($user, $context, null)
+        );
     }
 
     protected function contarHechos($user, array $context, array $json): array
@@ -526,6 +368,29 @@ class WhatsAppQueryService
         $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
 
         return $this->personalActivoReporte($unidadId);
+    }
+
+    protected function detallePersonalOpenAI($user, array $context, array $json): array
+    {
+        $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
+        $busqueda = trim((string) ($json['persona'] ?? ''));
+
+        if ($busqueda === '' && !empty($json['id'])) {
+            $busqueda = (string) $json['id'];
+        }
+
+        return $this->detallePersonalReporte($unidadId, $busqueda);
+    }
+
+    protected function quickStatOpenAI($user, array $context, array $json): array
+    {
+        return $this->buildQuickStatPacket(
+            $user,
+            $context,
+            (string) ($json['accion'] ?? 'estadistica_resumen_general'),
+            $this->filtros($json),
+            $this->resolveUnitIdForJson($user, $context, $json)
+        );
     }
 
     protected function actividadesOpenAI($user, array $context, array $json, bool $lista): array
@@ -914,6 +779,13 @@ class WhatsAppQueryService
         return $this->personalActivoReporte($unidadId);
     }
 
+    protected function detallePersonalPorBusqueda($user, array $context, string $module, string $value): array
+    {
+        $unidadId = $this->resolveUnitIdFromModule($user, $context, $module);
+
+        return $this->detallePersonalReporte($unidadId, $value);
+    }
+
     protected function personalArmadoReporte(?int $unidadId): array
     {
         $rows = PersonalAsignacion::query()
@@ -997,6 +869,58 @@ class WhatsAppQueryService
                 $lineas
             ),
         ];
+    }
+
+    protected function detallePersonalReporte(?int $unidadId, string $busqueda): array
+    {
+        $busqueda = trim($busqueda);
+
+        if ($busqueda === '') {
+            return [
+                'text' => 'Indica el nombre, número de empleado, CURP, RFC o CUIP del elemento.',
+            ];
+        }
+
+        $coincidencias = $this->buscarCoincidenciasPersonal($unidadId, $busqueda);
+
+        if ($coincidencias->isEmpty()) {
+            return [
+                'text' => 'No encontré personal con "' . $busqueda . '".',
+            ];
+        }
+
+        if ($coincidencias->count() > 1 && $this->requierePrecisionAdicional($coincidencias, $busqueda)) {
+            $lineas = [];
+
+            foreach ($coincidencias->take(5) as $row) {
+                $nombre = trim(implode(' ', array_filter([
+                    $row->nombre,
+                    $row->ap_paterno,
+                    $row->ap_materno,
+                ])));
+
+                $lineas[] = implode(' | ', array_filter([
+                    $nombre !== '' ? $nombre : 'SIN NOMBRE',
+                    $row->numero_empleado ? 'Empleado ' . $row->numero_empleado : null,
+                    optional($row->patrulla)->numero_economico ? 'Patrulla ' . optional($row->patrulla)->numero_economico : null,
+                    $row->estatus ?: null,
+                ]));
+            }
+
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Coincidencias de personal',
+                    'SIN PERIODO ESPECIFICADO',
+                    array_merge([
+                        'Encontré varias coincidencias para "' . $busqueda . '".',
+                        'Escribe el nombre completo, número de empleado, CURP, RFC o CUIP.',
+                    ], $lineas)
+                ),
+            ];
+        }
+
+        return $this->renderService->renderDetallePersonal($coincidencias->first());
     }
 
     protected function actividadesHoy($user, array $context, string $module): array
@@ -1113,6 +1037,9 @@ class WhatsAppQueryService
 
         $json['accion'] = $aliases[$accion] ?? $accion;
         $json['filtros'] = $this->filtros($json);
+        $json['persona'] = isset($json['persona']) && trim((string) $json['persona']) !== ''
+            ? trim((string) $json['persona'])
+            : null;
 
         if (isset($json['unidad_id']) && $json['unidad_id'] !== null && $json['unidad_id'] !== '') {
             $json['unidad_id'] = (int) $json['unidad_id'];
@@ -1147,6 +1074,287 @@ class WhatsAppQueryService
             'municipio' => null,
             'delegacion_id' => null,
         ], $filtros);
+    }
+
+    protected function buildFiltersForRange(string $desde, string $hasta): array
+    {
+        if ($desde === $hasta) {
+            return [
+                'fecha' => $desde,
+                'fecha_inicio' => null,
+                'fecha_fin' => null,
+            ];
+        }
+
+        return [
+            'fecha' => null,
+            'fecha_inicio' => $desde,
+            'fecha_fin' => $hasta,
+        ];
+    }
+
+    protected function buildQuickStatPacket($user, array $context, string $action, array $filters, ?int $unidadId): array
+    {
+        $filters = $this->filtros(['filtros' => $filters]);
+        $query = Hechos::query();
+
+        $this->applyUnitFilter($query, 'unidad_org_id', $unidadId);
+        $this->aplicarFiltrosFechaHora($query, $filters, 'fecha', 'hora');
+
+        if (!empty($context['solo_propios'])) {
+            $query->where('created_by', $user->id);
+        }
+
+        if (!empty($filters['situacion'])) {
+            $this->whereUpperEquals($query, 'situacion', (string) $filters['situacion']);
+        }
+
+        $this->aplicarFiltroTipoHecho($query, $filters);
+
+        if ($action === 'estadistica_motocicletas') {
+            $query->whereHas('vehiculos', function ($q) {
+                $q->whereIn('tipo', [
+                    'Trabajo',
+                    'Cruiser',
+                    'Doble Propósito',
+                    'Scooter',
+                    'Enduro',
+                    'Naked',
+                    'Pista',
+                    'Chopper',
+                    'Cuatrimoto',
+                ]);
+            });
+        }
+
+        if ($action === 'estadistica_situacion' && empty($filters['situacion'])) {
+            return [
+                'text' => 'Falta indicar la situación a consultar.',
+            ];
+        }
+
+        if ($action === 'estadistica_tipo_hecho' && empty($filters['tipo_hecho'])) {
+            return [
+                'text' => 'Falta indicar el tipo de hecho a consultar.',
+            ];
+        }
+
+        $hechos = (clone $query)->count();
+        $lesionadosBase = $this->lesionadosQueryFromHechos($query);
+        $lesionados = (clone $lesionadosBase)
+            ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> ?", ['FALLECIDO'])
+            ->count('lesionados.id');
+        $fallecidos = (clone $lesionadosBase)
+            ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = ?", ['FALLECIDO'])
+            ->count('lesionados.id');
+
+        $resueltos = $this->countBySituacion($query, 'RESUELTO');
+        $pendientes = $this->countBySituacion($query, 'PENDIENTE');
+        $turnados = $this->countBySituacion($query, 'TURNADO');
+        $reportes = $this->countBySituacion($query, 'REPORTE');
+
+        $tiposTop = (clone $query)
+            ->selectRaw("COALESCE(NULLIF(TRIM(tipo_hecho), ''), 'SIN TIPO') as label, COUNT(*) as total")
+            ->groupBy('label')
+            ->orderByDesc('total')
+            ->limit(3)
+            ->get();
+
+        $periodo = $this->periodoTexto($filters);
+
+        if ($action === 'estadistica_lesionados') {
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Estadística rápida de lesionados',
+                    $periodo,
+                    [
+                        'Lesionados: ' . $this->formatNumber($lesionados),
+                        'Hechos relacionados: ' . $this->formatNumber($hechos),
+                    ]
+                ),
+            ];
+        }
+
+        if ($action === 'estadistica_fallecidos') {
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Estadística rápida de fallecidos',
+                    $periodo,
+                    [
+                        'Fallecidos: ' . $this->formatNumber($fallecidos),
+                        'Hechos relacionados: ' . $this->formatNumber($hechos),
+                    ]
+                ),
+            ];
+        }
+
+        if ($action === 'estadistica_motocicletas') {
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Estadística rápida de motocicletas',
+                    $periodo,
+                    [
+                        'Hechos con motocicletas: ' . $this->formatNumber($hechos),
+                        'Lesionados: ' . $this->formatNumber($lesionados),
+                        'Fallecidos: ' . $this->formatNumber($fallecidos),
+                        'Resueltos: ' . $this->formatNumber($resueltos),
+                        'Pendientes: ' . $this->formatNumber($pendientes),
+                        'Turnado: ' . $this->formatNumber($turnados),
+                        'Reporte: ' . $this->formatNumber($reportes),
+                    ]
+                ),
+            ];
+        }
+
+        if ($action === 'estadistica_situacion') {
+            $situacion = (string) ($filters['situacion'] ?? 'SIN SITUACIÓN');
+
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Estadística rápida por situación',
+                    $periodo,
+                    [
+                        'Situación: ' . $situacion,
+                        'Hechos: ' . $this->formatNumber($hechos),
+                        'Lesionados: ' . $this->formatNumber($lesionados),
+                        'Fallecidos: ' . $this->formatNumber($fallecidos),
+                    ]
+                ),
+            ];
+        }
+
+        if ($action === 'estadistica_tipo_hecho') {
+            $tipoHecho = (string) ($filters['tipo_hecho'] ?? 'SIN TIPO');
+
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Estadística rápida por tipo de hecho',
+                    $periodo,
+                    [
+                        'Tipo de hecho: ' . $tipoHecho,
+                        'Hechos: ' . $this->formatNumber($hechos),
+                        'Lesionados: ' . $this->formatNumber($lesionados),
+                        'Fallecidos: ' . $this->formatNumber($fallecidos),
+                        'Resueltos: ' . $this->formatNumber($resueltos),
+                        'Pendientes: ' . $this->formatNumber($pendientes),
+                        'Turnado: ' . $this->formatNumber($turnados),
+                        'Reporte: ' . $this->formatNumber($reportes),
+                    ]
+                ),
+            ];
+        }
+
+        $lineasTop = [];
+
+        foreach ($tiposTop as $row) {
+            $lineasTop[] = $row->label . ': ' . $this->formatNumber((int) $row->total);
+        }
+
+        return [
+            'text' => $this->renderService->renderReporte(
+                $unidadId,
+                'Estadística rápida de siniestros',
+                $periodo,
+                array_merge([
+                    'Hechos: ' . $this->formatNumber($hechos),
+                    'Lesionados: ' . $this->formatNumber($lesionados),
+                    'Fallecidos: ' . $this->formatNumber($fallecidos),
+                    'Resueltos: ' . $this->formatNumber($resueltos),
+                    'Pendientes: ' . $this->formatNumber($pendientes),
+                    'Turnado: ' . $this->formatNumber($turnados),
+                    'Reporte: ' . $this->formatNumber($reportes),
+                ], $lineasTop)
+            ),
+        ];
+    }
+
+    protected function buscarCoincidenciasPersonal(?int $unidadId, string $busqueda)
+    {
+        $termino = trim($busqueda);
+        $terminoUpper = $this->upper($termino);
+        $terminoNormalizado = $this->normalizarTextoBusqueda($termino);
+        $tokens = array_values(array_filter(preg_split('/\s+/', $terminoUpper)));
+
+        $query = Personal::query()
+            ->with(['unidad', 'turno', 'patrulla', 'user.patrulla', 'fotoPrincipal', 'fotos', 'asignaciones.armamento']);
+
+        $this->applyUnitFilter($query, 'unidad_id', $unidadId);
+
+        $query->where(function ($q) use ($termino, $terminoUpper, $terminoNormalizado, $tokens) {
+            if (ctype_digit($terminoNormalizado)) {
+                $q->orWhere('id', (int) $terminoNormalizado);
+            }
+
+            foreach (['numero_empleado', 'cuip', 'curp', 'rfc'] as $campo) {
+                $q->orWhereRaw("REPLACE(REPLACE(REPLACE(UPPER(COALESCE({$campo}, '')), '-', ''), ' ', ''), '.', '') = ?", [$terminoNormalizado]);
+                $q->orWhereRaw("UPPER(COALESCE({$campo}, '')) LIKE ?", ['%' . $terminoUpper . '%']);
+            }
+
+            $nombreSql = "UPPER(CONCAT_WS(' ', COALESCE(nombre, ''), COALESCE(ap_paterno, ''), COALESCE(ap_materno, '')))";
+            $q->orWhereRaw("{$nombreSql} LIKE ?", ['%' . $terminoUpper . '%']);
+
+            foreach ($tokens as $token) {
+                $q->orWhereRaw("{$nombreSql} LIKE ?", ['%' . $token . '%']);
+            }
+        });
+
+        return $query
+            ->limit(10)
+            ->get()
+            ->sortByDesc(fn (Personal $personal) => $this->puntajeCoincidenciaPersonal($personal, $terminoNormalizado))
+            ->values();
+    }
+
+    protected function puntajeCoincidenciaPersonal(Personal $personal, string $busquedaNormalizada): int
+    {
+        $puntaje = 0;
+        $nombreCompleto = trim(implode(' ', array_filter([
+            $personal->nombre,
+            $personal->ap_paterno,
+            $personal->ap_materno,
+        ])));
+        $nombreNormalizado = $this->normalizarTextoBusqueda($nombreCompleto);
+
+        if ($busquedaNormalizada !== '' && $nombreNormalizado === $busquedaNormalizada) {
+            $puntaje += 300;
+        }
+
+        if ($busquedaNormalizada !== '' && $this->startsWith($nombreNormalizado, $busquedaNormalizada)) {
+            $puntaje += 220;
+        }
+
+        foreach ([$personal->numero_empleado, $personal->cuip, $personal->curp, $personal->rfc, $personal->id] as $valor) {
+            if ($busquedaNormalizada !== '' && $this->normalizarTextoBusqueda((string) $valor) === $busquedaNormalizada) {
+                $puntaje += 400;
+            }
+        }
+
+        if ($busquedaNormalizada !== '' && str_contains($nombreNormalizado, $busquedaNormalizada)) {
+            $puntaje += 120;
+        }
+
+        if (mb_strtoupper((string) $personal->estatus, 'UTF-8') === 'ACTIVO') {
+            $puntaje += 10;
+        }
+
+        return $puntaje;
+    }
+
+    protected function requierePrecisionAdicional($coincidencias, string $busqueda): bool
+    {
+        if ($coincidencias->count() < 2) {
+            return false;
+        }
+
+        $puntajePrimero = $this->puntajeCoincidenciaPersonal($coincidencias[0], $this->normalizarTextoBusqueda($busqueda));
+        $puntajeSegundo = $this->puntajeCoincidenciaPersonal($coincidencias[1], $this->normalizarTextoBusqueda($busqueda));
+
+        return $puntajePrimero <= 220 || ($puntajePrimero - $puntajeSegundo) < 40;
     }
 
     protected function resolveUnitIdForJson($user, array $context, array $json): ?int

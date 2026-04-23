@@ -1,10 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\guardianes_camino",
-    "\\resources\\views\\guardianes_camino\\dispositivos"
+    "\\database",
+    "\\database\\seeders"
   ],
+  "SelectedNode": "\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
   "PreviewInSolutionExplorer": false
 }

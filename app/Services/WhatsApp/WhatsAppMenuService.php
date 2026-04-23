@@ -67,6 +67,7 @@ class WhatsAppMenuService
                     ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados y tipos'],
                     ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
                     ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                    ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
                     ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
                     ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
                 ]
@@ -77,6 +78,7 @@ class WhatsAppMenuService
                     ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados y tipos'],
                     ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
                     ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                    ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
                     ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
                     ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
                 ];
@@ -87,6 +89,7 @@ class WhatsAppMenuService
                 ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Apoyos y labores'],
                 ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
                 ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
             ];
         } elseif ($module === 'vialidades') {
@@ -95,6 +98,7 @@ class WhatsAppMenuService
                 ['id' => 'action:actividades_rango', 'title' => 'Actividades por rango', 'description' => 'Consultar por fechas'],
                 ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
             ];
         } elseif ($module === 'delegaciones') {
             $rows = [
@@ -102,12 +106,14 @@ class WhatsAppMenuService
                 ['id' => 'action:actividades_rango', 'title' => 'Actividades por rango', 'description' => 'Consultar por fechas'],
                 ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
             ];
         } elseif ($module === 'fomento') {
             $rows = [
                 ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Proximidad y labores'],
                 ['id' => 'action:actividades_rango', 'title' => 'Actividades por rango', 'description' => 'Consultar por fechas'],
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
             ];
         } elseif ($module === 'coordinacion' || $module === 'seguridad_vial') {
             $rows = [
@@ -116,12 +122,14 @@ class WhatsAppMenuService
                 ['id' => 'action:operativos_hoy', 'title' => 'Operativos de hoy', 'description' => 'Dispositivos de carreteras'],
                 ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
                 ['id' => 'action:puestas_hoy', 'title' => 'Puestas de hoy', 'description' => 'Listado de puestas'],
             ];
         } else {
             $rows = [
                 ['id' => 'action:actividades_hoy', 'title' => 'Actividades de hoy', 'description' => 'Consulta rápida'],
                 ['id' => 'action:personal_activo', 'title' => 'Personal activo', 'description' => 'Listado del personal'],
+                ['id' => 'action:expediente_personal', 'title' => 'Expediente de personal', 'description' => 'Foto, patrulla y datos'],
             ];
         }
 
@@ -476,6 +484,7 @@ class WhatsAppMenuService
             'estadistica_tipo_hecho' => ['key' => 'estadistica_tipo_hecho', 'requires_param' => false],
             'personal_armado' => ['key' => 'personal_armado', 'requires_param' => false],
             'personal_activo' => ['key' => 'personal_activo', 'requires_param' => false],
+            'expediente_personal' => ['key' => 'expediente_personal', 'requires_param' => true, 'param_type' => 'personal'],
             'actividades_hoy' => ['key' => 'actividades_hoy', 'requires_param' => false],
             'actividades_rango' => ['key' => 'actividades_rango', 'requires_param' => true, 'param_type' => 'rango_fechas'],
             'operativos_hoy' => ['key' => 'operativos_hoy', 'requires_param' => false],
@@ -537,6 +546,8 @@ class WhatsAppMenuService
             $text = "Escribe el rango de fechas.\n\nEjemplo:\n2026-04-01 al 2026-04-15";
         } elseif ($action === 'operativos_tipo') {
             $text = "Escribe el tipo de operativo.\n\nEjemplo:\nCASCO";
+        } elseif ($action === 'expediente_personal') {
+            $text = "Escribe el nombre, número de empleado, CURP, RFC o CUIP.\n\nEjemplo:\nJuan Pérez";
         } elseif (in_array($action, [
             'estadistica_resumen_general',
             'estadistica_motocicletas',

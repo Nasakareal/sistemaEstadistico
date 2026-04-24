@@ -35,6 +35,12 @@ class RegionalSheetService
         $this->llenarAbanderamientos($sheet, $fecha, $idsDelegaciones);
         $this->llenarOperativos($sheet, $fecha, $idsDelegaciones);
         $this->llenarProgramas($sheet, $fecha, $idsDelegaciones);
+        $this->llenarMonitoreos($sheet, $fecha, $idsDelegaciones);
+        $this->llenarAuxilioVial($sheet, $fecha, $idsDelegaciones);
+        $this->llenarDispositivosSeguridadVial($sheet, $fecha, $idsDelegaciones);
+        $this->llenarCapacitaciones($sheet, $fecha, $idsDelegaciones);
+        $this->llenarCampanas($sheet, $fecha, $idsDelegaciones);
+        $this->llenarProximidadSocial($sheet, $fecha, $idsDelegaciones);
     }
 
     protected function llenarInstituciones($sheet, string $fecha, array $idsDelegaciones): void
@@ -667,5 +673,472 @@ class RegionalSheetService
         ]);
 
         $sheet->getStyle('D36:I37')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function llenarMonitoreos($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 38;
+
+        $actividades = [
+            'VÍAS FÉRREAS',
+            'PERIFÉRICOS',
+            'AVENIDAS',
+            'TIENDAS DEPARTAMENTALES',
+            'BANCOS',
+            'GASOLINERAS',
+            'OFICINAS GUBERNAMENTALES',
+            'MANIFESTACIONES',
+            'OTROS MONITOREOS (Especificar en las novedades relevantes)',
+        ];
+
+        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 6);
+
+        $sheet->mergeCells('A38:A46');
+        $sheet->mergeCells('B38:B46');
+
+        $sheet->setCellValue('A38', 6);
+        $sheet->setCellValue('B38', 'MONITOREOS');
+
+        $fila = $filaInicio;
+
+        foreach ($actividades as $actividad) {
+            $item = $datos[$actividad] ?? [
+                'cantidad' => 0,
+                'estado_fuerza' => 0,
+                'unidades' => 0,
+                'kilometros' => 0,
+                'personas' => 0,
+                'recomendaciones' => 0,
+            ];
+
+            $sheet->setCellValue('C' . $fila, $actividad);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['estado_fuerza']);
+            $sheet->setCellValue('F' . $fila, $item['unidades']);
+            $sheet->setCellValue('G' . $fila, $item['kilometros']);
+            $sheet->setCellValue('H' . $fila, $item['personas']);
+            $sheet->setCellValue('I' . $fila, $item['recomendaciones']);
+
+            $fila++;
+        }
+
+        $sheet->getStyle('A38:I46')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '9DC3E6'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('A38:B46')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D38:I46')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('C39:C40')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFFF00'],
+            ],
+        ]);
+
+        $sheet->getStyle('C41:C44')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'F4B183'],
+            ],
+        ]);
+    }
+
+    protected function llenarAuxilioVial($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 47;
+
+        $actividades = [
+            'FALLAS MECÁNICAS',
+            'PEATÓN',
+            'ESCOLTA EN SITUACIONES DE EMERGENCIA',
+            'AGRICOLAS',
+            'OTROS AUXILIOS (Especificar en las novedades relevantes)',
+        ];
+
+        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 7);
+
+        $sheet->mergeCells('A47:A51');
+        $sheet->mergeCells('B47:B51');
+
+        $sheet->setCellValue('A47', 7);
+        $sheet->setCellValue('B47', 'AUXILIO VIAL A CONDUCTORES');
+
+        $fila = $filaInicio;
+
+        foreach ($actividades as $actividad) {
+            $item = $datos[$actividad] ?? [
+                'cantidad' => 0,
+                'estado_fuerza' => 0,
+                'unidades' => 0,
+                'kilometros' => 0,
+                'personas' => 0,
+                'recomendaciones' => 0,
+            ];
+
+            $sheet->setCellValue('C' . $fila, $actividad);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['estado_fuerza']);
+            $sheet->setCellValue('F' . $fila, $item['unidades']);
+            $sheet->setCellValue('G' . $fila, $item['kilometros']);
+            $sheet->setCellValue('H' . $fila, $item['personas']);
+            $sheet->setCellValue('I' . $fila, $item['recomendaciones']);
+
+            $fila++;
+        }
+
+        $sheet->getStyle('A47:I51')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('A47:B51')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D47:I51')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function llenarDispositivosSeguridadVial($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 52;
+
+        $actividades = [
+            'APOYO A LA VIALIDAD',
+            'PASO LIBRE DE FUNCIONARIOS',
+            'ZONAS DE MAYOR PASE DE TRANSEÚNTES',
+            'PASOS PEATONALES',
+            'MEDIDAS DE PROTECCIÓN',
+            'PATRULLAJES',
+            'SERVICIOS DE ESCOLTAS',
+            'OTROS (Especificar en las novedades relevantes)',
+        ];
+
+        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 8);
+
+        $sheet->mergeCells('A52:A59');
+        $sheet->mergeCells('B52:B59');
+
+        $sheet->setCellValue('A52', 8);
+        $sheet->setCellValue('B52', 'DISPOSITIVOS DE SEGURIDAD VIAL');
+
+        $fila = $filaInicio;
+
+        foreach ($actividades as $actividad) {
+            $item = $datos[$actividad] ?? [
+                'cantidad' => 0,
+                'estado_fuerza' => 0,
+                'unidades' => 0,
+                'kilometros' => 0,
+                'personas' => 0,
+                'recomendaciones' => 0,
+            ];
+
+            $sheet->setCellValue('C' . $fila, $actividad);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['estado_fuerza']);
+            $sheet->setCellValue('F' . $fila, $item['unidades']);
+            $sheet->setCellValue('G' . $fila, $item['kilometros']);
+            $sheet->setCellValue('H' . $fila, $item['personas']);
+            $sheet->setCellValue('I' . $fila, $item['recomendaciones']);
+
+            $fila++;
+        }
+
+        $sheet->getStyle('A52:I59')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '9DC3E6'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('A52:B59')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+
+        $sheet->getStyle('D52:I59')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('C52')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFFF00'],
+            ],
+        ]);
+
+        $sheet->getStyle('C55')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFFF00'],
+            ],
+        ]);
+
+        $sheet->getStyle('C57')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFFF00'],
+            ],
+        ]);
+    }
+
+    protected function llenarCapacitaciones($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 60;
+
+        $actividades = [
+            'TALLER EDUCACIÓN SEGURIDAD VIAL',
+            'CAMPAÑA EDUCACIÓN SEGURIDAD VIAL',
+            'CAPACITACIONES EDUCACIÓN SEGURIDAD VIAL',
+            'MÓDULOS EDUCACIÓN SEGURIDAD VIAL',
+            'SSP',
+            'CALEA',
+            'OTRAS (Especificar en las novedades relevantes)',
+        ];
+
+        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 9);
+
+        $sheet->mergeCells('A60:A66');
+        $sheet->mergeCells('B60:B66');
+
+        $sheet->setCellValue('A60', 9);
+        $sheet->setCellValue('B60', 'CAPACITACIONES');
+
+        $fila = $filaInicio;
+
+        foreach ($actividades as $actividad) {
+            $item = $datos[$actividad] ?? [
+                'cantidad' => 0,
+                'estado_fuerza' => 0,
+                'unidades' => 0,
+                'kilometros' => 0,
+                'personas' => 0,
+                'recomendaciones' => 0,
+            ];
+
+            $sheet->setCellValue('C' . $fila, $actividad);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['estado_fuerza']);
+            $sheet->setCellValue('F' . $fila, $item['unidades']);
+            $sheet->setCellValue('G' . $fila, $item['kilometros']);
+            $sheet->setCellValue('H' . $fila, $item['personas']);
+            $sheet->setCellValue('I' . $fila, $item['recomendaciones']);
+
+            $fila++;
+        }
+
+        $sheet->getStyle('A60:I66')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('A60:B66')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D60:I66')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function llenarCampanas($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 67;
+
+        $actividades = [
+            'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'REPARTICIÓN DE TRÍPTICOS',
+            'ESTACIONALES (SEMANA SANTA, NAVIDAD ETC.)',
+            'OTRAS (Especificar en las novedades relevantes)',
+        ];
+
+        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 10);
+
+        $sheet->mergeCells('A67:A70');
+        $sheet->mergeCells('B67:B70');
+
+        $sheet->setCellValue('A67', 10);
+        $sheet->setCellValue('B67', 'CAMPAÑAS');
+
+        $fila = $filaInicio;
+
+        foreach ($actividades as $actividad) {
+            $item = $datos[$actividad] ?? [
+                'cantidad' => 0,
+                'estado_fuerza' => 0,
+                'unidades' => 0,
+                'kilometros' => 0,
+                'personas' => 0,
+                'recomendaciones' => 0,
+            ];
+
+            $sheet->setCellValue('C' . $fila, $actividad);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['estado_fuerza']);
+            $sheet->setCellValue('F' . $fila, $item['unidades']);
+            $sheet->setCellValue('G' . $fila, $item['kilometros']);
+            $sheet->setCellValue('H' . $fila, $item['personas']);
+            $sheet->setCellValue('I' . $fila, $item['recomendaciones']);
+
+            $fila++;
+        }
+
+        $sheet->getStyle('A67:I70')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '9DC3E6'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('A67:B70')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D67:I70')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function llenarProximidadSocial($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 71;
+
+        $actividades = [
+            'PREVENCIÓN SOCIAL',
+            'RECORRIDOS DE PROXIMIDAD',
+            'APOYO A TURISTAS',
+            'APOYO A PERSONAS DE LA TERCERA EDAD',
+            'APOYO A PERSONAS PERDIDAS',
+            'RECUPERACIÓN DE ESPACIOS',
+            'OTRAS (Especificar en las novedades relevantes)',
+        ];
+
+        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 11);
+
+        $sheet->mergeCells('A71:A77');
+        $sheet->mergeCells('B71:B77');
+
+        $sheet->setCellValue('A71', 11);
+        $sheet->setCellValue('B71', 'PROXIMIDAD SOCIAL');
+
+        $fila = $filaInicio;
+
+        foreach ($actividades as $actividad) {
+            $item = $datos[$actividad] ?? [
+                'cantidad' => 0,
+                'estado_fuerza' => 0,
+                'unidades' => 0,
+                'kilometros' => 0,
+                'personas' => 0,
+                'recomendaciones' => 0,
+            ];
+
+            $sheet->setCellValue('C' . $fila, $actividad);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['estado_fuerza']);
+            $sheet->setCellValue('F' . $fila, $item['unidades']);
+            $sheet->setCellValue('G' . $fila, $item['kilometros']);
+            $sheet->setCellValue('H' . $fila, $item['personas']);
+            $sheet->setCellValue('I' . $fila, $item['recomendaciones']);
+
+            $fila++;
+        }
+
+        $sheet->getStyle('A71:I77')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('A71:B77')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+
+        $sheet->getStyle('D71:I77')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 }

@@ -1,11 +1,7 @@
 {
   "ExpandedNodes": [
-    "",
-    "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\Delegaciones",
-    "\\app\\Services\\Delegaciones\\Hojas"
+    ""
   ],
-  "SelectedNode": "\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
+  "SelectedNode": "\\app",
   "PreviewInSolutionExplorer": false
 }

@@ -103,6 +103,36 @@ class AuthController extends Controller
         $primaryRole = $this->primaryRoleForUser($user);
         $assignedRoles = $user->roles->values();
         $permissions = $this->permissionsForUser($user)->values();
+        $rolesMeta = $assignedRoles->map(fn ($role) => [
+            'id' => $role->id,
+            'name' => $role->name,
+        ])->values()->all();
+        $unidadMeta = $user->unidad ? [
+            'id' => $user->unidad->id,
+            'nombre' => $user->unidad->nombre,
+            'slug' => $user->unidad->slug,
+        ] : null;
+        $unidadesMeta = $user->unidades->map(fn ($unidad) => [
+            'id' => $unidad->id,
+            'nombre' => $unidad->nombre,
+            'slug' => $unidad->slug,
+        ])->values()->all();
+        $delegacionMeta = $user->delegacion ? [
+            'id' => $user->delegacion->id,
+            'nombre' => $user->delegacion->nombre,
+        ] : null;
+        $destacamentoMeta = $user->destacamento ? [
+            'id' => $user->destacamento->id,
+            'nombre' => $user->destacamento->nombre,
+        ] : null;
+        $turnoMeta = $user->turno ? [
+            'id' => $user->turno->id,
+            'nombre' => $user->turno->nombre,
+        ] : null;
+        $patrullaMeta = $user->patrulla ? [
+            'id' => $user->patrulla->id,
+            'numero_economico' => $user->patrulla->numero_economico,
+        ] : null;
 
         $isSubdirector = $this->userHasRole($user, 'Subdirector');
         $isJefeGrupo = $this->userHasRole($user, 'Jefe de Grupo');
@@ -113,6 +143,19 @@ class AuthController extends Controller
         $legacyUser['permissions'] = $permissions->all();
 
         $response = [
+            // Duplicate the most-used identity keys at the root for older clients.
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'telefono' => $user->telefono,
+            'area' => $user->area,
+            'estado' => $user->estado,
+            'unidad_id' => $user->unidad_id,
+            'delegacion_id' => $user->delegacion_id,
+            'destacamento_id' => $user->destacamento_id,
+            'turno_id' => $user->turno_id,
+            'patrulla_id' => $user->patrulla_id,
+            'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
             // Keep the legacy string shape so existing clients don't hide modules.
             'role' => $primaryRole ? $primaryRole->name : null,
             'role_id' => $primaryRole ? $primaryRole->id : null,
@@ -120,7 +163,14 @@ class AuthController extends Controller
                 'id' => $primaryRole->id,
                 'name' => $primaryRole->name,
             ] : null,
+            'roles' => $rolesMeta,
             'permissions' => $permissions->all(),
+            'unidad' => $unidadMeta,
+            'unidades' => $unidadesMeta,
+            'delegacion' => $delegacionMeta,
+            'destacamento' => $destacamentoMeta,
+            'turno' => $turnoMeta,
+            'patrulla' => $patrullaMeta,
             'flags' => [
                 'is_subdirector' => $isSubdirector,
                 'is_jefe_grupo' => $isJefeGrupo,
@@ -146,37 +196,14 @@ class AuthController extends Controller
                     'id' => $primaryRole->id,
                     'name' => $primaryRole->name,
                 ] : null,
-                'roles' => $assignedRoles->map(fn ($role) => [
-                    'id' => $role->id,
-                    'name' => $role->name,
-                ])->values()->all(),
+                'roles' => $rolesMeta,
                 'permissions' => $permissions->all(),
-                'unidad' => $user->unidad ? [
-                    'id' => $user->unidad->id,
-                    'nombre' => $user->unidad->nombre,
-                    'slug' => $user->unidad->slug,
-                ] : null,
-                'unidades' => $user->unidades->map(fn ($unidad) => [
-                    'id' => $unidad->id,
-                    'nombre' => $unidad->nombre,
-                    'slug' => $unidad->slug,
-                ])->values()->all(),
-                'delegacion' => $user->delegacion ? [
-                    'id' => $user->delegacion->id,
-                    'nombre' => $user->delegacion->nombre,
-                ] : null,
-                'destacamento' => $user->destacamento ? [
-                    'id' => $user->destacamento->id,
-                    'nombre' => $user->destacamento->nombre,
-                ] : null,
-                'turno' => $user->turno ? [
-                    'id' => $user->turno->id,
-                    'nombre' => $user->turno->nombre,
-                ] : null,
-                'patrulla' => $user->patrulla ? [
-                    'id' => $user->patrulla->id,
-                    'numero_economico' => $user->patrulla->numero_economico,
-                ] : null,
+                'unidad' => $unidadMeta,
+                'unidades' => $unidadesMeta,
+                'delegacion' => $delegacionMeta,
+                'destacamento' => $destacamentoMeta,
+                'turno' => $turnoMeta,
+                'patrulla' => $patrullaMeta,
             ],
         ];
 

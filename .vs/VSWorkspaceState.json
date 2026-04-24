@@ -1,8 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app"
+    "\\app",
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Services"
   ],
-  "SelectedNode": "\\config",
+  "SelectedNode": "\\app\\Console\\Commands\\NotificarHechosPendientes.php",
   "PreviewInSolutionExplorer": false
 }

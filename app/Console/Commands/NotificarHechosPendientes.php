@@ -53,8 +53,8 @@ class NotificarHechosPendientes extends Command
 
             $this->enviarPush((int) $hecho->created_by, [
                 'title' => 'Hecho pendiente: 48 horas',
-                'body'  => "El hecho {$hecho->folio_c5i} sigue PENDIENTE. Ya pasaron 48 horas.",
-                'data'  => [
+                'body' => "El hecho {$hecho->folio_c5i} sigue PENDIENTE. Ya pasaron 48 horas.",
+                'data' => [
                     'type' => 'HECHO_48H',
                     'hecho_id' => (string) $hecho->id,
                     'folio_c5i' => (string) $hecho->folio_c5i,
@@ -100,14 +100,13 @@ class NotificarHechosPendientes extends Command
 
             if (is_null($hecho->notificado_72_at)) {
                 $deboNotificar = true;
+            } elseif (is_null($hecho->ultimo_recordatorio_72_at)) {
+                $deboNotificar = true;
             } else {
-                if (is_null($hecho->ultimo_recordatorio_72_at)) {
+                $ultima = Carbon::parse($hecho->ultimo_recordatorio_72_at, 'America/Mexico_City');
+
+                if ($ultima->lte($now->copy()->subMinutes($reminderMinutes))) {
                     $deboNotificar = true;
-                } else {
-                    $ultima = Carbon::parse($hecho->ultimo_recordatorio_72_at, 'America/Mexico_City');
-                    if ($ultima->lte($now->copy()->subMinutes($reminderMinutes))) {
-                        $deboNotificar = true;
-                    }
                 }
             }
 
@@ -117,8 +116,8 @@ class NotificarHechosPendientes extends Command
 
             $this->enviarPush((int) $hecho->created_by, [
                 'title' => 'URGENTE: Turnar hecho (72 horas)',
-                'body'  => "El hecho {$hecho->folio_c5i} lleva más de 72 horas PENDIENTE. Debes TURNARLO para continuar.",
-                'data'  => [
+                'body' => "El hecho {$hecho->folio_c5i} lleva más de 72 horas PENDIENTE. Debes TURNARLO para continuar.",
+                'data' => [
                     'type' => 'HECHO_72H',
                     'hecho_id' => (string) $hecho->id,
                     'folio_c5i' => (string) $hecho->folio_c5i,
@@ -141,13 +140,13 @@ class NotificarHechosPendientes extends Command
             ->where('user_id', $userId)
             ->orderByDesc('last_seen_at')
             ->limit(10)
-            ->pluck('token')
-            ->filter()
-            ->values()
-            ->all();
+            ->get(['id', 'user_id', 'token', 'platform', 'last_seen_at']);
 
-        if (empty($tokens)) {
-            Log::info('FCM: sin tokens para usuario', ['user_id' => $userId]);
+        if ($tokens->isEmpty()) {
+            Log::info('FCM: sin tokens para usuario', [
+                'user_id' => $userId,
+            ]);
+
             return;
         }
 
@@ -156,21 +155,41 @@ class NotificarHechosPendientes extends Command
         $privateKey = (string) env('FIREBASE_PRIVATE_KEY', '');
 
         if ($projectId === '' || $clientEmail === '' || $privateKey === '') {
-            Log::warning('FCM no configurado en .env');
+            Log::warning('FCM no configurado en .env', [
+                'user_id' => $userId,
+                'project_id' => $projectId !== '',
+                'client_email' => $clientEmail !== '',
+                'private_key' => $privateKey !== '',
+            ]);
+
             return;
         }
 
         $privateKey = str_replace("\\n", "\n", $privateKey);
 
         $accessToken = $this->getGoogleAccessToken($clientEmail, $privateKey);
+
         if ($accessToken === null) {
-            Log::warning('FCM: no se pudo obtener access token');
+            Log::warning('FCM: no se pudo obtener access token', [
+                'user_id' => $userId,
+            ]);
+
             return;
         }
 
         $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
 
-        foreach ($tokens as $token) {
+        foreach ($tokens as $deviceToken) {
+            $token = (string) $deviceToken->token;
+
+            Log::info('FCM enviando token', [
+                'device_token_id' => $deviceToken->id,
+                'user_id' => $deviceToken->user_id,
+                'platform' => $deviceToken->platform,
+                'last_seen_at' => $deviceToken->last_seen_at,
+                'token_preview' => substr($token, 0, 25) . '...',
+            ]);
+
             try {
                 $res = Http::withToken($accessToken)
                     ->acceptJson()
@@ -179,10 +198,9 @@ class NotificarHechosPendientes extends Command
                             'token' => $token,
                             'notification' => [
                                 'title' => (string) ($payload['title'] ?? ''),
-                                'body'  => (string) ($payload['body'] ?? ''),
+                                'body' => (string) ($payload['body'] ?? ''),
                             ],
                             'data' => array_map('strval', (array) ($payload['data'] ?? [])),
-
                             'android' => [
                                 'priority' => 'HIGH',
                                 'ttl' => '3600s',
@@ -194,24 +212,51 @@ class NotificarHechosPendientes extends Command
                                     'notification_priority' => 'PRIORITY_MAX',
                                 ],
                             ],
+                            'apns' => [
+                                'headers' => [
+                                    'apns-priority' => '10',
+                                ],
+                                'payload' => [
+                                    'aps' => [
+                                        'sound' => 'default',
+                                    ],
+                                ],
+                            ],
                         ],
                     ]);
 
                 if (!$res->ok()) {
                     Log::warning('FCM respondio error', [
-                        'user_id' => $userId,
+                        'device_token_id' => $deviceToken->id,
+                        'user_id' => $deviceToken->user_id,
+                        'platform' => $deviceToken->platform,
                         'status' => $res->status(),
                         'body' => $res->body(),
                     ]);
 
                     $body = (string) $res->body();
+
                     if (str_contains($body, 'UNREGISTERED') || str_contains($body, 'NOT_FOUND')) {
-                        DB::table('device_tokens')->where('token', $token)->delete();
+                        DB::table('device_tokens')->where('id', $deviceToken->id)->delete();
+
+                        Log::info('FCM token eliminado', [
+                            'device_token_id' => $deviceToken->id,
+                            'user_id' => $deviceToken->user_id,
+                            'platform' => $deviceToken->platform,
+                        ]);
                     }
+                } else {
+                    Log::info('FCM enviado correctamente', [
+                        'device_token_id' => $deviceToken->id,
+                        'user_id' => $deviceToken->user_id,
+                        'platform' => $deviceToken->platform,
+                    ]);
                 }
             } catch (\Throwable $e) {
                 Log::warning('FCM fallo send', [
-                    'user_id' => $userId,
+                    'device_token_id' => $deviceToken->id,
+                    'user_id' => $deviceToken->user_id,
+                    'platform' => $deviceToken->platform,
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -222,7 +267,12 @@ class NotificarHechosPendientes extends Command
     {
         try {
             $now = time();
-            $header = $this->base64UrlEncode((string) json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+
+            $header = $this->base64UrlEncode((string) json_encode([
+                'alg' => 'RS256',
+                'typ' => 'JWT',
+            ]));
+
             $claims = $this->base64UrlEncode((string) json_encode([
                 'iss' => $clientEmail,
                 'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
@@ -253,6 +303,7 @@ class NotificarHechosPendientes extends Command
                     'status' => $res->status(),
                     'body' => $res->body(),
                 ]);
+
                 return null;
             }
 
@@ -264,6 +315,7 @@ class NotificarHechosPendientes extends Command
             Log::warning('Error getGoogleAccessToken', [
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }

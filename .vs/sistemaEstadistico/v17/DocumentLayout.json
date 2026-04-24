@@ -44,7 +44,7 @@
               "RelativeDocumentMoniker": "app\\Console\\Commands\\NotificarHechosPendientes.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\NotificarHechosPendientes.php",
               "RelativeToolTip": "app\\Console\\Commands\\NotificarHechosPendientes.php",
-              "ViewState": "AgIAAOMAAAAAAAAAAAAcwBMBAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAABYBAAAAAAAAAAAcwEcBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2026-04-24T01:56:10.528Z",
               "EditorCaption": ""
@@ -59,8 +59,7 @@
               "RelativeToolTip": "routes\\api.php",
               "ViewState": "AgIAAAwAAAAAAAAAAAAWwKcAAAAVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-24T01:02:28.5Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-24T01:02:28.5Z"
             },
             {
               "$type": "Document",

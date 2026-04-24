@@ -108,11 +108,13 @@ class AuthController extends Controller
         $isJefeGrupo = $this->userHasRole($user, 'Jefe de Grupo');
 
         $response = [
-            'role' => $primaryRole ? [
+            // Keep the legacy string shape so existing clients don't hide modules.
+            'role' => $primaryRole ? $primaryRole->name : null,
+            'role_id' => $primaryRole ? $primaryRole->id : null,
+            'role_meta' => $primaryRole ? [
                 'id' => $primaryRole->id,
                 'name' => $primaryRole->name,
             ] : null,
-            'role_id' => $primaryRole ? $primaryRole->id : null,
             'permissions' => $permissions->all(),
             'flags' => [
                 'is_subdirector' => $isSubdirector,
@@ -132,11 +134,12 @@ class AuthController extends Controller
                 'turno_id' => $user->turno_id,
                 'patrulla_id' => $user->patrulla_id,
                 'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
-                'role' => $primaryRole ? [
+                'role' => $primaryRole ? $primaryRole->name : null,
+                'role_id' => $primaryRole ? $primaryRole->id : null,
+                'role_meta' => $primaryRole ? [
                     'id' => $primaryRole->id,
                     'name' => $primaryRole->name,
                 ] : null,
-                'role_id' => $primaryRole ? $primaryRole->id : null,
                 'roles' => $assignedRoles->map(fn ($role) => [
                     'id' => $role->id,
                     'name' => $role->name,

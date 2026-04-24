@@ -107,6 +107,11 @@ class AuthController extends Controller
         $isSubdirector = $this->userHasRole($user, 'Subdirector');
         $isJefeGrupo = $this->userHasRole($user, 'Jefe de Grupo');
 
+        $legacyUser = $user->toArray();
+        $legacyUser['role'] = $primaryRole ? $primaryRole->name : null;
+        $legacyUser['role_id'] = $primaryRole ? $primaryRole->id : null;
+        $legacyUser['permissions'] = $permissions->all();
+
         $response = [
             // Keep the legacy string shape so existing clients don't hide modules.
             'role' => $primaryRole ? $primaryRole->name : null,
@@ -121,7 +126,8 @@ class AuthController extends Controller
                 'is_jefe_grupo' => $isJefeGrupo,
                 'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
             ],
-            'user' => [
+            'user' => $legacyUser,
+            'user_meta' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,

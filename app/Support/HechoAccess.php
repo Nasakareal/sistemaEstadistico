@@ -54,6 +54,41 @@ class HechoAccess
         'eliminar operativos vialidades',
     ];
 
+    public static function shouldResolvePermissionDirectly(?string $ability): bool
+    {
+        $name = self::normalizePermissionName($ability);
+
+        if ($name === '') {
+            return false;
+        }
+
+        return in_array($name, self::PERMISOS_HECHOS, true);
+    }
+
+    public static function hasAssignedPermission($usuario, ?string $permission): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        $target = self::normalizePermissionName($permission);
+        if ($target === '') {
+            return false;
+        }
+
+        $usuario->loadMissing(['roles.permissions', 'permissions']);
+
+        if ($usuario->permissions->contains(fn ($permiso) => self::normalizePermissionName($permiso->name ?? null) === $target)) {
+            return true;
+        }
+
+        return $usuario->roles->contains(function ($role) use ($target) {
+            return $role->permissions->contains(
+                fn ($permiso) => self::normalizePermissionName($permiso->name ?? null) === $target
+            );
+        });
+    }
+
     public static function canUseHechosModule($usuario): bool
     {
         if (!$usuario) {
@@ -299,5 +334,10 @@ class HechoAccess
         ];
 
         return strtr($string, $unwanted_array);
+    }
+
+    private static function normalizePermissionName(?string $permission): string
+    {
+        return mb_strtolower(trim((string) $permission), 'UTF-8');
     }
 }

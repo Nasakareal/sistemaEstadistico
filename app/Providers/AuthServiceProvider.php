@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\HechoAccess;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -17,6 +18,14 @@ class AuthServiceProvider extends ServiceProvider
         Gate::before(function ($user, $ability) {
             if ($user->hasRole('Superadmin')) {
                 return true;
+            }
+
+            if (HechoAccess::shouldResolvePermissionDirectly($ability)) {
+                if (!HechoAccess::canUseHechosModule($user)) {
+                    return false;
+                }
+
+                return HechoAccess::hasAssignedPermission($user, $ability);
             }
 
             $carreterasAbilities = [

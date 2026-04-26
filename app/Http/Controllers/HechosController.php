@@ -837,15 +837,15 @@ class HechosController extends Controller
         $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO'];
         $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
 
-        if (!in_array($situacion, $situacionesValidas)) {
+        if (!in_array($situacion, $situacionesValidas, true)) {
             $situacion = 'PENDIENTE';
         }
 
-        if (!in_array($periodo, $periodosValidos)) {
+        if (!in_array($periodo, $periodosValidos, true)) {
             $periodo = 'SEMANA';
         }
 
-        $hoy = now();
+        $hoy = now('America/Mexico_City');
 
         $inicioSemana = $hoy->copy()->startOfWeek();
         $finSemana = $hoy->copy()->endOfWeek();
@@ -856,48 +856,32 @@ class HechosController extends Controller
         $inicioAnio = $hoy->copy()->startOfYear();
         $finAnio = $hoy->copy()->endOfYear();
 
-        $querySemanaPendiente = Hechos::query()->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'PENDIENTE');
-        $this->applyHechosVisibilityScope($querySemanaPendiente, $usuario);
+        $crearQueryConteo = function ($inicio, $fin, $situacionConteo) use ($usuario) {
+            $query = Hechos::query()
+                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
+                ->where('situacion', $situacionConteo)
+                ->where('unidad_org_id', 1);
 
-        $querySemanaTurnado = Hechos::query()->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'TURNADO');
-        $this->applyHechosVisibilityScope($querySemanaTurnado, $usuario);
+            $this->applyHechosVisibilityScope($query, $usuario);
 
-        $querySemanaResuelto = Hechos::query()->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()])->where('situacion', 'RESUELTO');
-        $this->applyHechosVisibilityScope($querySemanaResuelto, $usuario);
-
-        $queryMesPendiente = Hechos::query()->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'PENDIENTE');
-        $this->applyHechosVisibilityScope($queryMesPendiente, $usuario);
-
-        $queryMesTurnado = Hechos::query()->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'TURNADO');
-        $this->applyHechosVisibilityScope($queryMesTurnado, $usuario);
-
-        $queryMesResuelto = Hechos::query()->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->where('situacion', 'RESUELTO');
-        $this->applyHechosVisibilityScope($queryMesResuelto, $usuario);
-
-        $queryAnioPendiente = Hechos::query()->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'PENDIENTE');
-        $this->applyHechosVisibilityScope($queryAnioPendiente, $usuario);
-
-        $queryAnioTurnado = Hechos::query()->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'TURNADO');
-        $this->applyHechosVisibilityScope($queryAnioTurnado, $usuario);
-
-        $queryAnioResuelto = Hechos::query()->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()])->where('situacion', 'RESUELTO');
-        $this->applyHechosVisibilityScope($queryAnioResuelto, $usuario);
+            return $query;
+        };
 
         $conteos = [
             'semana' => [
-                'PENDIENTE' => $querySemanaPendiente->count(),
-                'TURNADO' => $querySemanaTurnado->count(),
-                'RESUELTO' => $querySemanaResuelto->count(),
+                'PENDIENTE' => $crearQueryConteo($inicioSemana, $finSemana, 'PENDIENTE')->count(),
+                'TURNADO' => $crearQueryConteo($inicioSemana, $finSemana, 'TURNADO')->count(),
+                'RESUELTO' => $crearQueryConteo($inicioSemana, $finSemana, 'RESUELTO')->count(),
             ],
             'mes' => [
-                'PENDIENTE' => $queryMesPendiente->count(),
-                'TURNADO' => $queryMesTurnado->count(),
-                'RESUELTO' => $queryMesResuelto->count(),
+                'PENDIENTE' => $crearQueryConteo($inicioMes, $finMes, 'PENDIENTE')->count(),
+                'TURNADO' => $crearQueryConteo($inicioMes, $finMes, 'TURNADO')->count(),
+                'RESUELTO' => $crearQueryConteo($inicioMes, $finMes, 'RESUELTO')->count(),
             ],
             'anio' => [
-                'PENDIENTE' => $queryAnioPendiente->count(),
-                'TURNADO' => $queryAnioTurnado->count(),
-                'RESUELTO' => $queryAnioResuelto->count(),
+                'PENDIENTE' => $crearQueryConteo($inicioAnio, $finAnio, 'PENDIENTE')->count(),
+                'TURNADO' => $crearQueryConteo($inicioAnio, $finAnio, 'TURNADO')->count(),
+                'RESUELTO' => $crearQueryConteo($inicioAnio, $finAnio, 'RESUELTO')->count(),
             ],
         ];
 
@@ -911,11 +895,16 @@ class HechosController extends Controller
             $query->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()]);
         }
 
-        $query->where('situacion', $situacion);
+        $query->where('situacion', $situacion)
+            ->where('unidad_org_id', 1);
 
         $this->applyHechosVisibilityScope($query, $usuario);
 
-        $hechos = $query->orderByDesc('fecha')->orderByDesc('hora')->paginate(20)->withQueryString();
+        $hechos = $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->paginate(20)
+            ->withQueryString();
 
         return view('hechos.seguimiento', compact(
             'conteos',

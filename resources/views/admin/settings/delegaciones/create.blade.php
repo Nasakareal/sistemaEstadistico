@@ -74,6 +74,30 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Latitud</label>
+                                    <input type="text"
+                                           name="lat"
+                                           class="form-control @error('lat') is-invalid @enderror"
+                                           value="{{ old('lat') }}"
+                                           placeholder="Ej: 19.7033333">
+                                    @error('lat') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Longitud</label>
+                                    <input type="text"
+                                           name="lng"
+                                           class="form-control @error('lng') is-invalid @enderror"
+                                           value="{{ old('lng') }}"
+                                           placeholder="Ej: -101.1922222">
+                                    @error('lng') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Delegación padre (opcional)</label>
@@ -127,11 +151,13 @@
                             <table class="table table-bordered table-hover table-sm" id="tabla_hijas">
                                 <thead>
                                     <tr>
-                                        <th style="width: 18%">Clave</th>
-                                        <th style="width: 32%">Nombre</th>
-                                        <th style="width: 30%">Municipio</th>
-                                        <th style="width: 10%; text-align:center">Activa</th>
-                                        <th style="width: 10%; text-align:center">Quitar</th>
+                                        <th style="width: 14%">Clave</th>
+                                        <th style="width: 24%">Nombre</th>
+                                        <th style="width: 22%">Municipio</th>
+                                        <th style="width: 15%">Latitud</th>
+                                        <th style="width: 15%">Longitud</th>
+                                        <th style="width: 5%; text-align:center">Activa</th>
+                                        <th style="width: 5%; text-align:center">Quitar</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -162,6 +188,20 @@
                                                            class="form-control"
                                                            value="{{ $h['municipio'] ?? '' }}"
                                                            placeholder="Municipio">
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                           name="hijas[{{ $i }}][lat]"
+                                                           class="form-control"
+                                                           value="{{ $h['lat'] ?? '' }}"
+                                                           placeholder="19.7033333">
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                           name="hijas[{{ $i }}][lng]"
+                                                           class="form-control"
+                                                           value="{{ $h['lng'] ?? '' }}"
+                                                           placeholder="-101.1922222">
                                                 </td>
                                                 <td style="text-align:center; vertical-align:middle;">
                                                     <input type="checkbox"
@@ -233,6 +273,12 @@
                         </td>
                         <td>
                             <input type="text" name="hijas[${i}][municipio]" class="form-control" placeholder="Municipio">
+                        </td>
+                        <td>
+                            <input type="text" name="hijas[${i}][lat]" class="form-control" placeholder="19.7033333">
+                        </td>
+                        <td>
+                            <input type="text" name="hijas[${i}][lng]" class="form-control" placeholder="-101.1922222">
                         </td>
                         <td style="text-align:center; vertical-align:middle;">
                             <input type="checkbox" name="hijas[${i}][activa]" value="1" checked>

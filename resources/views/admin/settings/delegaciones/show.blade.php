@@ -45,7 +45,6 @@
 
                 <div class="card-body">
 
-                    {{-- INFO PRINCIPAL --}}
                     <div class="row">
 
                         <div class="col-md-3">
@@ -80,14 +79,28 @@
                             </div>
                         </div>
 
-                        <div class="col-md-6 mt-3">
+                        <div class="col-md-3 mt-3">
+                            <div class="small text-muted">Latitud</div>
+                            <div class="font-weight-bold">
+                                {{ $delegacion->lat ?: '—' }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mt-3">
+                            <div class="small text-muted">Longitud</div>
+                            <div class="font-weight-bold">
+                                {{ $delegacion->lng ?: '—' }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mt-3">
                             <div class="small text-muted">Delegación padre</div>
                             <div class="font-weight-bold">
                                 {{ $delegacion->padre ? ($delegacion->padre->nombre_con_clave ?? $delegacion->padre->nombre) : '—' }}
                             </div>
                         </div>
 
-                        <div class="col-md-6 mt-3">
+                        <div class="col-md-3 mt-3">
                             <div class="small text-muted">Fecha de creación</div>
                             <div class="font-weight-bold">
                                 {{ $delegacion->created_at ? $delegacion->created_at->format('d-m-Y H:i') : '—' }}
@@ -98,7 +111,20 @@
 
                     <hr>
 
-                    {{-- HIJAS --}}
+                    <div class="mb-3">
+                        <h5>Ubicación de la delegación</h5>
+
+                        @if ($delegacion->lat && $delegacion->lng)
+                            <div id="mapa_delegacion"></div>
+                        @else
+                            <div class="alert alert-warning mb-0">
+                                Esta delegación aún no tiene coordenadas registradas.
+                            </div>
+                        @endif
+                    </div>
+
+                    <hr>
+
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <h5 class="mb-0">Delegaciones hijas</h5>
 
@@ -117,6 +143,8 @@
                                     <th><center>Clave</center></th>
                                     <th><center>Nombre</center></th>
                                     <th><center>Municipio</center></th>
+                                    <th><center>Latitud</center></th>
+                                    <th><center>Longitud</center></th>
                                     <th><center>Estado</center></th>
                                     <th><center>Acciones</center></th>
                                 </tr>
@@ -128,6 +156,8 @@
                                         <td>{{ $hija->clave }}</td>
                                         <td>{{ $hija->nombre }}</td>
                                         <td>{{ $hija->municipio }}</td>
+                                        <td>{{ $hija->lat ?: '—' }}</td>
+                                        <td>{{ $hija->lng ?: '—' }}</td>
                                         <td style="text-align:center">
                                             @if ($hija->activa)
                                                 <span class="badge badge-success">ACTIVA</span>
@@ -153,7 +183,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted">
+                                        <td colspan="8" class="text-center text-muted">
                                             No hay delegaciones hijas registradas.
                                         </td>
                                     </tr>
@@ -171,15 +201,26 @@
 @stop
 
 @section('css')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
     <style>
         .table th, .table td {
             text-align: center;
             vertical-align: middle;
         }
+
+        #mapa_delegacion {
+            width: 100%;
+            height: 420px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
     </style>
 @stop
 
 @section('js')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <script>
         $(function () {
             $('#hijas').DataTable({
@@ -206,6 +247,23 @@
                 "autoWidth": false,
             });
         });
+
+        @if ($delegacion->lat && $delegacion->lng)
+            const latDelegacion = {{ $delegacion->lat }};
+            const lngDelegacion = {{ $delegacion->lng }};
+
+            const mapaDelegacion = L.map('mapa_delegacion').setView([latDelegacion, lngDelegacion], 15);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(mapaDelegacion);
+
+            L.marker([latDelegacion, lngDelegacion])
+                .addTo(mapaDelegacion)
+                .bindPopup(`{{ $delegacion->nombre }}<br>{{ $delegacion->municipio ?: '' }}`)
+                .openPopup();
+        @endif
 
         @if (session('success'))
             Swal.fire({

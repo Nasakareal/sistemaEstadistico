@@ -7,6 +7,7 @@ use App\Models\Hechos;
 
 class HechoAccess
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
     private const UNIDAD_DELEGACIONES_ID = 2;
     private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
     private const UNIDAD_CARRETERAS_ID = 4;
@@ -76,6 +77,10 @@ class HechoAccess
             return false;
         }
 
+        if (self::hasImplicitSiniestrosPermission($usuario, $target)) {
+            return true;
+        }
+
         $usuario->loadMissing(['roles.permissions', 'permissions']);
 
         if ($usuario->permissions->contains(fn ($permiso) => self::normalizePermissionName($permiso->name ?? null) === $target)) {
@@ -106,7 +111,7 @@ class HechoAccess
     {
         $permissions = collect($permissions)->values();
 
-        if ($usuario && (int) ($usuario->unidad_id ?? 0) === 1 && self::canUseHechosModule($usuario)) {
+        if ($usuario && self::isSiniestrosOperationalUser($usuario) && self::canUseHechosModule($usuario)) {
             $permissions = $permissions
                 ->merge(self::PERMISOS_SINIESTROS_CAPTURA_PROPIA)
                 ->unique(function ($permission) {
@@ -144,6 +149,22 @@ class HechoAccess
 
             return false;
         })->values();
+    }
+
+    private static function hasImplicitSiniestrosPermission($usuario, string $permission): bool
+    {
+        return self::isSiniestrosOperationalUser($usuario)
+            && in_array($permission, self::PERMISOS_SINIESTROS_CAPTURA_PROPIA, true);
+    }
+
+    private static function isSiniestrosOperationalUser($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return (int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SINIESTROS_ID
+            || $usuario->hasAnyRole(['Perito', 'Jefe de Grupo']);
     }
 
     public static function applyVisibilityScope($query, $usuario): void

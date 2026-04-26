@@ -15,12 +15,16 @@ class Delegacion extends Model
         'clave',
         'nombre',
         'municipio',
+        'lat',
+        'lng',
         'activa',
         'delegacion_padre_id',
     ];
 
     protected $casts = [
         'activa' => 'boolean',
+        'lat' => 'decimal:7',
+        'lng' => 'decimal:7',
     ];
 
     public function users()

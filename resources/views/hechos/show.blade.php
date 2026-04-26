@@ -375,6 +375,21 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-12 col-md-6 col-lg-3 mb-3">
+                            <div class="sv-kv">
+                                <div class="sv-k">KM recorridos</div>
+                                <div class="sv-v sv-green">
+                                    @if(!is_null($hecho->km_recorridos))
+                                        {{ number_format($hecho->km_recorridos, 2) }} km
+                                    @else
+                                        No especificado
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="sv-divider"></div>
 
                     <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">

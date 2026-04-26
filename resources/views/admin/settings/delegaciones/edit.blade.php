@@ -85,6 +85,30 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Latitud</label>
+                                    <input type="text"
+                                           name="lat"
+                                           class="form-control @error('lat') is-invalid @enderror"
+                                           value="{{ old('lat', $delegacion->lat) }}"
+                                           placeholder="Ej: 19.7033333">
+                                    @error('lat') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Longitud</label>
+                                    <input type="text"
+                                           name="lng"
+                                           class="form-control @error('lng') is-invalid @enderror"
+                                           value="{{ old('lng', $delegacion->lng) }}"
+                                           placeholder="Ej: -101.1922222">
+                                    @error('lng') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Delegación padre (opcional)</label>
@@ -137,19 +161,19 @@
                             <table class="table table-bordered table-hover table-sm" id="tabla_hijas">
                                 <thead>
                                     <tr>
-                                        <th style="width: 14%">Clave</th>
-                                        <th style="width: 28%">Nombre</th>
-                                        <th style="width: 26%">Municipio</th>
-                                        <th style="width: 10%; text-align:center">Activa</th>
-                                        <th style="width: 12%; text-align:center">Eliminar</th>
-                                        <th style="width: 10%; text-align:center">Quitar fila</th>
+                                        <th style="width: 10%">Clave</th>
+                                        <th style="width: 22%">Nombre</th>
+                                        <th style="width: 20%">Municipio</th>
+                                        <th style="width: 14%">Latitud</th>
+                                        <th style="width: 14%">Longitud</th>
+                                        <th style="width: 7%; text-align:center">Activa</th>
+                                        <th style="width: 7%; text-align:center">Eliminar</th>
+                                        <th style="width: 6%; text-align:center">Quitar fila</th>
                                     </tr>
                                 </thead>
                                 <tbody>
 
                                     @php
-                                        // Si viene old('hijas'), usa eso (por errores de validación),
-                                        // si no, usa hijas del modelo.
                                         $oldHijas = old('hijas', null);
                                         $rows = is_array($oldHijas) ? $oldHijas : $delegacion->hijas->map(function ($h) {
                                             return [
@@ -157,6 +181,8 @@
                                                 'clave' => $h->clave,
                                                 'nombre' => $h->nombre,
                                                 'municipio' => $h->municipio,
+                                                'lat' => $h->lat,
+                                                'lng' => $h->lng,
                                                 'activa' => $h->activa ? 1 : 0,
                                             ];
                                         })->values()->all();
@@ -173,7 +199,6 @@
 
                                         <tr class="{{ $isDeleted ? 'table-danger' : '' }}">
 
-                                            {{-- hidden id para update --}}
                                             <input type="hidden" name="hijas[{{ $i }}][id]" value="{{ $rowId }}">
 
                                             <td>
@@ -203,6 +228,24 @@
                                                        {{ $isDeleted ? 'disabled' : '' }}>
                                             </td>
 
+                                            <td>
+                                                <input type="text"
+                                                       name="hijas[{{ $i }}][lat]"
+                                                       class="form-control"
+                                                       value="{{ $h['lat'] ?? '' }}"
+                                                       placeholder="19.7033333"
+                                                       {{ $isDeleted ? 'disabled' : '' }}>
+                                            </td>
+
+                                            <td>
+                                                <input type="text"
+                                                       name="hijas[{{ $i }}][lng]"
+                                                       class="form-control"
+                                                       value="{{ $h['lng'] ?? '' }}"
+                                                       placeholder="-101.1922222"
+                                                       {{ $isDeleted ? 'disabled' : '' }}>
+                                            </td>
+
                                             <td style="text-align:center; vertical-align:middle;">
                                                 <input type="checkbox"
                                                        name="hijas[{{ $i }}][activa]"
@@ -211,7 +254,6 @@
                                                        {{ $isDeleted ? 'disabled' : '' }}>
                                             </td>
 
-                                            {{-- eliminar hija (marca hijas_delete[]) --}}
                                             <td style="text-align:center; vertical-align:middle;">
                                                 @if ($rowId)
                                                     <div class="custom-control custom-checkbox">
@@ -229,7 +271,6 @@
                                                 @endif
                                             </td>
 
-                                            {{-- quitar fila (solo UI) --}}
                                             <td style="text-align:center; vertical-align:middle;">
                                                 <button type="button" class="btn btn-danger btn-sm btn_remove_row">
                                                     <i class="fa-regular fa-trash-can"></i>
@@ -241,7 +282,6 @@
                                 </tbody>
                             </table>
 
-                            {{-- aquí se insertan inputs hidden hijas_delete[] --}}
                             <div id="hijas_delete_container"></div>
 
                             <small class="text-muted">
@@ -324,6 +364,12 @@
                         <td>
                             <input type="text" name="hijas[${i}][municipio]" class="form-control" placeholder="Municipio">
                         </td>
+                        <td>
+                            <input type="text" name="hijas[${i}][lat]" class="form-control" placeholder="19.7033333">
+                        </td>
+                        <td>
+                            <input type="text" name="hijas[${i}][lng]" class="form-control" placeholder="-101.1922222">
+                        </td>
                         <td style="text-align:center; vertical-align:middle;">
                             <input type="checkbox" name="hijas[${i}][activa]" value="1" checked>
                         </td>
@@ -374,11 +420,7 @@
                     ensureDeleteHidden(id);
                     tr.classList.add('table-danger');
                     inputs.forEach(inp => {
-                        if (inp.name.includes('[activa]')) {
-                            inp.disabled = true;
-                        } else {
-                            inp.disabled = true;
-                        }
+                        inp.disabled = true;
                     });
                 } else {
                     removeDeleteHidden(id);

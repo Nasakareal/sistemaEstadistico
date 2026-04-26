@@ -14,11 +14,16 @@
                     <h3 class="card-title">Delegaciones Registradas</h3>
 
                     <div class="card-tools">
+                            <a href="{{ route('mapa.delegaciones.index') }}" class="btn btn-dark mr-2">
+                                <i class="fa-solid fa-map"></i> Ver mapa
+                            </a>
+
                         @can('crear delegaciones')
                             <a href="{{ route('delegaciones.create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Crear Nueva Delegación
                             </a>
                         @endcan
+
                     </div>
                 </div>
 

@@ -52,6 +52,7 @@ class Hechos extends Model
         'delegacion_id',
         'lat',
         'lng',
+        'km_recorridos', // 👈 NUEVO
         'calidad_geo',
         'nota_geo',
         'fuente_ubicacion',
@@ -80,6 +81,7 @@ class Hechos extends Model
         'checaron_antecedentes' => 'boolean',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
+        'km_recorridos' => 'decimal:2', // 👈 NUEVO
         'es_relevante' => 'boolean',
         'marcado_relevante_at' => 'datetime',
         'revisado_at' => 'datetime',
@@ -178,6 +180,7 @@ class Hechos extends Model
                 $subQuery->where('hechos.id', $this->id);
             });
         })->distinct('conductores.id')->count('conductores.id');
+
         $lesionadosCapturados = $this->lesionados()->count();
 
         $capturaCompleta =

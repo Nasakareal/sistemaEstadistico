@@ -3,28 +3,12 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\NotificarHechosPendientes.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Console\\Commands\\NotificarHechosPendientes.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\HechosController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\HechosController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -39,75 +23,28 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "NotificarHechosPendientes.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\NotificarHechosPendientes.php",
-              "RelativeDocumentMoniker": "app\\Console\\Commands\\NotificarHechosPendientes.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\NotificarHechosPendientes.php",
-              "RelativeToolTip": "app\\Console\\Commands\\NotificarHechosPendientes.php",
-              "ViewState": "AgIAABYBAAAAAAAAAAAcwEcBAAAAAAAAAAAAAA==",
+              "Title": "HechosController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\HechosController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\HechosController.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\HechosController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\HechosController.php",
+              "ViewState": "AgIAAD4DAAAAAAAAAAAAAD4DAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-24T01:56:10.528Z",
+              "WhenOpened": "2026-04-26T02:59:21.619Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "api.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
-              "RelativeDocumentMoniker": "routes\\api.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\api.php",
-              "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAAwAAAAAAAAAAAAWwKcAAAAVAAAAAAAAAA==",
+              "Title": "web.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
+              "RelativeDocumentMoniker": "routes\\web.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
+              "RelativeToolTip": "routes\\web.php",
+              "ViewState": "AgIAAEoBAAAAAAAAAAAWwGMBAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-24T01:02:28.5Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "DelegacionesActividadesPruebaSeeder.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "RelativeDocumentMoniker": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "RelativeToolTip": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "ViewState": "AgIAAFwAAAAAAAAAAAAcwKIAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T20:56:31.748Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "NovRelSheetService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
-              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
-              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\NovRelSheetService.php",
-              "ViewState": "AgIAACUAAAAAAAAAAAAcwFYAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T20:49:38.065Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "MoreliaRpSheetService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
-              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
-              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\MoreliaRpSheetService.php",
-              "ViewState": "AgIAAIsAAAAAAAAAAAAmwL4AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T20:29:16.135Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "RegionalSheetService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "ViewState": "AgIAADIEAAAAAAAAAAAAADwEAAAsAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-23T20:17:51.929Z"
+              "WhenOpened": "2026-04-26T02:31:45.995Z",
+              "EditorCaption": ""
             }
           ]
         }

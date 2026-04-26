@@ -151,6 +151,17 @@
                         </div>
 
                         <div class="col-md-2">
+                            <label class="help-muted d-block">KM recorridos</label>
+                            <div class="form-control-like">
+                                @if(!is_null($actividad->km_recorridos))
+                                    {{ number_format($actividad->km_recorridos, 2) }} km
+                                @else
+                                    —
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="col-md-2">
                             <label class="help-muted d-block">Fuente ubicación</label>
                             <div class="form-control-like">{{ $actividad->fuente_ubicacion ?? '—' }}</div>
                         </div>

@@ -47,6 +47,7 @@ class GenerarCortePendientes extends Command
         ]);
 
         $pendientes = Hechos::where('situacion', 'PENDIENTE')
+            ->where('unidad_org_id', 1)
             ->where('created_at', '<=', $corte)
             ->orderBy('id')
             ->get();

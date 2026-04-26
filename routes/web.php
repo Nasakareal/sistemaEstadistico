@@ -63,6 +63,7 @@ use App\Http\Controllers\GuardianesCaminoDispositivoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoFotoController;
 use App\Http\Controllers\ResumenEjecutivoController;
 use App\Http\Controllers\ZonaMapaController;
+use App\Http\Controllers\MapaDelegacionesController;
 
 use App\Http\Controllers\EstadisticasCarreterasSettingsController;
 use App\Http\Controllers\EstadisticasSiniestrosSettingsController;
@@ -76,6 +77,7 @@ Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::prefix('resumen-ejecutivo')->middleware(['auth', 'can:ver estadisticas'])->group(function () {
     Route::get('/', [ResumenEjecutivoController::class, 'index'])->name('resumen_ejecutivo.index');
+    Route::get('/{fecha}', [ResumenEjecutivoController::class, 'show'])->name('resumen_ejecutivo.show');
     Route::get('/{fecha}', [ResumenEjecutivoController::class, 'show'])->name('resumen_ejecutivo.show');
     Route::get('/data/{fecha}', [ResumenEjecutivoController::class, 'data'])->name('resumen_ejecutivo.data');
 });
@@ -453,11 +455,14 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/', [DelegacionController::class, 'index'])->name('delegaciones.index');
         Route::get('/create', [DelegacionController::class, 'create'])->middleware('can:crear delegaciones')->name('delegaciones.create');
         Route::post('/', [DelegacionController::class, 'store'])->middleware('can:crear delegaciones')->name('delegaciones.store');
+        Route::get('/mapa-delegaciones', [MapaDelegacionesController::class, 'index'])->name('mapa.delegaciones.index');
+        Route::get('/mapa-delegaciones/data', [MapaDelegacionesController::class, 'data'])->name('mapa.delegaciones.data');
         Route::get('/{delegacion}', [DelegacionController::class, 'show'])->name('delegaciones.show');
         Route::get('/{delegacion}/edit', [DelegacionController::class, 'edit'])->middleware('can:editar delegaciones')->name('delegaciones.edit');
         Route::put('/{delegacion}', [DelegacionController::class, 'update'])->middleware('can:editar delegaciones')->name('delegaciones.update');
         Route::delete('/{delegacion}', [DelegacionController::class, 'destroy'])->middleware('can:eliminar delegaciones')->name('delegaciones.destroy');
         Route::get('/{delegacion}/hijas', [DelegacionController::class, 'hijas'])->name('delegaciones.hijas');
+
     });
 
     Route::prefix('users')->middleware('can:ver usuarios')->group(function () {

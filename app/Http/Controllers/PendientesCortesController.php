@@ -34,6 +34,7 @@ class PendientesCortesController extends Controller
 
         $hechosAll = count($idsAll)
             ? Hechos::whereIn('id', $idsAll)
+                ->where('unidad_org_id', 1)
                 ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
                 ->get()
                 ->keyBy('id')

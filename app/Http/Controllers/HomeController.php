@@ -2,11 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Personal;
-use App\Services\EstadoFuerzaService;
-use App\Services\OperativosService;
-use App\Services\TurnoService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,19 +9,9 @@ use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
 {
-    protected EstadoFuerzaService $estadoFuerzaService;
-    protected TurnoService $turnoService;
-    protected OperativosService $operativosService;
-
-    public function __construct(
-        EstadoFuerzaService $estadoFuerzaService,
-        TurnoService $turnoService,
-        OperativosService $operativosService
-    ) {
+    public function __construct()
+    {
         $this->middleware('auth');
-        $this->estadoFuerzaService = $estadoFuerzaService;
-        $this->turnoService = $turnoService;
-        $this->operativosService = $operativosService;
     }
 
     public function index(Request $request)
@@ -37,82 +22,51 @@ class HomeController extends Controller
         if ($limit < 1) $limit = 1;
         if ($limit > 30) $limit = 30;
 
+        $unidadFiltro = $this->resolverUnidadFiltro($request, $usuario);
+
         $cursorCreatedAt = $request->query('cursor_created_at');
         $cursorId = $request->query('cursor_id');
 
-        $data = $this->getFeed($limit, $cursorCreatedAt, $cursorId);
-
-        $momento = now('America/Mexico_City');
-
-        $turnoActivoNombre = '—';
-        $turnoActivo = $this->turnoService->turnoActivoEn($momento);
-
-        if ($turnoActivo && !empty($turnoActivo->nombre)) {
-            $turnoActivoNombre = (string) $turnoActivo->nombre;
-        }
-
-        $qPersonales = Personal::with(['turno', 'incidencias.tipo'])
-            ->where('estatus', 'ACTIVO');
-
-        if (!$this->puedeVerTodo($usuario)) {
-            if (!empty($usuario->unidad_id)) {
-                $qPersonales->where('unidad_id', (int) $usuario->unidad_id);
-            } else {
-                $qPersonales->whereRaw('1=0');
-            }
-        }
-
-        $personales = $qPersonales->get();
-
-        $totalActivos = $personales->count();
-
-        $enServicio = 0;
-        foreach ($personales as $p) {
-            if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
-                $enServicio++;
-            }
-        }
-
-        $operativosEnServicio = $this->contarOperativosEnServicio($momento);
-        $administrativosEnServicio = $this->contarAdministrativosEnServicio($momento);
+        $data = $this->getFeed($limit, $cursorCreatedAt, $cursorId, $unidadFiltro);
 
         return view('home', [
             'feed_items' => $data['items'],
             'feed_next_cursor' => $data['next_cursor'],
             'feed_limit' => $limit,
-
-            'turno_activo' => $turnoActivoNombre,
-            'personal_en_servicio' => $enServicio,
-            'total_activos' => $totalActivos,
-
-            'personal_operativos_en_servicio' => $operativosEnServicio,
-            'personal_administrativos_en_servicio' => $administrativosEnServicio,
+            'feed_unidad_id' => $unidadFiltro,
+            'feed_puede_filtrar_unidades' => $this->puedeFiltrarUnidades($usuario),
+            'feed_unidades' => $this->obtenerUnidadesFiltro($usuario),
         ]);
     }
 
     public function feed(Request $request)
     {
+        $usuario = Auth::user();
+
         $limit = (int) $request->query('limit', 12);
         if ($limit < 1) $limit = 1;
         if ($limit > 30) $limit = 30;
 
+        $unidadFiltro = $this->resolverUnidadFiltro($request, $usuario);
+
         $cursorCreatedAt = $request->query('cursor_created_at');
         $cursorId = $request->query('cursor_id');
 
-        $data = $this->getFeed($limit, $cursorCreatedAt, $cursorId);
+        $data = $this->getFeed($limit, $cursorCreatedAt, $cursorId, $unidadFiltro);
 
         return response()->json([
             'limit' => $limit,
             'count' => count($data['items']),
             'next_cursor' => $data['next_cursor'],
+            'unidad_id' => $unidadFiltro,
             'data' => $data['items'],
         ]);
     }
 
-    private function getFeed(int $limit, $cursorCreatedAt = null, $cursorId = null): array
+    private function getFeed(int $limit, $cursorCreatedAt = null, $cursorId = null, $unidadFiltro = null): array
     {
         $usuario = Auth::user();
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
+        $unidadFiltro = $this->resolverUnidadFiltroDirecto($unidadFiltro, $usuario);
 
         $hechosQ = DB::table('hechos as h')
             ->join('users as u', 'u.id', '=', 'h.created_by')
@@ -138,7 +92,9 @@ class HomeController extends Controller
                 a.created_at as created_at
             ");
 
-        if (!$this->puedeVerTodo($usuario)) {
+        if ($unidadFiltro !== 'TODAS') {
+            $unidadId = (int) $unidadFiltro;
+
             if ($unidadId > 0) {
                 $hechosQ->where('h.unidad_org_id', $unidadId);
 
@@ -208,8 +164,10 @@ class HomeController extends Controller
         })->values()->all();
 
         $next_cursor = null;
+
         if (count($mapped) > 0) {
             $last = $items->last();
+
             $next_cursor = [
                 'cursor_created_at' => (string) $last->created_at,
                 'cursor_id' => (int) $last->item_id,
@@ -229,89 +187,73 @@ class HomeController extends Controller
         if ($type === 'HECHO') {
             $txt = preg_replace('/\s+/', ' ', $txt);
             $txt = trim($txt, " ,");
-            if ($txt === 'col.' || $txt === 'col') $txt = '';
+
+            if ($txt === 'col.' || $txt === 'col') {
+                $txt = '';
+            }
         }
 
         return $txt !== '' ? $txt : ($type === 'HECHO' ? 'Hecho registrado' : 'Actividad registrada');
     }
 
-    private function contarOperativosEnServicio(Carbon $momento): int
+    private function resolverUnidadFiltro(Request $request, $usuario)
     {
-        $usuario = Auth::user();
+        if ($this->puedeFiltrarUnidades($usuario)) {
+            $unidadId = $request->query('unidad_id', 'TODAS');
 
-        $momento = $momento->copy()->timezone('America/Mexico_City');
-
-        $q = Personal::query()
-            ->with(['incidencias.tipo', 'turno'])
-            ->where('estatus', 'ACTIVO');
-
-        if (!$this->puedeVerTodo($usuario)) {
-            if (!empty($usuario->unidad_id)) {
-                $q->where('unidad_id', (int) $usuario->unidad_id);
-            } else {
-                $q->whereRaw('1=0');
+            if ($unidadId === null || $unidadId === '' || $unidadId === 'TODAS') {
+                return 'TODAS';
             }
+
+            return (int) $unidadId;
         }
 
-        if (Schema::hasColumn('personals', 'es_operativo')) {
-            $q->where('es_operativo', 1);
-        } elseif (Schema::hasColumn('personals', 'tipo')) {
-            $q->whereRaw('UPPER(TRIM(tipo)) = ?', ['OPERATIVO']);
-        } elseif (Schema::hasColumn('personals', 'categoria')) {
-            $q->whereRaw('UPPER(TRIM(categoria)) = ?', ['OPERATIVO']);
-        }
-
-        $personales = $q->get();
-
-        $count = 0;
-        foreach ($personales as $p) {
-            if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
-                $count++;
-            }
-        }
-
-        return $count;
+        return (int) ($usuario->unidad_id ?? 0);
     }
 
-    private function contarAdministrativosEnServicio(Carbon $momento): int
+    private function resolverUnidadFiltroDirecto($unidadFiltro, $usuario)
     {
-        $usuario = Auth::user();
-
-        $momento = $momento->copy()->timezone('America/Mexico_City');
-
-        $q = Personal::query()
-            ->with(['incidencias.tipo', 'turno'])
-            ->where('estatus', 'ACTIVO');
-
-        if (!$this->puedeVerTodo($usuario)) {
-            if (!empty($usuario->unidad_id)) {
-                $q->where('unidad_id', (int) $usuario->unidad_id);
-            } else {
-                $q->whereRaw('1=0');
+        if ($this->puedeFiltrarUnidades($usuario)) {
+            if ($unidadFiltro === null || $unidadFiltro === '' || $unidadFiltro === 'TODAS') {
+                return 'TODAS';
             }
+
+            return (int) $unidadFiltro;
         }
 
-        if (Schema::hasColumn('personals', 'es_operativo')) {
-            $q->where('es_operativo', 0);
-        } elseif (Schema::hasColumn('personals', 'tipo')) {
-            $q->whereRaw('UPPER(TRIM(tipo)) <> ?', ['OPERATIVO']);
-        } elseif (Schema::hasColumn('personals', 'categoria')) {
-            $q->whereRaw('UPPER(TRIM(categoria)) <> ?', ['OPERATIVO']);
-        }
-
-        $personales = $q->get();
-
-        $count = 0;
-        foreach ($personales as $p) {
-            if ($this->estadoFuerzaService->estado($p, $momento) === 'EN_SERVICIO') {
-                $count++;
-            }
-        }
-
-        return $count;
+        return (int) ($usuario->unidad_id ?? 0);
     }
 
-    private function puedeVerTodo($usuario): bool
+    private function obtenerUnidadesFiltro($usuario)
+    {
+        if (!$this->puedeFiltrarUnidades($usuario)) {
+            return collect();
+        }
+
+        if (Schema::hasTable('unidads')) {
+            return DB::table('unidads')
+                ->select('id', 'nombre')
+                ->orderBy('nombre')
+                ->get();
+        }
+
+        if (Schema::hasTable('unidades')) {
+            return DB::table('unidades')
+                ->select('id', 'nombre')
+                ->orderBy('nombre')
+                ->get();
+        }
+
+        return collect([
+            (object) ['id' => 1, 'nombre' => 'Siniestros'],
+            (object) ['id' => 2, 'nombre' => 'Delegaciones'],
+            (object) ['id' => 3, 'nombre' => 'Seguridad Vial'],
+            (object) ['id' => 4, 'nombre' => 'Carreteras'],
+            (object) ['id' => 5, 'nombre' => 'Vialidades Urbanas'],
+        ]);
+    }
+
+    private function puedeFiltrarUnidades($usuario): bool
     {
         if (!$usuario) {
             return false;
@@ -321,6 +263,6 @@ class HomeController extends Controller
             return true;
         }
 
-        return (int) $usuario->unidad_id === 3;
+        return (int) ($usuario->unidad_id ?? 0) === 3;
     }
 }

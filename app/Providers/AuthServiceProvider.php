@@ -165,6 +165,14 @@ class AuthServiceProvider extends ServiceProvider
                 );
         });
 
+        Gate::define('menu-estadisticas-delegaciones', function ($user) {
+            return $user->can('ver estadisticas')
+                && (
+                    $user->perteneceAUnidad('delegaciones')
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
         Gate::define('menu-estadisticas-generales', function ($user) {
             return (
                 $user->can('ver estadisticas globales')
@@ -236,5 +244,7 @@ class AuthServiceProvider extends ServiceProvider
                 && (int) $user->unidad_id !== 3
             );
         });
+
+
     }
 }

@@ -261,6 +261,23 @@
             @endcan
         @endif
 
+        @can('menu-estadisticas-delegaciones')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-primary">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Estadísticas Delegaciones</div>
+                        <div class="sv-card__desc">Reportes, exportaciones y análisis de delegaciones.</div>
+                        <a href="{{ route('settings.estadisticas_delegaciones.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         @php $user = auth()->user(); @endphp
 
         @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 4))

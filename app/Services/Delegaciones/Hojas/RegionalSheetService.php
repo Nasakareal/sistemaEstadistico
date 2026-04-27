@@ -41,6 +41,14 @@ class RegionalSheetService
         $this->llenarCapacitaciones($sheet, $fecha, $idsDelegaciones);
         $this->llenarCampanas($sheet, $fecha, $idsDelegaciones);
         $this->llenarProximidadSocial($sheet, $fecha, $idsDelegaciones);
+        $this->llenarTotales($sheet);
+        $this->llenarControlVehicular($sheet, $fecha, $idsDelegaciones);
+        $this->llenarControlAseguramientos($sheet, $fecha, $idsDelegaciones);
+        $this->llenarOtrosAseguramientos($sheet, $fecha, $idsDelegaciones);
+        $this->llenarHechosTransito($sheet, $fecha, $idsDelegaciones);
+        $this->llenarTiposHechosTransito($sheet, $fecha, $idsDelegaciones);
+        $this->llenarChoquesDanios($sheet, $fecha, $idsDelegaciones);
+        $this->llenarClasificacionVehiculos($sheet, $fecha, $idsDelegaciones);
     }
 
     protected function llenarInstituciones($sheet, string $fecha, array $idsDelegaciones): void
@@ -1140,5 +1148,1902 @@ class RegionalSheetService
         ]);
 
         $sheet->getStyle('D71:I77')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function llenarTotales($sheet): void
+    {
+        $fila = 78;
+
+        $sheet->mergeCells('A78:B78');
+
+        $sheet->setCellValue('A78', 'TOTAL');
+        $sheet->setCellValue('C78', 'DISPOSITIVOS REALIZADOS');
+        $sheet->setCellValue('D78', '=SUM(D4:D77)');
+        $sheet->setCellValue('E78', '=SUM(E4:E77)');
+        $sheet->setCellValue('F78', '=SUM(F4:F77)');
+        $sheet->setCellValue('G78', '=SUM(G4:G77)');
+        $sheet->setCellValue('H78', '=SUM(H4:H77)');
+        $sheet->setCellValue('I78', '=SUM(I4:I77)');
+
+        $sheet->getStyle('A78:I78')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('C78')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle('D78:I78')->getNumberFormat()->setFormatCode('#,##0');
+    }
+
+    protected function llenarControlVehicular($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $filaInicio = 80;
+
+        $conceptos = [
+            1 => 'REVISIÓN DE ANTECEDENTES',
+            2 => 'VEHÍCULOS REVISADOS DE PROCEDENCIA EXTRANJERA',
+            3 => 'DESPOLARIZADO',
+            4 => 'CORRALON POR FALTAS ADMINISTRATIVAS',
+            5 => 'CORRALÓN POR HECHOS DE TRANSITO',
+            6 => 'PUESTOS A DISPOSICIÓN DEL MP POR HECHO DE TRÁNSITO',
+            7 => 'PRESENTADOS AL MP',
+            8 => 'RESGUARDADOS POR ABANDONO',
+            9 => 'ASEGURADOS POR HECHOS DELICTIVOS',
+            10 => 'RECUPERADOS CON ALTERACIONES EN SUS MEDIOS DE IDENTIFICACIÓN',
+            11 => 'RECUPERADOS CON REPORTE DE ROBO',
+            12 => 'CONOCIMIENTO DE REPORTE DE ROBO',
+            13 => 'ASEGURADOS POR OTROS MOTIVOS',
+        ];
+
+        $datos = $this->obtenerResumenControlVehicular($fecha, $idsDelegaciones);
+
+        $sheet->setCellValue('B80', 'No.');
+        $sheet->setCellValue('C80', 'CONTROL VEHÍCULAR');
+        $sheet->setCellValue('D80', 'VEHÍCULOS');
+        $sheet->setCellValue('E80', 'MOTOCICLETAS');
+        $sheet->setCellValue('F80', 'CAMIONES');
+        $sheet->setCellValue('G80', 'OTROS');
+
+        $fila = 81;
+
+        foreach ($conceptos as $numero => $concepto) {
+            $item = $datos[$numero] ?? [
+                'vehiculos' => 0,
+                'motocicletas' => 0,
+                'camiones' => 0,
+                'otros' => 0,
+            ];
+
+            $sheet->setCellValue('B' . $fila, $numero);
+            $sheet->setCellValue('C' . $fila, $concepto);
+            $sheet->setCellValue('D' . $fila, $item['vehiculos']);
+            $sheet->setCellValue('E' . $fila, $item['motocicletas']);
+            $sheet->setCellValue('F' . $fila, $item['camiones']);
+            $sheet->setCellValue('G' . $fila, $item['otros']);
+
+            $fila++;
+        }
+
+        $sheet->mergeCells('B94:C94');
+        $sheet->setCellValue('B94', 'TOTAL');
+        $sheet->setCellValue('D94', '=SUM(D81:D93)');
+        $sheet->setCellValue('E94', '=SUM(E81:E93)');
+        $sheet->setCellValue('F94', '=SUM(F81:F93)');
+        $sheet->setCellValue('G94', '=SUM(G81:G93)');
+
+        $sheet->getStyle('B80:G80')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B81:G93')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B81:B93')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D81:G93')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('B94:G94')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerResumenControlVehicular(string $fecha, array $idsDelegaciones): array
+    {
+        $datos = [];
+
+        for ($i = 1; $i <= 13; $i++) {
+            $datos[$i] = [
+                'vehiculos' => 0,
+                'motocicletas' => 0,
+                'camiones' => 0,
+                'otros' => 0,
+            ];
+        }
+
+        $hechos = DB::table('hechos as h')
+            ->select([
+                'h.id',
+                'h.checaron_antecedentes',
+                'h.oficio_mp',
+                'h.vehiculos_mp',
+            ])
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($hechos as $hecho) {
+            if ((int) ($hecho->checaron_antecedentes ?? 0) === 1) {
+                $datos[1]['vehiculos']++;
+            }
+
+            $vehiculosMp = (int) ($hecho->vehiculos_mp ?? 0);
+
+            if ($vehiculosMp > 0 || !empty($hecho->oficio_mp)) {
+                $datos[6]['vehiculos'] += $vehiculosMp > 0 ? $vehiculosMp : 1;
+            }
+        }
+
+        $puestas = DB::table('puestas_disposicion as p')
+            ->join('puestas_disposicion_vehiculos as pv', 'p.id', '=', 'pv.puesta_disposicion_id')
+            ->select([
+                'p.motivo',
+                'pv.tipo',
+                'pv.calidad',
+                'pv.con_reporte_robo',
+            ])
+            ->whereDate('p.fecha_puesta', $fecha)
+            ->where('p.unidad_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('p.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($puestas as $puesta) {
+            $columna = $this->clasificarTipoVehiculoControl($puesta->tipo);
+            $motivo = mb_strtoupper(trim($puesta->motivo ?? ''));
+            $calidad = mb_strtoupper(trim($puesta->calidad ?? ''));
+
+            if (str_contains($motivo, 'HECHO DE TRÁNSITO') || str_contains($motivo, 'HECHO DE TRANSITO')) {
+                $datos[6][$columna]++;
+            } elseif (str_contains($motivo, 'ABANDONO')) {
+                $datos[8][$columna]++;
+            } elseif (str_contains($motivo, 'HECHO DELICTIVO')) {
+                $datos[9][$columna]++;
+            } elseif (str_contains($motivo, 'ALTERACION') || str_contains($motivo, 'ALTERACIÓN')) {
+                $datos[10][$columna]++;
+            } elseif (str_contains($motivo, 'REPORTE DE ROBO') || (int) ($puesta->con_reporte_robo ?? 0) === 1 || $calidad === 'ROBADO') {
+                $datos[11][$columna]++;
+            } else {
+                $datos[13][$columna]++;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function clasificarTipoVehiculoControl(?string $tipo): string
+    {
+        $tipo = mb_strtoupper(trim($tipo ?? ''));
+
+        if (str_contains($tipo, 'MOTO')) {
+            return 'motocicletas';
+        }
+
+        if (str_contains($tipo, 'CAMION') || str_contains($tipo, 'CAMIÓN') || str_contains($tipo, 'TRACTO') || str_contains($tipo, 'TORTON')) {
+            return 'camiones';
+        }
+
+        if ($tipo === '') {
+            return 'otros';
+        }
+
+        return 'vehiculos';
+    }
+
+    protected function llenarControlAseguramientos($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $personas = [
+            1 => 'CONSULTA DE ANTECEDENTES PENALES',
+            2 => 'PERSONAS A BARANDILLA',
+            3 => 'POR ALCOHOLEMIA',
+            4 => 'PERSONAS PRESENTADAS AL MP',
+            5 => 'POR ROBOS DIVERSOS',
+            6 => 'POR LESIONES',
+            7 => 'POR HOMICIDIO CULPOSO',
+            8 => 'POR HOMICIDIO DOLOSO',
+            9 => 'PERSONAS AL MP POR VEHÍCULOS, MOTOS O CAMIONES ROBADOS',
+            10 => 'PERSONAS AL MP POR PORTACION DE ARMAS',
+            11 => 'PERSONAS AL MP POR DROGA',
+            12 => 'OTROS DELITOS',
+        ];
+
+        $armas = [
+            1 => 'ARMAS',
+            2 => 'CORTAS',
+            3 => 'LARGAS',
+            4 => 'CARGADORES',
+            5 => 'CARTUCHOS',
+            6 => 'GRANADAS',
+            7 => 'LANZA GRANADAS',
+            8 => 'PUNZOCORTANTE',
+        ];
+
+        $drogas = [
+            1 => 'DROGA',
+            2 => 'MARIHUANA GRS',
+            3 => 'CRISTAL GRS',
+            4 => 'COCAINA GRS',
+            5 => 'PASTILLAS',
+            6 => 'PLANTIOS',
+            7 => 'PLANTAS DE MARIHUANA',
+            8 => 'OTRAS DROGAS',
+        ];
+
+        $datos = $this->obtenerResumenControlAseguramientos($fecha, $idsDelegaciones);
+
+        $sheet->mergeCells('B96:H96');
+        $sheet->setCellValue('B96', 'CONTROL DE ASEGURAMIENTOS');
+
+        $sheet->setCellValue('B97', 'No.');
+        $sheet->setCellValue('C97', 'PERSONAS ASEGURADAS');
+        $sheet->setCellValue('D97', 'TOTAL');
+        $sheet->setCellValue('E97', 'ARMAS');
+        $sheet->setCellValue('F97', 'TOTAL');
+        $sheet->setCellValue('G97', 'DROGA');
+        $sheet->setCellValue('H97', 'TOTAL');
+
+        for ($i = 1; $i <= 12; $i++) {
+            $fila = 97 + $i;
+
+            $sheet->setCellValue('B' . $fila, $i);
+            $sheet->setCellValue('C' . $fila, $personas[$i]);
+            $sheet->setCellValue('D' . $fila, $datos['personas'][$i] ?? 0);
+
+            if ($i <= 8) {
+                $sheet->setCellValue('E' . $fila, $armas[$i]);
+                $sheet->setCellValue('F' . $fila, $datos['armas'][$i] ?? 0);
+                $sheet->setCellValue('G' . $fila, $drogas[$i]);
+                $sheet->setCellValue('H' . $fila, $datos['drogas'][$i] ?? 0);
+            }
+
+            if ($i === 9) {
+                $sheet->setCellValue('E' . $fila, 'TOTAL');
+                $sheet->setCellValue('F' . $fila, '=SUM(F98:F105)');
+                $sheet->setCellValue('G' . $fila, 'TOTAL');
+                $sheet->setCellValue('H' . $fila, '=SUM(H98:H105)');
+            }
+        }
+
+        $sheet->mergeCells('B110:C110');
+        $sheet->setCellValue('B110', 'TOTAL');
+        $sheet->setCellValue('D110', '=SUM(D98:D109)');
+
+        $sheet->getStyle('B96:H97')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B98:H110')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B98:B109')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D98:D110')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('F98:F106')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H98:H106')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('E106:H106')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B110:D110')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerResumenControlAseguramientos(string $fecha, array $idsDelegaciones): array
+    {
+        $datos = [
+            'personas' => [],
+            'armas' => [],
+            'drogas' => [],
+        ];
+
+        for ($i = 1; $i <= 12; $i++) {
+            $datos['personas'][$i] = 0;
+        }
+
+        for ($i = 1; $i <= 8; $i++) {
+            $datos['armas'][$i] = 0;
+            $datos['drogas'][$i] = 0;
+        }
+
+        $hechos = DB::table('hechos as h')
+            ->select([
+                'h.personas_mp',
+                'h.checaron_antecedentes',
+            ])
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($hechos as $hecho) {
+            if ((int) ($hecho->checaron_antecedentes ?? 0) === 1) {
+                $datos['personas'][1]++;
+            }
+
+            $personasMp = (int) ($hecho->personas_mp ?? 0);
+
+            if ($personasMp > 0) {
+                $datos['personas'][4] += $personasMp;
+            }
+        }
+
+        $personasPuestas = DB::table('puestas_disposicion as p')
+            ->join('puestas_disposicion_personas as pp', 'p.id', '=', 'pp.puesta_disposicion_id')
+            ->select([
+                'p.motivo',
+                'p.tipo_puesta',
+                'pp.delito_o_motivo',
+                'pp.calidad',
+            ])
+            ->whereDate('p.fecha_puesta', $fecha)
+            ->where('p.unidad_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('p.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($personasPuestas as $persona) {
+            $texto = mb_strtoupper(trim(
+                ($persona->motivo ?? '') . ' ' .
+                ($persona->tipo_puesta ?? '') . ' ' .
+                ($persona->delito_o_motivo ?? '') . ' ' .
+                ($persona->calidad ?? '')
+            ));
+
+            $datos['personas'][4]++;
+
+            if (str_contains($texto, 'BARANDILLA')) {
+                $datos['personas'][2]++;
+            } elseif (str_contains($texto, 'ALCOHOL')) {
+                $datos['personas'][3]++;
+            } elseif (str_contains($texto, 'ROBO') && (str_contains($texto, 'VEHIC') || str_contains($texto, 'MOTO') || str_contains($texto, 'CAMION') || str_contains($texto, 'CAMIÓN'))) {
+                $datos['personas'][9]++;
+            } elseif (str_contains($texto, 'ROBO')) {
+                $datos['personas'][5]++;
+            } elseif (str_contains($texto, 'LESION')) {
+                $datos['personas'][6]++;
+            } elseif (str_contains($texto, 'HOMICIDIO CULPOSO')) {
+                $datos['personas'][7]++;
+            } elseif (str_contains($texto, 'HOMICIDIO DOLOSO')) {
+                $datos['personas'][8]++;
+            } elseif (str_contains($texto, 'ARMA')) {
+                $datos['personas'][10]++;
+            } elseif (str_contains($texto, 'DROGA') || str_contains($texto, 'MARIHUANA') || str_contains($texto, 'CRISTAL') || str_contains($texto, 'COCAINA') || str_contains($texto, 'COCAÍNA')) {
+                $datos['personas'][11]++;
+            } else {
+                $datos['personas'][12]++;
+            }
+        }
+
+        $objetos = DB::table('puestas_disposicion as p')
+            ->join('puestas_disposicion_objetos as po', 'p.id', '=', 'po.puesta_disposicion_id')
+            ->select([
+                'po.tipo_objeto',
+                'po.descripcion',
+                'po.cantidad',
+                'po.unidad_medida',
+            ])
+            ->whereDate('p.fecha_puesta', $fecha)
+            ->where('p.unidad_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('p.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($objetos as $objeto) {
+            $cantidad = is_numeric($objeto->cantidad) ? (float) $objeto->cantidad : 1;
+
+            $texto = mb_strtoupper(trim(
+                ($objeto->tipo_objeto ?? '') . ' ' .
+                ($objeto->descripcion ?? '') . ' ' .
+                ($objeto->unidad_medida ?? '')
+            ));
+
+            if (str_contains($texto, 'CORTA')) {
+                $datos['armas'][2] += $cantidad;
+            } elseif (str_contains($texto, 'LARGA')) {
+                $datos['armas'][3] += $cantidad;
+            } elseif (str_contains($texto, 'CARGADOR')) {
+                $datos['armas'][4] += $cantidad;
+            } elseif (str_contains($texto, 'CARTUCHO')) {
+                $datos['armas'][5] += $cantidad;
+            } elseif (str_contains($texto, 'GRANADA') && !str_contains($texto, 'LANZA')) {
+                $datos['armas'][6] += $cantidad;
+            } elseif (str_contains($texto, 'LANZA')) {
+                $datos['armas'][7] += $cantidad;
+            } elseif (str_contains($texto, 'PUNZO') || str_contains($texto, 'CUCHILLO') || str_contains($texto, 'NAVAJA')) {
+                $datos['armas'][8] += $cantidad;
+            } elseif (str_contains($texto, 'ARMA')) {
+                $datos['armas'][1] += $cantidad;
+            }
+
+            if (str_contains($texto, 'MARIHUANA') && str_contains($texto, 'PLANTA')) {
+                $datos['drogas'][7] += $cantidad;
+            } elseif (str_contains($texto, 'MARIHUANA') || str_contains($texto, 'CANNABIS')) {
+                $datos['drogas'][2] += $cantidad;
+            } elseif (str_contains($texto, 'CRISTAL')) {
+                $datos['drogas'][3] += $cantidad;
+            } elseif (str_contains($texto, 'COCAINA') || str_contains($texto, 'COCAÍNA')) {
+                $datos['drogas'][4] += $cantidad;
+            } elseif (str_contains($texto, 'PASTILLA')) {
+                $datos['drogas'][5] += $cantidad;
+            } elseif (str_contains($texto, 'PLANTIO') || str_contains($texto, 'PLANTÍO')) {
+                $datos['drogas'][6] += $cantidad;
+            } elseif (str_contains($texto, 'DROGA')) {
+                $datos['drogas'][1] += $cantidad;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function llenarOtrosAseguramientos($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $datos = $this->obtenerResumenOtrosAseguramientos($fecha, $idsDelegaciones);
+
+        $sheet->setCellValue('B112', 'No.');
+        $sheet->setCellValue('C112', 'OTROS ASEGURAMIENTOS');
+        $sheet->setCellValue('D112', 'TOTAL');
+
+        $conceptos = [
+            1 => 'AGUACATE',
+            2 => 'MADERA',
+            3 => 'DINERO',
+            4 => 'OTROS ASEGURAMIENTOS (AGREGARLOS)',
+        ];
+
+        $fila = 113;
+
+        foreach ($conceptos as $numero => $concepto) {
+            $sheet->setCellValue('B' . $fila, $numero);
+            $sheet->setCellValue('C' . $fila, $concepto);
+            $sheet->setCellValue('D' . $fila, $datos[$numero] ?? 0);
+
+            $fila++;
+        }
+
+        $sheet->mergeCells('B117:C117');
+        $sheet->setCellValue('B117', 'TOTAL');
+        $sheet->setCellValue('D117', '=SUM(D113:D116)');
+
+        $sheet->getStyle('B112:D112')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B113:D117')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B113:B116')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D113:D117')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('B117:D117')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerResumenOtrosAseguramientos(string $fecha, array $idsDelegaciones): array
+    {
+        $datos = [
+            1 => 0,
+            2 => 0,
+            3 => 0,
+            4 => 0,
+        ];
+
+        $objetos = DB::table('puestas_disposicion as p')
+            ->join('puestas_disposicion_objetos as po', 'p.id', '=', 'po.puesta_disposicion_id')
+            ->select([
+                'po.tipo_objeto',
+                'po.descripcion',
+                'po.cantidad',
+                'po.unidad_medida',
+            ])
+            ->whereDate('p.fecha_puesta', $fecha)
+            ->where('p.unidad_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('p.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($objetos as $objeto) {
+            $cantidad = is_numeric($objeto->cantidad) ? (float) $objeto->cantidad : 1;
+
+            $texto = mb_strtoupper(trim(
+                ($objeto->tipo_objeto ?? '') . ' ' .
+                ($objeto->descripcion ?? '') . ' ' .
+                ($objeto->unidad_medida ?? '')
+            ));
+
+            if (str_contains($texto, 'AGUACATE')) {
+                $datos[1] += $cantidad;
+            } elseif (str_contains($texto, 'MADERA')) {
+                $datos[2] += $cantidad;
+            } elseif (str_contains($texto, 'DINERO') || str_contains($texto, 'EFECTIVO') || str_contains($texto, 'PESO')) {
+                $datos[3] += $cantidad;
+            } elseif (!$this->esObjetoArmaDroga($texto)) {
+                $datos[4] += $cantidad;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function esObjetoArmaDroga(string $texto): bool
+    {
+        return str_contains($texto, 'ARMA')
+            || str_contains($texto, 'CORTA')
+            || str_contains($texto, 'LARGA')
+            || str_contains($texto, 'CARGADOR')
+            || str_contains($texto, 'CARTUCHO')
+            || str_contains($texto, 'GRANADA')
+            || str_contains($texto, 'LANZA')
+            || str_contains($texto, 'PUNZO')
+            || str_contains($texto, 'CUCHILLO')
+            || str_contains($texto, 'NAVAJA')
+            || str_contains($texto, 'DROGA')
+            || str_contains($texto, 'MARIHUANA')
+            || str_contains($texto, 'CANNABIS')
+            || str_contains($texto, 'CRISTAL')
+            || str_contains($texto, 'COCAINA')
+            || str_contains($texto, 'COCAÍNA')
+            || str_contains($texto, 'PASTILLA')
+            || str_contains($texto, 'PLANTIO')
+            || str_contains($texto, 'PLANTÍO');
+    }
+
+    protected function llenarHechosTransito($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $datos = $this->obtenerResumenHechosTransito($fecha, $idsDelegaciones);
+        $involucrados = $this->obtenerResumenInvolucradosHechosTransito($fecha, $idsDelegaciones);
+
+        $sheet->setCellValue('B119', 'No.');
+        $sheet->setCellValue('C119', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('D119', 'CANTIDAD');
+
+        $conceptos = [
+            1 => 'RESUELTOS',
+            2 => 'PENDIENTES',
+            3 => 'TURNADOS',
+        ];
+
+        $fila = 120;
+
+        foreach ($conceptos as $numero => $concepto) {
+            $sheet->setCellValue('B' . $fila, $numero);
+            $sheet->setCellValue('C' . $fila, $concepto);
+            $sheet->setCellValue('D' . $fila, $datos[$concepto] ?? 0);
+
+            $fila++;
+        }
+
+        $sheet->mergeCells('B123:C123');
+        $sheet->setCellValue('B123', 'TOTAL');
+        $sheet->setCellValue('D123', '=SUM(D120:D122)');
+
+        $sheet->getStyle('B119:D119')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B120:D123')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B120:B122')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D120:D123')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('B123:D123')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+
+
+
+
+
+
+
+        $sheet->setCellValue('F119', 'No.');
+        $sheet->setCellValue('G119', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('H119', 'CANTIDAD');
+
+        $sheet->setCellValue('F120', 1);
+        $sheet->setCellValue('G120', 'HOMBRES INVOLUCRADOS');
+        $sheet->setCellValue('H120', $involucrados['hombres']);
+
+        $sheet->setCellValue('F121', 2);
+        $sheet->setCellValue('G121', 'MUJERES INVOLUCRADAS');
+        $sheet->setCellValue('H121', $involucrados['mujeres']);
+
+        $sheet->setCellValue('F122', 3);
+        $sheet->setCellValue('G122', 'MENORES INVOLUCRADOS');
+        $sheet->setCellValue('H122', $involucrados['menores']);
+
+        $sheet->mergeCells('F123:G123');
+        $sheet->setCellValue('F123', 'TOTAL');
+        $sheet->setCellValue('H123', '=SUM(H120:H122)');
+
+        $sheet->getStyle('F119:H119')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('F120:H123')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F120:F122')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('H120:H123')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('F123:H123')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerResumenHechosTransito(string $fecha, array $idsDelegaciones): array
+    {
+        $datos = [
+            'RESUELTOS' => 0,
+            'PENDIENTES' => 0,
+            'TURNADOS' => 0,
+        ];
+
+        $hechos = DB::table('hechos as h')
+            ->select('h.situacion')
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($hechos as $hecho) {
+            $situacion = mb_strtoupper(trim($hecho->situacion ?? ''));
+
+            if ($situacion === 'RESUELTO' || $situacion === 'REPORTE') {
+                $datos['RESUELTOS']++;
+            } elseif ($situacion === 'TURNADO') {
+                $datos['TURNADOS']++;
+            } else {
+                $datos['PENDIENTES']++;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function obtenerResumenInvolucradosHechosTransito(string $fecha, array $idsDelegaciones): array
+    {
+        $conductores = DB::table('hechos as h')
+            ->join('hecho_vehiculo as hv', 'h.id', '=', 'hv.hecho_id')
+            ->join('vehiculo_conductor as vc', 'hv.vehiculo_id', '=', 'vc.vehiculo_id')
+            ->join('conductores as c', 'vc.conductor_id', '=', 'c.id')
+            ->select([
+                'c.id',
+                'c.sexo',
+                'c.edad',
+            ])
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->distinct()
+            ->get();
+
+        $datos = [
+            'hombres' => 0,
+            'mujeres' => 0,
+            'menores' => 0,
+        ];
+
+        foreach ($conductores as $conductor) {
+            $sexo = mb_strtoupper(trim($conductor->sexo ?? ''));
+            $edad = is_numeric($conductor->edad) ? (int) $conductor->edad : null;
+
+            if ($sexo === 'MASCULINO' || $sexo === 'HOMBRE') {
+                $datos['hombres']++;
+            } elseif ($sexo === 'FEMENINO' || $sexo === 'MUJER') {
+                $datos['mujeres']++;
+            }
+
+            if ($edad !== null && $edad < 18) {
+                $datos['menores']++;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function llenarTiposHechosTransito($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $datos = $this->obtenerResumenTiposHechosTransito($fecha, $idsDelegaciones);
+
+        $sheet->setCellValue('B125', 'No.');
+        $sheet->setCellValue('C125', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('D125', 'CANTIDAD');
+        $sheet->setCellValue('E125', 'LESIONADOS');
+        $sheet->setCellValue('F125', 'HERIDOS');
+        $sheet->setCellValue('G125', 'DEFUNCIONES');
+        $sheet->setCellValue('H125', 'FUERO COMÚN');
+
+        $conceptos = [
+            1 => 'EXPLOSIÓN',
+            2 => 'INCENDIO',
+            3 => 'DESBARRANCAMIENTO',
+            4 => 'VOLCADURA',
+            5 => 'SALIDA DE RODAMIENTO',
+            6 => 'SUBIDA A CAMELLÓN',
+            7 => 'CAIDA DE MOTOCICLETA',
+            8 => 'CHOQUE OBJETO FIJO',
+            9 => 'COLISIÓN POR ALCANCE',
+            10 => 'COLISIÓN POR NO RESPETAR SEMÁFORO',
+            11 => 'COLISIÓN POR INVASIÓN DE CARRIL',
+            12 => 'COLISIÓN POR CAMBIO DE CARRIL',
+            13 => 'COLISIÓN POR CORTE DE CIRCULACIÓN',
+            14 => 'COLISIÓN POR MANIOBRA REVERSA',
+            15 => 'CAIDA A CUNETA',
+            16 => 'CAIDA ACUÁTICA DE VEHÍCULO',
+            17 => 'COLISIÓN CON PEATÓN',
+        ];
+
+        $fila = 126;
+
+        foreach ($conceptos as $numero => $concepto) {
+            $item = $datos[$concepto] ?? [
+                'cantidad' => 0,
+                'lesionados' => 0,
+                'heridos' => 0,
+                'defunciones' => 0,
+                'fuero_comun' => 0,
+            ];
+
+            $sheet->setCellValue('B' . $fila, $numero);
+            $sheet->setCellValue('C' . $fila, $concepto);
+            $sheet->setCellValue('D' . $fila, $item['cantidad']);
+            $sheet->setCellValue('E' . $fila, $item['lesionados']);
+            $sheet->setCellValue('F' . $fila, $item['heridos']);
+            $sheet->setCellValue('G' . $fila, $item['defunciones']);
+            $sheet->setCellValue('H' . $fila, $item['fuero_comun']);
+
+            $fila++;
+        }
+
+        $sheet->mergeCells('B143:C143');
+        $sheet->setCellValue('B143', 'TOTAL');
+        $sheet->setCellValue('D143', '=SUM(D126:D142)');
+        $sheet->setCellValue('E143', '=SUM(E126:E142)');
+        $sheet->setCellValue('F143', '=SUM(F126:F142)');
+        $sheet->setCellValue('G143', '=SUM(G126:G142)');
+        $sheet->setCellValue('H143', '=SUM(H126:H142)');
+
+        $sheet->getStyle('B125:H125')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B126:H143')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B126:B142')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D126:H143')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('B143:H143')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerResumenTiposHechosTransito(string $fecha, array $idsDelegaciones): array
+    {
+        $conceptos = [
+            'EXPLOSIÓN',
+            'INCENDIO',
+            'DESBARRANCAMIENTO',
+            'VOLCADURA',
+            'SALIDA DE RODAMIENTO',
+            'SUBIDA A CAMELLÓN',
+            'CAIDA DE MOTOCICLETA',
+            'CHOQUE OBJETO FIJO',
+            'COLISIÓN POR ALCANCE',
+            'COLISIÓN POR NO RESPETAR SEMÁFORO',
+            'COLISIÓN POR INVASIÓN DE CARRIL',
+            'COLISIÓN POR CAMBIO DE CARRIL',
+            'COLISIÓN POR CORTE DE CIRCULACIÓN',
+            'COLISIÓN POR MANIOBRA REVERSA',
+            'CAIDA A CUNETA',
+            'CAIDA ACUÁTICA DE VEHÍCULO',
+            'COLISIÓN CON PEATÓN',
+        ];
+
+        $datos = [];
+
+        foreach ($conceptos as $concepto) {
+            $datos[$concepto] = [
+                'cantidad' => 0,
+                'lesionados' => 0,
+                'heridos' => 0,
+                'defunciones' => 0,
+                'fuero_comun' => 0,
+            ];
+        }
+
+        $hechos = DB::table('hechos as h')
+            ->select([
+                'h.id',
+                'h.tipo_hecho',
+            ])
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        $hechoIds = $hechos->pluck('id')->toArray();
+
+        foreach ($hechos as $hecho) {
+            $concepto = $this->normalizarTipoHechoDelegaciones($hecho->tipo_hecho);
+
+            if (isset($datos[$concepto])) {
+                $datos[$concepto]['cantidad']++;
+            }
+        }
+
+        if (!empty($hechoIds)) {
+            $lesionados = DB::table('lesionados as l')
+                ->join('hechos as h', 'l.hecho_id', '=', 'h.id')
+                ->select([
+                    'h.tipo_hecho',
+                    'l.tipo_lesion',
+                ])
+                ->whereIn('l.hecho_id', $hechoIds)
+                ->get();
+
+            foreach ($lesionados as $lesionado) {
+                $concepto = $this->normalizarTipoHechoDelegaciones($lesionado->tipo_hecho);
+
+                if (!isset($datos[$concepto])) {
+                    continue;
+                }
+
+                $tipoLesion = mb_strtoupper(trim($lesionado->tipo_lesion ?? ''));
+
+                if ($tipoLesion === 'FALLECIDO') {
+                    $datos[$concepto]['defunciones']++;
+                } else {
+                    $datos[$concepto]['lesionados']++;
+                }
+
+                if ($tipoLesion === 'GRAVE') {
+                    $datos[$concepto]['heridos']++;
+                }
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function normalizarTipoHechoDelegaciones(?string $tipo): string
+    {
+        $tipo = mb_strtoupper(trim($tipo ?? ''));
+
+        $mapa = [
+            'EXPLOSIÓN' => 'EXPLOSIÓN',
+            'INCENDIO' => 'INCENDIO',
+            'DESBARRANCAMIENTO' => 'DESBARRANCAMIENTO',
+            'VOLCADURA' => 'VOLCADURA',
+            'SALIDA DE SUPERFICIE DE RODAMIENTO' => 'SALIDA DE RODAMIENTO',
+            'SUBIDA AL CAMELLÓN' => 'SUBIDA A CAMELLÓN',
+            'CAIDA DE MOTOCICLETA' => 'CAIDA DE MOTOCICLETA',
+            'COLISIÓN CONTRA OBJETO FIJO' => 'CHOQUE OBJETO FIJO',
+            'COLISIÓN POR ALCANCE' => 'COLISIÓN POR ALCANCE',
+            'COLISIÓN POR NO RESPETAR SEMÁFORO' => 'COLISIÓN POR NO RESPETAR SEMÁFORO',
+            'COLISIÓN POR INVASIÓN DE CARRIL' => 'COLISIÓN POR INVASIÓN DE CARRIL',
+            'COLISIÓN POR CAMBIO DE CARRIL' => 'COLISIÓN POR CAMBIO DE CARRIL',
+            'COLISIÓN POR CORTE DE CIRCULACIÓN' => 'COLISIÓN POR CORTE DE CIRCULACIÓN',
+            'COLISIÓN POR MANIOBRA DE REVERSA' => 'COLISIÓN POR MANIOBRA REVERSA',
+            'CAIDA A CUNETA' => 'CAIDA A CUNETA',
+            'CAIDA ACUATICA DE VEHÍCULO' => 'CAIDA ACUÁTICA DE VEHÍCULO',
+            'COLISIÓN CON PEATÓN' => 'COLISIÓN CON PEATÓN',
+        ];
+
+        return $mapa[$tipo] ?? $tipo;
+    }
+
+    protected function llenarChoquesDanios($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $choques = $this->obtenerResumenChoquesDanios($fecha, $idsDelegaciones);
+
+        $sheet->setCellValue('B145', 'No.');
+        $sheet->setCellValue('C145', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('D145', 'CANTIDAD');
+
+        $conceptos = [
+            1 => 'CHOQUE ENTRE CAMIÓN Y MOTOCICLETA',
+            2 => 'CHOQUE ENTRE CAMIÓN Y VEHÍCULO',
+            3 => 'CHOQUE ENTRE MOTOCICLETAS',
+            4 => 'CHOQUE ENTRE VEHÍCULOS',
+            5 => 'CHOQUE ENTRE MOTOCICLETA Y VEHÍCULO',
+            6 => 'CHOQUE ENTRE VEHÍCULO Y PEATÓN',
+            7 => 'CHOQUE DE VEHÍCULO UNICO',
+        ];
+
+        $fila = 146;
+
+        foreach ($conceptos as $numero => $concepto) {
+            $sheet->setCellValue('B' . $fila, $numero);
+            $sheet->setCellValue('C' . $fila, $concepto);
+            $sheet->setCellValue('D' . $fila, $choques['tipos'][$concepto] ?? 0);
+
+            $fila++;
+        }
+
+        $sheet->mergeCells('B153:C153');
+        $sheet->setCellValue('B153', 'TOTAL');
+        $sheet->setCellValue('D153', '=SUM(D146:D152)');
+
+        $sheet->setCellValue('F145', 'No.');
+        $sheet->setCellValue('G145', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('H145', 'CANTIDAD');
+
+        $sheet->setCellValue('F146', 1);
+        $sheet->setCellValue('G146', 'MONTO DAÑOS MATERIALES ($)');
+        $sheet->setCellValue('H146', $choques['monto_danios']);
+
+        $sheet->setCellValue('F147', 2);
+        $sheet->setCellValue('G147', 'MONTO VEHÍCULOS');
+        $sheet->setCellValue('H147', 0);
+
+        $sheet->setCellValue('F148', 3);
+        $sheet->setCellValue('G148', 'MONTO OTROS');
+        $sheet->setCellValue('H148', 0);
+
+        $sheet->mergeCells('F149:G149');
+        $sheet->setCellValue('F149', 'TOTAL');
+        $sheet->setCellValue('H149', '=SUM(H146:H148)');
+
+        $sheet->getStyle('B145:D145')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('F145:H145')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B146:D153')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F146:H149')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B146:B152')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F146:F148')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D146:D153')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H146:H149')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H146:H149')->getNumberFormat()->setFormatCode('$#,##0.00');
+
+        $sheet->getStyle('B153:D153')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F149:H149')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerResumenChoquesDanios(string $fecha, array $idsDelegaciones): array
+    {
+        $datos = [
+            'tipos' => [
+                'CHOQUE ENTRE CAMIÓN Y MOTOCICLETA' => 0,
+                'CHOQUE ENTRE CAMIÓN Y VEHÍCULO' => 0,
+                'CHOQUE ENTRE MOTOCICLETAS' => 0,
+                'CHOQUE ENTRE VEHÍCULOS' => 0,
+                'CHOQUE ENTRE MOTOCICLETA Y VEHÍCULO' => 0,
+                'CHOQUE ENTRE VEHÍCULO Y PEATÓN' => 0,
+                'CHOQUE DE VEHÍCULO UNICO' => 0,
+            ],
+            'monto_danios' => 0,
+        ];
+
+        $hechos = DB::table('hechos as h')
+            ->select([
+                'h.id',
+                'h.tipo_hecho',
+                'h.monto_danos_patrimoniales',
+            ])
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
+                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        $hechoIds = $hechos->pluck('id')->toArray();
+
+        $vehiculosPorHecho = [];
+
+        if (!empty($hechoIds)) {
+            $vehiculos = DB::table('hecho_vehiculo as hv')
+                ->join('vehiculos as v', 'hv.vehiculo_id', '=', 'v.id')
+                ->select([
+                    'hv.hecho_id',
+                    'v.tipo',
+                    'v.monto_danos',
+                ])
+                ->whereIn('hv.hecho_id', $hechoIds)
+                ->get();
+
+            foreach ($vehiculos as $vehiculo) {
+                if (!isset($vehiculosPorHecho[$vehiculo->hecho_id])) {
+                    $vehiculosPorHecho[$vehiculo->hecho_id] = [];
+                }
+
+                $vehiculosPorHecho[$vehiculo->hecho_id][] = $vehiculo;
+                $datos['monto_danios'] += is_numeric($vehiculo->monto_danos) ? (float) $vehiculo->monto_danos : 0;
+            }
+        }
+
+        foreach ($hechos as $hecho) {
+            $datos['monto_danios'] += is_numeric($hecho->monto_danos_patrimoniales) ? (float) $hecho->monto_danos_patrimoniales : 0;
+
+            $tipoHecho = mb_strtoupper(trim($hecho->tipo_hecho ?? ''));
+
+            if ($tipoHecho === 'COLISIÓN CON PEATÓN') {
+                $datos['tipos']['CHOQUE ENTRE VEHÍCULO Y PEATÓN']++;
+                continue;
+            }
+
+            $vehiculos = $vehiculosPorHecho[$hecho->id] ?? [];
+
+            $camiones = 0;
+            $motocicletas = 0;
+            $vehiculosNormales = 0;
+
+            foreach ($vehiculos as $vehiculo) {
+                $tipo = $this->clasificarVehiculoChoque($vehiculo->tipo);
+
+                if ($tipo === 'camion') {
+                    $camiones++;
+                } elseif ($tipo === 'motocicleta') {
+                    $motocicletas++;
+                } else {
+                    $vehiculosNormales++;
+                }
+            }
+
+            $totalVehiculos = $camiones + $motocicletas + $vehiculosNormales;
+
+            if ($totalVehiculos <= 1) {
+                $datos['tipos']['CHOQUE DE VEHÍCULO UNICO']++;
+            } elseif ($camiones > 0 && $motocicletas > 0) {
+                $datos['tipos']['CHOQUE ENTRE CAMIÓN Y MOTOCICLETA']++;
+            } elseif ($camiones > 0 && $vehiculosNormales > 0) {
+                $datos['tipos']['CHOQUE ENTRE CAMIÓN Y VEHÍCULO']++;
+            } elseif ($motocicletas >= 2 && $vehiculosNormales === 0 && $camiones === 0) {
+                $datos['tipos']['CHOQUE ENTRE MOTOCICLETAS']++;
+            } elseif ($vehiculosNormales >= 2 && $motocicletas === 0 && $camiones === 0) {
+                $datos['tipos']['CHOQUE ENTRE VEHÍCULOS']++;
+            } elseif ($motocicletas > 0 && $vehiculosNormales > 0) {
+                $datos['tipos']['CHOQUE ENTRE MOTOCICLETA Y VEHÍCULO']++;
+            } else {
+                $datos['tipos']['CHOQUE DE VEHÍCULO UNICO']++;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function clasificarVehiculoChoque(?string $tipo): string
+    {
+        $tipo = mb_strtoupper(trim($tipo ?? ''));
+
+        $camiones = [
+            'CAJA SECA',
+            'CAJA CERRADA',
+            'CAJA ABIERTA',
+            'PLATAFORMA',
+            'VOLTEO',
+            'REFRIGERADO',
+            'CISTERNA',
+            'PIPA',
+            'GRÚA',
+            'GRUA',
+            'TORTON',
+            'RABÓN',
+            'RABON',
+            'TRACTO',
+            'TRACTOCAMION',
+            'TRACTOCAMIÓN',
+            'REDILAS',
+        ];
+
+        $motocicletas = [
+            'TRABAJO',
+            'CRUISER',
+            'DOBLE PROPÓSITO',
+            'DOBLE PROPOSITO',
+            'SCOOTER',
+            'ENDURO',
+            'NAKED',
+            'PISTA',
+            'CHOPPER',
+            'CUATRIMOTO',
+            'MOTOCICLETA',
+            'MOTO',
+        ];
+
+        foreach ($camiones as $item) {
+            if (str_contains($tipo, $item)) {
+                return 'camion';
+            }
+        }
+
+        foreach ($motocicletas as $item) {
+            if (str_contains($tipo, $item)) {
+                return 'motocicleta';
+            }
+        }
+
+        return 'vehiculo';
+    }
+
+    protected function llenarClasificacionVehiculos($sheet, string $fecha, array $idsDelegaciones): void
+    {
+        $datos = $this->obtenerClasificacionVehiculos($fecha, $idsDelegaciones);
+
+        $sheet->setCellValue('B155', 'No.');
+        $sheet->setCellValue('C155', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('D155', 'CANTIDAD');
+
+        $conceptos = [
+            1 => 'SERVICIO PÚBLICO FED',
+            2 => 'TRANSPORTE PÚBLICO',
+            3 => 'AUTOMÓVIL',
+            4 => 'CAMIONETA',
+            5 => 'MICROBUS',
+            6 => 'CAMIÓN URBANO DE PASAJEROS',
+            7 => 'OMNIBUS',
+            8 => 'CAMIONETA DE CARGA',
+            9 => 'CAMION DE CARGA',
+            10 => 'TRACTOR',
+            11 => 'FERROCARRIL',
+            12 => 'MOTOCICLETA',
+            13 => 'BICICLETA',
+            14 => 'OTRO',
+            15 => 'SEMOVIENTE',
+        ];
+
+        $fila = 156;
+
+        foreach ($conceptos as $num => $nombre) {
+            $sheet->setCellValue('B' . $fila, $num);
+            $sheet->setCellValue('C' . $fila, $nombre);
+            $sheet->setCellValue('D' . $fila, $datos['clasificacion'][$nombre] ?? 0);
+            $fila++;
+        }
+
+        $sheet->setCellValue('F155', 'No.');
+        $sheet->setCellValue('G155', 'HECHOS DE TRÁNSITO');
+        $sheet->setCellValue('H155', 'CANTIDAD');
+
+        $sheet->setCellValue('F156', 1);
+        $sheet->setCellValue('G156', 'VEHÍCULOS PARTICULARES INVOL.');
+        $sheet->setCellValue('H156', $datos['resumen']['particulares']);
+
+        $sheet->setCellValue('F157', 2);
+        $sheet->setCellValue('G157', 'VEHÍCULOS SERV. PÚBLIC. INVOL.');
+        $sheet->setCellValue('H157', $datos['resumen']['publicos']);
+
+        $sheet->setCellValue('F158', 3);
+        $sheet->setCellValue('G158', 'MOTOS INVOLUCRADAS');
+        $sheet->setCellValue('H158', $datos['resumen']['motos']);
+
+        $sheet->setCellValue('F159', 4);
+        $sheet->setCellValue('G159', 'VEHÍCULOS OFICIALES INVOL');
+        $sheet->setCellValue('H159', $datos['resumen']['oficiales']);
+
+        $sheet->setCellValue('F161', 'No.');
+        $sheet->setCellValue('G161', 'LIBERACIONES');
+        $sheet->setCellValue('H161', 'CANTIDAD');
+
+        $sheet->setCellValue('F162', 1);
+        $sheet->setCellValue('G162', 'LIBERACIÓN MOTOCICLETAS');
+        $sheet->setCellValue('H162', $datos['liberaciones']['motos']);
+
+        $sheet->setCellValue('F163', 2);
+        $sheet->setCellValue('G163', 'LIBERACIÓN VEHÍCULOS');
+        $sheet->setCellValue('H163', $datos['liberaciones']['vehiculos']);
+
+        $sheet->setCellValue('F164', 3);
+        $sheet->setCellValue('G164', 'LIBERACIÓN CAMIONES');
+        $sheet->setCellValue('H164', $datos['liberaciones']['camiones']);
+
+        $sheet->setCellValue('F165', 4);
+        $sheet->setCellValue('G165', 'LIBERACIÓN REMOLQUES');
+        $sheet->setCellValue('H165', $datos['liberaciones']['remolques']);
+
+        $sheet->mergeCells('F166:G166');
+        $sheet->setCellValue('F166', 'TOTAL');
+        $sheet->setCellValue('H166', '=SUM(H162:H165)');
+
+        $sheet->setCellValue('F168', 'No.');
+        $sheet->setCellValue('G168', 'ÁREAS AUXILIARES');
+        $sheet->setCellValue('H168', 'CANTIDAD');
+
+        $sheet->setCellValue('F169', 1);
+        $sheet->setCellValue('G169', 'EXÁMEN TEÓRICO');
+        $sheet->setCellValue('H169', 0);
+
+        $sheet->getStyle('B155:D155')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('F155:H155')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0070C0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('F161:H161')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('F168:H168')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        $sheet->getStyle('B156:D170')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F156:H159')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F162:H166')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F169:H169')->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('B156:B170')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F156:F159')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F162:F165')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('F169')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
+        $sheet->getStyle('D156:D170')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H156:H159')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H162:H166')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H169')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getStyle('F166:H166')->applyFromArray([
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '00B0F0'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+    }
+
+    protected function obtenerClasificacionVehiculos(string $fecha, array $idsDelegaciones): array
+    {
+        $datos = [
+            'clasificacion' => [],
+            'resumen' => [
+                'particulares' => 0,
+                'publicos' => 0,
+                'motos' => 0,
+                'oficiales' => 0,
+            ],
+            'liberaciones' => [
+                'motos' => 0,
+                'vehiculos' => 0,
+                'camiones' => 0,
+                'remolques' => 0,
+            ],
+        ];
+
+        $vehiculos = DB::table('hechos as h')
+            ->join('hecho_vehiculo as hv', 'h.id', '=', 'hv.hecho_id')
+            ->join('vehiculos as v', 'hv.vehiculo_id', '=', 'v.id')
+            ->select([
+                'v.tipo',
+                'v.tipo_servicio',
+            ])
+            ->whereDate('h.fecha', $fecha)
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($q) use ($idsDelegaciones) {
+                $q->whereIn('h.delegacion_id', $idsDelegaciones);
+            })
+            ->get();
+
+        foreach ($vehiculos as $v) {
+            $tipo = mb_strtoupper($v->tipo ?? '');
+            $servicio = mb_strtoupper($v->tipo_servicio ?? '');
+
+            // CLASIFICACIÓN GRANDE
+            $clave = $this->mapearTipoVehiculoExcel($tipo);
+            $datos['clasificacion'][$clave] = ($datos['clasificacion'][$clave] ?? 0) + 1;
+
+            // RESUMEN
+            if (str_contains($servicio, 'PUBLIC')) {
+                $datos['resumen']['publicos']++;
+            } else {
+                $datos['resumen']['particulares']++;
+            }
+
+            if (str_contains($tipo, 'MOTO')) {
+                $datos['resumen']['motos']++;
+            }
+
+            if (str_contains($servicio, 'OFICIAL')) {
+                $datos['resumen']['oficiales']++;
+            }
+        }
+
+        // LIBERACIONES
+        $liberaciones = DB::table('liberaciones as l')
+            ->join('vehiculos as v', 'l.vehiculo_id', '=', 'v.id')
+            ->select('v.tipo')
+            ->whereDate('l.fecha_liberacion', $fecha)
+            ->get();
+
+        foreach ($liberaciones as $l) {
+            $tipo = mb_strtoupper($l->tipo ?? '');
+
+            if (str_contains($tipo, 'MOTO')) {
+                $datos['liberaciones']['motos']++;
+            } elseif (str_contains($tipo, 'CAJA') || str_contains($tipo, 'TRACTO')) {
+                $datos['liberaciones']['camiones']++;
+            } elseif (str_contains($tipo, 'REMOLQUE')) {
+                $datos['liberaciones']['remolques']++;
+            } else {
+                $datos['liberaciones']['vehiculos']++;
+            }
+        }
+
+        return $datos;
+    }
+
+    protected function mapearTipoVehiculoExcel(string $tipo): string
+    {
+        if (str_contains($tipo, 'MOTO')) return 'MOTOCICLETA';
+        if (str_contains($tipo, 'BICICLETA')) return 'BICICLETA';
+        if (str_contains($tipo, 'TRACTO')) return 'TRACTOR';
+        if (str_contains($tipo, 'CAJA') || str_contains($tipo, 'PLATAFORMA')) return 'CAMION DE CARGA';
+        if (str_contains($tipo, 'PICK') || str_contains($tipo, 'VAN')) return 'CAMIONETA';
+        if (str_contains($tipo, 'SEDAN') || str_contains($tipo, 'SUV')) return 'AUTOMÓVIL';
+
+        return 'OTRO';
     }
 }

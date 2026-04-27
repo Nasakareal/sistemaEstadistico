@@ -1,10 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\database",
+    "\\database\\seeders"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\HechosController.php",
+  "SelectedNode": "\\database\\seeders\\DelegacionesHechosPruebaSeeder.php",
   "PreviewInSolutionExplorer": false
 }

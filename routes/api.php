@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\GuardianesCaminoDispositivoController as ApiGuardia
 use App\Http\Controllers\Api\AgenteUpecHomeController;
 use App\Http\Controllers\Api\PuestaDisposicionController;
 use App\Http\Controllers\Api\CroquisController;
+use App\Http\Controllers\Api\CulturaVialController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -42,6 +43,12 @@ Route::post('/whatsapp/webhook',[WhatsAppWebhookController::class,'handle']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);
+
+Route::prefix('cultura-vial/public')->group(function () {
+    Route::get('/salas/{codigo}', [CulturaVialController::class, 'publicRoom'])->name('api.cultura_vial.public.salas.show');
+    Route::post('/salas/{codigo}/participantes', [CulturaVialController::class, 'join'])->name('api.cultura_vial.public.participantes.store');
+    Route::post('/participantes/{participante}/intentos', [CulturaVialController::class, 'storeAttempt'])->whereNumber('participante')->name('api.cultura_vial.public.intentos.store');
+});
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -90,6 +97,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/password', [AuthController::class, 'changePassword']);
     Route::get('/permissions', [AuthController::class, 'permissions']);
     Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
+
+    Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {
+        Route::get('/salas', [CulturaVialController::class, 'index'])->name('api.cultura_vial.salas.index');
+        Route::post('/salas', [CulturaVialController::class, 'store'])->name('api.cultura_vial.salas.store');
+        Route::get('/salas/{sala}', [CulturaVialController::class, 'show'])->whereNumber('sala')->name('api.cultura_vial.salas.show');
+        Route::post('/salas/{sala}/cerrar', [CulturaVialController::class, 'close'])->whereNumber('sala')->name('api.cultura_vial.salas.close');
+        Route::get('/salas/{sala}/qr', [CulturaVialController::class, 'qr'])->whereNumber('sala')->name('api.cultura_vial.salas.qr');
+    });
 
     Route::middleware('can:ver mapa')->group(function () {
         Route::get('/mapa-incidencias', [MapaIncidenciasController::class, 'index'])->name('api.mapa.incidencias.index');

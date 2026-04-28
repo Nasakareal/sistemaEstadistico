@@ -1,10 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\constancias_manejo"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api",
+    "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\constancias_manejo\\show.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ChoquesDiariosController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\AgenteUpecHomeController;
 use App\Http\Controllers\Api\PuestaDisposicionController;
 use App\Http\Controllers\Api\CroquisController;
 use App\Http\Controllers\Api\CulturaVialController;
+use App\Http\Controllers\Api\ChoquesDiariosController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -43,6 +44,16 @@ Route::post('/whatsapp/webhook',[WhatsAppWebhookController::class,'handle']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/waze/incidents', [WazeFeedController::class, 'incidents']);
+
+Route::prefix('choques-diarios')->group(function () {
+    Route::get('/', [ChoquesDiariosController::class, 'index'])->name('api.choques_diarios.index');
+    Route::get('/fecha/{fecha}', [ChoquesDiariosController::class, 'porFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios.fecha');
+    Route::get('/hoy', [ChoquesDiariosController::class, 'hoy'])->name('api.choques_diarios.hoy');
+    Route::get('/rango', [ChoquesDiariosController::class, 'rango'])->name('api.choques_diarios.rango');
+    Route::get('/{hecho}', [ChoquesDiariosController::class, 'show'])->whereNumber('hecho')->name('api.choques_diarios.show');
+    Route::get('/eliminados/fecha/{fecha}', [ChoquesDiariosController::class, 'eliminadosPorFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios.eliminados.fecha');
+    Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
+});
 
 Route::prefix('cultura-vial/public')->group(function () {
     Route::get('/salas/{codigo}', [CulturaVialController::class, 'publicRoom'])->name('api.cultura_vial.public.salas.show');

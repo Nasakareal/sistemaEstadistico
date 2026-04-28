@@ -30,7 +30,7 @@ class DocumentoHechoController extends Controller
         $pdf = Pdf::loadView('hechos.reporte_docx', [
             'hecho' => $hecho,
             'pdfMode' => true,
-            'faviconSrc' => $this->imageSource(public_path('ssp.jpg')),
+            'faviconSrc' => $this->imageSource(public_path('logofondo.png')),
             'croquisPreviewSrc' => $this->croquisPreviewSource(optional($hecho->croquis)->imagen_preview),
         ])->setPaper('legal', 'portrait')
             ->setOptions([

@@ -10,15 +10,15 @@
       body {
         font-family: Arial, sans-serif;
         margin: 0;
-        padding: 20px;
+        padding: 0;
       }
       .header {
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 8px;
       }
       .header img {
-        width: 50px;
-        height: 50px;
+        width: 72px;
+        height: auto;
       }
       .header-text {
         text-align: center;
@@ -31,17 +31,17 @@
       .subtitle-text {
         font-size: 12px;
         margin: 0;
-        margin-top: 5px;
+        margin-top: 3px;
       }
       .boxes-table {
         border-collapse: collapse;
-        margin-top: 10px;
+        margin-top: 6px;
         table-layout: fixed;
         width: 100%;
       }
       .boxes-table td, .boxes-table th {
         border: 1px solid #000;
-        padding: 5px;
+        padding: 4px;
         font-size: 12px;
         white-space: normal;
         word-break: break-word;
@@ -68,8 +68,8 @@
         margin-top: 2px;
       }
       .croquis-page {
-        page-break-before: always;
         text-align: center;
+        margin-top: 10px;
       }
       .croquis-box {
         border: 2px solid #000;
@@ -80,19 +80,31 @@
       }
       .croquis-box td {
         border: 0;
-        padding: 12px;
+        padding: 8px;
         text-align: center;
       }
       .croquis-title {
-        margin: 0 0 12px 0;
-        font-size: 20px;
+        margin: 0 0 8px 0;
+        font-size: 18px;
         font-weight: bold;
       }
       .croquis-preview {
         display: block;
         width: 6.75in;
-        height: 3.94in;
+        height: 3.75in;
         margin: 0 auto;
+      }
+      .domicilio-cell {
+        width: 46%;
+      }
+      .checks-cell {
+        width: 54%;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .checks-cell span {
+        display: inline-block;
+        margin-right: 8px;
       }
   </style>
 </head>
@@ -107,7 +119,6 @@
       : asset($croquisPreview);
   }
 @endphp
-<br><br>
   <div class="header">
     <img src="{{ $faviconSrc ?? asset('Favicons.ico') }}" alt="Favicon" class="favicon" width="50" height="50">
     <div class="header-text">
@@ -181,12 +192,14 @@
 
         <table class="boxes-table">
           <tr>
-            <td><strong>Domicilio</strong><br>{{ $conductor->domicilio }}</td>
-            <td><strong>Cinturón</strong><br>{{ $conductor->cinturon }}</td>
-            <td><strong>Antecedentes</strong><br>{{ $conductor->antecedentes }}</td>
-            <td><strong>Aliento Etílico</strong><br>{{ $conductor->aliento_etilico }}</td>
-            <td><strong>Cert. Lesiones</strong><br>{{ $conductor->certificado_lesiones }}</td>
-            <td><strong>Cert. Ebriedad</strong><br>{{ $conductor->certificado_alcoholemia }}</td>
+            <td class="domicilio-cell"><strong>Domicilio</strong><br>{{ $conductor->domicilio }}</td>
+            <td class="checks-cell">
+              <span><strong>Cinturón:</strong> {{ $conductor->cinturon }}</span>
+              <span><strong>Antecedentes:</strong> {{ $conductor->antecedentes }}</span>
+              <span><strong>Aliento Etílico:</strong> {{ $conductor->aliento_etilico }}</span>
+              <span><strong>Cert. Lesiones:</strong> {{ $conductor->certificado_lesiones }}</span>
+              <span><strong>Cert. Ebriedad:</strong> {{ $conductor->certificado_alcoholemia }}</span>
+            </td>
           </tr>
         </table>
 
@@ -329,18 +342,18 @@
   <div class="croquis-page">
   <table class="croquis-box" style="border: 2px solid #000; border-collapse: collapse; page-break-inside: avoid; text-align: center; width: 100%;">
     <tr>
-      <td style="border: 0; padding: 12px; text-align: center;">
-        <h2 class="croquis-title" style="margin: 0 0 12px 0; font-size: 20px; font-weight: bold;">CROQUIS DEL LUGAR DEL HECHO</h2>
+      <td style="border: 0; padding: 8px; text-align: center;">
+        <h2 class="croquis-title" style="margin: 0 0 8px 0; font-size: 18px; font-weight: bold;">CROQUIS DEL LUGAR DEL HECHO</h2>
         @if($croquisPreviewUrl)
           <img
             src="{{ $croquisPreviewUrl }}"
             alt="Croquis del lugar del hecho"
             class="croquis-preview"
             width="648"
-            height="378"
-            style="display: block; width: 6.75in; height: 3.94in; margin: 0 auto;">
+            height="360"
+            style="display: block; width: 6.75in; height: 3.75in; margin: 0 auto;">
         @else
-          <div style="height: 378px;"></div>
+          <div style="height: 360px;"></div>
         @endif
       </td>
     </tr>

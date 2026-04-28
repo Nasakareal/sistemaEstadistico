@@ -1,16 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\modulo_examenes_diarios",
     "\\resources\\views\\constancias_manejo"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ConstanciaManejoController.php",
+  "SelectedNode": "\\resources\\views\\constancias_manejo\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

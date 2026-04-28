@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Hechos;
 use App\Services\CroquisPreviewService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
 
 class DocumentoHechoController extends Controller
 {
@@ -25,41 +27,41 @@ class DocumentoHechoController extends Controller
             $hecho->load('croquis');
         }
 
-        // Renderizar la vista con los datos
-        $html = view('hechos.reporte_docx', compact('hecho'))->render();
+        $pdf = Pdf::loadView('hechos.reporte_docx', [
+            'hecho' => $hecho,
+            'pdfMode' => true,
+            'faviconSrc' => $this->imageSource(public_path('ssp.jpg')),
+            'croquisPreviewSrc' => $this->croquisPreviewSource(optional($hecho->croquis)->imagen_preview),
+        ])->setPaper('legal', 'portrait')
+            ->setOptions([
+                'dpi' => 96,
+                'defaultFont' => 'DejaVu Sans',
+                'isRemoteEnabled' => true,
+                'chroot' => base_path(),
+            ]);
 
-        // Construir el contenido con el bloque HEREDOC
-        $wordContent = <<<HTML
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Reporte del Hecho</title>
-    <style>
-        /* Sección para forzar tamaño Oficio */
-        @page Section1 {
-            size: 21.59cm 35.56cm; /* 8.5 x 14 pulgadas en cm */
-            margin: 1.0cm 1.0cm 1.0cm 1.0cm;
-            mso-page-orientation: portrait;
-        }
-        div.Section1 {
-            page: Section1;
-        }
-    </style>
-</head>
-<body>
-    <!-- Contenedor que aplica la sección -->
-    <div class="Section1">
-        {$html}
-    </div>
-</body>
-</html>
-HTML;
+        return $pdf->download('hecho_' . $hecho->folio_c5i . '.pdf');
+    }
 
-        // Retornar el contenido como archivo .doc
-        return response($wordContent)
-            ->header('Content-Type', 'application/msword')
-            ->header('Content-Disposition', 'attachment; filename="hecho_' . $hecho->folio_c5i . '.doc"');
+    private function croquisPreviewSource(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['data:image', 'http://', 'https://'])) {
+            return $path;
+        }
+
+        return $this->imageSource(public_path(ltrim($path, '/')));
+    }
+
+    private function imageSource(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+
+        return $path;
     }
 }

@@ -3,16 +3,8 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesHechosPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DelegacionesHechosPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DelegacionesActividadesPruebaSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -27,40 +19,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "DelegacionesHechosPruebaSeeder.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesHechosPruebaSeeder.php",
-              "RelativeDocumentMoniker": "database\\seeders\\DelegacionesHechosPruebaSeeder.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesHechosPruebaSeeder.php",
-              "RelativeToolTip": "database\\seeders\\DelegacionesHechosPruebaSeeder.php",
-              "ViewState": "AgIAAJoAAAAAAAAAAAAmwM0AAAAAAAAAAAAAAA==",
+              "Title": "adminlte.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php",
+              "RelativeDocumentMoniker": "config\\adminlte.php",
+              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\config\\adminlte.php",
+              "RelativeToolTip": "config\\adminlte.php",
+              "ViewState": "AgIAAAYCAAAAAAAAAAAAADACAAAqAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-27T03:25:54.607Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "DelegacionesActividadesPruebaSeeder.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "RelativeDocumentMoniker": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "RelativeToolTip": "database\\seeders\\DelegacionesActividadesPruebaSeeder.php",
-              "ViewState": "AgIAAHAAAAAAAAAAAAAmwKIAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-27T03:24:31.158Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "RegionalSheetService.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "RelativeToolTip": "app\\Services\\Delegaciones\\Hojas\\RegionalSheetService.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAHsKAAAFAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-04-27T02:27:41.543Z",
+              "WhenOpened": "2026-04-28T01:06:19.906Z",
               "EditorCaption": ""
             }
           ]

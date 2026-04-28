@@ -73,7 +73,39 @@ use App\Http\Controllers\VialidadesUrbanasController;
 use App\Http\Controllers\VialidadesUrbanasDispositivoController;
 use App\Http\Controllers\VialidadesUrbanasDispositivoFotoController;
 
+use App\Http\Controllers\ConstanciaManejoController;
+use App\Http\Controllers\ConstanciaExamenPublicoController;
+use App\Http\Controllers\ConstanciaValidacionController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
+
+Route::prefix('constancias-manejo')->group(function () {
+    Route::get('/examen/{token}', [ConstanciaExamenPublicoController::class, 'iniciar'])->name('constancias_manejo.examen.iniciar');
+    Route::post('/examen/{token}', [ConstanciaExamenPublicoController::class, 'guardar'])->name('constancias_manejo.examen.guardar');
+    Route::get('/validar/{token}', [ConstanciaValidacionController::class, 'validar'])->name('constancias_manejo.validar');
+});
+
+Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes'])->group(function () {
+    Route::get('/', [ConstanciaManejoController::class, 'index'])->name('constancias_manejo.index');
+    Route::get('/create', [ConstanciaManejoController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.create');
+    Route::post('/', [ConstanciaManejoController::class, 'store'])->middleware('can:crear modulo examenes')->name('constancias_manejo.store');
+
+    Route::get('/pendientes-activar', [ConstanciaManejoController::class, 'pendientesActivar'])->name('constancias_manejo.pendientes_activar');
+    Route::get('/inactivas-vencidas', [ConstanciaManejoController::class, 'inactivasVencidas'])->name('constancias_manejo.inactivas_vencidas');
+
+    Route::get('/{constancia}', [ConstanciaManejoController::class, 'show'])->name('constancias_manejo.show');
+    Route::get('/{constancia}/edit', [ConstanciaManejoController::class, 'edit'])->middleware('can:editar modulo examenes')->name('constancias_manejo.edit');
+    Route::put('/{constancia}', [ConstanciaManejoController::class, 'update'])->middleware('can:editar modulo examenes')->name('constancias_manejo.update');
+    Route::delete('/{constancia}', [ConstanciaManejoController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('constancias_manejo.destroy');
+
+    Route::get('/{constancia}/imprimir', [ConstanciaManejoController::class, 'imprimir'])->name('constancias_manejo.imprimir');
+    Route::get('/{constancia}/reimprimir', [ConstanciaManejoController::class, 'reimprimir'])->middleware('can:crear modulo examenes')->name('constancias_manejo.reimprimir');
+
+    Route::post('/{constancia}/generar-acceso', [ConstanciaManejoController::class, 'generarAcceso'])->middleware('can:editar modulo examenes')->name('constancias_manejo.generar_acceso');
+    Route::post('/{constancia}/capturar-examen-impreso', [ConstanciaManejoController::class, 'capturarExamenImpreso'])->middleware('can:editar modulo examenes')->name('constancias_manejo.capturar_examen_impreso');
+    Route::post('/{constancia}/activar', [ConstanciaManejoController::class, 'activar'])->middleware('can:editar modulo examenes')->name('constancias_manejo.activar');
+    Route::post('/{constancia}/cancelar', [ConstanciaManejoController::class, 'cancelar'])->middleware('can:editar modulo examenes')->name('constancias_manejo.cancelar');
+});
 
 Route::prefix('resumen-ejecutivo')->middleware(['auth', 'can:ver estadisticas'])->group(function () {
     Route::get('/', [ResumenEjecutivoController::class, 'index'])->name('resumen_ejecutivo.index');

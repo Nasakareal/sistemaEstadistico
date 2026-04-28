@@ -519,30 +519,53 @@ return [
         ],
 
         [
-            'text'    => 'Módulos de Examenes',
+            'text'    => 'Módulos de Exámenes',
             'icon'    => 'fa-solid fa-id-card',
             'classes' => 'bg-blue text-white',
             'can'     => 'menu-modulo-examenes',
             'submenu' => [
                 [
-                    'text'    => 'Listado de Exámenes Diarios',
+                    'text'    => 'Exámenes Diarios',
                     'icon'    => 'fa-solid fa-clipboard-list',
                     'classes' => 'text-white',
                     'url'     => 'modulo-examenes-diarios',
                     'can'     => 'menu-modulo-examenes',
                 ],
                 [
-                    'text'    => 'Capturar Exámenes del Día',
+                    'text'    => 'Capturar Exámenes',
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
                     'url'     => 'modulo-examenes-diarios/create',
                     'can'     => 'menu-modulo-examenes-crear',
                 ],
+
                 [
-                    'text'    => 'Constancias Generadas',
+                    'text'    => 'Constancias (Sistema Anterior)',
                     'icon'    => 'fa-solid fa-file-pdf',
                     'classes' => 'text-white',
                     'url'     => 'modulo-constancias-examenes',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+
+                [
+                    'text'    => 'Constancias de Manejo',
+                    'icon'    => 'fa-solid fa-id-card-clip',
+                    'classes' => 'text-white',
+                    'url'     => 'constancias-manejo',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+                [
+                    'text'    => 'Pendientes de Activar',
+                    'icon'    => 'fa-solid fa-clock',
+                    'classes' => 'text-warning',
+                    'url'     => 'constancias-manejo/pendientes-activar',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+                [
+                    'text'    => 'Inactivas Vencidas',
+                    'icon'    => 'fa-solid fa-triangle-exclamation',
+                    'classes' => 'text-danger',
+                    'url'     => 'constancias-manejo/inactivas-vencidas',
                     'can'     => 'menu-modulo-examenes',
                 ],
             ],

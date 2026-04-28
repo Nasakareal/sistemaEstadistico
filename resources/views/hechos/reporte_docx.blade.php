@@ -13,9 +13,7 @@
         padding: 20px;
       }
       .header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        text-align: center;
         margin-bottom: 20px;
       }
       .header img {
@@ -101,9 +99,9 @@
 <body>
 @php
   $croquisPreview = optional($hecho->croquis)->imagen_preview;
-  $croquisPreviewUrl = null;
+  $croquisPreviewUrl = $croquisPreviewSrc ?? null;
 
-  if ($croquisPreview) {
+  if (!$croquisPreviewUrl && $croquisPreview) {
     $croquisPreviewUrl = \Illuminate\Support\Str::startsWith($croquisPreview, ['data:image', 'http://', 'https://'])
       ? $croquisPreview
       : asset($croquisPreview);
@@ -111,7 +109,7 @@
 @endphp
 <br><br>
   <div class="header">
-    <img src="{{ asset('Favicons.ico') }}" alt="Favicon" class="favicon" width="50" height="50">
+    <img src="{{ $faviconSrc ?? asset('Favicons.ico') }}" alt="Favicon" class="favicon" width="50" height="50">
     <div class="header-text">
       <p class="title-text">SECRETARÍA DE SEGURIDAD PÚBLICA</p>
       <p class="subtitle-text">INFORME TÉCNICO DE HECHO DE TRÁNSITO</p>

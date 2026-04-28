@@ -1,9 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\database",
-    "\\database\\seeders"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\modulo_examenes_diarios",
+    "\\resources\\views\\constancias_manejo"
   ],
-  "SelectedNode": "\\database\\seeders\\DelegacionesHechosPruebaSeeder.php",
+  "SelectedNode": "\\resources\\views\\constancias_manejo\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

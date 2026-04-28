@@ -1,11 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\routes"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\delegaciones"
   ],
+  "SelectedNode": "\\resources\\views\\admin\\settings\\delegaciones\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

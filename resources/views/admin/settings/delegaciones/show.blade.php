@@ -31,8 +31,7 @@
                         @endcan
 
                         @can('eliminar delegaciones')
-                            <form action="{{ route('delegaciones.destroy', $delegacion) }}"
-                                  method="POST" class="d-inline">
+                            <form action="{{ route('delegaciones.destroy', $delegacion) }}" method="POST" class="d-inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="button" class="btn btn-danger btn-sm delete-btn">
@@ -46,26 +45,19 @@
                 <div class="card-body">
 
                     <div class="row">
-
                         <div class="col-md-3">
                             <div class="small text-muted">Clave</div>
-                            <div class="font-weight-bold">
-                                {{ $delegacion->clave ?: '—' }}
-                            </div>
+                            <div class="font-weight-bold">{{ $delegacion->clave ?: '—' }}</div>
                         </div>
 
                         <div class="col-md-4">
                             <div class="small text-muted">Nombre</div>
-                            <div class="font-weight-bold">
-                                {{ $delegacion->nombre }}
-                            </div>
+                            <div class="font-weight-bold">{{ $delegacion->nombre }}</div>
                         </div>
 
                         <div class="col-md-3">
                             <div class="small text-muted">Municipio</div>
-                            <div class="font-weight-bold">
-                                {{ $delegacion->municipio ?: '—' }}
-                            </div>
+                            <div class="font-weight-bold">{{ $delegacion->municipio ?: '—' }}</div>
                         </div>
 
                         <div class="col-md-2">
@@ -81,16 +73,12 @@
 
                         <div class="col-md-3 mt-3">
                             <div class="small text-muted">Latitud</div>
-                            <div class="font-weight-bold">
-                                {{ $delegacion->lat ?: '—' }}
-                            </div>
+                            <div class="font-weight-bold">{{ $delegacion->lat ?: '—' }}</div>
                         </div>
 
                         <div class="col-md-3 mt-3">
                             <div class="small text-muted">Longitud</div>
-                            <div class="font-weight-bold">
-                                {{ $delegacion->lng ?: '—' }}
-                            </div>
+                            <div class="font-weight-bold">{{ $delegacion->lng ?: '—' }}</div>
                         </div>
 
                         <div class="col-md-3 mt-3">
@@ -106,7 +94,6 @@
                                 {{ $delegacion->created_at ? $delegacion->created_at->format('d-m-Y H:i') : '—' }}
                             </div>
                         </div>
-
                     </div>
 
                     <hr>
@@ -135,65 +122,64 @@
                         @endcan
                     </div>
 
-                    <div class="table-responsive">
-                        <table class="table table-striped table-bordered table-hover table-sm" id="hijas">
-                            <thead>
-                                <tr>
-                                    <th><center>Número</center></th>
-                                    <th><center>Clave</center></th>
-                                    <th><center>Nombre</center></th>
-                                    <th><center>Municipio</center></th>
-                                    <th><center>Latitud</center></th>
-                                    <th><center>Longitud</center></th>
-                                    <th><center>Estado</center></th>
-                                    <th><center>Acciones</center></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($delegacion->hijas as $i => $hija)
+                    @if ($delegacion->hijas->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered table-hover table-sm" id="hijas">
+                                <thead>
                                     <tr>
-                                        <td style="text-align:center">{{ $i + 1 }}</td>
-                                        <td>{{ $hija->clave }}</td>
-                                        <td>{{ $hija->nombre }}</td>
-                                        <td>{{ $hija->municipio }}</td>
-                                        <td>{{ $hija->lat ?: '—' }}</td>
-                                        <td>{{ $hija->lng ?: '—' }}</td>
-                                        <td style="text-align:center">
-                                            @if ($hija->activa)
-                                                <span class="badge badge-success">ACTIVA</span>
-                                            @else
-                                                <span class="badge badge-secondary">INACTIVA</span>
-                                            @endif
-                                        </td>
-                                        <td style="text-align:center">
-                                            <div class="btn-group" role="group">
-                                                @can('ver delegaciones')
-                                                    <a href="{{ route('delegaciones.show', $hija) }}" class="btn btn-info btn-sm">
-                                                        <i class="fa-regular fa-eye"></i>
-                                                    </a>
-                                                @endcan
+                                        <th>Número</th>
+                                        <th>Clave</th>
+                                        <th>Nombre</th>
+                                        <th>Municipio</th>
+                                        <th>Latitud</th>
+                                        <th>Longitud</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($delegacion->hijas as $i => $hija)
+                                        <tr>
+                                            <td>{{ $i + 1 }}</td>
+                                            <td>{{ $hija->clave ?: '—' }}</td>
+                                            <td>{{ $hija->nombre }}</td>
+                                            <td>{{ $hija->municipio ?: '—' }}</td>
+                                            <td>{{ $hija->lat ?: '—' }}</td>
+                                            <td>{{ $hija->lng ?: '—' }}</td>
+                                            <td>
+                                                @if ($hija->activa)
+                                                    <span class="badge badge-success">ACTIVA</span>
+                                                @else
+                                                    <span class="badge badge-secondary">INACTIVA</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    @can('ver delegaciones')
+                                                        <a href="{{ route('delegaciones.show', $hija) }}" class="btn btn-info btn-sm">
+                                                            <i class="fa-regular fa-eye"></i>
+                                                        </a>
+                                                    @endcan
 
-                                                @can('editar delegaciones')
-                                                    <a href="{{ route('delegaciones.edit', $hija) }}" class="btn btn-success btn-sm">
-                                                        <i class="fa-regular fa-pen-to-square"></i>
-                                                    </a>
-                                                @endcan
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center text-muted">
-                                            No hay delegaciones hijas registradas.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                                                    @can('editar delegaciones')
+                                                        <a href="{{ route('delegaciones.edit', $hija) }}" class="btn btn-success btn-sm">
+                                                            <i class="fa-regular fa-pen-to-square"></i>
+                                                        </a>
+                                                    @endcan
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="alert alert-info mb-0">
+                            No hay delegaciones hijas registradas.
+                        </div>
+                    @endif
 
                 </div>
-
             </div>
 
         </div>
@@ -204,7 +190,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
     <style>
-        .table th, .table td {
+        .table th,
+        .table td {
             text-align: center;
             vertical-align: middle;
         }
@@ -223,35 +210,36 @@
 
     <script>
         $(function () {
-            $('#hijas').DataTable({
-                "pageLength": 10,
-                "language": {
-                    "emptyTable": "No hay información",
-                    "info": "Mostrando _START_ a _END_ de _TOTAL_ Hijas",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 Hijas",
-                    "infoFiltered": "(Filtrado de _MAX_ total Hijas)",
-                    "lengthMenu": "Mostrar _MENU_ Hijas",
-                    "loadingRecords": "Cargando...",
-                    "processing": "Procesando...",
-                    "search": "Buscador:",
-                    "zeroRecords": "Sin resultados encontrados",
-                    "paginate": {
-                        "first": "Primero",
-                        "last": "Último",
-                        "next": "Siguiente",
-                        "previous": "Anterior"
-                    }
-                },
-                "responsive": true,
-                "lengthChange": true,
-                "autoWidth": false,
-            });
+            if ($('#hijas').length) {
+                $('#hijas').DataTable({
+                    pageLength: 10,
+                    language: {
+                        emptyTable: "No hay información",
+                        info: "Mostrando _START_ a _END_ de _TOTAL_ Hijas",
+                        infoEmpty: "Mostrando 0 a 0 de 0 Hijas",
+                        infoFiltered: "(Filtrado de _MAX_ total Hijas)",
+                        lengthMenu: "Mostrar _MENU_ Hijas",
+                        loadingRecords: "Cargando...",
+                        processing: "Procesando...",
+                        search: "Buscador:",
+                        zeroRecords: "Sin resultados encontrados",
+                        paginate: {
+                            first: "Primero",
+                            last: "Último",
+                            next: "Siguiente",
+                            previous: "Anterior"
+                        }
+                    },
+                    responsive: true,
+                    lengthChange: true,
+                    autoWidth: false
+                });
+            }
         });
 
         @if ($delegacion->lat && $delegacion->lng)
             const latDelegacion = {{ $delegacion->lat }};
             const lngDelegacion = {{ $delegacion->lng }};
-
             const mapaDelegacion = L.map('mapa_delegacion').setView([latDelegacion, lngDelegacion], 15);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -277,6 +265,7 @@
 
         $(document).on('click', '.delete-btn', function (e) {
             e.preventDefault();
+
             let form = $(this).closest('form');
 
             Swal.fire({

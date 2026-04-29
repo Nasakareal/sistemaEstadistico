@@ -19,6 +19,8 @@ class ConstanciaManejoController extends Controller
 {
     public function buscarPorQr($token)
     {
+        $this->authorizeConstanciasUnidad();
+
         $constancia = ConstanciaManejo::with(['modulo', 'examen', 'peritoActivador'])
             ->where('qr_token', $token)
             ->first();
@@ -38,6 +40,8 @@ class ConstanciaManejoController extends Controller
 
     public function show(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstanciasUnidad();
+
         $constancia->load(['modulo', 'examen', 'peritoActivador']);
 
         return response()->json([
@@ -48,6 +52,8 @@ class ConstanciaManejoController extends Controller
 
     public function generarAcceso(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstanciasUnidad();
+
         if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
             return response()->json([
                 'ok' => false,
@@ -74,6 +80,8 @@ class ConstanciaManejoController extends Controller
 
     public function capturarImpreso(Request $request, ConstanciaManejo $constancia)
     {
+        $this->authorizeConstanciasUnidad();
+
         if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
             return response()->json([
                 'ok' => false,
@@ -141,6 +149,8 @@ class ConstanciaManejoController extends Controller
 
     public function activar(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstanciasUnidad();
+
         $constancia->load('examen');
 
         if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
@@ -197,6 +207,8 @@ class ConstanciaManejoController extends Controller
 
     public function cancelarAcceso(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstanciasUnidad();
+
         $constancia->update([
             'acceso_examen_token' => null,
             'acceso_examen_expira' => null,
@@ -213,6 +225,8 @@ class ConstanciaManejoController extends Controller
 
     public function accesoQr(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstanciasUnidad();
+
         if (!$constancia->acceso_examen_token) {
             return response()->json([
                 'ok' => false,
@@ -297,5 +311,31 @@ class ConstanciaManejoController extends Controller
     private function examenQrUrl(ConstanciaManejo $constancia): string
     {
         return url('/api/constancias-manejo/' . $constancia->id . '/acceso-qr');
+    }
+
+    private function authorizeConstanciasUnidad(): void
+    {
+        $user = auth()->user();
+
+        abort_if(!$user, 403, 'No autenticado.');
+
+        if ($user->isSuperadmin()) {
+            return;
+        }
+
+        $unidadIds = [(int) ($user->unidad_id ?? 0)];
+
+        try {
+            $unidadIds = array_merge(
+                $unidadIds,
+                $user->unidades()->pluck('unidades.id')->map(fn ($id) => (int) $id)->all()
+            );
+        } catch (\Throwable $e) {
+            // La unidad principal basta en instalaciones sin pivote sincronizado.
+        }
+
+        if (count(array_intersect([1, 2], array_unique($unidadIds))) === 0) {
+            abort(403, 'No tienes acceso al módulo de constancias de manejo.');
+        }
     }
 }

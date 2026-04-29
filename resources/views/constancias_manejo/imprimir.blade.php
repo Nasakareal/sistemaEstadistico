@@ -5,8 +5,8 @@
     <title>Constancia {{ $constancia->folio }}</title>
     <style>
         @page {
-            size: letter;
-            margin: 0;
+            size: 216mm 279mm;
+            margin: 6mm;
         }
 
         * {
@@ -23,10 +23,10 @@
 
         .sheet {
             position: relative;
-            width: 216mm;
-            min-height: 279mm;
+            width: 204mm;
+            min-height: 267mm;
             margin: 0 auto;
-            padding: 12mm 14mm 10mm 14mm;
+            padding: 8mm 10mm 8mm 10mm;
             background: #fff;
         }
 
@@ -218,12 +218,16 @@
         }
 
         @media print {
-            body {
+            html, body {
+                width: 216mm;
+                min-height: 279mm;
                 background: #fff;
             }
 
             .sheet {
-                margin: 0;
+                margin: 0 auto;
+                box-shadow: none;
+                page-break-after: avoid;
             }
 
             .print-actions {

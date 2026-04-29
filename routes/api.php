@@ -76,14 +76,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/alertas/{id}', [AgenteUpecHomeController::class, 'show'])->name('api.agente_upec_home.alertas.show');
     });
 
-    Route::prefix('constancias-manejo')->group(function () {
+    Route::prefix('constancias-manejo')->middleware('can:ver modulo examenes')->group(function () {
         Route::get('/qr/{token}', [ApiConstanciaManejoController::class, 'buscarPorQr'])->name('api.constancias_manejo.qr');
         Route::get('/{constancia}', [ApiConstanciaManejoController::class, 'show'])->whereNumber('constancia')->name('api.constancias_manejo.show');
         Route::get('/{constancia}/acceso-qr', [ApiConstanciaManejoController::class, 'accesoQr'])->whereNumber('constancia')->name('api.constancias_manejo.acceso_qr');
-        Route::post('/{constancia}/generar-acceso', [ApiConstanciaManejoController::class, 'generarAcceso'])->whereNumber('constancia')->name('api.constancias_manejo.generar_acceso');
-        Route::post('/{constancia}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarImpreso'])->whereNumber('constancia')->name('api.constancias_manejo.capturar_impreso');
-        Route::post('/{constancia}/activar', [ApiConstanciaManejoController::class, 'activar'])->whereNumber('constancia')->name('api.constancias_manejo.activar');
-        Route::post('/{constancia}/cancelar-acceso', [ApiConstanciaManejoController::class, 'cancelarAcceso'])->whereNumber('constancia')->name('api.constancias_manejo.cancelar_acceso');
+        Route::post('/{constancia}/generar-acceso', [ApiConstanciaManejoController::class, 'generarAcceso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.generar_acceso');
+        Route::post('/{constancia}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarImpreso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.capturar_impreso');
+        Route::post('/{constancia}/activar', [ApiConstanciaManejoController::class, 'activar'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.activar');
+        Route::post('/{constancia}/cancelar-acceso', [ApiConstanciaManejoController::class, 'cancelarAcceso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.cancelar_acceso');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

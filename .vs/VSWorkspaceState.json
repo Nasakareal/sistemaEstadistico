@@ -1,11 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api"
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\constancias_manejo"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ConstanciaManejoController.php",
+  "SelectedNode": "\\resources\\views\\constancias_manejo\\imprimir.blade.php",
   "PreviewInSolutionExplorer": false
 }

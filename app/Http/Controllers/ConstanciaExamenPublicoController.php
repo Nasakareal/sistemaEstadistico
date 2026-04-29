@@ -10,6 +10,7 @@ use App\Models\ConstanciaRespuesta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ConstanciaExamenPublicoController extends Controller
 {
@@ -63,17 +64,62 @@ class ConstanciaExamenPublicoController extends Controller
         }
 
         $request->validate([
+            'preguntas' => ['required', 'array'],
+            'preguntas.*' => ['required', 'integer', 'exists:constancia_preguntas,id'],
             'respuestas' => ['required', 'array'],
             'respuestas.*' => ['required', 'integer', 'exists:constancia_respuestas,id'],
         ]);
 
         $resultado = DB::transaction(function () use ($request, $constancia) {
-            $respuestasIds = array_values($request->respuestas);
-            $respuestas = ConstanciaRespuesta::with('pregunta')
-                ->whereIn('id', $respuestasIds)
+            $preguntaIds = array_values(array_unique(array_map('intval', $request->input('preguntas', []))));
+
+            $preguntas = ConstanciaPregunta::with('respuestas')
+                ->whereIn('id', $preguntaIds)
+                ->where('activo', true)
+                ->where(function ($query) use ($constancia) {
+                    $query->where('tipo_licencia', $constancia->tipo_licencia)
+                        ->orWhere('tipo_licencia', 'GENERAL');
+                })
                 ->get();
 
-            $total = $respuestas->count();
+            if ($preguntas->count() !== count($preguntaIds)) {
+                throw ValidationException::withMessages([
+                    'preguntas' => 'El examen contiene preguntas no disponibles.',
+                ]);
+            }
+
+            $respuestasPorPregunta = collect($request->input('respuestas', []));
+            $respuestasIds = [];
+
+            foreach ($preguntas as $pregunta) {
+                $respuestaId = (int) $respuestasPorPregunta->get($pregunta->id);
+
+                if (!$respuestaId) {
+                    throw ValidationException::withMessages([
+                        'respuestas' => 'Contesta todas las preguntas.',
+                    ]);
+                }
+
+                $respuestasIds[] = $respuestaId;
+            }
+
+            $respuestas = ConstanciaRespuesta::with('pregunta')
+                ->whereIn('id', $respuestasIds)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($preguntas as $pregunta) {
+                $respuestaId = (int) $respuestasPorPregunta->get($pregunta->id);
+                $respuesta = $respuestas->get($respuestaId);
+
+                if (!$respuesta || (int) $respuesta->pregunta_id !== (int) $pregunta->id) {
+                    throw ValidationException::withMessages([
+                        'respuestas' => 'Una respuesta no corresponde a su pregunta.',
+                    ]);
+                }
+            }
+
+            $total = $preguntas->count();
             $aciertos = $respuestas->where('es_correcta', true)->count();
             $errores = $total - $aciertos;
             $calificacion = $total > 0 ? round(($aciertos / $total) * 100, 2) : 0;

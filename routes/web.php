@@ -76,6 +76,7 @@ use App\Http\Controllers\VialidadesUrbanasDispositivoFotoController;
 use App\Http\Controllers\ConstanciaManejoController;
 use App\Http\Controllers\ConstanciaExamenPublicoController;
 use App\Http\Controllers\ConstanciaValidacionController;
+use App\Http\Controllers\ConstanciaPreguntaController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -92,6 +93,14 @@ Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes
 
     Route::get('/pendientes-activar', [ConstanciaManejoController::class, 'pendientesActivar'])->name('constancias_manejo.pendientes_activar');
     Route::get('/inactivas-vencidas', [ConstanciaManejoController::class, 'inactivasVencidas'])->name('constancias_manejo.inactivas_vencidas');
+
+    Route::get('/preguntas', [ConstanciaPreguntaController::class, 'index'])->name('constancias_manejo.preguntas.index');
+    Route::get('/preguntas/create', [ConstanciaPreguntaController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.create');
+    Route::post('/preguntas', [ConstanciaPreguntaController::class, 'store'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.store');
+    Route::get('/preguntas/imprimir', [ConstanciaPreguntaController::class, 'imprimir'])->name('constancias_manejo.preguntas.imprimir');
+    Route::get('/preguntas/{pregunta}/edit', [ConstanciaPreguntaController::class, 'edit'])->middleware('can:editar modulo examenes')->name('constancias_manejo.preguntas.edit');
+    Route::put('/preguntas/{pregunta}', [ConstanciaPreguntaController::class, 'update'])->middleware('can:editar modulo examenes')->name('constancias_manejo.preguntas.update');
+    Route::delete('/preguntas/{pregunta}', [ConstanciaPreguntaController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('constancias_manejo.preguntas.destroy');
 
     Route::get('/{constancia}', [ConstanciaManejoController::class, 'show'])->name('constancias_manejo.show');
     Route::get('/{constancia}/edit', [ConstanciaManejoController::class, 'edit'])->middleware('can:editar modulo examenes')->name('constancias_manejo.edit');

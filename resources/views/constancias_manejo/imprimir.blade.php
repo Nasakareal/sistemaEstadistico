@@ -195,7 +195,7 @@
         .folio {
             position: absolute;
             right: 10mm;
-            bottom: 5mm;
+            bottom: -1mm;
             font-weight: 700;
         }
 

@@ -555,6 +555,13 @@ return [
                     'can'     => 'menu-modulo-examenes',
                 ],
                 [
+                    'text'    => 'Banco de Preguntas',
+                    'icon'    => 'fa-solid fa-circle-question',
+                    'classes' => 'text-white',
+                    'url'     => 'constancias-manejo/preguntas',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+                [
                     'text'    => 'Pendientes de Activar',
                     'icon'    => 'fa-solid fa-clock',
                     'classes' => 'text-warning',

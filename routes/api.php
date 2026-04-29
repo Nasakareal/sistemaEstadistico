@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\PuestaDisposicionController;
 use App\Http\Controllers\Api\CroquisController;
 use App\Http\Controllers\Api\CulturaVialController;
 use App\Http\Controllers\Api\ChoquesDiariosController;
+use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -73,6 +74,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/mapa', [AgenteUpecHomeController::class, 'mapa'])->name('api.agente_upec_home.mapa');
         Route::get('/filtros', [AgenteUpecHomeController::class, 'filtros'])->name('api.agente_upec_home.filtros');
         Route::get('/alertas/{id}', [AgenteUpecHomeController::class, 'show'])->name('api.agente_upec_home.alertas.show');
+    });
+
+    Route::prefix('constancias-manejo')->group(function () {
+        Route::get('/qr/{token}', [ApiConstanciaManejoController::class, 'buscarPorQr'])->name('api.constancias_manejo.qr');
+        Route::get('/{constancia}', [ApiConstanciaManejoController::class, 'show'])->whereNumber('constancia')->name('api.constancias_manejo.show');
+        Route::get('/{constancia}/acceso-qr', [ApiConstanciaManejoController::class, 'accesoQr'])->whereNumber('constancia')->name('api.constancias_manejo.acceso_qr');
+        Route::post('/{constancia}/generar-acceso', [ApiConstanciaManejoController::class, 'generarAcceso'])->whereNumber('constancia')->name('api.constancias_manejo.generar_acceso');
+        Route::post('/{constancia}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarImpreso'])->whereNumber('constancia')->name('api.constancias_manejo.capturar_impreso');
+        Route::post('/{constancia}/activar', [ApiConstanciaManejoController::class, 'activar'])->whereNumber('constancia')->name('api.constancias_manejo.activar');
+        Route::post('/{constancia}/cancelar-acceso', [ApiConstanciaManejoController::class, 'cancelarAcceso'])->whereNumber('constancia')->name('api.constancias_manejo.cancelar_acceso');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

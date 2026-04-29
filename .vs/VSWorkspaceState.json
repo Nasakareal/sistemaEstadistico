@@ -1,12 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\delegaciones"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Api"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\delegaciones\\show.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\ConstanciaManejoController.php",
   "PreviewInSolutionExplorer": false
 }

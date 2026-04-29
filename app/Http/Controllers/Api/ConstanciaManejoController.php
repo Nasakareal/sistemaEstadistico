@@ -50,7 +50,7 @@ class ConstanciaManejoController extends Controller
         ]);
     }
 
-    public function generarAcceso(ConstanciaManejo $constancia)
+    public function generarAcceso(Request $request, ConstanciaManejo $constancia)
     {
         $this->authorizeConstanciasUnidad();
 
@@ -61,7 +61,18 @@ class ConstanciaManejoController extends Controller
             ], 400);
         }
 
+        $request->validate([
+            'nombre_solicitante' => 'required|string|max:255',
+            'curp' => 'nullable|string|max:18',
+            'telefono' => 'nullable|string|max:20',
+            'tipo_licencia' => 'required|in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO',
+        ]);
+
         $constancia->update([
+            'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
+            'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
+            'telefono' => $request->telefono,
+            'tipo_licencia' => $request->tipo_licencia,
             'tipo_examen' => 'LINEA',
             'acceso_examen_token' => Str::random(60),
             'acceso_examen_expira' => Carbon::now('America/Mexico_City')->addMinutes(30),
@@ -241,14 +252,7 @@ class ConstanciaManejoController extends Controller
             ], 410);
         }
 
-        $qrCode = QrCode::create($this->examenUrl($constancia))
-            ->setSize(520)
-            ->setMargin(18)
-            ->setErrorCorrectionLevel(new ErrorCorrectionLevelHigh())
-            ->setForegroundColor(new Color(15, 23, 42))
-            ->setBackgroundColor(new Color(255, 255, 255));
-
-        $png = (new PngWriter())->write($qrCode)->getString();
+        $png = $this->examenQrPng($constancia);
 
         return response($png, 200, [
             'Content-Type' => 'image/png',
@@ -281,6 +285,7 @@ class ConstanciaManejoController extends Controller
             'acceso_examen_expira' => optional($constancia->acceso_examen_expira)->toISOString(),
             'url_examen' => $tieneAcceso ? $this->examenUrl($constancia) : null,
             'url_examen_qr' => $tieneAcceso ? $this->examenQrUrl($constancia) : null,
+            'qr_examen_base64' => $tieneAcceso ? base64_encode($this->examenQrPng($constancia)) : null,
             'resultado' => $examen->resultado ?? null,
             'examen' => $examen ? [
                 'modalidad' => $examen->modalidad,
@@ -306,6 +311,18 @@ class ConstanciaManejoController extends Controller
     private function examenUrl(ConstanciaManejo $constancia): string
     {
         return url('/constancias-manejo/examen/' . $constancia->acceso_examen_token);
+    }
+
+    private function examenQrPng(ConstanciaManejo $constancia): string
+    {
+        $qrCode = QrCode::create($this->examenUrl($constancia))
+            ->setSize(520)
+            ->setMargin(18)
+            ->setErrorCorrectionLevel(new ErrorCorrectionLevelHigh())
+            ->setForegroundColor(new Color(15, 23, 42))
+            ->setBackgroundColor(new Color(255, 255, 255));
+
+        return (new PngWriter())->write($qrCode)->getString();
     }
 
     private function examenQrUrl(ConstanciaManejo $constancia): string

@@ -3,9 +3,8 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\constancias_manejo",
     "\\resources\\views\\constancia_preguntas"
   ],
-  "SelectedNode": "\\resources\\views\\constancia_preguntas\\edit.blade.php",
+  "SelectedNode": "\\resources\\views\\constancia_preguntas\\imprimir.blade.php",
   "PreviewInSolutionExplorer": false
 }

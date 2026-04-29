@@ -2,17 +2,22 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Examen {{ $tipoLicenciaLabel }}</title>
     <style>
+        @page {
+            size: letter;
+            margin: 14mm 16mm;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            color: #111827;
-            margin: 24px;
+            color: #000;
+            margin: 0;
+            font-size: 11pt;
         }
 
         .actions {
-            margin-bottom: 18px;
+            margin-bottom: 15px;
         }
 
         button {
@@ -22,49 +27,78 @@
             color: #fff;
             cursor: pointer;
             padding: 10px 14px;
+            font-size: 14px;
         }
 
         .header {
-            border-bottom: 2px solid #111827;
+            position: relative;
+            min-height: 115px;
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 105px;
+        }
+
+        .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 12pt;
+            padding-top: 62px;
+            text-transform: uppercase;
+        }
+
+        .instructions {
+            margin-top: 14px;
             margin-bottom: 18px;
-            padding-bottom: 12px;
+            text-align: justify;
+            line-height: 1.45;
         }
 
-        .meta {
-            display: grid;
-            gap: 10px;
-            grid-template-columns: repeat(2, 1fr);
-            margin: 18px 0;
+        .datos {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 18px;
+            font-size: 10.5pt;
         }
 
-        .line {
-            border-bottom: 1px solid #111827;
-            min-height: 24px;
+        .datos td {
+            padding: 6px 4px;
+            vertical-align: bottom;
+        }
+
+        .linea {
+            border-bottom: 1px solid #000;
+            height: 18px;
         }
 
         .question {
             break-inside: avoid;
-            margin-bottom: 18px;
+            page-break-inside: avoid;
+            margin-bottom: 12px;
+            line-height: 1.35;
         }
 
-        .question strong {
-            display: block;
-            margin-bottom: 8px;
+        .question-title {
+            font-weight: bold;
+            margin-bottom: 5px;
         }
 
         .answer {
-            margin: 6px 0 6px 18px;
+            margin-left: 18px;
+            margin-bottom: 3px;
         }
 
-        .key {
-            page-break-before: always;
+        .empty {
+            margin-top: 30px;
+            text-align: center;
+            font-weight: bold;
         }
 
         @media print {
-            body {
-                margin: 12mm;
-            }
-
             .actions {
                 display: none;
             }
@@ -77,32 +111,37 @@
     </div>
 
     <div class="header">
-        <h1>Examen de Manejo</h1>
-        <p><strong>Tipo de licencia:</strong> {{ $tipoLicenciaLabel }}</p>
+        <img src="{{ public_path('guardiacivil.png') }}" class="logo">
+        <div class="title">
+            EXAMEN TEORICO PARA OBTENER LICENCIA DE CONDUCIR TIPO {{ strtoupper($tipoLicenciaLabel) }}
+        </div>
     </div>
 
-    <div class="meta">
-        <div>
-            <strong>Nombre:</strong>
-            <div class="line"></div>
-        </div>
-        <div>
-            <strong>Fecha:</strong>
-            <div class="line"></div>
-        </div>
-        <div>
-            <strong>Folio:</strong>
-            <div class="line"></div>
-        </div>
-        <div>
-            <strong>Calificación:</strong>
-            <div class="line"></div>
-        </div>
+    <div class="instructions">
+        <strong>INSTRUCCIONES:</strong> conteste lo que se indica, en las preguntas de opción múltiple no deberá contestar más de dos opciones o será anulada, para aprobar deberá tener un mínimo de 20 aciertos.
     </div>
+
+    <table class="datos">
+        <tr>
+            <td width="12%"><strong>NOMBRE:</strong></td>
+            <td width="48%" class="linea"></td>
+            <td width="10%"><strong>FECHA:</strong></td>
+            <td width="30%" class="linea"></td>
+        </tr>
+        <tr>
+            <td><strong>FOLIO:</strong></td>
+            <td class="linea"></td>
+            <td><strong>CALIF.:</strong></td>
+            <td class="linea"></td>
+        </tr>
+    </table>
 
     @forelse($preguntas as $index => $pregunta)
         <div class="question">
-            <strong>{{ $index + 1 }}. {{ $pregunta->pregunta }}</strong>
+            <div class="question-title">
+                {{ $index + 1 }}.- {{ $pregunta->pregunta }}
+            </div>
+
             @foreach($pregunta->respuestas as $respuestaIndex => $respuesta)
                 <div class="answer">
                     {{ chr(65 + $respuestaIndex) }}) {{ $respuesta->respuesta }}
@@ -110,24 +149,9 @@
             @endforeach
         </div>
     @empty
-        <p>No hay preguntas activas para este tipo de licencia.</p>
-    @endforelse
-
-    @if($preguntas->isNotEmpty())
-        <div class="key">
-            <h2>Clave de respuestas</h2>
-            @foreach($preguntas as $index => $pregunta)
-                @php
-                    $correcta = $pregunta->respuestas->values()->search(function ($respuesta) {
-                        return (bool) $respuesta->es_correcta;
-                    });
-                @endphp
-                <p>
-                    {{ $index + 1 }}.
-                    {{ $correcta === false ? 'Sin respuesta correcta marcada' : chr(65 + $correcta) }}
-                </p>
-            @endforeach
+        <div class="empty">
+            No hay preguntas activas para este tipo de licencia.
         </div>
-    @endif
+    @endforelse
 </body>
 </html>

@@ -20,33 +20,93 @@ class ConstanciaManejoController extends Controller
 
         $query = ConstanciaModulo::where('activo', true)->orderBy('nombre');
 
+        if (!$usuario) {
+            return $query->whereRaw('1 = 0');
+        }
+
         if ($usuario->hasRole('Superadmin')) {
             return $query;
         }
 
-        $unidadId = DB::table('unidad_user')
-            ->where('user_id', $usuario->id)
-            ->value('unidad_id');
+        $unidadIds = $this->unidadIdsUsuario($usuario);
+        $delegacionIds = $this->delegacionIdsUsuario($usuario);
+        $puedeSiniestros = in_array(1, $unidadIds, true);
+        $puedeDelegacion = in_array(2, $unidadIds, true) && count($delegacionIds) > 0;
 
-        if ((int) $unidadId === 1) {
-            return $query->where('tipo', 'SINIESTROS');
+        if (!$puedeSiniestros && !$puedeDelegacion) {
+            return $query->whereRaw('1 = 0');
         }
 
-        if ((int) $unidadId === 2) {
-            $delegacionId = DB::table('delegacion_user')
-                ->where('user_id', $usuario->id)
-                ->value('delegacion_id');
+        return $query->where(function ($q) use ($puedeSiniestros, $puedeDelegacion, $delegacionIds) {
+            if ($puedeSiniestros) {
+                $q->orWhere('tipo', 'SINIESTROS');
+            }
 
-            return $query->where('tipo', 'DELEGACION')
-                ->where('delegacion_id', $delegacionId);
+            if ($puedeDelegacion) {
+                $q->orWhere(function ($delegacion) use ($delegacionIds) {
+                    $delegacion->where('tipo', 'DELEGACION')
+                        ->whereIn('delegacion_id', $delegacionIds);
+                });
+            }
+        });
+    }
+
+    private function queryConstanciasDisponibles()
+    {
+        return ConstanciaManejo::query()
+            ->whereIn('modulo_id', $this->queryModulosDisponibles()->pluck('id'));
+    }
+
+    private function authorizeConstancia(ConstanciaManejo $constancia): void
+    {
+        abort_unless(
+            $this->queryConstanciasDisponibles()->whereKey($constancia->id)->exists(),
+            403,
+            'No tienes permiso para ver esta constancia.'
+        );
+    }
+
+    private function unidadIdsUsuario($usuario): array
+    {
+        $ids = [(int) ($usuario->unidad_id ?? 0)];
+
+        try {
+            $ids = array_merge(
+                $ids,
+                $usuario->unidades()->pluck('unidades.id')->map(fn ($id) => (int) $id)->all()
+            );
+        } catch (\Throwable $e) {
+            // La unidad principal basta en instalaciones sin pivote sincronizado.
         }
 
-        return $query->whereRaw('1 = 0');
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    private function delegacionIdsUsuario($usuario): array
+    {
+        $ids = [(int) ($usuario->delegacion_id ?? 0)];
+
+        try {
+            $ids = array_merge(
+                $ids,
+                DB::table('delegacion_user')
+                    ->where('user_id', $usuario->id)
+                    ->pluck('delegacion_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all()
+            );
+        } catch (\Throwable $e) {
+            // La delegacion principal basta en instalaciones sin pivote sincronizado.
+        }
+
+        return array_values(array_unique(array_filter($ids)));
     }
 
     public function index(Request $request)
     {
-        $query = ConstanciaManejo::with(['modulo', 'usuario', 'peritoActivador', 'examen'])->orderByDesc('id');
+        $query = $this->queryConstanciasDisponibles()
+            ->with(['modulo', 'usuario', 'peritoActivador', 'examen'])
+            ->orderByDesc('id');
 
         if ($request->filled('estatus')) {
             $query->where('estatus', $request->estatus);
@@ -86,69 +146,77 @@ class ConstanciaManejoController extends Controller
             ->exists();
 
         if (!$moduloPermitido) {
-            return redirect()->route('constancias_manejo.create')->with('error', 'No tienes permiso para generar constancias en este módulo.');
+            return redirect()->route('constancias_manejo.create')->with('error', 'No tienes permiso para generar constancias en este modulo.');
         }
 
         $constancias = DB::transaction(function () use ($request) {
-            $modulo = ConstanciaModulo::findOrFail($request->modulo_id);
-            $origen = $modulo->tipo === 'SINIESTROS' ? 'SINIESTROS' : 'DELEGACIONES';
-            $prefijo = $modulo->tipo === 'SINIESTROS' ? 'S' : 'D';
-            $creadas = [];
-
-            $ultimoNumero = ConstanciaFolio::where('prefijo', $prefijo)
-                ->lockForUpdate()
-                ->max('numero');
-
-            $numeroInicial = $ultimoNumero ? $ultimoNumero + 1 : 1;
-
-            for ($i = 0; $i < (int) $request->cantidad; $i++) {
-                $numero = $numeroInicial + $i;
-                $folio = $prefijo . '-' . str_pad($numero, 4, '0', STR_PAD_LEFT);
-
-                $constancia = ConstanciaManejo::create([
-                    'folio' => $folio,
-                    'folio_qr' => $folio,
-                    'modulo_id' => $modulo->id,
-                    'delegacion_id' => $modulo->delegacion_id,
-                    'user_id' => auth()->id(),
-                    'perito_activador_id' => null,
-                    'nombre_solicitante' => null,
-                    'curp' => null,
-                    'telefono' => null,
-                    'tipo_licencia' => null,
-                    'tipo_examen' => null,
-                    'estatus' => 'IMPRESA_INACTIVA',
-                    'fecha_impresion' => Carbon::now('America/Mexico_City'),
-                    'fecha_activacion' => null,
-                    'fecha_expiracion' => null,
-                    'pdf_path' => null,
-                    'qr_token' => Str::uuid()->toString(),
-                    'acceso_examen_token' => null,
-                    'acceso_examen_expira' => null,
-                ]);
-
-                ConstanciaFolio::create([
-                    'prefijo' => $prefijo,
-                    'numero' => $numero,
-                    'folio' => $folio,
-                    'origen' => $origen,
-                    'modulo_id' => $modulo->id,
-                    'delegacion_id' => $modulo->delegacion_id,
-                    'constancia_id' => $constancia->id,
-                    'estatus' => 'ASIGNADO',
-                ]);
-
-                $creadas[] = $constancia->id;
-            }
-
-            return $creadas;
+            return $this->crearConstancias((int) $request->modulo_id, (int) $request->cantidad);
         });
 
-        return redirect()->route('constancias_manejo.index')->with('success', count($constancias) . ' constancias generadas como inactivas.');
+        return redirect()
+            ->route('constancias_manejo.imprimir_lote', ['ids' => implode(',', $constancias)])
+            ->with('success', count($constancias) . ' constancias generadas como inactivas.');
+    }
+
+    private function crearConstancias(int $moduloId, int $cantidad): array
+    {
+        $modulo = ConstanciaModulo::findOrFail($moduloId);
+        $origen = $modulo->tipo === 'SINIESTROS' ? 'SINIESTROS' : 'DELEGACIONES';
+        $prefijo = $modulo->tipo === 'SINIESTROS' ? 'S' : 'D';
+        $creadas = [];
+
+        $ultimoNumero = ConstanciaFolio::where('prefijo', $prefijo)
+            ->lockForUpdate()
+            ->max('numero');
+
+        $numeroInicial = $ultimoNumero ? $ultimoNumero + 1 : 1;
+
+        for ($i = 0; $i < $cantidad; $i++) {
+            $numero = $numeroInicial + $i;
+            $folio = $prefijo . '-' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+
+            $constancia = ConstanciaManejo::create([
+                'folio' => $folio,
+                'folio_qr' => $folio,
+                'modulo_id' => $modulo->id,
+                'delegacion_id' => $modulo->delegacion_id,
+                'user_id' => auth()->id(),
+                'perito_activador_id' => null,
+                'nombre_solicitante' => null,
+                'curp' => null,
+                'telefono' => null,
+                'tipo_licencia' => null,
+                'tipo_examen' => null,
+                'estatus' => 'IMPRESA_INACTIVA',
+                'fecha_impresion' => Carbon::now('America/Mexico_City'),
+                'fecha_activacion' => null,
+                'fecha_expiracion' => null,
+                'pdf_path' => null,
+                'qr_token' => Str::uuid()->toString(),
+                'acceso_examen_token' => null,
+                'acceso_examen_expira' => null,
+            ]);
+
+            ConstanciaFolio::create([
+                'prefijo' => $prefijo,
+                'numero' => $numero,
+                'folio' => $folio,
+                'origen' => $origen,
+                'modulo_id' => $modulo->id,
+                'delegacion_id' => $modulo->delegacion_id,
+                'constancia_id' => $constancia->id,
+                'estatus' => 'ASIGNADO',
+            ]);
+
+            $creadas[] = $constancia->id;
+        }
+
+        return $creadas;
     }
 
     public function show(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
         $constancia->load(['modulo', 'usuario', 'peritoActivador', 'examen', 'activaciones.usuario']);
 
         return view('constancias_manejo.show', compact('constancia'));
@@ -156,6 +224,8 @@ class ConstanciaManejoController extends Controller
 
     public function edit(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
+
         if ($constancia->estatus === 'ACTIVA') {
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'No se puede editar una constancia activa.');
         }
@@ -167,6 +237,8 @@ class ConstanciaManejoController extends Controller
 
     public function update(Request $request, ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
+
         if ($constancia->estatus === 'ACTIVA') {
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'No se puede editar una constancia activa.');
         }
@@ -185,7 +257,7 @@ class ConstanciaManejoController extends Controller
             ->exists();
 
         if (!$moduloPermitido) {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'No tienes permiso para mover esta constancia a ese módulo.');
+            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'No tienes permiso para mover esta constancia a ese modulo.');
         }
 
         $modulo = ConstanciaModulo::findOrFail($request->modulo_id);
@@ -205,6 +277,8 @@ class ConstanciaManejoController extends Controller
 
     public function destroy(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
+
         if ($constancia->estatus === 'ACTIVA') {
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'No se puede eliminar una constancia activa.');
         }
@@ -216,6 +290,7 @@ class ConstanciaManejoController extends Controller
 
     public function imprimir(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
         $constancia->load(['modulo', 'examen']);
         $qrBase64 = $constancia->qrDataUri();
         $qrUrl = $constancia->qrUrl();
@@ -223,8 +298,59 @@ class ConstanciaManejoController extends Controller
         return view('constancias_manejo.imprimir', compact('constancia', 'qrBase64', 'qrUrl'));
     }
 
+    public function imprimirLote(Request $request)
+    {
+        $ids = $this->idsFromRequest($request);
+        $constancias = $this->queryConstanciasDisponibles()
+            ->with(['modulo', 'examen'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn ($constancia) => array_search($constancia->id, $ids, true))
+            ->values();
+
+        abort_if($constancias->count() !== count($ids), 403, 'No tienes permiso para imprimir una o mas constancias del lote.');
+
+        return view('constancias_manejo.imprimir', [
+            'constancias' => $constancias,
+            'autoPrint' => true,
+        ]);
+    }
+
+    public function imprimirLoteFirmado(Request $request)
+    {
+        $ids = $this->idsFromRequest($request);
+        $constancias = ConstanciaManejo::with(['modulo', 'examen'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn ($constancia) => array_search($constancia->id, $ids, true))
+            ->values();
+
+        abort_if($constancias->count() !== count($ids), 404);
+
+        return view('constancias_manejo.imprimir', [
+            'constancias' => $constancias,
+            'autoPrint' => true,
+        ]);
+    }
+
+    private function idsFromRequest(Request $request): array
+    {
+        $ids = collect(explode(',', (string) $request->query('ids')))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        abort_if(count($ids) === 0, 404, 'No se encontraron constancias para imprimir.');
+        abort_if(count($ids) > 100, 422, 'Solo se pueden imprimir hasta 100 constancias por lote.');
+
+        return $ids;
+    }
+
     public function reimprimir(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
         $constancia->load(['modulo', 'examen']);
         $qrBase64 = $constancia->qrDataUri();
         $qrUrl = $constancia->qrUrl();
@@ -242,6 +368,8 @@ class ConstanciaManejoController extends Controller
 
     public function generarAcceso(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
+
         if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Solo se puede generar acceso a constancias inactivas.');
         }
@@ -257,6 +385,8 @@ class ConstanciaManejoController extends Controller
 
     public function capturarExamenImpreso(Request $request, ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
+
         if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Solo se puede capturar examen de constancias inactivas.');
         }
@@ -266,7 +396,7 @@ class ConstanciaManejoController extends Controller
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['required', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
-            'calificacion' => ['required', 'numeric', 'min:0', 'max:100'],
+            'calificacion' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'total_preguntas' => ['required', 'integer', 'min:1'],
             'aciertos' => ['required', 'integer', 'min:0'],
             'errores' => ['required', 'integer', 'min:0'],
@@ -277,9 +407,10 @@ class ConstanciaManejoController extends Controller
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Los aciertos y errores no coinciden con el total de preguntas.');
         }
 
-        $resultado = $request->calificacion >= 80 ? 'APROBADO' : 'REPROBADO';
+        $calificacion = round(((int) $request->aciertos / (int) $request->total_preguntas) * 100, 2);
+        $resultado = $calificacion >= 80 ? 'APROBADO' : 'REPROBADO';
 
-        DB::transaction(function () use ($request, $constancia, $resultado) {
+        DB::transaction(function () use ($request, $constancia, $resultado, $calificacion) {
             $constancia->update([
                 'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
                 'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
@@ -296,7 +427,7 @@ class ConstanciaManejoController extends Controller
                 ],
                 [
                     'modalidad' => 'IMPRESO',
-                    'calificacion' => $request->calificacion,
+                    'calificacion' => $calificacion,
                     'total_preguntas' => $request->total_preguntas,
                     'aciertos' => $request->aciertos,
                     'errores' => $request->errores,
@@ -313,10 +444,11 @@ class ConstanciaManejoController extends Controller
 
     public function activar(ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
         $constancia->load('examen');
 
         if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'La constancia no está inactiva.');
+            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'La constancia no esta inactiva.');
         }
 
         if (!$constancia->nombre_solicitante || !$constancia->tipo_licencia || !$constancia->tipo_examen) {
@@ -351,12 +483,14 @@ class ConstanciaManejoController extends Controller
 
     public function cancelar(Request $request, ConstanciaManejo $constancia)
     {
+        $this->authorizeConstancia($constancia);
+
         $request->validate([
             'observaciones' => ['nullable', 'string'],
         ]);
 
         if ($constancia->estatus === 'CANCELADA') {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'La constancia ya está cancelada.');
+            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'La constancia ya esta cancelada.');
         }
 
         $constancia->update([
@@ -378,7 +512,8 @@ class ConstanciaManejoController extends Controller
 
     public function pendientesActivar()
     {
-        $constancias = ConstanciaManejo::with(['modulo', 'examen'])
+        $constancias = $this->queryConstanciasDisponibles()
+            ->with(['modulo', 'examen'])
             ->where('estatus', 'IMPRESA_INACTIVA')
             ->whereHas('examen', function ($query) {
                 $query->where('resultado', 'APROBADO');
@@ -391,7 +526,8 @@ class ConstanciaManejoController extends Controller
 
     public function inactivasVencidas()
     {
-        $constancias = ConstanciaManejo::with(['modulo', 'examen'])
+        $constancias = $this->queryConstanciasDisponibles()
+            ->with(['modulo', 'examen'])
             ->where('estatus', 'IMPRESA_INACTIVA')
             ->whereNotNull('acceso_examen_expira')
             ->where('acceso_examen_expira', '<', Carbon::now('America/Mexico_City'))

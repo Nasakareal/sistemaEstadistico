@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class ConstanciaExamenPublicoController extends Controller
 {
+    private const TOTAL_PREGUNTAS = 20;
+
     public function iniciar($token)
     {
         $constancia = ConstanciaManejo::where('acceso_examen_token', $token)->firstOrFail();
@@ -36,6 +38,12 @@ class ConstanciaExamenPublicoController extends Controller
             ]);
         }
 
+        if (!$constancia->nombre_solicitante || !$constancia->tipo_licencia) {
+            return view('constancias_manejo.examen.bloqueado', [
+                'mensaje' => 'El perito examinador debe capturar el solicitante y tipo de licencia antes de iniciar el examen.',
+            ]);
+        }
+
         $preguntas = ConstanciaPregunta::with('respuestas')
             ->where('activo', true)
             ->where(function ($query) use ($constancia) {
@@ -43,8 +51,14 @@ class ConstanciaExamenPublicoController extends Controller
                     ->orWhere('tipo_licencia', 'GENERAL');
             })
             ->inRandomOrder()
-            ->limit(10)
+            ->limit(self::TOTAL_PREGUNTAS)
             ->get();
+
+        if ($preguntas->count() < self::TOTAL_PREGUNTAS) {
+            return view('constancias_manejo.examen.bloqueado', [
+                'mensaje' => 'No hay 20 preguntas activas para este tipo de licencia. Solicita que se capture completo el banco de preguntas.',
+            ]);
+        }
 
         return view('constancias_manejo.examen.iniciar', compact('constancia', 'preguntas', 'token'));
     }
@@ -153,6 +167,12 @@ class ConstanciaExamenPublicoController extends Controller
                 ]);
             }
 
+            $constancia->update([
+                'tipo_examen' => 'LINEA',
+                'acceso_examen_token' => $resultado === 'APROBADO' ? null : $constancia->acceso_examen_token,
+                'acceso_examen_expira' => $resultado === 'APROBADO' ? null : $constancia->acceso_examen_expira,
+            ]);
+
             return [
                 'examen' => $examen,
                 'resultado' => $resultado,
@@ -165,3 +185,5 @@ class ConstanciaExamenPublicoController extends Controller
         ]);
     }
 }
+
+

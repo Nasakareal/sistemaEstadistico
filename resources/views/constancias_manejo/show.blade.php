@@ -219,7 +219,7 @@
 
                         <div class="form-group">
                             <label>Total preguntas</label>
-                            <input type="number" name="total_preguntas" class="form-control" min="1" value="{{ old('total_preguntas', optional($constancia->examen)->total_preguntas ?? 10) }}" required>
+                            <input type="number" name="total_preguntas" class="form-control" min="1" value="{{ old('total_preguntas', optional($constancia->examen)->total_preguntas ?? 20) }}" required>
                         </div>
 
                         <div class="form-group">

@@ -84,6 +84,7 @@ Route::prefix('constancias-manejo')->group(function () {
     Route::get('/examen/{token}', [ConstanciaExamenPublicoController::class, 'iniciar'])->name('constancias_manejo.examen.iniciar');
     Route::post('/examen/{token}', [ConstanciaExamenPublicoController::class, 'guardar'])->name('constancias_manejo.examen.guardar');
     Route::get('/validar/{token}', [ConstanciaValidacionController::class, 'validar'])->name('constancias_manejo.validar');
+    Route::get('/imprimir-lote-firmado', [ConstanciaManejoController::class, 'imprimirLoteFirmado'])->middleware('signed')->name('constancias_manejo.imprimir_lote_firmado');
 });
 
 Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes'])->group(function () {
@@ -93,6 +94,7 @@ Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes
 
     Route::get('/pendientes-activar', [ConstanciaManejoController::class, 'pendientesActivar'])->name('constancias_manejo.pendientes_activar');
     Route::get('/inactivas-vencidas', [ConstanciaManejoController::class, 'inactivasVencidas'])->name('constancias_manejo.inactivas_vencidas');
+    Route::get('/imprimir-lote', [ConstanciaManejoController::class, 'imprimirLote'])->middleware('can:crear modulo examenes')->name('constancias_manejo.imprimir_lote');
 
     Route::get('/preguntas', [ConstanciaPreguntaController::class, 'index'])->name('constancias_manejo.preguntas.index');
     Route::get('/preguntas/create', [ConstanciaPreguntaController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.create');

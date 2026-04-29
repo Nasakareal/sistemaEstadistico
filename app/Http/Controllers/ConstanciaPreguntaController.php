@@ -156,14 +156,33 @@ class ConstanciaPreguntaController extends Controller
                     ->orWhere('tipo_licencia', 'GENERAL');
             })
             ->inRandomOrder()
-            ->limit(10)
+            ->limit(20)
             ->get();
+
+        $logoSrc = $this->imageDataUri(public_path('img/blanco.png')) ?? asset('img/blanco.png');
 
         return view('constancia_preguntas.imprimir', [
             'preguntas' => $preguntas,
             'tipoLicencia' => $tipoLicencia,
             'tipoLicenciaLabel' => self::TIPOS_LICENCIA[$tipoLicencia],
+            'logoSrc' => $logoSrc,
         ]);
+    }
+
+    private function imageDataUri(string $path): ?string
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            return null;
+        }
+
+        $mime = mime_content_type($path) ?: 'image/png';
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            return null;
+        }
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 
     private function validatedData(Request $request): array
@@ -210,3 +229,5 @@ class ConstanciaPreguntaController extends Controller
         ];
     }
 }
+
+

@@ -1,8 +1,15 @@
+@php
+    $constanciasPrint = isset($constancias) ? collect($constancias) : collect([$constancia]);
+    $firstConstancia = $constanciasPrint->first();
+    $title = $constanciasPrint->count() > 1
+        ? 'Lote de Constancias de Manejo'
+        : 'Constancia ' . optional($firstConstancia)->folio;
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Constancia {{ $constancia->folio }}</title>
+    <title>{{ $title }}</title>
     <style>
         @page {
             size: 216mm 279mm;
@@ -25,9 +32,15 @@
             position: relative;
             width: 204mm;
             min-height: 267mm;
-            margin: 0 auto;
+            margin: 0 auto 8mm;
             padding: 8mm 10mm 8mm 10mm;
             background: #fff;
+            page-break-after: always;
+        }
+
+        .sheet:last-of-type {
+            page-break-after: avoid;
+            margin-bottom: 0;
         }
 
         .logo {
@@ -205,6 +218,7 @@
             right: 12px;
             display: flex;
             gap: 8px;
+            z-index: 20;
         }
 
         .print-actions button {
@@ -227,6 +241,10 @@
             .sheet {
                 margin: 0 auto;
                 box-shadow: none;
+                page-break-after: always;
+            }
+
+            .sheet:last-of-type {
                 page-break-after: avoid;
             }
 
@@ -237,116 +255,127 @@
     </style>
 </head>
 <body>
-@php
-    $tipo = $constancia->tipo_licencia;
-    $resultado = optional($constancia->examen)->resultado;
-    $esApto = $resultado === 'APROBADO';
-    $fechaExpedicion = now('America/Mexico_City')->translatedFormat('d \d\e F \d\e Y');
-@endphp
-
 <div class="print-actions">
     <button type="button" onclick="window.print()">Imprimir</button>
 </div>
 
-<main class="sheet">
-    <img class="logo" src="{{ asset('img/michoacan_vertical.png') }}" alt="Gobierno de Michoacan">
+@foreach($constanciasPrint as $constancia)
+    @php
+        $tipo = $constancia->tipo_licencia;
+        $resultado = optional($constancia->examen)->resultado;
+        $esApto = $resultado === 'APROBADO';
+        $qr = isset($qrBase64) && $constanciasPrint->count() === 1 ? $qrBase64 : $constancia->qrDataUri();
+        $url = isset($qrUrl) && $constanciasPrint->count() === 1 ? $qrUrl : $constancia->qrUrl();
+    @endphp
 
-    <section class="title-row">
-        <aside class="side-label">
-            <span>El presente certificado tiene vigencia de 10 dias habiles a partir del dia siguiente de la fecha de expedicion, y es valido en las Receptorias de rentas del Estado.</span>
-        </aside>
+    <main class="sheet">
+        <img class="logo" src="{{ asset('img/michoacan_vertical.png') }}" alt="Gobierno de Michoacan">
 
-        <div class="document">
-            <div class="heading">Constancia de Acreditacion y Conocimientos Generales</div>
-            <div class="black-rule"></div>
+        <section class="title-row">
+            <aside class="side-label">
+                <span>El presente certificado tiene vigencia de 10 dias habiles a partir del dia siguiente de la fecha de expedicion, y es valido en las Receptorias de rentas del Estado.</span>
+            </aside>
 
-            <div class="foundation">
-                <div class="label">FUNDAMENTO:</div>
-                <div>
-                    De conformidad con lo señalado en los numerales 130, 139, y 122 de la Ley de Movilidad y Seguridad
-                    Vial del Estado de Michoacan de Ocampo, y articulos 386, 388, 389 y 390, del Reglamento de la Ley
-                    de Movilidad y Seguridad Vial del Estado de Michoacan de Ocampo.
-                </div>
-            </div>
+            <div class="document">
+                <div class="heading">Constancia de Acreditacion y Conocimientos Generales</div>
+                <div class="black-rule"></div>
 
-            <div class="line-row">
-                <div>Que el (la) C.</div>
-                <div class="line">{{ $constancia->nombre_solicitante }}</div>
-            </div>
-
-            <div class="line-row">
-                <div>Con domicilio en:</div>
-                <div class="line"></div>
-            </div>
-
-            <div class="option-row">
-                <div class="option-label">Solicito licencia de:</div>
-                <div class="options">
-                    Automovilista [<span class="box">{{ $tipo === 'AUTOMOVILISTA' ? 'X' : '' }}</span>]
-                    Chofer [<span class="box">{{ $tipo === 'CHOFER' ? 'X' : '' }}</span>]
-                    Motociclista [<span class="box">{{ $tipo === 'MOTOCICLISTA' ? 'X' : '' }}</span>]
-                    Servicio Publico [<span class="box">{{ $tipo === 'SERVICIO_PUBLICO' ? 'X' : '' }}</span>]
-                </div>
-            </div>
-
-            <div class="option-row">
-                <div class="option-label">Con vigencia de:</div>
-                <div class="options">
-                    2 años [<span class="box"></span>]
-                    3 años [<span class="box"></span>]
-                    4 años [<span class="box"></span>]
-                    5 años [<span class="box"></span>]
-                    PERMANENTE [<span class="box"></span>]
-                </div>
-            </div>
-
-            <div class="option-row">
-                <div class="option-label">Solicito permiso de conducir:</div>
-                <div class="options">
-                    Automovilista [<span class="box">{{ $tipo === 'PERMISO' ? 'X' : '' }}</span>]
-                </div>
-            </div>
-
-            <div class="option-row">
-                <div>Con vigencia de:</div>
-                <div class="options">
-                    1 año [<span class="box"></span>]
-                </div>
-            </div>
-
-            <div class="option-row">
-                <div class="option-label">El mismo se encuentra:</div>
-                <div class="options">
-                    APTO [<span class="box">{{ $esApto ? 'X' : '' }}</span>]
-                    NO APTO [<span class="box">{{ $resultado && !$esApto ? 'X' : '' }}</span>]
-                </div>
-            </div>
-
-            <div class="permit-note">
-                Para obtener el Permiso para Conducir <strong>"TIPO A"</strong> al Ciudadano (a) que tenga cumplidos 16 años de edad.
-            </div>
-
-            <div class="date-line">
-                <div>Lugar y fecha de expedicion:</div>
-                <div class="line">Morelia, Michoacan a {{ $fechaExpedicion }}</div>
-            </div>
-
-            <div class="signature-grid">
-                <div class="signature">
-                    <div>AUTORIDAD QUE CERTIFICA</div>
-                    <div class="signature-line"></div>
-                    <div>Nombre y Cargo</div>
+                <div class="foundation">
+                    <div class="label">FUNDAMENTO:</div>
+                    <div>
+                        De conformidad con lo senalado en los numerales 130, 139, y 122 de la Ley de Movilidad y Seguridad
+                        Vial del Estado de Michoacan de Ocampo, y articulos 386, 388, 389 y 390, del Reglamento de la Ley
+                        de Movilidad y Seguridad Vial del Estado de Michoacan de Ocampo.
+                    </div>
                 </div>
 
-                <div class="qr-box">
-                    <img src="{{ $qrBase64 }}" alt="QR de activacion">
-                    <div class="qr-link">{{ $qrUrl }}</div>
+                <div class="line-row">
+                    <div>Que el (la) C.</div>
+                    <div class="line">{{ $constancia->nombre_solicitante }}</div>
+                </div>
+
+                <div class="line-row">
+                    <div>Con domicilio en:</div>
+                    <div class="line"></div>
+                </div>
+
+                <div class="option-row">
+                    <div class="option-label">Solicito licencia de:</div>
+                    <div class="options">
+                        Automovilista [<span class="box">{{ $tipo === 'AUTOMOVILISTA' ? 'X' : '' }}</span>]
+                        Chofer [<span class="box">{{ $tipo === 'CHOFER' ? 'X' : '' }}</span>]
+                        Motociclista [<span class="box">{{ $tipo === 'MOTOCICLISTA' ? 'X' : '' }}</span>]
+                        Servicio Publico [<span class="box">{{ $tipo === 'SERVICIO_PUBLICO' ? 'X' : '' }}</span>]
+                    </div>
+                </div>
+
+                <div class="option-row">
+                    <div class="option-label">Con vigencia de:</div>
+                    <div class="options">
+                        2 anios [<span class="box"></span>]
+                        3 anios [<span class="box"></span>]
+                        4 anios [<span class="box"></span>]
+                        5 anios [<span class="box"></span>]
+                        PERMANENTE [<span class="box"></span>]
+                    </div>
+                </div>
+
+                <div class="option-row">
+                    <div class="option-label">Solicito permiso de conducir:</div>
+                    <div class="options">
+                        Automovilista [<span class="box">{{ $tipo === 'PERMISO' ? 'X' : '' }}</span>]
+                    </div>
+                </div>
+
+                <div class="option-row">
+                    <div>Con vigencia de:</div>
+                    <div class="options">
+                        1 anio [<span class="box"></span>]
+                    </div>
+                </div>
+
+                <div class="option-row">
+                    <div class="option-label">El mismo se encuentra:</div>
+                    <div class="options">
+                        APTO [<span class="box">{{ $esApto ? 'X' : '' }}</span>]
+                        NO APTO [<span class="box">{{ $resultado && !$esApto ? 'X' : '' }}</span>]
+                    </div>
+                </div>
+
+                <div class="permit-note">
+                    Para obtener el Permiso para Conducir <strong>"TIPO A"</strong> al Ciudadano (a) que tenga cumplidos 16 anios de edad.
+                </div>
+
+                <div class="date-line">
+                    <div>Lugar y fecha de expedicion:</div>
+                    <div class="line"></div>
+                </div>
+
+                <div class="signature-grid">
+                    <div class="signature">
+                        <div>AUTORIDAD QUE CERTIFICA</div>
+                        <div class="signature-line"></div>
+                        <div>Nombre y Cargo</div>
+                    </div>
+
+                    <div class="qr-box">
+                        <img src="{{ $qr }}" alt="QR de activacion">
+                        <div class="qr-link">{{ $url }}</div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <div class="folio">{{ $constancia->folio }}</div>
-</main>
+        <div class="folio">{{ $constancia->folio }}</div>
+    </main>
+@endforeach
+
+@if(!empty($autoPrint))
+<script>
+    window.addEventListener('load', function () {
+        window.setTimeout(function () { window.print(); }, 250);
+    });
+</script>
+@endif
 </body>
 </html>

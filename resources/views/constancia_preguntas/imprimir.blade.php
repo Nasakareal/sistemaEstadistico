@@ -6,18 +6,23 @@
     <style>
         @page {
             size: letter;
-            margin: 14mm 16mm;
+            margin: 12mm 15mm 14mm;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             color: #000;
             margin: 0;
             font-size: 11pt;
+            line-height: 1.3;
         }
 
         .actions {
-            margin-bottom: 15px;
+            margin-bottom: 14px;
         }
 
         button {
@@ -30,72 +35,68 @@
             font-size: 14px;
         }
 
+        .sheet {
+            width: 100%;
+        }
+
         .header {
             position: relative;
-            min-height: 115px;
-            margin-bottom: 10px;
+            min-height: 96px;
+            margin-bottom: 8px;
         }
 
         .logo {
             position: absolute;
             top: 0;
-            left: 0;
-            width: 105px;
+            left: 8mm;
+            width: 76px;
+            height: 76px;
+            object-fit: contain;
         }
 
         .title {
             text-align: center;
-            font-weight: bold;
+            font-weight: 700;
             font-size: 12pt;
-            padding-top: 62px;
+            padding-top: 54px;
             text-transform: uppercase;
         }
 
         .instructions {
-            margin-top: 14px;
-            margin-bottom: 18px;
+            margin: 6px 0 24px;
             text-align: justify;
+            font-size: 11pt;
             line-height: 1.45;
-        }
-
-        .datos {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 18px;
-            font-size: 10.5pt;
-        }
-
-        .datos td {
-            padding: 6px 4px;
-            vertical-align: bottom;
-        }
-
-        .linea {
-            border-bottom: 1px solid #000;
-            height: 18px;
         }
 
         .question {
             break-inside: avoid;
             page-break-inside: avoid;
-            margin-bottom: 12px;
-            line-height: 1.35;
+            margin-bottom: 24px;
         }
 
         .question-title {
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .answers {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            column-gap: 18px;
+            row-gap: 7px;
+            padding-left: 48px;
         }
 
         .answer {
-            margin-left: 18px;
-            margin-bottom: 3px;
+            min-width: 0;
+            white-space: normal;
         }
 
         .empty {
             margin-top: 30px;
             text-align: center;
-            font-weight: bold;
+            font-weight: 700;
         }
 
         @media print {
@@ -110,48 +111,40 @@
         <button type="button" onclick="window.print()">Imprimir</button>
     </div>
 
-    <div class="header">
-        <img src="{{ public_path('guardiacivil.png') }}" class="logo">
-        <div class="title">
-            EXAMEN TEORICO PARA OBTENER LICENCIA DE CONDUCIR TIPO {{ strtoupper($tipoLicenciaLabel) }}
-        </div>
-    </div>
-
-    <div class="instructions">
-        <strong>INSTRUCCIONES:</strong> conteste lo que se indica, en las preguntas de opción múltiple no deberá contestar más de dos opciones o será anulada, para aprobar deberá tener un mínimo de 20 aciertos.
-    </div>
-
-    <table class="datos">
-        <tr>
-            <td width="12%"><strong>NOMBRE:</strong></td>
-            <td width="48%" class="linea"></td>
-            <td width="10%"><strong>FECHA:</strong></td>
-            <td width="30%" class="linea"></td>
-        </tr>
-        <tr>
-            <td><strong>FOLIO:</strong></td>
-            <td class="linea"></td>
-            <td><strong>CALIF.:</strong></td>
-            <td class="linea"></td>
-        </tr>
-    </table>
-
-    @forelse($preguntas as $index => $pregunta)
-        <div class="question">
-            <div class="question-title">
-                {{ $index + 1 }}.- {{ $pregunta->pregunta }}
+    <main class="sheet">
+        <div class="header">
+            @if(!empty($logoSrc))
+                <img src="{{ $logoSrc }}" class="logo" alt="Guardia Civil">
+            @endif
+            <div class="title">
+                EXAMEN TEORICO PARA OBTENER LICENCIA DE CONDUCIR TIPO {{ strtoupper($tipoLicenciaLabel) }}
             </div>
+        </div>
 
-            @foreach($pregunta->respuestas as $respuestaIndex => $respuesta)
-                <div class="answer">
-                    {{ chr(65 + $respuestaIndex) }}) {{ $respuesta->respuesta }}
+        <div class="instructions">
+            <strong>INSTRUCCIONES:</strong> conteste lo que se indica, en las preguntas de opción múltiple no deberá contestar más de dos opciones o será anulada, Para aprobar deberá obtener mínimo 16 aciertos (80%).
+        </div>
+
+        @forelse($preguntas as $index => $pregunta)
+            <section class="question">
+                <div class="question-title">
+                    {{ $index + 1 }}.- {{ $pregunta->pregunta }}
                 </div>
-            @endforeach
-        </div>
-    @empty
-        <div class="empty">
-            No hay preguntas activas para este tipo de licencia.
-        </div>
-    @endforelse
+
+                <div class="answers">
+                    @foreach($pregunta->respuestas as $respuestaIndex => $respuesta)
+                        <div class="answer">
+                            {{ chr(65 + $respuestaIndex) }}) {{ $respuesta->respuesta }}
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @empty
+            <div class="empty">
+                No hay preguntas activas para este tipo de licencia.
+            </div>
+        @endforelse
+    </main>
 </body>
 </html>
+

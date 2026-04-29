@@ -540,14 +540,6 @@ return [
                 ],
 
                 [
-                    'text'    => 'Constancias (Sistema Anterior)',
-                    'icon'    => 'fa-solid fa-file-pdf',
-                    'classes' => 'text-white',
-                    'url'     => 'modulo-constancias-examenes',
-                    'can'     => 'menu-modulo-examenes',
-                ],
-
-                [
                     'text'    => 'Constancias de Manejo',
                     'icon'    => 'fa-solid fa-id-card-clip',
                     'classes' => 'text-white',

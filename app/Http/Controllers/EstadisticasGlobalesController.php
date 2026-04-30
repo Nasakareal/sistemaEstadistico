@@ -181,7 +181,21 @@ class EstadisticasGlobalesController extends Controller
     public function seriesCondiciones(Request $request) { return $this->distributionHechos($request, 'condiciones'); }
     public function seriesControlTransito(Request $request) { return $this->distributionHechos($request, 'control_transito'); }
     public function seriesMunicipio(Request $request) { return $this->distributionHechos($request, 'municipio'); }
-    public function seriesDelegacion(Request $request) { return $this->distributionHechos($request, 'unidad'); }
+    public function seriesDelegacion(Request $request)
+    {
+        return $this->cachedJson($request, 'seriesDelegacion', function () {
+            $rows = DB::table('delegaciones')
+                ->where('activa', 1)
+                ->selectRaw("id as value, CONCAT(clave, ' - ', nombre) as label, 0 as total")
+                ->orderBy('clave')
+                ->get();
+
+            return [
+                'field' => 'delegaciones.id',
+                'series' => $rows,
+            ];
+        });
+    }
 
     public function seriesVehiculosTipo(Request $request)
     {
@@ -427,7 +441,11 @@ class EstadisticasGlobalesController extends Controller
 
     private function applyHechosFilters($q, Request $request)
     {
-        $this->applyScopeByUser($q);
+        $delegacionId = trim((string)$request->query('delegacion_id', ''));
+
+        if ($delegacionId !== '') {
+            $q->where('hechos.delegacion_id', $delegacionId);
+        }
 
         $desde = trim((string)$request->query('desde', ''));
         $hasta = trim((string)$request->query('hasta', ''));

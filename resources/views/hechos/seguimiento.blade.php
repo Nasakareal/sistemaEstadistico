@@ -377,7 +377,7 @@
         $(document).on('click', '.btn-whatsapp', function () {
             let id = $(this).data('id');
 
-            fetch(`/hechos/${id}/compartir-nativo`)
+            fetch(`/hechos/${id}/compartir`)
                 .then(res => res.json())
                 .then(data => {
                     if (!data.texto) {

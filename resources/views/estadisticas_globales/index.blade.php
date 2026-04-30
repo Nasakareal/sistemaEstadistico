@@ -332,7 +332,7 @@
         if (tipo_hecho) params.set('tipo_hecho', tipo_hecho);
         if (situacion) params.set('situacion', situacion);
         if (veh_tipo) params.set('veh_tipo', veh_tipo);
-        if (delegacion) params.set('unidad', delegacion);
+        if (delegacion) params.set('delegacion_id', delegacion);
 
         if (con_lesionados !== '') params.set('con_lesionados', con_lesionados);
         if (con_fallecidos !== '') params.set('con_fallecidos', con_fallecidos);
@@ -503,7 +503,7 @@
         s.innerHTML =
             `<option value="">(Todos)</option>` +
             (rows || []).map(r =>
-                `<option value="${escapeHtml(r.label)}">${escapeHtml(r.label)} (${r.total})</option>`
+                `<option value="${escapeHtml(r.value ?? r.label)}">${escapeHtml(r.label)}${Number(r.total || 0) > 0 ? ` (${r.total})` : ''}</option>`
             ).join('');
 
         if (keep && [...s.options].some(o => o.value === keep)) s.value = keep;

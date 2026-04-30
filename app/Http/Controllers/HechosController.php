@@ -884,7 +884,7 @@ class HechosController extends Controller
             ],
         ];
 
-        $query = Hechos::query();
+        $query = Hechos::query()->with(['creator']);
 
         if ($periodo === 'SEMANA') {
             $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
@@ -903,6 +903,17 @@ class HechosController extends Controller
             ->orderByDesc('hora')
             ->paginate(20)
             ->withQueryString();
+
+        $hechos->getCollection()->transform(function ($hecho) {
+            $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+
+            $hecho->mostrar_captura = $unidadReal === 2;
+            $hecho->estado_captura = $unidadReal === 2
+                ? ($hecho->captura_completa ? 'COMPLETO' : 'INCOMPLETO')
+                : null;
+
+            return $hecho;
+        });
 
         return view('hechos.seguimiento', compact(
             'conteos',

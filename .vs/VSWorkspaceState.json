@@ -2,12 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\estadisticas_globales"
+    "\\app\\Services",
+    "\\app\\Services\\WhatsApp",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\EstadisticasGlobalesController.php",
+  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

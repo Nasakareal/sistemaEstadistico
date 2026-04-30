@@ -441,6 +441,8 @@ class EstadisticasGlobalesController extends Controller
 
     private function applyHechosFilters($q, Request $request)
     {
+        $this->applyScopeByUser($q);
+
         $delegacionId = trim((string)$request->query('delegacion_id', ''));
 
         if ($delegacionId !== '') {
@@ -622,7 +624,17 @@ class EstadisticasGlobalesController extends Controller
             return response()->json($fn());
         }
 
-        $hash = sha1($request->fullUrl());
+        $user = auth()->user();
+        $scope = $user
+            ? implode(':', [
+                (int)$user->id,
+                (int)($user->unidad_id ?? 0),
+                (int)($user->delegacion_id ?? 0),
+                $user->roles->pluck('name')->sort()->implode('|'),
+            ])
+            : 'guest';
+
+        $hash = sha1($scope . '|' . $request->fullUrl());
         $cacheKey = "estadisticas_globales:$key:$hash";
 
         $data = Cache::remember($cacheKey, $ttl, function () use ($fn) {
@@ -841,20 +853,43 @@ class EstadisticasGlobalesController extends Controller
             return;
         }
 
-        if ($user->unidades()->where('unidades.id', 3)->exists()) {
+        $unidadId = (int)($user->unidad_id ?? 0);
+
+        if ($unidadId === 3) {
             return;
         }
 
-        if ($user->unidades()->where('unidades.id', 1)->exists()) {
-            $q->where('hechos.unidad_org_id', 1);
+        if ($unidadId === 1) {
+            $this->applyUnidadScope($q, 1);
             return;
         }
 
-        if ($user->unidades()->where('unidades.id', 2)->exists()) {
-            $q->where('hechos.unidad_org_id', 2);
+        if ($unidadId === 2) {
+            $this->applyUnidadScope($q, 2);
             return;
         }
 
-        abort(403);
+        if ($unidadId > 0) {
+            $this->applyUnidadScope($q, $unidadId);
+            return;
+        }
+
+        $q->whereRaw('1 = 0');
+    }
+
+    private function applyUnidadScope($q, int $unidadId): void
+    {
+        $q->where(function ($scope) use ($unidadId) {
+            $scope->where('hechos.unidad_org_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('hechos.unidad_org_id')
+                        ->whereExists(function ($sub) use ($unidadId) {
+                            $sub->selectRaw('1')
+                                ->from('users')
+                                ->whereColumn('users.id', 'hechos.created_by')
+                                ->where('users.unidad_id', $unidadId);
+                        });
+                });
+        });
     }
 }

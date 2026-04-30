@@ -17,6 +17,10 @@ class LiberacionController extends Controller
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->first();
 
+        if (Auth::guard('grua')->check()) {
+            return redirect()->route('grua.corralon.show', $vehiculo->id);
+        }
+
         if (auth()->check()) {
             if (auth()->user()->area === 'Grúas') {
                 return redirect()->route('liberacion.grua.ver', $vehiculo->id);
@@ -36,6 +40,10 @@ class LiberacionController extends Controller
     {
         $liberacion = Liberacion::where('token_unico', $token)->firstOrFail();
         $vehiculo = $liberacion->vehiculo;
+
+        if (Auth::guard('grua')->check()) {
+            return redirect()->route('grua.corralon.show', $vehiculo->id);
+        }
 
         if (auth()->check()) {
             if (auth()->user()->area === 'Grúas') {

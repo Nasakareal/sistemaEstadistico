@@ -40,6 +40,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'grua' => [
+            'driver' => 'session',
+            'provider' => 'grua_usuarios',
+        ],
     ],
 
     /*
@@ -63,6 +68,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => App\Models\User::class,
+        ],
+
+        'grua_usuarios' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\GruaUsuario::class,
         ],
 
         // 'users' => [

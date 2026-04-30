@@ -316,6 +316,20 @@ return [
                     'can'     => 'ver gruas',
                 ],
                 [
+                    'text'    => 'Vehículos en Corralón',
+                    'icon'    => 'fa-solid fa-warehouse',
+                    'classes' => 'text-white',
+                    'route'   => 'liberaciones_corralon.index',
+                    'can'     => 'ver gruas',
+                ],
+                [
+                    'text'    => 'Usuarios de Grúa',
+                    'icon'    => 'fa-solid fa-user-lock',
+                    'classes' => 'text-white',
+                    'route'   => 'grua_usuarios.index',
+                    'can'     => 'crear gruas',
+                ],
+                [
                     'text'    => 'Tramos',
                     'icon'    => 'fa-solid fa-road',
                     'classes' => 'text-white',

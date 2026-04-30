@@ -19,10 +19,14 @@ class RedirectIfAuthenticated
      */
     public function handle(Request $request, Closure $next, ...$guards)
     {
-        $guards = empty($guards) ? [null] : $guards;
+        $guards = empty($guards) ? [null, 'grua'] : $guards;
 
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
+                if ($guard === 'grua') {
+                    return redirect()->route('grua.corralon.index');
+                }
+
                 return redirect(RouteServiceProvider::HOME);
             }
         }

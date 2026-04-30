@@ -108,6 +108,12 @@ Route::prefix('liberaciones-corralon')->middleware(['auth','can:ver gruas'])->gr
     Route::put('/{liberacionCorralon}', [LiberacionCorralonController::class, 'update'])->name('liberaciones_corralon.update');
 });
 
+Route::prefix('grua/corralon')->middleware('auth:grua')->group(function () {
+    Route::get('/', [LiberacionCorralonController::class, 'index'])->name('grua.corralon.index');
+    Route::get('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'show'])->name('grua.corralon.show');
+    Route::post('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'store'])->name('grua.corralon.store');
+});
+
 Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes'])->group(function () {
     Route::get('/', [ConstanciaManejoController::class, 'index'])->name('constancias_manejo.index');
     Route::get('/create', [ConstanciaManejoController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.create');

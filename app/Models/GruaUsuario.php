@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
-class GruaUsuario extends Model
+class GruaUsuario extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, Notifiable;
 
     protected $table = 'grua_usuarios';
 
@@ -23,6 +24,10 @@ class GruaUsuario extends Model
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    protected $casts = [
+        'activo' => 'boolean',
     ];
 
     public function grua()

@@ -1,4 +1,4 @@
-a@extends('adminlte::page')
+@extends('adminlte::page')
 
 @section('title', 'Editar Examen Diario')
 
@@ -78,10 +78,12 @@ a@extends('adminlte::page')
                             <div class="form-group">
                                 <label>{{ $label }}</label>
                                 <input type="number"
+                                       id="{{ $campo }}"
                                        name="{{ $campo }}"
                                        class="form-control @error($campo) is-invalid @enderror"
                                        value="{{ old($campo, $registro->$campo) }}"
-                                       min="0">
+                                       min="0"
+                                       @if($campo === 'total') readonly @endif>
                                 @error($campo)
                                     <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                 @enderror
@@ -151,6 +153,26 @@ a@extends('adminlte::page')
 @stop
 
 @section('js')
+<script>
+function actualizarTotalExamenes() {
+    const campos = ['servicio_publico', 'automovilista', 'chofer', 'motociclista', 'permiso'];
+    const total = campos.reduce((suma, campo) => {
+        const valor = parseInt(document.getElementById(campo)?.value || '0', 10);
+        return suma + (Number.isNaN(valor) ? 0 : valor);
+    }, 0);
+    const totalInput = document.getElementById('total');
+    if (totalInput) {
+        totalInput.value = total;
+    }
+}
+
+['servicio_publico', 'automovilista', 'chofer', 'motociclista', 'permiso'].forEach((campo) => {
+    document.getElementById(campo)?.addEventListener('input', actualizarTotalExamenes);
+});
+
+actualizarTotalExamenes();
+</script>
+
 @if ($errors->any())
 <script>
 Swal.fire({

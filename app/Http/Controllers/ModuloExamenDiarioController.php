@@ -86,21 +86,21 @@ class ModuloExamenDiarioController extends Controller
         }
     }
 
-    public function show(ModuloExamenDiario $modulo_examen_diario)
+    public function show(ModuloExamenDiario $registro)
     {
         return view('admin.settings.modulo_examenes_diarios.show', [
-            'registro' => $modulo_examen_diario,
+            'registro' => $registro,
         ]);
     }
 
-    public function edit(ModuloExamenDiario $modulo_examen_diario)
+    public function edit(ModuloExamenDiario $registro)
     {
         return view('admin.settings.modulo_examenes_diarios.edit', [
-            'registro' => $modulo_examen_diario,
+            'registro' => $registro,
         ]);
     }
 
-    public function update(Request $request, ModuloExamenDiario $modulo_examen_diario)
+    public function update(Request $request, ModuloExamenDiario $registro)
     {
         $validated = $request->validate([
             'fecha'            => 'required|date',
@@ -142,12 +142,12 @@ class ModuloExamenDiarioController extends Controller
                 $validated['permiso'];
 
             if (!isset($validated['informado_por']) || trim((string)$validated['informado_por']) === '') {
-                $validated['informado_por'] = $modulo_examen_diario->informado_por ?? optional(Auth::user())->name;
+                $validated['informado_por'] = $registro->informado_por ?? optional(Auth::user())->name;
             }
 
-            $modulo_examen_diario->update($validated);
+            $registro->update($validated);
 
-            Log::info("Módulo Examen Diario actualizado: ID {$modulo_examen_diario->id}");
+            Log::info("Módulo Examen Diario actualizado: ID {$registro->id}");
 
             return redirect()
                 ->route('modulo_examenes_diarios.index')
@@ -162,11 +162,11 @@ class ModuloExamenDiarioController extends Controller
         }
     }
 
-    public function destroy(ModuloExamenDiario $modulo_examen_diario)
+    public function destroy(ModuloExamenDiario $registro)
     {
         try {
-            $id = $modulo_examen_diario->id;
-            $modulo_examen_diario->delete();
+            $id = $registro->id;
+            $registro->delete();
 
             Log::info("Módulo Examen Diario eliminado: ID {$id}");
 

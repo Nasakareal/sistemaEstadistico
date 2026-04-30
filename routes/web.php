@@ -78,6 +78,9 @@ use App\Http\Controllers\ConstanciaExamenPublicoController;
 use App\Http\Controllers\ConstanciaValidacionController;
 use App\Http\Controllers\ConstanciaPreguntaController;
 
+use App\Http\Controllers\GruaUsuarioController;
+use App\Http\Controllers\LiberacionCorralonController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::prefix('constancias-manejo')->group(function () {
@@ -85,6 +88,24 @@ Route::prefix('constancias-manejo')->group(function () {
     Route::post('/examen/{token}', [ConstanciaExamenPublicoController::class, 'guardar'])->name('constancias_manejo.examen.guardar');
     Route::get('/validar/{token}', [ConstanciaValidacionController::class, 'validar'])->name('constancias_manejo.validar');
     Route::get('/imprimir-lote-firmado', [ConstanciaManejoController::class, 'imprimirLoteFirmado'])->middleware('signed')->name('constancias_manejo.imprimir_lote_firmado');
+});
+
+Route::prefix('grua-usuarios')->middleware(['auth','can:ver gruas'])->group(function () {
+    Route::get('/', [GruaUsuarioController::class, 'index'])->name('grua_usuarios.index');
+    Route::get('/create', [GruaUsuarioController::class, 'create'])->middleware('can:crear gruas')->name('grua_usuarios.create');
+    Route::post('/', [GruaUsuarioController::class, 'store'])->middleware('can:crear gruas')->name('grua_usuarios.store');
+    Route::get('/{gruaUsuario}/edit', [GruaUsuarioController::class, 'edit'])->middleware('can:editar gruas')->name('grua_usuarios.edit');
+    Route::put('/{gruaUsuario}', [GruaUsuarioController::class, 'update'])->middleware('can:editar gruas')->name('grua_usuarios.update');
+    Route::delete('/{gruaUsuario}', [GruaUsuarioController::class, 'destroy'])->middleware('can:eliminar gruas')->name('grua_usuarios.destroy');
+});
+
+Route::prefix('liberaciones-corralon')->middleware(['auth','can:ver gruas'])->group(function () {
+    Route::get('/', [LiberacionCorralonController::class, 'index'])->name('liberaciones_corralon.index');
+    Route::get('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'show'])->name('liberaciones_corralon.show');
+    Route::get('/vehiculo/{vehiculo}/create', [LiberacionCorralonController::class, 'create'])->name('liberaciones_corralon.create');
+    Route::post('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'store'])->name('liberaciones_corralon.store');
+    Route::get('/{liberacionCorralon}/edit', [LiberacionCorralonController::class, 'edit'])->name('liberaciones_corralon.edit');
+    Route::put('/{liberacionCorralon}', [LiberacionCorralonController::class, 'update'])->name('liberaciones_corralon.update');
 });
 
 Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes'])->group(function () {

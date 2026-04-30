@@ -133,6 +133,8 @@ class RegionalSheetService
 
     protected function obtenerResumenPorSubcategoria(string $fecha, array $idsDelegaciones, int $categoriaId): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $registros = DB::table('actividades as a')
             ->join('actividad_subcategorias as s', 'a.actividad_subcategoria_id', '=', 's.id')
             ->select([
@@ -142,7 +144,7 @@ class RegionalSheetService
                 'a.kilometro',
                 'a.personas_alcanzadas',
             ])
-            ->whereDate('a.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", [$inicio, $fin])
             ->where('a.unidad_org_id', 2)
             ->where('a.actividad_categoria_id', $categoriaId)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
@@ -410,13 +412,15 @@ class RegionalSheetService
     }
     protected function obtenerResumenSiniestros(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+        
         $hechos = DB::table('hechos as h')
             ->select([
                 'h.id',
                 'h.unidad',
                 'h.delegacion_id',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -1312,6 +1316,8 @@ class RegionalSheetService
 
     protected function obtenerResumenControlVehicular(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $datos = [];
 
         for ($i = 1; $i <= 13; $i++) {
@@ -1330,7 +1336,7 @@ class RegionalSheetService
                 'h.oficio_mp',
                 'h.vehiculos_mp',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -1357,7 +1363,7 @@ class RegionalSheetService
                 'pv.calidad',
                 'pv.con_reporte_robo',
             ])
-            ->whereDate('p.fecha_puesta', $fecha)
+            ->whereRaw("TIMESTAMP(p.fecha_puesta, p.hora_puesta) >= ? AND TIMESTAMP(p.fecha_puesta, p.hora_puesta) < ?", [$inicio, $fin])
             ->where('p.unidad_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('p.delegacion_id', $idsDelegaciones);
@@ -1561,6 +1567,8 @@ class RegionalSheetService
 
     protected function obtenerResumenControlAseguramientos(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $datos = [
             'personas' => [],
             'armas' => [],
@@ -1581,7 +1589,7 @@ class RegionalSheetService
                 'h.personas_mp',
                 'h.checaron_antecedentes',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -1608,7 +1616,7 @@ class RegionalSheetService
                 'pp.delito_o_motivo',
                 'pp.calidad',
             ])
-            ->whereDate('p.fecha_puesta', $fecha)
+            ->whereRaw("TIMESTAMP(p.fecha_puesta, p.hora_puesta) >= ? AND TIMESTAMP(p.fecha_puesta, p.hora_puesta) < ?", [$inicio, $fin])
             ->where('p.unidad_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('p.delegacion_id', $idsDelegaciones);
@@ -1656,7 +1664,7 @@ class RegionalSheetService
                 'po.cantidad',
                 'po.unidad_medida',
             ])
-            ->whereDate('p.fecha_puesta', $fecha)
+            ->whereRaw("TIMESTAMP(p.fecha_puesta, p.hora_puesta) >= ? AND TIMESTAMP(p.fecha_puesta, p.hora_puesta) < ?", [$inicio, $fin])
             ->where('p.unidad_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('p.delegacion_id', $idsDelegaciones);
@@ -1815,7 +1823,7 @@ class RegionalSheetService
                 'po.cantidad',
                 'po.unidad_medida',
             ])
-            ->whereDate('p.fecha_puesta', $fecha)
+            ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", [$inicio, $fin])
             ->where('p.unidad_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('p.delegacion_id', $idsDelegaciones);
@@ -2043,6 +2051,8 @@ class RegionalSheetService
 
     protected function obtenerResumenHechosTransito(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $datos = [
             'RESUELTOS' => 0,
             'PENDIENTES' => 0,
@@ -2051,7 +2061,7 @@ class RegionalSheetService
 
         $hechos = DB::table('hechos as h')
             ->select('h.situacion')
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2084,7 +2094,7 @@ class RegionalSheetService
                 'c.sexo',
                 'c.edad',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2239,6 +2249,8 @@ class RegionalSheetService
 
     protected function obtenerResumenTiposHechosTransito(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $conceptos = [
             'EXPLOSIÓN',
             'INCENDIO',
@@ -2276,7 +2288,7 @@ class RegionalSheetService
                 'h.id',
                 'h.tipo_hecho',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2544,7 +2556,7 @@ class RegionalSheetService
                 'h.tipo_hecho',
                 'h.monto_danos_patrimoniales',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2980,7 +2992,7 @@ class RegionalSheetService
                 'v.tipo',
                 'v.tipo_servicio',
             ])
-            ->whereDate('h.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($q) use ($idsDelegaciones) {
                 $q->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -3045,5 +3057,13 @@ class RegionalSheetService
         if (str_contains($tipo, 'SEDAN') || str_contains($tipo, 'SUV')) return 'AUTOMÓVIL';
 
         return 'OTRO';
+    }
+
+    protected function rangoCorte(string $fecha): array
+    {
+        $fin = \Carbon\Carbon::parse($fecha . ' 18:00:00', 'America/Mexico_City');
+        $inicio = $fin->copy()->subDay();
+
+        return [$inicio->format('Y-m-d H:i:s'), $fin->format('Y-m-d H:i:s')];
     }
 }

@@ -1,11 +1,6 @@
 {
   "ExpandedNodes": [
-    "",
-    "\\app",
-    "\\app\\Services",
-    "\\app\\Services\\WhatsApp",
-    "\\routes"
+    ""
   ],
-  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

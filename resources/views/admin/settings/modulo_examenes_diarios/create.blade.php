@@ -175,6 +175,7 @@
                                         class="form-control @error('total') is-invalid @enderror"
                                         value="{{ old('total', 0) }}"
                                         min="0"
+                                        readonly
                                     >
                                     @error('total')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -308,6 +309,26 @@
 @stop
 
 @section('js')
+<script>
+    function actualizarTotalExamenes() {
+        const campos = ['servicio_publico', 'automovilista', 'chofer', 'motociclista', 'permiso'];
+        const total = campos.reduce((suma, campo) => {
+            const valor = parseInt(document.getElementById(campo)?.value || '0', 10);
+            return suma + (Number.isNaN(valor) ? 0 : valor);
+        }, 0);
+        const totalInput = document.getElementById('total');
+        if (totalInput) {
+            totalInput.value = total;
+        }
+    }
+
+    ['servicio_publico', 'automovilista', 'chofer', 'motociclista', 'permiso'].forEach((campo) => {
+        document.getElementById(campo)?.addEventListener('input', actualizarTotalExamenes);
+    });
+
+    actualizarTotalExamenes();
+</script>
+
 @if ($errors->any())
     <script>
         Swal.fire({

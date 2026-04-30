@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\CroquisController;
 use App\Http\Controllers\Api\CulturaVialController;
 use App\Http\Controllers\Api\ChoquesDiariosController;
 use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoController;
+use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiarioController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -87,6 +88,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{constancia}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarImpreso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.capturar_impreso');
         Route::post('/{constancia}/activar', [ApiConstanciaManejoController::class, 'activar'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.activar');
         Route::post('/{constancia}/cancelar-acceso', [ApiConstanciaManejoController::class, 'cancelarAcceso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.cancelar_acceso');
+    });
+
+    Route::prefix('modulo-examenes-diarios')->middleware('can:ver modulo examenes')->group(function () {
+        Route::get('/', [ApiModuloExamenDiarioController::class, 'index'])->name('api.modulo_examenes_diarios.index');
+        Route::post('/', [ApiModuloExamenDiarioController::class, 'store'])->middleware('can:crear modulo examenes')->name('api.modulo_examenes_diarios.store');
+        Route::get('/{registro}', [ApiModuloExamenDiarioController::class, 'show'])->whereNumber('registro')->name('api.modulo_examenes_diarios.show');
+        Route::put('/{registro}', [ApiModuloExamenDiarioController::class, 'update'])->whereNumber('registro')->middleware('can:editar modulo examenes')->name('api.modulo_examenes_diarios.update');
+        Route::delete('/{registro}', [ApiModuloExamenDiarioController::class, 'destroy'])->whereNumber('registro')->middleware('can:eliminar modulo examenes')->name('api.modulo_examenes_diarios.destroy');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {
@@ -223,6 +232,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'foto']);
     Route::post('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoUpdate']);
     Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}/foto', [VehiculoController::class, 'fotoDestroy']);
+
+    Route::get('/hechos/{hecho}/vehiculos/{vehiculo}/inventario-grua', [VehiculoController::class, 'inventarioGrua']);
+    Route::post('/hechos/{hecho}/vehiculos/{vehiculo}/inventario-grua', [VehiculoController::class, 'inventarioGruaUpdate']);
+    Route::delete('/hechos/{hecho}/vehiculos/{vehiculo}/inventario-grua', [VehiculoController::class, 'inventarioGruaDestroy']);
 
     Route::get('/hechos/{hecho}/lesionados', [LesionadoController::class, 'index'])->middleware('can:ver lesionados');
     Route::post('/hechos/{hecho}/lesionados', [LesionadoController::class, 'store'])->middleware('can:crear lesionados');

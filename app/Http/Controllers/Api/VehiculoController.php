@@ -419,6 +419,120 @@ class VehiculoController extends Controller
         }
     }
 
+    public function inventarioGrua(Hechos $hecho, Vehiculo $vehiculo)
+    {
+        try {
+            if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
+            }
+
+            return $this->ok('Inventario de grúa.', [
+                'vehiculo_id' => $vehiculo->id,
+                'numero_inventario_grua' => $vehiculo->numero_inventario_grua,
+                'foto_inventario_grua' => $vehiculo->foto_inventario_grua,
+                'url' => $vehiculo->foto_inventario_grua ? asset('storage/' . $vehiculo->foto_inventario_grua) : null,
+                'fecha_inventario_grua' => $vehiculo->fecha_inventario_grua,
+            ]);
+
+        } catch (Throwable $e) {
+            return $this->fail('Error al consultar inventario de grúa.', 500);
+        }
+    }
+
+    public function inventarioGruaUpdate(Request $request, Hechos $hecho, Vehiculo $vehiculo)
+    {
+        try {
+            if (!HechoAccess::canEdit($request->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
+            }
+
+            $validator = Validator::make(
+                $request->all(),
+                [
+                    'numero_inventario_grua' => 'required|string|max:100',
+                    'foto_inventario_grua' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+                ],
+                [
+                    'numero_inventario_grua.required' => 'Debes capturar el número de inventario.',
+                    'foto_inventario_grua.image' => 'Debe ser una imagen válida.',
+                ]
+            );
+
+            if ($validator->fails()) {
+                return $this->validationFailed($validator->errors()->toArray());
+            }
+
+            return DB::transaction(function () use ($request, $vehiculo) {
+
+                $data = [
+                    'numero_inventario_grua' => strtoupper($this->removeAccents($request->numero_inventario_grua)),
+                    'fecha_inventario_grua' => now(),
+                ];
+
+                if ($request->hasFile('foto_inventario_grua')) {
+
+                    if (!empty($vehiculo->foto_inventario_grua) && Storage::disk('public')->exists($vehiculo->foto_inventario_grua)) {
+                        Storage::disk('public')->delete($vehiculo->foto_inventario_grua);
+                    }
+
+                    $path = $request->file('foto_inventario_grua')->store('vehiculos/inventarios-grua', 'public');
+
+                    $data['foto_inventario_grua'] = $path;
+                }
+
+                $vehiculo->update($data);
+
+                return $this->ok('Inventario de grúa guardado correctamente.', [
+                    'vehiculo_id' => $vehiculo->id,
+                    'numero_inventario_grua' => $vehiculo->numero_inventario_grua,
+                    'url' => $vehiculo->foto_inventario_grua ? asset('storage/' . $vehiculo->foto_inventario_grua) : null,
+                ]);
+            });
+
+        } catch (Throwable $e) {
+            return $this->fail('Error al guardar inventario de grúa.', 500);
+        }
+    }
+
+    public function inventarioGruaDestroy(Hechos $hecho, Vehiculo $vehiculo)
+    {
+        try {
+            if (!HechoAccess::canEdit(request()->user(), $hecho)) {
+                return $this->fail('No tienes permiso para editar este hecho.', 403);
+            }
+
+            if (!$this->vehiculoPerteneceAlHecho($hecho, $vehiculo)) {
+                return $this->fail('No se encontró el vehículo dentro de este hecho.', 404);
+            }
+
+            return DB::transaction(function () use ($vehiculo) {
+
+                if (!empty($vehiculo->foto_inventario_grua) && Storage::disk('public')->exists($vehiculo->foto_inventario_grua)) {
+                    Storage::disk('public')->delete($vehiculo->foto_inventario_grua);
+                }
+
+                $vehiculo->update([
+                    'numero_inventario_grua' => null,
+                    'foto_inventario_grua' => null,
+                    'fecha_inventario_grua' => null,
+                ]);
+
+                return $this->ok('Inventario eliminado correctamente.', null);
+            });
+
+        } catch (Throwable $e) {
+            return $this->fail('Error al eliminar inventario.', 500);
+        }
+    }
+
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
         $data = $this->sanitize($request->all());

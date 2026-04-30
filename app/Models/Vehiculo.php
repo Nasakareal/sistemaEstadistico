@@ -25,6 +25,10 @@ class Vehiculo extends Model
         'tipo_servicio',
         'tarjeta_circulacion_nombre',
         'grua',
+        'grua_id',
+        'numero_inventario_grua',
+        'foto_inventario_grua',
+        'fecha_inventario_grua',
         'corralon',
         'monto_danos',
         'partes_danadas',
@@ -56,5 +60,15 @@ class Vehiculo extends Model
     public function actividades()
     {
         return $this->belongsToMany(\App\Models\Actividad::class, 'actividad_vehiculo', 'vehiculo_id', 'actividad_id')->withTimestamps();
+    }
+
+    public function gruaAsignada()
+    {
+        return $this->belongsTo(Grua::class, 'grua_id');
+    }
+
+    public function liberacionCorralon()
+    {
+        return $this->hasOne(LiberacionCorralon::class, 'vehiculo_id')->latest();
     }
 }

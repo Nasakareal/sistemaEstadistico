@@ -21,12 +21,12 @@ class Grua extends Model
 
     public function vehiculos()
     {
-        return $this->hasMany(Vehiculo::class);
+        return $this->hasMany(Vehiculo::class, 'grua_id');
     }
 
     public function hechos()
     {
-        return $this->hasMany(Hecho::class);
+        return $this->hasMany(Hechos::class, 'grua_id');
     }
 
     public function servicios()
@@ -34,27 +34,37 @@ class Grua extends Model
         return $this->hasMany(Servicio::class, 'grua_id');
     }
 
+    public function usuarios()
+    {
+        return $this->hasMany(GruaUsuario::class, 'grua_id');
+    }
+
+    public function liberacionesCorralon()
+    {
+        return $this->hasMany(LiberacionCorralon::class, 'grua_id');
+    }
+
     public function tramos()
     {
-        return $this->belongsToMany(\App\Models\Tramo::class, 'grua_tramo', 'grua_id', 'tramo_id')
+        return $this->belongsToMany(Tramo::class, 'grua_tramo', 'grua_id', 'tramo_id')
             ->withPivot(['desde', 'hasta', 'prioridad', 'activo'])
             ->withTimestamps();
     }
 
     public function guardias()
     {
-        return $this->hasMany(\App\Models\GruaGuardia::class, 'grua_id');
+        return $this->hasMany(GruaGuardia::class, 'grua_id');
     }
 
     public function unidades()
     {
-        return $this->belongsToMany(\App\Models\Unidad::class, 'unidad_grua', 'grua_id', 'unidad_id')
+        return $this->belongsToMany(Unidad::class, 'unidad_grua', 'grua_id', 'unidad_id')
             ->withTimestamps();
     }
 
     public function delegaciones()
     {
-        return $this->belongsToMany(\App\Models\Delegacion::class, 'delegacion_grua', 'grua_id', 'delegacion_id')
+        return $this->belongsToMany(Delegacion::class, 'delegacion_grua', 'grua_id', 'delegacion_id')
             ->withTimestamps();
     }
 }

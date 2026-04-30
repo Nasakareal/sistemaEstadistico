@@ -13,9 +13,17 @@
                 <div class="card-header">
                     <h3 class="card-title">Usuarios Registrados</h3>
                     <div class="card-tools">
+
+                        @role('Superadmin')
+                            <a href="{{ route('grua_usuarios.index') }}" class="btn btn-dark">
+                                <i class="fa-solid fa-truck-pickup"></i> Usuarios de Grúas
+                            </a>
+                        @endrole
+
                         <a href="{{ url('/admin/settings/users/create') }}" class="btn btn-primary">
                             <i class="fa-solid fa-plus"></i> Crear Nuevo Usuario
                         </a>
+
                     </div>
                 </div>
                 <div class="card-body">

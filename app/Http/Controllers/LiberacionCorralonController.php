@@ -29,7 +29,7 @@ class LiberacionCorralonController extends Controller
         }
 
         $vehiculosQuery = $this->vehiculosEnResguardoQuery($gruaId)
-            ->with(['gruaAsignada', 'hechos', 'liberacionCorralon']);
+            ->with(['gruaAsignada', 'servicio.grua', 'hechos', 'liberacionCorralon']);
 
         $busqueda = trim((string) $request->input('q', ''));
 
@@ -44,6 +44,7 @@ class LiberacionCorralonController extends Controller
         }
 
         $vehiculos = $vehiculosQuery
+            ->orderByDesc('ultimo_servicio_at')
             ->orderByDesc('fecha_inventario_grua')
             ->orderByDesc('updated_at')
             ->paginate(20)
@@ -63,7 +64,7 @@ class LiberacionCorralonController extends Controller
     {
         $this->autorizarVehiculo($vehiculo);
 
-        $vehiculo->load(['gruaAsignada', 'hechos', 'liberacionCorralon.gruaUsuario']);
+        $vehiculo->load(['gruaAsignada', 'servicio.grua', 'hechos', 'liberacionCorralon.gruaUsuario']);
 
         $portal = $this->esPortalGrua();
         $gruaUsuario = Auth::guard('grua')->user();
@@ -89,11 +90,15 @@ class LiberacionCorralonController extends Controller
         $data = $this->validarEntrega($request, true);
         $gruaUsuario = Auth::guard('grua')->user();
 
-        DB::transaction(function () use ($vehiculo, $data, $gruaUsuario) {
+        $gruaId = $gruaUsuario
+            ? (int) $gruaUsuario->grua_id
+            : $this->obtenerGruaIdVehiculo($vehiculo);
+
+        DB::transaction(function () use ($vehiculo, $data, $gruaUsuario, $gruaId) {
             LiberacionCorralon::updateOrCreate(
                 ['vehiculo_id' => $vehiculo->id],
                 array_merge($data, [
-                    'grua_id' => $vehiculo->grua_id,
+                    'grua_id' => $gruaId,
                     'grua_usuario_id' => $gruaUsuario ? $gruaUsuario->id : null,
                     'estado' => 'ENTREGADO',
                     'fecha_entrega' => now(),
@@ -142,19 +147,31 @@ class LiberacionCorralonController extends Controller
     private function vehiculosEnResguardoQuery(?int $gruaId = null)
     {
         return Vehiculo::query()
-            ->whereNotNull('grua_id')
-            ->when($gruaId, function ($query) use ($gruaId) {
-                $query->where('grua_id', $gruaId);
+            ->select('vehiculos.*')
+            ->selectSub(function ($query) {
+                $query->from('servicios')
+                    ->select('created_at')
+                    ->whereColumn('servicios.vehiculo_id', 'vehiculos.id')
+                    ->orderByDesc('created_at')
+                    ->limit(1);
+            }, 'ultimo_servicio_at')
+            ->where(function ($query) use ($gruaId) {
+                if ($gruaId) {
+                    $query->where('vehiculos.grua_id', $gruaId)
+                        ->orWhereHas('servicios', function ($servicios) use ($gruaId) {
+                            $servicios->where('grua_id', $gruaId);
+                        });
+                    return;
+                }
+
+                $query->whereNotNull('vehiculos.grua_id')
+                    ->orWhereHas('servicios', function ($servicios) {
+                        $servicios->whereNotNull('grua_id');
+                    });
             })
-            ->whereRaw("TRIM(COALESCE(corralon, '')) <> ''")
-            ->whereNotIn(DB::raw("UPPER(TRIM(COALESCE(corralon, '')))"), [
-                'N/A',
-                'NA',
-                'NO',
-                'NO APLICA',
-                'SIN CORRALON',
-                'LIBERADO',
-            ]);
+            ->whereDoesntHave('liberacionCorralon', function ($liberacion) {
+                $liberacion->where('estado', 'ENTREGADO');
+            });
     }
 
     private function validarEntrega(Request $request, bool $requiereConfirmacion): array
@@ -193,7 +210,12 @@ class LiberacionCorralonController extends Controller
     {
         if ($this->esPortalGrua()) {
             $gruaUsuario = Auth::guard('grua')->user();
-            abort_unless((int) $vehiculo->grua_id === (int) $gruaUsuario->grua_id, 403);
+            $gruaId = (int) $gruaUsuario->grua_id;
+            $tieneServicio = $vehiculo->servicios()
+                ->where('grua_id', $gruaId)
+                ->exists();
+
+            abort_unless((int) $vehiculo->grua_id === $gruaId || $tieneServicio, 403);
             return;
         }
 
@@ -210,6 +232,20 @@ class LiberacionCorralonController extends Controller
     private function esPortalGrua(): bool
     {
         return Auth::guard('grua')->check();
+    }
+
+    private function obtenerGruaIdVehiculo(Vehiculo $vehiculo): ?int
+    {
+        if (!empty($vehiculo->grua_id)) {
+            return (int) $vehiculo->grua_id;
+        }
+
+        $servicio = $vehiculo->servicios()
+            ->whereNotNull('grua_id')
+            ->latest()
+            ->first();
+
+        return $servicio ? (int) $servicio->grua_id : null;
     }
 
     private function normalizarTelefonoMx(?string $telefono): ?string

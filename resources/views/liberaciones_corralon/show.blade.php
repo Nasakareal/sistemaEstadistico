@@ -8,6 +8,17 @@
 @stop
 
 @section('content')
+    @php
+        $nombreGrua = $vehiculo->gruaAsignada->nombre
+            ?? optional(optional($vehiculo->servicio)->grua)->nombre
+            ?? $vehiculo->grua
+            ?? 'N/A';
+
+        if (($portal ?? false) && $gruaUsuario && $gruaUsuario->grua) {
+            $nombreGrua = $gruaUsuario->grua->nombre;
+        }
+    @endphp
+
     @if(!($portal ?? false) && session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
@@ -35,11 +46,11 @@
                         </tr>
                         <tr>
                             <th>Grua</th>
-                            <td>{{ $vehiculo->gruaAsignada->nombre ?? $vehiculo->grua ?? 'N/A' }}</td>
+                            <td>{{ $nombreGrua }}</td>
                         </tr>
                         <tr>
                             <th>Corralon</th>
-                            <td>{{ $vehiculo->corralon ?: 'Fuera de corralon' }}</td>
+                            <td>{{ $vehiculo->corralon && !in_array(strtoupper(trim($vehiculo->corralon)), ['N/A', 'NA']) ? $vehiculo->corralon : 'Servicio registrado' }}</td>
                         </tr>
                         <tr>
                             <th>Inventario</th>

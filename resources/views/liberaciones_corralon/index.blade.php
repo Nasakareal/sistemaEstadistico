@@ -68,16 +68,28 @@
                         </thead>
                         <tbody>
                             @foreach($vehiculos as $vehiculo)
+                                @php
+                                    $nombreGrua = $vehiculo->gruaAsignada->nombre
+                                        ?? optional(optional($vehiculo->servicio)->grua)->nombre
+                                        ?? $vehiculo->grua
+                                        ?? 'N/A';
+
+                                    if (($portal ?? false) && $gruaUsuario && $gruaUsuario->grua) {
+                                        $nombreGrua = $gruaUsuario->grua->nombre;
+                                    } elseif (!($portal ?? false) && !empty($gruaId)) {
+                                        $nombreGrua = optional($gruas->firstWhere('id', (int) $gruaId))->nombre ?? $nombreGrua;
+                                    }
+                                @endphp
                                 <tr>
                                     <td>{{ $vehiculo->placas ?: 'S/P' }}</td>
                                     <td>
                                         <strong>{{ $vehiculo->marca }} {{ $vehiculo->linea }}</strong><br>
                                         <span class="muted">{{ $vehiculo->tipo }} · Serie: {{ $vehiculo->serie ?: 'N/A' }}</span>
                                     </td>
-                                    <td>{{ $vehiculo->gruaAsignada->nombre ?? $vehiculo->grua ?? 'N/A' }}</td>
-                                    <td>{{ $vehiculo->corralon }}</td>
+                                    <td>{{ $nombreGrua }}</td>
+                                    <td>{{ $vehiculo->corralon && !in_array(strtoupper(trim($vehiculo->corralon)), ['N/A', 'NA']) ? $vehiculo->corralon : 'Servicio registrado' }}</td>
                                     <td>{{ $vehiculo->numero_inventario_grua ?: 'N/A' }}</td>
-                                    <td>{{ $vehiculo->fecha_inventario_grua ?: optional($vehiculo->updated_at)->format('Y-m-d H:i') }}</td>
+                                    <td>{{ $vehiculo->fecha_inventario_grua ?: optional(optional($vehiculo->servicio)->created_at)->format('Y-m-d H:i') ?: optional($vehiculo->updated_at)->format('Y-m-d H:i') }}</td>
                                     <td>
                                         <a
                                             class="btn btn-primary btn-sm"

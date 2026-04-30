@@ -449,6 +449,20 @@ return [
                 ],
 
                 [
+                    'text' => 'Delegaciones',
+                    'icon' => 'fa-solid fa-building-shield',
+                    'submenu' => [
+                        [
+                            'text'    => 'Panel Delegaciones',
+                            'icon'    => 'fa-solid fa-chart-line',
+                            'classes' => 'text-white',
+                            'url'     => 'estadisticas-globales',
+                            'can'     => 'menu-estadisticas-globales',
+                        ],
+                    ],
+                ],
+
+                [
                     'text' => 'Carreteras',
                     'icon' => 'fa-solid fa-road',
                     'submenu' => [

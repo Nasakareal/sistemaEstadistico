@@ -216,6 +216,11 @@
                                         <span class="badge badge-{{ $clasesSituacion[$hecho->situacion] ?? 'secondary' }}">
                                             {{ $hecho->situacion }}
                                         </span>
+
+                                        @if ($hecho->mostrar_captura && $hecho->estado_captura === 'INCOMPLETO')
+                                            <br>
+                                            <span class="badge badge-danger">CAPTURA INCOMPLETA</span>
+                                        @endif
                                     </td>
 
                                     <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
@@ -233,18 +238,14 @@
                                             <i class="fas fa-download"></i>
                                         </a>
 
-                                        <form action="{{ route('hechos.whatsapp.send', $hecho->id) }}" method="POST" style="display:inline-block;">
-                                            @csrf
-                                            <button
-                                                type="submit"
-                                                class="btn btn-success btn-sm"
-                                                title="{{ $hecho->whatsapp_sent_at ? 'Ya compartido' : 'Compartir a WhatsApp' }}"
-                                                {{ $hecho->whatsapp_sent_at ? 'disabled' : '' }}
-                                                onclick="return confirm('¿Enviar este hecho al grupo de WhatsApp?');"
-                                            >
-                                                <i class="fa-brands fa-whatsapp"></i>
-                                            </button>
-                                        </form>
+                                        <button
+                                            type="button"
+                                            class="btn btn-success btn-sm btn-whatsapp"
+                                            data-id="{{ $hecho->id }}"
+                                            title="Compartir"
+                                        >
+                                            <i class="fa-brands fa-whatsapp"></i>
+                                        </button>
 
                                         <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
                                             @csrf
@@ -371,6 +372,25 @@
                     { extend: 'colvis', text: 'Visor de columnas' }
                 ],
             }).buttons().container().appendTo('#seguimiento_hechos_wrapper .col-md-6:eq(0)');
+        });
+
+        $(document).on('click', '.btn-whatsapp', function () {
+            let id = $(this).data('id');
+
+            fetch(`/hechos/${id}/compartir-nativo`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.texto) {
+                        Swal.fire('Error', 'No se pudo generar el mensaje', 'error');
+                        return;
+                    }
+
+                    let url = `https://wa.me/?text=${encodeURIComponent(data.texto)}`;
+                    window.open(url, '_blank');
+                })
+                .catch(() => {
+                    Swal.fire('Error', 'No se pudo compartir', 'error');
+                });
         });
 
         $(document).on('click', '.delete-btn', function (e) {

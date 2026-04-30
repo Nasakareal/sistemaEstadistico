@@ -124,8 +124,22 @@ class MiniParteGenerator
             if ($sit === 'RESUELTO')  $resumen['RESUELTOS']++;
 
             foreach ($h->vehiculos as $v) {
+                $esMotocicleta = $this->esMotocicleta($v);
+
                 if (!empty($v->antecedente_vehiculo) && (int)$v->antecedente_vehiculo === 1) {
-                    $resumen['ANTECEDENTES_VEH']++;
+                    if ($esMotocicleta) {
+                        $resumen['ANTECEDENTES_MOTOS']++;
+                    } else {
+                        $resumen['ANTECEDENTES_VEH']++;
+                    }
+                }
+
+                if ($this->estaEnCorralon($v)) {
+                    if ($esMotocicleta) {
+                        $resumen['MOTOS_CORRALON']++;
+                    } else {
+                        $resumen['AUTOS_CORRALON']++;
+                    }
                 }
 
                 foreach ($v->conductores as $c) {
@@ -400,5 +414,37 @@ class MiniParteGenerator
         IOFactory::createWriter($phpWord, 'Word2007')->save($tempPath);
 
         return $tempPath;
+    }
+
+    private function esMotocicleta($vehiculo): bool
+    {
+        $tipo = $this->hechoFormatter->normalizar((string)($vehiculo->tipo ?? ''));
+
+        return $tipo === 'MOTO'
+            || strpos($tipo, 'MOTO') === 0
+            || strpos($tipo, 'MOTOCICLETA') !== false
+            || strpos($tipo, 'MOTONETA') !== false
+            || strpos($tipo, 'CUATRIMOTO') !== false;
+    }
+
+    private function estaEnCorralon($vehiculo): bool
+    {
+        $corralon = $this->hechoFormatter->normalizar((string)($vehiculo->corralon ?? ''));
+
+        return !in_array($corralon, [
+            '',
+            'NA',
+            'NO',
+            'NOAPLICA',
+            'NOSEUTILIZA',
+            'NOSEUTILIZO',
+            'NINGUN',
+            'NINGUNA',
+            'NINGUNO',
+            'NULL',
+            'SINCORRALON',
+            'SINCORRALONREGISTRADO',
+            'NOTIENECORRALON',
+        ], true);
     }
 }

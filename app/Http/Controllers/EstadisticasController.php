@@ -514,8 +514,22 @@ class EstadisticasController extends Controller
             if ($sit === 'RESUELTO')  $resumen['RESUELTOS']++;
 
             foreach ($h->vehiculos as $v) {
+                $esMotocicleta = $this->esMotocicletaParaMiniParte($v);
+
                 if (!empty($v->antecedente_vehiculo) && (int)$v->antecedente_vehiculo === 1) {
-                    $resumen['ANTECEDENTES_VEH']++;
+                    if ($esMotocicleta) {
+                        $resumen['ANTECEDENTES_MOTOS']++;
+                    } else {
+                        $resumen['ANTECEDENTES_VEH']++;
+                    }
+                }
+
+                if ($this->estaEnCorralonParaMiniParte($v)) {
+                    if ($esMotocicleta) {
+                        $resumen['MOTOS_CORRALON']++;
+                    } else {
+                        $resumen['AUTOS_CORRALON']++;
+                    }
                 }
 
                 foreach ($v->conductores as $c) {
@@ -6926,5 +6940,49 @@ class EstadisticasController extends Controller
         IOFactory::createWriter($phpWord, 'Word2007')->save($tempPath);
 
         return response()->download($tempPath)->deleteFileAfterSend(true);
+    }
+
+    private function esMotocicletaParaMiniParte($vehiculo): bool
+    {
+        $tipo = $this->normalizarTextoMiniParte((string)($vehiculo->tipo ?? ''));
+
+        return $tipo === 'MOTO'
+            || strpos($tipo, 'MOTO') === 0
+            || strpos($tipo, 'MOTOCICLETA') !== false
+            || strpos($tipo, 'MOTONETA') !== false
+            || strpos($tipo, 'CUATRIMOTO') !== false;
+    }
+
+    private function estaEnCorralonParaMiniParte($vehiculo): bool
+    {
+        $corralon = $this->normalizarTextoMiniParte((string)($vehiculo->corralon ?? ''));
+
+        return !in_array($corralon, [
+            '',
+            'NA',
+            'NO',
+            'NOAPLICA',
+            'NOSEUTILIZA',
+            'NOSEUTILIZO',
+            'NINGUN',
+            'NINGUNA',
+            'NINGUNO',
+            'NULL',
+            'SINCORRALON',
+            'SINCORRALONREGISTRADO',
+            'NOTIENECORRALON',
+        ], true);
+    }
+
+    private function normalizarTextoMiniParte(string $valor): string
+    {
+        $valor = mb_strtoupper(trim($valor), 'UTF-8');
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $valor);
+
+        if ($ascii !== false) {
+            $valor = $ascii;
+        }
+
+        return preg_replace('/[^A-Z0-9]+/', '', $valor) ?: '';
     }
 }

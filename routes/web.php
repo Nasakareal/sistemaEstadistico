@@ -218,7 +218,7 @@ Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(
     Route::get('actividades/compartir-totales-whatsapp', [ActividadController::class, 'compartirTotalesWhatsapp'])->name('actividades.compartir_totales_whatsapp');
 });
 
-Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales','unidad:siniestros'])->group(function () {
+Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales'])->group(function () {
     Route::get('/',[EstadisticasGlobalesController::class,'index'])->name('estadisticas_globales.index');
     Route::get('/kpis',[EstadisticasGlobalesController::class,'kpis'])->name('estadisticas_globales.kpis');
     Route::get('/series/hechos',[EstadisticasGlobalesController::class,'seriesHechos'])->name('estadisticas_globales.series.hechos');
@@ -226,6 +226,7 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/series/tipo-hecho',[EstadisticasGlobalesController::class,'seriesTipoHecho'])->name('estadisticas_globales.series.tipo_hecho');
     Route::get('/series/sector',[EstadisticasGlobalesController::class,'seriesSector'])->name('estadisticas_globales.series.sector');
     Route::get('/series/municipio',[EstadisticasGlobalesController::class,'seriesMunicipio'])->name('estadisticas_globales.series.municipio');
+    Route::get('/series/delegacion',[EstadisticasGlobalesController::class,'seriesDelegacion'])->name('estadisticas_globales.series.delegacion');
     Route::get('/series/tiempo',[EstadisticasGlobalesController::class,'seriesTiempo'])->name('estadisticas_globales.series.tiempo');
     Route::get('/series/clima',[EstadisticasGlobalesController::class,'seriesClima'])->name('estadisticas_globales.series.clima');
     Route::get('/series/condiciones',[EstadisticasGlobalesController::class,'seriesCondiciones'])->name('estadisticas_globales.series.condiciones');
@@ -235,7 +236,7 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/series/vehiculos/modelo',[EstadisticasGlobalesController::class,'seriesVehiculosModelo'])->name('estadisticas_globales.series.vehiculos_modelo');
     Route::get('/hechos',[EstadisticasGlobalesController::class,'hechos'])->name('estadisticas_globales.hechos');
     Route::get('/export/hechos',[EstadisticasGlobalesController::class,'exportHechos'])->name('estadisticas_globales.export.hechos');
-    Route::get('/export/mensual', [EstadisticasGlobalesController::class, 'exportMensual'])->name('estadisticas_globales.export.mensual');
+    Route::get('/export/mensual',[EstadisticasGlobalesController::class,'exportMensual'])->name('estadisticas_globales.export.mensual');
 });
 
 Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisticas carreteras', 'unidad:carreteras'])->group(function () {

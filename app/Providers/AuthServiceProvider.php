@@ -153,6 +153,7 @@ class AuthServiceProvider extends ServiceProvider
             return $user->can('ver estadisticas globales')
                 && (
                     $user->perteneceAUnidad('siniestros')
+                    || $user->perteneceAUnidad('delegaciones')
                     || (int) $user->unidad_id === 3
                 );
         });
@@ -178,6 +179,7 @@ class AuthServiceProvider extends ServiceProvider
                 $user->can('ver estadisticas globales')
                 && (
                     $user->perteneceAUnidad('siniestros')
+                    || $user->perteneceAUnidad('delegaciones')
                     || (int) $user->unidad_id === 3
                 )
             ) || (

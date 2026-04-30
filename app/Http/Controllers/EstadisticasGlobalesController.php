@@ -181,6 +181,7 @@ class EstadisticasGlobalesController extends Controller
     public function seriesCondiciones(Request $request) { return $this->distributionHechos($request, 'condiciones'); }
     public function seriesControlTransito(Request $request) { return $this->distributionHechos($request, 'control_transito'); }
     public function seriesMunicipio(Request $request) { return $this->distributionHechos($request, 'municipio'); }
+    public function seriesDelegacion(Request $request) { return $this->distributionHechos($request, 'unidad'); }
 
     public function seriesVehiculosTipo(Request $request)
     {
@@ -346,7 +347,7 @@ class EstadisticasGlobalesController extends Controller
     {
         return $this->cachedJson($request, "dist_$field", function () use ($request, $field) {
 
-            $allowed = ['tipo_hecho','sector','tiempo','clima','condiciones','control_transito','situacion','municipio'];
+            $allowed = ['tipo_hecho','sector','tiempo','clima','condiciones','control_transito','situacion','municipio','unidad'];
             if (!in_array($field, $allowed, true)) {
                 return ['message' => 'Campo no permitido.'];
             }
@@ -426,6 +427,8 @@ class EstadisticasGlobalesController extends Controller
 
     private function applyHechosFilters($q, Request $request)
     {
+        $this->applyScopeByUser($q);
+
         $desde = trim((string)$request->query('desde', ''));
         $hasta = trim((string)$request->query('hasta', ''));
 
@@ -806,5 +809,34 @@ class EstadisticasGlobalesController extends Controller
         }
 
         return null;
+    }
+
+    private function applyScopeByUser($q)
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return;
+        }
+
+        if ($user->unidades()->where('unidades.id', 3)->exists()) {
+            return;
+        }
+
+        if ($user->unidades()->where('unidades.id', 1)->exists()) {
+            $q->where('hechos.unidad_org_id', 1);
+            return;
+        }
+
+        if ($user->unidades()->where('unidades.id', 2)->exists()) {
+            $q->where('hechos.unidad_org_id', 2);
+            return;
+        }
+
+        abort(403);
     }
 }

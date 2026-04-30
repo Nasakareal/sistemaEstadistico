@@ -1,9 +1,13 @@
 {
   "ExpandedNodes": [
     "",
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\constancia_preguntas"
+    "\\resources\\views\\estadisticas_globales"
   ],
+  "SelectedNode": "\\app\\Http\\Controllers\\EstadisticasGlobalesController.php",
   "PreviewInSolutionExplorer": false
 }

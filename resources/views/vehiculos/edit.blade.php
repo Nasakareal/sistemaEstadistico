@@ -565,7 +565,7 @@
                                     <div class="form-group">
                                         <label>
                                             <input type="checkbox" name="antecedente_vehiculo" value="1"
-                                                   {{ old('antecedente_vehiculo', optional($conductor)->antecedente_vehiculo) ? 'checked' : '' }}>
+                                                   {{ old('antecedente_vehiculo', $vehiculo->antecedente_vehiculo) ? 'checked' : '' }}>
                                             ¿Antecedente vehicular?
                                         </label>
                                     </div>

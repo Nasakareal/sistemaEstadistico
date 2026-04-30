@@ -76,6 +76,15 @@
                             </select>
                         </div>
 
+                        @if(auth()->user()->hasRole('Superadmin') || (int) auth()->user()->unidad_id === 2 || (int) auth()->user()->unidad_id === 3)
+                            <div class="sv-field">
+                                <label>Delegación</label>
+                                <select id="f_delegacion" class="form-control form-control-sm">
+                                    <option value="">(Todas)</option>
+                                </select>
+                            </div>
+                        @endif
+
                         <div class="sv-field">
                             <label>Tipo de Vehículo</label>
                             <select id="f_veh_tipo" class="form-control form-control-sm">
@@ -306,6 +315,7 @@
         const tipo_hecho = val('f_tipo_hecho');
         const situacion = val('f_situacion');
         const veh_tipo = val('f_veh_tipo');
+        const delegacion = val('f_delegacion');
         const group = val('f_group');
         const q = val('f_q');
         const veh_placas = val('f_veh_placas');
@@ -322,6 +332,7 @@
         if (tipo_hecho) params.set('tipo_hecho', tipo_hecho);
         if (situacion) params.set('situacion', situacion);
         if (veh_tipo) params.set('veh_tipo', veh_tipo);
+        if (delegacion) params.set('unidad', delegacion);
 
         if (con_lesionados !== '') params.set('con_lesionados', con_lesionados);
         if (con_fallecidos !== '') params.set('con_fallecidos', con_fallecidos);
@@ -397,7 +408,7 @@
         const ids = [
             'f_desde','f_hora_desde','f_hasta','f_hora_hasta','f_sector','f_tipo_hecho','f_situacion','f_veh_tipo',
             'f_con_lesionados','f_con_fallecidos',
-            'f_q','f_veh_placas','f_veh_serie','f_group'
+            'f_q','f_veh_placas','f_veh_serie','f_group','f_delegacion'
         ];
 
         ids.forEach(id => {
@@ -512,6 +523,9 @@
 
         const distTipoHecho = await getJson('series/tipo-hecho');
         fillSelect('f_tipo_hecho', distTipoHecho.series || []);
+
+        const distDelegacion = await getJson('series/delegacion');
+        fillSelect('f_delegacion', distDelegacion.series || []);
 
         const distVehTipo = await getJson('series/vehiculos/tipo');
         fillSelect('f_veh_tipo', distVehTipo.series || []);

@@ -859,8 +859,7 @@ class HechosController extends Controller
         $crearQueryConteo = function ($inicio, $fin, $situacionConteo) use ($usuario) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
-                ->where('situacion', $situacionConteo)
-                ->where('unidad_org_id', 1);
+                ->where('situacion', $situacionConteo);
 
             $this->applyHechosVisibilityScope($query, $usuario);
 
@@ -895,8 +894,7 @@ class HechosController extends Controller
             $query->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()]);
         }
 
-        $query->where('situacion', $situacion)
-            ->where('unidad_org_id', 1);
+        $query->where('situacion', $situacion);
 
         $this->applyHechosVisibilityScope($query, $usuario);
 

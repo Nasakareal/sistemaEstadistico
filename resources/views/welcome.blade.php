@@ -515,6 +515,10 @@
                     <i class="fab fa-apple"></i> App Store
                 </a>
 
+                <a class="btn" href="{{ asset('app/seguridad-vial-michoacan.apk') }}" download>
+                    <i class="fab fa-huawei"></i> Huawei APK
+                </a>
+
                 <a class="btn btn-primary" href="{{ route('login') }}">
                     Iniciar Sesión
                 </a>

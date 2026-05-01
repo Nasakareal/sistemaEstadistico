@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     :root{
       --bg0:#070B14;
@@ -507,8 +507,18 @@
           <a href="{{ url('/campanas') }}">Campañas</a>
           <a href="{{ url('/contacto') }}">Contáctanos</a>
           <div class="cta">
-            <a class="btn btn-primary" href="{{ route('login') }}">Iniciar Sesión</a>
-          </div>
+                <a class="btn" href="https://play.google.com/store/apps/details?id=com.nasaka.seguridad_vial_app" target="_blank">
+                    <i class="fab fa-google-play"></i> Play Store
+                </a>
+
+                <a class="btn" href="https://apps.apple.com/us/app/seguridad-vial-michoacan/id6759019905" target="_blank">
+                    <i class="fab fa-apple"></i> App Store
+                </a>
+
+                <a class="btn btn-primary" href="{{ route('login') }}">
+                    Iniciar Sesión
+                </a>
+            </div>
         </div>
       </div>
     </div>

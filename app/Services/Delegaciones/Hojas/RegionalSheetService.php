@@ -1808,6 +1808,8 @@ class RegionalSheetService
 
     protected function obtenerResumenOtrosAseguramientos(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $datos = [
             1 => 0,
             2 => 0,
@@ -1823,7 +1825,7 @@ class RegionalSheetService
                 'po.cantidad',
                 'po.unidad_medida',
             ])
-            ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", [$inicio, $fin])
+            ->whereRaw("TIMESTAMP(p.fecha_puesta, p.hora_puesta) >= ? AND TIMESTAMP(p.fecha_puesta, p.hora_puesta) < ?", [$inicio, $fin])
             ->where('p.unidad_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('p.delegacion_id', $idsDelegaciones);
@@ -2085,6 +2087,8 @@ class RegionalSheetService
 
     protected function obtenerResumenInvolucradosHechosTransito(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $conductores = DB::table('hechos as h')
             ->join('hecho_vehiculo as hv', 'h.id', '=', 'hv.hecho_id')
             ->join('vehiculo_conductor as vc', 'hv.vehiculo_id', '=', 'vc.vehiculo_id')
@@ -2537,6 +2541,8 @@ class RegionalSheetService
 
     protected function obtenerResumenChoquesDanios(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $datos = [
             'tipos' => [
                 'CHOQUE ENTRE CAMIÓN Y MOTOCICLETA' => 0,
@@ -2969,6 +2975,8 @@ class RegionalSheetService
 
     protected function obtenerClasificacionVehiculos(string $fecha, array $idsDelegaciones): array
     {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
         $datos = [
             'clasificacion' => [],
             'resumen' => [

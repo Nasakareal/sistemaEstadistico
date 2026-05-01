@@ -47,8 +47,8 @@
                                 <div class="form-group">
                                     <label for="telefono">Teléfono WhatsApp</label>
                                     <input type="text" name="telefono" id="telefono"
-                                            class="form-control @error('telefono') is-invalid @enderror"
-                                            value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
+                                           class="form-control @error('telefono') is-invalid @enderror"
+                                           value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
                                     @error('telefono')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -84,23 +84,37 @@
                             </div>
 
                             <div class="col-md-4">
-                                <div class="form-group">
+                                <div class="form-group password-group">
                                     <label for="password">Contraseña</label>
-                                    <input type="password" name="password" id="password"
-                                           class="form-control @error('password') is-invalid @enderror"
-                                           placeholder="Ingrese la contraseña" required>
-                                    @error('password')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
+                                    <div class="input-group password-wrapper">
+                                        <input type="password" name="password" id="password"
+                                               class="form-control @error('password') is-invalid @enderror"
+                                               placeholder="Ingrese la contraseña" required>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-password-toggle" data-target="password">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        @error('password')
+                                            <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="form-group">
+                                <div class="form-group password-group">
                                     <label for="password_confirmation">Repetir Contraseña</label>
-                                    <input type="password" name="password_confirmation" id="password_confirmation"
-                                           class="form-control"
-                                           placeholder="Confirme la contraseña" required>
+                                    <div class="input-group password-wrapper">
+                                        <input type="password" name="password_confirmation" id="password_confirmation"
+                                               class="form-control"
+                                               placeholder="Confirme la contraseña" required>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-password-toggle" data-target="password_confirmation">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -317,6 +331,37 @@
     .btn-secondary {
         border-radius: 16px !important;
     }
+
+    .password-wrapper .form-control {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+
+    .btn-password-toggle {
+        height: 100%;
+        min-width: 48px;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+        border-top-right-radius: 18px !important;
+        border-bottom-right-radius: 18px !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        border-left: 0 !important;
+        background: rgba(15, 23, 42, 0.95) !important;
+        color: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .btn-password-toggle:hover,
+    .btn-password-toggle:focus {
+        background: rgba(30, 41, 59, 1) !important;
+        color: #ffffff !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    .password-wrapper .invalid-feedback {
+        width: 100%;
+    }
 </style>
 @stop
 
@@ -336,6 +381,24 @@
                 const telefonoInput = document.getElementById('telefono');
                 if (!telefonoInput) return;
                 telefonoInput.value = telefonoInput.value.replace(/\D+/g, '');
+            }
+
+            function togglePassword(button) {
+                const targetId = button.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                const icon = button.querySelector('i');
+
+                if (!input || !icon) return;
+
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
             }
 
             function toggleUnidadesExtra() {
@@ -402,6 +465,7 @@
                 const unidadSel = document.getElementById('unidad_id');
                 const telefonoInput = document.getElementById('telefono');
                 const form = document.querySelector('form');
+                const passwordButtons = document.querySelectorAll('.btn-password-toggle');
 
                 if (roleSel) {
                     roleSel.addEventListener('change', function () {
@@ -419,6 +483,12 @@
                     telefonoInput.addEventListener('input', limpiarTelefonoInput);
                     telefonoInput.addEventListener('blur', limpiarTelefonoInput);
                 }
+
+                passwordButtons.forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        togglePassword(button);
+                    });
+                });
 
                 if (form) {
                     form.addEventListener('submit', function () {

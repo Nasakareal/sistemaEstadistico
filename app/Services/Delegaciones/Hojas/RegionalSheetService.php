@@ -3069,7 +3069,8 @@ class RegionalSheetService
 
     protected function rangoCorte(string $fecha): array
     {
-        $fin = \Carbon\Carbon::parse($fecha . ' 18:00:00', 'America/Mexico_City');
+        $horaCorte = config('cortes.hora_corte_delegaciones', '17:00:00');
+        $fin = \Carbon\Carbon::parse($fecha . ' ' . $horaCorte, 'America/Mexico_City');
         $inicio = $fin->copy()->subDay();
 
         return [$inicio->format('Y-m-d H:i:s'), $fin->format('Y-m-d H:i:s')];

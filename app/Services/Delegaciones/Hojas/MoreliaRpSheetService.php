@@ -126,7 +126,7 @@ class MoreliaRpSheetService
                 'a.patrullas_participantes_texto',
                 's.nombre as subcategoria',
             ])
-            ->whereDate('a.fecha', $fecha)
+            ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", $this->rangoCorte($fecha))
             ->where(function ($query) {
                 $query->where('a.municipio', 'MORELIA')
                     ->orWhere('a.municipio', 'Morelia');
@@ -186,5 +186,14 @@ class MoreliaRpSheetService
         }
 
         return 1;
+    }
+
+    protected function rangoCorte(string $fecha): array
+    {
+        $horaCorte = config('cortes.hora_corte_delegaciones', '17:00:00');
+        $fin = \Carbon\Carbon::parse($fecha . ' ' . $horaCorte, 'America/Mexico_City');
+        $inicio = $fin->copy()->subDay();
+
+        return [$inicio->format('Y-m-d H:i:s'), $fin->format('Y-m-d H:i:s')];
     }
 }

@@ -9,6 +9,8 @@ use App\Http\Controllers\CampanaController;
 use App\Http\Controllers\DocumentoHechoController;
 use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\EstadisticasGlobalesController;
+use App\Http\Controllers\EstadisticasActividadesController;
+
 use App\Http\Controllers\FormatoController;
 use App\Http\Controllers\GruaController;
 use App\Http\Controllers\HechosController;
@@ -264,6 +266,40 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/hechos',[EstadisticasGlobalesController::class,'hechos'])->name('estadisticas_globales.hechos');
     Route::get('/export/hechos',[EstadisticasGlobalesController::class,'exportHechos'])->name('estadisticas_globales.export.hechos');
     Route::get('/export/mensual',[EstadisticasGlobalesController::class,'exportMensual'])->name('estadisticas_globales.export.mensual');
+});
+
+Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisticas actividades'])->group(function () {
+    Route::get('/',[EstadisticasActividadesController::class,'index'])->name('estadisticas_actividades.index');
+
+    Route::get('/kpis',[EstadisticasActividadesController::class,'kpis'])->name('estadisticas_actividades.kpis');
+
+    Route::get('/series/actividades',[EstadisticasActividadesController::class,'seriesActividades'])->name('estadisticas_actividades.series.actividades');
+    Route::get('/series/categoria',[EstadisticasActividadesController::class,'seriesCategoria'])->name('estadisticas_actividades.series.categoria');
+    Route::get('/series/subcategoria',[EstadisticasActividadesController::class,'seriesSubcategoria'])->name('estadisticas_actividades.series.subcategoria');
+    Route::get('/series/unidad',[EstadisticasActividadesController::class,'seriesUnidad'])->name('estadisticas_actividades.series.unidad');
+    Route::get('/series/delegacion',[EstadisticasActividadesController::class,'seriesDelegacion'])->name('estadisticas_actividades.series.delegacion');
+    Route::get('/series/destacamento',[EstadisticasActividadesController::class,'seriesDestacamento'])->name('estadisticas_actividades.series.destacamento');
+    Route::get('/series/municipio',[EstadisticasActividadesController::class,'seriesMunicipio'])->name('estadisticas_actividades.series.municipio');
+    Route::get('/series/carretera',[EstadisticasActividadesController::class,'seriesCarretera'])->name('estadisticas_actividades.series.carretera');
+    Route::get('/series/tiempo',[EstadisticasActividadesController::class,'seriesTiempo'])->name('estadisticas_actividades.series.tiempo');
+    Route::get('/series/revision',[EstadisticasActividadesController::class,'seriesRevision'])->name('estadisticas_actividades.series.revision');
+
+    Route::get('/series/personas-alcanzadas',[EstadisticasActividadesController::class,'seriesPersonasAlcanzadas'])->name('estadisticas_actividades.series.personas_alcanzadas');
+    Route::get('/series/personas-participantes',[EstadisticasActividadesController::class,'seriesPersonasParticipantes'])->name('estadisticas_actividades.series.personas_participantes');
+    Route::get('/series/personas-detenidas',[EstadisticasActividadesController::class,'seriesPersonasDetenidas'])->name('estadisticas_actividades.series.personas_detenidas');
+    Route::get('/series/km-recorridos',[EstadisticasActividadesController::class,'seriesKmRecorridos'])->name('estadisticas_actividades.series.km_recorridos');
+
+    Route::get('/puestas-disposicion',[EstadisticasActividadesController::class,'puestasDisposicion'])->name('estadisticas_actividades.puestas_disposicion');
+    Route::get('/actividades',[EstadisticasActividadesController::class,'actividades'])->name('estadisticas_actividades.actividades');
+
+    Route::get('/catalogos/categorias',[EstadisticasActividadesController::class,'catalogoCategorias'])->name('estadisticas_actividades.catalogos.categorias');
+    Route::get('/catalogos/subcategorias',[EstadisticasActividadesController::class,'catalogoSubcategorias'])->name('estadisticas_actividades.catalogos.subcategorias');
+    Route::get('/catalogos/delegaciones',[EstadisticasActividadesController::class,'catalogoDelegaciones'])->name('estadisticas_actividades.catalogos.delegaciones');
+    Route::get('/catalogos/destacamentos',[EstadisticasActividadesController::class,'catalogoDestacamentos'])->name('estadisticas_actividades.catalogos.destacamentos');
+
+    Route::get('/export/actividades',[EstadisticasActividadesController::class,'exportActividades'])->name('estadisticas_actividades.export.actividades');
+    Route::get('/export/mensual',[EstadisticasActividadesController::class,'exportMensual'])->name('estadisticas_actividades.export.mensual');
+    Route::get('/export/puestas-disposicion',[EstadisticasActividadesController::class,'exportPuestasDisposicion'])->name('estadisticas_actividades.export.puestas_disposicion');
 });
 
 Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisticas carreteras', 'unidad:carreteras'])->group(function () {

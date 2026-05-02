@@ -23,6 +23,10 @@ class Actividad extends Model
         'foto_path',
         'foto_nombre_original',
         'foto_hash',
+        'foto_thumbnail_path',
+        'foto_archivo_zip_path',
+        'foto_archivada_at',
+        'foto_eliminada_at',
         'created_by',
         'updated_by',
         'unidad_org_id',
@@ -68,6 +72,8 @@ class Actividad extends Model
         'hora' => 'datetime:H:i:s',
         'synced_at' => 'datetime',
         'revisado_at' => 'datetime',
+        'foto_archivada_at' => 'datetime',
+        'foto_eliminada_at' => 'datetime',
     ];
 
     public function categoria()
@@ -112,7 +118,21 @@ class Actividad extends Model
 
     public function fotos()
     {
-        return $this->hasMany(ActividadFoto::class, 'actividad_id')->orderBy('orden');
+        return $this->hasMany(ActividadFoto::class, 'actividad_id')
+            ->whereNull('foto_eliminada_at')
+            ->where(function ($q) {
+                $q->whereNull('foto_archivada_at')
+                    ->orWhereNotNull('foto_thumbnail_path');
+            })
+            ->orderBy('orden')
+            ->orderBy('id');
+    }
+
+    public function fotosTodas()
+    {
+        return $this->hasMany(ActividadFoto::class, 'actividad_id')
+            ->orderBy('orden')
+            ->orderBy('id');
     }
 
     public function vehiculos()

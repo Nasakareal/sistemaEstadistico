@@ -74,7 +74,7 @@ class ActividadController extends Controller
         $actividades = $this->buildQuery($request, $inicioDia, $finDia)->get();
 
         $actividades->transform(function ($a) {
-            $rel = $this->getOrCreatePdfImage($a->foto_path);
+            $rel = $this->getOrCreatePdfImage($a->foto_path ?: $a->foto_thumbnail_path);
             $a->foto_pdf_path = $rel;
             $a->foto_pdf_abs = $rel ? public_path('storage/' . ltrim($rel, '/')) : null;
             return $a;
@@ -263,11 +263,20 @@ class ActividadController extends Controller
                 ]);
             }
 
-            $fotoPrincipal = $actividad->fotos()->orderBy('orden')->orderBy('id')->first();
+            $fotoPrincipal = $actividad->fotosTodas()
+                ->whereNull('foto_archivada_at')
+                ->whereNull('foto_eliminada_at')
+                ->orderBy('orden')
+                ->orderBy('id')
+                ->first();
 
             if ($fotoPrincipal) {
                 $actividad->update([
                     'foto_path'            => $fotoPrincipal->foto_path,
+                    'foto_thumbnail_path'  => null,
+                    'foto_archivo_zip_path'=> null,
+                    'foto_archivada_at'    => null,
+                    'foto_eliminada_at'    => null,
                     'foto_nombre_original' => $fotoPrincipal->foto_nombre_original,
                     'foto_hash'            => $fotoPrincipal->foto_hash,
                 ]);
@@ -458,12 +467,23 @@ class ActividadController extends Controller
                 }
             }
 
-            $fotoPrincipal = $actividad->fotos()->orderBy('orden')->orderBy('id')->first();
+            $fotoPrincipal = $actividad->fotosTodas()
+                ->whereNull('foto_archivada_at')
+                ->whereNull('foto_eliminada_at')
+                ->orderBy('orden')
+                ->orderBy('id')
+                ->first();
+
+            $fotoArchivada = $fotoPrincipal ? null : $actividad->fotos()->orderBy('orden')->orderBy('id')->first();
 
             $actividad->update([
-                'foto_path'            => optional($fotoPrincipal)->foto_path,
-                'foto_nombre_original' => optional($fotoPrincipal)->foto_nombre_original,
-                'foto_hash'            => optional($fotoPrincipal)->foto_hash,
+                'foto_path'             => optional($fotoPrincipal)->foto_path,
+                'foto_thumbnail_path'   => $fotoPrincipal ? null : optional($fotoArchivada)->foto_thumbnail_path,
+                'foto_archivo_zip_path' => $fotoPrincipal ? null : optional($fotoArchivada)->foto_archivo_zip_path,
+                'foto_archivada_at'     => $fotoPrincipal ? null : optional($fotoArchivada)->foto_archivada_at,
+                'foto_eliminada_at'     => null,
+                'foto_nombre_original'  => optional($fotoPrincipal ?: $fotoArchivada)->foto_nombre_original,
+                'foto_hash'             => optional($fotoPrincipal ?: $fotoArchivada)->foto_hash,
             ]);
 
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');
@@ -491,11 +511,19 @@ class ActividadController extends Controller
                     Storage::disk('public')->delete($foto->foto_path);
                 }
 
+                if (!empty($foto->foto_thumbnail_path) && Storage::disk('public')->exists($foto->foto_thumbnail_path)) {
+                    Storage::disk('public')->delete($foto->foto_thumbnail_path);
+                }
+
                 $this->deletePdfCacheForOriginal($foto->foto_path);
             }
 
             if (!empty($actividad->foto_path) && Storage::disk('public')->exists($actividad->foto_path)) {
                 Storage::disk('public')->delete($actividad->foto_path);
+            }
+
+            if (!empty($actividad->foto_thumbnail_path) && Storage::disk('public')->exists($actividad->foto_thumbnail_path)) {
+                Storage::disk('public')->delete($actividad->foto_thumbnail_path);
             }
 
             $this->deletePdfCacheForOriginal($actividad->foto_path);
@@ -925,13 +953,18 @@ class ActividadController extends Controller
         $fotos = $actividad->fotos
             ->sortBy([['orden', 'asc'], ['id', 'asc']])
             ->map(function ($foto) {
-                return asset('storage/' . ltrim($foto->foto_path, '/'));
+                $path = $foto->foto_thumbnail_path ?: $foto->foto_path;
+
+                return $path ? asset('storage/' . ltrim($path, '/')) : null;
             })
+            ->filter()
             ->values();
 
-        if ($fotos->isEmpty() && $actividad->foto_path) {
+        $fotoActividad = $actividad->foto_thumbnail_path ?: $actividad->foto_path;
+
+        if ($fotos->isEmpty() && $fotoActividad) {
             $fotos = collect([
-                asset('storage/' . ltrim($actividad->foto_path, '/')),
+                asset('storage/' . ltrim($fotoActividad, '/')),
             ]);
         }
 

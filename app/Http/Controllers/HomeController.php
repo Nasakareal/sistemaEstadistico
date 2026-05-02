@@ -88,7 +88,7 @@ class HomeController extends Controller
                 a.created_by as user_id,
                 u.name as user_name,
                 a.nombre as resumen,
-                a.foto_path as foto_path,
+                COALESCE(a.foto_path, a.foto_thumbnail_path) as foto_path,
                 a.created_at as created_at
             ");
 

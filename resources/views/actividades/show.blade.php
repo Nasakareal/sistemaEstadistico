@@ -40,11 +40,12 @@
             ? $actividad->fotos
             : $actividad->fotos()->orderBy('orden')->orderBy('id')->get();
 
-        if ($fotosActividad->isEmpty() && !empty($actividad->foto_path)) {
+        if ($fotosActividad->isEmpty() && (!empty($actividad->foto_path) || !empty($actividad->foto_thumbnail_path))) {
             $fotosActividad = collect([
                 (object) [
                     'id' => 'legacy',
                     'foto_path' => $actividad->foto_path,
+                    'foto_thumbnail_path' => $actividad->foto_thumbnail_path,
                     'foto_nombre_original' => $actividad->foto_nombre_original,
                     'foto_hash' => $actividad->foto_hash,
                     'orden' => 0,
@@ -444,7 +445,8 @@
                         <div class="foto-grid">
                             @foreach ($fotosActividad as $foto)
                                 @php
-                                    $fotoUrl = asset('storage/' . ltrim($foto->foto_path, '/'));
+                                    $fotoPath = ($foto->foto_thumbnail_path ?? null) ?: $foto->foto_path;
+                                    $fotoUrl = asset('storage/' . ltrim($fotoPath, '/'));
                                     $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
                                 @endphp
 

@@ -445,7 +445,7 @@ class FeedController extends Controller
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
                 a.nombre as resumen,
-                a.foto_path as foto_path,
+                COALESCE(a.foto_path, a.foto_thumbnail_path) as foto_path,
                 a.created_at as created_at
             ", [$typeOrder]);
         }
@@ -457,7 +457,7 @@ class FeedController extends Controller
             u.name as user_name,
             {$unidadSql} as unidad_id,
             a.nombre as resumen,
-            a.foto_path as foto_path,
+            COALESCE(a.foto_path, a.foto_thumbnail_path) as foto_path,
             a.created_at as created_at
         ")->orderByDesc('a.created_at')->orderByDesc('a.id');
     }

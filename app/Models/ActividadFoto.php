@@ -16,9 +16,18 @@ class ActividadFoto extends Model
         'foto_path',
         'foto_nombre_original',
         'foto_hash',
+        'foto_thumbnail_path',
+        'foto_archivo_zip_path',
+        'foto_archivada_at',
+        'foto_eliminada_at',
         'orden',
         'created_by',
         'updated_by',
+    ];
+
+    protected $casts = [
+        'foto_archivada_at' => 'datetime',
+        'foto_eliminada_at' => 'datetime',
     ];
 
     public function actividad()

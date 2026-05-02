@@ -3,10 +3,9 @@
     "",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\users"
+    "\\resources\\views\\estadisticas_actividades",
+    "\\resources\\views\\estadisticas_globales"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\users\\edit.blade.php",
+  "SelectedNode": "\\resources\\views\\estadisticas_actividades\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

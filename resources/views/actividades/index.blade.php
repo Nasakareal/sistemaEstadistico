@@ -146,7 +146,7 @@
 
                                     <td>
                                         @php
-                                            $foto = $a->foto_path;
+                                            $foto = $a->foto_thumbnail_path ?: $a->foto_path;
                                             $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
                                         @endphp
 

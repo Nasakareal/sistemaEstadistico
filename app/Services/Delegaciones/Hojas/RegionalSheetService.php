@@ -141,7 +141,7 @@ class RegionalSheetService
                 's.nombre as actividad',
                 'a.personas_participantes',
                 'a.patrullas_participantes_texto',
-                'a.kilometro',
+                'a.km_recorridos',
                 'a.personas_alcanzadas',
             ])
             ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", [$inicio, $fin])
@@ -171,7 +171,7 @@ class RegionalSheetService
             $datos[$actividad]['cantidad']++;
             $datos[$actividad]['estado_fuerza'] += (int) ($registro->personas_participantes ?? 0);
             $datos[$actividad]['unidades'] += $this->contarUnidades($registro->patrullas_participantes_texto);
-            $datos[$actividad]['kilometros'] += is_numeric($registro->kilometro) ? (float) $registro->kilometro : 0;
+            $datos[$actividad]['kilometros'] += is_numeric($registro->km_recorridos) ? (float) $registro->km_recorridos : 0;
             $datos[$actividad]['personas'] += (int) ($registro->personas_alcanzadas ?? 0);
         }
 
@@ -419,6 +419,7 @@ class RegionalSheetService
                 'h.id',
                 'h.unidad',
                 'h.delegacion_id',
+                'h.km_recorridos',
             ])
             ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
             ->where('h.unidad_org_id', 2)
@@ -443,7 +444,9 @@ class RegionalSheetService
             'cantidad' => $hechos->count(),
             'estado_fuerza' => $hechos->count(),
             'unidades' => $hechos->pluck('unidad')->filter()->unique()->count(),
-            'kilometros' => 0,
+            'kilometros' => $hechos->sum(function ($hecho) {
+                return is_numeric($hecho->km_recorridos) ? (float) $hecho->km_recorridos : 0;
+            }),
             'personas' => $personas,
             'recomendaciones' => 0,
         ];

@@ -374,11 +374,12 @@
                                 ? $actividad->fotos
                                 : $actividad->fotos()->orderBy('orden')->orderBy('id')->get();
 
-                            if ($fotosActuales->isEmpty() && !empty($actividad->foto_path)) {
+                            if ($fotosActuales->isEmpty() && (!empty($actividad->foto_path) || !empty($actividad->foto_thumbnail_path))) {
                                 $fotosActuales = collect([
                                     (object) [
                                         'id' => 'legacy',
                                         'foto_path' => $actividad->foto_path,
+                                        'foto_thumbnail_path' => $actividad->foto_thumbnail_path,
                                         'foto_nombre_original' => $actividad->foto_nombre_original,
                                         'orden' => 0,
                                     ]
@@ -394,7 +395,8 @@
                                     <div class="preview-grid" style="{{ $fotosActuales->count() ? '' : 'display:none;' }}">
                                         @foreach ($fotosActuales as $foto)
                                             @php
-                                                $fotoUrl = asset('storage/' . ltrim($foto->foto_path, '/'));
+                                                $fotoPath = ($foto->foto_thumbnail_path ?? null) ?: $foto->foto_path;
+                                                $fotoUrl = asset('storage/' . ltrim($fotoPath, '/'));
                                                 $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
                                             @endphp
                                             <div class="preview-item">

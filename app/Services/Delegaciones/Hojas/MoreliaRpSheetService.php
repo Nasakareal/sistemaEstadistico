@@ -123,6 +123,7 @@ class MoreliaRpSheetService
                 'a.municipio',
                 'a.personas_alcanzadas',
                 'a.personas_participantes',
+                'a.km_recorridos',
                 'a.patrullas_participantes_texto',
                 's.nombre as subcategoria',
             ])
@@ -158,6 +159,7 @@ class MoreliaRpSheetService
             $agrupado[$subcategoria]['cuenta_actividad']++;
             $agrupado[$subcategoria]['suma_agentes'] += (int) ($actividad->personas_participantes ?? 0);
             $agrupado[$subcategoria]['suma_unidades'] += $this->contarUnidades($actividad->patrullas_participantes_texto);
+            $agrupado[$subcategoria]['suma_kilometros'] += is_numeric($actividad->km_recorridos) ? (float) $actividad->km_recorridos : 0;
             $agrupado[$subcategoria]['suma_personas_alcanzadas'] += (int) ($actividad->personas_alcanzadas ?? 0);
         }
 

@@ -160,7 +160,7 @@ seguridad a la ciudadanía.</div>
                 $cat = $a->categoria ? (string)$a->categoria->nombre : 'Sin categoría';
                 $hora = optional($a->created_at)->timezone($tz)->format('H:i');
 
-                $rel = $a->foto_pdf_path ?: $a->foto_path;
+                $rel = $a->foto_pdf_path ?: ($a->foto_thumbnail_path ?: $a->foto_path);
 
                 $srcRel = null;
                 if ($rel) {

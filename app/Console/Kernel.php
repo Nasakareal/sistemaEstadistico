@@ -52,6 +52,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
             ->withoutOverlapping();
 
+        $schedule->command('actividades:depurar-fotos')
+            ->timezone('America/Mexico_City')
+            ->dailyAt('02:30')
+            ->withoutOverlapping();
+
         $schedule->command('delegaciones:generar-excel-diario')
             ->timezone('America/Mexico_City')
             ->dailyAt(substr(config('cortes.hora_corte_delegaciones', '17:00:00'), 0, 5))

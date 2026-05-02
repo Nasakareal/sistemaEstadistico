@@ -245,6 +245,53 @@ class FetchWazeAlerts extends Command
             ->toArray();
     }
 
+    private function getNearbyTokens(WazeAlert $wazeAlert): array
+    {
+        if (!is_numeric($wazeAlert->lat) || !is_numeric($wazeAlert->lng)) {
+            return [];
+        }
+
+        $lat = (float) $wazeAlert->lat;
+        $lng = (float) $wazeAlert->lng;
+        $radiusKm = $this->wazeNotifyRadiusKm();
+        $maxAgeMinutes = $this->wazeLocationMaxAgeMinutes();
+
+        $distanceSql = '(6371.0088 * 2 * ASIN(LEAST(1, SQRT('
+            . 'POWER(SIN(RADIANS(user_locations.lat - ?) / 2), 2) + '
+            . 'COS(RADIANS(?)) * COS(RADIANS(user_locations.lat)) * '
+            . 'POWER(SIN(RADIANS(user_locations.lng - ?) / 2), 2)'
+            . '))))';
+
+        return DeviceToken::query()
+            ->join('users', 'users.id', '=', 'device_tokens.user_id')
+            ->join('user_locations', 'user_locations.user_id', '=', 'users.id')
+            ->whereNotNull('device_tokens.token')
+            ->where('device_tokens.token', '!=', '')
+            ->where('users.compartir_ubicacion', 1)
+            ->whereNotNull('user_locations.lat')
+            ->whereNotNull('user_locations.lng')
+            ->where('user_locations.captured_at', '>=', Carbon::now('America/Mexico_City')->subMinutes($maxAgeMinutes))
+            ->select('device_tokens.token')
+            ->selectRaw($distanceSql . ' AS distance_km', [$lat, $lat, $lng])
+            ->whereRaw($distanceSql . ' <= ?', [$lat, $lat, $lng, $radiusKm])
+            ->orderBy('distance_km')
+            ->get()
+            ->pluck('token')
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    private function wazeNotifyRadiusKm(): float
+    {
+        return max(0.1, (float) config('services.waze.notify_radius_km', 5));
+    }
+
+    private function wazeLocationMaxAgeMinutes(): int
+    {
+        return max(1, (int) config('services.waze.notify_location_max_age_minutes', 30));
+    }
+
     private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
     {
         $lat = $wazeAlert->lat;
@@ -280,27 +327,7 @@ class FetchWazeAlerts extends Command
             'maps_url'  => $mapsUrl,
         ];
 
-        $tokensAdmin = $this->getTokensByUserId(1);
-
-        $tokensGeneral = $this->getGeneralTokensExceptUnidad([1, 4], [1]);
-
-        $tokensCarreteras = $this->getTokensByUnidadId(4, [1]);
-
-        $tokensSiniestros = [];
-        if ($isAccident && $this->isInsideMorelia($wazeAlert)) {
-            $tokensSiniestros = $this->getTokensByUnidadId(1, [1]);
-        }
-
-        $tokens = collect(array_merge(
-            $tokensAdmin,
-            $tokensGeneral,
-            $tokensCarreteras,
-            $tokensSiniestros
-        ))
-            ->filter()
-            ->unique()
-            ->values()
-            ->toArray();
+        $tokens = $this->getNearbyTokens($wazeAlert);
 
         Log::info('Waze notify tokens', [
             'waze_uuid' => $wazeAlert->uuid,
@@ -308,20 +335,24 @@ class FetchWazeAlerts extends Command
             'subtype' => $wazeAlert->subtype,
             'city' => $wazeAlert->city,
             'street' => $wazeAlert->street,
-            'admin_tokens' => count($tokensAdmin),
-            'general_tokens' => count($tokensGeneral),
-            'carreteras_tokens' => count($tokensCarreteras),
-            'siniestros_tokens' => count($tokensSiniestros),
+            'lat' => $lat,
+            'lng' => $lng,
+            'radius_km' => $this->wazeNotifyRadiusKm(),
+            'location_max_age_minutes' => $this->wazeLocationMaxAgeMinutes(),
             'tokens_total' => count($tokens),
         ]);
 
         if (count($tokens) === 0) {
-            Log::warning('Waze notify: no device tokens found for this alert', [
+            Log::warning('Waze notify: no nearby device tokens found for this alert', [
                 'waze_uuid' => $wazeAlert->uuid,
                 'type' => $wazeAlert->type,
                 'subtype' => $wazeAlert->subtype,
                 'city' => $wazeAlert->city,
                 'street' => $wazeAlert->street,
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius_km' => $this->wazeNotifyRadiusKm(),
+                'location_max_age_minutes' => $this->wazeLocationMaxAgeMinutes(),
             ]);
             return false;
         }

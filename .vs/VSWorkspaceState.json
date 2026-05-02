@@ -1,11 +1,13 @@
 {
   "ExpandedNodes": [
     "",
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\estadisticas_actividades",
-    "\\resources\\views\\estadisticas_globales"
+    "\\resources\\views\\estadisticas_actividades"
   ],
-  "SelectedNode": "\\resources\\views\\estadisticas_actividades\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\EstadisticasActividadesController.php",
   "PreviewInSolutionExplorer": false
 }

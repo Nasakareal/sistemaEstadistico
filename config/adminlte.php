@@ -454,6 +454,13 @@ return [
                             'can'     => 'ver estadisticas',
                         ],
                         [
+                            'text'    => 'Actividades',
+                            'icon'    => 'fa-solid fa-clipboard-list',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-actividades',
+                            'can'     => 'ver estadisticas actividades',
+                        ],
+                        [
                             'text'    => 'Mapa de Choques por Zona',
                             'route'   => 'hechos.zonas.index',
                             'icon'    => 'fa-solid fa-draw-polygon',

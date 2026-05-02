@@ -96,7 +96,7 @@ class EstadisticasActividadesController extends Controller
 
     public function seriesUnidad(Request $request)
     {
-        return $this->distributionJoin($request, 'unidad_organizacionales', 'unidad_org_id', 'nombre', 'actividades.unidad_org_id');
+        return $this->distributionJoin($request, 'unidades', 'unidad_org_id', 'nombre', 'actividades.unidad_org_id');
     }
 
     public function seriesDelegacion(Request $request)
@@ -179,6 +179,7 @@ class EstadisticasActividadesController extends Controller
 
             $q->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
                 ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+                ->leftJoin('unidades', 'unidades.id', '=', 'actividades.unidad_org_id')
                 ->leftJoin('delegaciones', 'delegaciones.id', '=', 'actividades.delegacion_id')
                 ->leftJoin('destacamentos', 'destacamentos.id', '=', 'actividades.destacamento_id')
                 ->select([
@@ -187,6 +188,7 @@ class EstadisticasActividadesController extends Controller
                     'actividad_subcategorias.nombre as subcategoria_nombre',
                     'delegaciones.nombre as delegacion_nombre',
                     'destacamentos.nombre as destacamento_nombre',
+                    'unidades.nombre as unidad_nombre',
                 ])
                 ->distinct()
                 ->orderByDesc('actividades.fecha')
@@ -241,7 +243,7 @@ class EstadisticasActividadesController extends Controller
                 ->select('id', 'actividad_categoria_id', 'unidad_id', 'nombre', 'slug');
 
             $categoriaId = trim((string)$request->query('actividad_categoria_id', ''));
-            $unidadId = trim((string)$request->query('unidad_id', ''));
+            $unidadId = trim((string)$request->query('unidad_id', $request->query('unidad_org_id', '')));
 
             if ($categoriaId !== '') {
                 $q->where('actividad_categoria_id', $categoriaId);
@@ -277,8 +279,16 @@ class EstadisticasActividadesController extends Controller
                 return [];
             }
 
+            $columns = ['id', 'nombre'];
+
+            foreach (['clave', 'unidad_id', 'delegacion_id', 'municipio'] as $column) {
+                if ($this->hasColumn('destacamentos', $column)) {
+                    $columns[] = $column;
+                }
+            }
+
             $q = DB::table('destacamentos')
-                ->select('id', 'delegacion_id', 'nombre');
+                ->select($columns);
 
             if ($this->hasColumn('destacamentos', 'activo')) {
                 $q->where('activo', 1);
@@ -286,8 +296,18 @@ class EstadisticasActividadesController extends Controller
 
             $delegacionId = trim((string)$request->query('delegacion_id', ''));
 
-            if ($delegacionId !== '') {
+            if ($delegacionId !== '' && $this->hasColumn('destacamentos', 'delegacion_id')) {
                 $q->where('delegacion_id', $delegacionId);
+            }
+
+            $unidadId = trim((string)$request->query('unidad_id', $request->query('unidad_org_id', '')));
+
+            if ($unidadId !== '' && $this->hasColumn('destacamentos', 'unidad_id')) {
+                $q->where('unidad_id', $unidadId);
+            }
+
+            if ($this->hasColumn('destacamentos', 'clave')) {
+                $q->orderBy('clave');
             }
 
             return $q->orderBy('nombre')->get();
@@ -639,7 +659,7 @@ class EstadisticasActividadesController extends Controller
             $allowedTables = [
                 'actividad_categorias',
                 'actividad_subcategorias',
-                'unidad_organizacionales',
+                'unidades',
                 'delegaciones',
                 'destacamentos',
             ];

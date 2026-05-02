@@ -2,12 +2,16 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Console",
-    "\\app\\Console\\Commands",
-    "\\app\\Console\\Commands\\delegaciones",
-    "\\app\\Services",
-    "\\app\\Services\\Delegaciones"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\admin",
+    "\\resources\\views\\admin\\settings",
+    "\\resources\\views\\admin\\settings\\estadisticas_delegaciones",
+    "\\resources\\views\\admin\\settings\\estadisticas_delegaciones\\excel_diario",
+    "\\resources\\views\\admin\\settings\\estadisticas_delegaciones\\excel_mensual"
   ],
-  "SelectedNode": "\\app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
+  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_delegaciones\\excel_diario\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

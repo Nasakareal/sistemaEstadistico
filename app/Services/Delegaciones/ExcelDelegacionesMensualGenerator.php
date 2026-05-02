@@ -30,8 +30,7 @@ class ExcelDelegacionesMensualGenerator
             ->selectRaw("
                 COALESCE(r.nombre, d.nombre, 'SIN REGIONAL') as regional,
                 COALESCE(d.nombre, 'SIN DELEGACION') as delegacion,
-                COUNT(*) as hechos_transito,
-                0 as siniestros,
+                COUNT(*) as siniestros,
                 COUNT(*) as total
             ")
             ->whereBetween('hechos.fecha', [$inicio, $fin])
@@ -42,12 +41,11 @@ class ExcelDelegacionesMensualGenerator
             ->orderBy('delegacion')
             ->get();
 
-        $sheet->setCellValue('A1', 'Cuenta de HECHO DE TRANSITO');
+        $sheet->setCellValue('A1', 'Cuenta de SINIESTRO');
         $sheet->setCellValue('B1', 'Etiquetas de columna');
         $sheet->setCellValue('A2', 'Etiquetas de fila');
-        $sheet->setCellValue('B2', 'HECHO DE TRANSITO');
-        $sheet->setCellValue('C2', 'SINIESTRO');
-        $sheet->setCellValue('D2', 'Total general');
+        $sheet->setCellValue('B2', 'SINIESTRO');
+        $sheet->setCellValue('C2', 'Total general');
 
         $fila = 3;
 
@@ -55,9 +53,8 @@ class ExcelDelegacionesMensualGenerator
             $nombreFila = mb_strtoupper($item->regional, 'UTF-8') . ' - ' . mb_strtoupper($item->delegacion, 'UTF-8');
 
             $sheet->setCellValue('A' . $fila, $nombreFila);
-            $sheet->setCellValue('B' . $fila, (int) $item->hechos_transito);
-            $sheet->setCellValue('C' . $fila, (int) $item->siniestros);
-            $sheet->setCellValue('D' . $fila, (int) $item->total);
+            $sheet->setCellValue('B' . $fila, (int) $item->siniestros);
+            $sheet->setCellValue('C' . $fila, (int) $item->total);
 
             $fila++;
         }
@@ -65,18 +62,17 @@ class ExcelDelegacionesMensualGenerator
         $sheet->setCellValue('A' . $fila, 'Total general');
         $sheet->setCellValue('B' . $fila, '=SUM(B3:B' . ($fila - 1) . ')');
         $sheet->setCellValue('C' . $fila, '=SUM(C3:C' . ($fila - 1) . ')');
-        $sheet->setCellValue('D' . $fila, '=SUM(D3:D' . ($fila - 1) . ')');
 
-        $sheet->getStyle('A1:D2')->getFont()->setBold(true);
-        $sheet->getStyle('A' . $fila . ':D' . $fila)->getFont()->setBold(true);
+        $sheet->getStyle('A1:C2')->getFont()->setBold(true);
+        $sheet->getStyle('A' . $fila . ':C' . $fila)->getFont()->setBold(true);
 
-        $sheet->getStyle('A1:D2')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
-        $sheet->getStyle('A' . $fila . ':D' . $fila)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
+        $sheet->getStyle('A1:C2')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
+        $sheet->getStyle('A' . $fila . ':C' . $fila)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
 
-        $sheet->getStyle('A1:D' . $fila)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-        $sheet->getStyle('B3:D' . $fila)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('A1:C' . $fila)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle('B3:C' . $fila)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
-        foreach (range('A', 'D') as $columna) {
+        foreach (range('A', 'C') as $columna) {
             $sheet->getColumnDimension($columna)->setAutoSize(true);
         }
 

@@ -3,20 +3,8 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\EstadisticasDelegacionesSettingsController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\EstadisticasDelegacionesSettingsController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\ExcelDelegacionesMensualGenerator.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Services\\Delegaciones\\ExcelDelegacionesMensualGenerator.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,58 +14,19 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "ExcelDelegacionesMensualGenerator.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\ExcelDelegacionesMensualGenerator.php",
               "RelativeDocumentMoniker": "app\\Services\\Delegaciones\\ExcelDelegacionesMensualGenerator.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Services\\Delegaciones\\ExcelDelegacionesMensualGenerator.php",
               "RelativeToolTip": "app\\Services\\Delegaciones\\ExcelDelegacionesMensualGenerator.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAF0AAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAACYAAAAAAAAAAAAmwFkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-02T22:51:31.678Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "GenerarExcelDelegacionesDiario.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
-              "RelativeDocumentMoniker": "app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
-              "RelativeToolTip": "app\\Console\\Commands\\delegaciones\\GenerarExcelDelegacionesDiario.php",
-              "ViewState": "AgIAABEAAAAAAAAAAAAmwEMAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-02T22:49:56.527Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "EstadisticasDelegacionesSettingsController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\EstadisticasDelegacionesSettingsController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\EstadisticasDelegacionesSettingsController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\EstadisticasDelegacionesSettingsController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\EstadisticasDelegacionesSettingsController.php",
-              "ViewState": "AgIAABYAAAAAAAAAAAAmwC8AAAAuAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-02T22:48:31.735Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "web.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
-              "RelativeDocumentMoniker": "routes\\web.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
-              "RelativeToolTip": "routes\\web.php",
-              "ViewState": "AgIAAL8CAAAAAAAAAAAAANkCAABiAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-02T21:59:55.474Z",
+              "WhenOpened": "2026-05-02T23:24:51.033Z",
               "EditorCaption": ""
             }
           ]

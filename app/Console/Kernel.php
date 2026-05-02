@@ -71,6 +71,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('18:01')
             ->timezone('America/Mexico_City')
             ->withoutOverlapping();
+
+        $schedule->command('delegaciones:generar-excel-mensual')
+            ->timezone('America/Mexico_City')
+            ->monthlyOn(1, '00:10')
+            ->withoutOverlapping();
     }
 
     protected function commands()

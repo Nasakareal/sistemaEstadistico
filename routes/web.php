@@ -725,6 +725,9 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/', [EstadisticasDelegacionesSettingsController::class, 'index'])->name('settings.estadisticas_delegaciones.index');
         Route::get('/excel-diario', [EstadisticasDelegacionesSettingsController::class, 'excelDiario'])->name('settings.estadisticas_delegaciones.excel_diario');
         Route::get('/excel-diario/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_delegaciones.excel_diario.descargar');
+
+        Route::get('/excel-mensual', [EstadisticasDelegacionesSettingsController::class,'excelMensual'])->name('settings.estadisticas_delegaciones.excel_mensual');
+        Route::get('/excel-mensual/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class,'descargarExcelMensual'])->name('settings.estadisticas_delegaciones.excel_mensual.descargar');
     });
 
     Route::prefix('estadisticas-vialidad')->group(function () {

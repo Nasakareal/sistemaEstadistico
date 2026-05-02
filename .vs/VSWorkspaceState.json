@@ -2,12 +2,12 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\estadisticas_actividades"
+    "\\app\\Console",
+    "\\app\\Console\\Commands",
+    "\\app\\Console\\Commands\\delegaciones",
+    "\\app\\Services",
+    "\\app\\Services\\Delegaciones"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\EstadisticasActividadesController.php",
+  "SelectedNode": "\\app\\Services\\Delegaciones\\ExcelDelegacionesGenerator.php",
   "PreviewInSolutionExplorer": false
 }

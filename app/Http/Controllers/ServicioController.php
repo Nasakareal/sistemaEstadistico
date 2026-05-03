@@ -36,73 +36,28 @@ class ServicioController extends Controller
     {
         $this->autorizarAccesoAGrua($grua);
 
-        $servicios = $grua->servicios;
+        $servicios = Servicio::query()
+            ->conOrigenVinculado()
+            ->where('grua_id', $grua->id)
+            ->with('vehiculo')
+            ->latest('created_at')
+            ->get();
+
         return view('servicios.index', compact('grua', 'servicios'));
-    }
-
-    public function create(Grua $grua)
-    {
-        $this->autorizarAccesoAGrua($grua);
-
-        return view('servicios.create', compact('grua'));
-    }
-
-    public function store(Request $request, Grua $grua)
-    {
-        $this->autorizarAccesoAGrua($grua);
-
-        $request->validate([
-            'tipo_vehiculo' => 'required|string',
-            'aseguradora' => 'nullable|string',
-            'descripcion' => 'nullable|string',
-            'foto_vehiculo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
-
-        $data = $request->all();
-
-        if ($request->hasFile('foto_vehiculo')) {
-            $data['foto_vehiculo'] = $request->file('foto_vehiculo')->store('fotos_vehiculos', 'public');
-        }
-
-        $grua->servicios()->create($data);
-
-        return redirect()->route('servicios.index', $grua->id)->with('success', 'Servicio registrado correctamente.');
     }
 
     public function show(Grua $grua, Servicio $servicio)
     {
         $this->autorizarAccesoAGrua($grua);
 
+        $servicio = Servicio::query()
+            ->conOrigenVinculado()
+            ->where('grua_id', $grua->id)
+            ->whereKey($servicio->id)
+            ->with('vehiculo')
+            ->firstOrFail();
+
         return view('servicios.show', compact('grua', 'servicio'));
-    }
-
-    public function edit(Grua $grua, Servicio $servicio)
-    {
-        $this->autorizarAccesoAGrua($grua);
-
-        return view('servicios.edit', compact('grua', 'servicio'));
-    }
-
-    public function update(Request $request, Grua $grua, Servicio $servicio)
-    {
-        $this->autorizarAccesoAGrua($grua);
-
-        $request->validate([
-            'tipo_vehiculo' => 'required|string',
-            'aseguradora' => 'nullable|string',
-            'descripcion' => 'nullable|string',
-            'foto_vehiculo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
-
-        $data = $request->all();
-
-        if ($request->hasFile('foto_vehiculo')) {
-            $data['foto_vehiculo'] = $request->file('foto_vehiculo')->store('fotos_vehiculos', 'public');
-        }
-
-        $servicio->update($data);
-
-        return redirect()->route('servicios.index', $grua->id)->with('success', 'Servicio actualizado correctamente.');
     }
 
     public function grafico(Request $request)
@@ -175,6 +130,7 @@ class ServicioController extends Controller
             })
             ->with(['servicios' => function ($q) use ($from, $to, $origen, $delegacionesSeleccionadas) {
                 $q->select('id', 'vehiculo_id', 'grua_id', 'unidad_id', 'delegacion_id', 'tipo_vehiculo', 'aseguradora', 'created_at')
+                    ->conOrigenVinculado()
                     ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
                     ->when($origen === 'siniestros', function ($servicios) {
                         $servicios->where('unidad_id', 1);
@@ -257,14 +213,6 @@ class ServicioController extends Controller
             'puedeFiltrarOrigen' => $usuario->hasRole('Superadmin') || (int)$usuario->unidad_id === 3,
             'puedeFiltrarDelegaciones' => in_array($origen, ['delegaciones', 'todos'], true),
         ]);
-    }
-
-    public function destroy(Grua $grua, Servicio $servicio)
-    {
-        $this->autorizarAccesoAGrua($grua);
-
-        $servicio->delete();
-        return redirect()->route('servicios.index', $grua->id)->with('success', 'Servicio eliminado correctamente.');
     }
 
     private function construirConsultaGruasSegunOrigen($usuario, string $origen, array $delegacionesSeleccionadas = [])

@@ -11,12 +11,7 @@
         <div class="col-md-12">
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Servicios Registrados</h3>
-                    <div class="card-tools">
-                        <a href="{{ route('servicios.create', $grua->id) }}" class="btn btn-primary">
-                            <i class="fa-solid fa-plus"></i> Registrar Nuevo Servicio
-                        </a>
-                    </div>
+                    <h3 class="card-title">Servicios Vinculados</h3>
                 </div>
                 <div class="card-body">
                     <table id="servicios" class="table table-striped table-bordered table-hover table-sm">
@@ -43,18 +38,6 @@
                                             <a href="{{ route('servicios.show', [$grua->id, $servicio->id]) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
-                                            <a href="{{ route('servicios.edit', [$grua->id, $servicio->id]) }}" class="btn btn-success btn-sm">
-                                                <i class="fa-regular fa-pen-to-square"></i>
-                                            </a>
-                                            {{-- Formulario de Eliminar --}}
-                                            <form action="{{ route('servicios.destroy', [$grua->id, $servicio->id]) }}" 
-                                                  method="POST" style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="button" class="btn btn-danger btn-sm delete-btn">
-                                                    <i class="fa-regular fa-trash-can"></i>
-                                                </button>
-                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -128,26 +111,5 @@
                 timer: 1500
             });
         @endif
-
-        $(document).on('click', '.delete-btn', function (e) {
-            e.preventDefault();
-
-            let form = $(this).closest('form');
-
-            Swal.fire({
-                title: '¿Estás seguro de eliminar este servicio?',
-                text: "¡No podrás revertir esta acción!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    form.submit();
-                }
-            });
-        });
     </script>
 @stop

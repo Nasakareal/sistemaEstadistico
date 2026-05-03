@@ -445,12 +445,7 @@ Route::prefix('gruas')->middleware(['auth','can:ver gruas'])->group(function () 
 
     Route::prefix('{grua}/servicios')->group(function () {
         Route::get('/',[ServicioController::class,'index'])->name('servicios.index');
-        Route::get('/create',[ServicioController::class,'create'])->name('servicios.create');
-        Route::post('/',[ServicioController::class,'store'])->name('servicios.store');
-        Route::get('/{servicio}',[ServicioController::class,'show'])->name('servicios.show');
-        Route::get('/{servicio}/edit',[ServicioController::class,'edit'])->name('servicios.edit');
-        Route::put('/{servicio}',[ServicioController::class,'update'])->name('servicios.update');
-        Route::delete('/{servicio}',[ServicioController::class,'destroy'])->name('servicios.destroy');
+        Route::get('/{servicio}',[ServicioController::class,'show'])->where('servicio', '[0-9]+')->name('servicios.show');
     });
 
     Route::get('/{grua}/tramos', [GruaTramoController::class,'index'])->name('gruas.tramos.index');

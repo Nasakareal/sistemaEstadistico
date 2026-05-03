@@ -62,6 +62,21 @@ class Vehiculo extends Model
         return $this->belongsToMany(\App\Models\Actividad::class, 'actividad_vehiculo', 'vehiculo_id', 'actividad_id')->withTimestamps();
     }
 
+    public function operativoDispositivos()
+    {
+        return $this->belongsToMany(
+            OperativoDispositivo::class,
+            'operativo_dispositivo_vehiculo',
+            'vehiculo_id',
+            'operativo_dispositivo_id'
+        )->withPivot('rol', 'observaciones')->withTimestamps();
+    }
+
+    public function puestasDisposicionVehiculos()
+    {
+        return $this->hasMany(PuestaDisposicionVehiculo::class, 'vehiculo_id');
+    }
+
     public function gruaAsignada()
     {
         return $this->belongsTo(Grua::class, 'grua_id');

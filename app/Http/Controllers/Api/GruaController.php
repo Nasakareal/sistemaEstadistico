@@ -97,6 +97,8 @@ class GruaController extends Controller
                             ->from('servicios')
                             ->whereColumn('servicios.delegacion_id', 'delegaciones.id')
                             ->where('servicios.unidad_id', self::UNIDAD_DELEGACIONES_ID);
+
+                        $this->applyServiciosOrigenVinculadoScope($qq);
                     });
             })
             ->orderBy('nombre')
@@ -330,6 +332,21 @@ class GruaController extends Controller
             ])
             ->groupBy('vehiculo_id');
 
+        $odvSub = DB::table('operativo_dispositivo_vehiculo')
+            ->select([
+                'vehiculo_id',
+                DB::raw('MAX(operativo_dispositivo_id) as operativo_dispositivo_id'),
+            ])
+            ->groupBy('vehiculo_id');
+
+        $pdvSub = DB::table('puestas_disposicion_vehiculos')
+            ->select([
+                'vehiculo_id',
+                DB::raw('MAX(puesta_disposicion_id) as puesta_disposicion_id'),
+            ])
+            ->whereNotNull('vehiculo_id')
+            ->groupBy('vehiculo_id');
+
         $detalle = DB::table('servicios as s')
             ->leftJoin('vehiculos as v', 'v.id', '=', 's.vehiculo_id')
             ->leftJoinSub($hvSub, 'hv', function ($join) {
@@ -337,6 +354,12 @@ class GruaController extends Controller
             })
             ->leftJoinSub($avSub, 'av', function ($join) {
                 $join->on('av.vehiculo_id', '=', 's.vehiculo_id');
+            })
+            ->leftJoinSub($odvSub, 'odv', function ($join) {
+                $join->on('odv.vehiculo_id', '=', 's.vehiculo_id');
+            })
+            ->leftJoinSub($pdvSub, 'pdv', function ($join) {
+                $join->on('pdv.vehiculo_id', '=', 's.vehiculo_id');
             })
             ->select([
                 's.grua_id',
@@ -347,6 +370,8 @@ class GruaController extends Controller
                 's.delegacion_id',
                 'hv.hecho_id as hecho_id',
                 'av.actividad_id as actividad_id',
+                'odv.operativo_dispositivo_id as operativo_dispositivo_id',
+                'pdv.puesta_disposicion_id as puesta_disposicion_id',
                 's.tipo_vehiculo',
                 's.aseguradora',
                 'v.placas',
@@ -384,6 +409,8 @@ class GruaController extends Controller
                 'delegacion_id' => $d->delegacion_id ? (int) $d->delegacion_id : null,
                 'hecho_id' => $d->hecho_id ? (int) $d->hecho_id : null,
                 'actividad_id' => $d->actividad_id ? (int) $d->actividad_id : null,
+                'operativo_dispositivo_id' => $d->operativo_dispositivo_id ? (int) $d->operativo_dispositivo_id : null,
+                'puesta_disposicion_id' => $d->puesta_disposicion_id ? (int) $d->puesta_disposicion_id : null,
                 'placas' => $d->placas,
                 'marca' => $d->marca,
                 'linea' => $d->linea,
@@ -510,6 +537,8 @@ class GruaController extends Controller
             return $alias !== '' ? "{$alias}.{$column}" : $column;
         };
 
+        $this->applyServiciosOrigenVinculadoScope($query, $alias);
+
         $unidadId = $this->requestedUnidadId($request);
         if ($unidadId > 0) {
             $query->where($col('unidad_id'), $unidadId);
@@ -523,6 +552,38 @@ class GruaController extends Controller
         if (!empty($delegacionIds)) {
             $query->whereIn($col('delegacion_id'), $delegacionIds);
         }
+    }
+
+    private function applyServiciosOrigenVinculadoScope($query, string $alias = ''): void
+    {
+        $serviciosTable = $alias !== '' ? $alias : 'servicios';
+        $vehiculoColumn = "{$serviciosTable}.vehiculo_id";
+
+        $query->whereNotNull($vehiculoColumn)
+            ->whereExists(function ($vehiculo) use ($vehiculoColumn) {
+                $vehiculo->selectRaw('1')
+                    ->from('vehiculos as veh_origen')
+                    ->whereColumn('veh_origen.id', $vehiculoColumn)
+                    ->where(function ($origen) {
+                        $origen->whereExists(function ($hechos) {
+                            $hechos->selectRaw('1')
+                                ->from('hecho_vehiculo as hv_origen')
+                                ->whereColumn('hv_origen.vehiculo_id', 'veh_origen.id');
+                        })->orWhereExists(function ($actividades) {
+                            $actividades->selectRaw('1')
+                                ->from('actividad_vehiculo as av_origen')
+                                ->whereColumn('av_origen.vehiculo_id', 'veh_origen.id');
+                        })->orWhereExists(function ($dispositivos) {
+                            $dispositivos->selectRaw('1')
+                                ->from('operativo_dispositivo_vehiculo as odv_origen')
+                                ->whereColumn('odv_origen.vehiculo_id', 'veh_origen.id');
+                        })->orWhereExists(function ($puestas) {
+                            $puestas->selectRaw('1')
+                                ->from('puestas_disposicion_vehiculos as pdv_origen')
+                                ->whereColumn('pdv_origen.vehiculo_id', 'veh_origen.id');
+                        });
+                    });
+            });
     }
 
     private function requestedUnidadId(Request $request): int

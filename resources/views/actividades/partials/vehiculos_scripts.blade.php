@@ -35,6 +35,7 @@
             'capacidad_personas',
             'tipo_servicio',
             'tarjeta_circulacion_nombre',
+            'grua_id',
             'grua',
             'corralon',
             'aseguradora',
@@ -128,6 +129,13 @@
             data.antecedente_vehiculo = form.querySelector('[name="antecedente_vehiculo"]')?.checked ? '1' : '0';
             data.capacidad_personas = data.capacidad_personas || '0';
 
+            const gruaSelect = form.querySelector('[name="grua_id"]');
+            if (gruaSelect && gruaSelect.value) {
+                data.grua = (gruaSelect.options[gruaSelect.selectedIndex]?.text || '').trim();
+            } else {
+                data.grua = '';
+            }
+
             return data;
         }
 
@@ -170,6 +178,7 @@
                             <span class="vehiculo-chip"><i class="fa-solid fa-car-rear"></i> ${escapeHtml(vehiculo.tipo || 'Tipo N/D')}</span>
                             <span class="vehiculo-chip"><i class="fa-solid fa-palette"></i> ${escapeHtml(vehiculo.color || 'Color N/D')}</span>
                             <span class="vehiculo-chip"><i class="fa-solid fa-user-group"></i> ${escapeHtml(vehiculo.capacidad_personas || '0')}</span>
+                            ${vehiculo.grua ? `<span class="vehiculo-chip"><i class="fa-solid fa-truck"></i> ${escapeHtml(vehiculo.grua)}</span>` : ''}
                         </div>
                         <div class="vehiculo-card-actions">
                             <span class="badge ${tieneAntecedente ? 'badge-danger' : 'badge-success'}">

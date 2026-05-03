@@ -31,4 +31,16 @@ class Servicio extends Model
     {
         return $this->belongsTo(Vehiculo::class, 'vehiculo_id');
     }
+
+    public function scopeConOrigenVinculado($query)
+    {
+        return $query->whereHas('vehiculo', function ($vehiculo) {
+            $vehiculo->where(function ($origen) {
+                $origen->whereHas('hechos')
+                    ->orWhereHas('actividades')
+                    ->orWhereHas('operativoDispositivos')
+                    ->orWhereHas('puestasDisposicionVehiculos');
+            });
+        });
+    }
 }

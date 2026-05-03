@@ -8,6 +8,8 @@ use App\Models\Actividad;
 use App\Models\ActividadCategoria;
 use App\Models\ActividadSubcategoria;
 use App\Models\Delegacion;
+use App\Models\Grua;
+use App\Models\Vehiculo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -153,6 +155,7 @@ class ActividadController extends Controller
             'vehiculos.*.capacidad_personas' => 'required|integer|min:0',
             'vehiculos.*.tipo_servicio' => 'required|string|max:50',
             'vehiculos.*.tarjeta_circulacion_nombre' => 'nullable|string|max:60',
+            'vehiculos.*.grua_id' => 'nullable|integer|exists:gruas,id',
             'vehiculos.*.grua' => 'nullable|string|max:255',
             'vehiculos.*.corralon' => 'nullable|string|max:255',
             'vehiculos.*.aseguradora' => 'nullable|string|max:100',
@@ -201,6 +204,11 @@ class ActividadController extends Controller
         }
 
         $user = Auth::user();
+
+        if ($response = $this->validarGruasPermitidasEnVehiculosJson($validated['vehiculos'] ?? [], $user)) {
+            return $response;
+        }
+
         $tz = config('app.timezone', 'America/Mexico_City');
         $ahora = now($tz);
 
@@ -951,6 +959,16 @@ class ActividadController extends Controller
 
         $validated = $this->validarVehiculoRequest($request);
 
+        if (!$this->gruaPermitidaParaUsuario($validated['grua_id'] ?? null, $usuario)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La grúa seleccionada no está disponible para tu unidad o delegación.',
+                'errors' => [
+                    'grua_id' => ['La grúa seleccionada no está disponible para tu unidad o delegación.'],
+                ],
+            ], 422);
+        }
+
         return DB::transaction(function () use ($actividad, $validated) {
             $vehiculo = $this->crearVehiculoParaActividad($actividad, $validated);
 
@@ -989,7 +1007,18 @@ class ActividadController extends Controller
             ], 403);
         }
 
-        $actividad->vehiculos()->detach($vehiculoId);
+        DB::transaction(function () use ($actividad, $vehiculoId) {
+            $actividad->vehiculos()->detach($vehiculoId);
+
+            $tieneOtroOrigen = DB::table('hecho_vehiculo')->where('vehiculo_id', $vehiculoId)->exists()
+                || DB::table('actividad_vehiculo')->where('vehiculo_id', $vehiculoId)->exists()
+                || DB::table('operativo_dispositivo_vehiculo')->where('vehiculo_id', $vehiculoId)->exists()
+                || DB::table('puestas_disposicion_vehiculos')->where('vehiculo_id', $vehiculoId)->exists();
+
+            if (!$tieneOtroOrigen) {
+                DB::table('servicios')->where('vehiculo_id', $vehiculoId)->delete();
+            }
+        });
 
         $actividad->load([
             'categoria',
@@ -1029,6 +1058,7 @@ class ActividadController extends Controller
             'capacidad_personas' => 'required|integer|min:0',
             'tipo_servicio' => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
+            'grua_id' => 'nullable|integer|exists:gruas,id',
             'grua' => 'nullable|string|max:255',
             'corralon' => 'nullable|string|max:255',
             'aseguradora' => 'nullable|string|max:100',
@@ -1051,6 +1081,7 @@ class ActividadController extends Controller
             'serie',
             'tipo_servicio',
             'tarjeta_circulacion_nombre',
+            'grua_id',
             'grua',
             'corralon',
             'aseguradora',
@@ -1064,11 +1095,19 @@ class ActividadController extends Controller
         return $data;
     }
 
-    private function crearVehiculoParaActividad(Actividad $actividad, array $data): \App\Models\Vehiculo
+    private function crearVehiculoParaActividad(Actividad $actividad, array $data): Vehiculo
     {
         $data = $this->normalizarVehiculoData($data);
+        $gruaId = !empty($data['grua_id']) ? (int) $data['grua_id'] : null;
+        $nombreGrua = null;
 
-        $vehiculo = \App\Models\Vehiculo::create([
+        if ($gruaId) {
+            $nombreGrua = Grua::query()
+                ->whereKey($gruaId)
+                ->value('nombre');
+        }
+
+        $vehiculo = Vehiculo::create([
             'client_uuid' => (string) Str::uuid(),
             'marca' => $this->toUpperOrNull($data['marca'] ?? null),
             'modelo' => $this->toUpperOrNull($data['modelo'] ?? null),
@@ -1081,7 +1120,8 @@ class ActividadController extends Controller
             'capacidad_personas' => $data['capacidad_personas'] ?? 0,
             'tipo_servicio' => $this->toUpperOrNull($data['tipo_servicio'] ?? null),
             'tarjeta_circulacion_nombre' => $this->toUpperOrNull($data['tarjeta_circulacion_nombre'] ?? null),
-            'grua' => $this->toUpperOrNull($data['grua'] ?? null),
+            'grua' => $this->toUpperOrNull($nombreGrua ?: ($data['grua'] ?? null)),
+            'grua_id' => $gruaId,
             'corralon' => $this->toUpperOrNull($data['corralon'] ?? null),
             'aseguradora' => $this->toUpperOrNull($data['aseguradora'] ?? null),
             'fotos' => null,
@@ -1092,6 +1132,126 @@ class ActividadController extends Controller
 
         $actividad->vehiculos()->syncWithoutDetaching([$vehiculo->id]);
 
+        $this->registrarServicioGruaParaActividad($actividad, $vehiculo, $data);
+
         return $vehiculo;
+    }
+
+    private function registrarServicioGruaParaActividad(Actividad $actividad, Vehiculo $vehiculo, array $data): void
+    {
+        $gruaId = !empty($data['grua_id']) ? (int) $data['grua_id'] : null;
+
+        if (!$gruaId) {
+            return;
+        }
+
+        $unidadId = (int) ($actividad->unidad_org_id ?? 0);
+        $unidadId = $unidadId > 0 ? $unidadId : 1;
+
+        DB::table('servicios')->updateOrInsert(
+            ['vehiculo_id' => $vehiculo->id],
+            [
+                'grua_id' => $gruaId,
+                'unidad_id' => $unidadId,
+                'delegacion_id' => $actividad->delegacion_id,
+                'tipo_vehiculo' => $this->toUpperOrNull($data['tipo'] ?? $vehiculo->tipo),
+                'aseguradora' => $this->toUpperOrNull($data['aseguradora'] ?? $vehiculo->aseguradora) ?? '',
+                'created_at' => $this->fechaServicioActividad($actividad),
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    private function fechaServicioActividad(Actividad $actividad): string
+    {
+        $fecha = $actividad->fecha
+            ? Carbon::parse($actividad->fecha)->format('Y-m-d')
+            : now('America/Mexico_City')->toDateString();
+
+        $hora = $actividad->hora
+            ? Carbon::parse($actividad->hora)->format('H:i:s')
+            : '12:00:00';
+
+        return $fecha . ' ' . $hora;
+    }
+
+    private function validarGruasPermitidasEnVehiculosJson(array $vehiculos, $usuario)
+    {
+        foreach ($vehiculos as $index => $vehiculo) {
+            if (!$this->gruaPermitidaParaUsuario($vehiculo['grua_id'] ?? null, $usuario)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'La grúa seleccionada no está disponible para tu unidad o delegación.',
+                    'errors' => [
+                        "vehiculos.{$index}.grua_id" => ['La grúa seleccionada no está disponible para tu unidad o delegación.'],
+                    ],
+                ], 422);
+            }
+        }
+
+        return null;
+    }
+
+    private function gruaPermitidaParaUsuario($gruaId, $usuario): bool
+    {
+        if (empty($gruaId)) {
+            return true;
+        }
+
+        return $this->gruasDisponiblesQuery($usuario)
+            ->where('gruas.id', (int) $gruaId)
+            ->exists();
+    }
+
+    private function gruasDisponiblesQuery($usuario)
+    {
+        $query = Grua::query()->orderBy('nombre');
+
+        if (!$usuario) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($usuario->hasRole('Superadmin') || (int) $usuario->unidad_id === 3) {
+            return $query;
+        }
+
+        if ((int) $usuario->unidad_id === 1) {
+            return $query->whereHas('unidades', function ($q) {
+                $q->where('unidades.id', 1);
+            });
+        }
+
+        if ((int) $usuario->unidad_id === 2) {
+            $delegacionIds = $this->obtenerIdsDelegacionesGruasUsuario($usuario);
+
+            if (empty($delegacionIds)) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query->whereHas('delegaciones', function ($q) use ($delegacionIds) {
+                $q->whereIn('delegaciones.id', $delegacionIds);
+            });
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    private function obtenerIdsDelegacionesGruasUsuario($usuario): array
+    {
+        $ids = [];
+
+        if (!empty($usuario->delegacion_id)) {
+            $ids[] = (int) $usuario->delegacion_id;
+        }
+
+        $idsPivot = DB::table('delegacion_user')
+            ->where('user_id', $usuario->id)
+            ->pluck('delegacion_id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->toArray();
+
+        return array_values(array_unique(array_merge($ids, $idsPivot)));
     }
 }

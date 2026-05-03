@@ -150,9 +150,16 @@
 <div class="row">
     <div class="col-md-3">
         <div class="form-group">
-            <label for="vehiculo_grua">Grúa</label>
-            <input type="text" name="grua" id="vehiculo_grua" class="form-control js-uppercase @error('grua') is-invalid @enderror" value="{{ old('grua') }}" placeholder="N/A si no aplica">
-            @error('grua')
+            <label for="vehiculo_grua_id">Grúa</label>
+            <select name="grua_id" id="vehiculo_grua_id" class="form-control @error('grua_id') is-invalid @enderror">
+                <option value="">Seleccione una grúa</option>
+                @foreach (($gruas ?? collect()) as $grua)
+                    <option value="{{ $grua->id }}" {{ (string) old('grua_id') === (string) $grua->id ? 'selected' : '' }}>
+                        {{ $grua->nombre }}
+                    </option>
+                @endforeach
+            </select>
+            @error('grua_id')
                 <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
             @enderror
         </div>
@@ -161,7 +168,21 @@
     <div class="col-md-3">
         <div class="form-group">
             <label for="vehiculo_corralon">Corralón</label>
-            <input type="text" name="corralon" id="vehiculo_corralon" class="form-control js-uppercase @error('corralon') is-invalid @enderror" value="{{ old('corralon') }}" placeholder="N/A si no aplica">
+            <select name="corralon" id="vehiculo_corralon" class="form-control @error('corralon') is-invalid @enderror">
+                <option value="">Seleccione un corralón</option>
+                @foreach (($gruas ?? collect()) as $grua)
+                    @php
+                        $corralonValor = trim((string) ($grua->ubicacion_corralon ?: $grua->nombre));
+                        $corralonTexto = trim((string) ($grua->ubicacion_corralon ?: $grua->nombre));
+                    @endphp
+
+                    @if ($corralonValor !== '')
+                        <option value="{{ $corralonValor }}" {{ old('corralon') === $corralonValor ? 'selected' : '' }}>
+                            {{ $corralonTexto }}
+                        </option>
+                    @endif
+                @endforeach
+            </select>
             @error('corralon')
                 <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
             @enderror

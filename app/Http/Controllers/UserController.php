@@ -583,7 +583,17 @@ class UserController extends Controller
     {
         $rol = Role::query()->with('unidad')->find($roleId);
 
-        if (!$rol || !$actor->puedeVerRol($rol)) {
+        if (!$rol) {
+            return null;
+        }
+
+        if ($actor->hasRole('Administrador') && !$actor->hasRole('Superadmin')) {
+            if ($rol->name === 'Administrador') {
+                return null;
+            }
+        }
+
+        if (!$actor->puedeVerRol($rol)) {
             return null;
         }
 

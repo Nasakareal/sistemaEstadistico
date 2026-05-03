@@ -65,15 +65,17 @@
                                             class="form-control @error('role_id') is-invalid @enderror" required>
                                         <option value="" disabled {{ old('role_id') ? '' : 'selected' }}>Seleccione un rol</option>
                                         @foreach ($roles as $role)
-                                            @php
-                                                $unidadRolId = $role->unidadIdEfectiva();
-                                                $unidadRolNombre = $role->unidadEfectivaNombre();
-                                            @endphp
-                                            <option value="{{ $role->id }}"
-                                                    data-unidad-id="{{ $unidadRolId }}"
-                                                    {{ (string) old('role_id') === (string) $role->id ? 'selected' : '' }}>
-                                                {{ $role->name }}{{ !is_null($unidadRolId) ? ' - ' . ($unidadRolNombre ?? 'SIN UNIDAD') : ' - GLOBAL' }}
-                                            </option>
+                                            @if(!(auth()->user()->hasRole('Administrador') && !auth()->user()->hasRole('Superadmin') && $role->name === 'Administrador'))
+                                                @php
+                                                    $unidadRolId = $role->unidadIdEfectiva();
+                                                    $unidadRolNombre = $role->unidadEfectivaNombre();
+                                                @endphp
+                                                <option value="{{ $role->id }}"
+                                                        data-unidad-id="{{ $unidadRolId }}"
+                                                        {{ (string) old('role_id') === (string) $role->id ? 'selected' : '' }}>
+                                                    {{ $role->name }}{{ !is_null($unidadRolId) ? ' - ' . ($unidadRolNombre ?? 'SIN UNIDAD') : ' - GLOBAL' }}
+                                                </option>
+                                            @endif
                                         @endforeach
                                     </select>
                                     @error('role_id')

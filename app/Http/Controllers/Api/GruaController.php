@@ -323,10 +323,20 @@ class GruaController extends Controller
             ])
             ->groupBy('vehiculo_id');
 
+        $avSub = DB::table('actividad_vehiculo')
+            ->select([
+                'vehiculo_id',
+                DB::raw('MAX(actividad_id) as actividad_id'),
+            ])
+            ->groupBy('vehiculo_id');
+
         $detalle = DB::table('servicios as s')
             ->leftJoin('vehiculos as v', 'v.id', '=', 's.vehiculo_id')
             ->leftJoinSub($hvSub, 'hv', function ($join) {
                 $join->on('hv.vehiculo_id', '=', 's.vehiculo_id');
+            })
+            ->leftJoinSub($avSub, 'av', function ($join) {
+                $join->on('av.vehiculo_id', '=', 's.vehiculo_id');
             })
             ->select([
                 's.grua_id',
@@ -336,6 +346,7 @@ class GruaController extends Controller
                 's.unidad_id',
                 's.delegacion_id',
                 'hv.hecho_id as hecho_id',
+                'av.actividad_id as actividad_id',
                 's.tipo_vehiculo',
                 's.aseguradora',
                 'v.placas',
@@ -372,6 +383,7 @@ class GruaController extends Controller
                 'unidad_id' => $d->unidad_id ? (int) $d->unidad_id : null,
                 'delegacion_id' => $d->delegacion_id ? (int) $d->delegacion_id : null,
                 'hecho_id' => $d->hecho_id ? (int) $d->hecho_id : null,
+                'actividad_id' => $d->actividad_id ? (int) $d->actividad_id : null,
                 'placas' => $d->placas,
                 'marca' => $d->marca,
                 'linea' => $d->linea,
@@ -575,11 +587,21 @@ class GruaController extends Controller
     private function delegacionIdsVisibles($usuario): array
     {
         $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+        if ($this->esRolAdministrativoDelegaciones($usuario)) {
+            return Delegacion::query()
+                ->where('activa', 1)
+                ->pluck('id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->all();
+        }
+
         if ($delegacionId <= 0) {
             return [];
         }
 
-        if (!$usuario->hasRole('Subdirector')) {
+        if (!$usuario->hasRole('Subdirector') && !$usuario->hasRole('Delegado')) {
             return [$delegacionId];
         }
 
@@ -600,6 +622,15 @@ class GruaController extends Controller
                 return (int) $id;
             })
             ->all();
+    }
+
+    private function esRolAdministrativoDelegaciones($usuario): bool
+    {
+        return $usuario
+            && ((int) ($usuario->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES_ID)
+            && ($usuario->hasRole('Administrador')
+                || $usuario->hasRole('Administrativo')
+                || $usuario->hasRole('Subdirector'));
     }
 
     private function normalizeIds($ids): array

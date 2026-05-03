@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppLink;
+use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
 use App\Support\HechoAccess;
@@ -417,6 +418,8 @@ class HechoController extends Controller
 
         app(HechoRevisionNotificationService::class)->notificarJefesDeGrupoPorHechoPendiente($hecho);
 
+        app(DelegacionesWhatsAppAlertService::class)->notificarHechoTurnado($hecho);
+
         $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
@@ -439,6 +442,8 @@ class HechoController extends Controller
                 'message' => 'No tienes permiso para editar este hecho.',
             ], 403);
         }
+
+        $hechoAntes = clone $hecho;
 
         $this->normalizeCatalogFields($request);
 
@@ -737,6 +742,12 @@ class HechoController extends Controller
         }
 
         $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
+
+        $alertService = app(DelegacionesWhatsAppAlertService::class);
+
+        if ($alertService->debeNotificarNuevaPuestaHecho($hechoAntes, $hecho)) {
+            $alertService->notificarHechoTurnado($hecho);
+        }
 
         return response()->json([
             'message' => 'Hecho actualizado exitosamente',

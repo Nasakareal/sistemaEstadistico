@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Hechos;
 use App\Models\Lesionado;
+use App\Services\DelegacionesWhatsAppAlertService;
 use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 
@@ -73,6 +74,8 @@ class LesionadoController extends Controller
 
         $hecho->actualizarEstadoCaptura();
 
+        app(DelegacionesWhatsAppAlertService::class)->notificarFallecido($lesionado);
+
         return response()->json([
             'message' => 'Lesionado agregado correctamente.',
             'created' => true,
@@ -110,10 +113,16 @@ class LesionadoController extends Controller
         $this->ensureBelongsToHecho($hecho, $lesionado);
 
         $validated = $this->validatePayload($request);
+        $alertService = app(DelegacionesWhatsAppAlertService::class);
+        $eraFallecido = $alertService->esFallecido($lesionado->tipo_lesion);
 
         $lesionado->update($validated);
 
         $hecho->actualizarEstadoCaptura();
+
+        if (!$eraFallecido) {
+            $alertService->notificarFallecido($lesionado->refresh());
+        }
 
         return response()->json([
             'message' => 'Lesionado actualizado correctamente.',

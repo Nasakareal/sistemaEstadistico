@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
 use App\Models\Delegacion;
+use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
@@ -248,6 +249,8 @@ class HechosController extends Controller
             $dictamen->save();
         }
 
+        app(DelegacionesWhatsAppAlertService::class)->notificarHechoTurnado($hecho->fresh());
+
         return redirect()->route('hechos.edit', $hecho->id)->with('success', 'Hecho creado exitosamente.');
     }
 
@@ -354,6 +357,8 @@ class HechosController extends Controller
             $hecho->update(['delegacion_id' => $usuario->delegacion_id]);
             $hecho->refresh();
         }
+
+        $hechoAntes = clone $hecho;
 
         $quitarFotoLugar = (string) $request->input('quitar_foto_lugar', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
@@ -545,6 +550,13 @@ class HechosController extends Controller
                 $dictamenActual->hecho_id = null;
                 $dictamenActual->save();
             }
+        }
+
+        $hecho->refresh();
+        $alertService = app(DelegacionesWhatsAppAlertService::class);
+
+        if ($alertService->debeNotificarNuevaPuestaHecho($hechoAntes, $hecho)) {
+            $alertService->notificarHechoTurnado($hecho);
         }
 
         return redirect()->route('hechos.index')->with('success', 'Hecho actualizado exitosamente.');
@@ -839,6 +851,14 @@ class HechosController extends Controller
 
         $periodo = strtoupper($request->get('periodo', 'SEMANA'));
         $situacion = strtoupper($request->get('situacion', 'PENDIENTE'));
+        $unidadFiltro = (string) $request->get('unidad_filtro', '');
+        $puedeFiltrarUnidad = $usuario
+            && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3);
+        $unidadesFiltro = [
+            '1' => 'Siniestros',
+            '2' => 'Delegaciones',
+            '4' => 'Carreteras',
+        ];
 
         $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO'];
         $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
@@ -851,6 +871,26 @@ class HechosController extends Controller
             $periodo = 'SEMANA';
         }
 
+        if (!$puedeFiltrarUnidad || !array_key_exists($unidadFiltro, $unidadesFiltro)) {
+            $unidadFiltro = '';
+        }
+
+        $aplicarFiltroUnidad = function ($query) use ($puedeFiltrarUnidad, $unidadFiltro) {
+            if (!$puedeFiltrarUnidad || $unidadFiltro === '') {
+                return;
+            }
+
+            $query->where(function ($q) use ($unidadFiltro) {
+                $q->where('unidad_org_id', (int) $unidadFiltro)
+                    ->orWhere(function ($legacy) use ($unidadFiltro) {
+                        $legacy->whereNull('unidad_org_id')
+                            ->whereHas('creator', function ($creator) use ($unidadFiltro) {
+                                $creator->where('unidad_id', (int) $unidadFiltro);
+                            });
+                    });
+            });
+        };
+
         $hoy = now('America/Mexico_City');
 
         $inicioSemana = $hoy->copy()->startOfWeek();
@@ -862,12 +902,13 @@ class HechosController extends Controller
         $inicioAnio = $hoy->copy()->startOfYear();
         $finAnio = $hoy->copy()->endOfYear();
 
-        $crearQueryConteo = function ($inicio, $fin, $situacionConteo) use ($usuario) {
+        $crearQueryConteo = function ($inicio, $fin, $situacionConteo) use ($usuario, $aplicarFiltroUnidad) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
                 ->where('situacion', $situacionConteo);
 
             $this->applyHechosVisibilityScope($query, $usuario);
+            $aplicarFiltroUnidad($query);
 
             return $query;
         };
@@ -890,7 +931,7 @@ class HechosController extends Controller
             ],
         ];
 
-        $query = Hechos::query()->with(['creator']);
+        $query = Hechos::query()->with(['creator', 'unidadOrganizacional']);
 
         if ($periodo === 'SEMANA') {
             $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
@@ -903,6 +944,7 @@ class HechosController extends Controller
         $query->where('situacion', $situacion);
 
         $this->applyHechosVisibilityScope($query, $usuario);
+        $aplicarFiltroUnidad($query);
 
         $hechos = $query
             ->orderByDesc('fecha')
@@ -930,7 +972,10 @@ class HechosController extends Controller
             'conteos',
             'hechos',
             'periodo',
-            'situacion'
+            'situacion',
+            'unidadFiltro',
+            'puedeFiltrarUnidad',
+            'unidadesFiltro'
         ));
     }
 

@@ -10,6 +10,7 @@ use App\Models\ActividadSubcategoria;
 use App\Models\Delegacion;
 use App\Models\Grua;
 use App\Models\Vehiculo;
+use App\Services\DelegacionesWhatsAppAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -389,6 +390,12 @@ class ActividadController extends Controller
                 $this->crearVehiculoParaActividad($actividad, $vehiculoData);
             }
 
+            if ((int) ($actividad->personas_detenidas ?? 0) > 0) {
+                DB::afterCommit(function () use ($actividad) {
+                    app(DelegacionesWhatsAppAlertService::class)->notificarActividadConDetenidos($actividad);
+                });
+            }
+
             $actividad->load([
                 'categoria',
                 'subcategoria',
@@ -523,7 +530,9 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz) {
+        $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
+
+        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes) {
             $fotoPath = $actividad->foto_path;
             $fotoThumbnailPath = $actividad->foto_thumbnail_path;
             $fotoArchivoZipPath = $actividad->foto_archivo_zip_path;
@@ -619,6 +628,14 @@ class ActividadController extends Controller
                 'elementos_participantes_texto' => array_key_exists('elementos_participantes_texto', $validated) ? $validated['elementos_participantes_texto'] : $actividad->elementos_participantes_texto,
                 'patrullas_participantes_texto' => array_key_exists('patrullas_participantes_texto', $validated) ? $validated['patrullas_participantes_texto'] : $actividad->patrullas_participantes_texto,
             ]);
+
+            $alertService = app(DelegacionesWhatsAppAlertService::class);
+
+            if ($alertService->debeNotificarActividadConDetenidos($detenidosAntes, $actividad)) {
+                DB::afterCommit(function () use ($actividad) {
+                    app(DelegacionesWhatsAppAlertService::class)->notificarActividadConDetenidos($actividad);
+                });
+            }
 
             $actividad->load([
                 'categoria',

@@ -1,0 +1,434 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Actividad;
+use App\Models\Hechos;
+use App\Models\Lesionado;
+use App\Models\PuestaDisposicion;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+
+class DelegacionesWhatsAppAlertService
+{
+    private $whatsApp;
+
+    public function __construct(WhatsAppCloudService $whatsApp)
+    {
+        $this->whatsApp = $whatsApp;
+    }
+
+    public function notificarFallecido(Lesionado $lesionado): void
+    {
+        $this->guard('fallecido', [
+            'hecho_id' => $lesionado->hecho_id,
+            'lesionado_id' => $lesionado->id,
+        ], function () use ($lesionado) {
+            if (!$this->esFallecido($lesionado->tipo_lesion ?? null)) {
+                return;
+            }
+
+            $lesionado->loadMissing([
+                'hecho.creator',
+                'hecho.unidadOrganizacional',
+                'hecho.delegacion',
+            ]);
+
+            if (!$lesionado->hecho) {
+                return;
+            }
+
+            $this->sendToRecipients(
+                'fallecido',
+                $this->mensajeFallecido($lesionado, $lesionado->hecho),
+                [
+                    'hecho_id' => $lesionado->hecho_id,
+                    'lesionado_id' => $lesionado->id,
+                ]
+            );
+        });
+    }
+
+    public function notificarHechoTurnado(Hechos $hecho): void
+    {
+        $this->guard('hecho_turnado', [
+            'hecho_id' => $hecho->id,
+        ], function () use ($hecho) {
+            if (!$this->hechoGeneraAlertaPuesta($hecho)) {
+                return;
+            }
+
+            $hecho->loadMissing([
+                'creator',
+                'unidadOrganizacional',
+                'delegacion',
+                'lesionados',
+            ]);
+
+            $this->sendToRecipients(
+                'hecho_turnado',
+                $this->mensajeHechoTurnado($hecho),
+                ['hecho_id' => $hecho->id]
+            );
+        });
+    }
+
+    public function notificarActividadConDetenidos(Actividad $actividad): void
+    {
+        $this->guard('actividad_detenidos', [
+            'actividad_id' => $actividad->id,
+        ], function () use ($actividad) {
+            if ((int) ($actividad->personas_detenidas ?? 0) <= 0) {
+                return;
+            }
+
+            $actividad->loadMissing([
+                'categoria',
+                'subcategoria',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'creador',
+            ]);
+
+            $this->sendToRecipients(
+                'actividad_detenidos',
+                $this->mensajeActividadConDetenidos($actividad),
+                ['actividad_id' => $actividad->id]
+            );
+        });
+    }
+
+    public function notificarPuestaDisposicion(PuestaDisposicion $puesta): void
+    {
+        $this->guard('puesta_disposicion', [
+            'puesta_disposicion_id' => $puesta->id,
+        ], function () use ($puesta) {
+            $puesta->loadMissing([
+                'personas',
+                'vehiculos',
+                'objetos',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'creador',
+            ]);
+
+            $this->sendToRecipients(
+                'puesta_disposicion',
+                $this->mensajePuestaDisposicion($puesta),
+                ['puesta_disposicion_id' => $puesta->id]
+            );
+        });
+    }
+
+    public function debeNotificarNuevaPuestaHecho(?Hechos $antes, Hechos $actual): bool
+    {
+        if (!$this->hechoGeneraAlertaPuesta($actual)) {
+            return false;
+        }
+
+        if (!$antes || !$this->hechoGeneraAlertaPuesta($antes)) {
+            return true;
+        }
+
+        return (int) ($actual->personas_mp ?? 0) > (int) ($antes->personas_mp ?? 0)
+            || (int) ($actual->vehiculos_mp ?? 0) > (int) ($antes->vehiculos_mp ?? 0);
+    }
+
+    public function debeNotificarActividadConDetenidos(int $detenidosAntes, Actividad $actividad): bool
+    {
+        return (int) ($actividad->personas_detenidas ?? 0) > max(0, $detenidosAntes);
+    }
+
+    public function esFallecido($tipoLesion): bool
+    {
+        return $this->upper($tipoLesion) === 'FALLECIDO';
+    }
+
+    public function hechoGeneraAlertaPuesta(Hechos $hecho): bool
+    {
+        return $this->upper($hecho->situacion ?? null) === 'TURNADO';
+    }
+
+    private function guard(string $event, array $context, callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (\Throwable $e) {
+            Log::error('Error preparando WhatsApp alerta delegaciones', [
+                'event' => $event,
+                'context' => $context,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function sendToRecipients(string $event, string $message, array $context = []): void
+    {
+        $recipients = $this->recipients();
+
+        if (empty($recipients)) {
+            Log::warning('WhatsApp alertas delegaciones sin destinatarios', [
+                'event' => $event,
+                'context' => $context,
+            ]);
+
+            return;
+        }
+
+        foreach ($recipients as $to) {
+            try {
+                $response = $this->whatsApp->sendText($to, $message);
+
+                Log::info('WhatsApp alerta delegaciones enviada', [
+                    'event' => $event,
+                    'to' => $to,
+                    'ok' => $response['ok'] ?? null,
+                    'status' => $response['status'] ?? null,
+                    'context' => $context,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Error enviando WhatsApp alerta delegaciones', [
+                    'event' => $event,
+                    'to' => $to,
+                    'context' => $context,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function recipients(): array
+    {
+        $configured = (string) config('services.whatsapp.delegaciones.alertas_to', '');
+        $parts = preg_split('/[\s,;]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+        $numbers = [];
+
+        foreach ($parts ?: [] as $part) {
+            $number = preg_replace('/\D+/', '', (string) $part);
+
+            if ($number !== '') {
+                $numbers[] = $number;
+            }
+        }
+
+        return array_values(array_unique($numbers));
+    }
+
+    private function mensajeFallecido(Lesionado $lesionado, Hechos $hecho): string
+    {
+        $lines = [
+            'GUARDIA CIVIL',
+            'ALERTA DELEGACIONES',
+            '',
+            'FALLECIDO REGISTRADO',
+        ];
+
+        $this->appendHechoResumen($lines, $hecho);
+        $this->appendLine($lines, 'Fallecido', $lesionado->nombre ?? null);
+        $this->appendLine($lines, 'Edad', $lesionado->edad ? (string) $lesionado->edad : null);
+        $this->appendLine($lines, 'Sexo', $lesionado->sexo ?? null);
+        $this->appendLine($lines, 'Paramedico', $lesionado->paramedico ?? null);
+        $this->appendLine($lines, 'Ambulancia', $lesionado->ambulancia ?? null);
+        $this->appendLine($lines, 'Observaciones', $this->preview($lesionado->observaciones ?? null));
+
+        return implode("\n", $lines);
+    }
+
+    private function mensajeHechoTurnado(Hechos $hecho): string
+    {
+        $lines = [
+            'GUARDIA CIVIL',
+            'ALERTA DELEGACIONES',
+            '',
+            'PUESTA A DISPOSICION POR HECHO',
+        ];
+
+        $this->appendHechoResumen($lines, $hecho);
+        $this->appendLine($lines, 'Oficio MP', $hecho->oficio_mp ?? null);
+        $this->appendLine($lines, 'Personas MP', (string) (int) ($hecho->personas_mp ?? 0));
+        $this->appendLine($lines, 'Vehiculos MP', (string) (int) ($hecho->vehiculos_mp ?? 0));
+
+        return implode("\n", $lines);
+    }
+
+    private function mensajeActividadConDetenidos(Actividad $actividad): string
+    {
+        $lines = [
+            'GUARDIA CIVIL',
+            'ALERTA DELEGACIONES',
+            '',
+            'DETENIDOS EN ACTIVIDAD',
+        ];
+
+        $this->appendLine($lines, 'Actividad ID', (string) $actividad->id);
+        $this->appendLine($lines, 'Fecha/hora', $this->fechaHora($actividad->fecha ?? null, $actividad->hora ?? null));
+        $this->appendLine($lines, 'Unidad', optional($actividad->unidad)->nombre);
+        $this->appendLine($lines, 'Delegacion', optional($actividad->delegacion)->nombre);
+        $this->appendLine($lines, 'Destacamento', optional($actividad->destacamento)->nombre);
+        $this->appendLine($lines, 'Categoria', optional($actividad->categoria)->nombre);
+        $this->appendLine($lines, 'Subcategoria', optional($actividad->subcategoria)->nombre);
+        $this->appendLine($lines, 'Lugar', $this->ubicacionActividad($actividad));
+        $this->appendLine($lines, 'Personas detenidas', (string) (int) ($actividad->personas_detenidas ?? 0));
+        $this->appendLine($lines, 'Motivo', $this->preview($actividad->motivo ?? null));
+        $this->appendLine($lines, 'Narrativa', $this->preview($actividad->narrativa ?? null));
+        $this->appendLine($lines, 'Capturo', optional($actividad->creador)->name);
+        $this->appendMaps($lines, $actividad->lat ?? null, $actividad->lng ?? null);
+
+        return implode("\n", $lines);
+    }
+
+    private function mensajePuestaDisposicion(PuestaDisposicion $puesta): string
+    {
+        $lines = [
+            'GUARDIA CIVIL',
+            'ALERTA DELEGACIONES',
+            '',
+            'PUESTA A DISPOSICION REGISTRADA',
+        ];
+
+        $this->appendLine($lines, 'Folio', trim((string) ($puesta->numero_puesta ?? '')) . '/' . trim((string) ($puesta->anio ?? '')));
+        $this->appendLine($lines, 'Fecha/hora', $this->fechaHora($puesta->fecha_puesta ?? null, $puesta->hora_puesta ?? null));
+        $this->appendLine($lines, 'Unidad', optional($puesta->unidad)->nombre ?: ($puesta->area ?? null));
+        $this->appendLine($lines, 'Delegacion', optional($puesta->delegacion)->nombre);
+        $this->appendLine($lines, 'Destacamento', optional($puesta->destacamento)->nombre);
+        $this->appendLine($lines, 'Tipo', $puesta->tipo_puesta ?? null);
+        $this->appendLine($lines, 'Motivo', $puesta->motivo ?? null);
+        $this->appendLine($lines, 'Personas', (string) $puesta->personas->count());
+        $this->appendLine($lines, 'Vehiculos', (string) $puesta->vehiculos->count());
+        $this->appendLine($lines, 'Objetos', (string) $puesta->objetos->count());
+        $this->appendLine($lines, 'Policia', $puesta->nombre_policia ?? null);
+        $this->appendLine($lines, 'Autoridad receptora', $puesta->autoridad_receptora ?? null);
+        $this->appendLine($lines, 'Lugar', $puesta->lugar_puesta ?? null);
+        $this->appendLine($lines, 'Narrativa', $this->preview($puesta->narrativa ?? null));
+        $this->appendLine($lines, 'Capturo', optional($puesta->creador)->name);
+
+        return implode("\n", $lines);
+    }
+
+    private function appendHechoResumen(array &$lines, Hechos $hecho): void
+    {
+        $this->appendLine($lines, 'Hecho ID', (string) $hecho->id);
+        $this->appendLine($lines, 'Folio C5i', $hecho->folio_c5i ?? null);
+        $this->appendLine($lines, 'Fecha/hora', $this->fechaHora($hecho->fecha ?? null, $hecho->hora ?? null));
+        $this->appendLine($lines, 'Unidad', optional($hecho->unidadOrganizacional)->nombre);
+        $this->appendLine($lines, 'Delegacion', optional($hecho->delegacion)->nombre);
+        $this->appendLine($lines, 'Tipo de hecho', $hecho->tipo_hecho ?? null);
+        $this->appendLine($lines, 'Situacion', $hecho->situacion ?? null);
+        $this->appendLine($lines, 'Lugar', $this->ubicacionHecho($hecho));
+        $this->appendLine($lines, 'Capturo', optional($hecho->creator)->name);
+        $this->appendMaps($lines, $hecho->lat ?? null, $hecho->lng ?? null);
+    }
+
+    private function appendLine(array &$lines, string $label, $value): void
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return;
+        }
+
+        $lines[] = "{$label}: {$value}";
+    }
+
+    private function appendMaps(array &$lines, $lat, $lng): void
+    {
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            return;
+        }
+
+        $lines[] = 'Google Maps: https://www.google.com/maps?q=' . $lat . ',' . $lng;
+    }
+
+    private function fechaHora($fecha, $hora): ?string
+    {
+        $fechaTexto = '';
+
+        if (!empty($fecha)) {
+            try {
+                $fechaTexto = Carbon::parse($fecha)->format('d/m/Y');
+            } catch (\Throwable $e) {
+                $fechaTexto = substr((string) $fecha, 0, 10);
+            }
+        }
+
+        $horaTexto = '';
+
+        if (!empty($hora)) {
+            if ($hora instanceof \DateTimeInterface) {
+                $horaTexto = $hora->format('H:i');
+            } elseif (preg_match('/\b(\d{2}:\d{2})/', (string) $hora, $match)) {
+                $horaTexto = $match[1];
+            }
+        }
+
+        $result = trim($fechaTexto . ' ' . $horaTexto);
+
+        return $result !== '' ? $result : null;
+    }
+
+    private function ubicacionHecho(Hechos $hecho): ?string
+    {
+        $parts = array_filter([
+            $hecho->calle ?? null,
+            !empty($hecho->colonia) ? 'COL. ' . $hecho->colonia : null,
+            $hecho->municipio ?? null,
+        ]);
+
+        $ubicacion = trim(implode(', ', $parts));
+
+        if ($ubicacion === '') {
+            $ubicacion = trim((string) ($hecho->ubicacion_formateada ?? ''));
+        }
+
+        return $ubicacion !== '' ? $ubicacion : null;
+    }
+
+    private function ubicacionActividad(Actividad $actividad): ?string
+    {
+        $parts = array_filter([
+            $actividad->lugar ?? null,
+            $actividad->municipio ?? null,
+            $actividad->carretera ?? null,
+            $actividad->tramo ?? null,
+            $actividad->kilometro ?? null,
+        ]);
+
+        $ubicacion = trim(implode(', ', $parts));
+
+        return $ubicacion !== '' ? $ubicacion : null;
+    }
+
+    private function preview($value, int $limit = 350): ?string
+    {
+        $text = preg_replace('/\s+/', ' ', trim((string) $value));
+
+        if ($text === '') {
+            return null;
+        }
+
+        if (mb_strlen($text, 'UTF-8') <= $limit) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $limit - 3, 'UTF-8') . '...';
+    }
+
+    private function upper($value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        $map = [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U',
+            'Ñ' => 'N', 'ñ' => 'N',
+        ];
+
+        return mb_strtoupper(strtr($value, $map), 'UTF-8');
+    }
+}

@@ -46,6 +46,10 @@ return [
             'resumen_template' => env('WHATSAPP_SINIESTROS_RESUMEN_TEMPLATE'),
             'tarjeta_hechos_template' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TEMPLATE'),
         ],
+
+        'delegaciones' => [
+            'alertas_to' => env('WHATSAPP_DELEGACIONES_ALERTAS_TO'),
+        ],
     ],
 
     'openai' => [

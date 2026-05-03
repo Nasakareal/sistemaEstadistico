@@ -7,6 +7,7 @@ use App\Models\PuestaDisposicionPersona;
 use App\Models\PuestaDisposicionVehiculo;
 use App\Models\PuestaDisposicionObjeto;
 use App\Models\Unidad;
+use App\Services\DelegacionesWhatsAppAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -400,6 +401,8 @@ class PuestaDisposicionController extends Controller
             }
 
             DB::commit();
+
+            app(DelegacionesWhatsAppAlertService::class)->notificarPuestaDisposicion($puesta);
 
             return redirect()->route('puestas_disposicion.index')
                 ->with('success', 'Puesta a disposición creada exitosamente.');

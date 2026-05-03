@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Hechos;
 use App\Models\Lesionado;
+use App\Services\DelegacionesWhatsAppAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -38,10 +39,14 @@ class LesionadoController extends Controller
         $validated['hospitalizado'] = (bool) $validated['hospitalizado'];
         $validated['atencion_en_sitio'] = (bool) $validated['atencion_en_sitio'];
 
-        DB::transaction(function () use ($hecho, $validated) {
-            $hecho->lesionados()->create($validated);
+        $lesionado = null;
+
+        DB::transaction(function () use ($hecho, $validated, &$lesionado) {
+            $lesionado = $hecho->lesionados()->create($validated);
             $hecho->actualizarEstadoCaptura();
         });
+
+        app(DelegacionesWhatsAppAlertService::class)->notificarFallecido($lesionado);
 
         return redirect()->route('lesionados.index', $hecho->id)
             ->with('success', 'Lesionado agregado correctamente.');
@@ -78,10 +83,17 @@ class LesionadoController extends Controller
         $validated['hospitalizado'] = (bool) $validated['hospitalizado'];
         $validated['atencion_en_sitio'] = (bool) $validated['atencion_en_sitio'];
 
+        $alertService = app(DelegacionesWhatsAppAlertService::class);
+        $eraFallecido = $alertService->esFallecido($lesionado->tipo_lesion);
+
         DB::transaction(function () use ($lesionado, $hecho, $validated) {
             $lesionado->update($validated);
             $hecho->actualizarEstadoCaptura();
         });
+
+        if (!$eraFallecido) {
+            $alertService->notificarFallecido($lesionado->refresh());
+        }
 
         return redirect()->route('lesionados.index', $hecho->id)
             ->with('success', 'Lesionado actualizado correctamente.');

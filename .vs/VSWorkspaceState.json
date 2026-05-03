@@ -7,6 +7,5 @@
     "\\resources\\views\\admin\\settings",
     "\\resources\\views\\admin\\settings\\users"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\users\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }

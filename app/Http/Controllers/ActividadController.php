@@ -9,6 +9,7 @@ use App\Models\Delegacion;
 use App\Models\Grua;
 use App\Models\Unidad;
 use App\Models\Vehiculo;
+use App\Services\DelegacionesWhatsAppAlertService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -295,6 +296,12 @@ class ActividadController extends Controller
                 $this->crearVehiculoParaActividad($actividad, $vehiculoData);
             }
 
+            if ((int) ($actividad->personas_detenidas ?? 0) > 0) {
+                DB::afterCommit(function () use ($actividad) {
+                    app(DelegacionesWhatsAppAlertService::class)->notificarActividadConDetenidos($actividad);
+                });
+            }
+
             return redirect()->route('actividades.index')->with('success', 'Actividad creada correctamente.');
         });
     }
@@ -414,7 +421,9 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $usuario) {
+        $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
+
+        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes) {
             $actividad->update([
                 'sync_status'                   => $actividad->sync_status ?: 'local',
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
@@ -496,6 +505,14 @@ class ActividadController extends Controller
                 'foto_nombre_original'  => optional($fotoPrincipal ?: $fotoArchivada)->foto_nombre_original,
                 'foto_hash'             => optional($fotoPrincipal ?: $fotoArchivada)->foto_hash,
             ]);
+
+            $alertService = app(DelegacionesWhatsAppAlertService::class);
+
+            if ($alertService->debeNotificarActividadConDetenidos($detenidosAntes, $actividad)) {
+                DB::afterCommit(function () use ($actividad) {
+                    app(DelegacionesWhatsAppAlertService::class)->notificarActividadConDetenidos($actividad);
+                });
+            }
 
             return redirect()->route('actividades.index')->with('success', 'Actividad actualizada correctamente.');
         });

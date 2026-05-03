@@ -19,7 +19,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($baseHechos, $request);
             $this->applyVehiculoFiltersToHechos($baseHechos, $request);
             $this->applyLesionadosFilterToHechos($baseHechos, $request);
-
+            $this->applyFallecidosFilterToHechos($baseHechos, $request);
             $hechosIdsSub = (clone $baseHechos)
                 ->select('hechos.id')
                 ->distinct('hechos.id');
@@ -49,10 +49,17 @@ class EstadisticasGlobalesController extends Controller
             $totalVehiculos = (clone $vehQ)->distinct('vehiculos.id')->count('vehiculos.id');
 
             $totalLesionados = 0;
+            $totalFallecidos = 0;
             if ($this->hasTable('lesionados')) {
-                $totalLesionados = (int) DB::table('lesionados')
-                    ->whereIn('lesionados.hecho_id', $hechosIdsSub)
-                    ->count('lesionados.id');
+                $lesionadosQ = DB::table('lesionados')
+                    ->whereIn('lesionados.hecho_id', $hechosIdsSub);
+                $this->whereLesionadoNoFallecido($lesionadosQ);
+                $totalLesionados = (int) $lesionadosQ->count('lesionados.id');
+
+                $fallecidosQ = DB::table('lesionados')
+                    ->whereIn('lesionados.hecho_id', $hechosIdsSub);
+                $this->whereLesionadoFallecido($fallecidosQ);
+                $totalFallecidos = (int) $fallecidosQ->count('lesionados.id');
             }
 
             $porTipoHecho = (clone $baseHechos)
@@ -72,6 +79,7 @@ class EstadisticasGlobalesController extends Controller
                 'totales' => [
                     'hechos' => (int)$totalHechos,
                     'lesionados' => (int)$totalLesionados,
+                    'fallecidos' => (int)$totalFallecidos,
                     'vehiculos' => (int)$totalVehiculos,
                 ],
                 'top' => [
@@ -91,7 +99,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
-
+            $this->applyFallecidosFilterToHechos($q, $request);
             if ($group === 'month') {
                 $rows = $q->selectRaw("DATE_FORMAT(hechos.fecha, '%Y-%m-01') as x, COUNT(DISTINCT hechos.id) as y")
                     ->groupBy('x')->orderBy('x')->get();
@@ -117,7 +125,8 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
-
+            $this->applyFallecidosFilterToHechos($q, $request);
+            $this->whereLesionadoNoFallecido($q);
             if ($group === 'month') {
                 $rows = $q->selectRaw("DATE_FORMAT(hechos.fecha, '%Y-%m-01') as x, COUNT(lesionados.id) as y")
                     ->groupBy('x')->orderBy('x')->get();
@@ -185,7 +194,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
-
+            $this->applyFallecidosFilterToHechos($q, $request);
             $q->select('hechos.*')
                 ->distinct('hechos.id')
                 ->orderByDesc('hechos.fecha')
@@ -202,7 +211,7 @@ class EstadisticasGlobalesController extends Controller
         $this->applySearchFilter($q, $request);
         $this->applyVehiculoFiltersToHechos($q, $request);
         $this->applyLesionadosFilterToHechos($q, $request);
-
+        $this->applyFallecidosFilterToHechos($q, $request);
         $q->select([
             'hechos.id', 'hechos.folio_c5i', 'hechos.fecha', 'hechos.hora', 'hechos.sector', 'hechos.municipio',
             'hechos.tipo_hecho', 'hechos.situacion', 'hechos.perito', 'hechos.unidad', 'hechos.calle', 'hechos.colonia', 'hechos.entre_calles',
@@ -251,7 +260,7 @@ class EstadisticasGlobalesController extends Controller
             $this->applySearchFilter($q, $request);
             $this->applyVehiculoFiltersToHechos($q, $request);
             $this->applyLesionadosFilterToHechos($q, $request);
-
+            $this->applyFallecidosFilterToHechos($q, $request);
             $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(hechos.$field), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT hechos.id) as total")
                 ->groupBy('label')->orderByDesc('total')->limit(50)->get();
 
@@ -394,14 +403,49 @@ class EstadisticasGlobalesController extends Controller
                 $sub->selectRaw('1')
                     ->from('lesionados')
                     ->whereColumn('lesionados.hecho_id', 'hechos.id');
+                $this->whereLesionadoNoFallecido($sub);
             });
         } elseif ($val === '0') {
             $q->whereNotExists(function ($sub) {
                 $sub->selectRaw('1')
                     ->from('lesionados')
                     ->whereColumn('lesionados.hecho_id', 'hechos.id');
+                $this->whereLesionadoNoFallecido($sub);
             });
         }
+    }
+
+    private function applyFallecidosFilterToHechos($q, Request $request)
+    {
+        $val = trim((string)$request->query('con_fallecidos', ''));
+        if ($val === '') return;
+        if (!$this->hasTable('lesionados')) return;
+
+        if ($val === '1') {
+            $q->whereExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('lesionados')
+                    ->whereColumn('lesionados.hecho_id', 'hechos.id');
+                $this->whereLesionadoFallecido($sub);
+            });
+        } elseif ($val === '0') {
+            $q->whereNotExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('lesionados')
+                    ->whereColumn('lesionados.hecho_id', 'hechos.id');
+                $this->whereLesionadoFallecido($sub);
+            });
+        }
+    }
+
+    private function whereLesionadoNoFallecido($q): void
+    {
+        $q->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO'");
+    }
+
+    private function whereLesionadoFallecido($q): void
+    {
+        $q->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'");
     }
 
     private function grouping(Request $request)

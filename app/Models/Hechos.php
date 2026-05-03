@@ -172,6 +172,50 @@ class Hechos extends Model
         return $this->es_relevante && $this->estado_revision === 'aprobado';
     }
 
+    public function capturaCompletaCalculada(): bool
+    {
+        return $this->capturadosCubrenEsperados('vehiculos')
+            && $this->capturadosCubrenEsperados('conductores')
+            && $this->capturadosCubrenEsperados('lesionados');
+    }
+
+    public function faltantesCaptura(): array
+    {
+        $campos = [
+            'vehiculos' => ['singular' => 'vehículo', 'plural' => 'vehículos'],
+            'conductores' => ['singular' => 'conductor', 'plural' => 'conductores'],
+            'lesionados' => ['singular' => 'lesionado', 'plural' => 'lesionados'],
+        ];
+
+        $faltantes = [];
+
+        foreach ($campos as $campo => $labels) {
+            $esperados = (int) ($this->{$campo . '_esperados'} ?? 0);
+            $capturados = (int) ($this->{$campo . '_capturados'} ?? 0);
+            $faltan = max(0, $esperados - $capturados);
+
+            if ($faltan <= 0) {
+                continue;
+            }
+
+            $faltantes[$campo] = [
+                'label' => $faltan === 1 ? $labels['singular'] : $labels['plural'],
+                'faltan' => $faltan,
+                'esperados' => $esperados,
+                'capturados' => $capturados,
+            ];
+        }
+
+        return $faltantes;
+    }
+
+    public function faltantesCapturaTexto(): array
+    {
+        return array_map(function (array $faltante): string {
+            return "{$faltante['faltan']} {$faltante['label']} ({$faltante['capturados']}/{$faltante['esperados']})";
+        }, $this->faltantesCaptura());
+    }
+
     public function actualizarEstadoCaptura(): void
     {
         $vehiculosCapturados = $this->vehiculos()->count();
@@ -184,9 +228,9 @@ class Hechos extends Model
         $lesionadosCapturados = $this->lesionados()->count();
 
         $capturaCompleta =
-            $vehiculosCapturados === (int) $this->vehiculos_esperados &&
-            $conductoresCapturados === (int) $this->conductores_esperados &&
-            $lesionadosCapturados === (int) $this->lesionados_esperados;
+            $vehiculosCapturados >= (int) $this->vehiculos_esperados &&
+            $conductoresCapturados >= (int) $this->conductores_esperados &&
+            $lesionadosCapturados >= (int) $this->lesionados_esperados;
 
         $capturaCompletaAt = null;
 
@@ -201,5 +245,10 @@ class Hechos extends Model
             'captura_completa' => $capturaCompleta,
             'captura_completa_at' => $capturaCompletaAt,
         ]);
+    }
+
+    private function capturadosCubrenEsperados(string $campo): bool
+    {
+        return (int) ($this->{$campo . '_capturados'} ?? 0) >= (int) ($this->{$campo . '_esperados'} ?? 0);
     }
 }

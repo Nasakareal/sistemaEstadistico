@@ -109,6 +109,18 @@ class ChoquesDiariosController extends Controller
     private function queryHechos()
     {
         return DB::table('hechos as h')
+            ->leftJoin('users as creator', 'creator.id', '=', 'h.created_by')
+            ->where(function ($query) {
+                $query->whereRaw('COALESCE(h.unidad_org_id, creator.unidad_id) IS NULL')
+                    ->orWhereRaw('COALESCE(h.unidad_org_id, creator.unidad_id) <> ?', [2])
+                    ->orWhere('h.captura_completa', 1)
+                    ->orWhere(function ($completaPorConteo) {
+                        $completaPorConteo
+                            ->whereColumn('h.vehiculos_capturados', '>=', 'h.vehiculos_esperados')
+                            ->whereColumn('h.conductores_capturados', '>=', 'h.conductores_esperados')
+                            ->whereColumn('h.lesionados_capturados', '>=', 'h.lesionados_esperados');
+                    });
+            })
             ->select(
                 'h.id',
                 'h.folio_c5i',

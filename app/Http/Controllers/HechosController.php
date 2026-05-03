@@ -64,9 +64,15 @@ class HechosController extends Controller
             $hecho->tiene_croquis = !is_null($hecho->croquis);
 
             $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+            $capturaCompleta = $unidadReal === 2
+                ? $hecho->capturaCompletaCalculada()
+                : (bool) $hecho->captura_completa;
+
             $hecho->mostrar_captura = $unidadReal === 2;
+            $hecho->captura_completa = $capturaCompleta;
+            $hecho->faltantes_captura = $unidadReal === 2 ? $hecho->faltantesCapturaTexto() : [];
             $hecho->estado_captura = $unidadReal === 2
-                ? ($hecho->captura_completa ? 'COMPLETO' : 'INCOMPLETO')
+                ? ($capturaCompleta ? 'COMPLETO' : 'INCOMPLETO')
                 : null;
 
             return $hecho;
@@ -906,10 +912,15 @@ class HechosController extends Controller
 
         $hechos->getCollection()->transform(function ($hecho) {
             $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+            $capturaCompleta = $unidadReal === 2
+                ? $hecho->capturaCompletaCalculada()
+                : (bool) $hecho->captura_completa;
 
             $hecho->mostrar_captura = $unidadReal === 2;
+            $hecho->captura_completa = $capturaCompleta;
+            $hecho->faltantes_captura = $unidadReal === 2 ? $hecho->faltantesCapturaTexto() : [];
             $hecho->estado_captura = $unidadReal === 2
-                ? ($hecho->captura_completa ? 'COMPLETO' : 'INCOMPLETO')
+                ? ($capturaCompleta ? 'COMPLETO' : 'INCOMPLETO')
                 : null;
 
             return $hecho;

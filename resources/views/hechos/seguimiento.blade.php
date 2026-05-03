@@ -220,6 +220,14 @@
                                         @if ($hecho->mostrar_captura && $hecho->estado_captura === 'INCOMPLETO')
                                             <br>
                                             <span class="badge badge-danger">CAPTURA INCOMPLETA</span>
+                                            <div class="captura-faltantes mt-2">
+                                                <div class="captura-faltantes__titulo">Falta capturar:</div>
+                                                @forelse (($hecho->faltantes_captura ?? []) as $faltante)
+                                                    <span class="badge badge-light text-dark border">{{ $faltante }}</span>
+                                                @empty
+                                                    <span class="text-muted">Revisar totales esperados.</span>
+                                                @endforelse
+                                            </div>
                                         @endif
                                     </td>
 
@@ -326,6 +334,24 @@
         .badge {
             font-size: .85rem;
             padding: .45em .7em;
+        }
+
+        .captura-faltantes {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: .25rem;
+            max-width: 240px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .captura-faltantes__titulo {
+            flex: 0 0 100%;
+            color: #dc3545;
+            font-size: .78rem;
+            font-weight: 700;
+            line-height: 1.2;
         }
     </style>
 @stop

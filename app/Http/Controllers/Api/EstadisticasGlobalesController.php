@@ -329,6 +329,8 @@ class EstadisticasGlobalesController extends Controller
             'situacion' => 'hechos.situacion',
             'perito' => 'hechos.perito',
             'unidad' => 'hechos.unidad',
+            'unidad_org_id' => 'hechos.unidad_org_id',
+            'delegacion_id' => 'hechos.delegacion_id',
             'superficie_via' => 'hechos.superficie_via',
         ];
 

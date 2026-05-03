@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\MapaPatrullasController;
 use App\Http\Controllers\Api\PersonalController;
 use App\Http\Controllers\Api\VehiculoController;
 use App\Http\Controllers\Api\AppVersionController;
+use App\Http\Controllers\Api\EstadisticasActividadesController;
 use App\Http\Controllers\Api\DictamenController;
 use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ActividadController;
@@ -277,6 +278,34 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/series/vehiculos/modelo', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'seriesVehiculosModelo']);
         Route::get('/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'hechos']);
         Route::get('/export/hechos', [\App\Http\Controllers\Api\EstadisticasGlobalesController::class, 'exportHechos']);
+    });
+
+    Route::prefix('estadisticas-actividades')->middleware('can:ver estadisticas actividades')->group(function () {
+        Route::get('/', [EstadisticasActividadesController::class, 'index'])->name('api.estadisticas_actividades.index');
+        Route::get('/kpis', [EstadisticasActividadesController::class, 'kpis'])->name('api.estadisticas_actividades.kpis');
+        Route::get('/series/actividades', [EstadisticasActividadesController::class, 'seriesActividades'])->name('api.estadisticas_actividades.series.actividades');
+        Route::get('/series/categoria', [EstadisticasActividadesController::class, 'seriesCategoria'])->name('api.estadisticas_actividades.series.categoria');
+        Route::get('/series/subcategoria', [EstadisticasActividadesController::class, 'seriesSubcategoria'])->name('api.estadisticas_actividades.series.subcategoria');
+        Route::get('/series/unidad', [EstadisticasActividadesController::class, 'seriesUnidad'])->name('api.estadisticas_actividades.series.unidad');
+        Route::get('/series/delegacion', [EstadisticasActividadesController::class, 'seriesDelegacion'])->name('api.estadisticas_actividades.series.delegacion');
+        Route::get('/series/destacamento', [EstadisticasActividadesController::class, 'seriesDestacamento'])->name('api.estadisticas_actividades.series.destacamento');
+        Route::get('/series/municipio', [EstadisticasActividadesController::class, 'seriesMunicipio'])->name('api.estadisticas_actividades.series.municipio');
+        Route::get('/series/carretera', [EstadisticasActividadesController::class, 'seriesCarretera'])->name('api.estadisticas_actividades.series.carretera');
+        Route::get('/series/tiempo', [EstadisticasActividadesController::class, 'seriesTiempo'])->name('api.estadisticas_actividades.series.tiempo');
+        Route::get('/series/revision', [EstadisticasActividadesController::class, 'seriesRevision'])->name('api.estadisticas_actividades.series.revision');
+        Route::get('/series/personas-alcanzadas', [EstadisticasActividadesController::class, 'seriesPersonasAlcanzadas'])->name('api.estadisticas_actividades.series.personas_alcanzadas');
+        Route::get('/series/personas-participantes', [EstadisticasActividadesController::class, 'seriesPersonasParticipantes'])->name('api.estadisticas_actividades.series.personas_participantes');
+        Route::get('/series/personas-detenidas', [EstadisticasActividadesController::class, 'seriesPersonasDetenidas'])->name('api.estadisticas_actividades.series.personas_detenidas');
+        Route::get('/series/km-recorridos', [EstadisticasActividadesController::class, 'seriesKmRecorridos'])->name('api.estadisticas_actividades.series.km_recorridos');
+        Route::get('/puestas-disposicion', [EstadisticasActividadesController::class, 'puestasDisposicion'])->name('api.estadisticas_actividades.puestas_disposicion');
+        Route::get('/actividades', [EstadisticasActividadesController::class, 'actividades'])->name('api.estadisticas_actividades.actividades');
+        Route::get('/catalogos/categorias', [EstadisticasActividadesController::class, 'catalogoCategorias'])->name('api.estadisticas_actividades.catalogos.categorias');
+        Route::get('/catalogos/subcategorias', [EstadisticasActividadesController::class, 'catalogoSubcategorias'])->name('api.estadisticas_actividades.catalogos.subcategorias');
+        Route::get('/catalogos/delegaciones', [EstadisticasActividadesController::class, 'catalogoDelegaciones'])->name('api.estadisticas_actividades.catalogos.delegaciones');
+        Route::get('/catalogos/destacamentos', [EstadisticasActividadesController::class, 'catalogoDestacamentos'])->name('api.estadisticas_actividades.catalogos.destacamentos');
+        Route::get('/export/actividades', [EstadisticasActividadesController::class, 'exportActividades'])->name('api.estadisticas_actividades.export.actividades');
+        Route::get('/export/mensual', [EstadisticasActividadesController::class, 'exportMensual'])->name('api.estadisticas_actividades.export.mensual');
+        Route::get('/export/puestas-disposicion', [EstadisticasActividadesController::class, 'exportPuestasDisposicion'])->name('api.estadisticas_actividades.export.puestas_disposicion');
     });
 
     Route::get('/mi-personal', [PersonalController::class, 'index'])->middleware('can:ver personal turno');

@@ -421,7 +421,10 @@ class RegionalSheetService
                 'h.delegacion_id',
                 'h.km_recorridos',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -1339,7 +1342,10 @@ class RegionalSheetService
                 'h.oficio_mp',
                 'h.vehiculos_mp',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -1592,7 +1598,10 @@ class RegionalSheetService
                 'h.personas_mp',
                 'h.checaron_antecedentes',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2066,7 +2075,10 @@ class RegionalSheetService
 
         $hechos = DB::table('hechos as h')
             ->select('h.situacion')
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2101,7 +2113,10 @@ class RegionalSheetService
                 'c.sexo',
                 'c.edad',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2295,7 +2310,10 @@ class RegionalSheetService
                 'h.id',
                 'h.tipo_hecho',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -2565,7 +2583,10 @@ class RegionalSheetService
                 'h.tipo_hecho',
                 'h.monto_danos_patrimoniales',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
                 $query->whereIn('h.delegacion_id', $idsDelegaciones);
@@ -3003,7 +3024,10 @@ class RegionalSheetService
                 'v.tipo',
                 'v.tipo_servicio',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, h.hora) >= ? AND TIMESTAMP(h.fecha, h.hora) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($q) use ($idsDelegaciones) {
                 $q->whereIn('h.delegacion_id', $idsDelegaciones);

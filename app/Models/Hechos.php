@@ -188,12 +188,18 @@ class Hechos extends Model
             $conductoresCapturados === (int) $this->conductores_esperados &&
             $lesionadosCapturados === (int) $this->lesionados_esperados;
 
+        $capturaCompletaAt = null;
+
+        if ($capturaCompleta) {
+            $capturaCompletaAt = $this->captura_completa_at ?: now();
+        }
+
         $this->update([
             'vehiculos_capturados' => $vehiculosCapturados,
             'conductores_capturados' => $conductoresCapturados,
             'lesionados_capturados' => $lesionadosCapturados,
             'captura_completa' => $capturaCompleta,
-            'captura_completa_at' => $capturaCompleta ? now() : null,
+            'captura_completa_at' => $capturaCompletaAt,
         ]);
     }
 }

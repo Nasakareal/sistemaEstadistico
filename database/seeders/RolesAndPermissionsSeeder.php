@@ -104,6 +104,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear estadisticas',
             'editar estadisticas',
             'eliminar estadisticas',
+            'ver estadisticas globales',
+            'ver estadisticas actividades',
             'ver mapa',
         ];
 
@@ -152,10 +154,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'editar dictamenes',
                 'ver operativos carreteras',
                 'ver estadisticas carreteras',
+                'ver estadisticas globales',
+                'ver estadisticas actividades',
             ]),
             'Administrativo' => array_merge($operacionHechos, [
                 'ver operativos carreteras',
                 'ver estadisticas carreteras',
+                'ver estadisticas globales',
+                'ver estadisticas actividades',
             ]),
             'Agente Upec' => [
                 'ver operativos carreteras',
@@ -176,6 +182,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'Observador' => [
                 'ver hechos',
                 'ver actividades',
+                'ver estadisticas globales',
+                'ver estadisticas actividades',
             ],
         ];
 

@@ -12,6 +12,8 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 
 class ParteNovedadesGenerator
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected HechoNovedadesFormatter $hechoFormatter;
 
     public function __construct(HechoNovedadesFormatter $hechoFormatter)
@@ -33,7 +35,7 @@ class ParteNovedadesGenerator
             'vehiculos.servicios.grua',
             'lesionados'
         ])
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderBy('fecha', 'asc')
             ->orderBy('hora', 'asc')

@@ -12,7 +12,9 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 
 class BitacoraTurnoGenerator
 {
-    public function generar(string $fecha, string|int $turnoRef): string
+    private const UNIDAD_SINIESTROS_ID = 1;
+
+    public function generar(string $fecha, $turnoRef): string
     {
         $tz = 'America/Mexico_City';
 
@@ -25,6 +27,7 @@ class BitacoraTurnoGenerator
 
         $userIdsTurno = DB::table('users')
             ->where('turno_id', $turnoId)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->pluck('id')
             ->map(fn ($v) => (int) $v)
             ->values()
@@ -35,6 +38,7 @@ class BitacoraTurnoGenerator
         if (!empty($userIdsTurno)) {
             $hechos = Hechos::with(['vehiculos', 'lesionados'])
                 ->whereBetween('created_at', [$inicio, $fin])
+                ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
                 ->whereIn('created_by', $userIdsTurno)
                 ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
                 ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")
@@ -254,7 +258,7 @@ class BitacoraTurnoGenerator
         return 'B';
     }
 
-    private function resolveTurnoId(string|int $turnoRef): ?int
+    private function resolveTurnoId($turnoRef): ?int
     {
         if (is_numeric($turnoRef)) {
             return (int) $turnoRef;

@@ -16,6 +16,8 @@ use App\Models\Personal;
 
 class TotalSheet
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected CorteDiarioService $corteDiarioService;
     protected OperativosService $operativosService;
     protected EstadoFuerzaService $estadoFuerzaService;
@@ -110,9 +112,11 @@ class TotalSheet
 
         $estadoFuerza = min($monosAB, $hechosCount);
 
-        $kmTotalDia = (int) DB::table('patrulla_kilometrajes')
-            ->where('fecha', $fechaReporte)
-            ->sum(DB::raw('COALESCE(kilometros_recorridos, 0)'));
+        $kmTotalDia = (int) DB::table('patrulla_kilometrajes as pk')
+            ->join('patrullas as p', 'p.id', '=', 'pk.patrulla_id')
+            ->where('p.unidad_id', self::UNIDAD_SINIESTROS_ID)
+            ->where('pk.fecha', $fechaReporte)
+            ->sum(DB::raw('COALESCE(pk.kilometros_recorridos, 0)'));
 
         $template = $this->templateCompleto();
 
@@ -310,7 +314,7 @@ class TotalSheet
         $finStr = $fin->format('Y-m-d H:i:s');
 
         return (int) DB::table('hechos')
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr])
             ->count();
@@ -322,7 +326,7 @@ class TotalSheet
         $finStr = $fin->format('Y-m-d H:i:s');
 
         return (int) DB::table('hechos as h')
-            ->where('h.unidad_org_id', 1)
+            ->where('h.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->join('hecho_vehiculo as hv', 'hv.hecho_id', '=', 'h.id')
             ->join('vehiculo_conductor as vc', 'vc.vehiculo_id', '=', 'hv.vehiculo_id')
             ->whereRaw("STR_TO_DATE(CONCAT(h.fecha, ' ', h.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
@@ -344,7 +348,7 @@ class TotalSheet
     {
         $personales = Personal::with(['turno', 'incidencias'])
             ->where('estatus', 'ACTIVO')
-            ->where('unidad_id', 1)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->get();
 
         $total = 0;
@@ -369,7 +373,7 @@ class TotalSheet
     {
         $personales = Personal::with(['turno', 'incidencias'])
             ->where('estatus', 'ACTIVO')
-            ->where('unidad_id', 1)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->whereNotNull('patrulla_id')
             ->get();
 
@@ -636,7 +640,7 @@ class TotalSheet
 
         $subHechos = DB::table('hechos')
             ->select('hechos.id')
-            ->where('hechos.unidad_org_id', 1)
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -1276,7 +1280,7 @@ class TotalSheet
         $finStr    = $fin->format('Y-m-d H:i:s');
 
         $base = DB::table('hechos')
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -1307,7 +1311,7 @@ class TotalSheet
 
         $subHechos = DB::table('hechos')
             ->select('hechos.id')
-            ->where('hechos.unidad_org_id', 1)
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -1592,7 +1596,7 @@ class TotalSheet
         ];
 
         $base = DB::table('hechos')
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr])
             ->groupBy('tipo_hecho')
@@ -1813,6 +1817,7 @@ protected function contarChoquesPorTipo(Carbon $inicio, Carbon $fin): array
 
     $subHechos = DB::table('hechos')
         ->select('hechos.id', 'hechos.tipo_hecho')
+        ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
         ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
         ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -1911,7 +1916,7 @@ protected function contarMontosHechosTransito(Carbon $inicio, Carbon $fin): arra
 
     $subHechos = DB::table('hechos')
             ->select('hechos.id')
-            ->where('hechos.unidad_org_id', 1)
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -2091,6 +2096,7 @@ protected function contarHechosTransitoPorTipoVehiculo(Carbon $inicio, Carbon $f
 
     $subHechos = DB::table('hechos')
         ->select('hechos.id')
+        ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
         ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
         ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -2301,6 +2307,7 @@ protected function contarHechosTransitoPorTipoVehiculoResumen(Carbon $inicio, Ca
 
     $subHechos = DB::table('hechos')
         ->select('hechos.id')
+        ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
         ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
         ->whereRaw("STR_TO_DATE(CONCAT(hechos.fecha, ' ', hechos.hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr]);
 
@@ -2462,6 +2469,8 @@ protected function contarLiberacionesPorTipoVehiculo(Carbon $inicio, Carbon $fin
 
     $items = DB::table('liberaciones')
         ->join('vehiculos', 'vehiculos.id', '=', 'liberaciones.vehiculo_id')
+        ->join('hechos', 'hechos.id', '=', 'liberaciones.hecho_id')
+        ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
         ->whereBetween('liberaciones.fecha_liberacion', [$startDate, $endDate])
         ->select([
             'liberaciones.id as liberacion_id',

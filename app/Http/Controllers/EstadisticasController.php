@@ -21,6 +21,8 @@ use PhpOffice\PhpWord\Style\Table;
 
 class EstadisticasController extends Controller
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     public function index()
     {
         return view('admin.settings.estadisticas.index');
@@ -33,7 +35,9 @@ class EstadisticasController extends Controller
         $inicio = Carbon::parse($fecha)->setTime(18, 0)->subDay();
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
 
-        $hechos = Hechos::whereBetween('created_at', [$inicio, $fin])->get();
+        $hechos = Hechos::where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereBetween('created_at', [$inicio, $fin])
+            ->get();
 
         return view('admin.settings.estadisticas.parte-novedades', compact('hechos', 'fecha'));
     }
@@ -45,6 +49,7 @@ class EstadisticasController extends Controller
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->get();
 
@@ -416,7 +421,9 @@ class EstadisticasController extends Controller
         $inicio = Carbon::parse($fecha)->setTime(18, 0)->subDay();
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
 
-        $hechos = Hechos::whereBetween('created_at', [$inicio, $fin])->get();
+        $hechos = Hechos::where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereBetween('created_at', [$inicio, $fin])
+            ->get();
 
         return view('admin.settings.estadisticas.mini-parte', compact('hechos', 'fecha'));
     }
@@ -427,6 +434,7 @@ class EstadisticasController extends Controller
         $inicio = Carbon::parse($fecha)->setTime(18, 0)->subDay();
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->get();
 
@@ -804,6 +812,7 @@ class EstadisticasController extends Controller
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos', 'lesionados'])
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderBy('hora')
             ->get();
@@ -818,6 +827,7 @@ class EstadisticasController extends Controller
         $fin    = Carbon::parse($fecha)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos', 'lesionados'])
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderBy('hora')
             ->get();

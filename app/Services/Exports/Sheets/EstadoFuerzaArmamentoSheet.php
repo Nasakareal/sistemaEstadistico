@@ -14,6 +14,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class EstadoFuerzaArmamentoSheet
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected EstadoFuerzaService $estadoService;
 
     public function __construct(EstadoFuerzaService $estadoService)
@@ -207,7 +209,7 @@ class EstadoFuerzaArmamentoSheet
         $personales = Personal::with(['turno', 'incidencias', 'unidad'])
             ->whereNull('deleted_at')
             ->where('estatus', 'ACTIVO')
-            ->where('unidad_id', 1)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->get();
 
         $enServicioIds = [];
@@ -229,7 +231,7 @@ class EstadoFuerzaArmamentoSheet
             ])
             ->whereNull('deleted_at')
             ->where('estatus', 'ACTIVO')
-            ->where('unidad_id', 1)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->groupBy('unidad_id')
             ->get()
             ->keyBy('unidad_id');
@@ -238,7 +240,7 @@ class EstadoFuerzaArmamentoSheet
             ->select(['unidad_id', 'calibre', DB::raw('COALESCE(SUM(cartuchos_cantidad),0) as cartuchos_sum')])
             ->whereNull('deleted_at')
             ->where('estatus', 'ACTIVO')
-            ->where('unidad_id', 1)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->groupBy('unidad_id', 'calibre')
             ->get();
 
@@ -273,6 +275,7 @@ class EstadoFuerzaArmamentoSheet
                 ->where('pa.activo', 1)
                 ->whereNull('a.deleted_at')
                 ->where('a.estatus', 'ACTIVO')
+                ->where('a.unidad_id', self::UNIDAD_SINIESTROS_ID)
                 ->whereIn('pa.personal_id', $enServicioIds)
                 ->whereDate('pa.fecha_asignacion', '<=', $fecha)
                 ->where(function ($q) use ($fecha) {

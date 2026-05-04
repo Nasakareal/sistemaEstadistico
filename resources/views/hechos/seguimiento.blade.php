@@ -177,13 +177,27 @@
                                 $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
                                 $unidadNombre = optional($hecho->unidadOrganizacional)->nombre
                                     ?: ($unidadesFiltro[(string) $unidadReal] ?? 'Sin unidad');
+                                $detalleUnidad = null;
+
+                                if ($unidadReal === 2 && $hecho->delegacion) {
+                                    $detalleUnidad = $hecho->delegacion->nombre_con_clave
+                                        ?: $hecho->delegacion->nombre
+                                        ?: $hecho->delegacion->municipio;
+
+                                    if ($detalleUnidad && strcasecmp(trim($detalleUnidad), trim($unidadNombre)) === 0) {
+                                        $detalleUnidad = null;
+                                    }
+                                }
                             @endphp
 
                             <tr>
                                 <td class="font-weight-bold">#{{ $hecho->id }}</td>
                                 <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
-                                <td>
+                                <td class="sv-unit-cell">
                                     <span class="sv-unit-pill">{{ $unidadNombre }}</span>
+                                    @if ($detalleUnidad)
+                                        <span class="sv-unit-detail">{{ $detalleUnidad }}</span>
+                                    @endif
                                 </td>
                                 <td class="seguimiento-location">
                                     {{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}
@@ -480,6 +494,10 @@
             background: #f8f9fa;
         }
 
+        .sv-unit-cell {
+            min-width: 138px;
+        }
+
         .sv-unit-pill,
         .sv-status,
         .captura-faltantes__badge,
@@ -499,6 +517,19 @@
             border: 1px solid rgba(148, 163, 184, .25);
             background: rgba(15, 23, 42, .65);
             font-size: .78rem;
+        }
+
+        .sv-unit-detail {
+            display: block;
+            max-width: 168px;
+            margin: .28rem auto 0;
+            color: #f8fafc;
+            font-size: .88rem;
+            font-weight: 800;
+            line-height: 1.2;
+            text-transform: uppercase;
+            white-space: normal;
+            word-break: break-word;
         }
 
         .sv-status {

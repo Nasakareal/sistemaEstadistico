@@ -189,9 +189,7 @@ class HechoController extends Controller
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
         $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
 
-        $reglaFolio = $usaReglasFlexibles
-            ? ['nullable', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')]
-            : ['required', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')];
+        $reglaFolio = ['nullable', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')];
 
         $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
@@ -452,21 +450,13 @@ class HechoController extends Controller
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
         $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
 
-        $reglaFolio = $usaReglasFlexibles
-            ? [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:20',
-                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
-            ]
-            : [
-                'sometimes',
-                'required',
-                'string',
-                'max:20',
-                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
-            ];
+        $reglaFolio = [
+            'sometimes',
+            'nullable',
+            'string',
+            'max:20',
+            Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+        ];
 
         $reglaSector = $usaReglasFlexibles
             ? 'sometimes|nullable|string|max:100'
@@ -921,7 +911,6 @@ class HechoController extends Controller
             'file'     => 'Archivo inválido.',
             'between'  => 'El valor está fuera de rango.',
 
-            'folio_c5i.required' => 'Falta el folio C5i.',
             'folio_c5i.unique'   => 'Ese folio C5i ya está registrado.',
             'perito.required'    => 'Falta el nombre del perito.',
             'unidad.required'    => 'Falta la unidad.',

@@ -35,11 +35,11 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="folio_c5i">Folio de C5i<span style="color: red">*</span></label>
+                                    <label for="folio_c5i">Folio de C5i</label>
                                     <input type="text" name="folio_c5i" id="folio_c5i"
                                            class="form-control @error('folio_c5i') is-invalid @enderror"
                                            value="{{ old('folio_c5i', $hecho->folio_c5i) }}"
-                                           placeholder="Ingrese el folio de C5i" required>
+                                           placeholder="Ingrese el folio de C5i">
                                     @error('folio_c5i')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror

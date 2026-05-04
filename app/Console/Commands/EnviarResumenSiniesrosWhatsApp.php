@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 
 class EnviarResumenSiniesrosWhatsApp extends Command
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected $signature = 'whatsapp:resumen-siniestros {--to=} {--sin-template}';
     protected $description = 'Envía el resumen diario de siniestros por WhatsApp';
 
@@ -125,7 +127,8 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
     protected function getTotalHechos(Carbon $start, Carbon $end): int
     {
-        $query = DB::table('hechos');
+        $query = DB::table('hechos')
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
         if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
             return (int) $query
@@ -148,7 +151,8 @@ class EnviarResumenSiniesrosWhatsApp extends Command
         }
 
         $query = DB::table('lesionados')
-            ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id');
+            ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
         if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
             return (int) $query
@@ -175,7 +179,8 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
         foreach ($sumColumns as $column) {
             if (in_array($column, $hechoColumns, true)) {
-                $query = DB::table('hechos');
+                $query = DB::table('hechos')
+                    ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
                 if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
                     return (int) $query

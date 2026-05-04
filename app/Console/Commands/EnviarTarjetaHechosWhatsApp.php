@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 
 class EnviarTarjetaHechosWhatsApp extends Command
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected $signature = 'whatsapp:tarjeta-hechos {--to=} {--sin-template}';
     protected $description = 'Envía la tarjeta diaria de hechos por WhatsApp con corte de 18:00 a 18:00';
 
@@ -197,7 +199,8 @@ class EnviarTarjetaHechosWhatsApp extends Command
 
     protected function getHechosBaseQuery(Carbon $start, Carbon $end)
     {
-        $query = DB::table('hechos');
+        $query = DB::table('hechos')
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
         if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
             return $query->whereRaw(
@@ -216,7 +219,8 @@ class EnviarTarjetaHechosWhatsApp extends Command
         }
 
         $query = DB::table('lesionados')
-            ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id');
+            ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
         if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
             return (int) $query
@@ -243,7 +247,8 @@ class EnviarTarjetaHechosWhatsApp extends Command
 
         foreach ($sumColumns as $column) {
             if (in_array($column, $hechoColumns, true)) {
-                $query = DB::table('hechos');
+                $query = DB::table('hechos')
+                    ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
                 if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
                     return (int) $query

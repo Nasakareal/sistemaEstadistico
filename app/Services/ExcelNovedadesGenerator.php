@@ -12,6 +12,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ExcelNovedadesGenerator
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected EstadoFuerzaService $estadoService;
     protected HechoNovedadesFormatter $hechoFormatter;
 
@@ -73,6 +75,7 @@ class ExcelNovedadesGenerator
 
         $personales = Personal::with(['turno', 'incidencias', 'unidad'])
             ->where('estatus', 'ACTIVO')
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->get();
 
         $agrupado = [];
@@ -233,7 +236,7 @@ class ExcelNovedadesGenerator
             'vehiculos.servicios.grua',
             'lesionados',
         ])
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderBy('fecha', 'asc')
             ->orderBy('hora', 'asc')

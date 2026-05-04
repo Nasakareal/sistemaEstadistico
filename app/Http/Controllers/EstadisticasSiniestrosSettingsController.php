@@ -15,6 +15,8 @@ use App\Models\PersonalAsignacion;
 
 class EstadisticasSiniestrosSettingsController extends Controller
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected TurnoService $turnoService;
     protected EstadoFuerzaService $estadoFuerzaService;
     protected ActividadInformeService $actividadInformeService;
@@ -348,6 +350,7 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 $query->whereNull('fecha_baja')
                     ->orWhereDate('fecha_baja', '>', now('America/Mexico_City')->toDateString());
             })
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO']);
 
         if ($turnoId) {
@@ -575,10 +578,12 @@ class EstadisticasSiniestrosSettingsController extends Controller
             ->whereNull('fecha_fin')
             ->whereHas('personal', function ($query) {
                 $query->whereNull('deleted_at')
+                    ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
                     ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO']);
             })
             ->whereHas('armamento', function ($query) {
                 $query->whereNull('deleted_at')
+                    ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
                     ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO']);
             })
             ->get();

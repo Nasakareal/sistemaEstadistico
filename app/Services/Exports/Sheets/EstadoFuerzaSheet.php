@@ -13,6 +13,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class EstadoFuerzaSheet
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected EstadoFuerzaService $estadoService;
 
     public function __construct(EstadoFuerzaService $estadoService)
@@ -188,7 +190,7 @@ class EstadoFuerzaSheet
 
         $personales = Personal::with(['turno', 'incidencias', 'unidad'])
             ->where('estatus', 'ACTIVO')
-            ->where('unidad_id', 1)
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->get();
 
         $agrupado = [];

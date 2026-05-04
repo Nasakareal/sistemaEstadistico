@@ -15,6 +15,8 @@ use PhpOffice\PhpWord\SimpleType\TblWidth;
 
 class MiniParteGenerator
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     protected HechoNovedadesFormatter $hechoFormatter;
 
     public function __construct(HechoNovedadesFormatter $hechoFormatter)
@@ -30,7 +32,7 @@ class MiniParteGenerator
         $fin    = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos.conductores', 'lesionados'])
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
             ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")

@@ -26,16 +26,10 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="folio_c5i">
-                                        Folio de C5i
-                                        @if(!in_array((int) (auth()->user()->unidad_id ?? 0), [2,4]))
-                                            <span style="color: red">*</span>
-                                        @endif
-                                    </label>
+                                    <label for="folio_c5i">Folio de C5i</label>
                                     <input type="text" name="folio_c5i" id="folio_c5i"
                                            class="form-control @error('folio_c5i') is-invalid @enderror"
-                                           value="{{ old('folio_c5i') }}" placeholder="Ingrese el folio de C5i"
-                                           @if(!in_array((int) (auth()->user()->unidad_id ?? 0), [2,4])) required @endif>
+                                           value="{{ old('folio_c5i') }}" placeholder="Ingrese el folio de C5i">
                                     @error('folio_c5i')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror

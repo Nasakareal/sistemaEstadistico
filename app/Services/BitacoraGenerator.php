@@ -11,6 +11,8 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 
 class BitacoraGenerator
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     public function generar(string $fecha): string
     {
         $tz = 'America/Mexico_City';
@@ -19,7 +21,7 @@ class BitacoraGenerator
         $fin    = Carbon::parse($fecha, $tz)->setTime(18, 0);
 
         $hechos = Hechos::with(['vehiculos', 'lesionados'])
-            ->where('unidad_org_id', 1)
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('created_at', [$inicio, $fin])
             ->orderByRaw("COALESCE(fecha, DATE(created_at)) asc")
             ->orderByRaw("COALESCE(hora, TIME(created_at)) asc")

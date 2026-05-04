@@ -14,6 +14,8 @@ use App\Models\Dictamen;
 
 class NovRelSheet
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     public function build(Spreadsheet $spreadsheet, Carbon $corte): void
     {
         $sheet = $this->createOrGetSheet($spreadsheet, 'NOV. REL.');
@@ -103,6 +105,9 @@ class NovRelSheet
         $dictamenes = Dictamen::query()
             ->whereBetween('created_at', [$dayStart, $dayEnd])
             ->whereNotNull('hecho_id')
+            ->whereHas('hecho', function ($query) {
+                $query->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID);
+            })
             ->with([
                 'hecho.vehiculos.conductores', // <- la relación real
             ])

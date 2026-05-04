@@ -104,9 +104,7 @@ class HechosController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        $reglaFolio = $usaReglasFlexibles
-            ? 'nullable|string|max:20|unique:hechos,folio_c5i'
-            : 'required|string|max:20|unique:hechos,folio_c5i';
+        $reglaFolio = 'nullable|string|max:20|unique:hechos,folio_c5i';
 
         $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
@@ -366,19 +364,12 @@ class HechosController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        $reglaFolio = $usaReglasFlexibles
-            ? [
-                'nullable',
-                'string',
-                'max:20',
-                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
-            ]
-            : [
-                'required',
-                'string',
-                'max:20',
-                Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
-            ];
+        $reglaFolio = [
+            'nullable',
+            'string',
+            'max:20',
+            Rule::unique('hechos', 'folio_c5i')->ignore($hecho->id),
+        ];
 
         $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
@@ -931,7 +922,7 @@ class HechosController extends Controller
             ],
         ];
 
-        $query = Hechos::query()->with(['creator', 'unidadOrganizacional']);
+        $query = Hechos::query()->with(['creator', 'unidadOrganizacional', 'delegacion']);
 
         if ($periodo === 'SEMANA') {
             $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);

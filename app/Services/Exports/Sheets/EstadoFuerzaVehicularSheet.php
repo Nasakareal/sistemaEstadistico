@@ -12,6 +12,8 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class EstadoFuerzaVehicularSheet
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
     public function build(Spreadsheet $spreadsheet, Carbon $corte): Worksheet
     {
         $sheet = new Worksheet($spreadsheet, 'EST. VEH');
@@ -110,58 +112,60 @@ class EstadoFuerzaVehicularSheet
         $styleTotalCell = $styleBody;
         $styleTotalCell['font']['bold'] = true;
 
-        $patrullas = Patrulla::with('unidad')->get();
+        $patrullas = Patrulla::with('unidad')
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
+            ->get();
 
         $vehiculos = $this->vehiculosOficiales();
 
         $startRow = 2;
 
         $r1 = $this->renderSection(
-            sheet: $sheet,
-            topRow: $startRow,
-            corte: $corte,
-            titulo: 'ESTADO DE FUERZA VEHICULAR ACTIVO',
-            totalLabel: 'TOTAL ACTIVAS',
-            vehiculos: $vehiculos,
-            rows: $this->buildRows($patrullas, $vehiculos, fn($p) => (int)($p->activa ?? 0) === 1),
-            styleFechaBar: $styleFechaBar,
-            styleTitle: $styleTitle,
-            styleHeader: $styleHeader,
-            styleBody: $styleBody,
-            styleAreaCell: $styleAreaCell,
-            styleTotalCell: $styleTotalCell
+            $sheet,
+            $startRow,
+            $corte,
+            'ESTADO DE FUERZA VEHICULAR ACTIVO',
+            'TOTAL ACTIVAS',
+            $vehiculos,
+            $this->buildRows($patrullas, $vehiculos, fn($p) => (int)($p->activa ?? 0) === 1),
+            $styleFechaBar,
+            $styleTitle,
+            $styleHeader,
+            $styleBody,
+            $styleAreaCell,
+            $styleTotalCell
         );
 
         $r2 = $this->renderSection(
-            sheet: $sheet,
-            topRow: $r1 + 2,
-            corte: $corte,
-            titulo: 'ESTADO DE FUERZA VEHICULAR INACTIVO',
-            totalLabel: 'TOTAL DE INACTIVAS',
-            vehiculos: $vehiculos,
-            rows: $this->buildRows($patrullas, $vehiculos, fn($p) => (int)($p->activa ?? 0) === 0),
-            styleFechaBar: $styleFechaBar,
-            styleTitle: $styleTitle,
-            styleHeader: $styleHeader,
-            styleBody: $styleBody,
-            styleAreaCell: $styleAreaCell,
-            styleTotalCell: $styleTotalCell
+            $sheet,
+            $r1 + 2,
+            $corte,
+            'ESTADO DE FUERZA VEHICULAR INACTIVO',
+            'TOTAL DE INACTIVAS',
+            $vehiculos,
+            $this->buildRows($patrullas, $vehiculos, fn($p) => (int)($p->activa ?? 0) === 0),
+            $styleFechaBar,
+            $styleTitle,
+            $styleHeader,
+            $styleBody,
+            $styleAreaCell,
+            $styleTotalCell
         );
 
         $this->renderSection(
-            sheet: $sheet,
-            topRow: $r2 + 2,
-            corte: $corte,
-            titulo: 'TOTAL DE ESTADO DE FUERZA VEHICULAR',
-            totalLabel: 'TOTAL',
-            vehiculos: $vehiculos,
-            rows: $this->buildRows($patrullas, $vehiculos, fn($p) => true),
-            styleFechaBar: $styleFechaBar,
-            styleTitle: $styleTitle,
-            styleHeader: $styleHeader,
-            styleBody: $styleBody,
-            styleAreaCell: $styleAreaCell,
-            styleTotalCell: $styleTotalCell
+            $sheet,
+            $r2 + 2,
+            $corte,
+            'TOTAL DE ESTADO DE FUERZA VEHICULAR',
+            'TOTAL',
+            $vehiculos,
+            $this->buildRows($patrullas, $vehiculos, fn($p) => true),
+            $styleFechaBar,
+            $styleTitle,
+            $styleHeader,
+            $styleBody,
+            $styleAreaCell,
+            $styleTotalCell
         );
 
         $sheet->getColumnDimension('B')->setWidth(20);

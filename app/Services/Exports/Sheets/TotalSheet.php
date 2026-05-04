@@ -1581,25 +1581,36 @@ class TotalSheet
             ];
         }
 
+        $hasLesionadosTable = DB::getSchemaBuilder()->hasTable('lesionados');
         $hasLes = DB::getSchemaBuilder()->hasColumn('hechos', 'lesionados');
         $hasHer = DB::getSchemaBuilder()->hasColumn('hechos', 'heridos');
         $hasDef = DB::getSchemaBuilder()->hasColumn('hechos', 'defunciones');
         $hasFue = DB::getSchemaBuilder()->hasColumn('hechos', 'fuero_comun');
 
         $select = [
-            'tipo_hecho',
-            DB::raw('COUNT(*) as cantidad'),
-            DB::raw(($hasLes ? 'SUM(COALESCE(lesionados,0))' : '0') . ' as lesionados'),
+            'hechos.tipo_hecho',
+            DB::raw('COUNT(DISTINCT hechos.id) as cantidad'),
             DB::raw(($hasHer ? 'SUM(COALESCE(heridos,0))' : '0') . ' as heridos'),
-            DB::raw(($hasDef ? 'SUM(COALESCE(defunciones,0))' : '0') . ' as defunciones'),
             DB::raw(($hasFue ? 'SUM(COALESCE(fuero_comun,0))' : '0') . ' as fuero_comun'),
         ];
 
+        if ($hasLesionadosTable) {
+            $esFallecido = "UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'";
+            $select[] = DB::raw("SUM(CASE WHEN lesionados.id IS NOT NULL AND NOT ({$esFallecido}) THEN 1 ELSE 0 END) as lesionados");
+            $select[] = DB::raw("SUM(CASE WHEN lesionados.id IS NOT NULL AND {$esFallecido} THEN 1 ELSE 0 END) as defunciones");
+        } else {
+            $select[] = DB::raw(($hasLes ? 'SUM(COALESCE(lesionados,0))' : '0') . ' as lesionados');
+            $select[] = DB::raw(($hasDef ? 'SUM(COALESCE(defunciones,0))' : '0') . ' as defunciones');
+        }
+
         $base = DB::table('hechos')
+            ->when($hasLesionadosTable, function ($query) {
+                $query->leftJoin('lesionados', 'lesionados.hecho_id', '=', 'hechos.id');
+            })
             ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') >= ?", [$inicioStr])
             ->whereRaw("STR_TO_DATE(CONCAT(fecha, ' ', hora), '%Y-%m-%d %H:%i:%s') < ?", [$finStr])
-            ->groupBy('tipo_hecho')
+            ->groupBy('hechos.tipo_hecho')
             ->get($select);
 
         $out = [];

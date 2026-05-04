@@ -154,6 +154,8 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
             ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID);
 
+        $this->whereLesionadoNoFallecido($query);
+
         if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
             return (int) $query
                 ->whereRaw(
@@ -172,6 +174,27 @@ class EnviarResumenSiniesrosWhatsApp extends Command
     {
         if (!Schema::hasTable('hechos')) {
             return 0;
+        }
+
+        if (Schema::hasTable('lesionados')) {
+            $query = DB::table('lesionados')
+                ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
+                ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID);
+
+            $this->whereLesionadoFallecido($query);
+
+            if (Schema::hasColumn('hechos', 'fecha') && Schema::hasColumn('hechos', 'hora')) {
+                return (int) $query
+                    ->whereRaw(
+                        "TIMESTAMP(hechos.fecha, COALESCE(NULLIF(hechos.hora, ''), '00:00:00')) >= ? AND TIMESTAMP(hechos.fecha, COALESCE(NULLIF(hechos.hora, ''), '00:00:00')) < ?",
+                        [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')]
+                    )
+                    ->count('lesionados.id');
+            }
+
+            return (int) $query
+                ->whereBetween('hechos.created_at', [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')])
+                ->count('lesionados.id');
         }
 
         $hechoColumns = Schema::getColumnListing('hechos');
@@ -198,6 +221,16 @@ class EnviarResumenSiniesrosWhatsApp extends Command
         }
 
         return 0;
+    }
+
+    protected function whereLesionadoNoFallecido($query): void
+    {
+        $query->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO'");
+    }
+
+    protected function whereLesionadoFallecido($query): void
+    {
+        $query->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'");
     }
 
     protected function pad(int $value): string

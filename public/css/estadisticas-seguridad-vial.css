@@ -1,0 +1,506 @@
+#ppt-shell.svial-shell {
+    background:
+        linear-gradient(135deg, rgba(7, 20, 39, .96) 0%, rgba(12, 54, 68, .96) 48%, rgba(38, 23, 58, .96) 100%);
+}
+
+#ppt-shell.svial-shell .ppt-slide:not(.ppt-slide--cover) {
+    padding-top: 92px;
+}
+
+#ppt-shell.svial-shell .cover-slide__title {
+    letter-spacing: 0;
+}
+
+.svial-toolbar {
+    position: absolute;
+    top: 18px;
+    right: 28px;
+    z-index: 40;
+    display: flex;
+    align-items: end;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 18px;
+    background: rgba(5, 15, 31, .74);
+    color: #eaf0ff;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, .24);
+    backdrop-filter: blur(16px);
+    transition: opacity .18s ease, transform .18s ease;
+}
+
+.svial-shell.is-cover-active .svial-toolbar {
+    opacity: .2;
+}
+
+.svial-shell.is-cover-active .svial-toolbar:hover,
+.svial-shell.is-cover-active .svial-toolbar:focus-within {
+    opacity: 1;
+}
+
+.svial-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 850;
+    text-transform: uppercase;
+    color: rgba(234, 240, 255, .78);
+}
+
+.svial-field input {
+    min-width: 142px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .94);
+    color: #0f172a;
+    font-weight: 800;
+    padding: 0 10px;
+}
+
+.svial-action {
+    height: 38px;
+    border: 0;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 14px;
+    background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%);
+    color: #fff;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(15, 118, 110, .24);
+}
+
+.svial-action:hover {
+    transform: translateY(-1px);
+}
+
+.cover-slide--seguridad-vial {
+    background:
+        linear-gradient(135deg, #ffffff 0%, #f5f8ff 48%, #eef7f4 100%);
+}
+
+.cover-slide--seguridad-vial .cover-slide__tag {
+    color: #0f4f4a;
+    border-color: rgba(15, 118, 110, .20);
+    background: rgba(15, 118, 110, .08);
+}
+
+.cover-slide--seguridad-vial .cover-slide__divider {
+    background: linear-gradient(90deg, rgba(15, 118, 110, .10), #0f766e, #d97706, rgba(29, 78, 216, .14));
+}
+
+.cover-slide--seguridad-vial .cover-slide__subtitle {
+    color: #365a7d;
+}
+
+.svial-card-header {
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.svial-period {
+    margin-top: 8px;
+    font-size: 16px;
+    line-height: 1.2;
+    font-weight: 800;
+    color: #475569;
+    text-transform: uppercase;
+}
+
+.svial-chip,
+.svial-total-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: #ecfeff;
+    border: 1px solid rgba(14, 116, 144, .16);
+    color: #0f766e;
+    padding: 10px 14px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.svial-chip i {
+    color: #d97706;
+}
+
+.svial-compare-card,
+.svial-summary-card,
+.svial-analysis-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: 24px;
+}
+
+.svial-compare-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(340px, .75fr);
+    gap: 22px;
+}
+
+.svial-chart-panel,
+.svial-ranking-panel,
+.svial-panel {
+    min-width: 0;
+    border: 1px solid rgba(15, 23, 42, .08);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
+}
+
+.svial-chart-panel {
+    padding: 14px 12px 6px;
+}
+
+.svial-chart {
+    width: 100%;
+    height: 100%;
+    min-height: 470px;
+}
+
+.svial-ranking-panel {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.svial-ranking-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.svial-ranking-head h3,
+.svial-panel h3 {
+    margin: 2px 0 0;
+    color: #0f172a;
+    font-size: 20px;
+    line-height: 1.12;
+    font-weight: 950;
+}
+
+.svial-panel-kicker {
+    font-size: 11px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    font-weight: 900;
+    color: #0f766e;
+}
+
+.svial-ranking-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.svial-rank-row {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 70px;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(15, 23, 42, .08);
+}
+
+.svial-rank-row:last-child {
+    border-bottom: 0;
+}
+
+.svial-rank-row__pos {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: #0f172a;
+    color: #ffffff;
+    font-weight: 950;
+}
+
+.svial-rank-row__main,
+.svial-rank-row__metric {
+    min-width: 0;
+}
+
+.svial-rank-row__main strong {
+    display: block;
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.1;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+}
+
+.svial-rank-row__main span,
+.svial-rank-row__metric span {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 800;
+}
+
+.svial-rank-row__metric {
+    text-align: right;
+}
+
+.svial-rank-row__metric strong {
+    display: block;
+    color: #1d4ed8;
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 950;
+}
+
+.svial-empty {
+    height: 100%;
+    min-height: 120px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: #f1f5f9;
+    color: #475569;
+    font-weight: 850;
+    text-align: center;
+    padding: 18px;
+}
+
+.svial-empty--danger {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.svial-kpi-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    align-content: center;
+}
+
+.svial-kpi {
+    min-width: 0;
+    min-height: 210px;
+    border: 1px solid rgba(15, 23, 42, .08);
+    border-radius: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .08);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.svial-kpi__icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 0 0 22px 22px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 14px;
+    color: #fff;
+    font-size: 30px;
+    box-shadow: 0 14px 26px rgba(15, 23, 42, .16);
+}
+
+.svial-kpi__icon--blue { background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%); }
+.svial-kpi__icon--amber { background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%); }
+.svial-kpi__icon--red { background: linear-gradient(180deg, #ef4444 0%, #991b1b 100%); }
+.svial-kpi__icon--green { background: linear-gradient(180deg, #10b981 0%, #047857 100%); }
+.svial-kpi__icon--indigo { background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%); }
+.svial-kpi__icon--slate { background: linear-gradient(180deg, #475569 0%, #0f172a 100%); }
+
+.svial-kpi__value {
+    color: #102a43;
+    font-size: clamp(44px, 4vw, 72px);
+    line-height: .95;
+    font-weight: 950;
+}
+
+.svial-kpi__label {
+    margin-top: 10px;
+    color: #334155;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.svial-highlight {
+    margin-top: 18px;
+    min-height: 82px;
+    border-radius: 18px;
+    border: 1px solid rgba(15, 118, 110, .14);
+    background: linear-gradient(135deg, #ecfeff 0%, #fff7ed 100%);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.svial-highlight span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.svial-highlight strong {
+    display: block;
+    color: #0f172a;
+    font-size: clamp(22px, 2vw, 34px);
+    line-height: 1.05;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+}
+
+.svial-highlight__number {
+    color: #dc2626;
+    font-size: clamp(46px, 4vw, 72px);
+    line-height: 1;
+    font-weight: 950;
+}
+
+.svial-analysis-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(300px, .95fr) minmax(260px, .75fr);
+    gap: 18px;
+}
+
+.svial-panel {
+    padding: 18px;
+    overflow: hidden;
+}
+
+.svial-panel--wide {
+    grid-column: 1 / -1;
+}
+
+.svial-small-chart,
+.svial-wide-chart {
+    width: 100%;
+}
+
+.svial-small-chart {
+    height: 300px;
+}
+
+.svial-wide-chart {
+    height: 250px;
+}
+
+@media (max-width: 1200px) {
+    #ppt-shell.svial-shell .ppt-slide:not(.ppt-slide--cover) {
+        padding-top: 116px;
+    }
+
+    .svial-toolbar {
+        left: 18px;
+        right: 18px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .svial-compare-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .svial-ranking-panel {
+        min-height: 280px;
+    }
+
+    .svial-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+        overflow: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    #ppt-shell.svial-shell .ppt-slide,
+    #ppt-shell.svial-shell .ppt-slide:not(.ppt-slide--cover) {
+        padding: 132px 14px 82px;
+    }
+
+    #ppt-shell.svial-shell .ppt-slide--cover {
+        padding: 14px;
+    }
+
+    .svial-toolbar {
+        top: 12px;
+        align-items: stretch;
+    }
+
+    .svial-field {
+        flex: 1 1 130px;
+    }
+
+    .svial-field input,
+    .svial-action {
+        width: 100%;
+    }
+
+    .svial-action {
+        flex: 1 1 100%;
+    }
+
+    .svial-card-header,
+    .svial-ranking-head,
+    .svial-highlight {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .svial-chip,
+    .svial-total-pill {
+        white-space: normal;
+    }
+
+    .svial-kpi-grid,
+    .svial-analysis-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        overflow: auto;
+    }
+
+    .svial-panel--wide {
+        grid-column: auto;
+    }
+
+    .svial-kpi {
+        min-height: 180px;
+    }
+}
+
+@media print {
+    .svial-toolbar,
+    .ppt-nav {
+        display: none !important;
+    }
+
+    #ppt-shell.svial-shell .ppt-slide {
+        padding: 0;
+    }
+}

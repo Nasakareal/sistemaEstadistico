@@ -16,6 +16,7 @@ use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\WhatsApp\C5IReport;
 use App\Services\WhatsApp\NearestUnit;
+use App\Support\HechoLocationGuard;
 
 class HechosController extends Controller
 {
@@ -156,6 +157,8 @@ class HechosController extends Controller
             $rules['conductores_esperados'] = 'required|integer|min:0';
             $rules['lesionados_esperados'] = 'required|integer|min:0';
         }
+
+        $request->validate($this->officeLocationRules());
 
         $validated = $request->validate($rules);
 
@@ -421,6 +424,8 @@ class HechosController extends Controller
             $rules['conductores_esperados'] = 'required|integer|min:0';
             $rules['lesionados_esperados'] = 'required|integer|min:0';
         }
+
+        $request->validate($this->officeLocationRules());
 
         $validated = $request->validate($rules);
 
@@ -697,6 +702,22 @@ class HechosController extends Controller
         $hecho->save();
 
         return redirect()->back()->with('success', 'Hecho compartido por WhatsApp.');
+    }
+
+    private function officeLocationRules(): array
+    {
+        return [
+            'lat' => function ($attribute, $value, $fail) {
+                if (HechoLocationGuard::isBlockedOfficeLocation($value, request()->input('lng'))) {
+                    $fail(HechoLocationGuard::OFFICE_MESSAGE);
+                }
+            },
+            'lng' => function ($attribute, $value, $fail) {
+                if (HechoLocationGuard::isBlockedOfficeLocation(request()->input('lat'), $value)) {
+                    $fail(HechoLocationGuard::OFFICE_MESSAGE);
+                }
+            },
+        ];
     }
 
     private function applyHechosVisibilityScope($query, $usuario): void

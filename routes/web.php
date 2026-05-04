@@ -64,6 +64,7 @@ use App\Http\Controllers\GuardianesCaminoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoController;
 use App\Http\Controllers\GuardianesCaminoDispositivoFotoController;
 use App\Http\Controllers\ResumenEjecutivoController;
+use App\Http\Controllers\EstadisticasSeguridadVialController;
 use App\Http\Controllers\ZonaMapaController;
 use App\Http\Controllers\MapaDelegacionesController;
 
@@ -742,6 +743,18 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::get('/admin/settings/exports/bitacora', [ExportController::class, 'bitacora'])->name('settings.exports.bitacora');
     Route::get('/admin/settings/exports/mini-parte', [ExportController::class, 'miniParte'])->name('settings.exports.mini_parte');
     Route::get('/exports/bitacora-turno', [ExportController::class, 'bitacoraTurno'])->name('settings.exports.bitacora_turno');
+
+    Route::prefix('estadisticas-seguridad-vial')->middleware(['auth','can:ver estadisticas'])->group(function () {
+        Route::get('/', [EstadisticasSeguridadVialController::class, 'index'])->name('estadisticas_seguridad_vial.index');
+
+        Route::get('/caratula', [EstadisticasSeguridadVialController::class, 'caratula'])->name('estadisticas_seguridad_vial.caratula');
+
+        Route::get('/comparativa-municipios', [EstadisticasSeguridadVialController::class, 'comparativaCiudades'])->name('estadisticas_seguridad_vial.comparativa_municipios');
+        Route::get('/comparativa-ciudades', [EstadisticasSeguridadVialController::class, 'comparativaCiudades'])->name('estadisticas_seguridad_vial.comparativa_ciudades');
+
+        Route::get('/data/comparativa-municipios', [EstadisticasSeguridadVialController::class, 'dataComparativaCiudades'])->name('estadisticas_seguridad_vial.data.comparativa_municipios');
+        Route::get('/data/comparativa-ciudades', [EstadisticasSeguridadVialController::class, 'dataComparativaCiudades'])->name('estadisticas_seguridad_vial.data.comparativa_ciudades');
+    });
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

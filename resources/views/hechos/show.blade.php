@@ -46,6 +46,14 @@
                 <i class="fas fa-download"></i>
             </a>
 
+            <button type="button"
+                    class="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center btn-compartir-hecho"
+                    style="width:36px;height:36px;padding:0;"
+                    title="Compartir por WhatsApp"
+                    data-url="{{ route('hechos.compartir', $hecho->id) }}">
+                <i class="fa-brands fa-whatsapp"></i>
+            </button>
+
             @can('borrar hechos')
                 <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" class="d-inline">
                     @csrf
@@ -334,6 +342,12 @@
                                             <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-download"></i> Descargar informe
                                             </a>
+
+                                            <button type="button"
+                                                    class="btn btn-success btn-sm btn-compartir-hecho"
+                                                    data-url="{{ route('hechos.compartir', $hecho->id) }}">
+                                                <i class="fa-brands fa-whatsapp"></i> Compartir WhatsApp
+                                            </button>
 
                                             @if($puedeRevisar)
                                                 @if($hecho->estado_revision === 'pendiente')
@@ -858,6 +872,77 @@
 
             marker.openPopup();
         }
+
+        document.querySelectorAll('.btn-compartir-hecho').forEach(function (button) {
+            button.addEventListener('click', async function () {
+                const url = this.dataset.url;
+
+                try {
+                    const resp = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!resp.ok) {
+                        throw new Error('No se pudo obtener la información para compartir.');
+                    }
+
+                    const data = await resp.json();
+                    const texto = (data.texto || '').trim();
+                    const fotos = Array.isArray(data.fotos) ? data.fotos.filter(Boolean) : [];
+                    const archivos = [];
+
+                    if (navigator.share && fotos.length) {
+                        for (let i = 0; i < fotos.length; i++) {
+                            try {
+                                const imgResp = await fetch(fotos[i]);
+                                if (!imgResp.ok) {
+                                    continue;
+                                }
+
+                                const blob = await imgResp.blob();
+                                const mime = blob.type || 'image/jpeg';
+                                let ext = 'jpg';
+
+                                if (mime === 'image/png') {
+                                    ext = 'png';
+                                } else if (mime === 'image/webp') {
+                                    ext = 'webp';
+                                }
+
+                                archivos.push(new File([blob], 'hecho_' + (i + 1) + '.' + ext, { type: mime }));
+                            } catch (e) {
+                            }
+                        }
+                    }
+
+                    if (navigator.share) {
+                        if (archivos.length && navigator.canShare && navigator.canShare({ files: archivos })) {
+                            await navigator.share({
+                                text: texto,
+                                files: archivos
+                            });
+                            return;
+                        }
+
+                        await navigator.share({
+                            text: texto
+                        });
+                        return;
+                    }
+
+                    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+                } catch (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'No se pudo compartir el hecho.'
+                    });
+                }
+            });
+        });
     });
 </script>
 @stop

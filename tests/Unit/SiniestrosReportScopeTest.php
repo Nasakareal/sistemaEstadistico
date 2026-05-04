@@ -32,6 +32,9 @@ class SiniestrosReportScopeTest extends TestCase
         $this->assertStringContainsString("->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)", $totalSource);
         $this->assertStringContainsString("->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)", $totalSource);
         $this->assertStringContainsString("->where('p.unidad_id', self::UNIDAD_SINIESTROS_ID)", $totalSource);
+        $this->assertStringContainsString("leftJoin('lesionados'", $totalSource);
+        $this->assertStringContainsString('lesionados.tipo_lesion', $totalSource);
+        $this->assertStringContainsString('FALLECIDO', $totalSource);
 
         $this->assertStringContainsString(
             "->where('unidad_id', self::UNIDAD_SINIESTROS_ID)",
@@ -75,6 +78,8 @@ class SiniestrosReportScopeTest extends TestCase
 
             $this->assertStringContainsString("->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)", $source, $path);
             $this->assertStringContainsString("->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)", $source, $path);
+            $this->assertStringContainsString('whereLesionadoNoFallecido', $source, $path);
+            $this->assertStringContainsString('whereLesionadoFallecido', $source, $path);
         }
     }
 

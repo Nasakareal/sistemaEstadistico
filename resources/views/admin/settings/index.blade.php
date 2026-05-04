@@ -261,6 +261,23 @@
             @endcan
         @endif
 
+        @can('ver estadisticas')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-teal">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Informe Seguridad Vial</div>
+                        <div class="sv-card__desc">Carátula y comparativa de siniestros por municipio.</div>
+                        <a href="{{ route('estadisticas_seguridad_vial.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         @can('menu-estadisticas-delegaciones')
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">

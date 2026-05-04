@@ -15,6 +15,7 @@ use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
 use App\Support\HechoAccess;
+use App\Support\HechoLocationGuard;
 use Illuminate\Support\Facades\DB;
 
 class HechoController extends Controller
@@ -248,6 +249,11 @@ class HechoController extends Controller
 
             if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
+            }
+
+            if (HechoLocationGuard::isBlockedOfficeLocation($request->input('lat'), $request->input('lng'))) {
+                $v->errors()->add('lat', HechoLocationGuard::OFFICE_MESSAGE);
+                $v->errors()->add('lng', HechoLocationGuard::OFFICE_MESSAGE);
             }
 
             if (!$puedeUsarDictamenes && $request->filled('dictamen_id')) {
@@ -533,6 +539,11 @@ class HechoController extends Controller
             if ($hasLat xor $hasLng) {
                 $v->errors()->add('lat', 'Si envías ubicación, debes enviar lat y lng.');
                 $v->errors()->add('lng', 'Si envías ubicación, debes enviar lat y lng.');
+            }
+
+            if ($hasLat && $hasLng && HechoLocationGuard::isBlockedOfficeLocation($request->input('lat'), $request->input('lng'))) {
+                $v->errors()->add('lat', HechoLocationGuard::OFFICE_MESSAGE);
+                $v->errors()->add('lng', HechoLocationGuard::OFFICE_MESSAGE);
             }
 
             if (!$puedeUsarDictamenes && $request->filled('dictamen_id')) {

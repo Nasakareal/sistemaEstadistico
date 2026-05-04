@@ -308,7 +308,8 @@ class PeritoHomeController extends Controller
             ->where('hv.hecho_id', $hecho)
             ->select([
                 'v.id',
-                'v.tipo_vehiculo',
+                'v.tipo',
+                DB::raw('v.tipo as tipo_vehiculo'),
                 'v.marca',
                 'v.modelo',
                 'v.color',
@@ -326,7 +327,7 @@ class PeritoHomeController extends Controller
                 'edad',
                 'sexo',
                 'tipo_lesion',
-                'estado_salud',
+                DB::raw('tipo_lesion as estado_salud'),
             ])
             ->get();
 

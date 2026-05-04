@@ -5,7 +5,8 @@
     "\\resources\\views",
     "\\resources\\views\\admin",
     "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\users"
+    "\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial"
   ],
+  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

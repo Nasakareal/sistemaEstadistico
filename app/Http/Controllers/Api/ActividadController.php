@@ -11,6 +11,7 @@ use App\Models\Delegacion;
 use App\Models\Grua;
 use App\Models\Vehiculo;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\ImageThumbnailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -349,6 +350,7 @@ class ActividadController extends Controller
             ]);
 
             $ordenBase = 0;
+            $thumbnailDir = $this->actividadThumbnailDirectory($unidadOrg, $fecha);
 
             foreach ($archivos as $index => $file) {
                 $fotoHash = hash_file('sha256', $file->getRealPath());
@@ -356,12 +358,19 @@ class ActividadController extends Controller
                 $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
                 $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
                 $fotoPath = $file->storeAs('actividades', $filename, 'public');
+                $orden = $ordenBase + $index;
+                $fotoThumbnailPath = $this->crearThumbnailSeguro(
+                    $fotoPath,
+                    $thumbnailDir,
+                    'actividad_' . $actividad->id . '_foto_' . $orden
+                );
 
                 $actividad->fotos()->create([
                     'foto_path' => $fotoPath,
                     'foto_nombre_original' => $fotoNombreOriginal,
                     'foto_hash' => $fotoHash,
-                    'orden' => $ordenBase + $index,
+                    'foto_thumbnail_path' => $fotoThumbnailPath,
+                    'orden' => $orden,
                     'created_by' => $user->id,
                     'updated_by' => $user->id,
                 ]);
@@ -377,7 +386,7 @@ class ActividadController extends Controller
             if ($fotoPrincipal) {
                 $actividad->update([
                     'foto_path' => $fotoPrincipal->foto_path,
-                    'foto_thumbnail_path' => null,
+                    'foto_thumbnail_path' => $fotoPrincipal->foto_thumbnail_path,
                     'foto_archivo_zip_path' => null,
                     'foto_archivada_at' => null,
                     'foto_eliminada_at' => null,
@@ -561,23 +570,52 @@ class ActividadController extends Controller
                 }
 
                 $fotoAnteriorPath = $fotoPath;
+                $fotoAnteriorThumbPath = $fotoThumbnailPath;
 
                 $fotoNombreOriginal = $file->getClientOriginalName();
                 $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
                 $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
 
                 $fotoPath = $file->storeAs('actividades', $filename, 'public');
+                $fotoThumbnailPath = $this->crearThumbnailSeguro(
+                    $fotoPath,
+                    $this->actividadThumbnailDirectory(
+                        (int) ($actividad->unidad_org_id ?? $user->unidad_id ?? 0),
+                        $validated['fecha'] ?? $actividad->fecha ?? now($tz)->toDateString()
+                    ),
+                    'actividad_' . $actividad->id . '_principal'
+                );
                 $fotoHash = $nuevoHash;
+
+                if (!empty($fotoAnteriorPath)) {
+                    $fotoRegistro = $actividad->fotosTodas()
+                        ->where('foto_path', $fotoAnteriorPath)
+                        ->orderBy('orden')
+                        ->orderBy('id')
+                        ->first();
+
+                    if ($fotoRegistro) {
+                        $fotoRegistro->update([
+                            'foto_path' => $fotoPath,
+                            'foto_nombre_original' => $fotoNombreOriginal,
+                            'foto_hash' => $fotoHash,
+                            'foto_thumbnail_path' => $fotoThumbnailPath,
+                            'foto_archivo_zip_path' => null,
+                            'foto_archivada_at' => null,
+                            'foto_eliminada_at' => null,
+                            'updated_by' => $user->id,
+                        ]);
+                    }
+                }
 
                 if (!empty($fotoAnteriorPath) && Storage::disk('public')->exists($fotoAnteriorPath)) {
                     Storage::disk('public')->delete($fotoAnteriorPath);
                 }
 
-                if (!empty($fotoThumbnailPath) && Storage::disk('public')->exists($fotoThumbnailPath)) {
-                    Storage::disk('public')->delete($fotoThumbnailPath);
+                if (!empty($fotoAnteriorThumbPath) && Storage::disk('public')->exists($fotoAnteriorThumbPath)) {
+                    Storage::disk('public')->delete($fotoAnteriorThumbPath);
                 }
 
-                $fotoThumbnailPath = null;
                 $fotoArchivoZipPath = null;
                 $fotoArchivadaAt = null;
                 $fotoEliminadaAt = null;
@@ -906,6 +944,7 @@ class ActividadController extends Controller
 
         $data['foto_thumbnail_url'] = $this->publicStoragePath($actividad->foto_thumbnail_path);
         $data['foto_url'] = $this->publicStoragePath($actividad->foto_path ?: $actividad->foto_thumbnail_path);
+        $data['foto_preview_url'] = $this->publicStoragePath($actividad->foto_thumbnail_path ?: $actividad->foto_path);
 
         if (!empty($data['fotos']) && is_array($data['fotos'])) {
             $data['fotos'] = array_map(function ($foto) {
@@ -916,12 +955,41 @@ class ActividadController extends Controller
                     : ($fotoPath ?: $thumbnailPath);
 
                 $foto['foto_thumbnail_url'] = $this->publicStoragePath($thumbnailPath);
+                $foto['foto_preview_url'] = $this->publicStoragePath($thumbnailPath ?: $displayPath);
                 $foto['foto_url'] = $this->publicStoragePath($displayPath);
                 return $foto;
             }, $data['fotos']);
         }
 
         return $data;
+    }
+
+    private function actividadThumbnailDirectory(int $unidadId, $fecha): string
+    {
+        $unidadId = $unidadId > 0 ? $unidadId : 0;
+        $year = null;
+
+        if ($fecha) {
+            try {
+                $year = Carbon::parse($fecha)->format('Y');
+            } catch (\Throwable $e) {
+                $year = null;
+            }
+        }
+
+        $year = $year ?: now('America/Mexico_City')->format('Y');
+
+        return 'actividades_thumbnails/unidad_' . $unidadId . '/' . $year;
+    }
+
+    private function crearThumbnailSeguro(string $fotoPath, string $directorio, string $prefijo): ?string
+    {
+        try {
+            return app(ImageThumbnailService::class)->createPublicThumbnail($fotoPath, $directorio, $prefijo);
+        } catch (\Throwable $e) {
+            report($e);
+            return null;
+        }
     }
 
     private function publicStoragePath(?string $storedPath): ?string

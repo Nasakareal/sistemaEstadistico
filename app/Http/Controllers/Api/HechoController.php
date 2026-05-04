@@ -865,12 +865,95 @@ class HechoController extends Controller
         ], 200);
     }
 
+    public function subirIphDelegacion(Request $request, Hechos $hecho)
+    {
+        $user = $request->user();
+
+        if (!$this->userCanUploadDelegacionesIph($user, $hecho)) {
+            return response()->json([
+                'message' => 'No tienes permiso para subir IPH a este hecho.',
+            ], 403);
+        }
+
+        $situacion = strtoupper($this->removeAccents((string) ($hecho->situacion ?? '')));
+        if ($situacion !== 'TURNADO') {
+            return response()->json([
+                'message' => 'Solo puedes subir IPH cuando el hecho está TURNADO.',
+                'errors' => [
+                    'situacion' => ['El hecho debe estar TURNADO.'],
+                ],
+            ], 422);
+        }
+
+        $archivoField = $request->hasFile('archivo_iph') ? 'archivo_iph' : 'archivo_dictamen';
+
+        $validator = Validator::make($request->all(), [
+            $archivoField => 'required|file|mimes:pdf|max:10240',
+            'nombre_policia' => 'sometimes|nullable|string|max:100',
+            'nombre_mp' => 'sometimes|nullable|string|max:100',
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator->errors()->toArray());
+        }
+
+        $path = $request->file($archivoField)->store("iph_delegaciones/{$hecho->id}", 'public');
+        $oldPath = null;
+
+        try {
+            DB::transaction(function () use ($hecho, $user, $path, &$oldPath) {
+                $locked = Hechos::query()
+                    ->whereKey($hecho->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $oldPath = $locked->iph_delegaciones_path;
+                $locked->iph_delegaciones_path = $path;
+                $locked->updated_by = $user->id;
+                $locked->save();
+            });
+        } catch (\Throwable $e) {
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => [
+                    $archivoField => [$e->getMessage()],
+                ],
+            ], 422);
+        }
+
+        if ($oldPath && $oldPath !== $path && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
+
+        return response()->json([
+            'message' => 'IPH de Delegaciones subido correctamente.',
+            'data' => $this->withFotoUrls($hecho),
+        ], 200);
+    }
+
     private function withFotoUrls(Hechos $hecho): array
     {
+        $hecho->loadMissing('dictamen');
+
         $data = $hecho->toArray();
 
         $data['foto_lugar_url']     = $this->publicStoragePath($hecho->foto_lugar);
         $data['foto_situacion_url'] = $this->publicStoragePath($hecho->foto_situacion);
+        $data['iph_delegaciones_path'] = $hecho->iph_delegaciones_path ?? null;
+        $data['iph_delegaciones_url'] = $this->publicStoragePath($data['iph_delegaciones_path']);
+        $data['descargo_path'] = $data['descargo_path'] ?? $data['iph_delegaciones_path'];
+        $data['descargo_url'] = $data['descargo_url'] ?? $data['iph_delegaciones_url'];
+        $data['dictamen_id'] = $hecho->dictamen ? $hecho->dictamen->id : null;
+        $data['dictamen_archivo'] = $hecho->dictamen ? $hecho->dictamen->archivo_dictamen : null;
+        $data['dictamen_archivo_url'] = $hecho->dictamen
+            ? $this->publicStoragePath($hecho->dictamen->archivo_dictamen)
+            : null;
         $data['puede_editar'] = HechoAccess::canEdit(request()->user(), $hecho);
 
         return $data;
@@ -1231,6 +1314,15 @@ class HechoController extends Controller
         }
 
         return (int) ($user->unidad_id ?? 0) === 1;
+    }
+
+    private function userCanUploadDelegacionesIph($user, Hechos $hecho): bool
+    {
+        if (!$user || !HechoAccess::canEdit($user, $hecho)) {
+            return false;
+        }
+
+        return (int) ($user->unidad_id ?? 0) === 2;
     }
 
     private function userMustCaptureTotalesEsperados($user): bool

@@ -21,6 +21,16 @@
             </div>
 
             <div class="card-body">
+                <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap">
+                    <div class="mb-2 mb-md-0">
+                        <b>Respaldo al momento de Delegaciones.</b>
+                        Genera y descarga un SQL con actividades y hechos de la unidad org 2, junto con sus registros relacionados.
+                        No se guarda en el servidor.
+                    </div>
+                    <a href="{{ route('backups_sql.delegaciones') }}" class="btn btn-success">
+                        <i class="fa-solid fa-database"></i> Obtener respaldo
+                    </a>
+                </div>
 
                 @if ($files->isEmpty())
                     <div class="alert alert-warning mb-0">

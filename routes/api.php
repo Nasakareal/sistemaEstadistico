@@ -221,6 +221,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hechos/{hecho}', [HechoController::class, 'update']);
     Route::delete('/hechos/{hecho}', [HechoController::class, 'destroy'])->middleware('can:eliminar hechos');
     Route::post('/hechos/{hecho}/descargo', [HechoController::class, 'subirDescargo']);
+    Route::post('/hechos/{hecho}/iph-delegacion', [HechoController::class, 'subirIphDelegacion']);
+    Route::post('/hechos/{hecho}/dictamen-delegacion', [HechoController::class, 'subirIphDelegacion']);
     Route::get('/hechos/{hecho}/native-share', [HechoController::class, 'nativeShare'])->middleware('can:ver hechos');
     Route::get('/hechos/{hecho}/whatsapp-link', [HechoController::class, 'whatsappLink'])->middleware('can:ver hechos');
 

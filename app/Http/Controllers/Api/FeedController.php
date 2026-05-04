@@ -62,6 +62,8 @@ class FeedController extends Controller
                 'user_name' => $row->user_name,
                 'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
                 'resumen' => $this->limpiaResumen($row->resumen, $row->type),
+                'categoria_nombre' => isset($row->categoria_nombre) ? $row->categoria_nombre : null,
+                'subcategoria_nombre' => isset($row->subcategoria_nombre) ? $row->subcategoria_nombre : null,
                 'foto_url' => $fotoUrl,
                 'created_at' => $row->created_at,
                 'show_url' => $this->resolverShowUrl($row),
@@ -176,6 +178,8 @@ class FeedController extends Controller
                 'user_name' => $row->user_name,
                 'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
                 'resumen' => $this->limpiaResumen($row->resumen, $row->type),
+                'categoria_nombre' => isset($row->categoria_nombre) ? $row->categoria_nombre : null,
+                'subcategoria_nombre' => isset($row->subcategoria_nombre) ? $row->subcategoria_nombre : null,
                 'foto_url' => $fotoUrl,
                 'created_at' => $row->created_at,
                 'show_url' => $this->resolverShowUrl($row),
@@ -406,6 +410,8 @@ class FeedController extends Controller
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
                 CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
+                NULL as categoria_nombre,
+                NULL as subcategoria_nombre,
                 COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
                 h.created_at as created_at
             ", [$typeOrder]);
@@ -418,6 +424,8 @@ class FeedController extends Controller
             u.name as user_name,
             {$unidadSql} as unidad_id,
             CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
+            NULL as categoria_nombre,
+            NULL as subcategoria_nombre,
             COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
             h.created_at as created_at
         ")->orderByDesc('h.created_at')->orderByDesc('h.id');
@@ -430,9 +438,19 @@ class FeedController extends Controller
         }
 
         $q = DB::table('actividades as a')
-            ->leftJoin('users as u', 'u.id', '=', 'a.created_by');
+            ->leftJoin('users as u', 'u.id', '=', 'a.created_by')
+            ->leftJoin('actividad_categorias as ac', 'ac.id', '=', 'a.actividad_categoria_id')
+            ->leftJoin('actividad_subcategorias as asub', 'asub.id', '=', 'a.actividad_subcategoria_id');
 
         $unidadSql = Schema::hasColumn('actividades', 'unidad_org_id') ? 'COALESCE(a.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
+        $fotoPathSql = $this->actividadFeedFotoPathSql();
+        $resumenSql = "COALESCE(
+            NULLIF(TRIM(COALESCE(a.motivo,'')), ''),
+            NULLIF(TRIM(COALESCE(a.lugar,'')), ''),
+            NULLIF(TRIM(COALESCE(a.municipio,'')), ''),
+            NULLIF(TRIM(COALESCE(a.nombre,'')), ''),
+            'Actividad registrada'
+        )";
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
         $this->applyDelegacionesScope($q, $usuario, 'a.delegacion_id');
 
@@ -444,8 +462,10 @@ class FeedController extends Controller
                 a.created_by as user_id,
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
-                a.nombre as resumen,
-                COALESCE(a.foto_path, a.foto_thumbnail_path) as foto_path,
+                {$resumenSql} as resumen,
+                ac.nombre as categoria_nombre,
+                asub.nombre as subcategoria_nombre,
+                {$fotoPathSql} as foto_path,
                 a.created_at as created_at
             ", [$typeOrder]);
         }
@@ -456,10 +476,42 @@ class FeedController extends Controller
             a.created_by as user_id,
             u.name as user_name,
             {$unidadSql} as unidad_id,
-            a.nombre as resumen,
-            COALESCE(a.foto_path, a.foto_thumbnail_path) as foto_path,
+            {$resumenSql} as resumen,
+            ac.nombre as categoria_nombre,
+            asub.nombre as subcategoria_nombre,
+            {$fotoPathSql} as foto_path,
             a.created_at as created_at
         ")->orderByDesc('a.created_at')->orderByDesc('a.id');
+    }
+
+    private function actividadFeedFotoPathSql(): string
+    {
+        if (!Schema::hasTable('actividad_fotos')) {
+            return 'COALESCE(a.foto_thumbnail_path, a.foto_path)';
+        }
+
+        return "COALESCE(
+            a.foto_thumbnail_path,
+            (
+                SELECT af.foto_thumbnail_path
+                FROM actividad_fotos af
+                WHERE af.actividad_id = a.id
+                  AND af.foto_eliminada_at IS NULL
+                  AND af.foto_thumbnail_path IS NOT NULL
+                ORDER BY af.orden ASC, af.id ASC
+                LIMIT 1
+            ),
+            a.foto_path,
+            (
+                SELECT af.foto_path
+                FROM actividad_fotos af
+                WHERE af.actividad_id = a.id
+                  AND af.foto_eliminada_at IS NULL
+                  AND af.foto_path IS NOT NULL
+                ORDER BY af.orden ASC, af.id ASC
+                LIMIT 1
+            )
+        )";
     }
 
     private function queryCarreteras(array $unidadIds, bool $forUnion = false, int $typeOrder = 3, $usuario = null)
@@ -502,6 +554,8 @@ class FeedController extends Controller
                         ELSE ''
                     END
                 ) as resumen,
+                NULL as categoria_nombre,
+                NULL as subcategoria_nombre,
                 {$fotoPathSql} as foto_path,
                 od.created_at as created_at
             ", [$typeOrder]);
@@ -524,6 +578,8 @@ class FeedController extends Controller
                     ELSE ''
                 END
             ) as resumen,
+            NULL as categoria_nombre,
+            NULL as subcategoria_nombre,
             {$fotoPathSql} as foto_path,
             od.created_at as created_at
         ")->orderByDesc('od.created_at')->orderByDesc('od.id');
@@ -583,6 +639,8 @@ class FeedController extends Controller
                 u.name as user_name,
                 " . (Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id') . " as unidad_id,
                 {$resumenSql} as resumen,
+                NULL as categoria_nombre,
+                NULL as subcategoria_nombre,
                 NULL as foto_path,
                 vd.created_at as created_at
             ", [$typeOrder]);
@@ -595,6 +653,8 @@ class FeedController extends Controller
             u.name as user_name,
             " . (Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id') . " as unidad_id,
             {$resumenSql} as resumen,
+            NULL as categoria_nombre,
+            NULL as subcategoria_nombre,
             NULL as foto_path,
             vd.created_at as created_at
         ")->orderByDesc('vd.created_at')->orderByDesc('vd.id');

@@ -49,6 +49,7 @@ class Hechos extends Model
         'monto_danos_patrimoniales',
         'foto_lugar',
         'foto_situacion',
+        'iph_delegaciones_path',
         'delegacion_id',
         'lat',
         'lng',

@@ -180,6 +180,12 @@ class HechosController extends Controller
 
         $situacion = (string) ($validated['situacion'] ?? '');
 
+        if ($situacion === 'TURNADO' && (int) ($validated['vehiculos_mp'] ?? 0) === 0 && (int) ($validated['personas_mp'] ?? 0) === 0) {
+            return back()
+                ->withErrors(['vehiculos_mp' => 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.'])
+                ->withInput();
+        }
+
         if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -446,6 +452,12 @@ class HechosController extends Controller
         }
 
         $situacion = (string) ($validated['situacion'] ?? '');
+
+        if ($situacion === 'TURNADO' && (int) ($validated['vehiculos_mp'] ?? 0) === 0 && (int) ($validated['personas_mp'] ?? 0) === 0) {
+            return back()
+                ->withErrors(['vehiculos_mp' => 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.'])
+                ->withInput();
+        }
 
         if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $hayFotoGuardada = !empty($hecho->foto_situacion) && !$quitarFotoSituacion;
@@ -857,6 +869,17 @@ class HechosController extends Controller
         });
     }
 
+    private function aplicarFiltroCapturaIncompletaDelegaciones($query): void
+    {
+        $query->where(function ($q) {
+            $q->where('captura_completa', false)
+                ->orWhereNull('captura_completa')
+                ->orWhereRaw('COALESCE(vehiculos_capturados, 0) < COALESCE(vehiculos_esperados, 0)')
+                ->orWhereRaw('COALESCE(conductores_capturados, 0) < COALESCE(conductores_esperados, 0)')
+                ->orWhereRaw('COALESCE(lesionados_capturados, 0) < COALESCE(lesionados_esperados, 0)');
+        });
+    }
+
     public function seguimiento(Request $request)
     {
         $usuario = auth()->user();
@@ -872,7 +895,7 @@ class HechosController extends Controller
             '4' => 'Carreteras',
         ];
 
-        $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO'];
+        $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'];
         $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
 
         if (!in_array($situacion, $situacionesValidas, true)) {
@@ -925,21 +948,40 @@ class HechosController extends Controller
             return $query;
         };
 
+        $crearQueryFaltaCompletar = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
+            $query = Hechos::query()
+                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
+
+            $this->applyHechosVisibilityScope($query, $usuario);
+
+            if ($puedeFiltrarUnidad && $unidadFiltro !== '' && $unidadFiltro !== '2') {
+                $query->whereRaw('1=0');
+            } else {
+                $this->scopeHechosUnidad($query, 2);
+                $this->aplicarFiltroCapturaIncompletaDelegaciones($query);
+            }
+
+            return $query;
+        };
+
         $conteos = [
             'semana' => [
                 'PENDIENTE' => $crearQueryConteo($inicioSemana, $finSemana, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicioSemana, $finSemana, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicioSemana, $finSemana, 'RESUELTO')->count(),
+                'FALTA_COMPLETAR' => $crearQueryFaltaCompletar($inicioSemana, $finSemana)->count(),
             ],
             'mes' => [
                 'PENDIENTE' => $crearQueryConteo($inicioMes, $finMes, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicioMes, $finMes, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicioMes, $finMes, 'RESUELTO')->count(),
+                'FALTA_COMPLETAR' => $crearQueryFaltaCompletar($inicioMes, $finMes)->count(),
             ],
             'anio' => [
                 'PENDIENTE' => $crearQueryConteo($inicioAnio, $finAnio, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicioAnio, $finAnio, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicioAnio, $finAnio, 'RESUELTO')->count(),
+                'FALTA_COMPLETAR' => $crearQueryFaltaCompletar($inicioAnio, $finAnio)->count(),
             ],
         ];
 
@@ -953,10 +995,19 @@ class HechosController extends Controller
             $query->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()]);
         }
 
-        $query->where('situacion', $situacion);
-
         $this->applyHechosVisibilityScope($query, $usuario);
-        $aplicarFiltroUnidad($query);
+
+        if ($situacion === 'FALTA_COMPLETAR') {
+            if ($puedeFiltrarUnidad && $unidadFiltro !== '' && $unidadFiltro !== '2') {
+                $query->whereRaw('1=0');
+            } else {
+                $this->scopeHechosUnidad($query, 2);
+                $this->aplicarFiltroCapturaIncompletaDelegaciones($query);
+            }
+        } else {
+            $query->where('situacion', $situacion);
+            $aplicarFiltroUnidad($query);
+        }
 
         $hechos = $query
             ->orderByDesc('fecha')

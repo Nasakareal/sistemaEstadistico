@@ -1,12 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\admin",
-    "\\resources\\views\\admin\\settings",
-    "\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial"
+    "\\app",
+    "\\app\\Services"
   ],
-  "SelectedNode": "\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php",
+  "SelectedNode": "\\app\\Services\\DelegacionesWhatsAppAlertService.php",
   "PreviewInSolutionExplorer": false
 }

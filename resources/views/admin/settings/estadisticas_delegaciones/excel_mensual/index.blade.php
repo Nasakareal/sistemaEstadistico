@@ -198,6 +198,3 @@
 </style>
 @stop
 
-@section('js')
-<script>console.log('Excel Mensual Delegaciones');</script>
-@stop

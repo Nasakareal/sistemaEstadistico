@@ -3,24 +3,8 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\sistemaEstadistico\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\EstadisticasSeguridadVialController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\EstadisticasSeguridadVialController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\UserController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\partials\\caratula.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\partials\\caratula.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -35,66 +19,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "EstadisticasSeguridadVialController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\EstadisticasSeguridadVialController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\EstadisticasSeguridadVialController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\EstadisticasSeguridadVialController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\EstadisticasSeguridadVialController.php",
-              "ViewState": "AgIAABsAAAAAAAAAAAAmwE4AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-04T02:52:46.269Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "UserController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\UserController.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\app\\Http\\Controllers\\UserController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\UserController.php",
-              "ViewState": "AgIAAGwCAAAAAAAAAAAmwJ4CAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-04T02:52:04.96Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "caratula.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\partials\\caratula.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\partials\\caratula.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\partials\\caratula.blade.php",
-              "RelativeToolTip": "resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\partials\\caratula.blade.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-04T02:51:55.73Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
               "Title": "index.blade.php",
               "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php",
               "RelativeDocumentMoniker": "resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php",
               "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php",
               "RelativeToolTip": "resources\\views\\admin\\settings\\estadisticas_seguridad_vial\\index.blade.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-04T02:51:42.175Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "web.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
-              "RelativeDocumentMoniker": "routes\\web.php",
-              "ToolTip": "C:\\wamp64\\www\\sistemaEstadistico\\routes\\web.php",
-              "RelativeToolTip": "routes\\web.php",
-              "ViewState": "AgIAANICAAAAAAAAAAAAAOoCAAALAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2026-05-04T01:51:28.313Z",
+              "WhenOpened": "2026-05-04T21:53:52.535Z",
               "EditorCaption": ""
             }
           ]

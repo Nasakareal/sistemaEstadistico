@@ -10,6 +10,7 @@
     @php
         $usuario = auth()->user();
         $puedeFiltrarUnidad = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3;
+        $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
     @endphp
 
     <div class="row">
@@ -195,6 +196,15 @@
                                                 <i class="fa-brands fa-whatsapp"></i>
                                             </button>
 
+                                            @if($puedeVerTarjetaWhatsApp)
+                                                <button type="button"
+                                                    class="btn btn-outline-info btn-sm btn-preview-whatsapp-card"
+                                                    title="Ver tarjeta WhatsApp"
+                                                    data-url="{{ route('hechos.compartir', $hecho->id) }}">
+                                                    <i class="fa-regular fa-rectangle-list"></i>
+                                                </button>
+                                            @endif
+
                                             @if($puedeEliminarHecho)
                                                 <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" style="display:inline-block;">
                                                     @csrf
@@ -216,9 +226,17 @@
             </div>
         </div>
     </div>
+
+    @if($puedeVerTarjetaWhatsApp)
+        @include('hechos.partials.whatsapp_preview_modal')
+    @endif
 @stop
 
 @section('css')
+    @if($puedeVerTarjetaWhatsApp)
+        @include('hechos.partials.whatsapp_preview_styles')
+    @endif
+
     <style>
         .table th,
         .table td {
@@ -395,4 +413,8 @@
             @endif
         });
     </script>
+
+    @if($puedeVerTarjetaWhatsApp)
+        @include('hechos.partials.whatsapp_preview_scripts')
+    @endif
 @stop

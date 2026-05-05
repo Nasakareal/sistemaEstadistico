@@ -660,6 +660,8 @@
         .flatpickr-time .flatpickr-am-pm {
             font-size: 16px;
         }
+
+        @include('hechos.partials.turnado_mp_styles')
     </style>
 @stop
 
@@ -820,6 +822,8 @@
                 });
             }
 
+            @include('hechos.partials.turnado_mp_scripts')
+
             if (dictamenSelect) {
                 dictamenSelect.addEventListener('change', function () {
                     fillOficioFromDictamen();
@@ -828,6 +832,8 @@
                         situacionSelect.value = 'TURNADO';
                         toggleTurnado();
                         toggleFotoSituacion();
+                        if (window.actualizarGuardiaTurnadoMp) window.actualizarGuardiaTurnadoMp();
+                        if (window.preguntarGuardiaTurnadoMp) window.preguntarGuardiaTurnadoMp();
                     }
                 });
             }

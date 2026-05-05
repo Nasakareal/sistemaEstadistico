@@ -176,6 +176,25 @@
 
         @php $user = auth()->user(); @endphp
 
+        @if($user && ($user->hasRole('Superadmin') || ((int)($user->unidad_id ?? 0) === 2 && ($user->hasRole('Administrador') || $user->hasRole('Subdirector')))))
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-dark">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">SQL Delegaciones</div>
+                        <div class="sv-card__desc">Descarga el respaldo operativo de Delegaciones.</div>
+                        <a href="{{ route('backups_sql.delegaciones') }}" class="btn sv-btn">
+                            <i class="fas fa-download"></i> Descargar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @php $user = auth()->user(); @endphp
+
         @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 4))
             @can('ver destacamentos')
                 <div class="col-md-3 col-sm-6 col-12">
@@ -460,8 +479,4 @@
         color: rgba(234,240,255,.98) !important;
     }
 </style>
-@stop
-
-@section('js')
-    <script> console.log("Configuraciones del Sistema con estilo SV."); </script>
 @stop

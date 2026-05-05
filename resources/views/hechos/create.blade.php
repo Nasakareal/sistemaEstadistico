@@ -620,6 +620,8 @@
         .flatpickr-time .flatpickr-am-pm {
             font-size: 16px;
         }
+
+        @include('hechos.partials.turnado_mp_styles')
     </style>
 @stop
 
@@ -782,6 +784,8 @@
                     toggleFotoSituacion();
                 });
             }
+
+            @include('hechos.partials.turnado_mp_scripts')
 
             if (dictamenSelect) {
                 dictamenSelect.addEventListener('change', function () {

@@ -42,7 +42,7 @@ class RegionalSheetService
         $this->llenarCampanas($sheet, $fecha, $idsDelegaciones);
         $this->llenarProximidadSocial($sheet, $fecha, $idsDelegaciones);
         $this->llenarTotales($sheet);
-        $this->llenarControlVehicular($sheet, $fecha, $idsDelegaciones);
+        $this->llenarControlVehicular($sheet, $fecha, $idsDelegaciones, $scope === 'TOTAL');
         $this->llenarControlAseguramientos($sheet, $fecha, $idsDelegaciones);
         $this->llenarOtrosAseguramientos($sheet, $fecha, $idsDelegaciones);
         $this->llenarHechosTransito($sheet, $fecha, $idsDelegaciones);
@@ -1199,7 +1199,7 @@ class RegionalSheetService
         $sheet->getStyle('D78:I78')->getNumberFormat()->setFormatCode('#,##0');
     }
 
-    protected function llenarControlVehicular($sheet, string $fecha, array $idsDelegaciones): void
+    protected function llenarControlVehicular($sheet, string $fecha, array $idsDelegaciones, bool $incluirSinDelegacion = false): void
     {
         $filaInicio = 80;
 
@@ -1219,7 +1219,7 @@ class RegionalSheetService
             13 => 'ASEGURADOS POR OTROS MOTIVOS',
         ];
 
-        $datos = $this->obtenerResumenControlVehicular($fecha, $idsDelegaciones);
+        $datos = $this->obtenerResumenControlVehicular($fecha, $idsDelegaciones, $incluirSinDelegacion);
 
         $sheet->setCellValue('B80', 'No.');
         $sheet->setCellValue('C80', 'CONTROL VEHÍCULAR');
@@ -1320,7 +1320,7 @@ class RegionalSheetService
         ]);
     }
 
-    protected function obtenerResumenControlVehicular(string $fecha, array $idsDelegaciones): array
+    protected function obtenerResumenControlVehicular(string $fecha, array $idsDelegaciones, bool $incluirSinDelegacion = false): array
     {
         [$inicio, $fin] = $this->rangoCorte($fecha);
 
@@ -1347,10 +1347,34 @@ class RegionalSheetService
             ->where('h.captura_completa_at', '>=', $inicio)
             ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
-            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
-                $query->whereIn('h.delegacion_id', $idsDelegaciones);
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones, $incluirSinDelegacion) {
+                $this->aplicarFiltroDelegaciones($query, 'h.delegacion_id', $idsDelegaciones, $incluirSinDelegacion);
             })
             ->get();
+
+        $vehiculosPorHecho = [];
+        $hechoIds = $hechos->pluck('id')->toArray();
+
+        if (!empty($hechoIds)) {
+            $vehiculosHechos = DB::table('hecho_vehiculo as hv')
+                ->join('vehiculos as v', 'hv.vehiculo_id', '=', 'v.id')
+                ->select([
+                    'hv.hecho_id',
+                    'v.tipo',
+                ])
+                ->whereIn('hv.hecho_id', $hechoIds)
+                ->orderBy('hv.hecho_id')
+                ->orderBy('v.id')
+                ->get();
+
+            foreach ($vehiculosHechos as $vehiculo) {
+                if (!isset($vehiculosPorHecho[$vehiculo->hecho_id])) {
+                    $vehiculosPorHecho[$vehiculo->hecho_id] = [];
+                }
+
+                $vehiculosPorHecho[$vehiculo->hecho_id][] = $vehiculo;
+            }
+        }
 
         foreach ($hechos as $hecho) {
             if ((int) ($hecho->checaron_antecedentes ?? 0) === 1) {
@@ -1360,9 +1384,26 @@ class RegionalSheetService
             $vehiculosMp = (int) ($hecho->vehiculos_mp ?? 0);
 
             if ($vehiculosMp > 0 || !empty($hecho->oficio_mp)) {
-                $datos[6]['vehiculos'] += $vehiculosMp > 0 ? $vehiculosMp : 1;
+                $cantidadMp = $vehiculosMp > 0 ? $vehiculosMp : 1;
+                $clasificados = 0;
+
+                foreach (($vehiculosPorHecho[$hecho->id] ?? []) as $vehiculo) {
+                    if ($clasificados >= $cantidadMp) {
+                        break;
+                    }
+
+                    $this->incrementarControlVehicular($datos, 6, $vehiculo->tipo);
+                    $clasificados++;
+                }
+
+                if ($clasificados < $cantidadMp) {
+                    $datos[6]['vehiculos'] += ($cantidadMp - $clasificados);
+                }
             }
         }
+
+        $this->contabilizarCorralonesHechosTransito($datos, $fecha, $idsDelegaciones, $incluirSinDelegacion);
+        $this->contabilizarCorralonesActividades($datos, $fecha, $idsDelegaciones, $incluirSinDelegacion);
 
         $puestas = DB::table('puestas_disposicion as p')
             ->join('puestas_disposicion_vehiculos as pv', 'p.id', '=', 'pv.puesta_disposicion_id')
@@ -1374,8 +1415,8 @@ class RegionalSheetService
             ])
             ->whereRaw("TIMESTAMP(p.fecha_puesta, p.hora_puesta) >= ? AND TIMESTAMP(p.fecha_puesta, p.hora_puesta) < ?", [$inicio, $fin])
             ->where('p.unidad_id', 2)
-            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones) {
-                $query->whereIn('p.delegacion_id', $idsDelegaciones);
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones, $incluirSinDelegacion) {
+                $this->aplicarFiltroDelegaciones($query, 'p.delegacion_id', $idsDelegaciones, $incluirSinDelegacion);
             })
             ->get();
 
@@ -1402,23 +1443,283 @@ class RegionalSheetService
         return $datos;
     }
 
+    protected function contabilizarCorralonesHechosTransito(array &$datos, string $fecha, array $idsDelegaciones, bool $incluirSinDelegacion = false): void
+    {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
+        $vehiculos = DB::table('hechos as h')
+            ->join('hecho_vehiculo as hv', 'h.id', '=', 'hv.hecho_id')
+            ->join('vehiculos as v', 'hv.vehiculo_id', '=', 'v.id')
+            ->select([
+                'v.tipo',
+                'v.corralon',
+                'v.grua_id',
+            ])
+            ->whereRaw("TIMESTAMP(h.fecha, COALESCE(h.hora, '00:00:00')) >= ? AND TIMESTAMP(h.fecha, COALESCE(h.hora, '00:00:00')) < ?", [$inicio, $fin])
+            ->where('h.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones, $incluirSinDelegacion) {
+                $this->aplicarFiltroDelegaciones($query, 'h.delegacion_id', $idsDelegaciones, $incluirSinDelegacion);
+            })
+            ->get();
+
+        foreach ($vehiculos as $vehiculo) {
+            if ($this->vehiculoTieneCorralon($vehiculo)) {
+                $this->incrementarControlVehicular($datos, 5, $vehiculo->tipo);
+            }
+        }
+    }
+
+    protected function contabilizarCorralonesActividades(array &$datos, string $fecha, array $idsDelegaciones, bool $incluirSinDelegacion = false): void
+    {
+        [$inicio, $fin] = $this->rangoCorte($fecha);
+
+        $vehiculos = DB::table('actividades as a')
+            ->join('actividad_vehiculo as av', 'a.id', '=', 'av.actividad_id')
+            ->join('vehiculos as v', 'av.vehiculo_id', '=', 'v.id')
+            ->leftJoin('actividad_subcategorias as s', 'a.actividad_subcategoria_id', '=', 's.id')
+            ->select([
+                'v.tipo',
+                'v.corralon',
+                'v.grua_id',
+                's.nombre as subcategoria',
+            ])
+            ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", [$inicio, $fin])
+            ->where('a.unidad_org_id', 2)
+            ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones, $incluirSinDelegacion) {
+                $this->aplicarFiltroDelegaciones($query, 'a.delegacion_id', $idsDelegaciones, $incluirSinDelegacion);
+            })
+            ->get();
+
+        foreach ($vehiculos as $vehiculo) {
+            if ($this->vehiculoTieneCorralon($vehiculo)) {
+                $fila = $this->filaControlVehicularPorActividad($vehiculo->subcategoria);
+                $this->incrementarControlVehicular($datos, $fila, $vehiculo->tipo);
+            }
+        }
+    }
+
+    protected function incrementarControlVehicular(array &$datos, int $fila, ?string $tipo, int $cantidad = 1): void
+    {
+        $columna = $this->clasificarTipoVehiculoControl($tipo);
+        $datos[$fila][$columna] += $cantidad;
+    }
+
+    protected function vehiculoTieneCorralon($vehiculo): bool
+    {
+        if (!empty($vehiculo->grua_id)) {
+            return true;
+        }
+
+        $corralon = $this->normalizarTextoComparacion($vehiculo->corralon ?? null);
+
+        if ($corralon === '') {
+            return false;
+        }
+
+        return !in_array($corralon, [
+            'N/A',
+            'NA',
+            'NO',
+            'NO APLICA',
+            'NO SE UTILIZA',
+            'NO SE UTILIZO',
+            'NINGUNO',
+            'NULL',
+            'O',
+            'SIN CORRALON',
+            'SIN DATO',
+        ], true);
+    }
+
+    protected function filaControlVehicularPorActividad(?string $subcategoria): int
+    {
+        $texto = $this->normalizarTextoComparacion($subcategoria);
+
+        if ($this->contieneAlguno($texto, ['HECHO DE TRANSITO', 'SINIESTRO', 'ACCIDENTE'])) {
+            return 5;
+        }
+
+        if ($this->contieneAlguno($texto, ['ABANDONO'])) {
+            return 8;
+        }
+
+        if ($this->contieneAlguno($texto, ['DELICTIVO'])) {
+            return 9;
+        }
+
+        if ($this->contieneAlguno($texto, ['ROBO'])) {
+            return 11;
+        }
+
+        return 4;
+    }
+
+    protected function aplicarFiltroDelegaciones($query, string $columna, array $idsDelegaciones, bool $incluirSinDelegacion = false)
+    {
+        return $query->where(function ($q) use ($columna, $idsDelegaciones, $incluirSinDelegacion) {
+            $q->whereIn($columna, $idsDelegaciones);
+
+            if ($incluirSinDelegacion) {
+                $q->orWhereNull($columna);
+            }
+        });
+    }
+
     protected function clasificarTipoVehiculoControl(?string $tipo): string
     {
-        $tipo = mb_strtoupper(trim($tipo ?? ''));
+        $tipo = $this->normalizarTextoComparacion($tipo);
 
-        if (str_contains($tipo, 'MOTO')) {
+        if ($this->tipoVehiculoNoEspecificado($tipo)) {
+            return 'otros';
+        }
+
+        if ($this->esMotocicletaTipo($tipo) || $this->esBicicletaTipo($tipo)) {
             return 'motocicletas';
         }
 
-        if (str_contains($tipo, 'CAMION') || str_contains($tipo, 'CAMIÓN') || str_contains($tipo, 'TRACTO') || str_contains($tipo, 'TORTON')) {
+        if ($this->esCamionTipo($tipo)) {
             return 'camiones';
         }
 
-        if ($tipo === '') {
+        if ($this->esOtroTipoVehiculo($tipo)) {
             return 'otros';
         }
 
         return 'vehiculos';
+    }
+
+    protected function esMotocicletaTipo(string $tipo): bool
+    {
+        return $this->contieneAlguno($tipo, [
+            'MOTO',
+            'MOTOCIC',
+            'SCOOTER',
+            'ENDURO',
+            'NAKED',
+            'PISTA',
+            'CHOPPER',
+            'CUATRIMOTO',
+            'DOBLE PROPOSITO',
+            'CRUISER',
+            'CRUISIER',
+            'TRABAJO',
+        ]);
+    }
+
+    protected function esBicicletaTipo(string $tipo): bool
+    {
+        return $this->contieneAlguno($tipo, [
+            'BICICLETA',
+            'BICI',
+            'BMX',
+            'MONTANA',
+            'RUTA',
+            'URBANA',
+            'PLEGABLE',
+        ]);
+    }
+
+    protected function esCamionTipo(string $tipo): bool
+    {
+        return $this->contieneAlguno($tipo, [
+            'CAMION',
+            'AUTOBUS',
+            'MICROBUS',
+            'OMNIBUS',
+            'TRACTO',
+            'TORTON',
+            'RABON',
+            'CAJA',
+            'PLATAFORMA',
+            'VOLTEO',
+            'PIPA',
+            'CISTERNA',
+            'REDILAS',
+            'REFRIGERADO',
+            'GRUA',
+            'GONDOLA',
+        ]);
+    }
+
+    protected function esRemolqueTipo(string $tipo): bool
+    {
+        return $this->contieneAlguno($tipo, [
+            'REMOLQUE',
+            'DOLLY',
+            'PORTACONTENEDOR',
+            'CAMA BAJA',
+        ]);
+    }
+
+    protected function esOtroTipoVehiculo(string $tipo): bool
+    {
+        if ($tipo === 'VAGON') {
+            return true;
+        }
+
+        return $this->contieneAlguno($tipo, [
+            'TREN',
+            'LOCOMOTORA',
+            'FERROCARRIL',
+            'VAGON DE TREN',
+            'TRANVIA',
+            'METRO',
+            'SEMOVIENTE',
+            'CABALLO',
+            'BURRO',
+            'VACA',
+            'MULA',
+            'ANIMAL',
+            'RETROEXCAVADORA',
+            'EXCAVADORA',
+            'CARGADOR FRONTAL',
+            'MOTOCONFORMADORA',
+            'BULLDOZER',
+            'RODILLO',
+            'MONTACARGAS',
+            'TRACTOR AGRICOLA',
+            'PAVIMENTADORA',
+            'COMPACTADORA',
+        ]) || $this->esRemolqueTipo($tipo);
+    }
+
+    protected function tipoVehiculoNoEspecificado(string $tipo): bool
+    {
+        return $tipo === '' || in_array($tipo, [
+            'N/A',
+            'NA',
+            'NO',
+            'NO APLICA',
+            'NULL',
+            'SIN DATO',
+            'SIN TIPO',
+        ], true);
+    }
+
+    protected function contieneAlguno(string $texto, array $agujas): bool
+    {
+        foreach ($agujas as $aguja) {
+            if ($aguja !== '' && strpos($texto, $aguja) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function normalizarTextoComparacion($texto): string
+    {
+        $texto = mb_strtoupper(trim((string) $texto), 'UTF-8');
+
+        return strtr($texto, [
+            'Á' => 'A',
+            'É' => 'E',
+            'Í' => 'I',
+            'Ó' => 'O',
+            'Ú' => 'U',
+            'Ü' => 'U',
+            'Ñ' => 'N',
+        ]);
     }
 
     protected function llenarControlAseguramientos($sheet, string $fecha, array $idsDelegaciones): void
@@ -2670,53 +2971,14 @@ class RegionalSheetService
 
     protected function clasificarVehiculoChoque(?string $tipo): string
     {
-        $tipo = mb_strtoupper(trim($tipo ?? ''));
+        $tipo = $this->normalizarTextoComparacion($tipo);
 
-        $camiones = [
-            'CAJA SECA',
-            'CAJA CERRADA',
-            'CAJA ABIERTA',
-            'PLATAFORMA',
-            'VOLTEO',
-            'REFRIGERADO',
-            'CISTERNA',
-            'PIPA',
-            'GRÚA',
-            'GRUA',
-            'TORTON',
-            'RABÓN',
-            'RABON',
-            'TRACTO',
-            'TRACTOCAMION',
-            'TRACTOCAMIÓN',
-            'REDILAS',
-        ];
-
-        $motocicletas = [
-            'TRABAJO',
-            'CRUISER',
-            'DOBLE PROPÓSITO',
-            'DOBLE PROPOSITO',
-            'SCOOTER',
-            'ENDURO',
-            'NAKED',
-            'PISTA',
-            'CHOPPER',
-            'CUATRIMOTO',
-            'MOTOCICLETA',
-            'MOTO',
-        ];
-
-        foreach ($camiones as $item) {
-            if (str_contains($tipo, $item)) {
-                return 'camion';
-            }
+        if ($this->esCamionTipo($tipo)) {
+            return 'camion';
         }
 
-        foreach ($motocicletas as $item) {
-            if (str_contains($tipo, $item)) {
-                return 'motocicleta';
-            }
+        if ($this->esMotocicletaTipo($tipo) || $this->esBicicletaTipo($tipo)) {
+            return 'motocicleta';
         }
 
         return 'vehiculo';
@@ -3035,8 +3297,8 @@ class RegionalSheetService
             ->get();
 
         foreach ($vehiculos as $v) {
-            $tipo = mb_strtoupper($v->tipo ?? '');
-            $servicio = mb_strtoupper($v->tipo_servicio ?? '');
+            $tipo = $this->normalizarTextoComparacion($v->tipo ?? '');
+            $servicio = $this->normalizarTextoComparacion($v->tipo_servicio ?? '');
 
             // CLASIFICACIÓN GRANDE
             $clave = $this->mapearTipoVehiculoExcel($tipo);
@@ -3049,7 +3311,7 @@ class RegionalSheetService
                 $datos['resumen']['particulares']++;
             }
 
-            if (str_contains($tipo, 'MOTO')) {
+            if ($this->esMotocicletaTipo($tipo)) {
                 $datos['resumen']['motos']++;
             }
 
@@ -3066,14 +3328,14 @@ class RegionalSheetService
             ->get();
 
         foreach ($liberaciones as $l) {
-            $tipo = mb_strtoupper($l->tipo ?? '');
+            $tipo = $this->normalizarTextoComparacion($l->tipo ?? '');
 
-            if (str_contains($tipo, 'MOTO')) {
+            if ($this->esMotocicletaTipo($tipo) || $this->esBicicletaTipo($tipo)) {
                 $datos['liberaciones']['motos']++;
-            } elseif (str_contains($tipo, 'CAJA') || str_contains($tipo, 'TRACTO')) {
-                $datos['liberaciones']['camiones']++;
-            } elseif (str_contains($tipo, 'REMOLQUE')) {
+            } elseif ($this->esRemolqueTipo($tipo)) {
                 $datos['liberaciones']['remolques']++;
+            } elseif ($this->esCamionTipo($tipo)) {
+                $datos['liberaciones']['camiones']++;
             } else {
                 $datos['liberaciones']['vehiculos']++;
             }
@@ -3084,12 +3346,20 @@ class RegionalSheetService
 
     protected function mapearTipoVehiculoExcel(string $tipo): string
     {
-        if (str_contains($tipo, 'MOTO')) return 'MOTOCICLETA';
-        if (str_contains($tipo, 'BICICLETA')) return 'BICICLETA';
-        if (str_contains($tipo, 'TRACTO')) return 'TRACTOR';
-        if (str_contains($tipo, 'CAJA') || str_contains($tipo, 'PLATAFORMA')) return 'CAMION DE CARGA';
-        if (str_contains($tipo, 'PICK') || str_contains($tipo, 'VAN')) return 'CAMIONETA';
-        if (str_contains($tipo, 'SEDAN') || str_contains($tipo, 'SUV')) return 'AUTOMÓVIL';
+        $tipo = $this->normalizarTextoComparacion($tipo);
+
+        if ($this->tipoVehiculoNoEspecificado($tipo)) return 'OTRO';
+        if ($this->esBicicletaTipo($tipo)) return 'BICICLETA';
+        if ($this->esMotocicletaTipo($tipo)) return 'MOTOCICLETA';
+        if ($tipo === 'VAGON' || $this->contieneAlguno($tipo, ['FERROCARRIL', 'TREN', 'LOCOMOTORA', 'VAGON DE TREN'])) return 'FERROCARRIL';
+        if ($this->contieneAlguno($tipo, ['SEMOVIENTE', 'CABALLO', 'BURRO', 'VACA', 'MULA', 'ANIMAL'])) return 'SEMOVIENTE';
+        if ($this->contieneAlguno($tipo, ['TRACTO', 'TRACTOR'])) return 'TRACTOR';
+        if ($this->contieneAlguno($tipo, ['MICROBUS'])) return 'MICROBUS';
+        if ($this->contieneAlguno($tipo, ['OMNIBUS'])) return 'OMNIBUS';
+        if ($this->contieneAlguno($tipo, ['AUTOBUS', 'CAMION URBANO'])) return 'CAMIÓN URBANO DE PASAJEROS';
+        if ($this->contieneAlguno($tipo, ['PICK', 'CAMIONETA', 'VAN', 'PANEL', 'VAGONETA', 'MINIVAN'])) return 'CAMIONETA';
+        if ($this->contieneAlguno($tipo, ['CAJA', 'PLATAFORMA', 'VOLTEO', 'PIPA', 'CISTERNA', 'REDILAS', 'REFRIGERADO', 'GRUA', 'GONDOLA', 'TORTON', 'RABON', 'CAMION'])) return 'CAMION DE CARGA';
+        if ($this->contieneAlguno($tipo, ['SEDAN', 'SUV', 'HATCHBACK', 'COUPE', 'CONVERTIBLE', 'DEPORTIVO', 'AUTOMOVIL', 'AUTO', 'COMPACTO'])) return 'AUTOMÓVIL';
 
         return 'OTRO';
     }

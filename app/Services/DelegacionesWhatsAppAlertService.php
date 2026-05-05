@@ -91,11 +91,7 @@ class DelegacionesWhatsAppAlertService
                 'creador',
             ]);
 
-            $this->sendToRecipients(
-                'actividad_detenidos',
-                $this->mensajeActividadConDetenidos($actividad),
-                ['actividad_id' => $actividad->id]
-            );
+            $this->sendActividadDetenidosTemplate($actividad);
         });
     }
 
@@ -193,6 +189,65 @@ class DelegacionesWhatsAppAlertService
                     'event' => $event,
                     'to' => $to,
                     'context' => $context,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function sendActividadDetenidosTemplate(Actividad $actividad): void
+    {
+        $recipients = $this->recipients();
+
+        if (empty($recipients)) {
+            Log::warning('WhatsApp alertas delegaciones sin destinatarios', [
+                'event' => 'actividad_detenidos',
+                'context' => [
+                    'actividad_id' => $actividad->id,
+                ],
+            ]);
+
+            return;
+        }
+
+        $params = [
+            $this->valorTemplate($actividad->nombre ?? optional($actividad->categoria)->nombre ?? 'Actividad registrada'),
+            $this->valorTemplate($this->fechaHora($actividad->fecha ?? null, $actividad->hora ?? null)),
+            $this->valorTemplate(optional($actividad->unidad)->nombre),
+            $this->valorTemplate(optional($actividad->delegacion)->nombre),
+            $this->valorTemplate($this->ubicacionActividad($actividad)),
+            (string) (int) ($actividad->personas_detenidas ?? 0),
+            $this->valorTemplate($this->preview($actividad->motivo ?? null, 180)),
+            $this->valorTemplate(optional($actividad->creador)->name),
+        ];
+
+        foreach ($recipients as $to) {
+            try {
+                $response = $this->whatsApp->sendTemplate(
+                    $to,
+                    'alerta_actividad_detenidos',
+                    $params,
+                    'es_MX'
+                );
+
+                Log::info('WhatsApp alerta delegaciones template enviada', [
+                    'event' => 'actividad_detenidos',
+                    'template' => 'alerta_actividad_detenidos',
+                    'to' => $to,
+                    'ok' => $response['ok'] ?? null,
+                    'status' => $response['status'] ?? null,
+                    'context' => [
+                        'actividad_id' => $actividad->id,
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Error enviando WhatsApp alerta delegaciones template', [
+                    'event' => 'actividad_detenidos',
+                    'template' => 'alerta_actividad_detenidos',
+                    'to' => $to,
+                    'context' => [
+                        'actividad_id' => $actividad->id,
+                    ],
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -413,6 +468,13 @@ class DelegacionesWhatsAppAlertService
         }
 
         return mb_substr($text, 0, $limit - 3, 'UTF-8') . '...';
+    }
+
+    private function valorTemplate($value): string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : 'No especificado';
     }
 
     private function upper($value): string

@@ -28,18 +28,21 @@
             'PENDIENTE' => 'Pendientes',
             'TURNADO' => 'Turnados',
             'RESUELTO' => 'Resueltos',
+            'FALTA_COMPLETAR' => 'Falta completar',
         ];
 
         $clasesSituacion = [
             'PENDIENTE' => 'warning',
             'TURNADO' => 'info',
             'RESUELTO' => 'success',
+            'FALTA_COMPLETAR' => 'danger',
         ];
 
         $iconosSituacion = [
             'PENDIENTE' => 'fa-triangle-exclamation',
             'TURNADO' => 'fa-share',
             'RESUELTO' => 'fa-circle-check',
+            'FALTA_COMPLETAR' => 'fa-clipboard-list',
         ];
 
         $unidadTexto = $unidadActual !== ''
@@ -84,6 +87,7 @@
                             <option value="PENDIENTE" {{ $situacionActual === 'PENDIENTE' ? 'selected' : '' }}>Pendientes</option>
                             <option value="TURNADO" {{ $situacionActual === 'TURNADO' ? 'selected' : '' }}>Turnados</option>
                             <option value="RESUELTO" {{ $situacionActual === 'RESUELTO' ? 'selected' : '' }}>Resueltos</option>
+                            <option value="FALTA_COMPLETAR" {{ $situacionActual === 'FALTA_COMPLETAR' ? 'selected' : '' }}>Falta completar</option>
                         </select>
                     </div>
 
@@ -114,7 +118,7 @@
             </form>
 
             <div class="sv-kpi-grid">
-                @foreach (['PENDIENTE', 'TURNADO', 'RESUELTO'] as $estado)
+                @foreach (['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'] as $estado)
                     <a
                         class="sv-kpi sv-kpi--{{ strtolower($estado) }} {{ $situacionActual === $estado ? 'is-active' : '' }}"
                         href="{{ route('hechos.seguimiento', array_merge($paramsUnidad, ['periodo' => $periodoActual, 'situacion' => $estado])) }}"
@@ -400,6 +404,11 @@
         .sv-kpi--resuelto .sv-kpi__icon {
             color: #052e16;
             background: #4ade80;
+        }
+
+        .sv-kpi--falta_completar .sv-kpi__icon {
+            color: #450a0a;
+            background: #f87171;
         }
 
         .sv-kpi__body {

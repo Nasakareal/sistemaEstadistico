@@ -324,6 +324,7 @@
                                            name="personas_detenidas"
                                            id="personas_detenidas"
                                            class="form-control @error('personas_detenidas') is-invalid @enderror"
+                                           max="3"
                                            value="{{ old('personas_detenidas', 0) }}">
                                     @error('personas_detenidas')
                                         <span class="invalid-feedback" role="alert">
@@ -490,6 +491,8 @@
             color: rgba(234,240,255,.75);
             word-break: break-word;
         }
+
+        @include('actividades.partials.form_guardrails_styles')
 
         @include('actividades.partials.vehiculos_styles')
     </style>
@@ -756,6 +759,8 @@
                     renderPreviewFotos(files);
                 });
             }
+
+            @include('actividades.partials.form_guardrails_scripts')
         });
 
         @if ($errors->any())

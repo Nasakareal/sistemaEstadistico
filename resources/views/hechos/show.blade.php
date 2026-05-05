@@ -2,6 +2,11 @@
 
 @section('title', 'Detalles del Hecho')
 
+@php
+    $usuario = auth()->user();
+    $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
+@endphp
+
 @section('content_header')
     <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
         <div class="d-flex align-items-center" style="gap:10px;">
@@ -53,6 +58,16 @@
                     data-url="{{ route('hechos.compartir', $hecho->id) }}">
                 <i class="fa-brands fa-whatsapp"></i>
             </button>
+
+            @if($puedeVerTarjetaWhatsApp)
+                <button type="button"
+                        class="btn btn-outline-info btn-sm rounded-circle d-inline-flex align-items-center justify-content-center btn-preview-whatsapp-card"
+                        style="width:36px;height:36px;padding:0;"
+                        title="Ver tarjeta WhatsApp"
+                        data-url="{{ route('hechos.compartir', $hecho->id) }}">
+                    <i class="fa-regular fa-rectangle-list"></i>
+                </button>
+            @endif
 
             @can('borrar hechos')
                 <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" class="d-inline">
@@ -349,6 +364,14 @@
                                                 <i class="fa-brands fa-whatsapp"></i> Compartir WhatsApp
                                             </button>
 
+                                            @if($puedeVerTarjetaWhatsApp)
+                                                <button type="button"
+                                                        class="btn btn-outline-info btn-sm btn-preview-whatsapp-card"
+                                                        data-url="{{ route('hechos.compartir', $hecho->id) }}">
+                                                    <i class="fa-regular fa-rectangle-list"></i> Ver tarjeta
+                                                </button>
+                                            @endif
+
                                             @if($puedeRevisar)
                                                 @if($hecho->estado_revision === 'pendiente')
                                                     <form action="{{ route('hechos.revision.aprobar', $hecho->id) }}" method="POST" style="display:inline-block;">
@@ -582,11 +605,19 @@
 
     </div>
 </div>
+
+@if($puedeVerTarjetaWhatsApp)
+    @include('hechos.partials.whatsapp_preview_modal')
+@endif
 @stop
 
 @section('css')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+@if($puedeVerTarjetaWhatsApp)
+    @include('hechos.partials.whatsapp_preview_styles')
+@endif
 
 <style>
     .sv-shell { border-radius: 18px; padding: 0; }
@@ -945,4 +976,8 @@
         });
     });
 </script>
+
+@if($puedeVerTarjetaWhatsApp)
+    @include('hechos.partials.whatsapp_preview_scripts')
+@endif
 @stop

@@ -238,6 +238,3 @@
 </style>
 @stop
 
-@section('js')
-    <script> console.log('Excel Diario Delegaciones'); </script>
-@stop

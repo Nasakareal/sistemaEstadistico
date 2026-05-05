@@ -138,7 +138,7 @@ class ActividadController extends Controller
             'observaciones' => 'nullable|string',
             'personas_alcanzadas' => 'nullable|integer|min:0',
             'personas_participantes' => 'nullable|integer|min:0',
-            'personas_detenidas' => 'nullable|integer|min:0',
+            'personas_detenidas' => 'nullable|integer|min:0|max:3',
             'elementos_participantes_texto' => 'nullable|string',
             'patrullas_participantes_texto' => 'nullable|string',
             'destacamento_id' => 'nullable|integer',
@@ -164,6 +164,8 @@ class ActividadController extends Controller
             'vehiculos.*.antecedente_vehiculo' => 'nullable|boolean',
             'vehiculos.*.monto_danos' => 'nullable|numeric|min:0',
             'vehiculos.*.partes_danadas' => 'nullable|string',
+        ], [
+            'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
         if (!empty($validated['client_uuid'])) {
@@ -496,11 +498,13 @@ class ActividadController extends Controller
             'observaciones' => 'nullable|string',
             'personas_alcanzadas' => 'nullable|integer|min:0',
             'personas_participantes' => 'nullable|integer|min:0',
-            'personas_detenidas' => 'nullable|integer|min:0',
+            'personas_detenidas' => 'nullable|integer|min:0|max:3',
             'elementos_participantes_texto' => 'nullable|string',
             'patrullas_participantes_texto' => 'nullable|string',
             'destacamento_id' => 'nullable|integer',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ], [
+            'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
         $user = Auth::user();

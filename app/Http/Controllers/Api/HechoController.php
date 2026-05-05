@@ -264,8 +264,14 @@ class HechoController extends Controller
                 $v->errors()->add('oficio_mp', 'El oficio MP solo aplica para siniestros.');
             }
 
-            if (!$puedeUsarDictamenes && $situacion === 'TURNADO' && ($request->filled('vehiculos_mp') || $request->filled('personas_mp'))) {
-                $v->errors()->add('vehiculos_mp', 'Vehículos MP y Personas MP solo aplican para siniestros.');
+            if ($situacion === 'TURNADO') {
+                $vehiculosMp = (int) $request->input('vehiculos_mp', 0);
+                $personasMp = (int) $request->input('personas_mp', 0);
+
+                if ($vehiculosMp === 0 && $personasMp === 0) {
+                    $v->errors()->add('vehiculos_mp', 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.');
+                    $v->errors()->add('personas_mp', 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.');
+                }
             }
 
             if ($debeCapturarTotalesEsperados) {
@@ -345,6 +351,12 @@ class HechoController extends Controller
 
         if (!$puedeUsarDictamenes) {
             $validated['oficio_mp'] = null;
+        }
+
+        if (($validated['situacion'] ?? null) === 'TURNADO') {
+            $validated['vehiculos_mp'] = (int) ($validated['vehiculos_mp'] ?? 0);
+            $validated['personas_mp'] = (int) ($validated['personas_mp'] ?? 0);
+        } else {
             $validated['vehiculos_mp'] = 0;
             $validated['personas_mp'] = 0;
         }
@@ -554,8 +566,18 @@ class HechoController extends Controller
                 $v->errors()->add('oficio_mp', 'El oficio MP solo aplica para siniestros.');
             }
 
-            if (!$puedeUsarDictamenes && $situacionEfectiva === 'TURNADO' && ($request->filled('vehiculos_mp') || $request->filled('personas_mp'))) {
-                $v->errors()->add('vehiculos_mp', 'Vehículos MP y Personas MP solo aplican para siniestros.');
+            if ($situacionEfectiva === 'TURNADO') {
+                $vehiculosMp = $request->has('vehiculos_mp')
+                    ? (int) $request->input('vehiculos_mp', 0)
+                    : (int) ($hecho->vehiculos_mp ?? 0);
+                $personasMp = $request->has('personas_mp')
+                    ? (int) $request->input('personas_mp', 0)
+                    : (int) ($hecho->personas_mp ?? 0);
+
+                if ($vehiculosMp === 0 && $personasMp === 0) {
+                    $v->errors()->add('vehiculos_mp', 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.');
+                    $v->errors()->add('personas_mp', 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.');
+                }
             }
 
             if ($debeCapturarTotalesEsperados) {
@@ -639,6 +661,22 @@ class HechoController extends Controller
         }
 
         if (!$puedeUsarDictamenes) {
+            $validated['oficio_mp'] = null;
+        }
+
+        $situacionDespues = array_key_exists('situacion', $validated)
+            ? (string) $validated['situacion']
+            : (string) ($hecho->situacion ?? '');
+
+        if ($situacionDespues === 'TURNADO') {
+            if (array_key_exists('vehiculos_mp', $validated)) {
+                $validated['vehiculos_mp'] = (int) ($validated['vehiculos_mp'] ?? 0);
+            }
+
+            if (array_key_exists('personas_mp', $validated)) {
+                $validated['personas_mp'] = (int) ($validated['personas_mp'] ?? 0);
+            }
+        } elseif (array_key_exists('situacion', $validated)) {
             $validated['oficio_mp'] = null;
             $validated['vehiculos_mp'] = 0;
             $validated['personas_mp'] = 0;

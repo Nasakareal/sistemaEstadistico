@@ -42,7 +42,7 @@ class EstadisticasDelegacionesSettingsController extends Controller
                         ->where('captura_completa_at', '>=', $inicio->format('Y-m-d H:i:s'))
                         ->where('captura_completa_at', '<', $fin->format('Y-m-d H:i:s'));
                 })->orWhereRaw(
-                    "TIMESTAMP(fecha, COALESCE(hora, '00:00:00')) >= ? AND TIMESTAMP(fecha, COALESCE(hora, '00:00:00')) < ?",
+                    "TIMESTAMP(DATE(fecha), COALESCE(hora, '00:00:00')) >= ? AND TIMESTAMP(DATE(fecha), COALESCE(hora, '00:00:00')) < ?",
                     [$inicio->format('Y-m-d H:i:s'), $fin->format('Y-m-d H:i:s')]
                 );
             });
@@ -72,6 +72,15 @@ class EstadisticasDelegacionesSettingsController extends Controller
             'contados' => $hechosDecorados->filter(fn ($hecho) => $hecho->control_delegaciones['se_contempla'])->count(),
             'falta_completar' => $hechosDecorados->filter(fn ($hecho) => !$hecho->control_delegaciones['captura_completa'])->count(),
             'sin_estadistica' => $hechosDecorados->filter(fn ($hecho) => !$hecho->control_delegaciones['se_contempla'])->count(),
+        ];
+
+        $nombreExcel = 'excel_delegaciones_' . $fechaCorte . '.xlsx';
+        $rutaExcel = storage_path('app/cortes/excel_delegaciones/' . $nombreExcel);
+        $excel = [
+            'existe' => file_exists($rutaExcel),
+            'archivo' => $nombreExcel,
+            'url_descarga' => route('settings.estadisticas_delegaciones.excel_diario.descargar', $fechaCorte),
+            'modificado' => file_exists($rutaExcel) ? Carbon::createFromTimestamp(filemtime($rutaExcel), $tz) : null,
         ];
 
         if ($estado !== 'todos') {
@@ -108,7 +117,8 @@ class EstadisticasDelegacionesSettingsController extends Controller
             'fin',
             'estado',
             'buscar',
-            'resumen'
+            'resumen',
+            'excel'
         ));
     }
 
@@ -309,7 +319,7 @@ class EstadisticasDelegacionesSettingsController extends Controller
             return $this->vehiculoTieneCorralon($vehiculo);
         })->count();
 
-        if ($enCorteHecho && $vehiculosCorralon > 0) {
+        if ($enCorteCaptura && $vehiculosCorralon > 0) {
             $estadisticas[] = 'Control vehicular: corralón por hechos de tránsito';
         }
 
@@ -348,9 +358,32 @@ class EstadisticasDelegacionesSettingsController extends Controller
             return null;
         }
 
-        $hora = $hecho->hora ?: '00:00:00';
+        $tz = 'America/Mexico_City';
+        $fecha = $hecho->fecha instanceof \DateTimeInterface
+            ? Carbon::instance($hecho->fecha)->timezone($tz)->toDateString()
+            : Carbon::parse((string) $hecho->fecha, $tz)->toDateString();
+        $hora = $this->normalizarHoraHecho($hecho->hora ?? null);
 
-        return Carbon::parse($hecho->fecha . ' ' . $hora, 'America/Mexico_City');
+        return Carbon::parse($fecha . ' ' . $hora, $tz);
+    }
+
+    private function normalizarHoraHecho($hora): string
+    {
+        if ($hora instanceof \DateTimeInterface) {
+            return Carbon::instance($hora)->format('H:i:s');
+        }
+
+        $hora = trim((string) $hora);
+
+        if ($hora === '') {
+            return '00:00:00';
+        }
+
+        if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $hora)) {
+            return strlen($hora) === 5 ? $hora . ':00' : $hora;
+        }
+
+        return Carbon::parse($hora, 'America/Mexico_City')->format('H:i:s');
     }
 
     private function fechaCorteDesdeTimestamp(Carbon $fecha): string

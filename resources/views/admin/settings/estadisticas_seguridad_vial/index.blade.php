@@ -19,6 +19,16 @@
             <i class="fa-solid fa-rotate-right"></i>
             <span>Actualizar</span>
         </button>
+
+        <button type="button" class="svial-action svial-action--screen" id="svialFullscreen" aria-label="Pantalla completa">
+            <i class="fa-solid fa-expand"></i>
+            <span>Pantalla</span>
+        </button>
+
+        <a class="svial-action svial-action--ppt" id="svialDownloadPpt" href="{{ route('estadisticas_seguridad_vial.powerpoint', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin]) }}">
+            <i class="fa-solid fa-file-powerpoint"></i>
+            <span>PowerPoint</span>
+        </a>
     </form>
 
     <div id="ppt-horizontal">
@@ -101,32 +111,76 @@
         </section>
 
         <section class="ppt-slide">
+            <div class="ppt-card svial-temporal-card">
+                <div class="ppt-card__header svial-card-header">
+                    <div>
+                        <div class="ppt-eyebrow">Lectura temporal</div>
+                        <h2 class="ppt-title">Distribución semanal y horaria</h2>
+                        <div class="svial-period" id="svialTemporalPeriod">Periodo seleccionado</div>
+                    </div>
+                </div>
+
+                <div class="svial-insight-strip">
+                    <div class="svial-insight">
+                        <span>Día de la semana con mayor incidencia</span>
+                        <strong id="kpi_dia_pico">SIN DATOS</strong>
+                        <b id="kpi_dia_pico_total">0</b>
+                    </div>
+
+                    <div class="svial-insight">
+                        <span>Hora crítica</span>
+                        <strong id="kpi_hora_pico">SIN HORA</strong>
+                        <b id="kpi_hora_pico_total">0</b>
+                    </div>
+
+                    <div class="svial-insight">
+                        <span>Promedio diario</span>
+                        <strong id="kpi_promedio_diario_temporal">0</strong>
+                        <b>HECHOS</b>
+                    </div>
+                </div>
+
+                <div class="svial-temporal-grid">
+                    <div class="svial-panel">
+                        <div class="svial-panel-kicker">Día de la semana</div>
+                        <h3>Siniestros por día</h3>
+                        <div id="chart_dia" class="svial-temporal-chart"></div>
+                    </div>
+
+                    <div class="svial-panel">
+                        <div class="svial-panel-kicker">24 horas</div>
+                        <h3>Siniestros por hora</h3>
+                        <div id="chart_hora" class="svial-temporal-chart"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="ppt-slide">
             <div class="ppt-card svial-analysis-card">
                 <div class="ppt-card__header svial-card-header">
                     <div>
                         <div class="ppt-eyebrow">Lectura operativa</div>
-                        <h2 class="ppt-title">Tipos, situación y horario</h2>
+                        <h2 class="ppt-title">Tipo de siniestro y estatus</h2>
                         <div class="svial-period" id="svialAnalysisPeriod">Periodo seleccionado</div>
                     </div>
                 </div>
 
-                <div class="svial-analysis-grid">
-                    <div class="svial-panel">
+                <div class="svial-operational-grid">
+                    <div class="svial-panel svial-panel--type">
                         <div class="svial-panel-kicker">Top 10</div>
                         <h3>Siniestros por tipo</h3>
-                        <div id="chart_tipo" class="svial-small-chart"></div>
+                        <div class="svial-panel-metric">
+                            <span id="kpi_tipo_principal">SIN DATOS</span>
+                            <strong id="kpi_tipo_principal_total">0</strong>
+                        </div>
+                        <div id="chart_tipo" class="svial-type-chart"></div>
                     </div>
 
                     <div class="svial-panel">
                         <div class="svial-panel-kicker">Estatus</div>
                         <h3>Situación reportada</h3>
-                        <div id="chart_situacion" class="svial-small-chart"></div>
-                    </div>
-
-                    <div class="svial-panel svial-panel--wide">
-                        <div class="svial-panel-kicker">Comportamiento diario</div>
-                        <h3>Siniestros por hora</h3>
-                        <div id="chart_hora" class="svial-wide-chart"></div>
+                        <div id="chart_situacion" class="svial-donut-chart"></div>
                     </div>
                 </div>
             </div>
@@ -148,8 +202,12 @@
 @stop
 
 @section('css')
-<link rel="stylesheet" href="{{ asset('css/resumen-ejecutivo-show.css') }}">
-<link rel="stylesheet" href="{{ asset('css/estadisticas-seguridad-vial.css') }}">
+@php
+    $resumenCss = public_path('css/resumen-ejecutivo-show.css');
+    $svialCss = public_path('css/estadisticas-seguridad-vial.css');
+@endphp
+<link rel="stylesheet" href="{{ asset('css/resumen-ejecutivo-show.css') }}?v={{ file_exists($resumenCss) ? filemtime($resumenCss) : time() }}">
+<link rel="stylesheet" href="{{ asset('css/estadisticas-seguridad-vial.css') }}?v={{ file_exists($svialCss) ? filemtime($svialCss) : time() }}">
 @stop
 
 @section('js')
@@ -166,12 +224,16 @@ const indicatorsWrap = document.getElementById('pptIndicators');
 const form = document.getElementById('svialFilters');
 const inputInicio = document.getElementById('fecha_inicio');
 const inputFin = document.getElementById('fecha_fin');
+const downloadPpt = document.getElementById('svialDownloadPpt');
+const btnFullscreen = document.getElementById('svialFullscreen');
+const pptDownloadUrl = @json(route('estadisticas_seguridad_vial.powerpoint'));
 const numberFormat = new Intl.NumberFormat('es-MX');
 
 let currentIndex = 0;
 let chartMunicipios = null;
 let chartTipo = null;
 let chartSituacion = null;
+let chartDia = null;
 let chartHora = null;
 
 function buildIndicators() {
@@ -231,6 +293,45 @@ function setText(id, value) {
     if (node) node.textContent = value;
 }
 
+function updatePptDownloadLink() {
+    if (!downloadPpt) return;
+
+    const params = new URLSearchParams({
+        fecha_inicio: inputInicio.value,
+        fecha_fin: inputFin.value
+    });
+
+    downloadPpt.href = `${pptDownloadUrl}?${params.toString()}`;
+}
+
+function setFullscreenButton(active) {
+    if (!btnFullscreen) return;
+
+    btnFullscreen.innerHTML = active
+        ? '<i class="fa-solid fa-compress"></i><span>Salir</span>'
+        : '<i class="fa-solid fa-expand"></i><span>Pantalla</span>';
+}
+
+async function toggleFullscreen() {
+    if (!pptShell) return;
+
+    try {
+        if (!document.fullscreenElement && pptShell.requestFullscreen) {
+            await pptShell.requestFullscreen();
+        } else if (document.fullscreenElement && document.exitFullscreen) {
+            await document.exitFullscreen();
+        } else {
+            pptShell.classList.toggle('is-fullscreen');
+            setFullscreenButton(pptShell.classList.contains('is-fullscreen'));
+            setTimeout(() => goToSlide(currentIndex), 120);
+        }
+    } catch (error) {
+        pptShell.classList.toggle('is-fullscreen');
+        setFullscreenButton(pptShell.classList.contains('is-fullscreen'));
+        setTimeout(() => goToSlide(currentIndex), 120);
+    }
+}
+
 function destroyChart(chart) {
     if (chart) chart.destroy();
     return null;
@@ -271,12 +372,14 @@ function renderCharts(data) {
     chartMunicipios = destroyChart(chartMunicipios);
     chartTipo = destroyChart(chartTipo);
     chartSituacion = destroyChart(chartSituacion);
+    chartDia = destroyChart(chartDia);
     chartHora = destroyChart(chartHora);
 
     if (typeof ApexCharts === 'undefined') {
         chartUnavailable('#chart_municipios');
         chartUnavailable('#chart_tipo');
         chartUnavailable('#chart_situacion');
+        chartUnavailable('#chart_dia');
         chartUnavailable('#chart_hora');
         return;
     }
@@ -284,6 +387,9 @@ function renderCharts(data) {
     const palette = ['#1d4ed8', '#dc2626', '#d97706', '#059669', '#7c3aed', '#0f766e', '#334155', '#be123c', '#2563eb', '#ca8a04', '#16a34a', '#9333ea'];
     const municipiosLabels = data.graficas?.municipios?.labels ?? [];
     const municipiosSeries = data.graficas?.municipios?.series ?? [];
+    const diaLabels = data.graficas?.por_dia?.labels ?? [];
+    const horaLabels = data.graficas?.por_hora?.labels ?? [];
+    const tipoLabels = data.graficas?.por_tipo?.labels ?? [];
 
     chartMunicipios = new ApexCharts(document.querySelector('#chart_municipios'), {
         chart: { type: 'bar', height: 470, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
@@ -298,40 +404,93 @@ function renderCharts(data) {
     });
     chartMunicipios.render();
 
-    chartTipo = new ApexCharts(document.querySelector('#chart_tipo'), {
-        chart: { type: 'bar', height: 300, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
-        series: [{ name: 'Siniestros', data: data.graficas?.por_tipo?.series ?? [] }],
-        xaxis: { categories: data.graficas?.por_tipo?.labels ?? [], labels: { rotate: -20, trim: true } },
-        plotOptions: { bar: { borderRadius: 6, columnWidth: '52%', distributed: true } },
-        colors: palette,
-        dataLabels: { enabled: false },
+    chartDia = new ApexCharts(document.querySelector('#chart_dia'), {
+        chart: { type: 'bar', height: 315, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
+        series: [{ name: 'Siniestros', data: data.graficas?.por_dia?.series ?? [] }],
+        xaxis: {
+            categories: diaLabels,
+            labels: { rotate: -20, trim: true, style: { colors: '#334155', fontSize: '11px', fontWeight: 850 } }
+        },
+        yaxis: { forceNiceScale: true, labels: { style: { colors: '#334155', fontWeight: 800 } } },
+        plotOptions: { bar: { borderRadius: 7, columnWidth: '54%', distributed: true } },
+        colors: palette.slice(0, 7),
+        dataLabels: { enabled: true, style: { fontWeight: 950 }, background: { enabled: true, borderRadius: 6 } },
         grid: { borderColor: 'rgba(148,163,184,.22)' },
         legend: { show: false }
     });
-    chartTipo.render();
-
-    chartSituacion = new ApexCharts(document.querySelector('#chart_situacion'), {
-        chart: { type: 'donut', height: 300, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
-        series: data.graficas?.por_situacion?.series ?? [],
-        labels: data.graficas?.por_situacion?.labels ?? [],
-        colors: ['#059669', '#d97706', '#dc2626', '#1d4ed8', '#64748b'],
-        legend: { position: 'bottom', fontWeight: 700 },
-        dataLabels: { enabled: true },
-        stroke: { colors: ['#ffffff'], width: 3 }
-    });
-    chartSituacion.render();
+    chartDia.render();
 
     chartHora = new ApexCharts(document.querySelector('#chart_hora'), {
-        chart: { type: 'line', height: 250, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
+        chart: { type: 'bar', height: 315, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
         series: [{ name: 'Siniestros', data: data.graficas?.por_hora?.series ?? [] }],
-        xaxis: { categories: data.graficas?.por_hora?.labels ?? [] },
-        stroke: { curve: 'smooth', width: 4, colors: ['#1d4ed8'] },
-        markers: { size: 4, colors: ['#dc2626'], strokeWidth: 2, strokeColors: '#ffffff' },
+        xaxis: {
+            categories: horaLabels,
+            labels: { rotate: -45, style: { colors: '#334155', fontSize: '11px', fontWeight: 800 } }
+        },
+        yaxis: { forceNiceScale: true, labels: { style: { colors: '#334155', fontWeight: 800 } } },
+        plotOptions: { bar: { borderRadius: 5, columnWidth: '58%', distributed: false } },
+        colors: ['#0f766e'],
         dataLabels: { enabled: false },
         grid: { borderColor: 'rgba(148,163,184,.22)' },
         legend: { show: false }
     });
     chartHora.render();
+
+    chartTipo = new ApexCharts(document.querySelector('#chart_tipo'), {
+        chart: { type: 'bar', height: 395, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
+        series: [{ name: 'Siniestros', data: data.graficas?.por_tipo?.series ?? [] }],
+        xaxis: {
+            categories: tipoLabels,
+            labels: { style: { colors: '#334155', fontWeight: 800 } }
+        },
+        yaxis: {
+            labels: {
+                maxWidth: 330,
+                style: { colors: '#334155', fontSize: '12px', fontWeight: 900 }
+            }
+        },
+        plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '62%', distributed: true } },
+        colors: palette,
+        dataLabels: {
+            enabled: true,
+            textAnchor: 'start',
+            offsetX: 8,
+            style: { fontWeight: 950, colors: ['#0f172a'] },
+            background: { enabled: true, foreColor: '#0f172a', borderRadius: 5, opacity: .92 }
+        },
+        grid: { borderColor: 'rgba(148,163,184,.22)' },
+        legend: { show: false },
+        tooltip: {
+            y: {
+                title: {
+                    formatter: function (_, opts) {
+                        return tipoLabels[opts.dataPointIndex] ?? 'Tipo';
+                    }
+                }
+            }
+        }
+    });
+    chartTipo.render();
+
+    chartSituacion = new ApexCharts(document.querySelector('#chart_situacion'), {
+        chart: { type: 'donut', height: 420, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
+        series: data.graficas?.por_situacion?.series ?? [],
+        labels: data.graficas?.por_situacion?.labels ?? [],
+        colors: ['#059669', '#d97706', '#dc2626', '#1d4ed8', '#64748b'],
+        legend: {
+            position: 'bottom',
+            fontWeight: 850,
+            labels: { colors: '#334155' },
+            formatter: function (seriesName, opts) {
+                const value = opts.w.globals.series[opts.seriesIndex] ?? 0;
+                return `${seriesName}: ${numberFormat.format(value)}`;
+            }
+        },
+        plotOptions: { pie: { donut: { size: '62%', labels: { show: true, total: { show: true, label: 'TOTAL' } } } } },
+        dataLabels: { enabled: true, style: { fontWeight: 950 } },
+        stroke: { colors: ['#ffffff'], width: 4 }
+    });
+    chartSituacion.render();
 }
 
 function updateReport(data) {
@@ -340,10 +499,12 @@ function updateReport(data) {
 
     inputInicio.value = periodo.fecha_inicio ?? inputInicio.value;
     inputFin.value = periodo.fecha_fin ?? inputFin.value;
+    updatePptDownloadLink();
 
     setText('svialCoverPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialComparePeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialSummaryPeriod', periodo.texto ?? 'Periodo seleccionado');
+    setText('svialTemporalPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialAnalysisPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialMunicipiosCount', numberFormat.format(kpis.municipios_con_hechos ?? 0));
     setText('svialTotalHechosCompare', numberFormat.format(kpis.total_hechos ?? 0));
@@ -354,8 +515,15 @@ function updateReport(data) {
     setText('kpi_total_vehiculos', numberFormat.format(kpis.total_vehiculos ?? 0));
     setText('kpi_municipios', numberFormat.format(kpis.municipios_con_hechos ?? 0));
     setText('kpi_promedio_diario', numberFormat.format(kpis.promedio_diario ?? 0));
+    setText('kpi_promedio_diario_temporal', numberFormat.format(kpis.promedio_diario ?? 0));
     setText('kpi_municipio_principal', kpis.municipio_principal ?? 'SIN DATOS');
     setText('kpi_municipio_principal_total', numberFormat.format(kpis.municipio_principal_total ?? 0));
+    setText('kpi_hora_pico', kpis.hora_pico ?? 'SIN HORA');
+    setText('kpi_hora_pico_total', numberFormat.format(kpis.hora_pico_total ?? 0));
+    setText('kpi_dia_pico', kpis.dia_pico ?? 'SIN DATOS');
+    setText('kpi_dia_pico_total', numberFormat.format(kpis.dia_pico_total ?? 0));
+    setText('kpi_tipo_principal', kpis.tipo_principal ?? 'SIN DATOS');
+    setText('kpi_tipo_principal_total', numberFormat.format(kpis.tipo_principal_total ?? 0));
 
     renderRanking(data.ranking_municipios ?? []);
     renderCharts(data);
@@ -387,6 +555,14 @@ async function cargarReporte() {
 
 btnPrev?.addEventListener('click', () => goToSlide(currentIndex - 1));
 btnNext?.addEventListener('click', () => goToSlide(currentIndex + 1));
+btnFullscreen?.addEventListener('click', toggleFullscreen);
+
+document.addEventListener('fullscreenchange', () => {
+    const active = document.fullscreenElement === pptShell;
+    pptShell?.classList.toggle('is-fullscreen', active);
+    setFullscreenButton(active);
+    setTimeout(() => goToSlide(currentIndex), 120);
+});
 
 document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowRight') {
@@ -405,6 +581,31 @@ ppt?.addEventListener('scroll', () => {
     window.__svialScrollTimer = window.setTimeout(detectCurrentSlide, 60);
 });
 
+function scrollActiveSlide(deltaY) {
+    const activeSlide = slides[currentIndex];
+    const card = activeSlide?.querySelector('.ppt-card');
+    const target = card && card.scrollHeight > card.clientHeight ? card : activeSlide;
+
+    if (!target || target.scrollHeight <= target.clientHeight) {
+        return false;
+    }
+
+    const before = target.scrollTop;
+    target.scrollTop += deltaY;
+
+    return target.scrollTop !== before;
+}
+
+ppt?.addEventListener('wheel', (event) => {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+    }
+
+    if (scrollActiveSlide(event.deltaY)) {
+        event.preventDefault();
+    }
+}, { passive: false });
+
 window.addEventListener('resize', () => goToSlide(currentIndex));
 
 form?.addEventListener('submit', async (event) => {
@@ -419,8 +620,12 @@ form?.addEventListener('submit', async (event) => {
     }
 });
 
+inputInicio?.addEventListener('change', updatePptDownloadLink);
+inputFin?.addEventListener('change', updatePptDownloadLink);
+
 document.addEventListener('DOMContentLoaded', async () => {
     buildIndicators();
+    updatePptDownloadLink();
 
     try {
         await cargarReporte();

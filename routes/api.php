@@ -215,6 +215,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/gruas/resumen-semanal-detallado', [GruaController::class, 'resumenSemanalDetallado'])->middleware('can:ver estadisticas');
 
     Route::get('/hechos/buscar', [HechoController::class, 'buscar'])->middleware('can:ver hechos');
+    Route::get('/hechos/seguimiento', [HechoController::class, 'seguimiento'])->middleware('can:ver hechos');
     Route::get('/hechos', [HechoController::class, 'index'])->middleware('can:ver hechos');
     Route::post('/hechos', [HechoController::class, 'store'])->middleware('can:crear hechos');
     Route::get('/hechos/{hecho}', [HechoController::class, 'show'])->middleware('can:ver hechos');

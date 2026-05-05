@@ -146,6 +146,135 @@ class HechoController extends Controller
         ], 200);
     }
 
+    public function seguimiento(Request $request)
+    {
+        $usuario = $request->user();
+
+        $periodo = strtoupper((string) $request->query('periodo', 'SEMANA'));
+        $situacion = strtoupper((string) $request->query('situacion', 'PENDIENTE'));
+        $unidadFiltro = (string) $request->query('unidad_filtro', '');
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = $perPage > 0 ? min($perPage, 100) : 20;
+
+        $puedeFiltrarUnidad = $usuario
+            && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3);
+
+        $unidadesFiltro = [
+            '1' => 'Siniestros',
+            '2' => 'Delegaciones',
+            '4' => 'Carreteras',
+        ];
+
+        $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'];
+        $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
+
+        if (!in_array($situacion, $situacionesValidas, true)) {
+            $situacion = 'PENDIENTE';
+        }
+
+        if (!in_array($periodo, $periodosValidos, true)) {
+            $periodo = 'SEMANA';
+        }
+
+        if (!$puedeFiltrarUnidad || !array_key_exists($unidadFiltro, $unidadesFiltro)) {
+            $unidadFiltro = '';
+        }
+
+        $hoy = now('America/Mexico_City');
+        $rangos = [
+            'semana' => [
+                $hoy->copy()->startOfWeek(),
+                $hoy->copy()->endOfWeek(),
+            ],
+            'mes' => [
+                $hoy->copy()->startOfMonth(),
+                $hoy->copy()->endOfMonth(),
+            ],
+            'anio' => [
+                $hoy->copy()->startOfYear(),
+                $hoy->copy()->endOfYear(),
+            ],
+        ];
+
+        $crearQueryConteo = function ($inicio, $fin, string $situacionConteo) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
+            $query = Hechos::query()
+                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
+                ->where('situacion', $situacionConteo);
+
+            $this->applyHechosVisibilityScope($query, $usuario);
+            $this->aplicarFiltroUnidadSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
+
+            return $query;
+        };
+
+        $crearQueryFaltaCompletar = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
+            $query = Hechos::query()
+                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
+
+            $this->applyHechosVisibilityScope($query, $usuario);
+            $this->aplicarFiltroFaltaCompletarSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
+
+            return $query;
+        };
+
+        $conteos = [];
+        foreach ($rangos as $key => [$inicio, $fin]) {
+            $conteos[$key] = [
+                'PENDIENTE' => $crearQueryConteo($inicio, $fin, 'PENDIENTE')->count(),
+                'TURNADO' => $crearQueryConteo($inicio, $fin, 'TURNADO')->count(),
+                'RESUELTO' => $crearQueryConteo($inicio, $fin, 'RESUELTO')->count(),
+                'FALTA_COMPLETAR' => $crearQueryFaltaCompletar($inicio, $fin)->count(),
+            ];
+        }
+
+        $periodoKey = strtolower($periodo);
+        [$inicioSeleccionado, $finSeleccionado] = $rangos[$periodoKey];
+
+        $query = Hechos::query()->with(['creator', 'unidadOrganizacional', 'delegacion'])
+            ->whereBetween('fecha', [
+                $inicioSeleccionado->toDateString(),
+                $finSeleccionado->toDateString(),
+            ]);
+
+        $this->applyHechosVisibilityScope($query, $usuario);
+
+        if ($situacion === 'FALTA_COMPLETAR') {
+            $this->aplicarFiltroFaltaCompletarSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
+        } else {
+            $query->where('situacion', $situacion);
+            $this->aplicarFiltroUnidadSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
+        }
+
+        $hechos = $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->paginate($perPage);
+
+        $hechos->setCollection(
+            $hechos->getCollection()->transform(function (Hechos $hecho) {
+                return $this->seguimientoHechoPayload($hecho);
+            })
+        );
+
+        return response()->json([
+            'data' => $hechos->getCollection()->values()->all(),
+            'conteos' => $conteos,
+            'filters' => [
+                'periodo' => $periodo,
+                'situacion' => $situacion,
+                'unidad_filtro' => $unidadFiltro,
+                'puede_filtrar_unidad' => $puedeFiltrarUnidad,
+                'unidades_filtro' => $unidadesFiltro,
+            ],
+            'meta' => [
+                'current_page' => $hechos->currentPage(),
+                'per_page' => $hechos->perPage(),
+                'total' => $hechos->total(),
+                'last_page' => $hechos->lastPage(),
+            ],
+        ], 200);
+    }
+
     public function store(Request $request)
     {
         $user = $request->user();
@@ -993,6 +1122,80 @@ class HechoController extends Controller
             ? $this->publicStoragePath($hecho->dictamen->archivo_dictamen)
             : null;
         $data['puede_editar'] = HechoAccess::canEdit(request()->user(), $hecho);
+
+        return $data;
+    }
+
+    private function aplicarFiltroUnidadSeguimiento($query, bool $puedeFiltrarUnidad, string $unidadFiltro): void
+    {
+        if (!$puedeFiltrarUnidad || $unidadFiltro === '') {
+            return;
+        }
+
+        $this->scopeHechosUnidadSeguimiento($query, (int) $unidadFiltro);
+    }
+
+    private function aplicarFiltroFaltaCompletarSeguimiento($query, bool $puedeFiltrarUnidad, string $unidadFiltro): void
+    {
+        if ($puedeFiltrarUnidad && $unidadFiltro !== '' && $unidadFiltro !== '2') {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $this->scopeHechosUnidadSeguimiento($query, 2);
+        $this->aplicarFiltroCapturaIncompletaDelegacionesSeguimiento($query);
+    }
+
+    private function scopeHechosUnidadSeguimiento($query, int $unidadId): void
+    {
+        $query->where(function ($q) use ($unidadId) {
+            $q->where('unidad_org_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_org_id')
+                        ->whereHas('creator', function ($creator) use ($unidadId) {
+                            $creator->where('unidad_id', $unidadId);
+                        });
+                });
+        });
+    }
+
+    private function aplicarFiltroCapturaIncompletaDelegacionesSeguimiento($query): void
+    {
+        $query->where(function ($q) {
+            $q->where('captura_completa', false)
+                ->orWhereNull('captura_completa')
+                ->orWhereRaw('COALESCE(vehiculos_capturados, 0) < COALESCE(vehiculos_esperados, 0)')
+                ->orWhereRaw('COALESCE(conductores_capturados, 0) < COALESCE(conductores_esperados, 0)')
+                ->orWhereRaw('COALESCE(lesionados_capturados, 0) < COALESCE(lesionados_esperados, 0)');
+        });
+    }
+
+    private function seguimientoHechoPayload(Hechos $hecho): array
+    {
+        $hecho->loadMissing(['creator', 'unidadOrganizacional', 'delegacion']);
+
+        $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+        $capturaCompleta = $unidadReal === 2
+            ? $hecho->capturaCompletaCalculada()
+            : (bool) $hecho->captura_completa;
+
+        $hecho->mostrar_captura = $unidadReal === 2;
+        $hecho->captura_completa = $capturaCompleta;
+        $hecho->faltantes_captura = $unidadReal === 2 ? $hecho->faltantesCapturaTexto() : [];
+        $hecho->estado_captura = $unidadReal === 2
+            ? ($capturaCompleta ? 'COMPLETO' : 'INCOMPLETO')
+            : null;
+
+        $data = $this->withFotoUrls($hecho);
+        $unidad = $hecho->unidadOrganizacional;
+        $delegacion = $hecho->delegacion;
+        $creator = $hecho->creator;
+
+        $data['unidad_real_id'] = $unidadReal;
+        $data['unidad_nombre'] = $unidad ? $unidad->nombre : ($hecho->unidad ?? null);
+        $data['delegacion_nombre'] = $delegacion ? $delegacion->nombre : null;
+        $data['creator_name'] = $creator ? $creator->name : null;
+        $data['puede_eliminar'] = $this->userCanDeleteHecho(request()->user());
 
         return $data;
     }

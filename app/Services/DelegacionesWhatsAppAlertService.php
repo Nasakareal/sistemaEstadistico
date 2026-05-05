@@ -118,6 +118,25 @@ class DelegacionesWhatsAppAlertService
         });
     }
 
+    public function notificarHechoIncompleto(Hechos $hecho, int $minutosPendiente): void
+    {
+        $this->guard('hecho_incompleto', [
+            'hecho_id' => $hecho->id,
+        ], function () use ($hecho, $minutosPendiente) {
+            $hecho->loadMissing([
+                'creator',
+                'unidadOrganizacional',
+                'delegacion',
+            ]);
+
+            if ($hecho->capturaCompletaCalculada()) {
+                return;
+            }
+
+            $this->sendHechoIncompletoTemplate($hecho, $minutosPendiente);
+        });
+    }
+
     public function debeNotificarNuevaPuestaHecho(?Hechos $antes, Hechos $actual): bool
     {
         if (!$this->hechoGeneraAlertaPuesta($actual)) {
@@ -247,6 +266,85 @@ class DelegacionesWhatsAppAlertService
                     'to' => $to,
                     'context' => [
                         'actividad_id' => $actividad->id,
+                    ],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function sendHechoIncompletoTemplate(Hechos $hecho, int $minutosPendiente): void
+    {
+        $recipients = $this->recipients();
+        $template = (string) config(
+            'services.whatsapp.delegaciones.incompletos_template',
+            'alerta_hecho_incompleto_delegaciones'
+        );
+
+        if (empty($recipients)) {
+            Log::warning('WhatsApp alertas delegaciones sin destinatarios', [
+                'event' => 'hecho_incompleto',
+                'template' => $template,
+                'context' => [
+                    'hecho_id' => $hecho->id,
+                ],
+            ]);
+
+            return;
+        }
+
+        if ($template === '') {
+            Log::warning('WhatsApp alerta delegaciones sin template de incompletos', [
+                'event' => 'hecho_incompleto',
+                'context' => [
+                    'hecho_id' => $hecho->id,
+                ],
+            ]);
+
+            return;
+        }
+
+        $faltantes = implode(', ', $hecho->faltantesCapturaTexto());
+
+        $params = [
+            '#' . $hecho->id,
+            $this->valorTemplate($this->fechaHora($hecho->fecha ?? null, $hecho->hora ?? null)),
+            $this->valorTemplate(optional($hecho->delegacion)->nombre ?: optional($hecho->unidadOrganizacional)->nombre),
+            $this->valorTemplate($hecho->tipo_hecho ?? null),
+            $this->valorTemplate($this->ubicacionHecho($hecho)),
+            $this->valorTemplate($this->formatoDuracion($minutosPendiente)),
+            $this->valorTemplate($faltantes !== '' ? $faltantes : 'Revisar captura pendiente'),
+            $this->valorTemplate(optional($hecho->creator)->name),
+        ];
+
+        foreach ($recipients as $to) {
+            try {
+                $response = $this->whatsApp->sendTemplate(
+                    $to,
+                    $template,
+                    $params,
+                    'es_MX'
+                );
+
+                Log::info('WhatsApp alerta delegaciones template enviada', [
+                    'event' => 'hecho_incompleto',
+                    'template' => $template,
+                    'to' => $to,
+                    'ok' => $response['ok'] ?? null,
+                    'status' => $response['status'] ?? null,
+                    'context' => [
+                        'hecho_id' => $hecho->id,
+                        'minutos_pendiente' => $minutosPendiente,
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Error enviando WhatsApp alerta delegaciones template', [
+                    'event' => 'hecho_incompleto',
+                    'template' => $template,
+                    'to' => $to,
+                    'context' => [
+                        'hecho_id' => $hecho->id,
+                        'minutos_pendiente' => $minutosPendiente,
                     ],
                     'error' => $e->getMessage(),
                 ]);
@@ -468,6 +566,23 @@ class DelegacionesWhatsAppAlertService
         }
 
         return mb_substr($text, 0, $limit - 3, 'UTF-8') . '...';
+    }
+
+    private function formatoDuracion(int $minutos): string
+    {
+        $minutos = max(0, $minutos);
+        $horas = intdiv($minutos, 60);
+        $resto = $minutos % 60;
+
+        if ($horas <= 0) {
+            return $resto . ' min';
+        }
+
+        if ($resto <= 0) {
+            return $horas . ' h';
+        }
+
+        return $horas . ' h ' . $resto . ' min';
     }
 
     private function valorTemplate($value): string

@@ -49,6 +49,9 @@ return [
 
         'delegaciones' => [
             'alertas_to' => env('WHATSAPP_DELEGACIONES_ALERTAS_TO'),
+            'incompletos_template' => env('WHATSAPP_DELEGACIONES_INCOMPLETOS_TEMPLATE', 'alerta_hecho_incompleto_delegaciones'),
+            'incompletos_min_hours' => (int) env('WHATSAPP_DELEGACIONES_INCOMPLETOS_MIN_HOURS', 3),
+            'incompletos_lookback_days' => (int) env('WHATSAPP_DELEGACIONES_INCOMPLETOS_LOOKBACK_DAYS', 3),
         ],
     ],
 

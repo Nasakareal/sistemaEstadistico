@@ -31,9 +31,15 @@
                         <div class="sv-panel__desc">Selecciona una fecha para descargar el Excel correspondiente.</div>
                     </div>
 
-                    <a href="{{ route('settings.estadisticas_delegaciones.index') }}" class="btn sv-btn">
-                        <i class="fas fa-arrow-left"></i> Regresar
-                    </a>
+                    <div class="sv-actions">
+                        <a href="{{ route('settings.estadisticas_delegaciones.control_hechos') }}" class="btn sv-btn">
+                            <i class="fa-solid fa-clipboard-check"></i> Hechos para Excel
+                        </a>
+
+                        <a href="{{ route('settings.estadisticas_delegaciones.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-left"></i> Regresar
+                        </a>
+                    </div>
                 </div>
 
                 @if(isset($cortes) && count($cortes))
@@ -43,7 +49,7 @@
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Archivo</th>
-                                    <th width="180">Acción</th>
+                                    <th width="320">Acción</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -52,9 +58,14 @@
                                         <td>{{ \Carbon\Carbon::parse($corte['fecha'])->format('d/m/Y') }}</td>
                                         <td>{{ $corte['archivo'] ?? '' }}</td>
                                         <td>
-                                            <a href="{{ $corte['url_descarga'] }}" class="btn sv-btn">
-                                                <i class="fas fa-download"></i> Descargar
-                                            </a>
+                                            <div class="sv-actions">
+                                                <a href="{{ route('settings.estadisticas_delegaciones.control_hechos', ['fecha_corte' => $corte['fecha']]) }}" class="btn sv-btn">
+                                                    <i class="fa-solid fa-list-check"></i> Ver hechos
+                                                </a>
+                                                <a href="{{ $corte['url_descarga'] }}" class="btn sv-btn">
+                                                    <i class="fas fa-download"></i> Descargar
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -168,6 +179,13 @@
         margin-top: 4px;
         font-size: 12.5px;
         color: var(--sv-muted);
+    }
+
+    .sv-actions{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
     }
 
     .sv-table{

@@ -62,6 +62,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt(substr(config('cortes.hora_corte_delegaciones', '17:00:00'), 0, 5))
             ->withoutOverlapping();
 
+        $schedule->command('delegaciones:notificar-hechos-incompletos')
+            ->timezone('America/Mexico_City')
+            ->hourly()
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-siniestros')
             ->dailyAt('18:00')
             ->timezone('America/Mexico_City')

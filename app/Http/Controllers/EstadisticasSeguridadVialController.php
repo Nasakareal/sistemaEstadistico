@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hechos;
+use App\Services\SeguridadVialPowerPointService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -47,6 +48,20 @@ class EstadisticasSeguridadVialController extends Controller
         [$fechaInicio, $fechaFin] = $this->resolverPeriodo($request);
 
         return response()->json($this->construirReporte($fechaInicio, $fechaFin));
+    }
+
+    public function descargarPowerPoint(Request $request, SeguridadVialPowerPointService $powerPoint)
+    {
+        [$fechaInicio, $fechaFin] = $this->resolverPeriodo($request);
+        $reporte = $this->construirReporte($fechaInicio, $fechaFin);
+        $path = $powerPoint->generar($reporte);
+        $filename = "informe_seguridad_vial_{$fechaInicio}_{$fechaFin}.pptx";
+
+        return response()
+            ->download($path, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            ])
+            ->deleteFileAfterSend(true);
     }
 
     public function hechosPorMunicipio(Request $request)
@@ -135,17 +150,46 @@ class EstadisticasSeguridadVialController extends Controller
             ->map(fn ($items) => $items->count())
             ->sortDesc();
 
-        $porHora = $hechos
-            ->groupBy(function ($hecho) {
-                return $hecho->hora ? substr((string) $hecho->hora, 0, 2) . ':00' : 'SIN HORA';
-            })
+        $diasSemana = [
+            1 => 'LUNES',
+            2 => 'MARTES',
+            3 => 'MIERCOLES',
+            4 => 'JUEVES',
+            5 => 'VIERNES',
+            6 => 'SABADO',
+            7 => 'DOMINGO',
+        ];
+
+        $porDiaBase = collect($diasSemana)->mapWithKeys(fn ($label) => [$label => 0]);
+
+        $hechos
+            ->groupBy(fn ($hecho) => Carbon::parse($hecho->fecha)->dayOfWeekIso)
+            ->each(function ($items, $dia) use ($porDiaBase, $diasSemana) {
+                $label = $diasSemana[(int) $dia] ?? null;
+
+                if ($label && $porDiaBase->has($label)) {
+                    $porDiaBase->put($label, $items->count());
+                }
+            });
+
+        $porHoraBase = collect(range(0, 23))
+            ->mapWithKeys(fn ($hour) => [sprintf('%02d:00', $hour) => 0]);
+
+        $hechos
+            ->groupBy(fn ($hecho) => $this->horaKey($hecho->hora ?? null))
             ->map(fn ($items) => $items->count())
-            ->sortKeys();
+            ->each(function ($total, $hora) use ($porHoraBase) {
+                if ($porHoraBase->has($hora)) {
+                    $porHoraBase->put($hora, $total);
+                }
+            });
 
         $topMunicipio = $municipios->first();
         $fechaInicioCarbon = Carbon::parse($fechaInicio);
         $fechaFinCarbon = Carbon::parse($fechaFin);
         $dias = $fechaInicioCarbon->diffInDays($fechaFinCarbon) + 1;
+        $horaPico = $porHoraBase->sortDesc()->keys()->first() ?? 'SIN HORA';
+        $diaPico = $porDiaBase->sortDesc()->keys()->first() ?? 'SIN DATOS';
 
         return [
             'periodo' => [
@@ -165,6 +209,12 @@ class EstadisticasSeguridadVialController extends Controller
                 'promedio_diario' => round($totalHechos / max(1, $dias), 1),
                 'municipio_principal' => $topMunicipio['municipio'] ?? 'SIN DATOS',
                 'municipio_principal_total' => $topMunicipio['hechos'] ?? 0,
+                'hora_pico' => $horaPico,
+                'hora_pico_total' => (int) ($porHoraBase[$horaPico] ?? 0),
+                'dia_pico' => $diaPico,
+                'dia_pico_total' => (int) ($porDiaBase[$diaPico] ?? 0),
+                'tipo_principal' => $porTipo->keys()->first() ?? 'SIN DATOS',
+                'tipo_principal_total' => (int) ($porTipo->first() ?? 0),
             ],
             'ranking_municipios' => $municipios,
             'graficas' => [
@@ -180,9 +230,13 @@ class EstadisticasSeguridadVialController extends Controller
                     'labels' => $porSituacion->keys()->values(),
                     'series' => $porSituacion->values(),
                 ],
+                'por_dia' => [
+                    'labels' => $porDiaBase->keys()->values(),
+                    'series' => $porDiaBase->values(),
+                ],
                 'por_hora' => [
-                    'labels' => $porHora->keys()->values(),
-                    'series' => $porHora->values(),
+                    'labels' => $porHoraBase->keys()->values(),
+                    'series' => $porHoraBase->values(),
                 ],
             ],
         ];
@@ -197,6 +251,21 @@ class EstadisticasSeguridadVialController extends Controller
         }
 
         return mb_strtoupper($texto, 'UTF-8');
+    }
+
+    private function horaKey($hora): string
+    {
+        if ($hora instanceof \DateTimeInterface) {
+            return $hora->format('H:00');
+        }
+
+        if (preg_match('/\b(\d{1,2}):(\d{2})/', (string) $hora, $match)) {
+            $hour = max(0, min(23, (int) $match[1]));
+
+            return sprintf('%02d:00', $hour);
+        }
+
+        return '00:00';
     }
 
     private function textoPeriodo(Carbon $fechaInicio, Carbon $fechaFin): string

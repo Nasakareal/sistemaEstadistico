@@ -76,6 +76,24 @@
                     <strong>{{ $resumen['sin_estadistica'] }}</strong>
                 </div>
             </div>
+
+            <div class="control-excel {{ $excel['existe'] ? 'is-ready' : 'is-missing' }}">
+                <div>
+                    <span class="control-excel__label">Excel del corte</span>
+                    <strong>{{ $excel['archivo'] }}</strong>
+                    @if ($excel['existe'])
+                        <small>Generado {{ $excel['modificado']->format('Y-m-d H:i') }}</small>
+                    @else
+                        <small>Aún no hay archivo generado para esta fecha.</small>
+                    @endif
+                </div>
+
+                @if ($excel['existe'])
+                    <a href="{{ $excel['url_descarga'] }}" class="btn btn-success">
+                        <i class="fa-solid fa-download"></i> Descargar Excel
+                    </a>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -248,6 +266,40 @@
     .control-summary__item.is-ok strong { color: #4ade80; }
     .control-summary__item.is-warn strong { color: #facc15; }
     .control-summary__item.is-muted strong { color: #cbd5e1; }
+
+    .control-excel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 14px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, .24);
+        background: rgba(15, 23, 42, .42);
+    }
+
+    .control-excel.is-ready {
+        border-color: rgba(74, 222, 128, .34);
+    }
+
+    .control-excel.is-missing {
+        border-color: rgba(250, 204, 21, .34);
+    }
+
+    .control-excel__label,
+    .control-excel small {
+        display: block;
+        color: rgba(255, 255, 255, .62);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .control-excel strong {
+        display: block;
+        color: rgba(255, 255, 255, .92);
+        font-size: 16px;
+    }
 
     .control-table th,
     .control-table td {

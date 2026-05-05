@@ -1455,7 +1455,10 @@ class RegionalSheetService
                 'v.corralon',
                 'v.grua_id',
             ])
-            ->whereRaw("TIMESTAMP(h.fecha, COALESCE(h.hora, '00:00:00')) >= ? AND TIMESTAMP(h.fecha, COALESCE(h.hora, '00:00:00')) < ?", [$inicio, $fin])
+            ->where('h.captura_completa', 1)
+            ->whereNotNull('h.captura_completa_at')
+            ->where('h.captura_completa_at', '>=', $inicio)
+            ->where('h.captura_completa_at', '<', $fin)
             ->where('h.unidad_org_id', 2)
             ->when(!empty($idsDelegaciones), function ($query) use ($idsDelegaciones, $incluirSinDelegacion) {
                 $this->aplicarFiltroDelegaciones($query, 'h.delegacion_id', $idsDelegaciones, $incluirSinDelegacion);

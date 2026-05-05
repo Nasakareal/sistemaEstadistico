@@ -329,37 +329,39 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4" id="dictamen_group" style="display:none;">
-                                <div class="form-group">
-                                    <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
-                                    <select name="dictamen_id" id="dictamen_id"
-                                            class="form-control @error('dictamen_id') is-invalid @enderror">
-                                        <option value="" disabled {{ old('dictamen_id', optional($dictamenActual)->id) ? '' : 'selected' }}>
-                                            Seleccione un dictamen
-                                        </option>
+                            @if($puedeUsarDictamenes)
+                                <div class="col-md-4" id="dictamen_group" style="display:none;">
+                                    <div class="form-group">
+                                        <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
+                                        <select name="dictamen_id" id="dictamen_id"
+                                                class="form-control @error('dictamen_id') is-invalid @enderror">
+                                            <option value="" disabled {{ old('dictamen_id', optional($dictamenActual)->id) ? '' : 'selected' }}>
+                                                Seleccione un dictamen
+                                            </option>
 
-                                        @if(isset($dictamenesDisponibles))
-                                            @foreach($dictamenesDisponibles as $d)
-                                                @php
-                                                    $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
-                                                    $selectedId = (string) old('dictamen_id', optional($dictamenActual)->id);
-                                                @endphp
-                                                <option value="{{ $d->id }}"
-                                                        data-oficio="{{ $oficio }}"
-                                                        {{ $selectedId === (string)$d->id ? 'selected' : '' }}>
-                                                    {{ $oficio }}
-                                                </option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                    @error('dictamen_id')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                    <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos y el actual si ya tiene.</small>
+                                            @if(isset($dictamenesDisponibles))
+                                                @foreach($dictamenesDisponibles as $d)
+                                                    @php
+                                                        $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
+                                                        $selectedId = (string) old('dictamen_id', optional($dictamenActual)->id);
+                                                    @endphp
+                                                    <option value="{{ $d->id }}"
+                                                            data-oficio="{{ $oficio }}"
+                                                            {{ $selectedId === (string)$d->id ? 'selected' : '' }}>
+                                                        {{ $oficio }}
+                                                    </option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                        @error('dictamen_id')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                        <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos y el actual si ya tiene.</small>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp', $hecho->oficio_mp) }}">
+                                <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp', $hecho->oficio_mp) }}">
+                            @endif
 
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -672,6 +674,7 @@
         document.addEventListener('DOMContentLoaded', function () {
 
             const situacionSelect = document.getElementById('situacion');
+            const puedeUsarDictamenes = @json((bool)($puedeUsarDictamenes ?? false));
 
             const dictamenGroup  = document.getElementById('dictamen_group');
             const dictamenSelect = document.getElementById('dictamen_id');
@@ -728,10 +731,10 @@
 
                 const isTurnado = (situacionSelect.value === 'TURNADO');
 
-                if (dictamenGroup) dictamenGroup.style.display = isTurnado ? 'block' : 'none';
-                if (dictamenSelect) dictamenSelect.required = isTurnado;
+                if (dictamenGroup) dictamenGroup.style.display = isTurnado && puedeUsarDictamenes ? 'block' : 'none';
+                if (dictamenSelect) dictamenSelect.required = isTurnado && puedeUsarDictamenes;
 
-                if (isTurnado) {
+                if (isTurnado && puedeUsarDictamenes) {
                     fillOficioFromDictamen();
                 } else {
                     if (dictamenSelect) dictamenSelect.value = '';

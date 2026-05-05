@@ -350,8 +350,8 @@ class HechoController extends Controller
             'colision_camino' => 'required|string|max:255',
             'situacion' => ['required', 'string', Rule::in(self::SITUAS)],
             'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable',
-            'vehiculos_mp' => $puedeUsarDictamenes ? 'required|integer|min:0' : 'nullable|integer|min:0',
-            'personas_mp' => $puedeUsarDictamenes ? 'required|integer|min:0' : 'nullable|integer|min:0',
+            'vehiculos_mp' => 'required|integer|min:0',
+            'personas_mp' => 'required|integer|min:0',
             'dictamen_id' => $puedeUsarDictamenes ? 'nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'nullable',
             'danos_patrimoniales' => 'nullable|boolean',
             'propiedades_afectadas' => 'nullable|string|max:2000',
@@ -383,14 +383,6 @@ class HechoController extends Controller
             if (HechoLocationGuard::isBlockedOfficeLocation($request->input('lat'), $request->input('lng'))) {
                 $v->errors()->add('lat', HechoLocationGuard::OFFICE_MESSAGE);
                 $v->errors()->add('lng', HechoLocationGuard::OFFICE_MESSAGE);
-            }
-
-            if (!$puedeUsarDictamenes && $request->filled('dictamen_id')) {
-                $v->errors()->add('dictamen_id', 'Los dictámenes son exclusivos de siniestros.');
-            }
-
-            if (!$puedeUsarDictamenes && $situacion === 'TURNADO' && $request->filled('oficio_mp')) {
-                $v->errors()->add('oficio_mp', 'El oficio MP solo aplica para siniestros.');
             }
 
             if ($situacion === 'TURNADO') {
@@ -594,7 +586,7 @@ class HechoController extends Controller
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
-        $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($user, $hecho);
         $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
 
         $reglaFolio = [
@@ -633,8 +625,8 @@ class HechoController extends Controller
             'colision_camino' => 'sometimes|required|string|max:255',
             'situacion' => ['sometimes', 'required', 'string', Rule::in(self::SITUAS)],
             'oficio_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO' : 'sometimes|nullable',
-            'vehiculos_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO' : 'sometimes|nullable|integer|min:0',
-            'personas_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|integer|min:0|required_if:situacion,TURNADO' : 'sometimes|nullable|integer|min:0',
+            'vehiculos_mp' => 'sometimes|nullable|integer|min:0',
+            'personas_mp' => 'sometimes|nullable|integer|min:0',
             'dictamen_id' => $puedeUsarDictamenes ? 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'sometimes|nullable',
             'danos_patrimoniales' => 'sometimes|nullable|boolean',
             'propiedades_afectadas' => 'sometimes|nullable|string|max:2000',
@@ -685,14 +677,6 @@ class HechoController extends Controller
             if ($hasLat && $hasLng && HechoLocationGuard::isBlockedOfficeLocation($request->input('lat'), $request->input('lng'))) {
                 $v->errors()->add('lat', HechoLocationGuard::OFFICE_MESSAGE);
                 $v->errors()->add('lng', HechoLocationGuard::OFFICE_MESSAGE);
-            }
-
-            if (!$puedeUsarDictamenes && $request->filled('dictamen_id')) {
-                $v->errors()->add('dictamen_id', 'Los dictámenes son exclusivos de siniestros.');
-            }
-
-            if (!$puedeUsarDictamenes && $situacionEfectiva === 'TURNADO' && $request->filled('oficio_mp')) {
-                $v->errors()->add('oficio_mp', 'El oficio MP solo aplica para siniestros.');
             }
 
             if ($situacionEfectiva === 'TURNADO') {
@@ -1544,17 +1528,17 @@ class HechoController extends Controller
         return !$user->hasRole('Perito');
     }
 
-    private function userCanUseDictamenes($user): bool
+    private function userCanUseDictamenes($user, ?Hechos $hecho = null): bool
     {
         if (!$user) {
             return false;
         }
 
-        if ($user->hasRole('Superadmin')) {
-            return true;
-        }
+        $unidadId = $hecho
+            ? (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0))
+            : (int) ($user->unidad_id ?? 0);
 
-        return (int) ($user->unidad_id ?? 0) === 1;
+        return $unidadId === 1;
     }
 
     private function userCanUploadDelegacionesIph($user, Hechos $hecho): bool

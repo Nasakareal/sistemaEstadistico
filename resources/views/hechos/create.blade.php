@@ -325,34 +325,36 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4" id="dictamen_group" style="display:none;">
-                                <div class="form-group">
-                                    <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
-                                    <select name="dictamen_id" id="dictamen_id"
-                                            class="form-control @error('dictamen_id') is-invalid @enderror">
-                                        <option value="" disabled {{ old('dictamen_id') ? '' : 'selected' }}>Seleccione un dictamen</option>
+                            @if($puedeUsarDictamenes)
+                                <div class="col-md-4" id="dictamen_group" style="display:none;">
+                                    <div class="form-group">
+                                        <label for="dictamen_id">Dictamen / MP <span style="color:red">*</span></label>
+                                        <select name="dictamen_id" id="dictamen_id"
+                                                class="form-control @error('dictamen_id') is-invalid @enderror">
+                                            <option value="" disabled {{ old('dictamen_id') ? '' : 'selected' }}>Seleccione un dictamen</option>
 
-                                        @if(isset($dictamenesDisponibles))
-                                            @foreach($dictamenesDisponibles as $d)
-                                                @php
-                                                    $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
-                                                @endphp
-                                                <option value="{{ $d->id }}"
-                                                    data-oficio="{{ $oficio }}"
-                                                    {{ (string)old('dictamen_id') === (string)$d->id ? 'selected' : '' }}>
-                                                    {{ $oficio }}
-                                                </option>
-                                            @endforeach
-                                        @endif
-                                    </select>
-                                    @error('dictamen_id')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                    <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos.</small>
+                                            @if(isset($dictamenesDisponibles))
+                                                @foreach($dictamenesDisponibles as $d)
+                                                    @php
+                                                        $oficio = $d->numero_dictamen . '/' . $d->anio . ' ' . $d->nombre_mp;
+                                                    @endphp
+                                                    <option value="{{ $d->id }}"
+                                                        data-oficio="{{ $oficio }}"
+                                                        {{ (string)old('dictamen_id') === (string)$d->id ? 'selected' : '' }}>
+                                                        {{ $oficio }}
+                                                    </option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                        @error('dictamen_id')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                        <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos.</small>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp') }}">
+                                <input type="hidden" name="oficio_mp" id="oficio_mp" value="{{ old('oficio_mp') }}">
+                            @endif
                         </div>
 
                         <div class="row">
@@ -635,6 +637,7 @@
             const geoRequiredHint = document.getElementById('geo_required_hint');
 
             const situacionSelect = document.getElementById('situacion');
+            const puedeUsarDictamenes = @json((bool)($puedeUsarDictamenes ?? false));
 
             const dictamenGroup = document.getElementById('dictamen_group');
             const dictamenSelect = document.getElementById('dictamen_id');
@@ -684,7 +687,7 @@
 
                 const isTurnado = situacionSelect.value === 'TURNADO';
 
-                if (isTurnado) {
+                if (isTurnado && puedeUsarDictamenes) {
                     if (dictamenGroup) dictamenGroup.style.display = 'block';
                     if (dictamenSelect) dictamenSelect.required = true;
                     fillOficioFromDictamen();

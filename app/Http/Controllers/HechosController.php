@@ -85,13 +85,17 @@ class HechosController extends Controller
 
     public function create()
     {
-        $dictamenesDisponibles = Dictamen::query()
-            ->whereNull('hecho_id')
-            ->orderByDesc('anio')
-            ->orderByDesc('numero_dictamen')
-            ->get();
+        $puedeUsarDictamenes = $this->userCanUseDictamenes(auth()->user());
 
-        return view('hechos.create', compact('dictamenesDisponibles'));
+        $dictamenesDisponibles = $puedeUsarDictamenes
+            ? Dictamen::query()
+                ->whereNull('hecho_id')
+                ->orderByDesc('anio')
+                ->orderByDesc('numero_dictamen')
+                ->get()
+            : collect();
+
+        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes'));
     }
 
     public function store(Request $request)
@@ -104,6 +108,7 @@ class HechosController extends Controller
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario);
 
         $reglaFolio = 'nullable|string|max:20|unique:hechos,folio_c5i';
 
@@ -134,13 +139,13 @@ class HechosController extends Controller
             'responsable' => 'nullable|string|max:255',
             'colision_camino' => 'required|string|max:255',
             'situacion' => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
-            'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
+            'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable|string|max:255',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
             'danos_patrimoniales' => 'nullable|boolean',
             'propiedades_afectadas' => 'nullable|string|max:255',
             'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
-            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'dictamen_id' => $puedeUsarDictamenes ? 'nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'nullable',
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
             'calidad_geo' => 'nullable|string|max:20',
@@ -180,6 +185,10 @@ class HechosController extends Controller
 
         $situacion = (string) ($validated['situacion'] ?? '');
 
+        if (!$puedeUsarDictamenes) {
+            $validated['oficio_mp'] = null;
+        }
+
         if ($situacion === 'TURNADO' && (int) ($validated['vehiculos_mp'] ?? 0) === 0 && (int) ($validated['personas_mp'] ?? 0) === 0) {
             return back()
                 ->withErrors(['vehiculos_mp' => 'Si la situacion es TURNADO, captura al menos una persona o un vehiculo presentado al MP.'])
@@ -218,7 +227,7 @@ class HechosController extends Controller
             $validated['fuente_ubicacion'] = 'GPS_WEB';
         }
 
-        $dictamenId = $validated['dictamen_id'] ?? null;
+        $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
         unset($validated['dictamen_id']);
 
         $hecho = Hechos::create($validated);
@@ -329,11 +338,15 @@ class HechosController extends Controller
 
         $dictamenActual = $hecho->dictamen;
 
-        $dictamenesDisponibles = Dictamen::query()
-            ->whereNull('hecho_id')
-            ->orderByDesc('anio')
-            ->orderByDesc('numero_dictamen')
-            ->get();
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
+
+        $dictamenesDisponibles = $puedeUsarDictamenes
+            ? Dictamen::query()
+                ->whereNull('hecho_id')
+                ->orderByDesc('anio')
+                ->orderByDesc('numero_dictamen')
+                ->get()
+            : collect();
 
         if ($dictamenActual) {
             $dictamenesDisponibles = $dictamenesDisponibles->prepend($dictamenActual);
@@ -344,7 +357,7 @@ class HechosController extends Controller
             $dictamenLabel = $dictamenActual->numero_dictamen . '/' . $dictamenActual->anio . ' ' . $dictamenActual->nombre_mp;
         }
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -372,6 +385,7 @@ class HechosController extends Controller
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
 
         $reglaFolio = [
             'nullable',
@@ -407,13 +421,13 @@ class HechosController extends Controller
             'responsable' => 'nullable|string|max:255',
             'colision_camino' => 'required|string|max:255',
             'situacion' => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
-            'oficio_mp' => 'nullable|string|max:255|required_if:situacion,TURNADO',
+            'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable|string|max:255',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
             'danos_patrimoniales' => 'nullable|boolean',
             'propiedades_afectadas' => 'nullable|string|max:255',
             'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
-            'dictamen_id' => 'nullable|required_if:situacion,TURNADO|exists:dictamens,id',
+            'dictamen_id' => $puedeUsarDictamenes ? 'nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'nullable',
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
             'calidad_geo' => 'nullable|string|max:20',
@@ -452,6 +466,10 @@ class HechosController extends Controller
         }
 
         $situacion = (string) ($validated['situacion'] ?? '');
+
+        if (!$puedeUsarDictamenes) {
+            $validated['oficio_mp'] = null;
+        }
 
         if ($situacion === 'TURNADO' && (int) ($validated['vehiculos_mp'] ?? 0) === 0 && (int) ($validated['personas_mp'] ?? 0) === 0) {
             return back()
@@ -528,7 +546,7 @@ class HechosController extends Controller
             $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
         }
 
-        $dictamenId = $validated['dictamen_id'] ?? null;
+        $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
         unset($validated['dictamen_id']);
 
         $hecho->update($validated);
@@ -1327,6 +1345,19 @@ class HechosController extends Controller
         }
 
         return !$usuario->hasRole('Perito');
+    }
+
+    private function userCanUseDictamenes($usuario, ?Hechos $hecho = null): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        $unidadId = $hecho
+            ? (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0))
+            : (int) ($usuario->unidad_id ?? 0);
+
+        return $unidadId === 1;
     }
 
     private function usaReglasFlexiblesHechos($usuario): bool

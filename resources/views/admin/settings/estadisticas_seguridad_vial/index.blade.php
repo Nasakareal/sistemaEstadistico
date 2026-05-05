@@ -41,6 +41,10 @@
         </section>
 
         <section class="ppt-slide">
+            @include('admin.settings.estadisticas_seguridad_vial.partials.mapa_calor_morelia')
+        </section>
+
+        <section class="ppt-slide">
             <div class="ppt-card svial-summary-card">
                 <div class="ppt-card__header svial-card-header">
                     <div>
@@ -208,13 +212,17 @@
 @endphp
 <link rel="stylesheet" href="{{ asset('css/resumen-ejecutivo-show.css') }}?v={{ file_exists($resumenCss) ? filemtime($resumenCss) : time() }}">
 <link rel="stylesheet" href="{{ asset('css/estadisticas-seguridad-vial.css') }}?v={{ file_exists($svialCss) ? filemtime($svialCss) : time() }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 @stop
 
 @section('js')
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
 <script>
 const dataUrl = @json(route('estadisticas_seguridad_vial.data.comparativa_municipios'));
+const heatmapUrl = @json(route('estadisticas_seguridad_vial.data.mapa_calor_morelia'));
 const pptShell = document.getElementById('ppt-shell');
 const ppt = document.getElementById('ppt-horizontal');
 const slides = Array.from(document.querySelectorAll('.ppt-slide'));
@@ -235,6 +243,24 @@ let chartTipo = null;
 let chartSituacion = null;
 let chartDia = null;
 let chartHora = null;
+let svialHeatMap = null;
+let svialHeatMarkers = null;
+let svialHeatLayers = {};
+
+const heatLayerConfig = {
+    fallecidos: {
+        color: '#dc2626',
+        gradient: { '0.25': '#fecaca', '0.58': '#ef4444', '1': '#7f1d1d' }
+    },
+    lesionados: {
+        color: '#f59e0b',
+        gradient: { '0.25': '#fde68a', '0.58': '#f59e0b', '1': '#b45309' }
+    },
+    choques: {
+        color: '#2563eb',
+        gradient: { '0.25': '#bfdbfe', '0.58': '#2563eb', '1': '#1e3a8a' }
+    }
+};
 
 function buildIndicators() {
     indicatorsWrap.innerHTML = '';
@@ -269,6 +295,7 @@ function goToSlide(index) {
     });
 
     updateIndicators(safeIndex);
+    setTimeout(() => svialHeatMap?.invalidateSize(), 160);
 }
 
 function detectCurrentSlide() {
@@ -291,6 +318,173 @@ function escapeHtml(value) {
 function setText(id, value) {
     const node = document.getElementById(id);
     if (node) node.textContent = value;
+}
+
+function initHeatMap() {
+    const node = document.getElementById('svialHeatMap');
+    const status = document.getElementById('svialHeatStatus');
+
+    if (!node) return false;
+
+    if (typeof L === 'undefined' || typeof L.heatLayer === 'undefined') {
+        if (status) status.textContent = 'No se pudo cargar Leaflet para el mapa.';
+        return false;
+    }
+
+    if (svialHeatMap) return true;
+
+    svialHeatMap = L.map(node, {
+        zoomControl: true,
+        preferCanvas: true
+    }).setView([19.703, -101.186], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(svialHeatMap);
+
+    svialHeatMarkers = L.layerGroup().addTo(svialHeatMap);
+    setTimeout(() => svialHeatMap.invalidateSize(), 180);
+
+    return true;
+}
+
+function clearHeatMap() {
+    if (!svialHeatMap) return;
+
+    Object.values(svialHeatLayers).forEach((layer) => {
+        if (svialHeatMap.hasLayer(layer)) {
+            svialHeatMap.removeLayer(layer);
+        }
+    });
+
+    svialHeatLayers = {};
+    svialHeatMarkers?.clearLayers();
+}
+
+function syncHeatLayerVisibility() {
+    if (!svialHeatMap) return;
+
+    document.querySelectorAll('.svial-layer-toggle').forEach((toggle) => {
+        const layer = svialHeatLayers[toggle.dataset.layer];
+        if (!layer) return;
+
+        if (toggle.checked && !svialHeatMap.hasLayer(layer)) {
+            layer.addTo(svialHeatMap);
+        }
+
+        if (!toggle.checked && svialHeatMap.hasLayer(layer)) {
+            svialHeatMap.removeLayer(layer);
+        }
+    });
+}
+
+function heatCategoryColor(category) {
+    return heatLayerConfig[category]?.color || '#334155';
+}
+
+function buildHeatPopup(punto) {
+    const hechos = Array.isArray(punto.hechos) ? punto.hechos : [];
+    const cards = hechos.map((hecho) => `
+        <a class="svial-heat-popup-row" href="${escapeHtml(hecho.show_url)}" target="_blank" rel="noopener noreferrer">
+            <strong>#${escapeHtml(hecho.id)} · ${escapeHtml(hecho.fecha || 'SIN FECHA')}</strong>
+            <span>${escapeHtml(hecho.tipo_hecho || 'SIN TIPO')}${hecho.situacion ? ' · ' + escapeHtml(hecho.situacion) : ''}</span>
+            <small>${escapeHtml(hecho.hora || 'SIN HORA')}${hecho.ubicacion ? ' · ' + escapeHtml(hecho.ubicacion) : ''}</small>
+        </a>
+    `).join('');
+
+    return `
+        <div class="svial-heat-popup">
+            <div class="svial-heat-popup-title">${numberFormat.format(punto.total || 0)} siniestro(s)</div>
+            <div class="svial-heat-popup-meta">
+                ${numberFormat.format(punto.fallecidos || 0)} fallecidos ·
+                ${numberFormat.format(punto.lesionados || 0)} lesionados ·
+                ${numberFormat.format(punto.choques || 0)} choques
+            </div>
+            <div class="svial-heat-popup-list">${cards}</div>
+        </div>
+    `;
+}
+
+async function cargarMapaCalor() {
+    if (!initHeatMap()) return;
+
+    clearHeatMap();
+    setText('svialHeatStatus', 'Cargando mapa...');
+
+    const params = new URLSearchParams({
+        fecha_inicio: inputInicio.value,
+        fecha_fin: inputFin.value,
+        precision: document.getElementById('svialHeatPrecision')?.value || '4'
+    });
+
+    try {
+        const response = await fetch(`${heatmapUrl}?${params.toString()}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const layers = data.layers || {};
+        const maximos = data.maximos || {};
+        const puntos = Array.isArray(data.puntos) ? data.puntos : [];
+
+        Object.keys(heatLayerConfig).forEach((key) => {
+            const points = Array.isArray(layers[key]) ? layers[key] : [];
+            svialHeatLayers[key] = L.heatLayer(points, {
+                radius: 30,
+                blur: 22,
+                maxZoom: 17,
+                max: Math.max(1, Number(maximos[key] || 1)),
+                gradient: heatLayerConfig[key].gradient
+            });
+        });
+
+        puntos.forEach((punto) => {
+            const total = Number(punto.total || 0);
+            const marker = L.circleMarker([punto.lat, punto.lng], {
+                radius: Math.min(14, 5 + (Math.sqrt(total) * 2.2)),
+                color: '#ffffff',
+                weight: 1.5,
+                fillColor: heatCategoryColor(punto.categoria),
+                fillOpacity: .88
+            });
+
+            marker.bindPopup(buildHeatPopup(punto));
+            marker.addTo(svialHeatMarkers);
+        });
+
+        syncHeatLayerVisibility();
+
+        setText('svialHeatPeriod', data.periodo?.texto || 'Periodo seleccionado');
+        setText('svialHeatFatal', numberFormat.format(data.totales?.fallecidos || 0));
+        setText('svialHeatInjured', numberFormat.format(data.totales?.lesionados || 0));
+        setText('svialHeatCrashes', numberFormat.format(data.totales?.choques || 0));
+        setText('svialHeatPoints', numberFormat.format(data.totales?.puntos || 0));
+        setText('svialHeatTotal', numberFormat.format(data.totales?.hechos || 0));
+        setText('svialHeatStatus', puntos.length ? 'Mapa listo para Morelia.' : 'Sin coordenadas de Morelia en el periodo.');
+
+        const bounds = puntos.map((punto) => [punto.lat, punto.lng]);
+
+        if (bounds.length === 1) {
+            svialHeatMap.setView(bounds[0], 15);
+        } else if (bounds.length > 1) {
+            svialHeatMap.fitBounds(bounds, { padding: [34, 34], maxZoom: 15 });
+        } else {
+            svialHeatMap.setView([19.703, -101.186], 12);
+        }
+
+        setTimeout(() => svialHeatMap.invalidateSize(), 120);
+    } catch (error) {
+        console.error('Error cargando mapa de calor de seguridad vial:', error);
+        setText('svialHeatStatus', 'No se pudo cargar el mapa.');
+    }
 }
 
 function updatePptDownloadLink() {
@@ -503,6 +697,7 @@ function updateReport(data) {
 
     setText('svialCoverPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialComparePeriod', periodo.texto ?? 'Periodo seleccionado');
+    setText('svialHeatPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialSummaryPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialTemporalPeriod', periodo.texto ?? 'Periodo seleccionado');
     setText('svialAnalysisPeriod', periodo.texto ?? 'Periodo seleccionado');
@@ -613,6 +808,7 @@ form?.addEventListener('submit', async (event) => {
 
     try {
         await cargarReporte();
+        await cargarMapaCalor();
         goToSlide(1);
     } catch (error) {
         console.error('Error cargando informe de seguridad vial:', error);
@@ -622,6 +818,11 @@ form?.addEventListener('submit', async (event) => {
 
 inputInicio?.addEventListener('change', updatePptDownloadLink);
 inputFin?.addEventListener('change', updatePptDownloadLink);
+document.getElementById('svialHeatRefresh')?.addEventListener('click', cargarMapaCalor);
+document.getElementById('svialHeatPrecision')?.addEventListener('change', cargarMapaCalor);
+document.querySelectorAll('.svial-layer-toggle').forEach((toggle) => {
+    toggle.addEventListener('change', syncHeatLayerVisibility);
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
     buildIndicators();
@@ -629,6 +830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         await cargarReporte();
+        await cargarMapaCalor();
     } catch (error) {
         console.error('Error cargando informe de seguridad vial:', error);
         document.getElementById('svialRankingMunicipios').innerHTML = '<div class="svial-empty svial-empty--danger">No se pudo cargar el informe.</div>';

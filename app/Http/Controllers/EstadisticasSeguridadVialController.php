@@ -50,6 +50,109 @@ class EstadisticasSeguridadVialController extends Controller
         return response()->json($this->construirReporte($fechaInicio, $fechaFin));
     }
 
+    public function dataMapaCalorMorelia(Request $request)
+    {
+        [$fechaInicio, $fechaFin] = $this->resolverPeriodo($request);
+        $precision = (int) $request->get('precision', 4);
+        $precision = max(2, min(5, $precision));
+
+        $hechos = Hechos::query()
+            ->withCount([
+                'lesionados',
+                'lesionados as fallecidos_count' => function ($query) {
+                    $query->whereRaw('UPPER(TRIM(tipo_lesion)) = ?', ['FALLECIDO']);
+                },
+            ])
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->whereNotNull('lat')
+            ->whereNotNull('lng')
+            ->whereRaw('UPPER(TRIM(municipio)) = ?', ['MORELIA'])
+            ->get([
+                'id',
+                'folio_c5i',
+                'fecha',
+                'hora',
+                'calle',
+                'colonia',
+                'tipo_hecho',
+                'situacion',
+                'lat',
+                'lng',
+            ]);
+
+        $puntos = $hechos
+            ->groupBy(function ($hecho) use ($precision) {
+                return round((float) $hecho->lat, $precision) . ',' . round((float) $hecho->lng, $precision);
+            })
+            ->map(function ($items) use ($precision) {
+                $lat = round((float) $items->avg('lat'), $precision);
+                $lng = round((float) $items->avg('lng'), $precision);
+                $fallecidos = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count > 0)->count();
+                $lesionados = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count === 0 && (int) $hecho->lesionados_count > 0)->count();
+                $choques = max(0, $items->count() - $fallecidos - $lesionados);
+                $categoria = $fallecidos > 0 ? 'fallecidos' : ($lesionados > 0 ? 'lesionados' : 'choques');
+
+                return [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'total' => $items->count(),
+                    'fallecidos' => $fallecidos,
+                    'lesionados' => $lesionados,
+                    'choques' => $choques,
+                    'categoria' => $categoria,
+                    'fecha_min' => $this->fechaParaVista($items->min('fecha')),
+                    'fecha_max' => $this->fechaParaVista($items->max('fecha')),
+                    'hechos' => $items
+                        ->sortByDesc('fecha')
+                        ->take(8)
+                        ->map(function ($hecho) {
+                            return [
+                                'id' => (int) $hecho->id,
+                                'folio_c5i' => $hecho->folio_c5i,
+                                'fecha' => $this->fechaParaVista($hecho->fecha),
+                                'hora' => $this->horaParaVista($hecho->hora),
+                                'tipo_hecho' => $hecho->tipo_hecho,
+                                'situacion' => $hecho->situacion,
+                                'ubicacion' => collect([$hecho->calle, $hecho->colonia])->filter()->implode(', '),
+                                'show_url' => route('hechos.show', ['hecho' => $hecho->id]),
+                            ];
+                        })
+                        ->values(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $layers = [
+            'fallecidos' => $puntos->filter(fn ($punto) => $punto['fallecidos'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['fallecidos']])->values(),
+            'lesionados' => $puntos->filter(fn ($punto) => $punto['lesionados'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['lesionados']])->values(),
+            'choques' => $puntos->filter(fn ($punto) => $punto['choques'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['choques']])->values(),
+        ];
+
+        return response()->json([
+            'periodo' => [
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'texto' => $this->textoPeriodo(Carbon::parse($fechaInicio), Carbon::parse($fechaFin)),
+            ],
+            'precision' => $precision,
+            'totales' => [
+                'hechos' => $hechos->count(),
+                'puntos' => $puntos->count(),
+                'fallecidos' => $puntos->sum('fallecidos'),
+                'lesionados' => $puntos->sum('lesionados'),
+                'choques' => $puntos->sum('choques'),
+            ],
+            'maximos' => [
+                'fallecidos' => max(1, (int) $puntos->max('fallecidos')),
+                'lesionados' => max(1, (int) $puntos->max('lesionados')),
+                'choques' => max(1, (int) $puntos->max('choques')),
+            ],
+            'layers' => $layers,
+            'puntos' => $puntos,
+        ]);
+    }
+
     public function descargarPowerPoint(Request $request, SeguridadVialPowerPointService $powerPoint)
     {
         [$fechaInicio, $fechaFin] = $this->resolverPeriodo($request);
@@ -112,6 +215,8 @@ class EstadisticasSeguridadVialController extends Controller
                 'tipo_hecho',
                 'situacion',
                 'es_relevante',
+                'lat',
+                'lng',
             ]);
 
         $totalHechos = $hechos->count();
@@ -239,6 +344,50 @@ class EstadisticasSeguridadVialController extends Controller
                     'series' => $porHoraBase->values(),
                 ],
             ],
+            'mapa_morelia' => $this->mapaMoreliaResumen($hechos),
+        ];
+    }
+
+    private function mapaMoreliaResumen($hechos, int $precision = 4): array
+    {
+        $morelia = $hechos
+            ->filter(function ($hecho) {
+                return $hecho->lat !== null
+                    && $hecho->lng !== null
+                    && $this->normalizarEtiqueta($hecho->municipio, '') === 'MORELIA';
+            });
+
+        $puntos = $morelia
+            ->groupBy(function ($hecho) use ($precision) {
+                return round((float) $hecho->lat, $precision) . ',' . round((float) $hecho->lng, $precision);
+            })
+            ->map(function ($items) use ($precision) {
+                $fallecidos = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count > 0)->count();
+                $lesionados = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count === 0 && (int) $hecho->lesionados_count > 0)->count();
+                $choques = max(0, $items->count() - $fallecidos - $lesionados);
+
+                return [
+                    'lat' => round((float) $items->avg('lat'), $precision),
+                    'lng' => round((float) $items->avg('lng'), $precision),
+                    'total' => $items->count(),
+                    'fallecidos' => $fallecidos,
+                    'lesionados' => $lesionados,
+                    'choques' => $choques,
+                    'categoria' => $fallecidos > 0 ? 'fallecidos' : ($lesionados > 0 ? 'lesionados' : 'choques'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        return [
+            'totales' => [
+                'hechos' => $morelia->count(),
+                'puntos' => $puntos->count(),
+                'fallecidos' => $puntos->sum('fallecidos'),
+                'lesionados' => $puntos->sum('lesionados'),
+                'choques' => $puntos->sum('choques'),
+            ],
+            'puntos' => $puntos,
         ];
     }
 
@@ -266,6 +415,28 @@ class EstadisticasSeguridadVialController extends Controller
         }
 
         return '00:00';
+    }
+
+    private function horaParaVista($hora): string
+    {
+        if ($hora instanceof \DateTimeInterface) {
+            return $hora->format('H:i');
+        }
+
+        return trim((string) $hora);
+    }
+
+    private function fechaParaVista($fecha): ?string
+    {
+        if (!$fecha) {
+            return null;
+        }
+
+        if ($fecha instanceof \DateTimeInterface) {
+            return $fecha->format('Y-m-d');
+        }
+
+        return Carbon::parse($fecha)->toDateString();
     }
 
     private function textoPeriodo(Carbon $fechaInicio, Carbon $fechaFin): string

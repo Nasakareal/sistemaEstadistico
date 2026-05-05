@@ -19,6 +19,7 @@ class SeguridadVialPowerPointService
         $slides = [
             $this->buildSlide(fn () => $this->slidePortada($reporte)),
             $this->buildSlide(fn () => $this->slideMunicipios($reporte)),
+            $this->buildSlide(fn () => $this->slideMapaMorelia($reporte)),
             $this->buildSlide(fn () => $this->slideResumen($reporte)),
             $this->buildSlide(fn () => $this->slideTemporal($reporte)),
             $this->buildSlide(fn () => $this->slideOperativa($reporte)),
@@ -101,6 +102,79 @@ class SeguridadVialPowerPointService
 
         $content[] = $this->rect(.72, 6.38, 11.9, .02, 'CBD5E1');
         $content[] = $this->text(.72, 6.5, 11.9, .3, 'Ranking por numero de siniestros registrados en el periodo filtrado.', 10, '64748B', false, 'c');
+
+        return implode('', $content);
+    }
+
+    private function slideMapaMorelia(array $reporte): string
+    {
+        $mapa = $reporte['mapa_morelia'] ?? [];
+        $puntos = $this->values($mapa['puntos'] ?? []);
+        $totales = $mapa['totales'] ?? [];
+        $bounds = $this->mapBounds($puntos);
+        $maxTotal = max(1, (int) collect($puntos)->max('total'));
+        $mapX = .82;
+        $mapY = 1.55;
+        $mapW = 8.35;
+        $mapH = 4.88;
+
+        $content = [
+            $this->slideBackground(),
+            $this->slideHeader('Lectura territorial', 'Mapa de calor Morelia', $this->periodoTexto($reporte)),
+            $this->rect($mapX, $mapY, $mapW, $mapH, 'EEF6FF', true, 'CBD5E1'),
+            $this->rect($mapX + .22, $mapY + .2, $mapW - .44, $mapH - .4, 'F8FAFC', true, 'E2E8F0'),
+        ];
+
+        foreach ([.25, .5, .75] as $ratio) {
+            $content[] = $this->rect($mapX + .22 + (($mapW - .44) * $ratio), $mapY + .2, .01, $mapH - .4, 'D9E6F3');
+            $content[] = $this->rect($mapX + .22, $mapY + .2 + (($mapH - .4) * $ratio), $mapW - .44, .01, 'D9E6F3');
+        }
+
+        $content[] = $this->text($mapX + .44, $mapY + .34, 1.7, .26, 'MORELIA', 12, '64748B', true);
+        $content[] = $this->text($mapX + 5.92, $mapY + 4.18, 2.65, .24, 'Concentracion por coordenadas', 9.5, '64748B', true, 'r');
+
+        if (count($puntos) === 0) {
+            $content[] = $this->text($mapX + 1.2, $mapY + 2.1, 5.9, .46, 'SIN COORDENADAS DE MORELIA EN EL PERIODO', 18, '64748B', true, 'c');
+        }
+
+        foreach (array_slice($puntos, 0, 28) as $punto) {
+            if (!is_numeric($punto['lat'] ?? null) || !is_numeric($punto['lng'] ?? null)) {
+                continue;
+            }
+
+            [$px, $py] = $this->mapPoint((float) $punto['lat'], (float) $punto['lng'], $bounds, $mapX + .22, $mapY + .2, $mapW - .44, $mapH - .4);
+            $ratio = sqrt(max(1, (int) ($punto['total'] ?? 1)) / $maxTotal);
+            $size = .18 + (.54 * $ratio);
+            $color = $this->heatPointColor($punto);
+
+            $content[] = $this->ellipse($px - $size, $py - $size, $size * 2, $size * 2, $color, null, 26000);
+            $content[] = $this->ellipse($px - ($size * .48), $py - ($size * .48), $size * .96, $size * .96, $color, 'FFFFFF', 86000);
+        }
+
+        $panelX = 9.48;
+        $content[] = $this->rect($panelX, 1.55, 2.92, 4.88, 'FFFFFF', true, 'E2E8F0');
+        $content[] = $this->text($panelX + .24, 1.82, 2.38, .26, 'MORELIA', 11, '64748B', true);
+        $content[] = $this->text($panelX + .24, 2.08, 2.38, .42, $this->num($totales['hechos'] ?? 0), 30, '0F172A', true);
+        $content[] = $this->text($panelX + .24, 2.5, 2.38, .23, 'SINIESTROS CON COORDENADAS', 8.5, '64748B', true);
+
+        $rows = [
+            ['Fallecidos', $totales['fallecidos'] ?? 0, 'DC2626'],
+            ['Lesionados', $totales['lesionados'] ?? 0, 'D97706'],
+            ['Choques normales', $totales['choques'] ?? 0, '2563EB'],
+            ['Puntos de calor', $totales['puntos'] ?? 0, '0F766E'],
+        ];
+
+        $y = 3.05;
+        foreach ($rows as $row) {
+            $content[] = $this->rect($panelX + .24, $y + .05, .14, .14, $row[2], true);
+            $content[] = $this->text($panelX + .48, $y, 1.48, .24, $row[0], 10, '334155', true);
+            $content[] = $this->text($panelX + 2.05, $y - .01, .48, .26, $this->num($row[1]), 14, $row[2], true, 'r');
+            $y += .45;
+        }
+
+        $content[] = $this->rect($panelX + .24, 5.22, 2.42, .02, 'E2E8F0');
+        $content[] = $this->text($panelX + .24, 5.42, 2.42, .38, 'Color por severidad y tamano por concentracion.', 10.5, '475569', false);
+        $content[] = $this->text(.82, 6.58, 11.58, .28, 'Mapa estatico generado desde latitud/longitud de hechos registrados en Morelia.', 10, '64748B', false, 'c');
 
         return implode('', $content);
     }
@@ -340,6 +414,17 @@ class SeguridadVialPowerPointService
         return '<p:sp><p:nvSpPr><p:cNvPr id="' . $id . '" name="Shape ' . $id . '"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="' . $geom . '"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="' . $fill . '"/></a:solidFill>' . $lineXml . '</p:spPr></p:sp>';
     }
 
+    private function ellipse(float $x, float $y, float $w, float $h, string $fill, ?string $line = null, int $alpha = 100000): string
+    {
+        $id = $this->shapeId++;
+        $alpha = max(0, min(100000, $alpha));
+        $lineXml = $line
+            ? '<a:ln w="9525"><a:solidFill><a:srgbClr val="' . $line . '"/></a:solidFill></a:ln>'
+            : '<a:ln><a:noFill/></a:ln>';
+
+        return '<p:sp><p:nvSpPr><p:cNvPr id="' . $id . '" name="Heat ' . $id . '"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="' . $fill . '"><a:alpha val="' . $alpha . '"/></a:srgbClr></a:solidFill>' . $lineXml . '</p:spPr></p:sp>';
+    }
+
     private function pill(float $x, float $y, float $w, float $h, string $fill, string $text, int $size, string $color): string
     {
         return $this->text($x, $y, $w, $h, $text, $size, $color, true, 'c', $fill, true);
@@ -356,12 +441,23 @@ class SeguridadVialPowerPointService
             ->map(fn ($line) => $this->paragraph($line, $size, $color, $bold, $align))
             ->implode('');
 
-        return '<p:sp><p:nvSpPr><p:cNvPr id="' . $id . '" name="Text ' . $id . '"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="' . $geom . '"><a:avLst/></a:prstGeom>' . $fillXml . '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" anchor="mid"><a:spAutoFit/></a:bodyPr><a:lstStyle/>' . $paragraphs . '</p:txBody></p:sp>';
+        return '<p:sp><p:nvSpPr><p:cNvPr id="' . $id . '" name="Text ' . $id . '"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="' . $geom . '"><a:avLst/></a:prstGeom>' . $fillXml . '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" anchor="ctr"><a:spAutoFit/></a:bodyPr><a:lstStyle/>' . $paragraphs . '</p:txBody></p:sp>';
     }
 
     private function paragraph(string $text, float $size, string $color, bool $bold, string $align): string
     {
+        $align = $this->paragraphAlign($align);
+
         return '<a:p><a:pPr algn="' . $align . '"/><a:r><a:rPr lang="es-MX" sz="' . (int) round($size * 100) . '"' . ($bold ? ' b="1"' : '') . '><a:solidFill><a:srgbClr val="' . $color . '"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>' . $this->xml($text) . '</a:t></a:r><a:endParaRPr lang="es-MX"/></a:p>';
+    }
+
+    private function paragraphAlign(string $align): string
+    {
+        if ($align === 'c') {
+            return 'ctr';
+        }
+
+        return in_array($align, ['l', 'r', 'ctr', 'just'], true) ? $align : 'l';
     }
 
     private function wrapSlide(string $content): string
@@ -381,6 +477,9 @@ class SeguridadVialPowerPointService
         $zip->addFromString('docProps/core.xml', $this->coreProps());
         $zip->addFromString('ppt/presentation.xml', $this->presentationXml(count($slides)));
         $zip->addFromString('ppt/_rels/presentation.xml.rels', $this->presentationRels(count($slides)));
+        $zip->addFromString('ppt/presProps.xml', $this->presPropsXml());
+        $zip->addFromString('ppt/viewProps.xml', $this->viewPropsXml());
+        $zip->addFromString('ppt/tableStyles.xml', $this->tableStylesXml());
         $zip->addFromString('ppt/theme/theme1.xml', $this->themeXml());
         $zip->addFromString('ppt/slideMasters/slideMaster1.xml', $this->slideMasterXml());
         $zip->addFromString('ppt/slideMasters/_rels/slideMaster1.xml.rels', $this->slideMasterRels());
@@ -402,7 +501,7 @@ class SeguridadVialPowerPointService
             $slides .= '<Override PartName="/ppt/slides/slide' . $i . '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>';
         }
 
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' . $slides . '</Types>';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/><Override PartName="/ppt/viewProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml"/><Override PartName="/ppt/tableStyles.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' . $slides . '</Types>';
     }
 
     private function rootRels(): string
@@ -429,12 +528,32 @@ class SeguridadVialPowerPointService
             $rels .= '<Relationship Id="rId' . ($i + 1) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide' . $i . '.xml"/>';
         }
 
+        $rels .= '<Relationship Id="rId' . ($slideCount + 2) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>';
+        $rels .= '<Relationship Id="rId' . ($slideCount + 3) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps" Target="viewProps.xml"/>';
+        $rels .= '<Relationship Id="rId' . ($slideCount + 4) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>';
+        $rels .= '<Relationship Id="rId' . ($slideCount + 5) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles" Target="tableStyles.xml"/>';
+
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' . $rels . '</Relationships>';
     }
 
     private function slideRels(): string
     {
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>';
+    }
+
+    private function presPropsXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentationPr xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:showPr showNarration="1" useTimings="1"/></p:presentationPr>';
+    }
+
+    private function viewPropsXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:viewPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:normalViewPr><p:restoredLeft sz="15620"/><p:restoredTop sz="94660"/></p:normalViewPr><p:slideViewPr><p:cSldViewPr><p:cViewPr varScale="1"><p:scale><a:sx n="100" d="100"/><a:sy n="100" d="100"/></p:scale><p:origin x="0" y="0"/></p:cViewPr><p:guideLst/></p:cSldViewPr></p:slideViewPr><p:notesTextViewPr><p:cViewPr><p:scale><a:sx n="100" d="100"/><a:sy n="100" d="100"/></p:scale><p:origin x="0" y="0"/></p:cViewPr></p:notesTextViewPr><p:gridSpacing cx="72008" cy="72008"/></p:viewPr>';
+    }
+
+    private function tableStylesXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>';
     }
 
     private function slideMasterXml(): string
@@ -492,6 +611,59 @@ class SeguridadVialPowerPointService
         }
 
         return [];
+    }
+
+    private function mapBounds(array $puntos): array
+    {
+        $lats = [];
+        $lngs = [];
+
+        foreach ($puntos as $punto) {
+            if (is_numeric($punto['lat'] ?? null) && is_numeric($punto['lng'] ?? null)) {
+                $lats[] = (float) $punto['lat'];
+                $lngs[] = (float) $punto['lng'];
+            }
+        }
+
+        if (!$lats || !$lngs) {
+            return [19.55, 19.86, -101.36, -101.02];
+        }
+
+        $latMin = min($lats);
+        $latMax = max($lats);
+        $lngMin = min($lngs);
+        $lngMax = max($lngs);
+        $latPad = max(.01, ($latMax - $latMin) * .18);
+        $lngPad = max(.01, ($lngMax - $lngMin) * .18);
+
+        return [$latMin - $latPad, $latMax + $latPad, $lngMin - $lngPad, $lngMax + $lngPad];
+    }
+
+    private function mapPoint(float $lat, float $lng, array $bounds, float $x, float $y, float $w, float $h): array
+    {
+        [$latMin, $latMax, $lngMin, $lngMax] = $bounds;
+        $latSpan = max(.000001, $latMax - $latMin);
+        $lngSpan = max(.000001, $lngMax - $lngMin);
+        $px = $x + ((($lng - $lngMin) / $lngSpan) * $w);
+        $py = $y + ($h - ((($lat - $latMin) / $latSpan) * $h));
+
+        return [
+            max($x, min($x + $w, $px)),
+            max($y, min($y + $h, $py)),
+        ];
+    }
+
+    private function heatPointColor(array $punto): string
+    {
+        if (($punto['categoria'] ?? null) === 'fallecidos') {
+            return 'DC2626';
+        }
+
+        if (($punto['categoria'] ?? null) === 'lesionados') {
+            return 'D97706';
+        }
+
+        return '2563EB';
     }
 
     private function short($value, int $max): string

@@ -652,6 +652,293 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, .86) !important;
 }
 
+.svial-map-card {
+    gap: 18px;
+}
+
+.svial-map-header {
+    margin-bottom: 4px;
+}
+
+.svial-map-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.svial-map-badge {
+    min-width: 126px;
+    padding: 11px 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, .08);
+    background: #ffffff;
+    color: #334155;
+    font-size: 12px;
+    line-height: 1.1;
+    font-weight: 900;
+    text-transform: uppercase;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .08);
+}
+
+.svial-map-badge span {
+    display: block;
+    margin-bottom: 5px;
+    color: #0f172a;
+    font-size: 27px;
+    line-height: 1;
+    font-weight: 950;
+}
+
+.svial-map-badge--fatal {
+    border-color: rgba(220, 38, 38, .22);
+}
+
+.svial-map-badge--fatal span {
+    color: #dc2626;
+}
+
+.svial-map-badge--injured {
+    border-color: rgba(217, 119, 6, .24);
+}
+
+.svial-map-badge--injured span {
+    color: #d97706;
+}
+
+.svial-map-badge--crash {
+    border-color: rgba(37, 99, 235, .24);
+}
+
+.svial-map-badge--crash span {
+    color: #2563eb;
+}
+
+.svial-heat-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 292px;
+    gap: 18px;
+}
+
+.svial-heat-map-wrap {
+    min-width: 0;
+    min-height: 500px;
+    border: 1px solid rgba(15, 23, 42, .10);
+    border-radius: 18px;
+    overflow: hidden;
+    background: #dbeafe;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .10);
+}
+
+.svial-heat-map {
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+}
+
+.svial-heat-map .leaflet-control-attribution {
+    font-size: 10px;
+}
+
+.svial-heat-panel {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid rgba(15, 23, 42, .08);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
+}
+
+.svial-heat-panel h3 {
+    margin: 5px 0 16px;
+    color: #0f172a;
+    font-size: 20px;
+    line-height: 1.14;
+    font-weight: 950;
+}
+
+.svial-heat-controls {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.svial-layer-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, .08);
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.svial-layer-option input {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+}
+
+.svial-layer-option--fatal {
+    box-shadow: inset 4px 0 0 #dc2626;
+}
+
+.svial-layer-option--injured {
+    box-shadow: inset 4px 0 0 #f59e0b;
+}
+
+.svial-layer-option--crash {
+    box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.svial-heat-field {
+    display: grid;
+    gap: 7px;
+    margin: 0 0 14px;
+}
+
+.svial-heat-field span {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.svial-heat-field select {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 850;
+    padding: 0 10px;
+}
+
+.svial-heat-refresh {
+    width: 100%;
+    min-height: 42px;
+    border: 0;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%);
+    color: #ffffff;
+    font-weight: 950;
+    box-shadow: 0 12px 24px rgba(15, 118, 110, .22);
+}
+
+.svial-heat-refresh:hover,
+.svial-heat-refresh:focus {
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.svial-heat-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.svial-heat-metrics div {
+    padding: 11px;
+    border: 1px solid rgba(15, 23, 42, .08);
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.svial-heat-metrics span {
+    display: block;
+    margin-bottom: 4px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.svial-heat-metrics strong {
+    display: block;
+    color: #0f172a;
+    font-size: 25px;
+    line-height: 1;
+    font-weight: 950;
+}
+
+.svial-heat-status {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #ecfeff;
+    color: #0f766e;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 900;
+}
+
+.svial-heat-popup {
+    min-width: 260px;
+}
+
+.svial-heat-popup-title {
+    margin-bottom: 5px;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.svial-heat-popup-meta {
+    margin-bottom: 10px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.svial-heat-popup-list {
+    display: grid;
+    gap: 7px;
+    max-height: 250px;
+    overflow: auto;
+}
+
+.svial-heat-popup-row {
+    display: grid;
+    gap: 3px;
+    padding: 9px 10px;
+    border: 1px solid #dbe4f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #0f172a;
+    text-decoration: none !important;
+}
+
+.svial-heat-popup-row:hover {
+    border-color: #93c5fd;
+    background: #eef6ff;
+    color: #0f172a;
+}
+
+.svial-heat-popup-row strong {
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.svial-heat-popup-row span,
+.svial-heat-popup-row small {
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.25;
+}
+
 @media (max-width: 1200px) {
     #ppt-shell.svial-shell .ppt-slide:not(.ppt-slide--cover) {
         padding: 132px 18px 112px;
@@ -681,8 +968,23 @@
         overflow: auto;
     }
 
-    .svial-operational-grid {
+    .svial-operational-grid,
+    .svial-heat-grid {
         grid-template-columns: 1fr;
+    }
+
+    .svial-heat-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+        gap: 14px;
+    }
+
+    .svial-heat-panel h3,
+    .svial-heat-controls,
+    .svial-heat-metrics,
+    .svial-heat-status {
+        margin: 0;
     }
 }
 
@@ -737,6 +1039,21 @@
 
     .svial-kpi {
         min-height: 180px;
+    }
+
+    .svial-map-badges,
+    .svial-heat-panel {
+        grid-template-columns: 1fr;
+        justify-content: flex-start;
+    }
+
+    .svial-map-badge {
+        width: 100%;
+    }
+
+    .svial-heat-map-wrap,
+    .svial-heat-map {
+        min-height: 420px;
     }
 }
 

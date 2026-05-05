@@ -760,6 +760,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
         Route::get('/data/comparativa-municipios', [EstadisticasSeguridadVialController::class, 'dataComparativaCiudades'])->name('estadisticas_seguridad_vial.data.comparativa_municipios');
         Route::get('/data/comparativa-ciudades', [EstadisticasSeguridadVialController::class, 'dataComparativaCiudades'])->name('estadisticas_seguridad_vial.data.comparativa_ciudades');
+        Route::get('/data/mapa-calor-morelia', [EstadisticasSeguridadVialController::class, 'dataMapaCalorMorelia'])->name('estadisticas_seguridad_vial.data.mapa_calor_morelia');
         Route::get('/powerpoint', [EstadisticasSeguridadVialController::class, 'descargarPowerPoint'])->name('estadisticas_seguridad_vial.powerpoint');
     });
 });

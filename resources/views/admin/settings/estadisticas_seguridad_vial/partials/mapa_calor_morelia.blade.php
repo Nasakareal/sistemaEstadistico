@@ -12,15 +12,15 @@
         <div class="svial-map-badges">
             <div class="svial-map-badge svial-map-badge--fatal">
                 <span id="svialHeatFatal">0</span>
-                fallecidos en zonas
+                fallecidos con coordenadas
             </div>
             <div class="svial-map-badge svial-map-badge--injured">
                 <span id="svialHeatInjured">0</span>
-                lesionados en zonas
+                lesionados con coordenadas
             </div>
             <div class="svial-map-badge svial-map-badge--crash">
                 <span id="svialHeatCrashes">0</span>
-                sin víctimas en zonas
+                sin víctimas con coordenadas
             </div>
         </div>
     </div>

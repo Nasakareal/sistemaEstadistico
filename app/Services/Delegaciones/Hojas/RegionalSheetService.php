@@ -3307,20 +3307,7 @@ class RegionalSheetService
             $clave = $this->mapearTipoVehiculoExcel($tipo);
             $datos['clasificacion'][$clave] = ($datos['clasificacion'][$clave] ?? 0) + 1;
 
-            // RESUMEN
-            if (str_contains($servicio, 'PUBLIC')) {
-                $datos['resumen']['publicos']++;
-            } else {
-                $datos['resumen']['particulares']++;
-            }
-
-            if ($this->esMotocicletaTipo($tipo)) {
-                $datos['resumen']['motos']++;
-            }
-
-            if (str_contains($servicio, 'OFICIAL')) {
-                $datos['resumen']['oficiales']++;
-            }
+            $this->sumarResumenVehiculo($datos['resumen'], $tipo, $servicio);
         }
 
         // LIBERACIONES
@@ -3345,6 +3332,26 @@ class RegionalSheetService
         }
 
         return $datos;
+    }
+
+    protected function sumarResumenVehiculo(array &$resumen, string $tipo, string $servicio): void
+    {
+        if ($this->esMotocicletaTipo($tipo)) {
+            $resumen['motos']++;
+            return;
+        }
+
+        if (str_contains($servicio, 'OFICIAL')) {
+            $resumen['oficiales']++;
+            return;
+        }
+
+        if (str_contains($servicio, 'PUBLIC')) {
+            $resumen['publicos']++;
+            return;
+        }
+
+        $resumen['particulares']++;
     }
 
     protected function mapearTipoVehiculoExcel(string $tipo): string

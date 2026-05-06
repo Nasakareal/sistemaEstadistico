@@ -130,9 +130,9 @@ class EstadisticasSeguridadVialController extends Controller
         $puntos = $this->zonasConflictivas($zonas);
 
         $layers = [
-            'fallecidos' => $puntos->filter(fn ($punto) => $punto['fallecidos'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['fallecidos']])->values(),
-            'lesionados' => $puntos->filter(fn ($punto) => $punto['lesionados'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['lesionados']])->values(),
-            'choques' => $puntos->filter(fn ($punto) => $punto['choques'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['choques']])->values(),
+            'fallecidos' => $zonas->filter(fn ($zona) => $zona['fallecidos'] > 0)->map(fn ($zona) => [$zona['lat'], $zona['lng'], $zona['fallecidos']])->values(),
+            'lesionados' => $zonas->filter(fn ($zona) => $zona['lesionados'] > 0)->map(fn ($zona) => [$zona['lat'], $zona['lng'], $zona['lesionados']])->values(),
+            'choques' => $zonas->filter(fn ($zona) => $zona['choques'] > 0)->map(fn ($zona) => [$zona['lat'], $zona['lng'], $zona['choques']])->values(),
         ];
 
         return response()->json([
@@ -147,17 +147,20 @@ class EstadisticasSeguridadVialController extends Controller
                 'zonas' => $zonas->count(),
                 'puntos' => $puntos->count(),
                 'hechos_conflictivos' => $puntos->sum('total'),
-                'fallecidos' => $puntos->sum('fallecidos'),
-                'lesionados' => $puntos->sum('lesionados'),
-                'choques' => $puntos->sum('choques'),
+                'fallecidos' => $zonas->sum('fallecidos'),
+                'lesionados' => $zonas->sum('lesionados'),
+                'choques' => $zonas->sum('choques'),
+                'fallecidos_conflictivos' => $puntos->sum('fallecidos'),
+                'lesionados_conflictivos' => $puntos->sum('lesionados'),
+                'choques_conflictivos' => $puntos->sum('choques'),
                 'total_fallecidos' => $zonas->sum('fallecidos'),
                 'total_lesionados' => $zonas->sum('lesionados'),
                 'total_choques' => $zonas->sum('choques'),
             ],
             'maximos' => [
-                'fallecidos' => max(1, (int) $puntos->max('fallecidos')),
-                'lesionados' => max(1, (int) $puntos->max('lesionados')),
-                'choques' => max(1, (int) $puntos->max('choques')),
+                'fallecidos' => max(1, (int) $zonas->max('fallecidos')),
+                'lesionados' => max(1, (int) $zonas->max('lesionados')),
+                'choques' => max(1, (int) $zonas->max('choques')),
             ],
             'layers' => $layers,
             'puntos' => $puntos,
@@ -402,9 +405,12 @@ class EstadisticasSeguridadVialController extends Controller
                 'zonas' => $zonas->count(),
                 'puntos' => $puntos->count(),
                 'hechos_conflictivos' => $puntos->sum('total'),
-                'fallecidos' => $puntos->sum('fallecidos'),
-                'lesionados' => $puntos->sum('lesionados'),
-                'choques' => $puntos->sum('choques'),
+                'fallecidos' => $zonas->sum('fallecidos'),
+                'lesionados' => $zonas->sum('lesionados'),
+                'choques' => $zonas->sum('choques'),
+                'fallecidos_conflictivos' => $puntos->sum('fallecidos'),
+                'lesionados_conflictivos' => $puntos->sum('lesionados'),
+                'choques_conflictivos' => $puntos->sum('choques'),
                 'total_fallecidos' => $zonas->sum('fallecidos'),
                 'total_lesionados' => $zonas->sum('lesionados'),
                 'total_choques' => $zonas->sum('choques'),
@@ -415,11 +421,21 @@ class EstadisticasSeguridadVialController extends Controller
 
     private function zonasConflictivas($zonas, int $limit = 12)
     {
-        $zonas = collect($zonas)->sortByDesc('total')->values();
+        $zonas = collect($zonas)->values();
         $minimo = $zonas->contains(fn ($zona) => (int) ($zona['total'] ?? 0) >= 2) ? 2 : 1;
 
         return $zonas
-            ->filter(fn ($zona) => (int) ($zona['total'] ?? 0) >= $minimo)
+            ->filter(function ($zona) use ($minimo) {
+                return (int) ($zona['total'] ?? 0) >= $minimo
+                    || (int) ($zona['fallecidos'] ?? 0) > 0
+                    || (int) ($zona['lesionados'] ?? 0) > 0;
+            })
+            ->sortByDesc(function ($zona) {
+                return ((int) ($zona['fallecidos'] ?? 0) * 100000)
+                    + ((int) ($zona['lesionados'] ?? 0) * 1000)
+                    + ((int) ($zona['total'] ?? 0) * 10)
+                    + (int) ($zona['choques'] ?? 0);
+            })
             ->take($limit)
             ->values();
     }

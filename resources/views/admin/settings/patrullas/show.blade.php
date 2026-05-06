@@ -31,25 +31,43 @@
 
                 <div class="card-body">
 
-                    <h5 class="mb-3"><strong>Fotografía</strong></h5>
+                    <h5 class="mb-3"><strong>Fotografías</strong></h5>
+
+                    @php
+                        $fotos = $patrulla->fotos ?? collect();
+                    @endphp
 
                     <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="foto-patrulla-box text-center">
-                                @if ($patrulla->foto)
+                        @if ($fotos->count() > 0)
+                            @foreach ($fotos as $foto)
+                                <div class="col-md-3 col-sm-6 mb-3">
+                                    <div class="foto-patrulla-box text-center">
+                                        <img
+                                            src="{{ asset('storage/' . $foto->foto) }}"
+                                            alt="Foto de la patrulla {{ $patrulla->numero_economico }}"
+                                            class="img-fluid foto-patrulla"
+                                        >
+                                    </div>
+                                </div>
+                            @endforeach
+                        @elseif ($patrulla->foto)
+                            <div class="col-md-12">
+                                <div class="foto-patrulla-box text-center">
                                     <img
                                         src="{{ asset('storage/' . $patrulla->foto) }}"
                                         alt="Foto de la patrulla {{ $patrulla->numero_economico }}"
                                         class="img-fluid foto-patrulla"
                                     >
-                                @else
-                                    <div class="text-muted py-5">
-                                        <i class="fa-regular fa-image fa-3x mb-3"></i>
-                                        <div>Esta patrulla no tiene foto registrada</div>
-                                    </div>
-                                @endif
+                                </div>
                             </div>
-                        </div>
+                        @else
+                            <div class="col-md-12">
+                                <div class="text-muted py-5 text-center">
+                                    <i class="fa-regular fa-image fa-3x mb-3"></i>
+                                    <div>Esta patrulla no tiene fotos registradas</div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     <h5 class="mb-3"><strong>Datos Generales</strong></h5>
@@ -202,12 +220,12 @@
         background: rgba(0,0,0,.15);
         border: 1px solid rgba(255,255,255,.10);
         border-radius: .5rem;
-        padding: 15px;
+        padding: 10px;
     }
 
     .foto-patrulla {
         max-width: 100%;
-        max-height: 420px;
+        max-height: 220px;
         border-radius: .4rem;
         box-shadow: 0 4px 18px rgba(0,0,0,.25);
     }

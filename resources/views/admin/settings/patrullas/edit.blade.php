@@ -291,49 +291,94 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="foto">Foto de la Patrulla</label>
+                                    <label for="fotos">Agregar Fotos de la Patrulla</label>
                                     <input
                                         type="file"
-                                        name="foto"
-                                        id="foto"
-                                        class="form-control @error('foto') is-invalid @enderror"
+                                        name="fotos[]"
+                                        id="fotos"
+                                        class="form-control @error('fotos') is-invalid @enderror @error('fotos.*') is-invalid @enderror"
                                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                        multiple
                                     >
-                                    @error('foto')
-                                        <span class="invalid-feedback" role="alert">
+                                    @error('fotos')
+                                        <span class="invalid-feedback d-block" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
-                                    <small class="text-muted">Opcional. Si seleccionas una nueva imagen, reemplazará la actual.</small>
+                                    @error('fotos.*')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Opcional. Puedes agregar varias imágenes nuevas sin borrar las actuales.</small>
                                 </div>
                             </div>
 
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Vista previa</label>
-                                    <div class="border rounded p-2 text-center bg-light" style="min-height: 220px;">
-                                        @if ($patrulla->foto)
-                                            <img
-                                                id="preview_foto"
-                                                src="{{ asset('storage/' . $patrulla->foto) }}"
-                                                alt="Foto actual de la patrulla"
-                                                style="max-width: 100%; max-height: 200px; display: inline-block;"
-                                            >
-                                            <div id="preview_placeholder" class="text-muted" style="display: none; padding-top: 85px;">
-                                                Aún no se ha seleccionado una imagen
-                                            </div>
-                                        @else
-                                            <img
-                                                id="preview_foto"
-                                                src="#"
-                                                alt="Vista previa de la patrulla"
-                                                style="max-width: 100%; max-height: 200px; display: none;"
-                                            >
-                                            <div id="preview_placeholder" class="text-muted" style="padding-top: 85px;">
-                                                Esta patrulla no tiene imagen cargada
-                                            </div>
-                                        @endif
+                                    <label>Vista previa de nuevas fotos</label>
+                                    <div class="border rounded p-2 bg-light" style="min-height: 220px;">
+                                        <div id="preview_fotos" class="row"></div>
+                                        <div id="preview_placeholder" class="text-muted text-center" style="padding-top: 85px;">
+                                            Aún no se han seleccionado imágenes nuevas
+                                        </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>Fotos actuales</label>
+
+                                    @php
+                                        $fotosActuales = $patrulla->fotos ?? collect();
+                                    @endphp
+
+                                    @if ($fotosActuales->count() > 0)
+                                        <div class="row">
+                                            @foreach ($fotosActuales as $foto)
+                                                <div class="col-md-3 col-sm-6 mb-3">
+                                                    <div class="card">
+                                                        <img
+                                                            src="{{ asset('storage/' . $foto->foto) }}"
+                                                            alt="Foto de patrulla"
+                                                            class="card-img-top foto-actual-img"
+                                                        >
+                                                        <div class="card-body text-center p-2">
+                                                            <button
+                                                                type="button"
+                                                                class="btn btn-danger btn-sm btn-eliminar-foto"
+                                                                data-action="{{ route('patrullas.fotos.destroy', [$patrulla->id, $foto->id]) }}"
+                                                            >
+                                                                <i class="fa-solid fa-trash"></i> Eliminar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif ($patrulla->foto)
+                                        <div class="row">
+                                            <div class="col-md-3 col-sm-6 mb-3">
+                                                <div class="card">
+                                                    <img
+                                                        src="{{ asset('storage/' . $patrulla->foto) }}"
+                                                        alt="Foto actual de la patrulla"
+                                                        class="card-img-top foto-actual-img"
+                                                    >
+                                                    <div class="card-body text-center p-2">
+                                                        <span class="badge badge-secondary">Foto anterior</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="border rounded p-4 text-center bg-light text-muted">
+                                            Esta patrulla no tiene fotos cargadas
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -374,6 +419,11 @@
                         </div>
 
                     </form>
+
+                    <form id="form-eliminar-foto" method="POST" style="display: none;">
+                        @csrf
+                        @method('DELETE')
+                    </form>
                 </div>
             </div>
         </div>
@@ -384,6 +434,26 @@
     <style>
         .form-group label {
             font-weight: bold;
+        }
+
+        .preview-foto-card {
+            margin-bottom: 10px;
+        }
+
+        .preview-foto-img {
+            width: 100%;
+            height: 95px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background: #ffffff;
+        }
+
+        .foto-actual-img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            background: #f8f9fa;
         }
     </style>
 @stop
@@ -408,38 +478,66 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const inputFoto = document.getElementById('foto');
-            const previewFoto = document.getElementById('preview_foto');
+            const inputFotos = document.getElementById('fotos');
+            const previewFotos = document.getElementById('preview_fotos');
             const previewPlaceholder = document.getElementById('preview_placeholder');
+            const formEliminarFoto = document.getElementById('form-eliminar-foto');
+            const botonesEliminarFoto = document.querySelectorAll('.btn-eliminar-foto');
 
-            if (inputFoto) {
-                inputFoto.addEventListener('change', function (e) {
-                    const archivo = e.target.files[0];
+            if (inputFotos) {
+                inputFotos.addEventListener('change', function (e) {
+                    const archivos = Array.from(e.target.files);
 
-                    if (!archivo) {
-                        @if ($patrulla->foto)
-                            previewFoto.src = "{{ asset('storage/' . $patrulla->foto) }}";
-                            previewFoto.style.display = 'inline-block';
-                            previewPlaceholder.style.display = 'none';
-                        @else
-                            previewFoto.src = '#';
-                            previewFoto.style.display = 'none';
-                            previewPlaceholder.style.display = 'block';
-                        @endif
+                    previewFotos.innerHTML = '';
+
+                    if (archivos.length === 0) {
+                        previewPlaceholder.style.display = 'block';
                         return;
                     }
 
-                    const lector = new FileReader();
+                    previewPlaceholder.style.display = 'none';
 
-                    lector.onload = function (evento) {
-                        previewFoto.src = evento.target.result;
-                        previewFoto.style.display = 'inline-block';
-                        previewPlaceholder.style.display = 'none';
-                    };
+                    archivos.forEach(function (archivo) {
+                        const lector = new FileReader();
 
-                    lector.readAsDataURL(archivo);
+                        lector.onload = function (evento) {
+                            const columna = document.createElement('div');
+                            columna.className = 'col-md-4 col-sm-6 preview-foto-card';
+
+                            const imagen = document.createElement('img');
+                            imagen.src = evento.target.result;
+                            imagen.alt = 'Vista previa de la patrulla';
+                            imagen.className = 'preview-foto-img';
+
+                            columna.appendChild(imagen);
+                            previewFotos.appendChild(columna);
+                        };
+
+                        lector.readAsDataURL(archivo);
+                    });
                 });
             }
+
+            botonesEliminarFoto.forEach(function (boton) {
+                boton.addEventListener('click', function () {
+                    const action = this.getAttribute('data-action');
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '¿Eliminar foto?',
+                        text: 'Esta acción eliminará la foto seleccionada.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#dc3545'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            formEliminarFoto.setAttribute('action', action);
+                            formEliminarFoto.submit();
+                        }
+                    });
+                });
+            });
         });
     </script>
 @stop

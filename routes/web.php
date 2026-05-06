@@ -543,6 +543,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/{patrulla}/edit',[PatrullaController::class,'edit'])->middleware('can:editar patrullas')->name('patrullas.edit');
         Route::put('/{patrulla}',[PatrullaController::class,'update'])->middleware('can:editar patrullas')->name('patrullas.update');
         Route::delete('/{patrulla}',[PatrullaController::class,'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.destroy');
+        Route::delete('/{patrulla}/fotos/{foto}', [PatrullaController::class, 'destroyFoto'])->middleware('can:editar patrullas')->name('patrullas.fotos.destroy');
 
         Route::prefix('{patrulla}/kilometrajes')->middleware('can:ver kilometrajes patrullas')->group(function () {
             Route::get('/', [PatrullaKilometrajeController::class, 'index'])->name('patrullas.kilometrajes.index');

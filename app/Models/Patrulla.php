@@ -60,6 +60,11 @@ class Patrulla extends Model
         return $this->hasMany(\App\Models\PatrullaKilometraje::class, 'patrulla_id');
     }
 
+    public function fotos()
+    {
+        return $this->hasMany(\App\Models\PatrullaFoto::class, 'patrulla_id');
+    }
+
     public function getDescripcionVehiculoAttribute()
     {
         return trim("{$this->marca} {$this->linea} {$this->modelo}");

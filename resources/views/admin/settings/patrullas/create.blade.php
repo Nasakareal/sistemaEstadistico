@@ -284,36 +284,37 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="foto">Foto de la Patrulla</label>
+                                    <label for="fotos">Fotos de la Patrulla</label>
                                     <input
                                         type="file"
-                                        name="foto"
-                                        id="foto"
-                                        class="form-control @error('foto') is-invalid @enderror"
+                                        name="fotos[]"
+                                        id="fotos"
+                                        class="form-control @error('fotos') is-invalid @enderror @error('fotos.*') is-invalid @enderror"
                                         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                        multiple
                                         required
                                     >
-                                    @error('foto')
-                                        <span class="invalid-feedback" role="alert">
+                                    @error('fotos')
+                                        <span class="invalid-feedback d-block" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
-                                    <small class="text-muted">Obligatoria. Formatos permitidos: JPG, JPEG, PNG, WEBP.</small>
+                                    @error('fotos.*')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Obligatorias. Puedes seleccionar varias imágenes. Formatos permitidos: JPG, JPEG, PNG, WEBP.</small>
                                 </div>
                             </div>
 
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Vista previa</label>
-                                    <div class="border rounded p-2 text-center bg-light" style="min-height: 220px;">
-                                        <img
-                                            id="preview_foto"
-                                            src="#"
-                                            alt="Vista previa de la patrulla"
-                                            style="max-width: 100%; max-height: 200px; display: none;"
-                                        >
-                                        <div id="preview_placeholder" class="text-muted" style="padding-top: 85px;">
-                                            Aún no se ha seleccionado una imagen
+                                    <div class="border rounded p-2 bg-light" style="min-height: 220px;">
+                                        <div id="preview_fotos" class="row"></div>
+                                        <div id="preview_placeholder" class="text-muted text-center" style="padding-top: 85px;">
+                                            Aún no se han seleccionado imágenes
                                         </div>
                                     </div>
                                 </div>
@@ -367,6 +368,19 @@
         .form-group label {
             font-weight: bold;
         }
+
+        .preview-foto-card {
+            margin-bottom: 10px;
+        }
+
+        .preview-foto-img {
+            width: 100%;
+            height: 95px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background: #ffffff;
+        }
     </style>
 @stop
 
@@ -390,30 +404,41 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const inputFoto = document.getElementById('foto');
-            const previewFoto = document.getElementById('preview_foto');
+            const inputFotos = document.getElementById('fotos');
+            const previewFotos = document.getElementById('preview_fotos');
             const previewPlaceholder = document.getElementById('preview_placeholder');
 
-            if (inputFoto) {
-                inputFoto.addEventListener('change', function (e) {
-                    const archivo = e.target.files[0];
+            if (inputFotos) {
+                inputFotos.addEventListener('change', function (e) {
+                    const archivos = Array.from(e.target.files);
 
-                    if (!archivo) {
-                        previewFoto.src = '#';
-                        previewFoto.style.display = 'none';
+                    previewFotos.innerHTML = '';
+
+                    if (archivos.length === 0) {
                         previewPlaceholder.style.display = 'block';
                         return;
                     }
 
-                    const lector = new FileReader();
+                    previewPlaceholder.style.display = 'none';
 
-                    lector.onload = function (evento) {
-                        previewFoto.src = evento.target.result;
-                        previewFoto.style.display = 'inline-block';
-                        previewPlaceholder.style.display = 'none';
-                    };
+                    archivos.forEach(function (archivo) {
+                        const lector = new FileReader();
 
-                    lector.readAsDataURL(archivo);
+                        lector.onload = function (evento) {
+                            const columna = document.createElement('div');
+                            columna.className = 'col-md-4 col-sm-6 preview-foto-card';
+
+                            const imagen = document.createElement('img');
+                            imagen.src = evento.target.result;
+                            imagen.alt = 'Vista previa de la patrulla';
+                            imagen.className = 'preview-foto-img';
+
+                            columna.appendChild(imagen);
+                            previewFotos.appendChild(columna);
+                        };
+
+                        lector.readAsDataURL(archivo);
+                    });
                 });
             }
         });

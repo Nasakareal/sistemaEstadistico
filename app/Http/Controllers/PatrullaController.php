@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Patrulla;
+use App\Models\PatrullaFoto;
 use App\Models\Unidad;
 use App\Models\Turno;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ class PatrullaController extends Controller
         $actor = $this->actor();
 
         return Patrulla::query()
-            ->with(['unidad', 'turno'])
+            ->with(['unidad', 'turno', 'fotos'])
             ->when(!$this->actorEsSuperadmin(), function ($q) use ($actor) {
                 if (!empty($actor->unidad_id)) {
                     $q->where('unidad_id', (int) $actor->unidad_id);
@@ -92,7 +93,8 @@ class PatrullaController extends Controller
             'color' => 'nullable|string|max:50',
             'no_motor' => 'nullable|string|max:60',
             'observaciones' => 'nullable|string',
-            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'fotos' => 'required|array',
+            'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         if (!$this->actorEsSuperadmin()) {
@@ -106,10 +108,6 @@ class PatrullaController extends Controller
             $validated['marca'] = $this->normalizarTexto($validated['marca'] ?? null);
             $validated['linea'] = $this->normalizarTexto($validated['linea'] ?? null);
             $validated['color'] = $this->normalizarTexto($validated['color'] ?? null);
-
-            if ($request->hasFile('foto')) {
-                $validated['foto'] = $request->file('foto')->store('patrullas', 'public');
-            }
 
             $patrulla = Patrulla::create([
                 'numero_economico' => $validated['numero_economico'],
@@ -125,8 +123,25 @@ class PatrullaController extends Controller
                 'color' => $validated['color'] ?? null,
                 'no_motor' => $validated['no_motor'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
-                'foto' => $validated['foto'] ?? null,
+                'foto' => null,
             ]);
+
+            if ($request->hasFile('fotos')) {
+                foreach ($request->file('fotos') as $foto) {
+                    $ruta = $foto->store('patrullas', 'public');
+
+                    PatrullaFoto::create([
+                        'patrulla_id' => $patrulla->id,
+                        'foto' => $ruta,
+                    ]);
+
+                    if (!$patrulla->foto) {
+                        $patrulla->update([
+                            'foto' => $ruta,
+                        ]);
+                    }
+                }
+            }
 
             Log::info("Patrulla creada: {$patrulla->numero_economico}");
 
@@ -146,7 +161,7 @@ class PatrullaController extends Controller
     public function show($id)
     {
         $patrulla = $this->buscarPatrullaVisibleOFail($id);
-        $patrulla->load(['unidad', 'turno']);
+        $patrulla->load(['unidad', 'turno', 'fotos']);
 
         return view('admin.settings.patrullas.show', compact('patrulla'));
     }
@@ -154,6 +169,7 @@ class PatrullaController extends Controller
     public function edit($id)
     {
         $patrulla = $this->buscarPatrullaVisibleOFail($id);
+        $patrulla->load(['fotos']);
 
         $unidades = $this->unidadesDisponibles();
         $turnos = Turno::query()->orderBy('nombre')->get();
@@ -179,7 +195,8 @@ class PatrullaController extends Controller
             'color' => 'nullable|string|max:50',
             'no_motor' => 'nullable|string|max:60',
             'observaciones' => 'nullable|string',
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'fotos' => 'nullable|array',
+            'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         if (!$this->actorEsSuperadmin()) {
@@ -193,14 +210,6 @@ class PatrullaController extends Controller
             $validated['marca'] = $this->normalizarTexto($validated['marca'] ?? null);
             $validated['linea'] = $this->normalizarTexto($validated['linea'] ?? null);
             $validated['color'] = $this->normalizarTexto($validated['color'] ?? null);
-
-            if ($request->hasFile('foto')) {
-                if ($patrulla->foto && Storage::disk('public')->exists($patrulla->foto)) {
-                    Storage::disk('public')->delete($patrulla->foto);
-                }
-
-                $validated['foto'] = $request->file('foto')->store('patrullas', 'public');
-            }
 
             $patrulla->update([
                 'numero_economico' => $validated['numero_economico'],
@@ -216,8 +225,24 @@ class PatrullaController extends Controller
                 'color' => $validated['color'] ?? null,
                 'no_motor' => $validated['no_motor'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
-                'foto' => $validated['foto'] ?? $patrulla->foto,
             ]);
+
+            if ($request->hasFile('fotos')) {
+                foreach ($request->file('fotos') as $foto) {
+                    $ruta = $foto->store('patrullas', 'public');
+
+                    PatrullaFoto::create([
+                        'patrulla_id' => $patrulla->id,
+                        'foto' => $ruta,
+                    ]);
+
+                    if (!$patrulla->foto) {
+                        $patrulla->update([
+                            'foto' => $ruta,
+                        ]);
+                    }
+                }
+            }
 
             Log::info("Patrulla actualizada: {$patrulla->numero_economico}");
 
@@ -241,6 +266,14 @@ class PatrullaController extends Controller
         try {
             $numero = $patrulla->numero_economico;
 
+            foreach ($patrulla->fotos as $foto) {
+                if ($foto->foto && Storage::disk('public')->exists($foto->foto)) {
+                    Storage::disk('public')->delete($foto->foto);
+                }
+
+                $foto->delete();
+            }
+
             if ($patrulla->foto && Storage::disk('public')->exists($patrulla->foto)) {
                 Storage::disk('public')->delete($patrulla->foto);
             }
@@ -258,6 +291,45 @@ class PatrullaController extends Controller
             return redirect()
                 ->back()
                 ->withErrors('No se pudo eliminar la patrulla.');
+        }
+    }
+
+    public function destroyFoto($patrullaId, $fotoId)
+    {
+        $patrulla = $this->buscarPatrullaVisibleOFail($patrullaId);
+
+        $foto = PatrullaFoto::where('patrulla_id', $patrulla->id)
+            ->where('id', $fotoId)
+            ->firstOrFail();
+
+        try {
+            if ($foto->foto && Storage::disk('public')->exists($foto->foto)) {
+                Storage::disk('public')->delete($foto->foto);
+            }
+
+            $fotoEliminada = $foto->foto;
+
+            $foto->delete();
+
+            if ($patrulla->foto === $fotoEliminada) {
+                $nuevaPrincipal = PatrullaFoto::where('patrulla_id', $patrulla->id)
+                    ->orderBy('id')
+                    ->first();
+
+                $patrulla->update([
+                    'foto' => $nuevaPrincipal ? $nuevaPrincipal->foto : null,
+                ]);
+            }
+
+            return redirect()
+                ->back()
+                ->with('success', 'Foto eliminada correctamente.');
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar foto de patrulla: ' . $e->getMessage());
+
+            return redirect()
+                ->back()
+                ->withErrors('No se pudo eliminar la foto.');
         }
     }
 

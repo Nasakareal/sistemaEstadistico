@@ -46,10 +46,11 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             ?: config('services.whatsapp.siniestros.to')
             ?: config('services.whatsapp.default_to')
         );
+        $recipients = $this->recipients($to);
 
         $template = (string) config('services.whatsapp.siniestros.resumen_template', '');
 
-        if ($to === '') {
+        if (empty($recipients)) {
             $this->error('No hay número destino. Define WHATSAPP_SINIESTROS_RESUMEN_TO o usa --to=');
             return self::FAILURE;
         }
@@ -63,50 +64,66 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             $firma
         );
 
-        try {
-            if ($this->option('sin-template') || $template === '') {
-                $response = $whatsApp->sendText($to, $mensaje);
-            } else {
-                $response = $whatsApp->sendTemplate($to, $template, [
-                    $fechaTexto,
-                    $horaTexto,
-                    $this->pad($totalHechos),
-                    $this->pad($totalLesionados),
-                    $this->pad($totalFallecidos),
+        $failures = 0;
+        $sent = 0;
+
+        foreach ($recipients as $to) {
+            try {
+                if ($this->option('sin-template') || $template === '') {
+                    $response = $whatsApp->sendText($to, $mensaje);
+                } else {
+                    $response = $whatsApp->sendTemplate($to, $template, [
+                        $fechaTexto,
+                        $horaTexto,
+                        $this->pad($totalHechos),
+                        $this->pad($totalLesionados),
+                        $this->pad($totalFallecidos),
+                    ]);
+                }
+
+                Log::info('Respuesta WhatsApp resumen siniestros', $response);
+
+                $this->line('--- RESPUESTA META (' . $to . ') ---');
+                $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+                if (!($response['ok'] ?? false)) {
+                    $this->error('Meta rechazó el envío para ' . $to . '.');
+                    $failures++;
+                    continue;
+                }
+
+                $body = $response['body'] ?? [];
+                $messageId = $body['messages'][0]['id'] ?? null;
+
+                if (!$messageId) {
+                    $this->error('Meta respondió sin message id para ' . $to . '.');
+                    $failures++;
+                    continue;
+                }
+
+                $this->info('Mensaje aceptado por Meta para ' . $to . '. ID: ' . $messageId);
+                $sent++;
+            } catch (\Throwable $e) {
+                Log::error('Error enviando resumen WhatsApp', [
+                    'to' => $to,
+                    'error' => $e->getMessage(),
                 ]);
+
+                $this->error('Error enviando a ' . $to . ': ' . $e->getMessage());
+                $failures++;
             }
+        }
 
-            Log::info('Respuesta WhatsApp resumen siniestros', $response);
+        $this->line('--- MENSAJE ARMADO ---');
+        $this->line($mensaje);
 
-            $this->line('--- RESPUESTA META ---');
-            $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            $this->line('--- MENSAJE ARMADO ---');
-            $this->line($mensaje);
-
-            if (!($response['ok'] ?? false)) {
-                $this->error('Meta rechazó el envío.');
-                return self::FAILURE;
-            }
-
-            $body = $response['body'] ?? [];
-            $messageId = $body['messages'][0]['id'] ?? null;
-
-            if (!$messageId) {
-                $this->error('Meta respondió sin message id.');
-                return self::FAILURE;
-            }
-
-            $this->info('Mensaje aceptado por Meta. ID: '.$messageId);
-            return self::SUCCESS;
-        } catch (\Throwable $e) {
-            Log::error('Error enviando resumen WhatsApp', [
-                'to' => $to,
-                'error' => $e->getMessage(),
-            ]);
-
-            $this->error($e->getMessage());
+        if ($failures > 0) {
+            $this->error("Resumen procesado con {$sent} enviado(s) y {$failures} error(es).");
             return self::FAILURE;
         }
+
+        $this->info("Resumen enviado a {$sent} destinatario(s).");
+        return self::SUCCESS;
     }
 
     protected function buildMessage(string $fechaTexto, string $horaTexto, int $hechos, int $lesionados, int $fallecidos, string $firma): string
@@ -231,6 +248,22 @@ class EnviarResumenSiniesrosWhatsApp extends Command
     protected function whereLesionadoFallecido($query): void
     {
         $query->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'");
+    }
+
+    protected function recipients(string $configured): array
+    {
+        $parts = preg_split('/[\s,;]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+        $numbers = [];
+
+        foreach ($parts ?: [] as $part) {
+            $number = preg_replace('/\D+/', '', (string) $part);
+
+            if ($number !== '') {
+                $numbers[] = $number;
+            }
+        }
+
+        return array_values(array_unique($numbers));
     }
 
     protected function pad(int $value): string

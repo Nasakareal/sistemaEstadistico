@@ -315,6 +315,16 @@ function escapeHtml(value) {
         .replaceAll("'", '&#039;');
 }
 
+function shortChartLabel(value, max = 28) {
+    const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+
+    if (text.length <= max) {
+        return text;
+    }
+
+    return `${text.slice(0, Math.max(1, max - 1))}…`;
+}
+
 function setText(id, value) {
     const node = document.getElementById(id);
     if (node) node.textContent = value;
@@ -395,11 +405,11 @@ function buildHeatPopup(punto) {
 
     return `
         <div class="svial-heat-popup">
-            <div class="svial-heat-popup-title">${numberFormat.format(punto.total || 0)} siniestro(s)</div>
+            <div class="svial-heat-popup-title">${numberFormat.format(punto.total || 0)} siniestro(s) en esta zona</div>
             <div class="svial-heat-popup-meta">
-                ${numberFormat.format(punto.fallecidos || 0)} fallecidos ·
-                ${numberFormat.format(punto.lesionados || 0)} lesionados ·
-                ${numberFormat.format(punto.choques || 0)} choques
+                ${numberFormat.format(punto.fallecidos || 0)} personas fallecidas ·
+                ${numberFormat.format(punto.lesionados || 0)} personas lesionadas ·
+                ${numberFormat.format(punto.choques || 0)} choques sin víctimas
             </div>
             <div class="svial-heat-popup-list">${cards}</div>
         </div>
@@ -449,11 +459,11 @@ async function cargarMapaCalor() {
         puntos.forEach((punto) => {
             const total = Number(punto.total || 0);
             const marker = L.circleMarker([punto.lat, punto.lng], {
-                radius: Math.min(14, 5 + (Math.sqrt(total) * 2.2)),
+                radius: Math.min(24, 8 + (Math.sqrt(total) * 3.4)),
                 color: '#ffffff',
-                weight: 1.5,
+                weight: 2,
                 fillColor: heatCategoryColor(punto.categoria),
-                fillOpacity: .88
+                fillOpacity: .9
             });
 
             marker.bindPopup(buildHeatPopup(punto));
@@ -467,8 +477,17 @@ async function cargarMapaCalor() {
         setText('svialHeatInjured', numberFormat.format(data.totales?.lesionados || 0));
         setText('svialHeatCrashes', numberFormat.format(data.totales?.choques || 0));
         setText('svialHeatPoints', numberFormat.format(data.totales?.puntos || 0));
-        setText('svialHeatTotal', numberFormat.format(data.totales?.hechos || 0));
-        setText('svialHeatStatus', puntos.length ? 'Mapa listo para Morelia.' : 'Sin coordenadas de Morelia en el periodo.');
+        setText('svialHeatTotal', numberFormat.format(data.totales?.hechos_conflictivos || 0));
+
+        const zonasTexto = numberFormat.format(data.totales?.puntos || 0);
+        const hechosZonaTexto = numberFormat.format(data.totales?.hechos_conflictivos || 0);
+        const hechosTotalTexto = numberFormat.format(data.totales?.hechos || 0);
+        setText(
+            'svialHeatStatus',
+            puntos.length
+                ? `${zonasTexto} zonas conflictivas · ${hechosZonaTexto} de ${hechosTotalTexto} siniestros con coordenadas.`
+                : 'Sin zonas conflictivas con coordenadas en el periodo.'
+        );
 
         const bounds = puntos.map((punto) => [punto.lat, punto.lng]);
 
@@ -583,7 +602,9 @@ function renderCharts(data) {
     const municipiosSeries = data.graficas?.municipios?.series ?? [];
     const diaLabels = data.graficas?.por_dia?.labels ?? [];
     const horaLabels = data.graficas?.por_hora?.labels ?? [];
+    const horaSeries = data.graficas?.por_hora?.series ?? [];
     const tipoLabels = data.graficas?.por_tipo?.labels ?? [];
+    const tipoDisplayLabels = tipoLabels.map((label) => shortChartLabel(label, 32));
 
     chartMunicipios = new ApexCharts(document.querySelector('#chart_municipios'), {
         chart: { type: 'bar', height: 470, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
@@ -592,7 +613,12 @@ function renderCharts(data) {
         yaxis: { labels: { style: { colors: '#334155', fontWeight: 700 } } },
         plotOptions: { bar: { horizontal: true, borderRadius: 7, barHeight: '68%', distributed: true } },
         colors: palette,
-        dataLabels: { enabled: true, style: { fontWeight: 900 } },
+        dataLabels: {
+            enabled: true,
+            formatter: (value) => Number(value) > 0 ? numberFormat.format(value) : '',
+            style: { fontWeight: 950, colors: ['#0f172a'] },
+            background: { enabled: true, foreColor: '#0f172a', borderRadius: 5, borderWidth: 0, opacity: .94 }
+        },
         grid: { borderColor: 'rgba(148,163,184,.25)' },
         legend: { show: false }
     });
@@ -608,7 +634,12 @@ function renderCharts(data) {
         yaxis: { forceNiceScale: true, labels: { style: { colors: '#334155', fontWeight: 800 } } },
         plotOptions: { bar: { borderRadius: 7, columnWidth: '54%', distributed: true } },
         colors: palette.slice(0, 7),
-        dataLabels: { enabled: true, style: { fontWeight: 950 }, background: { enabled: true, borderRadius: 6 } },
+        dataLabels: {
+            enabled: true,
+            formatter: (value) => Number(value) > 0 ? numberFormat.format(value) : '',
+            style: { fontWeight: 950, colors: ['#0f172a'] },
+            background: { enabled: true, foreColor: '#0f172a', borderRadius: 6, borderWidth: 0, opacity: .96 }
+        },
         grid: { borderColor: 'rgba(148,163,184,.22)' },
         legend: { show: false }
     });
@@ -616,16 +647,22 @@ function renderCharts(data) {
 
     chartHora = new ApexCharts(document.querySelector('#chart_hora'), {
         chart: { type: 'bar', height: 315, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
-        series: [{ name: 'Siniestros', data: data.graficas?.por_hora?.series ?? [] }],
+        series: [{ name: 'Siniestros', data: horaSeries }],
         xaxis: {
             categories: horaLabels,
             labels: { rotate: -45, style: { colors: '#334155', fontSize: '11px', fontWeight: 800 } }
         },
         yaxis: { forceNiceScale: true, labels: { style: { colors: '#334155', fontWeight: 800 } } },
-        plotOptions: { bar: { borderRadius: 5, columnWidth: '58%', distributed: false } },
+        plotOptions: { bar: { borderRadius: 5, columnWidth: '58%', distributed: false, dataLabels: { position: 'top' } } },
         colors: ['#0f766e'],
-        dataLabels: { enabled: false },
-        grid: { borderColor: 'rgba(148,163,184,.22)' },
+        dataLabels: {
+            enabled: true,
+            offsetY: -18,
+            formatter: (value) => Number(value) > 0 ? numberFormat.format(value) : '',
+            style: { fontSize: '11px', fontWeight: 950, colors: ['#0f172a'] },
+            background: { enabled: true, foreColor: '#0f172a', borderRadius: 5, borderWidth: 0, opacity: .96 }
+        },
+        grid: { borderColor: 'rgba(148,163,184,.22)', padding: { top: 28 } },
         legend: { show: false }
     });
     chartHora.render();
@@ -634,13 +671,13 @@ function renderCharts(data) {
         chart: { type: 'bar', height: 395, toolbar: { show: false }, animations: { easing: 'easeinout', speed: 450 } },
         series: [{ name: 'Siniestros', data: data.graficas?.por_tipo?.series ?? [] }],
         xaxis: {
-            categories: tipoLabels,
+            categories: tipoDisplayLabels,
             labels: { style: { colors: '#334155', fontWeight: 800 } }
         },
         yaxis: {
             labels: {
-                maxWidth: 330,
-                style: { colors: '#334155', fontSize: '12px', fontWeight: 900 }
+                maxWidth: 270,
+                style: { colors: '#334155', fontSize: '11px', fontWeight: 900 }
             }
         },
         plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '62%', distributed: true } },
@@ -650,9 +687,9 @@ function renderCharts(data) {
             textAnchor: 'start',
             offsetX: 8,
             style: { fontWeight: 950, colors: ['#0f172a'] },
-            background: { enabled: true, foreColor: '#0f172a', borderRadius: 5, opacity: .92 }
+            background: { enabled: true, foreColor: '#0f172a', borderRadius: 5, borderWidth: 0, opacity: .96 }
         },
-        grid: { borderColor: 'rgba(148,163,184,.22)' },
+        grid: { borderColor: 'rgba(148,163,184,.22)', padding: { left: 8 } },
         legend: { show: false },
         tooltip: {
             y: {

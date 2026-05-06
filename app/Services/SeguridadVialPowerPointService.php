@@ -154,14 +154,14 @@ class SeguridadVialPowerPointService
         $panelX = 9.48;
         $content[] = $this->rect($panelX, 1.55, 2.92, 4.88, 'FFFFFF', true, 'E2E8F0');
         $content[] = $this->text($panelX + .24, 1.82, 2.38, .26, 'MORELIA', 11, '64748B', true);
-        $content[] = $this->text($panelX + .24, 2.08, 2.38, .42, $this->num($totales['hechos'] ?? 0), 30, '0F172A', true);
-        $content[] = $this->text($panelX + .24, 2.5, 2.38, .23, 'SINIESTROS CON COORDENADAS', 8.5, '64748B', true);
+        $content[] = $this->text($panelX + .24, 2.08, 2.38, .42, $this->num($totales['hechos_conflictivos'] ?? 0), 30, '0F172A', true);
+        $content[] = $this->text($panelX + .24, 2.5, 2.38, .23, 'SINIESTROS EN ZONAS', 8.5, '64748B', true);
 
         $rows = [
-            ['Fallecidos', $totales['fallecidos'] ?? 0, 'DC2626'],
-            ['Lesionados', $totales['lesionados'] ?? 0, 'D97706'],
-            ['Choques normales', $totales['choques'] ?? 0, '2563EB'],
-            ['Puntos de calor', $totales['puntos'] ?? 0, '0F766E'],
+            ['Total con coord.', $totales['hechos'] ?? 0, '334155'],
+            ['Personas fallecidas', $totales['fallecidos'] ?? 0, 'DC2626'],
+            ['Personas lesionadas', $totales['lesionados'] ?? 0, 'D97706'],
+            ['Zonas conflictivas', $totales['puntos'] ?? 0, '0F766E'],
         ];
 
         $y = 3.05;
@@ -517,7 +517,7 @@ class SeguridadVialPowerPointService
             $sldIds .= '<p:sldId id="' . (255 + $i) . '" r:id="rId' . ($i + 1) . '"/>';
         }
 
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>' . $sldIds . '</p:sldIdLst><p:sldSz cx="' . self::SLIDE_W . '" cy="' . self::SLIDE_H . '" type="wide"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:defPPr><a:defRPr lang="es-MX"/></a:defPPr><a:lvl1pPr marL="0" algn="l"><a:defRPr sz="1800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="Aptos"/></a:defRPr></a:lvl1pPr></p:defaultTextStyle></p:presentation>';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>' . $sldIds . '</p:sldIdLst><p:sldSz cx="' . self::SLIDE_W . '" cy="' . self::SLIDE_H . '"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:defPPr><a:defRPr lang="es-MX"/></a:defPPr><a:lvl1pPr marL="0" algn="l"><a:defRPr sz="1800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="Aptos"/></a:defRPr></a:lvl1pPr></p:defaultTextStyle></p:presentation>';
     }
 
     private function presentationRels(int $slideCount): string

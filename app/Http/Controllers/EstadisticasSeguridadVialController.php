@@ -53,14 +53,16 @@ class EstadisticasSeguridadVialController extends Controller
     public function dataMapaCalorMorelia(Request $request)
     {
         [$fechaInicio, $fechaFin] = $this->resolverPeriodo($request);
-        $precision = (int) $request->get('precision', 4);
+        $precision = (int) $request->get('precision', 2);
         $precision = max(2, min(5, $precision));
 
         $hechos = Hechos::query()
             ->withCount([
-                'lesionados',
+                'lesionados as lesionados_count' => function ($query) {
+                    $this->whereLesionadoNoFallecido($query);
+                },
                 'lesionados as fallecidos_count' => function ($query) {
-                    $query->whereRaw('UPPER(TRIM(tipo_lesion)) = ?', ['FALLECIDO']);
+                    $this->whereLesionadoFallecido($query);
                 },
             ])
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -80,16 +82,18 @@ class EstadisticasSeguridadVialController extends Controller
                 'lng',
             ]);
 
-        $puntos = $hechos
+        $zonas = $hechos
             ->groupBy(function ($hecho) use ($precision) {
                 return round((float) $hecho->lat, $precision) . ',' . round((float) $hecho->lng, $precision);
             })
             ->map(function ($items) use ($precision) {
                 $lat = round((float) $items->avg('lat'), $precision);
                 $lng = round((float) $items->avg('lng'), $precision);
-                $fallecidos = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count > 0)->count();
-                $lesionados = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count === 0 && (int) $hecho->lesionados_count > 0)->count();
-                $choques = max(0, $items->count() - $fallecidos - $lesionados);
+                $fallecidos = (int) $items->sum('fallecidos_count');
+                $lesionados = (int) $items->sum('lesionados_count');
+                $choques = $items
+                    ->filter(fn ($hecho) => (int) $hecho->fallecidos_count === 0 && (int) $hecho->lesionados_count === 0)
+                    ->count();
                 $categoria = $fallecidos > 0 ? 'fallecidos' : ($lesionados > 0 ? 'lesionados' : 'choques');
 
                 return [
@@ -123,6 +127,8 @@ class EstadisticasSeguridadVialController extends Controller
             ->sortByDesc('total')
             ->values();
 
+        $puntos = $this->zonasConflictivas($zonas);
+
         $layers = [
             'fallecidos' => $puntos->filter(fn ($punto) => $punto['fallecidos'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['fallecidos']])->values(),
             'lesionados' => $puntos->filter(fn ($punto) => $punto['lesionados'] > 0)->map(fn ($punto) => [$punto['lat'], $punto['lng'], $punto['lesionados']])->values(),
@@ -138,10 +144,15 @@ class EstadisticasSeguridadVialController extends Controller
             'precision' => $precision,
             'totales' => [
                 'hechos' => $hechos->count(),
+                'zonas' => $zonas->count(),
                 'puntos' => $puntos->count(),
+                'hechos_conflictivos' => $puntos->sum('total'),
                 'fallecidos' => $puntos->sum('fallecidos'),
                 'lesionados' => $puntos->sum('lesionados'),
                 'choques' => $puntos->sum('choques'),
+                'total_fallecidos' => $zonas->sum('fallecidos'),
+                'total_lesionados' => $zonas->sum('lesionados'),
+                'total_choques' => $zonas->sum('choques'),
             ],
             'maximos' => [
                 'fallecidos' => max(1, (int) $puntos->max('fallecidos')),
@@ -200,10 +211,12 @@ class EstadisticasSeguridadVialController extends Controller
     {
         $hechos = Hechos::query()
             ->withCount([
-                'lesionados',
                 'vehiculos',
+                'lesionados as lesionados_count' => function ($query) {
+                    $this->whereLesionadoNoFallecido($query);
+                },
                 'lesionados as fallecidos_count' => function ($query) {
-                    $query->whereRaw('UPPER(TRIM(tipo_lesion)) = ?', ['FALLECIDO']);
+                    $this->whereLesionadoFallecido($query);
                 },
             ])
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -348,7 +361,7 @@ class EstadisticasSeguridadVialController extends Controller
         ];
     }
 
-    private function mapaMoreliaResumen($hechos, int $precision = 4): array
+    private function mapaMoreliaResumen($hechos, int $precision = 2): array
     {
         $morelia = $hechos
             ->filter(function ($hecho) {
@@ -357,14 +370,16 @@ class EstadisticasSeguridadVialController extends Controller
                     && $this->normalizarEtiqueta($hecho->municipio, '') === 'MORELIA';
             });
 
-        $puntos = $morelia
+        $zonas = $morelia
             ->groupBy(function ($hecho) use ($precision) {
                 return round((float) $hecho->lat, $precision) . ',' . round((float) $hecho->lng, $precision);
             })
             ->map(function ($items) use ($precision) {
-                $fallecidos = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count > 0)->count();
-                $lesionados = $items->filter(fn ($hecho) => (int) $hecho->fallecidos_count === 0 && (int) $hecho->lesionados_count > 0)->count();
-                $choques = max(0, $items->count() - $fallecidos - $lesionados);
+                $fallecidos = (int) $items->sum('fallecidos_count');
+                $lesionados = (int) $items->sum('lesionados_count');
+                $choques = $items
+                    ->filter(fn ($hecho) => (int) $hecho->fallecidos_count === 0 && (int) $hecho->lesionados_count === 0)
+                    ->count();
 
                 return [
                     'lat' => round((float) $items->avg('lat'), $precision),
@@ -379,16 +394,34 @@ class EstadisticasSeguridadVialController extends Controller
             ->sortByDesc('total')
             ->values();
 
+        $puntos = $this->zonasConflictivas($zonas);
+
         return [
             'totales' => [
                 'hechos' => $morelia->count(),
+                'zonas' => $zonas->count(),
                 'puntos' => $puntos->count(),
+                'hechos_conflictivos' => $puntos->sum('total'),
                 'fallecidos' => $puntos->sum('fallecidos'),
                 'lesionados' => $puntos->sum('lesionados'),
                 'choques' => $puntos->sum('choques'),
+                'total_fallecidos' => $zonas->sum('fallecidos'),
+                'total_lesionados' => $zonas->sum('lesionados'),
+                'total_choques' => $zonas->sum('choques'),
             ],
             'puntos' => $puntos,
         ];
+    }
+
+    private function zonasConflictivas($zonas, int $limit = 12)
+    {
+        $zonas = collect($zonas)->sortByDesc('total')->values();
+        $minimo = $zonas->contains(fn ($zona) => (int) ($zona['total'] ?? 0) >= 2) ? 2 : 1;
+
+        return $zonas
+            ->filter(fn ($zona) => (int) ($zona['total'] ?? 0) >= $minimo)
+            ->take($limit)
+            ->values();
     }
 
     private function normalizarEtiqueta($valor, string $fallback): string
@@ -400,6 +433,16 @@ class EstadisticasSeguridadVialController extends Controller
         }
 
         return mb_strtoupper($texto, 'UTF-8');
+    }
+
+    private function whereLesionadoNoFallecido($query): void
+    {
+        $query->whereRaw("UPPER(TRIM(COALESCE(tipo_lesion, ''))) <> ?", ['FALLECIDO']);
+    }
+
+    private function whereLesionadoFallecido($query): void
+    {
+        $query->whereRaw("UPPER(TRIM(COALESCE(tipo_lesion, ''))) = ?", ['FALLECIDO']);
     }
 
     private function horaKey($hora): string

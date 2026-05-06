@@ -6,20 +6,21 @@
             <div class="svial-period" id="svialHeatPeriod">
                 {{ $reporte['periodo']['texto'] ?? 'Periodo seleccionado' }}
             </div>
+            <div class="svial-map-scope">Morelia con coordenadas capturadas</div>
         </div>
 
         <div class="svial-map-badges">
             <div class="svial-map-badge svial-map-badge--fatal">
                 <span id="svialHeatFatal">0</span>
-                fallecidos
+                fallecidos en zonas
             </div>
             <div class="svial-map-badge svial-map-badge--injured">
                 <span id="svialHeatInjured">0</span>
-                lesionados
+                lesionados en zonas
             </div>
             <div class="svial-map-badge svial-map-badge--crash">
                 <span id="svialHeatCrashes">0</span>
-                choques
+                sin víctimas en zonas
             </div>
         </div>
     </div>
@@ -46,15 +47,16 @@
 
                 <label class="svial-layer-option svial-layer-option--crash">
                     <input type="checkbox" class="svial-layer-toggle" data-layer="choques" checked>
-                    <span>Choques normales</span>
+                    <span>Choques sin víctimas</span>
                 </label>
             </div>
 
             <label class="svial-heat-field">
                 <span>Precisión</span>
                 <select id="svialHeatPrecision">
-                    <option value="3">Zonas amplias</option>
-                    <option value="4" selected>Colonias / cruces</option>
+                    <option value="2" selected>Zonas conflictivas</option>
+                    <option value="3">Colonias / corredores</option>
+                    <option value="4">Cruces exactos</option>
                     <option value="5">Punto exacto</option>
                 </select>
             </label>
@@ -66,11 +68,11 @@
 
             <div class="svial-heat-metrics">
                 <div>
-                    <span>Puntos</span>
+                    <span>Zonas</span>
                     <strong id="svialHeatPoints">0</strong>
                 </div>
                 <div>
-                    <span>Siniestros</span>
+                    <span>En zonas</span>
                     <strong id="svialHeatTotal">0</strong>
                 </div>
             </div>

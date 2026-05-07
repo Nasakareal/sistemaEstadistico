@@ -42,6 +42,9 @@ class HechoController extends Controller
         $this->applyHechosVisibilityScope($query, $user);
 
         $hechos = $query->orderByDesc('id')->paginate($perPage);
+        $hechos->setCollection(
+            $hechos->getCollection()->transform(fn (Hechos $hecho) => $this->withFotoUrls($hecho))
+        );
 
         return response()->json($hechos);
     }
@@ -317,7 +320,7 @@ class HechoController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
-        $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
+        $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($user);
 
         $reglaFolio = ['nullable', 'string', 'max:20', Rule::unique('hechos', 'folio_c5i')];
 
@@ -366,14 +369,17 @@ class HechoController extends Controller
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'vehiculos_esperados' => $debeCapturarTotalesEsperados ? 'required|integer|min:0' : 'nullable|integer|min:0',
-            'conductores_esperados' => $debeCapturarTotalesEsperados ? 'required|integer|min:0' : 'nullable|integer|min:0',
-            'lesionados_esperados' => $debeCapturarTotalesEsperados ? 'required|integer|min:0' : 'nullable|integer|min:0',
         ];
+
+        if ($puedeGestionarTotalesEsperados) {
+            $rules['vehiculos_esperados'] = 'required|integer|min:0';
+            $rules['conductores_esperados'] = 'required|integer|min:0';
+            $rules['lesionados_esperados'] = 'required|integer|min:0';
+        }
 
         $validator = Validator::make($request->all(), $rules, $this->messages());
 
-        $validator->after(function ($v) use ($request, $usaReglasFlexibles, $puedeUsarDictamenes, $debeCapturarTotalesEsperados) {
+        $validator->after(function ($v) use ($request, $usaReglasFlexibles, $puedeUsarDictamenes, $puedeGestionarTotalesEsperados) {
             $situacion = strtoupper($this->removeAccents((string) $request->input('situacion')));
 
             if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
@@ -395,7 +401,7 @@ class HechoController extends Controller
                 }
             }
 
-            if ($debeCapturarTotalesEsperados) {
+            if ($puedeGestionarTotalesEsperados) {
                 $vehiculosEsperados = (int) $request->input('vehiculos_esperados', 0);
                 $conductoresEsperados = (int) $request->input('conductores_esperados', 0);
 
@@ -458,7 +464,7 @@ class HechoController extends Controller
             }
         }
 
-        if (!$debeCapturarTotalesEsperados) {
+        if (!$puedeGestionarTotalesEsperados) {
             $validated['vehiculos_esperados'] = 0;
             $validated['conductores_esperados'] = 0;
             $validated['lesionados_esperados'] = 0;
@@ -467,8 +473,8 @@ class HechoController extends Controller
         $validated['vehiculos_capturados'] = 0;
         $validated['conductores_capturados'] = 0;
         $validated['lesionados_capturados'] = 0;
-        $validated['captura_completa'] = !$debeCapturarTotalesEsperados;
-        $validated['captura_completa_at'] = !$debeCapturarTotalesEsperados ? now() : null;
+        $validated['captura_completa'] = !$puedeGestionarTotalesEsperados;
+        $validated['captura_completa_at'] = !$puedeGestionarTotalesEsperados ? now() : null;
 
         if (!$puedeUsarDictamenes) {
             $validated['oficio_mp'] = null;
@@ -587,7 +593,7 @@ class HechoController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user, $hecho);
-        $debeCapturarTotalesEsperados = $this->userMustCaptureTotalesEsperados($user);
+        $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($user, $hecho);
 
         $reglaFolio = [
             'sometimes',
@@ -641,16 +647,19 @@ class HechoController extends Controller
             'place_id' => 'sometimes|nullable|string|max:128',
             'foto_lugar' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'vehiculos_esperados' => $debeCapturarTotalesEsperados ? 'sometimes|required|integer|min:0' : 'sometimes|nullable|integer|min:0',
-            'conductores_esperados' => $debeCapturarTotalesEsperados ? 'sometimes|required|integer|min:0' : 'sometimes|nullable|integer|min:0',
-            'lesionados_esperados' => $debeCapturarTotalesEsperados ? 'sometimes|required|integer|min:0' : 'sometimes|nullable|integer|min:0',
         ];
+
+        if ($puedeGestionarTotalesEsperados) {
+            $rules['vehiculos_esperados'] = 'sometimes|required|integer|min:0';
+            $rules['conductores_esperados'] = 'sometimes|required|integer|min:0';
+            $rules['lesionados_esperados'] = 'sometimes|required|integer|min:0';
+        }
 
         $messages = $this->messages();
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles, $puedeUsarDictamenes, $debeCapturarTotalesEsperados) {
+        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles, $puedeUsarDictamenes, $puedeGestionarTotalesEsperados) {
             $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string) $request->input('situacion')))
                 : null;
@@ -693,7 +702,7 @@ class HechoController extends Controller
                 }
             }
 
-            if ($debeCapturarTotalesEsperados) {
+            if ($puedeGestionarTotalesEsperados) {
                 $vehiculosEsperados = $request->has('vehiculos_esperados') ? (int) $request->input('vehiculos_esperados') : (int) $hecho->vehiculos_esperados;
                 $conductoresEsperados = $request->has('conductores_esperados') ? (int) $request->input('conductores_esperados') : (int) $hecho->conductores_esperados;
 
@@ -715,6 +724,14 @@ class HechoController extends Controller
 
         if (array_key_exists('folio_c5i', $validated) && empty($validated['folio_c5i'])) {
             $validated['folio_c5i'] = null;
+        }
+
+        if (!$puedeGestionarTotalesEsperados) {
+            unset(
+                $validated['vehiculos_esperados'],
+                $validated['conductores_esperados'],
+                $validated['lesionados_esperados']
+            );
         }
 
         if ($usaReglasFlexibles && array_key_exists('sector', $validated) && empty($validated['sector'])) {
@@ -1106,6 +1123,16 @@ class HechoController extends Controller
             ? $this->publicStoragePath($hecho->dictamen->archivo_dictamen)
             : null;
         $data['puede_editar'] = HechoAccess::canEdit(request()->user(), $hecho);
+        $data['puede_gestionar_totales_esperados'] = HechoAccess::canManageTotalesEsperados(request()->user(), $hecho);
+
+        if (!$data['puede_gestionar_totales_esperados']) {
+            unset(
+                $data['vehiculos_esperados'],
+                $data['conductores_esperados'],
+                $data['lesionados_esperados'],
+                $data['faltantes_captura']
+            );
+        }
 
         return $data;
     }
@@ -1550,12 +1577,4 @@ class HechoController extends Controller
         return (int) ($user->unidad_id ?? 0) === 2;
     }
 
-    private function userMustCaptureTotalesEsperados($user): bool
-    {
-        if (!$user) {
-            return false;
-        }
-
-        return (int) ($user->unidad_id ?? 0) === 2;
-    }
 }

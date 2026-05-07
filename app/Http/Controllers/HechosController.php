@@ -17,6 +17,7 @@ use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\WhatsApp\C5IReport;
 use App\Services\WhatsApp\NearestUnit;
 use App\Support\HechoLocationGuard;
+use App\Support\HechoAccess;
 
 class HechosController extends Controller
 {
@@ -85,7 +86,9 @@ class HechosController extends Controller
 
     public function create()
     {
-        $puedeUsarDictamenes = $this->userCanUseDictamenes(auth()->user());
+        $usuario = auth()->user();
+        $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario);
+        $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario);
 
         $dictamenesDisponibles = $puedeUsarDictamenes
             ? Dictamen::query()
@@ -95,7 +98,7 @@ class HechosController extends Controller
                 ->get()
             : collect();
 
-        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes'));
+        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados'));
     }
 
     public function store(Request $request)
@@ -109,6 +112,7 @@ class HechosController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario);
+        $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario);
 
         $reglaFolio = 'nullable|string|max:20|unique:hechos,folio_c5i';
 
@@ -157,7 +161,7 @@ class HechosController extends Controller
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
-        if ((int) ($usuario->unidad_id ?? 0) === 2) {
+        if ($puedeGestionarTotalesEsperados) {
             $rules['vehiculos_esperados'] = 'required|integer|min:0';
             $rules['conductores_esperados'] = 'required|integer|min:0';
             $rules['lesionados_esperados'] = 'required|integer|min:0';
@@ -169,6 +173,21 @@ class HechosController extends Controller
 
         if (empty($validated['folio_c5i'])) {
             $validated['folio_c5i'] = null;
+        }
+
+        if ($puedeGestionarTotalesEsperados) {
+            $vehiculosEsperados = (int) ($validated['vehiculos_esperados'] ?? 0);
+            $conductoresEsperados = (int) ($validated['conductores_esperados'] ?? 0);
+
+            if ($conductoresEsperados > $vehiculosEsperados) {
+                return back()
+                    ->withErrors(['conductores_esperados' => 'Los conductores no pueden ser mayores que los vehículos.'])
+                    ->withInput();
+            }
+        } else {
+            $validated['vehiculos_esperados'] = 0;
+            $validated['conductores_esperados'] = 0;
+            $validated['lesionados_esperados'] = 0;
         }
 
         if ($usaReglasFlexibles && empty($validated['sector'])) {
@@ -357,7 +376,9 @@ class HechosController extends Controller
             $dictamenLabel = $dictamenActual->numero_dictamen . '/' . $dictamenActual->anio . ' ' . $dictamenActual->nombre_mp;
         }
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes'));
+        $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
+
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -386,6 +407,7 @@ class HechosController extends Controller
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
+        $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
 
         $reglaFolio = [
             'nullable',
@@ -439,7 +461,7 @@ class HechosController extends Controller
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
-        if ((int) ($usuario->unidad_id ?? 0) === 2) {
+        if ($puedeGestionarTotalesEsperados) {
             $rules['vehiculos_esperados'] = 'required|integer|min:0';
             $rules['conductores_esperados'] = 'required|integer|min:0';
             $rules['lesionados_esperados'] = 'required|integer|min:0';
@@ -448,6 +470,23 @@ class HechosController extends Controller
         $request->validate($this->officeLocationRules());
 
         $validated = $request->validate($rules);
+
+        if ($puedeGestionarTotalesEsperados) {
+            $vehiculosEsperados = (int) ($validated['vehiculos_esperados'] ?? 0);
+            $conductoresEsperados = (int) ($validated['conductores_esperados'] ?? 0);
+
+            if ($conductoresEsperados > $vehiculosEsperados) {
+                return back()
+                    ->withErrors(['conductores_esperados' => 'Los conductores no pueden ser mayores que los vehículos.'])
+                    ->withInput();
+            }
+        } else {
+            unset(
+                $validated['vehiculos_esperados'],
+                $validated['conductores_esperados'],
+                $validated['lesionados_esperados']
+            );
+        }
 
         if (empty($validated['folio_c5i'])) {
             $validated['folio_c5i'] = null;

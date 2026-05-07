@@ -290,6 +290,27 @@ class HechoAccess
         return (int) $usuario->id === (int) ($hecho->created_by ?? 0);
     }
 
+    public static function canManageTotalesEsperados($usuario, ?Hechos $hecho = null): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        if ($usuario->hasRole('Superadmin')) {
+            return true;
+        }
+
+        if (!$usuario->hasRole('Administrador') && !$usuario->hasRole('Subdirector')) {
+            return false;
+        }
+
+        $unidadId = $hecho
+            ? (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0))
+            : (int) ($usuario->unidad_id ?? 0);
+
+        return $unidadId === self::UNIDAD_DELEGACIONES_ID;
+    }
+
     private static function puedeVerDelegacionesHijas($usuario): bool
     {
         return $usuario->hasRole('Delegado');

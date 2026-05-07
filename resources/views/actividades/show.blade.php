@@ -46,6 +46,8 @@
                     'id' => 'legacy',
                     'foto_path' => $actividad->foto_path,
                     'foto_thumbnail_path' => $actividad->foto_thumbnail_path,
+                    'foto_archivo_zip_path' => $actividad->foto_archivo_zip_path,
+                    'foto_archivada_at' => $actividad->foto_archivada_at,
                     'foto_nombre_original' => $actividad->foto_nombre_original,
                     'foto_hash' => $actividad->foto_hash,
                     'orden' => 0,
@@ -445,7 +447,10 @@
                         <div class="foto-grid">
                             @foreach ($fotosActividad as $foto)
                                 @php
-                                    $fotoPath = ($foto->foto_thumbnail_path ?? null) ?: $foto->foto_path;
+                                    $fotoArchivada = !empty($foto->foto_archivo_zip_path) || !empty($foto->foto_archivada_at);
+                                    $fotoPath = !$fotoArchivada && !empty($foto->foto_path)
+                                        ? $foto->foto_path
+                                        : (($foto->foto_thumbnail_path ?? null) ?: $foto->foto_path);
                                     $fotoUrl = asset('storage/' . ltrim($fotoPath, '/'));
                                     $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
                                 @endphp

@@ -512,6 +512,58 @@
                             </div>
                         </div>
 
+                        @if($puedeGestionarTotalesEsperados ?? false)
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="vehiculos_esperados">Vehículos esperados<span style="color: red">*</span></label>
+                                        <input type="number"
+                                               name="vehiculos_esperados"
+                                               id="vehiculos_esperados"
+                                               class="form-control @error('vehiculos_esperados') is-invalid @enderror"
+                                               value="{{ old('vehiculos_esperados', $hecho->vehiculos_esperados) }}"
+                                               min="0"
+                                               required>
+                                        @error('vehiculos_esperados')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="conductores_esperados">Conductores esperados<span style="color: red">*</span></label>
+                                        <input type="number"
+                                               name="conductores_esperados"
+                                               id="conductores_esperados"
+                                               class="form-control @error('conductores_esperados') is-invalid @enderror"
+                                               value="{{ old('conductores_esperados', $hecho->conductores_esperados) }}"
+                                               min="0"
+                                               required>
+                                        @error('conductores_esperados')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="lesionados_esperados">Lesionados esperados<span style="color: red">*</span></label>
+                                        <input type="number"
+                                               name="lesionados_esperados"
+                                               id="lesionados_esperados"
+                                               class="form-control @error('lesionados_esperados') is-invalid @enderror"
+                                               value="{{ old('lesionados_esperados', $hecho->lesionados_esperados) }}"
+                                               min="0"
+                                               required>
+                                        @error('lesionados_esperados')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">

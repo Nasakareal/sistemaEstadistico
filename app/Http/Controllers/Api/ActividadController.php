@@ -945,16 +945,21 @@ class ActividadController extends Controller
     private function withFotoUrls(Actividad $actividad): array
     {
         $data = $actividad->toArray();
+        $actividadArchivada = !empty($actividad->foto_archivo_zip_path) || !empty($actividad->foto_archivada_at);
+        $fotoDisplayPath = !$actividadArchivada && !empty($actividad->foto_path)
+            ? $actividad->foto_path
+            : ($actividad->foto_thumbnail_path ?: $actividad->foto_path);
 
         $data['foto_thumbnail_url'] = $this->publicStoragePath($actividad->foto_thumbnail_path);
-        $data['foto_url'] = $this->publicStoragePath($actividad->foto_path ?: $actividad->foto_thumbnail_path);
+        $data['foto_url'] = $this->publicStoragePath($fotoDisplayPath);
         $data['foto_preview_url'] = $this->publicStoragePath($actividad->foto_thumbnail_path ?: $actividad->foto_path);
 
         if (!empty($data['fotos']) && is_array($data['fotos'])) {
             $data['fotos'] = array_map(function ($foto) {
                 $thumbnailPath = $foto['foto_thumbnail_path'] ?? null;
                 $fotoPath = $foto['foto_path'] ?? null;
-                $displayPath = !empty($foto['foto_archivada_at'])
+                $fotoArchivada = !empty($foto['foto_archivo_zip_path']) || !empty($foto['foto_archivada_at']);
+                $displayPath = $fotoArchivada
                     ? ($thumbnailPath ?: $fotoPath)
                     : ($fotoPath ?: $thumbnailPath);
 

@@ -77,6 +77,11 @@ class Kernel extends ConsoleKernel
             ->timezone('America/Mexico_City')
             ->withoutOverlapping();
 
+        $schedule->command('whatsapp:actividades-siniestros --regenerar')
+            ->dailyAt('18:05')
+            ->timezone('America/Mexico_City')
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-todas-unidades')
             ->dailyAt('19:00')
             ->timezone('America/Mexico_City')

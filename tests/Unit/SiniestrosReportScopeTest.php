@@ -101,6 +101,29 @@ class SiniestrosReportScopeTest extends TestCase
         $this->assertStringContainsString('WHATSAPP_TODAS_UNIDADES_TEMPLATE', $configSource);
     }
 
+    public function test_whatsapp_actividades_siniestros_envia_pdf_como_documento(): void
+    {
+        $whatsAppSource = $this->source('app/Services/WhatsAppCloudService.php');
+        $commandSource = $this->source('app/Console/Commands/EnviarActividadesSiniestrosWhatsApp.php');
+        $kernelSource = $this->source('app/Console/Kernel.php');
+        $configSource = $this->source('config/services.php');
+
+        $this->assertStringContainsString('sendDocumentFromPath', $whatsAppSource);
+        $this->assertStringContainsString('uploadMedia', $whatsAppSource);
+        $this->assertStringContainsString("'type' => 'document'", $whatsAppSource);
+        $this->assertStringContainsString('/media', $whatsAppSource);
+
+        $this->assertStringContainsString('whatsapp:actividades-siniestros', $commandSource);
+        $this->assertStringContainsString('generarYGuardarEnCortes', $commandSource);
+        $this->assertStringContainsString('uploadMedia', $commandSource);
+        $this->assertStringContainsString('sendDocument', $commandSource);
+        $this->assertStringContainsString('WHATSAPP_SINIESTROS_ACTIVIDADES_TO', $commandSource);
+
+        $this->assertStringContainsString('whatsapp:actividades-siniestros --regenerar', $kernelSource);
+        $this->assertStringContainsString("->dailyAt('18:05')", $kernelSource);
+        $this->assertStringContainsString('WHATSAPP_SINIESTROS_ACTIVIDADES_TO', $configSource);
+    }
+
     private function source(string $path): string
     {
         $fullPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);

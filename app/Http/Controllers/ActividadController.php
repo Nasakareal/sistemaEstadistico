@@ -180,6 +180,8 @@ class ActividadController extends Controller
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
+        $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
+
         $user = Auth::user();
 
         if ($response = $this->validarGruasPermitidasEnVehiculos($validated['vehiculos'] ?? [], $user)) {
@@ -284,13 +286,13 @@ class ActividadController extends Controller
 
             if ($fotoPrincipal) {
                 $actividad->update([
-                    'foto_path'            => $fotoPrincipal->foto_path,
-                    'foto_thumbnail_path'  => null,
-                    'foto_archivo_zip_path'=> null,
-                    'foto_archivada_at'    => null,
-                    'foto_eliminada_at'    => null,
-                    'foto_nombre_original' => $fotoPrincipal->foto_nombre_original,
-                    'foto_hash'            => $fotoPrincipal->foto_hash,
+                    'foto_path'             => $fotoPrincipal->foto_path,
+                    'foto_thumbnail_path'   => null,
+                    'foto_archivo_zip_path' => null,
+                    'foto_archivada_at'     => null,
+                    'foto_eliminada_at'     => null,
+                    'foto_nombre_original'  => $fotoPrincipal->foto_nombre_original,
+                    'foto_hash'             => $fotoPrincipal->foto_hash,
                 ]);
             }
 
@@ -407,6 +409,8 @@ class ActividadController extends Controller
         ], [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
+
+        $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
 
         $validated['nombre'] = mb_strtoupper((string) ($usuario->name ?? ''), 'UTF-8');
         $validated['cantidad'] = 1;

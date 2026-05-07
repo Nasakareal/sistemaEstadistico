@@ -272,6 +272,20 @@ class EstadisticasActividadesController extends Controller
         });
     }
 
+    public function catalogoUnidades(Request $request)
+    {
+        return $this->cachedJson($request, 'catalogoUnidades', function () {
+            $q = DB::table('unidades')
+                ->select('id', 'nombre', 'slug');
+
+            if ($this->hasColumn('unidades', 'activa')) {
+                $q->where('activa', 1);
+            }
+
+            return $q->orderBy('nombre')->get();
+        });
+    }
+
     public function catalogoDestacamentos(Request $request)
     {
         return $this->cachedJson($request, 'catalogoDestacamentos', function () use ($request) {
@@ -582,6 +596,7 @@ class EstadisticasActividadesController extends Controller
         $map = [
             'actividad_categoria_id' => 'actividades.actividad_categoria_id',
             'actividad_subcategoria_id' => 'actividades.actividad_subcategoria_id',
+            'unidad_id' => 'actividades.unidad_org_id',
             'unidad_org_id' => 'actividades.unidad_org_id',
             'delegacion_id' => 'actividades.delegacion_id',
             'destacamento_id' => 'actividades.destacamento_id',

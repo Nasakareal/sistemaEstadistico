@@ -120,10 +120,14 @@ class AuthController extends Controller
         $delegacionMeta = $user->delegacion ? [
             'id' => $user->delegacion->id,
             'nombre' => $user->delegacion->nombre,
+            'lat' => $user->delegacion->lat,
+            'lng' => $user->delegacion->lng,
         ] : null;
         $destacamentoMeta = $user->destacamento ? [
             'id' => $user->destacamento->id,
             'nombre' => $user->destacamento->nombre,
+            'lat' => $user->destacamento->lat,
+            'lng' => $user->destacamento->lng,
         ] : null;
         $turnoMeta = $user->turno ? [
             'id' => $user->turno->id,

@@ -313,6 +313,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/actividades', [EstadisticasActividadesController::class, 'actividades'])->name('api.estadisticas_actividades.actividades');
         Route::get('/catalogos/categorias', [EstadisticasActividadesController::class, 'catalogoCategorias'])->name('api.estadisticas_actividades.catalogos.categorias');
         Route::get('/catalogos/subcategorias', [EstadisticasActividadesController::class, 'catalogoSubcategorias'])->name('api.estadisticas_actividades.catalogos.subcategorias');
+        Route::get('/catalogos/unidades', [EstadisticasActividadesController::class, 'catalogoUnidades'])->name('api.estadisticas_actividades.catalogos.unidades');
         Route::get('/catalogos/delegaciones', [EstadisticasActividadesController::class, 'catalogoDelegaciones'])->name('api.estadisticas_actividades.catalogos.delegaciones');
         Route::get('/catalogos/destacamentos', [EstadisticasActividadesController::class, 'catalogoDestacamentos'])->name('api.estadisticas_actividades.catalogos.destacamentos');
         Route::get('/export/actividades', [EstadisticasActividadesController::class, 'exportActividades'])->name('api.estadisticas_actividades.export.actividades');

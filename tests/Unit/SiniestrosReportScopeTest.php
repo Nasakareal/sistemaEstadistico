@@ -92,6 +92,9 @@ class SiniestrosReportScopeTest extends TestCase
 
         $this->assertStringContainsString('setTime(19, 0, 0)', $serviceSource);
         $this->assertStringNotContainsString('UNIDAD_SINIESTROS_ID', $serviceSource);
+        $this->assertStringNotContainsString('DESPLIEGUE', $serviceSource);
+        $this->assertStringNotContainsString('personals', $serviceSource);
+        $this->assertStringContainsString('template_params', $commandSource);
         $this->assertStringContainsString('whatsapp:resumen-todas-unidades', $commandSource);
         $this->assertStringContainsString("->dailyAt('19:00')", $kernelSource);
         $this->assertStringContainsString('WHATSAPP_TODAS_UNIDADES_TO', $configSource);

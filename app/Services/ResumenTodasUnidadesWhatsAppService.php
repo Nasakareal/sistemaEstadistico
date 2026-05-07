@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Personal;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -11,13 +10,6 @@ use Illuminate\Support\Str;
 class ResumenTodasUnidadesWhatsAppService
 {
     private const TZ = 'America/Mexico_City';
-
-    protected EstadoFuerzaService $estadoFuerzaService;
-
-    public function __construct(EstadoFuerzaService $estadoFuerzaService)
-    {
-        $this->estadoFuerzaService = $estadoFuerzaService;
-    }
 
     public function generar(?Carbon $corte = null): array
     {
@@ -29,6 +21,7 @@ class ResumenTodasUnidadesWhatsAppService
             'fin' => $fin,
             'totales' => $totales,
             'mensaje' => $this->mensaje($fin, $totales),
+            'template_params' => $this->templateParams($fin, $totales),
         ];
     }
 
@@ -51,7 +44,6 @@ class ResumenTodasUnidadesWhatsAppService
         $operativos = $this->operativos($inicio, $fin);
 
         return [
-            'despliegue_guardias' => $this->guardiasEnServicio($fin->copy()->subSecond()),
             'vehiculos_mp' => $this->vehiculosMp($inicio, $fin),
             'siniestros' => $siniestros,
             'corralon_vehiculos' => $corralon['vehiculos'],
@@ -104,116 +96,137 @@ class ResumenTodasUnidadesWhatsAppService
 
     protected function mensaje(Carbon $fin, array $t): string
     {
-        $fechaTexto = mb_strtoupper($fin->copy()->locale('es')->translatedFormat('d \\d\\e F \\d\\e Y'), 'UTF-8');
-        $s = $t['siniestros'];
+        $params = $this->templateParams($fin, $t);
 
         $lineas = [];
-        $lineas[] = $fechaTexto . '.';
+        $lineas[] = $params[0] . '.';
         $lineas[] = '';
         $lineas[] = 'COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL';
         $lineas[] = '';
-        $lineas[] = 'DESPLIEGUE:';
-        $lineas[] = '(' . $this->pad($t['despliegue_guardias']) . ') Guardias Civiles en esta Ciudad Capital y los 47 Municipios.';
-        $lineas[] = '';
         $lineas[] = 'ASEGURAMIENTOS PUESTOS A DISPOSICIÓN DE LA FISCALÍA GENERAL DEL ESTADO:';
-        $lineas[] = '(' . $this->pad($t['vehiculos_mp']) . ') ' . $this->plural($t['vehiculos_mp'], 'vehículo', 'vehículos') . ' por siniestro de tránsito.';
+        $lineas[] = $params[1];
         $lineas[] = '';
         $lineas[] = 'SINIESTROS DE TRÁNSITO:';
-        $lineas[] = '(' . $this->pad($s['total']) . ') en total; '
-            . '(' . $this->pad($s['resueltos']) . ') ' . $this->plural($s['resueltos'], 'siniestro resuelto', 'siniestros resueltos') . ', '
-            . '(' . $this->pad($s['pendientes']) . ') ' . $this->plural($s['pendientes'], 'siniestro pendiente', 'siniestros pendientes') . ', '
-            . '(' . $this->pad($s['turnados']) . ') ' . $this->plural($s['turnados'], 'siniestro turnado', 'siniestros turnados') . '; '
-            . '(' . $this->pad($s['lesionados']) . ') ' . $this->plural($s['lesionados'], 'persona lesionada', 'personas lesionadas') . ', '
-            . '(' . $this->pad($t['corralon_vehiculos']) . ') ' . $this->plural($t['corralon_vehiculos'], 'vehículo', 'vehículos') . ' y '
-            . '(' . $this->pad($t['corralon_motocicletas']) . ') ' . $this->plural($t['corralon_motocicletas'], 'motocicleta', 'motocicletas') . ' al corralón.';
+        $lineas[] = $params[2];
         $lineas[] = '';
         $lineas[] = 'APOYO A INSTITUCIONES:';
-        $lineas[] = $this->formatItems([
-            [$t['apoyo_evento_deportivo'], 'apoyo a evento deportivo', 'apoyos a eventos deportivos'],
-            [$t['apoyo_evento_cultural'], 'apoyo a evento cultural', 'apoyos a eventos culturales'],
-            [$t['apoyo_evento_religioso'], 'apoyo a evento religioso', 'apoyos a eventos religiosos'],
-        ]);
+        $lineas[] = $params[3];
         $lineas[] = '';
         $lineas[] = 'ATENCIÓN DE REPORTES DE C5i:';
-        $lineas[] = $this->formatItems([
-            [$t['c5i_siniestros'], 'siniestro de tránsito', 'siniestros de tránsito'],
-            [$t['c5i_concentracion_personas'], 'concentración de personas', 'concentraciones de personas'],
-        ]);
+        $lineas[] = $params[4];
         $lineas[] = '';
         $lineas[] = 'ABANDERAMIENTOS VIALES:';
-        $lineas[] = $this->formatItems([
-            [$t['abanderamientos_cortes'], 'corte de circulación', 'cortes de circulación'],
-            [$t['abanderamientos_accidentes'], 'accidente', 'accidentes'],
-            [$t['abanderamientos_obras'], 'obra pública', 'obras públicas'],
-        ]);
+        $lineas[] = $params[5];
         $lineas[] = '';
         $lineas[] = 'MONITOREOS:';
-        $lineas[] = $this->formatItems([
-            [$t['monitoreos_vias_ferreas'], 'vía férrea', 'vías férreas'],
-            [$t['monitoreos_perifericos'], 'periférico', 'periféricos'],
-            [$t['monitoreos_avenidas'], 'avenida', 'avenidas'],
-            [$t['monitoreos_tiendas'], 'tienda departamental', 'tiendas departamentales'],
-            [$t['monitoreos_bancos'], 'institución bancaria', 'instituciones bancarias'],
-            [$t['monitoreos_gasolineras'], 'gasolinera', 'gasolineras'],
-            [$t['monitoreos_oficinas'], 'oficina gubernamental', 'oficinas gubernamentales'],
-            [$t['monitoreos_manifestaciones'], 'manifestación', 'manifestaciones'],
-        ]);
+        $lineas[] = $params[6];
         $lineas[] = '';
         $lineas[] = 'AUXILIO VIAL A CONDUCTORES:';
-        $lineas[] = $this->formatItems([
-            [$t['auxilio_fallas_mecanicas'], 'falla mecánica', 'fallas mecánicas'],
-        ]);
+        $lineas[] = $params[7];
         $lineas[] = '';
         $lineas[] = 'DISPOSITIVOS DE SEGURIDAD VIAL:';
-        $lineas[] = $this->formatItems([
-            [$t['dsv_apoyos_vialidad'], 'apoyo a la vialidad', 'apoyos a la vialidad'],
-            [$t['dsv_zonas_transeuntes'], 'zona de mayor pase de transeúntes', 'zonas de mayor pase de transeúntes'],
-            [$t['dsv_pasos_peatonales'], 'paso y/o cruce peatonal', 'pasos y/o cruces peatonales'],
-            [$t['dsv_patrullajes'], 'patrullaje', 'patrullajes'],
-        ]);
+        $lineas[] = $params[8];
         $lineas[] = '';
         $lineas[] = 'ACCIONES DE CONCIENTIZACIÓN VIAL:';
-        $lineas[] = $this->formatItems([
-            [$t['concientizacion_campanas'], 'campaña de educación en seguridad vial', 'campañas de educación en seguridad vial'],
-            [$t['concientizacion_personas'], 'persona sensibilizada', 'personas sensibilizadas'],
-        ]);
+        $lineas[] = $params[9];
         $lineas[] = '';
         $lineas[] = 'CAMPAÑAS:';
-        $lineas[] = $this->formatItems([
-            [$t['campanas_concientizacion'], 'concientización y prevención', 'concientización y prevención'],
-            [$t['campanas_tripticos'], 'repartición de trípticos', 'repartición de trípticos'],
-            [$t['campanas_recomendaciones'], 'recomendación a persona en siniestro de tránsito', 'recomendaciones a personas en siniestros de tránsito'],
-            [$t['campanas_personas'], 'persona sensibilizada', 'personas sensibilizadas'],
-        ]);
+        $lineas[] = $params[10];
         $lineas[] = '';
         $lineas[] = 'PROXIMIDAD SOCIAL:';
-        $lineas[] = $this->formatItems([
-            [$t['proximidad_recorridos'], 'recorrido de proximidad', 'recorridos de proximidad'],
-            [$t['proximidad_adulto_mayor'], 'apoyo a adulto mayor', 'apoyos a adultos mayores'],
-        ]);
+        $lineas[] = $params[11];
         $lineas[] = '';
         $lineas[] = 'SEGUNDO APARTADO DE TABLA G1';
         $lineas[] = 'OPERATIVOS:';
+        $lineas[] = $params[12];
+        $lineas[] = '';
+        $lineas[] = 'INSPECCIONES:';
+        $lineas[] = $params[13];
 
-        if (empty($t['operativos'])) {
-            $lineas[] = '(00) sin operativos.';
-        } else {
+        return implode("\n", $lineas);
+    }
+
+    protected function templateParams(Carbon $fin, array $t): array
+    {
+        $s = $t['siniestros'];
+        $operativos = '(00) sin operativos.';
+
+        if (!empty($t['operativos'])) {
+            $lineasOperativos = [];
+
             foreach ($t['operativos'] as $operativo) {
-                $lineas[] = '(' . $this->pad($operativo['cantidad']) . ') ' . $operativo['nombre']
+                $lineasOperativos[] = '(' . $this->pad($operativo['cantidad']) . ') ' . $operativo['nombre']
                     . ', (' . $this->pad($operativo['guardias']) . ') Guardias Civiles y ('
                     . $this->pad($operativo['crp']) . ') CRP.';
             }
+
+            $operativos = implode("\n", $lineasOperativos);
         }
 
-        $lineas[] = '';
-        $lineas[] = 'INSPECCIONES:';
-        $lineas[] = $this->formatItems([
-            [$t['inspecciones_personas'], 'a persona', 'a personas'],
-            [$t['inspecciones_vehiculos'], 'de vehículo', 'de vehículos'],
-            [$t['inspecciones_motocicletas'], 'de motocicleta', 'de motocicletas'],
-        ]);
-
-        return implode("\n", $lineas);
+        return [
+            mb_strtoupper($fin->copy()->locale('es')->translatedFormat('d \\d\\e F \\d\\e Y'), 'UTF-8'),
+            '(' . $this->pad($t['vehiculos_mp']) . ') ' . $this->plural($t['vehiculos_mp'], 'vehículo', 'vehículos') . ' por siniestro de tránsito.',
+            '(' . $this->pad($s['total']) . ') en total; '
+                . '(' . $this->pad($s['resueltos']) . ') ' . $this->plural($s['resueltos'], 'siniestro resuelto', 'siniestros resueltos') . ', '
+                . '(' . $this->pad($s['pendientes']) . ') ' . $this->plural($s['pendientes'], 'siniestro pendiente', 'siniestros pendientes') . ', '
+                . '(' . $this->pad($s['turnados']) . ') ' . $this->plural($s['turnados'], 'siniestro turnado', 'siniestros turnados') . '; '
+                . '(' . $this->pad($s['lesionados']) . ') ' . $this->plural($s['lesionados'], 'persona lesionada', 'personas lesionadas') . ', '
+                . '(' . $this->pad($t['corralon_vehiculos']) . ') ' . $this->plural($t['corralon_vehiculos'], 'vehículo', 'vehículos') . ' y '
+                . '(' . $this->pad($t['corralon_motocicletas']) . ') ' . $this->plural($t['corralon_motocicletas'], 'motocicleta', 'motocicletas') . ' al corralón.',
+            $this->formatItems([
+                [$t['apoyo_evento_deportivo'], 'apoyo a evento deportivo', 'apoyos a eventos deportivos'],
+                [$t['apoyo_evento_cultural'], 'apoyo a evento cultural', 'apoyos a eventos culturales'],
+                [$t['apoyo_evento_religioso'], 'apoyo a evento religioso', 'apoyos a eventos religiosos'],
+            ]),
+            $this->formatItems([
+                [$t['c5i_siniestros'], 'siniestro de tránsito', 'siniestros de tránsito'],
+                [$t['c5i_concentracion_personas'], 'concentración de personas', 'concentraciones de personas'],
+            ]),
+            $this->formatItems([
+                [$t['abanderamientos_cortes'], 'corte de circulación', 'cortes de circulación'],
+                [$t['abanderamientos_accidentes'], 'accidente', 'accidentes'],
+                [$t['abanderamientos_obras'], 'obra pública', 'obras públicas'],
+            ]),
+            $this->formatItems([
+                [$t['monitoreos_vias_ferreas'], 'vía férrea', 'vías férreas'],
+                [$t['monitoreos_perifericos'], 'periférico', 'periféricos'],
+                [$t['monitoreos_avenidas'], 'avenida', 'avenidas'],
+                [$t['monitoreos_tiendas'], 'tienda departamental', 'tiendas departamentales'],
+                [$t['monitoreos_bancos'], 'institución bancaria', 'instituciones bancarias'],
+                [$t['monitoreos_gasolineras'], 'gasolinera', 'gasolineras'],
+                [$t['monitoreos_oficinas'], 'oficina gubernamental', 'oficinas gubernamentales'],
+                [$t['monitoreos_manifestaciones'], 'manifestación', 'manifestaciones'],
+            ]),
+            $this->formatItems([
+                [$t['auxilio_fallas_mecanicas'], 'falla mecánica', 'fallas mecánicas'],
+            ]),
+            $this->formatItems([
+                [$t['dsv_apoyos_vialidad'], 'apoyo a la vialidad', 'apoyos a la vialidad'],
+                [$t['dsv_zonas_transeuntes'], 'zona de mayor pase de transeúntes', 'zonas de mayor pase de transeúntes'],
+                [$t['dsv_pasos_peatonales'], 'paso y/o cruce peatonal', 'pasos y/o cruces peatonales'],
+                [$t['dsv_patrullajes'], 'patrullaje', 'patrullajes'],
+            ]),
+            $this->formatItems([
+                [$t['concientizacion_campanas'], 'campaña de educación en seguridad vial', 'campañas de educación en seguridad vial'],
+                [$t['concientizacion_personas'], 'persona sensibilizada', 'personas sensibilizadas'],
+            ]),
+            $this->formatItems([
+                [$t['campanas_concientizacion'], 'concientización y prevención', 'concientización y prevención'],
+                [$t['campanas_tripticos'], 'repartición de trípticos', 'repartición de trípticos'],
+                [$t['campanas_recomendaciones'], 'recomendación a persona en siniestro de tránsito', 'recomendaciones a personas en siniestros de tránsito'],
+                [$t['campanas_personas'], 'persona sensibilizada', 'personas sensibilizadas'],
+            ]),
+            $this->formatItems([
+                [$t['proximidad_recorridos'], 'recorrido de proximidad', 'recorridos de proximidad'],
+                [$t['proximidad_adulto_mayor'], 'apoyo a adulto mayor', 'apoyos a adultos mayores'],
+            ]),
+            $operativos,
+            $this->formatItems([
+                [$t['inspecciones_personas'], 'a persona', 'a personas'],
+                [$t['inspecciones_vehiculos'], 'de vehículo', 'de vehículos'],
+                [$t['inspecciones_motocicletas'], 'de motocicleta', 'de motocicletas'],
+            ]),
+        ];
     }
 
     protected function actividadCount(string $categoria, string $subcategoria, Carbon $inicio, Carbon $fin): int
@@ -369,27 +382,6 @@ class ResumenTodasUnidadesWhatsAppService
         }
 
         return $out;
-    }
-
-    protected function guardiasEnServicio(Carbon $momento): int
-    {
-        if (!$this->tablaExiste('personals')) {
-            return 0;
-        }
-
-        $personales = Personal::with(['turno', 'incidencias.tipo'])
-            ->where('estatus', 'ACTIVO')
-            ->get();
-
-        $total = 0;
-
-        foreach ($personales as $personal) {
-            if ($this->estadoFuerzaService->estado($personal, $momento) === 'EN_SERVICIO') {
-                $total++;
-            }
-        }
-
-        return $total;
     }
 
     protected function operativos(Carbon $inicio, Carbon $fin): array

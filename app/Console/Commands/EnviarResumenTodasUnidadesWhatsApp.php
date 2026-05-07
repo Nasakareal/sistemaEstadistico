@@ -22,6 +22,7 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
 
         $resumen = $resumenService->generar($corte);
         $mensaje = (string) $resumen['mensaje'];
+        $templateParams = $resumen['template_params'] ?? [$mensaje];
 
         if ($this->option('dry-run')) {
             $this->line('--- RANGO ---');
@@ -54,7 +55,7 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
                 if ($this->option('sin-template') || $template === '') {
                     $response = $whatsApp->sendText($recipient, $mensaje);
                 } else {
-                    $response = $whatsApp->sendTemplate($recipient, $template, [$mensaje]);
+                    $response = $whatsApp->sendTemplate($recipient, $template, $templateParams);
                 }
 
                 Log::info('Respuesta WhatsApp resumen todas unidades', $response);

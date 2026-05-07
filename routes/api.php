@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\CulturaVialController;
 use App\Http\Controllers\Api\ChoquesDiariosController;
 use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoController;
 use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiarioController;
+use App\Http\Controllers\Api\UserController as ApiUserController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -132,6 +133,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/password', [AuthController::class, 'changePassword']);
     Route::get('/permissions', [AuthController::class, 'permissions']);
     Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
+
+    Route::prefix('settings/users')->middleware('role:Superadmin')->group(function () {
+        Route::get('/meta', [ApiUserController::class, 'meta'])->name('api.settings.users.meta');
+        Route::get('/', [ApiUserController::class, 'index'])->name('api.settings.users.index');
+        Route::post('/', [ApiUserController::class, 'store'])->name('api.settings.users.store');
+        Route::get('/{user}', [ApiUserController::class, 'show'])->whereNumber('user')->name('api.settings.users.show');
+        Route::put('/{user}', [ApiUserController::class, 'update'])->whereNumber('user')->name('api.settings.users.update');
+    });
 
     Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {
         Route::get('/salas', [CulturaVialController::class, 'index'])->name('api.cultura_vial.salas.index');

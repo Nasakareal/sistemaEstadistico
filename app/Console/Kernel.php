@@ -77,6 +77,11 @@ class Kernel extends ConsoleKernel
             ->timezone('America/Mexico_City')
             ->withoutOverlapping();
 
+        $schedule->command('whatsapp:resumen-todas-unidades')
+            ->dailyAt('19:00')
+            ->timezone('America/Mexico_City')
+            ->withoutOverlapping();
+
         $schedule->command('delegaciones:generar-excel-mensual')
             ->timezone('America/Mexico_City')
             ->monthlyOn(1, '00:10')

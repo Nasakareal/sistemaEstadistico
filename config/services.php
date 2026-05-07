@@ -47,6 +47,11 @@ return [
             'tarjeta_hechos_template' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TEMPLATE'),
         ],
 
+        'todas_unidades' => [
+            'to' => env('WHATSAPP_TODAS_UNIDADES_TO'),
+            'template' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE', 'reporte_todas_unidades_diario'),
+        ],
+
         'delegaciones' => [
             'alertas_to' => env('WHATSAPP_DELEGACIONES_ALERTAS_TO'),
             'incompletos_template' => env('WHATSAPP_DELEGACIONES_INCOMPLETOS_TEMPLATE', 'alerta_hecho_incompleto_delegaciones'),

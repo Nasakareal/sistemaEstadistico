@@ -83,6 +83,21 @@ class SiniestrosReportScopeTest extends TestCase
         }
     }
 
+    public function test_resumen_whatsapp_todas_unidades_usa_corte_de_1900_y_no_filtra_por_unidad(): void
+    {
+        $serviceSource = $this->source('app/Services/ResumenTodasUnidadesWhatsAppService.php');
+        $commandSource = $this->source('app/Console/Commands/EnviarResumenTodasUnidadesWhatsApp.php');
+        $kernelSource = $this->source('app/Console/Kernel.php');
+        $configSource = $this->source('config/services.php');
+
+        $this->assertStringContainsString('setTime(19, 0, 0)', $serviceSource);
+        $this->assertStringNotContainsString('UNIDAD_SINIESTROS_ID', $serviceSource);
+        $this->assertStringContainsString('whatsapp:resumen-todas-unidades', $commandSource);
+        $this->assertStringContainsString("->dailyAt('19:00')", $kernelSource);
+        $this->assertStringContainsString('WHATSAPP_TODAS_UNIDADES_TO', $configSource);
+        $this->assertStringContainsString('WHATSAPP_TODAS_UNIDADES_TEMPLATE', $configSource);
+    }
+
     private function source(string $path): string
     {
         $fullPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);

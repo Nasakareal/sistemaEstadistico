@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Models\Actividad;
 use App\Models\ActividadCategoria;
+use App\Models\ActividadFoto;
 use App\Models\ActividadSubcategoria;
 use App\Models\Delegacion;
 use App\Models\Grua;
@@ -503,6 +504,10 @@ class ActividadController extends Controller
             'patrullas_participantes_texto' => 'nullable|string',
             'destacamento_id' => 'nullable|integer',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'fotos' => 'nullable|array|min:1',
+            'fotos.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'eliminar_fotos' => 'nullable|array',
+            'eliminar_fotos.*' => 'integer',
         ], [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
@@ -546,83 +551,96 @@ class ActividadController extends Controller
         $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
 
         return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes) {
-            $fotoPath = $actividad->foto_path;
-            $fotoThumbnailPath = $actividad->foto_thumbnail_path;
-            $fotoArchivoZipPath = $actividad->foto_archivo_zip_path;
-            $fotoArchivadaAt = $actividad->foto_archivada_at;
-            $fotoEliminadaAt = $actividad->foto_eliminada_at;
-            $fotoNombreOriginal = $actividad->foto_nombre_original;
-            $fotoHash = $actividad->foto_hash;
+            $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->filter(function ($id) {
+                    return $id > 0;
+                })
+                ->unique()
+                ->values()
+                ->all();
+
+            $archivos = collect();
 
             if ($request->hasFile('foto')) {
-                $file = $request->file('foto');
-                $nuevoHash = hash_file('sha256', $file->getRealPath());
+                $archivos->push($request->file('foto'));
+            }
 
-                $yaExiste = Actividad::query()
-                    ->where('foto_hash', $nuevoHash)
-                    ->where('id', '!=', $actividad->id)
-                    ->exists();
+            if ($request->hasFile('fotos')) {
+                foreach ((array) $request->file('fotos', []) as $file) {
+                    if ($file) {
+                        $archivos->push($file);
+                    }
+                }
+            }
 
-                if ($yaExiste) {
+            $fotosVisiblesActuales = $actividad->fotos()
+                ->when(!empty($fotoIdsEliminar), function ($query) use ($fotoIdsEliminar) {
+                    $query->whereNotIn('id', $fotoIdsEliminar);
+                })
+                ->count();
+
+            $tieneFotoLegacy = $actividad->fotosTodas()->count() === 0
+                && !empty($actividad->foto_path)
+                && empty($actividad->foto_eliminada_at);
+
+            if (($fotosVisiblesActuales + ($tieneFotoLegacy ? 1 : 0) + $archivos->count()) < 1) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'La actividad debe conservar al menos una foto.',
+                    'errors' => [
+                        'fotos' => ['La actividad debe conservar al menos una foto.'],
+                    ],
+                ], 422);
+            }
+
+            $hashes = [];
+            foreach ($archivos as $file) {
+                $hash = hash_file('sha256', $file->getRealPath());
+
+                if (in_array($hash, $hashes, true)) {
                     return response()->json([
                         'ok' => false,
-                        'message' => 'Esta foto ya fue subida anteriormente (mismo contenido).',
+                        'message' => 'Estas intentando subir fotos duplicadas en la misma solicitud.',
                         'errors' => [
-                            'foto' => ['Esta foto ya fue subida anteriormente (mismo contenido).'],
+                            'fotos' => ['Estas intentando subir fotos duplicadas en la misma solicitud.'],
                         ],
                     ], 422);
                 }
 
-                $fotoAnteriorPath = $fotoPath;
-                $fotoAnteriorThumbPath = $fotoThumbnailPath;
+                $hashes[] = $hash;
 
-                $fotoNombreOriginal = $file->getClientOriginalName();
-                $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-                $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
+                $yaExisteEnOtraActividad = Actividad::query()
+                    ->where('foto_hash', $hash)
+                    ->where('id', '!=', $actividad->id)
+                    ->whereNull('foto_eliminada_at')
+                    ->exists()
+                    || ActividadFoto::query()
+                        ->where('foto_hash', $hash)
+                        ->where('actividad_id', '!=', $actividad->id)
+                        ->whereNull('foto_eliminada_at')
+                        ->exists();
 
-                $fotoPath = $file->storeAs('actividades', $filename, 'public');
-                $fotoThumbnailPath = $this->crearThumbnailSeguro(
-                    $fotoPath,
-                    $this->actividadThumbnailDirectory(
-                        (int) ($actividad->unidad_org_id ?? $user->unidad_id ?? 0),
-                        $validated['fecha'] ?? $actividad->fecha ?? now($tz)->toDateString()
-                    ),
-                    'actividad_' . $actividad->id . '_principal'
-                );
-                $fotoHash = $nuevoHash;
+                $yaExisteEnEstaActividad = ActividadFoto::query()
+                    ->where('actividad_id', $actividad->id)
+                    ->where('foto_hash', $hash)
+                    ->whereNull('foto_eliminada_at')
+                    ->when(!empty($fotoIdsEliminar), function ($query) use ($fotoIdsEliminar) {
+                        $query->whereNotIn('id', $fotoIdsEliminar);
+                    })
+                    ->exists();
 
-                if (!empty($fotoAnteriorPath)) {
-                    $fotoRegistro = $actividad->fotosTodas()
-                        ->where('foto_path', $fotoAnteriorPath)
-                        ->orderBy('orden')
-                        ->orderBy('id')
-                        ->first();
-
-                    if ($fotoRegistro) {
-                        $fotoRegistro->update([
-                            'foto_path' => $fotoPath,
-                            'foto_nombre_original' => $fotoNombreOriginal,
-                            'foto_hash' => $fotoHash,
-                            'foto_thumbnail_path' => $fotoThumbnailPath,
-                            'foto_archivo_zip_path' => null,
-                            'foto_archivada_at' => null,
-                            'foto_eliminada_at' => null,
-                            'updated_by' => $user->id,
-                        ]);
-                    }
+                if ($yaExisteEnOtraActividad || $yaExisteEnEstaActividad) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'Una de las fotos ya fue subida anteriormente.',
+                        'errors' => [
+                            'fotos' => ['Una de las fotos ya fue subida anteriormente.'],
+                        ],
+                    ], 422);
                 }
-
-                if (!empty($fotoAnteriorPath) && Storage::disk('public')->exists($fotoAnteriorPath)) {
-                    Storage::disk('public')->delete($fotoAnteriorPath);
-                }
-
-                if (!empty($fotoAnteriorThumbPath) && Storage::disk('public')->exists($fotoAnteriorThumbPath)) {
-                    Storage::disk('public')->delete($fotoAnteriorThumbPath);
-                }
-
-                $fotoArchivoZipPath = null;
-                $fotoArchivadaAt = null;
-                $fotoEliminadaAt = null;
             }
 
             $fechaRespaldo = $actividad->created_at
@@ -638,13 +656,6 @@ class ActividadController extends Controller
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
                 'nombre' => $nombre,
                 'cantidad' => $cantidad,
-                'foto_path' => $fotoPath,
-                'foto_thumbnail_path' => $fotoThumbnailPath,
-                'foto_archivo_zip_path' => $fotoArchivoZipPath,
-                'foto_archivada_at' => $fotoArchivadaAt,
-                'foto_eliminada_at' => $fotoEliminadaAt,
-                'foto_nombre_original' => $fotoNombreOriginal,
-                'foto_hash' => $fotoHash,
                 'updated_by' => $user->id,
                 'fecha' => $validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo,
                 'hora' => $validated['hora'] ?? $actividad->hora ?? $horaRespaldo,
@@ -670,6 +681,62 @@ class ActividadController extends Controller
                 'elementos_participantes_texto' => array_key_exists('elementos_participantes_texto', $validated) ? $validated['elementos_participantes_texto'] : $actividad->elementos_participantes_texto,
                 'patrullas_participantes_texto' => array_key_exists('patrullas_participantes_texto', $validated) ? $validated['patrullas_participantes_texto'] : $actividad->patrullas_participantes_texto,
             ]);
+
+            if (!empty($fotoIdsEliminar)) {
+                $fotosEliminar = $actividad->fotosTodas()
+                    ->whereIn('id', $fotoIdsEliminar)
+                    ->whereNull('foto_eliminada_at')
+                    ->get();
+
+                foreach ($fotosEliminar as $fotoEliminar) {
+                    if (!empty($fotoEliminar->foto_path) && Storage::disk('public')->exists($fotoEliminar->foto_path)) {
+                        Storage::disk('public')->delete($fotoEliminar->foto_path);
+                    }
+
+                    if (!empty($fotoEliminar->foto_thumbnail_path) && Storage::disk('public')->exists($fotoEliminar->foto_thumbnail_path)) {
+                        Storage::disk('public')->delete($fotoEliminar->foto_thumbnail_path);
+                    }
+
+                    $fotoEliminar->update([
+                        'foto_eliminada_at' => now($tz),
+                        'updated_by' => $user->id,
+                    ]);
+                }
+            }
+
+            if ($archivos->isNotEmpty()) {
+                $maxOrden = $actividad->fotosTodas()->max('orden');
+                $ordenBase = $maxOrden === null ? 0 : ((int) $maxOrden + 1);
+                $thumbnailDir = $this->actividadThumbnailDirectory(
+                    (int) ($actividad->unidad_org_id ?? $user->unidad_id ?? 0),
+                    $actividad->fecha ?? now($tz)->toDateString()
+                );
+
+                foreach ($archivos as $index => $file) {
+                    $fotoHash = hash_file('sha256', $file->getRealPath());
+                    $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+                    $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
+                    $fotoPath = $file->storeAs('actividades', $filename, 'public');
+                    $orden = $ordenBase + $index;
+                    $fotoThumbnailPath = $this->crearThumbnailSeguro(
+                        $fotoPath,
+                        $thumbnailDir,
+                        'actividad_' . $actividad->id . '_foto_' . $orden
+                    );
+
+                    $actividad->fotos()->create([
+                        'foto_path' => $fotoPath,
+                        'foto_nombre_original' => $file->getClientOriginalName(),
+                        'foto_hash' => $fotoHash,
+                        'foto_thumbnail_path' => $fotoThumbnailPath,
+                        'orden' => $orden,
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]);
+                }
+            }
+
+            $this->sincronizarFotoPrincipal($actividad);
 
             $alertService = app(DelegacionesWhatsAppAlertService::class);
 
@@ -940,6 +1007,37 @@ class ActividadController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : mb_strtoupper($value, 'UTF-8');
+    }
+
+    private function sincronizarFotoPrincipal(Actividad $actividad): void
+    {
+        $fotoPrincipal = $actividad->fotosTodas()
+            ->whereNull('foto_archivada_at')
+            ->whereNull('foto_eliminada_at')
+            ->orderBy('orden')
+            ->orderBy('id')
+            ->first();
+
+        $fotoArchivada = $fotoPrincipal
+            ? null
+            : $actividad->fotos()
+                ->orderBy('orden')
+                ->orderBy('id')
+                ->first();
+
+        $fotoReferencia = $fotoPrincipal ?: $fotoArchivada;
+
+        $actividad->update([
+            'foto_path' => optional($fotoPrincipal)->foto_path,
+            'foto_thumbnail_path' => optional($fotoReferencia)->foto_thumbnail_path,
+            'foto_archivo_zip_path' => $fotoPrincipal ? null : optional($fotoArchivada)->foto_archivo_zip_path,
+            'foto_archivada_at' => $fotoPrincipal ? null : optional($fotoArchivada)->foto_archivada_at,
+            'foto_eliminada_at' => null,
+            'foto_nombre_original' => optional($fotoReferencia)->foto_nombre_original,
+            'foto_hash' => optional($fotoReferencia)->foto_hash,
+        ]);
+
+        $actividad->refresh();
     }
 
     private function withFotoUrls(Actividad $actividad): array

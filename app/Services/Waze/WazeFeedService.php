@@ -90,9 +90,7 @@ class WazeFeedService
             $payload['subtype'] = $subtype;
         }
 
-        if ($type === 'ROAD_CLOSED') {
-            $payload['endtime'] = $this->resolveEndTime($hecho, $startTime)->format('c');
-        }
+        $payload['endtime'] = $this->resolveEndTime($hecho, $startTime, $type)->format('c');
 
         return $payload;
     }
@@ -120,11 +118,19 @@ class WazeFeedService
 
     protected function resolveFeedType($hecho): string
     {
+        if ($this->shouldPublishAsRoadClosure($hecho)) {
+            return 'ROAD_CLOSED';
+        }
+
         return 'ACCIDENT';
     }
 
     protected function resolveSubtype($hecho, string $type): ?string
     {
+        if ($type === 'ROAD_CLOSED') {
+            return 'ROAD_CLOSED_HAZARD';
+        }
+
         if ($type !== 'ACCIDENT') {
             return null;
         }
@@ -141,6 +147,53 @@ class WazeFeedService
         }
 
         return 'ACCIDENT_MINOR';
+    }
+
+    protected function shouldPublishAsRoadClosure($hecho): bool
+    {
+        if ((bool) config('waze.publish_accidents_as_closures', false)) {
+            return true;
+        }
+
+        $situacion = mb_strtoupper(trim((string) ($hecho->situacion ?? '')), 'UTF-8');
+
+        if ($situacion === 'RESUELTO') {
+            return false;
+        }
+
+        $haystack = mb_strtoupper(implode(' ', array_filter([
+            $hecho->tipo_hecho ?? null,
+            $hecho->calle ?? null,
+            $hecho->entre_calles ?? null,
+            $hecho->causas ?? null,
+            $hecho->danos_patrimoniales ?? null,
+            $hecho->propiedades_afectadas ?? null,
+        ], function ($value) {
+            return trim((string) $value) !== '';
+        })), 'UTF-8');
+
+        if ($haystack === '') {
+            return false;
+        }
+
+        foreach ([
+            'CIERRE',
+            'CERRAD',
+            'BLOQUE',
+            'OBSTRUC',
+            'SIN PASO',
+            'NO HAY PASO',
+            'CORTE A LA CIRCULACION',
+            'CORTE A LA CIRCULACIÓN',
+            'CARRIL CERRADO',
+            'VIALIDAD CERRADA',
+        ] as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function resolveStartTime($hecho): ?Carbon
@@ -251,15 +304,33 @@ class WazeFeedService
         }
     }
 
-    protected function resolveEndTime($hecho, Carbon $startTime): Carbon
+    protected function resolveEndTime($hecho, Carbon $startTime, string $type): Carbon
     {
-        $minutes = (int) config('waze.default_closure_minutes', 30);
+        $minutes = $type === 'ROAD_CLOSED'
+            ? (int) config('waze.default_closure_minutes', 30)
+            : (int) config('waze.default_incident_minutes', 120);
 
         if ($minutes < 5) {
-            $minutes = 30;
+            $minutes = $type === 'ROAD_CLOSED' ? 30 : 120;
         }
 
-        return $startTime->copy()->addMinutes($minutes);
+        $endTime = $startTime->copy()->addMinutes($minutes);
+        $updateBasedEndTime = $this->resolveUpdateTime($hecho, $startTime)
+            ->copy()
+            ->addMinutes($minutes);
+
+        if ($updateBasedEndTime->gt($endTime)) {
+            $endTime = $updateBasedEndTime;
+        }
+
+        $situacion = mb_strtoupper(trim((string) ($hecho->situacion ?? '')), 'UTF-8');
+        $now = Carbon::now('America/Mexico_City');
+
+        if ($situacion !== 'RESUELTO' && $endTime->lte($now)) {
+            $endTime = $now->copy()->addMinutes($minutes);
+        }
+
+        return $endTime;
     }
 
     protected function resolveDirection($hecho, string $type): string
@@ -396,8 +467,12 @@ class WazeFeedService
     {
         $partes = [];
 
-        if (!empty($hecho->tipo_hecho)) {
+        if ($type === 'ROAD_CLOSED') {
+            $partes[] = 'Cierre por hecho vial';
+        } elseif (!empty($hecho->tipo_hecho)) {
             $partes[] = $this->cleanText($hecho->tipo_hecho);
+        } else {
+            $partes[] = 'Hecho vial';
         }
 
         if (!empty($hecho->folio_c5i)) {
@@ -406,7 +481,7 @@ class WazeFeedService
             $partes[] = 'ID ' . $hecho->id;
         }
 
-        return $this->limitText(implode(' | ', $partes), 80);
+        return $this->limitText(implode(' | ', $partes), 40);
     }
 
     protected function cleanText($value, string $default = ''): string
@@ -428,6 +503,6 @@ class WazeFeedService
             return $text;
         }
 
-        return rtrim(mb_substr($text, 0, max(1, $limit - 1), 'UTF-8')) . '…';
+        return rtrim(mb_substr($text, 0, max(1, $limit - 3), 'UTF-8')) . '...';
     }
 }

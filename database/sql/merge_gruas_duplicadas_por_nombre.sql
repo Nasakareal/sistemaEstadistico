@@ -9,6 +9,53 @@
   en tmp_grua_merge_excluir antes de llenar tmp_grua_merge_map.
 */
 
+/* Asegura columnas usadas para separar historico de unidad 1 y unidad 2.
+   Estas sentencias son no-op si las columnas ya existen. */
+SET @sql = IF(
+    (
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'servicios'
+          AND COLUMN_NAME = 'unidad_id'
+    ) = 0,
+    'ALTER TABLE servicios ADD COLUMN unidad_id BIGINT UNSIGNED NULL AFTER grua_id',
+    'SELECT ''servicios.unidad_id ya existe'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+    (
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'servicios'
+          AND COLUMN_NAME = 'delegacion_id'
+    ) = 0,
+    'ALTER TABLE servicios ADD COLUMN delegacion_id BIGINT UNSIGNED NULL AFTER unidad_id',
+    'SELECT ''servicios.delegacion_id ya existe'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+    (
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'servicios'
+          AND INDEX_NAME = 'servicios_unidad_delegacion_idx'
+    ) = 0,
+    'ALTER TABLE servicios ADD INDEX servicios_unidad_delegacion_idx (unidad_id, delegacion_id)',
+    'SELECT ''servicios_unidad_delegacion_idx ya existe'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 /* Vista previa de duplicados */
 SELECT
     UPPER(TRIM(g.nombre)) AS nombre_norm,
@@ -22,11 +69,29 @@ GROUP BY UPPER(TRIM(g.nombre))
 HAVING COUNT(*) > 1
 ORDER BY servicios DESC, gruas DESC, nombre_norm;
 
+CREATE TABLE IF NOT EXISTS grua_merge_backup (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    merged_at DATETIME NOT NULL,
+    duplicate_id BIGINT UNSIGNED NOT NULL,
+    master_id BIGINT UNSIGNED NOT NULL,
+    nombre_norm VARCHAR(255) NOT NULL,
+    duplicate_nombre VARCHAR(255) NULL,
+    duplicate_direccion VARCHAR(255) NULL,
+    duplicate_ubicacion_corralon TEXT NULL,
+    duplicate_telefono VARCHAR(30) NULL,
+    duplicate_email VARCHAR(255) NULL,
+    duplicate_created_at TIMESTAMP NULL,
+    duplicate_updated_at TIMESTAMP NULL,
+    UNIQUE KEY grua_merge_backup_duplicate_id_unique (duplicate_id),
+    KEY grua_merge_backup_master_id_idx (master_id),
+    KEY grua_merge_backup_nombre_norm_idx (nombre_norm)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 START TRANSACTION;
 
 CREATE TEMPORARY TABLE tmp_grua_merge_excluir (
     nombre_norm VARCHAR(255) PRIMARY KEY
-) ENGINE=MEMORY;
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* Ejemplo si quieres excluir un nombre ambiguo:
 INSERT INTO tmp_grua_merge_excluir (nombre_norm) VALUES ('AUTOPISTA');
@@ -37,7 +102,7 @@ CREATE TEMPORARY TABLE tmp_grua_merge_map (
     master_id BIGINT UNSIGNED NOT NULL,
     nombre_norm VARCHAR(255) NOT NULL,
     KEY tmp_grua_merge_master_id_idx (master_id)
-) ENGINE=MEMORY;
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO tmp_grua_merge_map (duplicate_id, master_id, nombre_norm)
 SELECT
@@ -71,6 +136,34 @@ FROM tmp_grua_merge_map m
 JOIN gruas gm ON gm.id = m.master_id
 JOIN gruas gd ON gd.id = m.duplicate_id
 ORDER BY m.nombre_norm, m.master_id, m.duplicate_id;
+
+INSERT IGNORE INTO grua_merge_backup (
+    merged_at,
+    duplicate_id,
+    master_id,
+    nombre_norm,
+    duplicate_nombre,
+    duplicate_direccion,
+    duplicate_ubicacion_corralon,
+    duplicate_telefono,
+    duplicate_email,
+    duplicate_created_at,
+    duplicate_updated_at
+)
+SELECT
+    NOW(),
+    m.duplicate_id,
+    m.master_id,
+    m.nombre_norm,
+    gd.nombre,
+    gd.direccion,
+    gd.ubicacion_corralon,
+    gd.telefono,
+    gd.email,
+    gd.created_at,
+    gd.updated_at
+FROM tmp_grua_merge_map m
+JOIN gruas gd ON gd.id = m.duplicate_id;
 
 /* Completa contexto historico de servicios antes de mover gruas. */
 UPDATE servicios s

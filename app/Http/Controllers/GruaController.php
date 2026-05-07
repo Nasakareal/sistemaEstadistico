@@ -136,29 +136,28 @@ class GruaController extends Controller
             ])->withInput();
         }
 
-        DB::transaction(function () use ($request, $unidades, $delegaciones) {
-            $data = $request->only([
-                'nombre',
-                'direccion',
-                'ubicacion_corralon',
-                'telefono',
-                'email',
-            ]);
+        $existia = DB::transaction(function () use ($request, $unidades, $delegaciones) {
+            $data = $this->normalizarDatosGrua($request);
 
-            $data['nombre'] = strtoupper(trim($data['nombre']));
-            $data['direccion'] = filled($data['direccion'] ?? null) ? strtoupper(trim($data['direccion'])) : null;
-            $data['ubicacion_corralon'] = filled($data['ubicacion_corralon'] ?? null) ? strtoupper(trim($data['ubicacion_corralon'])) : null;
-            $data['telefono'] = filled($data['telefono'] ?? null) ? strtoupper(trim($data['telefono'])) : null;
-            $data['email'] = filled($data['email'] ?? null) ? strtoupper(trim($data['email'])) : null;
+            $grua = $this->buscarGruaPorNombreNormalizado($data['nombre']);
+            $existia = $grua !== null;
 
-            $grua = Grua::create($data);
+            if ($grua) {
+                $this->completarDatosGruaSinPisar($grua, $data);
+            } else {
+                $grua = Grua::create($data);
+            }
 
-            $grua->unidades()->sync($unidades);
-            $grua->delegaciones()->sync($delegaciones);
+            $grua->unidades()->syncWithoutDetaching($unidades);
+            $grua->delegaciones()->syncWithoutDetaching($delegaciones);
+
+            return $existia;
         });
 
         return redirect()->route('gruas.index')
-            ->with('success', 'Grúa registrada correctamente.');
+            ->with('success', $existia
+                ? 'La grúa ya existía; se agregaron las asignaciones seleccionadas.'
+                : 'Grúa registrada correctamente.');
     }
 
     public function show($id)
@@ -248,21 +247,16 @@ class GruaController extends Controller
             ])->withInput();
         }
 
-        DB::transaction(function () use ($request, $grua, $unidades, $delegaciones) {
-            $data = $request->only([
-                'nombre',
-                'direccion',
-                'ubicacion_corralon',
-                'telefono',
-                'email',
-            ]);
+        $data = $this->normalizarDatosGrua($request);
+        $nombreActual = $this->normalizarTextoGrua($grua->nombre);
 
-            $data['nombre'] = strtoupper(trim($data['nombre']));
-            $data['direccion'] = filled($data['direccion'] ?? null) ? strtoupper(trim($data['direccion'])) : null;
-            $data['ubicacion_corralon'] = filled($data['ubicacion_corralon'] ?? null) ? strtoupper(trim($data['ubicacion_corralon'])) : null;
-            $data['telefono'] = filled($data['telefono'] ?? null) ? strtoupper(trim($data['telefono'])) : null;
-            $data['email'] = filled($data['email'] ?? null) ? strtoupper(trim($data['email'])) : null;
+        if ($data['nombre'] !== $nombreActual && $this->buscarGruaPorNombreNormalizado($data['nombre'], (int) $grua->id)) {
+            return back()->withErrors([
+                'nombre' => 'Ya existe una grúa con ese nombre. Edita esa grúa para agregarle unidades o delegaciones.'
+            ])->withInput();
+        }
 
+        DB::transaction(function () use ($grua, $data, $unidades, $delegaciones) {
             $grua->update($data);
 
             $grua->unidades()->sync($unidades);
@@ -328,5 +322,68 @@ class GruaController extends Controller
         }
 
         abort(403);
+    }
+
+    private function normalizarDatosGrua(Request $request): array
+    {
+        $data = $request->only([
+            'nombre',
+            'direccion',
+            'ubicacion_corralon',
+            'telefono',
+            'email',
+        ]);
+
+        return [
+            'nombre' => $this->normalizarTextoGrua($data['nombre'] ?? ''),
+            'direccion' => $this->normalizarTextoGrua($data['direccion'] ?? null),
+            'ubicacion_corralon' => $this->normalizarTextoGrua($data['ubicacion_corralon'] ?? null),
+            'telefono' => $this->normalizarTextoGrua($data['telefono'] ?? null),
+            'email' => $this->normalizarTextoGrua($data['email'] ?? null),
+        ];
+    }
+
+    private function normalizarTextoGrua($value): ?string
+    {
+        $value = is_string($value) ? trim($value) : null;
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return mb_strtoupper($value, 'UTF-8');
+    }
+
+    private function buscarGruaPorNombreNormalizado(?string $nombre, ?int $exceptoId = null): ?Grua
+    {
+        if ($nombre === null || $nombre === '') {
+            return null;
+        }
+
+        return Grua::query()
+            ->whereRaw('UPPER(TRIM(nombre)) = ?', [$nombre])
+            ->when($exceptoId, function ($query) use ($exceptoId) {
+                $query->where('id', '!=', $exceptoId);
+            })
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function completarDatosGruaSinPisar(Grua $grua, array $data): void
+    {
+        $updates = [];
+
+        foreach (['direccion', 'ubicacion_corralon', 'telefono', 'email'] as $field) {
+            $actual = trim((string) ($grua->{$field} ?? ''));
+            $nuevo = $data[$field] ?? null;
+
+            if ($actual === '' && $nuevo !== null && $nuevo !== '') {
+                $updates[$field] = $nuevo;
+            }
+        }
+
+        if (!empty($updates)) {
+            $grua->update($updates);
+        }
     }
 }

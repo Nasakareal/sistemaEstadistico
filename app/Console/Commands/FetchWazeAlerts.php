@@ -284,12 +284,12 @@ class FetchWazeAlerts extends Command
 
     private function wazeNotifyRadiusKm(): float
     {
-        return max(0.1, (float) config('services.waze.notify_radius_km', 5));
+        return max(1, (float) config('services.waze.notify_radius_km', 75));
     }
 
     private function wazeLocationMaxAgeMinutes(): int
     {
-        return max(1, (int) config('services.waze.notify_location_max_age_minutes', 30));
+        return max(1, (int) config('services.waze.notify_location_max_age_minutes', 720));
     }
 
     private function notifyRelevantTokens(WazeAlert $wazeAlert): bool
@@ -327,7 +327,30 @@ class FetchWazeAlerts extends Command
             'maps_url'  => $mapsUrl,
         ];
 
-        $tokens = $this->getNearbyTokens($wazeAlert);
+        $tokensAdmin = $this->getTokensByUserId(1);
+
+        $tokensGeneral = $this->getGeneralTokensExceptUnidad([1, 4], [1]);
+
+        $tokensCarreteras = $this->getTokensByUnidadId(4, [1]);
+
+        $tokensSiniestros = [];
+        if ($isAccident && $this->isInsideMorelia($wazeAlert)) {
+            $tokensSiniestros = $this->getTokensByUnidadId(1, [1]);
+        }
+
+        $tokensNearby = $this->getNearbyTokens($wazeAlert);
+
+        $tokens = collect(array_merge(
+            $tokensAdmin,
+            $tokensGeneral,
+            $tokensCarreteras,
+            $tokensSiniestros,
+            $tokensNearby
+        ))
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
 
         Log::info('Waze notify tokens', [
             'waze_uuid' => $wazeAlert->uuid,
@@ -339,11 +362,16 @@ class FetchWazeAlerts extends Command
             'lng' => $lng,
             'radius_km' => $this->wazeNotifyRadiusKm(),
             'location_max_age_minutes' => $this->wazeLocationMaxAgeMinutes(),
+            'admin_tokens' => count($tokensAdmin),
+            'general_tokens' => count($tokensGeneral),
+            'carreteras_tokens' => count($tokensCarreteras),
+            'siniestros_tokens' => count($tokensSiniestros),
+            'nearby_tokens' => count($tokensNearby),
             'tokens_total' => count($tokens),
         ]);
 
         if (count($tokens) === 0) {
-            Log::warning('Waze notify: no nearby device tokens found for this alert', [
+            Log::warning('Waze notify: no device tokens found for this alert', [
                 'waze_uuid' => $wazeAlert->uuid,
                 'type' => $wazeAlert->type,
                 'subtype' => $wazeAlert->subtype,

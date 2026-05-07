@@ -22,8 +22,8 @@ return [
         'feed_url' => env('WAZE_FEED_URL'),
         'morelia_user_ids' => array_values(array_filter(array_map('intval', explode(',', env('WAZE_MORELIA_USER_IDS', ''))))),
         'morelia_polygon' => [],
-        'notify_radius_km' => (float) env('WAZE_NOTIFY_RADIUS_KM', 5),
-        'notify_location_max_age_minutes' => (int) env('WAZE_NOTIFY_LOCATION_MAX_AGE_MINUTES', 30),
+        'notify_radius_km' => (float) env('WAZE_NOTIFY_RADIUS_KM', 75),
+        'notify_location_max_age_minutes' => (int) env('WAZE_NOTIFY_LOCATION_MAX_AGE_MINUTES', 720),
     ],
 
     'firebase' => [

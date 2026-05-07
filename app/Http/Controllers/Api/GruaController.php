@@ -125,6 +125,7 @@ class GruaController extends Controller
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $this->normalizeIds($request->query('gruas', []));
+        $incluirSinServicios = $this->includeGruasSinServicios($request);
 
         $serviciosSub = DB::table('servicios')
             ->select([
@@ -154,6 +155,9 @@ class GruaController extends Controller
             ->when(!empty($gruasIds), function ($q) use ($gruasIds) {
                 $q->whereIn('gruas.id', $gruasIds);
             })
+            ->when(!$incluirSinServicios, function ($q) {
+                $q->whereNotNull('ss.grua_id');
+            })
             ->orderBy('gruas.nombre')
             ->get();
 
@@ -161,6 +165,7 @@ class GruaController extends Controller
             'meta' => [
                 'from' => $fromDate->toDateString(),
                 'to'   => $toDate->toDateString(),
+                'incluir_sin_servicios' => $incluirSinServicios,
             ],
             'data' => $rows,
         ]);
@@ -171,6 +176,7 @@ class GruaController extends Controller
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $this->normalizeIds($request->query('gruas', []));
+        $incluirSinServicios = $this->includeGruasSinServicios($request);
 
         $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre'])
@@ -256,6 +262,10 @@ class GruaController extends Controller
             $serv = $byGruaId[$id] ?? ['servicios_count' => 0, 'fecha_ultimo_servicio' => null];
             $tipoTop = $topTipoByGruaId[$id]['tipo'] ?? null;
 
+            if (!$incluirSinServicios && (int) $serv['servicios_count'] === 0) {
+                continue;
+            }
+
             $data[] = [
                 'id' => $id,
                 'nombre' => $nombre,
@@ -269,6 +279,7 @@ class GruaController extends Controller
             'meta' => [
                 'from' => $fromDate->toDateString(),
                 'to'   => $toDate->toDateString(),
+                'incluir_sin_servicios' => $incluirSinServicios,
             ],
             'data' => $data,
         ]);
@@ -279,6 +290,7 @@ class GruaController extends Controller
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $this->normalizeIds($request->query('gruas', []));
+        $incluirSinServicios = $this->includeGruasSinServicios($request);
 
         $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre'])
@@ -431,6 +443,10 @@ class GruaController extends Controller
                 'fecha_ultimo_servicio' => null,
             ];
 
+            if (!$incluirSinServicios && (int) $serv['servicios_count'] === 0) {
+                continue;
+            }
+
             $data[] = [
                 'id' => $id,
                 'nombre' => (string) $g->nombre,
@@ -444,6 +460,7 @@ class GruaController extends Controller
             'meta' => [
                 'from' => $fromDate->toDateString(),
                 'to'   => $toDate->toDateString(),
+                'incluir_sin_servicios' => $incluirSinServicios,
             ],
             'data' => $data,
         ]);
@@ -589,6 +606,16 @@ class GruaController extends Controller
     private function requestedUnidadId(Request $request): int
     {
         $unidadId = (int) $request->query('unidad_id', 0);
+        $origen = mb_strtolower(trim((string) $request->query('origen', '')), 'UTF-8');
+
+        if ($unidadId <= 0) {
+            if (in_array($origen, ['siniestro', 'siniestros'], true)) {
+                $unidadId = self::UNIDAD_SINIESTROS_ID;
+            } elseif (in_array($origen, ['delegacion', 'delegaciones'], true)) {
+                $unidadId = self::UNIDAD_DELEGACIONES_ID;
+            }
+        }
+
         $usuario = $request->user();
 
         if ($this->tieneAccesoGlobal($usuario)) {
@@ -713,6 +740,13 @@ class GruaController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function includeGruasSinServicios(Request $request): bool
+    {
+        return $request->boolean('incluir_sin_servicios')
+            || $request->boolean('include_empty')
+            || $request->boolean('con_ceros');
     }
 
     private function resolveDateRange(Request $request): array

@@ -7,8 +7,6 @@ use Carbon\Carbon;
 
 class WazeFeedService
 {
-    private const POINT_POLYLINE_OFFSET = 0.00015;
-
     public function buildIncidentsFeed(): array
     {
         $hechos = $this->queryHechos();
@@ -380,25 +378,9 @@ class WazeFeedService
 
     protected function buildPointPolyline(float $lat, float $lng): string
     {
-        [$lat2, $lng2] = $this->offsetPoint($lat, $lng);
-
         return $this->formatPolyline([
             [$lat, $lng],
-            [$lat2, $lng2],
         ]);
-    }
-
-    protected function offsetPoint(float $lat, float $lng): array
-    {
-        $latOffset = $lat >= (90 - self::POINT_POLYLINE_OFFSET)
-            ? -self::POINT_POLYLINE_OFFSET
-            : self::POINT_POLYLINE_OFFSET;
-
-        $lngOffset = $lng >= (180 - self::POINT_POLYLINE_OFFSET)
-            ? -self::POINT_POLYLINE_OFFSET
-            : self::POINT_POLYLINE_OFFSET;
-
-        return [$lat + $latOffset, $lng + $lngOffset];
     }
 
     protected function formatPolyline(array $points): string

@@ -35,15 +35,7 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
             return self::FAILURE;
         }
 
-        $to = (string) (
-            $this->option('to')
-            ?: config('services.whatsapp.siniestros.actividades_to')
-            ?: config('services.whatsapp.siniestros.resumen_to')
-            ?: config('services.whatsapp.siniestros.tarjeta_hechos_to')
-            ?: config('services.whatsapp.siniestros.to')
-            ?: config('services.whatsapp.default_to')
-        );
-        $recipients = $this->recipients($to);
+        [$recipients, $recipientSource] = $this->resolveRecipients();
 
         if (empty($recipients)) {
             $this->error('No hay numero destino. Define WHATSAPP_SINIESTROS_ACTIVIDADES_TO o usa --to=');
@@ -59,6 +51,8 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
         if ($this->option('dry-run')) {
             $this->line('--- PDF ---');
             $this->line($rutaAbsoluta);
+            $this->line('--- DESTINATARIOS DESDE ---');
+            $this->line($recipientSource);
             $this->line('--- DESTINATARIOS ---');
             $this->line(implode(', ', $recipients));
             $this->line('--- CAPTION ---');
@@ -66,6 +60,12 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
 
             return self::SUCCESS;
         }
+
+        Log::info('Preparando WhatsApp actividades siniestros', [
+            'archivo' => $rutaAbsoluta,
+            'destinatarios_desde' => $recipientSource,
+            'destinatarios' => $recipients,
+        ]);
 
         $upload = $whatsApp->uploadMedia($rutaAbsoluta, 'application/pdf');
 
@@ -153,6 +153,33 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
         }
 
         return Carbon::now($timezone)->format('Y-m-d');
+    }
+
+    protected function resolveRecipients(): array
+    {
+        $optionTo = (string) $this->option('to');
+
+        if (trim($optionTo) !== '') {
+            return [$this->recipients($optionTo), '--to'];
+        }
+
+        $candidates = [
+            'WHATSAPP_SINIESTROS_ACTIVIDADES_TO' => config('services.whatsapp.siniestros.actividades_to'),
+            'WHATSAPP_SINIESTROS_RESUMEN_TO' => config('services.whatsapp.siniestros.resumen_to'),
+            'WHATSAPP_SINIESTROS_TARJETA_HECHOS_TO' => config('services.whatsapp.siniestros.tarjeta_hechos_to'),
+            'WHATSAPP_SINIESTROS_TO' => config('services.whatsapp.siniestros.to'),
+            'WHATSAPP_DEFAULT_TO' => config('services.whatsapp.default_to'),
+        ];
+
+        foreach ($candidates as $source => $configured) {
+            $recipients = $this->recipients((string) $configured);
+
+            if (!empty($recipients)) {
+                return [$recipients, $source];
+            }
+        }
+
+        return [[], ''];
     }
 
     protected function recipients(string $configured): array

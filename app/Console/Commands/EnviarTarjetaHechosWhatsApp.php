@@ -41,70 +41,86 @@ class EnviarTarjetaHechosWhatsApp extends Command
             ?: config('services.whatsapp.siniestros.to')
             ?: config('services.whatsapp.default_to')
         );
+        $recipients = $this->recipients($to);
 
         $template = (string) config('services.whatsapp.siniestros.tarjeta_hechos_template', '');
 
-        if ($to === '') {
+        if (empty($recipients)) {
             $this->error('No hay número destino. Define WHATSAPP_SINIESTROS_TARJETA_HECHOS_TO o usa --to=');
             return self::FAILURE;
         }
 
         $mensaje = $this->buildMessage($end, $totales, $firma);
+        $failures = 0;
+        $sent = 0;
 
-        try {
-            if ($this->option('sin-template') || $template === '') {
-                $response = $whatsApp->sendText($to, $mensaje);
-            } else {
-                $response = $whatsApp->sendTemplate($to, $template, [
-                    $end->locale('es')->translatedFormat('d \\d\\e F \\d\\e Y'),
-                    $this->pad($totales['choques']),
-                    $this->pad($totales['atropellados']),
-                    $this->pad($totales['volcadura']),
-                    $this->pad($totales['salida_superficie']),
-                    $this->pad($totales['subida_camellon']),
-                    $this->pad($totales['caida_cuneta']),
-                    $this->pad($totales['caida_motocicleta']),
-                    $this->pad($totales['incidente']),
-                    $this->pad($totales['reporte']),
-                    $this->pad($totales['lesionados']),
-                    $this->pad($totales['fallecidos']),
-                    $this->pad($totales['resueltos']),
-                    $this->pad($totales['pendientes']),
-                    $this->pad($totales['turnados']),
+        foreach ($recipients as $recipient) {
+            try {
+                if ($this->option('sin-template') || $template === '') {
+                    $response = $whatsApp->sendText($recipient, $mensaje);
+                } else {
+                    $response = $whatsApp->sendTemplate($recipient, $template, [
+                        $end->locale('es')->translatedFormat('d \\d\\e F \\d\\e Y'),
+                        $this->pad($totales['choques']),
+                        $this->pad($totales['atropellados']),
+                        $this->pad($totales['volcadura']),
+                        $this->pad($totales['salida_superficie']),
+                        $this->pad($totales['subida_camellon']),
+                        $this->pad($totales['caida_cuneta']),
+                        $this->pad($totales['caida_motocicleta']),
+                        $this->pad($totales['incidente']),
+                        $this->pad($totales['reporte']),
+                        $this->pad($totales['lesionados']),
+                        $this->pad($totales['fallecidos']),
+                        $this->pad($totales['resueltos']),
+                        $this->pad($totales['pendientes']),
+                        $this->pad($totales['turnados']),
+                    ]);
+                }
+
+                Log::info('Respuesta WhatsApp tarjeta hechos', $response);
+
+                $this->line('--- RESPUESTA META (' . $recipient . ') ---');
+                $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+                if (!($response['ok'] ?? false)) {
+                    $this->error('Meta rechazó el envío para ' . $recipient . '.');
+                    $failures++;
+                    continue;
+                }
+
+                $body = $response['body'] ?? [];
+                $messageId = $body['messages'][0]['id'] ?? null;
+
+                if (!$messageId) {
+                    $this->error('Meta respondió sin message id para ' . $recipient . '.');
+                    $failures++;
+                    continue;
+                }
+
+                $this->info('Mensaje aceptado por Meta para ' . $recipient . '. ID: '.$messageId);
+                $sent++;
+            } catch (\Throwable $e) {
+                Log::error('Error enviando tarjeta de hechos WhatsApp', [
+                    'to' => $recipient,
+                    'error' => $e->getMessage(),
                 ]);
+
+                $this->error('Error enviando a ' . $recipient . ': ' . $e->getMessage());
+                $failures++;
             }
+        }
 
-            Log::info('Respuesta WhatsApp tarjeta hechos', $response);
+        $this->line('--- MENSAJE ARMADO ---');
+        $this->line($mensaje);
 
-            $this->line('--- RESPUESTA META ---');
-            $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            $this->line('--- MENSAJE ARMADO ---');
-            $this->line($mensaje);
-
-            if (!($response['ok'] ?? false)) {
-                $this->error('Meta rechazó el envío.');
-                return self::FAILURE;
-            }
-
-            $body = $response['body'] ?? [];
-            $messageId = $body['messages'][0]['id'] ?? null;
-
-            if (!$messageId) {
-                $this->error('Meta respondió sin message id.');
-                return self::FAILURE;
-            }
-
-            $this->info('Mensaje aceptado por Meta. ID: '.$messageId);
-            return self::SUCCESS;
-        } catch (\Throwable $e) {
-            Log::error('Error enviando tarjeta de hechos WhatsApp', [
-                'to' => $to,
-                'error' => $e->getMessage(),
-            ]);
-
-            $this->error($e->getMessage());
+        if ($failures > 0) {
+            $this->error("Tarjeta procesada con {$sent} enviado(s) y {$failures} error(es).");
             return self::FAILURE;
         }
+
+        $this->info("Tarjeta enviada a {$sent} destinatario(s).");
+        return self::SUCCESS;
     }
 
     protected function buildMessage(Carbon $end, array $totales, string $firma): string
@@ -299,6 +315,22 @@ class EnviarTarjetaHechosWhatsApp extends Command
     protected function whereLesionadoFallecido($query): void
     {
         $query->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'");
+    }
+
+    protected function recipients(string $configured): array
+    {
+        $parts = preg_split('/[\s,;]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+        $numbers = [];
+
+        foreach ($parts ?: [] as $part) {
+            $number = preg_replace('/\D+/', '', (string) $part);
+
+            if ($number !== '') {
+                $numbers[] = $number;
+            }
+        }
+
+        return array_values(array_unique($numbers));
     }
 
     protected function pad(int $value): string

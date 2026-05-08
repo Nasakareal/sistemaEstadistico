@@ -81,6 +81,12 @@ class SiniestrosReportScopeTest extends TestCase
             $this->assertStringContainsString('whereLesionadoNoFallecido', $source, $path);
             $this->assertStringContainsString('whereLesionadoFallecido', $source, $path);
         }
+
+        $tarjetaSource = $this->source('app/Console/Commands/EnviarTarjetaHechosWhatsApp.php');
+        $this->assertStringContainsString('$recipients = $this->recipients($to);', $tarjetaSource);
+        $this->assertStringContainsString('foreach ($recipients as $recipient)', $tarjetaSource);
+        $this->assertStringContainsString('$whatsApp->sendText($recipient, $mensaje)', $tarjetaSource);
+        $this->assertStringContainsString('$whatsApp->sendTemplate($recipient, $template, [', $tarjetaSource);
     }
 
     public function test_resumen_whatsapp_todas_unidades_usa_corte_de_1900_y_no_filtra_por_unidad(): void
@@ -94,11 +100,13 @@ class SiniestrosReportScopeTest extends TestCase
         $this->assertStringNotContainsString('UNIDAD_SINIESTROS_ID', $serviceSource);
         $this->assertStringNotContainsString('DESPLIEGUE', $serviceSource);
         $this->assertStringNotContainsString('personals', $serviceSource);
-        $this->assertStringContainsString('template_params', $commandSource);
         $this->assertStringContainsString('whatsapp:resumen-todas-unidades', $commandSource);
+        $this->assertStringContainsString('sendText', $commandSource);
+        $this->assertStringNotContainsString('sendTemplate', $commandSource);
+        $this->assertStringNotContainsString('services.whatsapp.todas_unidades.template', $commandSource);
         $this->assertStringContainsString("->dailyAt('19:00')", $kernelSource);
         $this->assertStringContainsString('WHATSAPP_TODAS_UNIDADES_TO', $configSource);
-        $this->assertStringContainsString('WHATSAPP_TODAS_UNIDADES_TEMPLATE', $configSource);
+        $this->assertStringNotContainsString('WHATSAPP_TODAS_UNIDADES_TEMPLATE', $configSource);
     }
 
     public function test_whatsapp_actividades_siniestros_envia_pdf_como_documento(): void
@@ -118,6 +126,9 @@ class SiniestrosReportScopeTest extends TestCase
         $this->assertStringContainsString('uploadMedia', $commandSource);
         $this->assertStringContainsString('sendDocument', $commandSource);
         $this->assertStringContainsString('WHATSAPP_SINIESTROS_ACTIVIDADES_TO', $commandSource);
+        $this->assertStringContainsString('resolveRecipients', $commandSource);
+        $this->assertStringContainsString('destinatarios_desde', $commandSource);
+        $this->assertStringContainsString('WHATSAPP_SINIESTROS_RESUMEN_TO', $commandSource);
 
         $this->assertStringContainsString('whatsapp:actividades-siniestros --regenerar', $kernelSource);
         $this->assertStringContainsString("->dailyAt('18:05')", $kernelSource);

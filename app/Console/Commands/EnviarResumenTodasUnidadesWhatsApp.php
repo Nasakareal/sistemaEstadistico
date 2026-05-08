@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 class EnviarResumenTodasUnidadesWhatsApp extends Command
 {
     protected $signature = 'whatsapp:resumen-todas-unidades {--to=} {--corte=} {--sin-template} {--dry-run}';
-    protected $description = 'Envia el resumen de todas las unidades por WhatsApp con corte de 19:00 a 19:00';
+    protected $description = 'Envia el resumen de todas las unidades por WhatsApp como texto con corte de 19:00 a 19:00';
 
     public function handle(WhatsAppCloudService $whatsApp, ResumenTodasUnidadesWhatsAppService $resumenService): int
     {
@@ -22,7 +22,6 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
 
         $resumen = $resumenService->generar($corte);
         $mensaje = (string) $resumen['mensaje'];
-        $templateParams = $resumen['template_params'] ?? [$mensaje];
 
         if ($this->option('dry-run')) {
             $this->line('--- RANGO ---');
@@ -39,7 +38,6 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
             ?: config('services.whatsapp.default_to')
         );
 
-        $template = (string) config('services.whatsapp.todas_unidades.template', '');
         $recipients = $this->recipients($to);
 
         if (empty($recipients)) {
@@ -52,11 +50,7 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
 
         foreach ($recipients as $recipient) {
             try {
-                if ($this->option('sin-template') || $template === '') {
-                    $response = $whatsApp->sendText($recipient, $mensaje);
-                } else {
-                    $response = $whatsApp->sendTemplate($recipient, $template, $templateParams);
-                }
+                $response = $whatsApp->sendText($recipient, $mensaje);
 
                 Log::info('Respuesta WhatsApp resumen todas unidades', $response);
 

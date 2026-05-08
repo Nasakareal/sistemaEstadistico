@@ -50,7 +50,6 @@ return [
 
         'todas_unidades' => [
             'to' => env('WHATSAPP_TODAS_UNIDADES_TO'),
-            'template' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE', 'reporte_todas_unidades_diario'),
         ],
 
         'delegaciones' => [

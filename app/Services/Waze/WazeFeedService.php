@@ -7,6 +7,8 @@ use Carbon\Carbon;
 
 class WazeFeedService
 {
+    private const POINT_POLYLINE_OFFSET = 0.00015;
+
     public function buildIncidentsFeed(): array
     {
         $hechos = $this->queryHechos();
@@ -118,7 +120,7 @@ class WazeFeedService
 
     protected function resolveFeedType($hecho): string
     {
-        if ($this->shouldPublishAsRoadClosure($hecho) && $this->roadClosurePolyline($hecho) !== null) {
+        if ($this->shouldPublishAsRoadClosure($hecho) && $this->storedPolyline($hecho) !== null) {
             return 'ROAD_CLOSED';
         }
 
@@ -344,14 +346,20 @@ class WazeFeedService
 
     protected function buildPolyline(float $lat, float $lng, $hecho, string $type): ?string
     {
+        $storedPolyline = $this->storedPolyline($hecho);
+
         if ($type === 'ROAD_CLOSED') {
-            return $this->roadClosurePolyline($hecho);
+            return $storedPolyline;
+        }
+
+        if ($storedPolyline !== null) {
+            return $storedPolyline;
         }
 
         return $this->buildPointPolyline($lat, $lng);
     }
 
-    protected function roadClosurePolyline($hecho): ?string
+    protected function storedPolyline($hecho): ?string
     {
         foreach (['waze_polyline', 'road_polyline', 'polyline'] as $field) {
             $polyline = trim((string) ($hecho->{$field} ?? ''));
@@ -372,10 +380,25 @@ class WazeFeedService
 
     protected function buildPointPolyline(float $lat, float $lng): string
     {
+        [$lat2, $lng2] = $this->offsetPoint($lat, $lng);
+
         return $this->formatPolyline([
             [$lat, $lng],
-            [$lat, $lng],
+            [$lat2, $lng2],
         ]);
+    }
+
+    protected function offsetPoint(float $lat, float $lng): array
+    {
+        $latOffset = $lat >= (90 - self::POINT_POLYLINE_OFFSET)
+            ? -self::POINT_POLYLINE_OFFSET
+            : self::POINT_POLYLINE_OFFSET;
+
+        $lngOffset = $lng >= (180 - self::POINT_POLYLINE_OFFSET)
+            ? -self::POINT_POLYLINE_OFFSET
+            : self::POINT_POLYLINE_OFFSET;
+
+        return [$lat + $latOffset, $lng + $lngOffset];
     }
 
     protected function formatPolyline(array $points): string

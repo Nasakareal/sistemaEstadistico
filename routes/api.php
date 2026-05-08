@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DelegacionesHomeController;
 use App\Http\Controllers\Api\DelegacionesExcelRevisionController;
 use App\Http\Controllers\Api\DocumentoHechoController;
 use App\Http\Controllers\Api\GruaController;
@@ -78,6 +79,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/mapa', [AgenteUpecHomeController::class, 'mapa'])->name('api.agente_upec_home.mapa');
         Route::get('/filtros', [AgenteUpecHomeController::class, 'filtros'])->name('api.agente_upec_home.filtros');
         Route::get('/alertas/{id}', [AgenteUpecHomeController::class, 'show'])->name('api.agente_upec_home.alertas.show');
+    });
+
+    Route::prefix('delegaciones-home')->group(function () {
+        Route::get('/mapa', [DelegacionesHomeController::class, 'mapa'])->name('api.delegaciones_home.mapa');
+        Route::get('/filtros', [DelegacionesHomeController::class, 'filtros'])->name('api.delegaciones_home.filtros');
     });
 
     Route::prefix('constancias-manejo')->middleware('can:ver modulo examenes')->group(function () {

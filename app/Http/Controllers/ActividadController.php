@@ -922,11 +922,14 @@ class ActividadController extends Controller
             'unidad',
             'delegacion',
             'destacamento',
+            'creador',
             'fotos',
         ]);
 
         $fecha = $actividad->fecha ? \Carbon\Carbon::parse($actividad->fecha)->format('d/m/Y') : '';
-        $hora = $actividad->hora ? substr((string) $actividad->hora, 0, 5) : '';
+        $hora = $this->formatearHoraActividad($actividad->hora);
+        [$lat, $lng, $coordenadas] = $this->coordenadasActividad($actividad);
+        $informante = $this->informanteActividad($actividad);
 
         $nombreUnidad = trim((string) optional($actividad->unidad)->nombre);
         $nombreDelegacion = trim((string) optional($actividad->delegacion)->nombre);
@@ -950,7 +953,19 @@ class ActividadController extends Controller
         }
 
         if ($hora) {
-            $texto .= "HORA {$hora}\n\n";
+            $texto .= "HORA {$hora}\n";
+        }
+
+        if ($coordenadas !== '') {
+            $texto .= "COORDENADAS: {$coordenadas}\n";
+
+            if ($lat !== null && $lng !== null) {
+                $texto .= "GOOGLE MAPS: https://www.google.com/maps?q={$lat},{$lng}\n";
+            }
+        }
+
+        if ($hora || $coordenadas !== '') {
+            $texto .= "\n";
         }
 
         if ($actividad->motivo) {
@@ -985,6 +1000,8 @@ class ActividadController extends Controller
             $texto .= "CRP\n";
             $texto .= trim((string) $actividad->patrullas_participantes_texto) . "\n\n";
         }
+
+        $texto .= "Informa '{$informante}'\n\n";
 
         $fotos = $actividad->fotos
             ->sortBy([['orden', 'asc'], ['id', 'asc']])
@@ -1330,6 +1347,63 @@ class ActividadController extends Controller
             : '12:00:00';
 
         return $fecha . ' ' . $hora;
+    }
+
+    private function formatearHoraActividad($hora): string
+    {
+        if (!$hora) {
+            return '';
+        }
+
+        if ($hora instanceof \DateTimeInterface) {
+            return $hora->format('H:i');
+        }
+
+        $horaTexto = trim((string) $hora);
+
+        if ($horaTexto === '') {
+            return '';
+        }
+
+        if (preg_match('/\b(\d{1,2}):(\d{2})(?::\d{2})?\b/', $horaTexto, $matches)) {
+            return sprintf('%02d:%s', (int) $matches[1], $matches[2]);
+        }
+
+        return '';
+    }
+
+    private function coordenadasActividad(Actividad $actividad): array
+    {
+        $lat = $this->formatearCoordenadaActividad($actividad->lat ?? null);
+        $lng = $this->formatearCoordenadaActividad($actividad->lng ?? null);
+
+        if ($lat !== null && $lng !== null) {
+            return [$lat, $lng, "{$lat}, {$lng}"];
+        }
+
+        $coordenadasTexto = trim((string) ($actividad->coordenadas_texto ?? ''));
+
+        return [null, null, $coordenadasTexto];
+    }
+
+    private function formatearCoordenadaActividad($coordenada): ?string
+    {
+        if ($coordenada === null || $coordenada === '') {
+            return null;
+        }
+
+        if (!is_numeric($coordenada)) {
+            return null;
+        }
+
+        return number_format((float) $coordenada, 7, '.', '');
+    }
+
+    private function informanteActividad(Actividad $actividad): string
+    {
+        $nombre = trim((string) optional($actividad->creador)->name);
+
+        return $nombre !== '' ? $nombre : 'USUARIO NO REGISTRADO';
     }
 
     private function obtenerGruasDisponiblesParaUsuario($usuario)

@@ -118,7 +118,7 @@ class WazeFeedService
 
     protected function resolveFeedType($hecho): string
     {
-        if ($this->shouldPublishAsRoadClosure($hecho)) {
+        if ($this->shouldPublishAsRoadClosure($hecho) && $this->roadClosurePolyline($hecho) !== null) {
             return 'ROAD_CLOSED';
         }
 
@@ -344,68 +344,30 @@ class WazeFeedService
 
     protected function buildPolyline(float $lat, float $lng, $hecho, string $type): ?string
     {
-        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
-        $entre = mb_strtoupper(trim((string) ($hecho->entre_calles ?? '')), 'UTF-8');
-
-        if (
-            str_contains($street, ' Y ') ||
-            str_contains($street, ' ESQ') ||
-            str_contains($street, ' ESQUINA') ||
-            str_contains($street, '&') ||
-            str_contains($street, '#')
-        ) {
-            return $this->buildPointPolyline($lat, $lng);
+        if ($type === 'ROAD_CLOSED') {
+            return $this->roadClosurePolyline($hecho);
         }
 
-        if (
-            str_contains($entre, 'FRENTE') ||
-            str_contains($entre, 'A LA ALTURA') ||
-            str_contains($entre, 'A UN COSTADO')
-        ) {
-            return $this->buildPointPolyline($lat, $lng);
-        }
+        return $this->buildPointPolyline($lat, $lng);
+    }
 
-        $isMajorRoad =
-            str_contains($street, 'PERIFERICO') ||
-            str_contains($street, 'LIBRAMIENTO') ||
-            str_contains($street, 'CARRETERA') ||
-            str_contains($street, 'AUTOPISTA') ||
-            str_contains($street, 'BLVD') ||
-            str_contains($street, 'BULEVAR') ||
-            str_contains($street, 'CALZADA') ||
-            str_contains($street, 'AVENIDA') ||
-            str_contains($street, 'AV.') ||
-            preg_match('/\bAV\b/u', $street);
+    protected function roadClosurePolyline($hecho): ?string
+    {
+        foreach (['waze_polyline', 'road_polyline', 'polyline'] as $field) {
+            $polyline = trim((string) ($hecho->{$field} ?? ''));
 
-        $delta = $type === 'ROAD_CLOSED'
-            ? ($isMajorRoad ? 0.00045 : 0.00028)
-            : ($isMajorRoad ? 0.00030 : 0.00018);
+            if ($polyline === '') {
+                continue;
+            }
 
-        if ($this->looksEastWest($street)) {
-            $points = [
-                [$lat, $lng - $delta],
-                [$lat, $lng],
-                [$lat, $lng + $delta],
-            ];
-        } elseif ($this->looksNorthSouth($street)) {
-            $points = [
-                [$lat - $delta, $lng],
-                [$lat, $lng],
-                [$lat + $delta, $lng],
-            ];
-        } else {
-            if ($isMajorRoad) {
-                $points = [
-                    [$lat, $lng - $delta],
-                    [$lat, $lng],
-                    [$lat, $lng + $delta],
-                ];
-            } else {
-                return $this->buildPointPolyline($lat, $lng);
+            $normalized = $this->normalizePolyline($polyline);
+
+            if ($normalized !== null) {
+                return $normalized;
             }
         }
 
-        return $this->formatPolyline($points);
+        return null;
     }
 
     protected function buildPointPolyline(float $lat, float $lng): string
@@ -414,16 +376,6 @@ class WazeFeedService
             [$lat, $lng],
             [$lat, $lng],
         ]);
-    }
-
-    protected function looksEastWest(string $street): bool
-    {
-        return preg_match('/\b(PERIFERICO|LIBRAMIENTO|CAMELINAS|MADERO|VENTURA PUENTE|ACUEDUCTO|BULEVAR|BLVD|CALZADA|AVENIDA|AV\.?|CARRETERA|ENRIQUE RAMIREZ|ENRIQUE RAMÍREZ)\b/u', $street) === 1;
-    }
-
-    protected function looksNorthSouth(string $street): bool
-    {
-        return preg_match('/\b(HIDALGO|MORELOS|ALLENDE|JUAREZ|ABASOLO|ALDAMA|GALEANA|MATAMOROS|GUERRERO|NICOLAS BRAVO)\b/u', $street) === 1;
     }
 
     protected function formatPolyline(array $points): string
@@ -435,6 +387,58 @@ class WazeFeedService
         }
 
         return implode(' ', $chunks);
+    }
+
+    protected function normalizePolyline(string $polyline): ?string
+    {
+        preg_match_all('/-?\d+(?:\.\d+)?/', $polyline, $matches);
+
+        $numbers = $matches[0] ?? [];
+
+        if (count($numbers) < 4 || count($numbers) % 2 !== 0) {
+            return null;
+        }
+
+        $points = [];
+
+        for ($i = 0; $i < count($numbers); $i += 2) {
+            $lat = (float) $numbers[$i];
+            $lng = (float) $numbers[$i + 1];
+
+            if (!$this->isValidCoordinatePair($lat, $lng)) {
+                return null;
+            }
+
+            $points[] = [$lat, $lng];
+        }
+
+        if ($this->allPointsAreSame($points)) {
+            return null;
+        }
+
+        return $this->formatPolyline($points);
+    }
+
+    protected function isValidCoordinatePair(float $lat, float $lng): bool
+    {
+        return $lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180;
+    }
+
+    protected function allPointsAreSame(array $points): bool
+    {
+        if (count($points) < 2) {
+            return true;
+        }
+
+        [$firstLat, $firstLng] = $points[0];
+
+        foreach ($points as [$lat, $lng]) {
+            if (abs($lat - $firstLat) > 0.0000001 || abs($lng - $firstLng) > 0.0000001) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function formatCoord(float $value): string

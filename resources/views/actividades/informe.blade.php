@@ -11,8 +11,16 @@
     }
 
     $conteos = [];
+    $nombreActividad = function ($actividad) {
+        $categoria = $actividad->categoria ? trim((string) $actividad->categoria->nombre) : '';
+        $subcategoria = $actividad->subcategoria ? trim((string) $actividad->subcategoria->nombre) : '';
+        $partes = array_values(array_filter([$categoria, $subcategoria], fn ($parte) => $parte !== ''));
+
+        return $partes ? implode(' - ', $partes) : 'Sin categoría';
+    };
+
     foreach ($actividades as $a) {
-        $key = $a->subcategoria ? trim((string) $a->subcategoria->nombre) : 'Sin subcategoría';
+        $key = $nombreActividad($a);
         $conteos[$key] = ($conteos[$key] ?? 0) + 1;
     }
     ksort($conteos, SORT_NATURAL | SORT_FLAG_CASE);
@@ -158,6 +166,7 @@ seguridad a la ciudadanía.</div>
             @php
                 $sub = $a->subcategoria ? (string)$a->subcategoria->nombre : 'Sin subcategoría';
                 $cat = $a->categoria ? (string)$a->categoria->nombre : 'Sin categoría';
+                $actividadNombre = $nombreActividad($a);
                 $hora = optional($a->created_at)->timezone($tz)->format('H:i');
 
                 $rel = $a->foto_pdf_path ?: ($a->foto_thumbnail_path ?: $a->foto_path);
@@ -182,8 +191,8 @@ seguridad a la ciudadanía.</div>
                     <div class="placeholder">Sin imagen disponible</div>
                 @endif
 
-                <div class="photo-meta"><b>Subcategoría:</b> {{ $sub }}</div>
-                <div class="small"><b>Categoría:</b> {{ $cat }} &nbsp; | &nbsp; <b>Hora:</b> {{ $hora }} &nbsp; | &nbsp; <b>ID:</b> {{ $a->id }}</div>
+                <div class="photo-meta"><b>Actividad:</b> {{ $actividadNombre }}</div>
+                <div class="small"><b>Categoría:</b> {{ $cat }} &nbsp; | &nbsp; <b>Subcategoría:</b> {{ $sub }} &nbsp; | &nbsp; <b>Hora:</b> {{ $hora }} &nbsp; | &nbsp; <b>ID:</b> {{ $a->id }}</div>
             </div>
         @endforeach
 

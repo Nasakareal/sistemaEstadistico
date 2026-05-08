@@ -7,6 +7,18 @@
 @stop
 
 @section('content')
+    @php
+        $tipoSeleccionado = old('tipo_puesta', $tipoPuestaDefault ?? null);
+        $motivoSeleccionado = old('motivo', $motivoDefault ?? null);
+        $fechaPuestaSeleccionada = old('fecha_puesta', $fechaPuestaDefault ?? now()->toDateString());
+        $horaPuestaSeleccionada = old('hora_puesta', $horaPuestaDefault ?? null);
+        $lugarPuestaSeleccionado = old('lugar_puesta', $lugarPuestaDefault ?? null);
+        $nombrePoliciaSeleccionado = old('nombre_policia', $nombrePoliciaDefault ?? (auth()->user()->name ?? ''));
+        $oficioSeleccionado = old('oficio', $oficioDefault ?? null);
+        $hechoOrigen = $hechoOrigen ?? null;
+        $vehiculosHechoPuesta = $vehiculosHechoPuesta ?? [];
+    @endphp
+
     <div class="row">
         <div class="col-md-12">
             <div class="card card-outline card-primary">
@@ -16,6 +28,20 @@
                 <div class="card-body">
                     <form action="{{ route('puestas_disposicion.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
+                        @if($hechoOrigen)
+                            <input type="hidden" name="hecho_id" value="{{ $hechoOrigen->id }}">
+
+                            <div class="alert alert-info">
+                                <strong>Hecho vinculado:</strong>
+                                #{{ $hechoOrigen->id }}
+                                @if($hechoOrigen->folio_c5i)
+                                    · Folio {{ $hechoOrigen->folio_c5i }}
+                                @endif
+                                @if($hechoOrigen->situacion)
+                                    · {{ $hechoOrigen->situacion }}
+                                @endif
+                            </div>
+                        @endif
 
                         <div class="row">
                             <div class="col-md-3">
@@ -31,11 +57,11 @@
                                     <label for="tipo_puesta">Tipo de Puesta</label>
                                     <select name="tipo_puesta" id="tipo_puesta"
                                             class="form-control @error('tipo_puesta') is-invalid @enderror" required>
-                                        <option value="" disabled {{ old('tipo_puesta') ? '' : 'selected' }}>Seleccione una opción</option>
-                                        <option value="PERSONA" {{ old('tipo_puesta') == 'PERSONA' ? 'selected' : '' }}>PERSONA</option>
-                                        <option value="VEHICULO" {{ old('tipo_puesta') == 'VEHICULO' ? 'selected' : '' }}>VEHÍCULO</option>
-                                        <option value="OBJETO" {{ old('tipo_puesta') == 'OBJETO' ? 'selected' : '' }}>OBJETO</option>
-                                        <option value="MIXTA" {{ old('tipo_puesta') == 'MIXTA' ? 'selected' : '' }}>MIXTA</option>
+                                        <option value="" disabled {{ $tipoSeleccionado ? '' : 'selected' }}>Seleccione una opción</option>
+                                        <option value="PERSONA" {{ $tipoSeleccionado == 'PERSONA' ? 'selected' : '' }}>PERSONA</option>
+                                        <option value="VEHICULO" {{ $tipoSeleccionado == 'VEHICULO' ? 'selected' : '' }}>VEHÍCULO</option>
+                                        <option value="OBJETO" {{ $tipoSeleccionado == 'OBJETO' ? 'selected' : '' }}>OBJETO</option>
+                                        <option value="MIXTA" {{ $tipoSeleccionado == 'MIXTA' ? 'selected' : '' }}>MIXTA</option>
                                     </select>
                                     @error('tipo_puesta')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -48,7 +74,7 @@
                                     <label for="motivo">Motivo</label>
                                     <input type="text" name="motivo" id="motivo"
                                            class="form-control @error('motivo') is-invalid @enderror"
-                                           value="{{ old('motivo') }}" required>
+                                           value="{{ $motivoSeleccionado }}" required>
                                     @error('motivo')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -73,7 +99,7 @@
                                     <label for="fecha_puesta">Fecha de Puesta</label>
                                     <input type="date" name="fecha_puesta" id="fecha_puesta"
                                            class="form-control @error('fecha_puesta') is-invalid @enderror"
-                                           value="{{ old('fecha_puesta', now()->toDateString()) }}" required>
+                                           value="{{ $fechaPuestaSeleccionada }}" required>
                                     @error('fecha_puesta')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -85,7 +111,7 @@
                                     <label for="hora_puesta">Hora de Puesta</label>
                                     <input type="time" name="hora_puesta" id="hora_puesta"
                                            class="form-control @error('hora_puesta') is-invalid @enderror"
-                                           value="{{ old('hora_puesta') }}">
+                                           value="{{ $horaPuestaSeleccionada }}">
                                     @error('hora_puesta')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -97,7 +123,7 @@
                                     <label for="lugar_puesta">Lugar de Puesta</label>
                                     <input type="text" name="lugar_puesta" id="lugar_puesta"
                                            class="form-control @error('lugar_puesta') is-invalid @enderror"
-                                           value="{{ old('lugar_puesta') }}">
+                                           value="{{ $lugarPuestaSeleccionado }}">
                                     @error('lugar_puesta')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -113,7 +139,7 @@
                                     <label for="nombre_policia">Nombre del Policía</label>
                                     <input type="text" name="nombre_policia" id="nombre_policia"
                                            class="form-control @error('nombre_policia') is-invalid @enderror"
-                                           value="{{ old('nombre_policia', auth()->user()->name ?? '') }}" required>
+                                           value="{{ $nombrePoliciaSeleccionado }}" required>
                                     @error('nombre_policia')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -148,7 +174,13 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    @if($puedeSeleccionarUnidad ?? false)
+                                    @if($hechoOrigen)
+                                        <label for="area">Área</label>
+                                        <input type="text" id="area"
+                                               class="form-control"
+                                               value="{{ $unidadNombre }}" readonly>
+                                        <input type="hidden" name="unidad_id" value="{{ $unidadSeleccionadaId }}">
+                                    @elseif($puedeSeleccionarUnidad ?? false)
                                         <label for="unidad_id">Unidad / Área</label>
                                         <select name="unidad_id" id="unidad_id"
                                                 class="form-control @error('unidad_id') is-invalid @enderror" required>
@@ -190,7 +222,7 @@
                                     <label for="oficio">Oficio</label>
                                     <input type="text" name="oficio" id="oficio"
                                            class="form-control @error('oficio') is-invalid @enderror"
-                                           value="{{ old('oficio') }}">
+                                           value="{{ $oficioSeleccionado }}">
                                     @error('oficio')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -239,6 +271,59 @@
                         </div>
 
                         <hr>
+
+                        @if($hechoOrigen)
+                            <div class="card card-outline card-primary sv-hecho-origen-card">
+                                <div class="card-header">
+                                    <h3 class="card-title mb-0">Datos ya capturados del hecho</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-3">
+                                        Selecciona lo que se va a turnar para copiarlo a esta puesta.
+                                    </p>
+
+                                    @if(count($vehiculosHechoPuesta))
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h5 class="sv-copy-title">Vehículos</h5>
+                                                @foreach($vehiculosHechoPuesta as $vehiculoHecho)
+                                                    <label class="sv-copy-option">
+                                                        <input type="checkbox"
+                                                               class="js-hecho-vehiculo"
+                                                               data-source-key="{{ $vehiculoHecho['source_key'] }}">
+                                                        <span>{{ $vehiculoHecho['label'] }}</span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <h5 class="sv-copy-title">Conductores</h5>
+                                                @php
+                                                    $hayConductoresHecho = false;
+                                                @endphp
+                                                @foreach($vehiculosHechoPuesta as $vehiculoHecho)
+                                                    @foreach($vehiculoHecho['conductores'] as $conductorHecho)
+                                                        @php $hayConductoresHecho = true; @endphp
+                                                        <label class="sv-copy-option">
+                                                            <input type="checkbox"
+                                                                   class="js-hecho-conductor"
+                                                                   data-source-key="{{ $conductorHecho['source_key'] }}">
+                                                            <span>{{ $conductorHecho['label'] }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                @endforeach
+
+                                                @if(!$hayConductoresHecho)
+                                                    <div class="text-muted">No hay conductores capturados en los vehículos del hecho.</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="text-muted">No hay vehículos capturados en este hecho.</div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
 
                         <div class="card card-outline card-info">
                             <div class="card-header d-flex justify-content-between align-items-center">
@@ -299,7 +384,8 @@
     <style>
         .content-wrapper .card.card-outline.card-info,
         .content-wrapper .card.card-outline.card-warning,
-        .content-wrapper .card.card-outline.card-secondary {
+        .content-wrapper .card.card-outline.card-secondary,
+        .content-wrapper .sv-hecho-origen-card {
             border-radius: 18px !important;
             overflow: hidden !important;
             border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -309,7 +395,8 @@
 
         .content-wrapper .card.card-outline.card-info > .card-header,
         .content-wrapper .card.card-outline.card-warning > .card-header,
-        .content-wrapper .card.card-outline.card-secondary > .card-header {
+        .content-wrapper .card.card-outline.card-secondary > .card-header,
+        .content-wrapper .sv-hecho-origen-card > .card-header {
             background: transparent !important;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
             padding: 14px 20px !important;
@@ -317,7 +404,8 @@
 
         .content-wrapper .card.card-outline.card-info > .card-header .card-title,
         .content-wrapper .card.card-outline.card-warning > .card-header .card-title,
-        .content-wrapper .card.card-outline.card-secondary > .card-header .card-title {
+        .content-wrapper .card.card-outline.card-secondary > .card-header .card-title,
+        .content-wrapper .sv-hecho-origen-card > .card-header .card-title {
             color: #ffffff !important;
             font-size: 1.15rem !important;
             font-weight: 700 !important;
@@ -326,9 +414,36 @@
 
         .content-wrapper .card.card-outline.card-info > .card-body,
         .content-wrapper .card.card-outline.card-warning > .card-body,
-        .content-wrapper .card.card-outline.card-secondary > .card-body {
+        .content-wrapper .card.card-outline.card-secondary > .card-body,
+        .content-wrapper .sv-hecho-origen-card > .card-body {
             background: transparent !important;
             padding: 24px !important;
+        }
+
+        .sv-copy-title {
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            margin-bottom: 12px !important;
+        }
+
+        .sv-copy-option {
+            display: flex !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+            padding: 10px 12px !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            border-radius: 14px !important;
+            color: #ffffff !important;
+            cursor: pointer !important;
+            margin-bottom: 10px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .sv-copy-option input {
+            margin-top: 3px !important;
+            width: 18px !important;
+            height: 18px !important;
+            accent-color: #2563eb !important;
         }
 
         #btnAgregarPersona,
@@ -571,6 +686,8 @@
             const personasOld = @json(old('personas', []));
             const vehiculosOld = @json(old('vehiculos', []));
             const objetosOld = @json(old('objetos', []));
+            const hechoVehiculos = @json($vehiculosHechoPuesta ?? []);
+            const hechoConductores = hechoVehiculos.flatMap(v => Array.isArray(v.conductores) ? v.conductores : []);
 
             let personaIndex = 0;
             let vehiculoIndex = 0;
@@ -584,17 +701,54 @@
             const anioPuesta = @json(now()->year);
 
             function valor(v) {
-                return v ?? '';
+                return String(v ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
             }
 
             function checked(v) {
                 return v ? 'checked' : '';
             }
 
+            function sourceAttrs(kind, key) {
+                if (!key) return '';
+                return ` data-source-kind="${valor(kind)}" data-source-key="${valor(key)}"`;
+            }
+
+            function sourceBlock(kind, key) {
+                return Array.from(document.querySelectorAll('.bloque-dinamico'))
+                    .find(block => block.dataset.sourceKind === kind && block.dataset.sourceKey === key);
+            }
+
+            function removeSourceBlock(kind, key) {
+                sourceBlock(kind, key)?.remove();
+            }
+
+            function setSourceCheckbox(kind, key, checkedValue) {
+                const selector = kind === 'vehiculo' ? '.js-hecho-vehiculo' : '.js-hecho-conductor';
+                const checkbox = Array.from(document.querySelectorAll(selector))
+                    .find(input => input.dataset.sourceKey === key);
+
+                if (checkbox) {
+                    checkbox.checked = checkedValue;
+                }
+            }
+
+            function syncSourceCheckboxesFromBlocks() {
+                document.querySelectorAll('.bloque-dinamico[data-source-kind][data-source-key]').forEach(block => {
+                    setSourceCheckbox(block.dataset.sourceKind, block.dataset.sourceKey, true);
+                });
+            }
+
             function agregarPersona(data = {}) {
                 const i = personaIndex++;
+                const sourceKey = String(data.source_key ?? '').trim();
                 const html = `
-                    <div class="bloque-dinamico">
+                    <div class="bloque-dinamico"${sourceAttrs('conductor', sourceKey)}>
+                        <input type="hidden" name="personas[${i}][source_key]" value="${valor(sourceKey)}">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">Persona</h5>
                             <button type="button" class="btn btn-danger btn-sm btn-eliminar-bloque">
@@ -698,8 +852,11 @@
 
             function agregarVehiculo(data = {}) {
                 const i = vehiculoIndex++;
+                const sourceKey = String(data.source_key ?? '').trim();
                 const html = `
-                    <div class="bloque-dinamico">
+                    <div class="bloque-dinamico"${sourceAttrs('vehiculo', sourceKey)}>
+                        <input type="hidden" name="vehiculos[${i}][vehiculo_id]" value="${valor(data.vehiculo_id)}">
+                        <input type="hidden" name="vehiculos[${i}][source_key]" value="${valor(sourceKey)}">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">Vehículo</h5>
                             <button type="button" class="btn btn-danger btn-sm btn-eliminar-bloque">
@@ -865,7 +1022,47 @@
 
             document.addEventListener('click', function (e) {
                 if (e.target.closest('.btn-eliminar-bloque')) {
-                    e.target.closest('.bloque-dinamico').remove();
+                    const block = e.target.closest('.bloque-dinamico');
+                    const sourceKind = block?.dataset?.sourceKind;
+                    const sourceKey = block?.dataset?.sourceKey;
+
+                    block?.remove();
+
+                    if (sourceKind && sourceKey) {
+                        setSourceCheckbox(sourceKind, sourceKey, false);
+                    }
+                }
+            });
+
+            document.addEventListener('change', function (e) {
+                if (e.target.matches('.js-hecho-vehiculo')) {
+                    const key = e.target.dataset.sourceKey;
+                    const payload = hechoVehiculos.find(item => item.source_key === key);
+
+                    if (!payload) return;
+
+                    if (e.target.checked) {
+                        if (!sourceBlock('vehiculo', key)) {
+                            agregarVehiculo(payload);
+                        }
+                    } else {
+                        removeSourceBlock('vehiculo', key);
+                    }
+                }
+
+                if (e.target.matches('.js-hecho-conductor')) {
+                    const key = e.target.dataset.sourceKey;
+                    const payload = hechoConductores.find(item => item.source_key === key);
+
+                    if (!payload) return;
+
+                    if (e.target.checked) {
+                        if (!sourceBlock('conductor', key)) {
+                            agregarPersona(payload);
+                        }
+                    } else {
+                        removeSourceBlock('conductor', key);
+                    }
                 }
             });
 
@@ -892,6 +1089,7 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 inicializarBloques();
+                syncSourceCheckboxesFromBlocks();
             });
         })();
 

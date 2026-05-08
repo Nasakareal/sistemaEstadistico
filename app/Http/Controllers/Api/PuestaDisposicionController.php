@@ -8,7 +8,9 @@ use App\Models\PuestaDisposicionPersona;
 use App\Models\PuestaDisposicionVehiculo;
 use App\Models\PuestaDisposicionObjeto;
 use App\Models\Unidad;
+use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -91,6 +93,78 @@ class PuestaDisposicionController extends Controller
         return $unidadId;
     }
 
+    private function unidadIdDesdeHecho(?Hechos $hecho): ?int
+    {
+        if (!$hecho) return null;
+
+        $unidadId=(int)($hecho->unidad_org_id ?: optional($hecho->creator)->unidad_id);
+        return $unidadId>0 ? $unidadId : null;
+    }
+
+    private function resolverHechoOrigen(Request $request,$usuario): Hechos
+    {
+        $hechoId=(int)$request->input('hecho_id');
+        $hechoClientUuid=trim((string)$request->input('hecho_client_uuid',''));
+
+        $query=Hechos::query()->with(['creator','vehiculos']);
+
+        if ($hechoId>0) {
+            $query->whereKey($hechoId);
+        } elseif ($hechoClientUuid!=='') {
+            $query->where('client_uuid',$hechoClientUuid);
+        } else {
+            throw ValidationException::withMessages([
+                'hecho_id'=>'La puesta a disposición debe crearse desde el lado de actividad o desde el lado de hechos.',
+            ]);
+        }
+
+        HechoAccess::applyVisibilityScope($query,$usuario);
+        $hecho=$query->first();
+
+        if (!$hecho) {
+            throw ValidationException::withMessages([
+                'hecho_id'=>'No se encontró un hecho válido para vincular la puesta a disposición.',
+            ]);
+        }
+
+        return $hecho;
+    }
+
+    private function resolverVehiculoRelacionadoId(?Hechos $hecho,array $vehiculo): ?int
+    {
+        if (!$hecho) return null;
+
+        $hecho->loadMissing('vehiculos');
+        $vehiculos=$hecho->vehiculos;
+        $vehiculoId=(int)($vehiculo['vehiculo_id'] ?? 0);
+
+        if ($vehiculoId>0 && $vehiculos->contains('id',$vehiculoId)) {
+            return $vehiculoId;
+        }
+
+        $sourceKey=trim((string)($vehiculo['source_key'] ?? ''));
+        if (preg_match('/^vehiculo:(\d+)$/',$sourceKey,$matches)) {
+            $sourceVehiculoId=(int)$matches[1];
+            if ($vehiculos->contains('id',$sourceVehiculoId)) {
+                return $sourceVehiculoId;
+            }
+        }
+
+        $serie=strtoupper(trim((string)($vehiculo['serie'] ?? '')));
+        if ($serie!=='') {
+            $match=$vehiculos->first(fn ($item) => strtoupper(trim((string)$item->serie))===$serie);
+            if ($match) return (int)$match->id;
+        }
+
+        $placas=strtoupper(trim((string)($vehiculo['placas'] ?? '')));
+        if ($placas!=='') {
+            $match=$vehiculos->first(fn ($item) => strtoupper(trim((string)$item->placas))===$placas);
+            if ($match) return (int)$match->id;
+        }
+
+        return null;
+    }
+
     private function normalizarTextoLargoNullable($valor): ?string
     {
         if ($valor===null || trim((string)$valor)==='') return null;
@@ -118,11 +192,13 @@ class PuestaDisposicionController extends Controller
     private function validarStore(Request $request,$usuario): void
     {
         $request->validate([
+            'hecho_id'=>'nullable|integer|exists:hechos,id',
+            'hecho_client_uuid'=>'nullable|string|max:100',
             'tipo_puesta'=>'required|string|max:100',
             'motivo'=>'required|string|max:150',
             'estatus'=>'nullable|string|max:100',
             'nombre_policia'=>'required|string|max:255',
-            'unidad_id'=>$this->puedeSeleccionarUnidadRegistro($usuario) ? 'required|integer|exists:unidades,id' : 'nullable',
+            'unidad_id'=>$this->puedeSeleccionarUnidadRegistro($usuario) ? 'nullable|integer|exists:unidades,id' : 'nullable',
             'nombre_mp'=>'nullable|string|max:255',
             'autoridad_receptora'=>'nullable|string|max:255',
             'area'=>'nullable|string|max:255',
@@ -151,6 +227,8 @@ class PuestaDisposicionController extends Controller
             'personas.*.observaciones'=>'nullable|string',
 
             'vehiculos'=>'nullable|array',
+            'vehiculos.*.vehiculo_id'=>'nullable|integer|exists:vehiculos,id',
+            'vehiculos.*.source_key'=>'nullable|string|max:100',
             'vehiculos.*.tipo'=>'nullable|string|max:100',
             'vehiculos.*.marca'=>'nullable|string|max:100',
             'vehiculos.*.submarca'=>'nullable|string|max:100',
@@ -176,6 +254,10 @@ class PuestaDisposicionController extends Controller
 
     private function guardarDetalles(PuestaDisposicion $puesta, Request $request): void
     {
+        $hechoOrigen=$puesta->hecho_id
+            ? $puesta->hecho()->with('vehiculos')->first()
+            : null;
+
         foreach ($request->input('personas', []) as $persona) {
             if (empty(trim((string)($persona['nombre_completo'] ?? '')))) continue;
 
@@ -206,7 +288,7 @@ class PuestaDisposicionController extends Controller
 
             PuestaDisposicionVehiculo::create([
                 'puesta_disposicion_id'=>$puesta->id,
-                'vehiculo_id'=>null,
+                'vehiculo_id'=>$this->resolverVehiculoRelacionadoId($hechoOrigen,$vehiculo),
                 'tipo'=>$this->normalizarTextoNullable($vehiculo['tipo'] ?? null),
                 'marca'=>$this->normalizarTextoNullable($vehiculo['marca'] ?? null),
                 'submarca'=>$this->normalizarTextoNullable($vehiculo['submarca'] ?? null),
@@ -259,7 +341,16 @@ class PuestaDisposicionController extends Controller
     public function store(Request $request)
     {
         $usuario=Auth::user();
-        $unidadRegistroId=$this->resolverUnidadRegistro($request,$usuario);
+        $hechoOrigen=$this->resolverHechoOrigen($request,$usuario);
+        if (PuestaDisposicion::query()->where('hecho_id',$hechoOrigen->id)->exists()) {
+            throw ValidationException::withMessages([
+                'hecho_id'=>'Este hecho ya tiene una puesta a disposición vinculada.',
+            ]);
+        }
+
+        $unidadRegistroId=$this->unidadIdDesdeHecho($hechoOrigen)
+            ?: $this->resolverUnidadRegistro($request,$usuario);
+        $request->merge(['hecho_id'=>$hechoOrigen->id]);
         $this->prepararRequestStore($request,$unidadRegistroId);
         $this->validarStore($request,$usuario);
 
@@ -292,6 +383,7 @@ class PuestaDisposicionController extends Controller
             }
 
             $puesta=PuestaDisposicion::create([
+                'hecho_id'=>$hechoOrigen->id,
                 'numero_puesta'=>$numero,
                 'anio'=>$anioActual,
                 'tipo_puesta'=>$request->input('tipo_puesta'),
@@ -310,7 +402,7 @@ class PuestaDisposicionController extends Controller
                 'observaciones'=>$request->input('observaciones'),
                 'archivo_puesta'=>$archivo,
                 'unidad_id'=>$unidadRegistroId,
-                'delegacion_id'=>$usuario->delegacion_id,
+                'delegacion_id'=>$hechoOrigen->delegacion_id ?: $usuario->delegacion_id,
                 'destacamento_id'=>$usuario->destacamento_id,
                 'created_by'=>$usuario->id,
             ]);

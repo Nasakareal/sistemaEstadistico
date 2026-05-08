@@ -8,7 +8,9 @@ use App\Models\PuestaDisposicionVehiculo;
 use App\Models\PuestaDisposicionObjeto;
 use App\Models\Unidad;
 use App\Models\Delegacion;
+use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -163,6 +165,164 @@ class PuestaDisposicionController extends Controller
         return $unidadId;
     }
 
+    private function findHechoVisibleParaPuesta(int $hechoId, $usuario): Hechos
+    {
+        $query = Hechos::query()
+            ->whereKey($hechoId)
+            ->with(['creator', 'vehiculos.conductores', 'puestaDisposicion']);
+
+        HechoAccess::applyVisibilityScope($query, $usuario);
+
+        return $query->firstOrFail();
+    }
+
+    private function resolverHechoOrigen(Request $request, $usuario): Hechos
+    {
+        $hechoId = (int)$request->input('hecho_id');
+
+        if ($hechoId <= 0) {
+            throw ValidationException::withMessages([
+                'hecho_id' => 'La puesta a disposición debe crearse desde el lado de actividad o desde el lado de hechos.',
+            ]);
+        }
+
+        return $this->findHechoVisibleParaPuesta($hechoId, $usuario);
+    }
+
+    private function unidadIdDesdeHecho(?Hechos $hecho): ?int
+    {
+        if (!$hecho) {
+            return null;
+        }
+
+        $unidadId = (int)($hecho->unidad_org_id ?: optional($hecho->creator)->unidad_id);
+
+        return $unidadId > 0 ? $unidadId : null;
+    }
+
+    private function tipoPuestaDesdeHecho(Hechos $hecho): string
+    {
+        $vehiculosMp = (int)($hecho->vehiculos_mp ?? 0);
+        $personasMp = (int)($hecho->personas_mp ?? 0);
+
+        if ($vehiculosMp > 0 && $personasMp > 0) {
+            return 'MIXTA';
+        }
+
+        if ($vehiculosMp > 0) {
+            return 'VEHICULO';
+        }
+
+        if ($personasMp > 0) {
+            return 'PERSONA';
+        }
+
+        return 'MIXTA';
+    }
+
+    private function lugarPuestaDesdeHecho(Hechos $hecho): ?string
+    {
+        $partes = collect([$hecho->calle, $hecho->colonia, $hecho->municipio])
+            ->map(fn ($parte) => trim((string)$parte))
+            ->filter()
+            ->values();
+
+        return $partes->isEmpty() ? null : $partes->implode(', ');
+    }
+
+    private function vehiculosHechoPayload(Hechos $hecho): array
+    {
+        return $hecho->vehiculos->values()->map(function ($vehiculo, int $index) {
+            $sourceKey = 'vehiculo:' . (int)$vehiculo->id;
+            $linea = $vehiculo->linea ?? $vehiculo->submarca ?? null;
+            $label = collect([
+                $vehiculo->marca,
+                $linea,
+                $vehiculo->modelo,
+                $vehiculo->placas ? 'PLACAS ' . $vehiculo->placas : null,
+                $vehiculo->serie ? 'SERIE ' . $vehiculo->serie : null,
+            ])->map(fn ($parte) => trim((string)$parte))->filter()->implode(' / ');
+
+            return [
+                'id' => (int)$vehiculo->id,
+                'vehiculo_id' => (int)$vehiculo->id,
+                'source_key' => $sourceKey,
+                'label' => $label ?: 'Vehículo ' . ($index + 1),
+                'tipo' => $vehiculo->tipo,
+                'marca' => $vehiculo->marca,
+                'submarca' => $linea,
+                'modelo' => $vehiculo->modelo,
+                'color' => $vehiculo->color,
+                'placas' => $vehiculo->placas,
+                'serie' => $vehiculo->serie,
+                'calidad' => 'RELACIONADO',
+                'motivo_relacion' => 'HECHO DE TRANSITO TURNADO',
+                'con_reporte_robo' => !empty($vehiculo->antecedente_vehiculo),
+                'observaciones' => $vehiculo->partes_danadas,
+                'conductores' => $vehiculo->conductores->values()->map(function ($conductor, int $conductorIndex) use ($sourceKey, $label) {
+                    $conductorSourceKey = $conductor->id
+                        ? 'conductor:' . (int)$conductor->id
+                        : $sourceKey . ':conductor:' . $conductorIndex;
+
+                    return [
+                        'id' => (int)$conductor->id,
+                        'source_key' => $conductorSourceKey,
+                        'label' => trim((string)$conductor->nombre) !== ''
+                            ? $conductor->nombre . ' - ' . $label
+                            : $label,
+                        'nombre_completo' => $conductor->nombre,
+                        'edad' => $conductor->edad,
+                        'sexo' => $conductor->sexo,
+                        'domicilio' => $conductor->domicilio,
+                        'calidad' => 'CONDUCTOR',
+                        'delito_o_motivo' => 'HECHO DE TRANSITO TURNADO',
+                    ];
+                })->all(),
+            ];
+        })->all();
+    }
+
+    private function resolverVehiculoRelacionadoId(?Hechos $hecho, array $vehiculo): ?int
+    {
+        if (!$hecho) {
+            return null;
+        }
+
+        $hecho->loadMissing('vehiculos');
+        $vehiculos = $hecho->vehiculos;
+        $vehiculoId = (int)($vehiculo['vehiculo_id'] ?? 0);
+
+        if ($vehiculoId > 0 && $vehiculos->contains('id', $vehiculoId)) {
+            return $vehiculoId;
+        }
+
+        $sourceKey = trim((string)($vehiculo['source_key'] ?? ''));
+        if (preg_match('/^vehiculo:(\d+)$/', $sourceKey, $matches)) {
+            $sourceVehiculoId = (int)$matches[1];
+            if ($vehiculos->contains('id', $sourceVehiculoId)) {
+                return $sourceVehiculoId;
+            }
+        }
+
+        $serie = strtoupper(trim((string)($vehiculo['serie'] ?? '')));
+        if ($serie !== '') {
+            $match = $vehiculos->first(fn ($item) => strtoupper(trim((string)$item->serie)) === $serie);
+            if ($match) {
+                return (int)$match->id;
+            }
+        }
+
+        $placas = strtoupper(trim((string)($vehiculo['placas'] ?? '')));
+        if ($placas !== '') {
+            $match = $vehiculos->first(fn ($item) => strtoupper(trim((string)$item->placas)) === $placas);
+            if ($match) {
+                return (int)$match->id;
+            }
+        }
+
+        return null;
+    }
+
     public function index(Request $request)
     {
         $usuario = auth()->user();
@@ -198,18 +358,44 @@ class PuestaDisposicionController extends Controller
         ));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $usuario = auth()->user();
+        $hechoId = (int)$request->query('hecho_id');
+
+        if ($hechoId <= 0) {
+            return redirect()->route('puestas_disposicion.index')
+                ->with('error', 'La puesta a disposición debe crearse desde el lado de actividad o desde el lado de hechos.');
+        }
+
+        $hechoOrigen = $this->findHechoVisibleParaPuesta($hechoId, $usuario);
+
+        if ($hechoOrigen->puestaDisposicion) {
+            return redirect()->route('puestas_disposicion.show', $hechoOrigen->puestaDisposicion->id)
+                ->with('success', 'Este hecho ya tiene una puesta a disposición vinculada.');
+        }
+
         $anioActual = now()->year;
         $unidades = $this->obtenerUnidadesActivas();
         $puedeSeleccionarUnidad = $this->puedeSeleccionarUnidadRegistro($usuario);
+        $unidadOrigenId = $this->unidadIdDesdeHecho($hechoOrigen);
 
-        $unidadSeleccionadaId = $puedeSeleccionarUnidad
-            ? (int)old('unidad_id', $usuario->unidad_id ?: optional($unidades->first())->id)
-            : (int)$usuario->unidad_id;
+        $unidadSeleccionadaId = (int)old(
+            'unidad_id',
+            $unidadOrigenId ?: ($usuario->unidad_id ?: optional($unidades->first())->id)
+        );
 
         $unidadNombre = $this->obtenerNombreUnidad($unidadSeleccionadaId);
+        $tipoPuestaDefault = $this->tipoPuestaDesdeHecho($hechoOrigen);
+        $motivoDefault = 'HECHO DE TRANSITO TURNADO';
+        $lugarPuestaDefault = $this->lugarPuestaDesdeHecho($hechoOrigen);
+        $nombrePoliciaDefault = $hechoOrigen->perito ?: ($usuario->name ?? '');
+        $oficioDefault = $hechoOrigen->folio_c5i;
+        $fechaPuestaDefault = $hechoOrigen->fecha
+            ? $hechoOrigen->fecha->format('Y-m-d')
+            : now()->toDateString();
+        $horaPuestaDefault = $hechoOrigen->hora ? substr((string)$hechoOrigen->hora, 0, 5) : null;
+        $vehiculosHechoPuesta = $this->vehiculosHechoPayload($hechoOrigen);
 
         $ultimoRegistro = PuestaDisposicion::query()
             ->where('anio', $anioActual)
@@ -235,16 +421,35 @@ class PuestaDisposicionController extends Controller
             'unidades',
             'puedeSeleccionarUnidad',
             'unidadSeleccionadaId',
-            'numerosSiguientesPorUnidad'
+            'numerosSiguientesPorUnidad',
+            'hechoOrigen',
+            'tipoPuestaDefault',
+            'motivoDefault',
+            'lugarPuestaDefault',
+            'nombrePoliciaDefault',
+            'oficioDefault',
+            'fechaPuestaDefault',
+            'horaPuestaDefault',
+            'vehiculosHechoPuesta'
         ));
     }
 
     public function store(Request $request)
     {
         $usuario = auth()->user();
-        $unidadRegistroId = $this->resolverUnidadRegistro($request, $usuario);
+        $hechoOrigen = $this->resolverHechoOrigen($request, $usuario);
+        if (PuestaDisposicion::query()->where('hecho_id', $hechoOrigen->id)->exists()) {
+            throw ValidationException::withMessages([
+                'hecho_id' => 'Este hecho ya tiene una puesta a disposición vinculada.',
+            ]);
+        }
+
+        $unidadRegistroId = $this->unidadIdDesdeHecho($hechoOrigen)
+            ?: $this->resolverUnidadRegistro($request, $usuario);
 
         $request->merge([
+            'hecho_id'              => $hechoOrigen->id,
+            'unidad_id'             => $unidadRegistroId,
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
             'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
             'estatus'               => 'ACTIVA',
@@ -260,6 +465,7 @@ class PuestaDisposicionController extends Controller
         ]);
 
         $request->validate([
+            'hecho_id'              => 'required|integer|exists:hechos,id',
             'tipo_puesta'           => 'required|string|max:100',
             'motivo'                => 'required|string|max:150',
             'estatus'               => 'nullable|string|max:100',
@@ -293,6 +499,7 @@ class PuestaDisposicionController extends Controller
             'personas.*.observaciones'          => 'nullable|string',
 
             'vehiculos'                         => 'nullable|array',
+            'vehiculos.*.vehiculo_id'           => 'nullable|integer|exists:vehiculos,id',
             'vehiculos.*.tipo'                  => 'nullable|string|max:100',
             'vehiculos.*.marca'                 => 'nullable|string|max:100',
             'vehiculos.*.submarca'              => 'nullable|string|max:100',
@@ -336,6 +543,7 @@ class PuestaDisposicionController extends Controller
             $numeroSiguiente = $ultimoRegistro ? ($ultimoRegistro->numero_puesta + 1) : 1;
 
             $puesta = PuestaDisposicion::create([
+                'hecho_id'              => $hechoOrigen->id,
                 'numero_puesta'         => $numeroSiguiente,
                 'anio'                  => $anioActual,
                 'tipo_puesta'           => $request->input('tipo_puesta'),
@@ -353,7 +561,7 @@ class PuestaDisposicionController extends Controller
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
                 'unidad_id'             => $unidadRegistroId,
-                'delegacion_id'         => $usuario->delegacion_id,
+                'delegacion_id'         => $hechoOrigen->delegacion_id ?: $usuario->delegacion_id,
                 'destacamento_id'       => $usuario->destacamento_id,
                 'archivo_puesta'        => $archivoPuesta,
                 'created_by'            => $usuario->id,
@@ -397,7 +605,7 @@ class PuestaDisposicionController extends Controller
 
                 PuestaDisposicionVehiculo::create([
                     'puesta_disposicion_id' => $puesta->id,
-                    'vehiculo_id'           => null,
+                    'vehiculo_id'           => $this->resolverVehiculoRelacionadoId($hechoOrigen, $vehiculo),
                     'tipo'                  => $this->normalizarTextoNullable($vehiculo['tipo'] ?? null),
                     'marca'                 => $this->normalizarTextoNullable($vehiculo['marca'] ?? null),
                     'submarca'              => $this->normalizarTextoNullable($vehiculo['submarca'] ?? null),
@@ -474,6 +682,9 @@ class PuestaDisposicionController extends Controller
         $usuario = auth()->user();
 
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
+        $hechoOrigen = $puestaDisposicion->hecho_id
+            ? $puestaDisposicion->hecho()->with('vehiculos')->first()
+            : null;
 
         $request->merge([
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
@@ -525,6 +736,7 @@ class PuestaDisposicionController extends Controller
             'personas.*.observaciones'          => 'nullable|string',
 
             'vehiculos'                         => 'nullable|array',
+            'vehiculos.*.vehiculo_id'           => 'nullable|integer|exists:vehiculos,id',
             'vehiculos.*.tipo'                  => 'nullable|string|max:100',
             'vehiculos.*.marca'                 => 'nullable|string|max:100',
             'vehiculos.*.submarca'              => 'nullable|string|max:100',
@@ -650,7 +862,7 @@ class PuestaDisposicionController extends Controller
 
                 PuestaDisposicionVehiculo::create([
                     'puesta_disposicion_id' => $puestaDisposicion->id,
-                    'vehiculo_id'           => null,
+                    'vehiculo_id'           => $this->resolverVehiculoRelacionadoId($hechoOrigen, $vehiculo),
                     'tipo'                  => $this->normalizarTextoNullable($vehiculo['tipo'] ?? null),
                     'marca'                 => $this->normalizarTextoNullable($vehiculo['marca'] ?? null),
                     'submarca'              => $this->normalizarTextoNullable($vehiculo['submarca'] ?? null),

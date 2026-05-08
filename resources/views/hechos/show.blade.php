@@ -135,10 +135,13 @@
     $sit = strtoupper(trim($sitRaw));
     $soloTurnado = ($sit === 'TURNADO'); // <- Regla exacta: solo TURNADO, nada más
     $camposMP = ['oficio_mp', 'vehiculos_mp', 'personas_mp'];
-    $esHechoDelegaciones = (int) ($hecho->unidad_org_id ?: optional($hecho->creator)->unidad_id) === 2;
     $puestaHecho = $hecho->puestaDisposicion ?? null;
-    $iphDelegacionesPath = $hecho->iph_delegaciones_path ?: optional($puestaHecho)->archivo_puesta;
-    $mostrarAccionesTurnado = $esHechoDelegaciones && $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
+    $iphDelegacionesPath = $hecho->iph_delegaciones_path;
+    $mostrarAccionesTurnado = $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
+    $puedeCrearPuestaTurnado = $soloTurnado
+        && !$puestaHecho
+        && $usuario
+        && $usuario->can('crear puestas a disposicion');
 @endphp
 
 
@@ -167,22 +170,32 @@
                                        class="btn btn-outline-light btn-sm sv-status-action"
                                        target="_blank"
                                        rel="noopener"
-                                       title="Ver IPH">
+                                       download
+                                       title="Descargar IPH">
                                         <i class="fa-solid fa-file-pdf"></i>
-                                        <span>IPH</span>
+                                        <span>Descargar IPH</span>
                                     </a>
                                 @endif
 
                                 @if($puestaHecho)
-                                    @can('ver puestas a disposicion')
-                                        <a href="{{ route('puestas_disposicion.show', $puestaHecho->id) }}"
-                                           class="btn btn-outline-info btn-sm sv-status-action"
-                                           title="Ver puesta a disposición">
-                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                            <span>Puesta</span>
-                                        </a>
-                                    @endcan
+                                    <a href="{{ route('puestas_disposicion.show', $puestaHecho->id) }}"
+                                       class="btn btn-outline-info btn-sm sv-status-action"
+                                       title="Ver puesta a disposición">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        <span>Ver puesta</span>
+                                    </a>
                                 @endif
+                            </div>
+                        @endif
+
+                        @if($puedeCrearPuestaTurnado)
+                            <div class="sv-status-actions">
+                                <a href="{{ route('puestas_disposicion.create', ['hecho_id' => $hecho->id]) }}"
+                                   class="btn btn-outline-info btn-sm sv-status-action"
+                                   title="Crear puesta vinculada">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Crear puesta</span>
+                                </a>
                             </div>
                         @endif
                     </div>
@@ -214,6 +227,38 @@
                                     <div class="sv-v {{ $isGreen ? 'sv-green' : '' }}">
                                         {{ $fmt(data_get($hecho, $field)) }}
                                     </div>
+
+                                    @if($field === 'situacion' && ($mostrarAccionesTurnado || $puedeCrearPuestaTurnado))
+                                        <div class="sv-status-actions sv-status-actions-card">
+                                            @if($iphDelegacionesPath)
+                                                <a href="{{ asset('storage/' . ltrim($iphDelegacionesPath, '/')) }}"
+                                                   class="btn btn-outline-light btn-sm sv-status-action"
+                                                   target="_blank"
+                                                   rel="noopener"
+                                                   download
+                                                   title="Descargar IPH">
+                                                    <i class="fa-solid fa-file-pdf"></i>
+                                                    <span>Descargar IPH</span>
+                                                </a>
+                                            @endif
+
+                                            @if($puestaHecho)
+                                                <a href="{{ route('puestas_disposicion.show', $puestaHecho->id) }}"
+                                                   class="btn btn-outline-info btn-sm sv-status-action"
+                                                   title="Ver puesta a disposición">
+                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                                    <span>Ver puesta</span>
+                                                </a>
+                                            @elseif($puedeCrearPuestaTurnado)
+                                                <a href="{{ route('puestas_disposicion.create', ['hecho_id' => $hecho->id]) }}"
+                                                   class="btn btn-outline-info btn-sm sv-status-action"
+                                                   title="Crear puesta vinculada">
+                                                    <i class="fa-solid fa-plus"></i>
+                                                    <span>Crear puesta</span>
+                                                </a>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         @endforeach
@@ -698,6 +743,16 @@
         line-height: 1;
         padding: .28rem .58rem;
         white-space: nowrap;
+    }
+
+    .sv-status-actions-card {
+        display: flex;
+        margin-top: 10px;
+    }
+
+    .sv-status-actions-card .sv-status-action {
+        justify-content: center;
+        min-height: 30px;
     }
 
     .sv-divider { height: 1px; background: rgba(255,255,255,.10); margin: 18px 0; }

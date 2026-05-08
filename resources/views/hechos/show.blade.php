@@ -135,6 +135,10 @@
     $sit = strtoupper(trim($sitRaw));
     $soloTurnado = ($sit === 'TURNADO'); // <- Regla exacta: solo TURNADO, nada más
     $camposMP = ['oficio_mp', 'vehiculos_mp', 'personas_mp'];
+    $esHechoDelegaciones = (int) ($hecho->unidad_org_id ?: optional($hecho->creator)->unidad_id) === 2;
+    $puestaHecho = $hecho->puestaDisposicion ?? null;
+    $iphDelegacionesPath = $hecho->iph_delegaciones_path ?: optional($puestaHecho)->archivo_puesta;
+    $mostrarAccionesTurnado = $esHechoDelegaciones && $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
 @endphp
 
 
@@ -155,6 +159,32 @@
                         <span class="badge {{ $estatusClass }}" style="font-size:.9rem; padding:.35rem .6rem;">
                             {{ $estatus }}
                         </span>
+
+                        @if($mostrarAccionesTurnado)
+                            <div class="sv-status-actions">
+                                @if($iphDelegacionesPath)
+                                    <a href="{{ asset('storage/' . ltrim($iphDelegacionesPath, '/')) }}"
+                                       class="btn btn-outline-light btn-sm sv-status-action"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="Ver IPH">
+                                        <i class="fa-solid fa-file-pdf"></i>
+                                        <span>IPH</span>
+                                    </a>
+                                @endif
+
+                                @if($puestaHecho)
+                                    @can('ver puestas a disposicion')
+                                        <a href="{{ route('puestas_disposicion.show', $puestaHecho->id) }}"
+                                           class="btn btn-outline-info btn-sm sv-status-action"
+                                           title="Ver puesta a disposición">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                            <span>Puesta</span>
+                                        </a>
+                                    @endcan
+                                @endif
+                            </div>
+                        @endif
                     </div>
 
                     <div class="d-none d-md-flex align-items-center" style="gap:8px;">
@@ -650,6 +680,24 @@
         border-radius: 10px;
         background: rgba(255,255,255,.06);
         border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .sv-status-actions {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .sv-status-action {
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 800;
+        line-height: 1;
+        padding: .28rem .58rem;
+        white-space: nowrap;
     }
 
     .sv-divider { height: 1px; background: rgba(255,255,255,.10); margin: 18px 0; }

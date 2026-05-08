@@ -133,6 +133,11 @@ class Hechos extends Model
         return $this->hasOne(Dictamen::class, 'hecho_id');
     }
 
+    public function puestaDisposicion(): HasOne
+    {
+        return $this->hasOne(PuestaDisposicion::class, 'hecho_id')->latestOfMany();
+    }
+
     public function marcadoRelevantePor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'marcado_relevante_por');

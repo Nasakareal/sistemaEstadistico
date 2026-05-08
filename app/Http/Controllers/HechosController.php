@@ -306,6 +306,7 @@ class HechosController extends Controller
             'vehiculos.servicios',
             'lesionados',
             'dictamen',
+            'puestaDisposicion',
             'revisadoPor',
             'marcadoRelevantePor',
             'croquis',

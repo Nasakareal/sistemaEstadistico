@@ -7,6 +7,7 @@ use App\Models\PuestaDisposicionPersona;
 use App\Models\PuestaDisposicionVehiculo;
 use App\Models\PuestaDisposicionObjeto;
 use App\Models\Unidad;
+use App\Models\Delegacion;
 use App\Services\DelegacionesWhatsAppAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -62,7 +63,13 @@ class PuestaDisposicionController extends Controller
         }
 
         if (!is_null($usuario->delegacion_id)) {
-            $query->where('delegacion_id', $usuario->delegacion_id);
+            $delegacionIds = $this->delegacionIdsVisibles($usuario);
+
+            if (empty($delegacionIds)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('delegacion_id', $delegacionIds);
+            }
         }
 
         if (!is_null($usuario->destacamento_id)) {
@@ -77,6 +84,35 @@ class PuestaDisposicionController extends Controller
         return $this->queryVisibleByUser($usuario)
             ->with(['personas', 'vehiculos', 'objetos', 'unidad', 'delegacion', 'destacamento', 'creador', 'actualizador'])
             ->findOrFail($id);
+    }
+
+    private function delegacionIdsVisibles($usuario): array
+    {
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+        if ($delegacionId <= 0) {
+            return [];
+        }
+
+        if (!$usuario->hasRole('Delegado')) {
+            return [$delegacionId];
+        }
+
+        $esRegional = Delegacion::query()
+            ->where('id', $delegacionId)
+            ->whereNull('delegacion_padre_id')
+            ->exists();
+
+        if (!$esRegional) {
+            return [$delegacionId];
+        }
+
+        return Delegacion::query()
+            ->where('id', $delegacionId)
+            ->orWhere('delegacion_padre_id', $delegacionId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
     }
 
     private function normalizarTextoNullable($valor): ?string

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DelegacionesExcelRevisionController;
 use App\Http\Controllers\Api\DocumentoHechoController;
 use App\Http\Controllers\Api\GruaController;
 use App\Http\Controllers\Api\HechoController;
@@ -133,6 +134,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/password', [AuthController::class, 'changePassword']);
     Route::get('/permissions', [AuthController::class, 'permissions']);
     Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
+    Route::get('/delegaciones/excel-revision', [DelegacionesExcelRevisionController::class, 'show'])
+        ->name('api.delegaciones.excel_revision.show');
 
     Route::prefix('settings/users')->middleware('role:Superadmin')->group(function () {
         Route::get('/meta', [ApiUserController::class, 'meta'])->name('api.settings.users.meta');

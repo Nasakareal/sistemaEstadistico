@@ -648,7 +648,7 @@ class PuestaDisposicionController extends Controller
 
             app(DelegacionesWhatsAppAlertService::class)->notificarPuestaDisposicion($puesta);
 
-            return redirect()->route('puestas_disposicion.index')
+            return redirect()->route('hechos.show', $hechoOrigen->id)
                 ->with('success', 'Puesta a disposición creada exitosamente.');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -903,7 +903,11 @@ class PuestaDisposicionController extends Controller
 
             DB::commit();
 
-            return redirect()->route('puestas_disposicion.index')
+            $redirect = $puestaDisposicion->hecho_id
+                ? redirect()->route('hechos.show', $puestaDisposicion->hecho_id)
+                : redirect()->route('puestas_disposicion.index');
+
+            return $redirect
                 ->with('success', 'Puesta a disposición actualizada exitosamente.');
         } catch (\Throwable $e) {
             DB::rollBack();

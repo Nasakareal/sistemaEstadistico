@@ -5,6 +5,10 @@
 @php
     $usuario = auth()->user();
     $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
+    $urlAnterior = url()->previous();
+    $volverHechoUrl = $urlAnterior && $urlAnterior !== url()->current()
+        ? $urlAnterior
+        : route('hechos.index');
 @endphp
 
 @section('content_header')
@@ -469,7 +473,7 @@
                                                 @endif
                                             @endif
 
-                                            <a href="{{ route('hechos.index') }}" class="btn btn-secondary btn-sm">
+                                            <a href="{{ $volverHechoUrl }}" class="btn btn-secondary btn-sm">
                                                 <i class="fa-solid fa-arrow-left"></i> Volver
                                             </a>
                                         </div>
@@ -672,7 +676,7 @@
             </div>
 
             <div class="text-center mt-3">
-                <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
+                <a href="{{ $volverHechoUrl }}" class="btn btn-secondary">
                     <i class="fa-solid fa-arrow-left"></i> Volver
                 </a>
             </div>

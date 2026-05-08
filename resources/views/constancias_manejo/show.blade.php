@@ -53,6 +53,11 @@
                 </div>
 
                 <div class="info-item">
+                    <label>Sexo</label>
+                    <strong>{{ $constancia->sexo ?? '—' }}</strong>
+                </div>
+
+                <div class="info-item">
                     <label>Teléfono</label>
                     <strong>{{ $constancia->telefono ?? '—' }}</strong>
                 </div>
@@ -140,39 +145,15 @@
             <div class="constancia-show-card-header">
                 <div>
                     <h3>Examen en Línea</h3>
-                    <span>Genera acceso temporal para que el ciudadano conteste el examen</span>
+                    <span>El examen se genera sin gastar un folio impreso</span>
                 </div>
                 <i class="fa-solid fa-key"></i>
             </div>
 
             <div class="constancia-show-card-body">
-                @if($constancia->acceso_examen_token && $constancia->acceso_examen_expira)
-                    <div class="access-box">
-                        <label>Enlace temporal</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" readonly value="{{ route('constancias_manejo.examen.iniciar', $constancia->acceso_examen_token) }}">
-                            <div class="input-group-append">
-                                <button class="btn btn-primary btn-copy" type="button" data-url="{{ route('constancias_manejo.examen.iniciar', $constancia->acceso_examen_token) }}">
-                                    <i class="fa-solid fa-copy"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <small>Expira: {{ $constancia->acceso_examen_expira->format('d/m/Y H:i') }}</small>
-                    </div>
-                @else
-                    <div class="empty-box">
-                        Esta constancia aún no tiene acceso temporal generado.
-                    </div>
-                @endif
-            </div>
-
-            <div class="constancia-show-card-footer">
-                <form action="{{ route('constancias_manejo.generar_acceso', $constancia->id) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fa-solid fa-key"></i> Generar acceso
-                    </button>
-                </form>
+                <div class="empty-box">
+                    Genera el acceso desde la app en <strong>Nuevo examen</strong>. Si reprueba, esta constancia impresa sigue intacta; si aprueba, escanea este folio y actívalo con ese examen.
+                </div>
             </div>
         </div>
 
@@ -198,6 +179,15 @@
                         <div class="form-group">
                             <label>CURP</label>
                             <input type="text" name="curp" class="form-control" maxlength="18" value="{{ old('curp', $constancia->curp) }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Sexo</label>
+                            <select name="sexo" class="form-control" required>
+                                <option value="">Seleccione</option>
+                                <option value="HOMBRE" {{ old('sexo', $constancia->sexo) == 'HOMBRE' ? 'selected' : '' }}>Hombre</option>
+                                <option value="MUJER" {{ old('sexo', $constancia->sexo) == 'MUJER' ? 'selected' : '' }}>Mujer</option>
+                            </select>
                         </div>
 
                         <div class="form-group">

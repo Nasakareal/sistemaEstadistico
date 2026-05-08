@@ -84,10 +84,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [ApiConstanciaManejoController::class, 'index'])->name('api.constancias_manejo.index');
         Route::get('/modulos', [ApiConstanciaManejoController::class, 'modulos'])->name('api.constancias_manejo.modulos');
         Route::post('/', [ApiConstanciaManejoController::class, 'store'])->middleware('can:crear modulo examenes')->name('api.constancias_manejo.store');
+        Route::post('/examenes', [ApiConstanciaManejoController::class, 'storeExamen'])->middleware('can:editar modulo examenes')->name('api.constancias_manejo.examenes.store');
+        Route::get('/examenes/qr/{token}', [ApiConstanciaManejoController::class, 'buscarExamenPorQr'])->name('api.constancias_manejo.examenes.qr');
+        Route::get('/examenes/{solicitud}/qr', [ApiConstanciaManejoController::class, 'examenSolicitudQr'])->whereNumber('solicitud')->name('api.constancias_manejo.examenes.qr_png');
+        Route::post('/examenes/{solicitud}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarExamenSolicitudImpresa'])->middleware('can:editar modulo examenes')->whereNumber('solicitud')->name('api.constancias_manejo.examenes.capturar_impreso');
+        Route::post('/examenes/{solicitud}/activar-constancia', [ApiConstanciaManejoController::class, 'activarConExamen'])->middleware('can:editar modulo examenes')->whereNumber('solicitud')->name('api.constancias_manejo.examenes.activar_constancia');
         Route::get('/qr/{token}', [ApiConstanciaManejoController::class, 'buscarPorQr'])->name('api.constancias_manejo.qr');
+        Route::get('/examen-escrito/{token}', [ApiConstanciaManejoController::class, 'buscarExamenEscritoPorQr'])->name('api.constancias_manejo.examen_escrito_qr');
         Route::get('/{constancia}', [ApiConstanciaManejoController::class, 'show'])->whereNumber('constancia')->name('api.constancias_manejo.show');
         Route::get('/{constancia}/acceso-qr', [ApiConstanciaManejoController::class, 'accesoQr'])->whereNumber('constancia')->name('api.constancias_manejo.acceso_qr');
+        Route::get('/{constancia}/examen-escrito-qr', [ApiConstanciaManejoController::class, 'examenEscritoQr'])->whereNumber('constancia')->name('api.constancias_manejo.examen_escrito_qr_png');
         Route::post('/{constancia}/generar-acceso', [ApiConstanciaManejoController::class, 'generarAcceso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.generar_acceso');
+        Route::post('/{constancia}/generar-examen-escrito', [ApiConstanciaManejoController::class, 'generarExamenEscrito'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.generar_examen_escrito');
         Route::post('/{constancia}/capturar-impreso', [ApiConstanciaManejoController::class, 'capturarImpreso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.capturar_impreso');
         Route::post('/{constancia}/activar', [ApiConstanciaManejoController::class, 'activar'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.activar');
         Route::post('/{constancia}/cancelar-acceso', [ApiConstanciaManejoController::class, 'cancelarAcceso'])->middleware('can:editar modulo examenes')->whereNumber('constancia')->name('api.constancias_manejo.cancelar_acceso');

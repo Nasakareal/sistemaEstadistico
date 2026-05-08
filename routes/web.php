@@ -89,6 +89,7 @@ Route::get('/', function () { return view('welcome'); })->name('welcome');
 Route::prefix('constancias-manejo')->group(function () {
     Route::get('/examen/{token}', [ConstanciaExamenPublicoController::class, 'iniciar'])->name('constancias_manejo.examen.iniciar');
     Route::post('/examen/{token}', [ConstanciaExamenPublicoController::class, 'guardar'])->name('constancias_manejo.examen.guardar');
+    Route::get('/examen-escrito/{token}', [ConstanciaExamenPublicoController::class, 'escrito'])->name('constancias_manejo.examen.escrito');
     Route::get('/validar/{token}', [ConstanciaValidacionController::class, 'validar'])->name('constancias_manejo.validar');
     Route::get('/imprimir-lote-firmado', [ConstanciaManejoController::class, 'imprimirLoteFirmado'])->middleware('signed')->name('constancias_manejo.imprimir_lote_firmado');
 });

@@ -20,6 +20,7 @@ class ConstanciaManejo extends Model
         'user_id',
         'perito_activador_id',
         'nombre_solicitante',
+        'sexo',
         'curp',
         'telefono',
         'tipo_licencia',

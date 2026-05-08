@@ -53,7 +53,7 @@
         .meta {
             display: grid;
             gap: 12px;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             margin-bottom: 22px;
         }
 
@@ -163,6 +163,10 @@
                     <div>
                         <small>Solicitante</small>
                         <strong>{{ $constancia->nombre_solicitante ?? 'Pendiente' }}</strong>
+                    </div>
+                    <div>
+                        <small>Sexo</small>
+                        <strong>{{ $constancia->sexo ?? 'Pendiente' }}</strong>
                     </div>
                     <div>
                         <small>Tipo de licencia</small>

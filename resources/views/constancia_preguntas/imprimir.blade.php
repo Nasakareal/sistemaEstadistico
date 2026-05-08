@@ -62,6 +62,37 @@
             text-transform: uppercase;
         }
 
+        .exam-meta {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: start;
+            border: 1px solid #111827;
+            padding: 8px 10px;
+            margin: 6px 0 12px;
+            font-size: 9.5pt;
+        }
+
+        .exam-meta strong {
+            display: inline-block;
+            min-width: 78px;
+        }
+
+        .exam-qr {
+            width: 84px;
+            text-align: center;
+            font-size: 7pt;
+            overflow-wrap: anywhere;
+        }
+
+        .exam-qr img {
+            display: block;
+            width: 82px;
+            height: 82px;
+            object-fit: contain;
+            margin: 0 auto 2px;
+        }
+
         .instructions {
             margin: 6px 0 24px;
             text-align: justify;
@@ -124,6 +155,22 @@
         <div class="instructions">
             <strong>INSTRUCCIONES:</strong> conteste lo que se indica, en las preguntas de opción múltiple no deberá contestar más de dos opciones o será anulada, Para aprobar deberá obtener mínimo 16 aciertos (80%).
         </div>
+
+        @if(!empty($constancia) && !empty($qrBase64))
+            <section class="exam-meta">
+                <div>
+                    <div><strong>Folio:</strong> {{ $constancia->folio }}</div>
+                    <div><strong>Solicitante:</strong> {{ $constancia->nombre_solicitante }}</div>
+                    <div><strong>Sexo:</strong> {{ $constancia->sexo ?? 'N/D' }}</div>
+                    <div><strong>Licencia:</strong> {{ str_replace('_', ' ', $constancia->tipo_licencia) }}</div>
+                    <div><strong>Módulo:</strong> {{ optional($constancia->modulo)->nombre ?? 'N/D' }}</div>
+                </div>
+                <div class="exam-qr">
+                    <img src="{{ $qrBase64 }}" alt="QR del examen escrito">
+                    <div>Escanear para validar</div>
+                </div>
+            </section>
+        @endif
 
         @forelse($preguntas as $index => $pregunta)
             <section class="question">

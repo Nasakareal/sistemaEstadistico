@@ -245,6 +245,9 @@ class DelegacionesExcelRevisionService
 
             $hijas = $this->leerDelegacionesDeRegional($nombre, $inicio, $fin);
             $totalHijas = array_sum(array_map(fn ($item) => (int) ($item['dispositivos'] ?? 0), $hijas));
+            $personasAlcanzadasHijas = array_sum(array_map(fn ($item) => (int) ($item['personas_alcanzadas'] ?? 0), $hijas));
+            $personasParticipantesHijas = array_sum(array_map(fn ($item) => (int) ($item['personas_participantes'] ?? 0), $hijas));
+            $personasDetenidasHijas = array_sum(array_map(fn ($item) => (int) ($item['personas_detenidas'] ?? 0), $hijas));
 
             $regionales[] = [
                 'nombre' => $nombre,
@@ -253,6 +256,11 @@ class DelegacionesExcelRevisionService
                 'hijas' => $hijas,
                 'dispositivos_hijas_total' => $totalHijas,
                 'diferencia_hijas' => (int) ($resumen['dispositivos'] ?? 0) - (int) $totalHijas,
+                'personas_alcanzadas_hijas_total' => $personasAlcanzadasHijas,
+                'personas_participantes_hijas_total' => $personasParticipantesHijas,
+                'personas_detenidas_hijas_total' => $personasDetenidasHijas,
+                'diferencia_personas_alcanzadas_hijas' => (int) ($resumen['personas_alcanzadas'] ?? 0) - (int) $personasAlcanzadasHijas,
+                'diferencia_personas_participantes_hijas' => (int) ($resumen['personas_participantes'] ?? $resumen['estado_fuerza'] ?? 0) - (int) $personasParticipantesHijas,
             ] + $resumen;
         }
 
@@ -310,7 +318,7 @@ class DelegacionesExcelRevisionService
 
     private function resumenDispositivosDelegacion(Carbon $inicio, Carbon $fin, int $delegacionId): array
     {
-        $actividades = DB::table('actividades as a')
+        $actividadesBase = DB::table('actividades as a')
             ->join('actividad_subcategorias as s', 'a.actividad_subcategoria_id', '=', 's.id')
             ->whereRaw('TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?', [
                 $inicio->toDateTimeString(),
@@ -325,8 +333,12 @@ class DelegacionesExcelRevisionService
                             ->whereIn('s.nombre', $subcategorias);
                     });
                 }
-            })
-            ->count();
+            });
+
+        $actividades = (clone $actividadesBase)->count();
+        $personasAlcanzadas = (int) (clone $actividadesBase)->sum(DB::raw('COALESCE(a.personas_alcanzadas, 0)'));
+        $personasParticipantes = (int) (clone $actividadesBase)->sum(DB::raw('COALESCE(a.personas_participantes, 0)'));
+        $personasDetenidas = (int) (clone $actividadesBase)->sum(DB::raw('COALESCE(a.personas_detenidas, 0)'));
 
         $hechos = DB::table('hechos as h')
             ->where('h.captura_completa', 1)
@@ -341,6 +353,10 @@ class DelegacionesExcelRevisionService
             'actividades_contadas' => (int) $actividades,
             'hechos_contados' => (int) $hechos,
             'dispositivos' => (int) $actividades + ((int) $hechos * 2),
+            'estado_fuerza' => $personasParticipantes,
+            'personas_participantes' => $personasParticipantes,
+            'personas_alcanzadas' => $personasAlcanzadas,
+            'personas_detenidas' => $personasDetenidas,
         ];
     }
 
@@ -370,18 +386,24 @@ class DelegacionesExcelRevisionService
 
     private function leerResumenHoja(Worksheet $sheet): array
     {
+        $estadoFuerza = $this->intCell($sheet, 'E78');
+        $personasAlcanzadas = $this->intCell($sheet, 'H78');
+        $personasAseguradas = $this->intCell($sheet, 'D110');
+
         return [
             'dispositivos' => $this->intCell($sheet, 'D78'),
-            'estado_fuerza' => $this->intCell($sheet, 'E78'),
+            'estado_fuerza' => $estadoFuerza,
+            'personas_participantes' => $estadoFuerza,
             'unidades' => $this->intCell($sheet, 'F78'),
             'km_recorridos' => $this->floatCell($sheet, 'G78'),
-            'personas_alcanzadas' => $this->intCell($sheet, 'H78'),
+            'personas_alcanzadas' => $personasAlcanzadas,
             'recomendaciones' => $this->intCell($sheet, 'I78'),
             'control_vehicular_total' => $this->intCell($sheet, 'D94')
                 + $this->intCell($sheet, 'E94')
                 + $this->intCell($sheet, 'F94')
                 + $this->intCell($sheet, 'G94'),
-            'aseguramientos_total' => $this->intCell($sheet, 'D110'),
+            'aseguramientos_total' => $personasAseguradas,
+            'personas_aseguradas' => $personasAseguradas,
             'hechos_resueltos' => $this->intCell($sheet, 'D120'),
             'hechos_pendientes' => $this->intCell($sheet, 'D121'),
             'hechos_turnados' => $this->intCell($sheet, 'D122'),
@@ -410,6 +432,7 @@ class DelegacionesExcelRevisionService
                 'actividad' => $actividad,
                 'cantidad' => $cantidad,
                 'estado_fuerza' => $this->intCell($sheet, 'E' . $row),
+                'personas_participantes' => $this->intCell($sheet, 'E' . $row),
                 'unidades' => $this->intCell($sheet, 'F' . $row),
                 'km_recorridos' => $this->floatCell($sheet, 'G' . $row),
                 'personas_alcanzadas' => $this->intCell($sheet, 'H' . $row),
@@ -464,6 +487,9 @@ class DelegacionesExcelRevisionService
 
         return [
             'actividades_en_corte' => (clone $actividadesCorte)->count(),
+            'personas_alcanzadas_fuente' => (int) (clone $actividadesCorte)->sum(DB::raw('COALESCE(a.personas_alcanzadas, 0)')),
+            'personas_participantes_fuente' => (int) (clone $actividadesCorte)->sum(DB::raw('COALESCE(a.personas_participantes, 0)')),
+            'personas_detenidas_fuente' => (int) (clone $actividadesCorte)->sum(DB::raw('COALESCE(a.personas_detenidas, 0)')),
             'actividades_sin_delegacion' => (clone $actividadesCorte)->whereNull('a.delegacion_id')->count(),
             'actividades_sin_categoria' => (clone $actividadesCorte)->whereNull('a.actividad_categoria_id')->count(),
             'actividades_sin_subcategoria' => (clone $actividadesCorte)->whereNull('a.actividad_subcategoria_id')->count(),
@@ -569,6 +595,9 @@ class DelegacionesExcelRevisionService
                 'a.municipio',
                 'a.actividad_categoria_id',
                 'a.actividad_subcategoria_id',
+                'a.personas_alcanzadas',
+                'a.personas_participantes',
+                'a.personas_detenidas',
                 'c.nombre as categoria',
                 's.nombre as subcategoria',
                 's.actividad_categoria_id as subcategoria_categoria_id',
@@ -649,6 +678,9 @@ class DelegacionesExcelRevisionService
             'subcategoria' => $row->subcategoria,
             'municipio' => $row->municipio,
             'lugar' => $row->lugar,
+            'personas_alcanzadas' => (int) ($row->personas_alcanzadas ?? 0),
+            'personas_participantes' => (int) ($row->personas_participantes ?? 0),
+            'personas_detenidas' => (int) ($row->personas_detenidas ?? 0),
             'motivo' => $motivo,
             'creado_por' => $row->creado_por,
         ];

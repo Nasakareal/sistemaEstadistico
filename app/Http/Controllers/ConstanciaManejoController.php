@@ -183,6 +183,7 @@ class ConstanciaManejoController extends Controller
                 'user_id' => auth()->id(),
                 'perito_activador_id' => null,
                 'nombre_solicitante' => null,
+                'sexo' => null,
                 'curp' => null,
                 'telefono' => null,
                 'tipo_licencia' => null,
@@ -246,6 +247,7 @@ class ConstanciaManejoController extends Controller
         $request->validate([
             'modulo_id' => ['required', 'exists:constancia_modulos,id'],
             'nombre_solicitante' => ['nullable', 'string', 'max:255'],
+            'sexo' => ['nullable', 'in:HOMBRE,MUJER'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['nullable', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
@@ -266,6 +268,7 @@ class ConstanciaManejoController extends Controller
             'modulo_id' => $modulo->id,
             'delegacion_id' => $modulo->delegacion_id,
             'nombre_solicitante' => $request->nombre_solicitante ? mb_strtoupper($request->nombre_solicitante, 'UTF-8') : null,
+            'sexo' => $request->sexo,
             'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
             'telefono' => $request->telefono,
             'tipo_licencia' => $request->tipo_licencia,
@@ -393,6 +396,7 @@ class ConstanciaManejoController extends Controller
 
         $request->validate([
             'nombre_solicitante' => ['required', 'string', 'max:255'],
+            'sexo' => ['required', 'in:HOMBRE,MUJER'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['required', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
@@ -413,6 +417,7 @@ class ConstanciaManejoController extends Controller
         DB::transaction(function () use ($request, $constancia, $resultado, $calificacion) {
             $constancia->update([
                 'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
+                'sexo' => $request->sexo,
                 'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
                 'telefono' => $request->telefono,
                 'tipo_licencia' => $request->tipo_licencia,
@@ -451,8 +456,8 @@ class ConstanciaManejoController extends Controller
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'La constancia no esta inactiva.');
         }
 
-        if (!$constancia->nombre_solicitante || !$constancia->tipo_licencia || !$constancia->tipo_examen) {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Faltan datos del solicitante, tipo de licencia o tipo de examen.');
+        if (!$constancia->nombre_solicitante || !$constancia->sexo || !$constancia->tipo_licencia || !$constancia->tipo_examen) {
+            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Faltan datos del solicitante, sexo, tipo de licencia o tipo de examen.');
         }
 
         if (!$constancia->examen || $constancia->examen->resultado !== 'APROBADO') {

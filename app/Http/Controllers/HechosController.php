@@ -1365,25 +1365,7 @@ class HechosController extends Controller
             return false;
         }
 
-        if ($usuario->hasRole('Superadmin')) {
-            return true;
-        }
-
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        if ($unidadId === 2) {
-            return $usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector');
-        }
-
-        if ($unidadId === 1) {
-            return !$usuario->hasRole('Perito');
-        }
-
-        if ($unidadId === 4) {
-            return false;
-        }
-
-        return !$usuario->hasRole('Perito');
+        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
     }
 
     private function userCanUseDictamenes($usuario, ?Hechos $hecho = null): bool

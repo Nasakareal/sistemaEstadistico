@@ -130,11 +130,14 @@ class ActividadController extends Controller
     {
         $this->authorize('crear actividades');
 
+        $user = Auth::user();
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+
         $validated = $request->validate([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'nullable|exists:actividad_subcategorias,id',
-            'fecha'                          => 'required|date',
-            'hora'                           => 'nullable|date_format:H:i',
+            'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
+            'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar'                          => 'nullable|string|max:255',
             'municipio'                      => 'nullable|string|max:255',
             'carretera'                      => 'nullable|string|max:255',
@@ -182,11 +185,17 @@ class ActividadController extends Controller
 
         $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
 
-        $user = Auth::user();
-
         if ($response = $this->validarGruasPermitidasEnVehiculos($validated['vehiculos'] ?? [], $user)) {
             return $response;
         }
+
+        $ahora = now('America/Mexico_City');
+        $validated['fecha'] = $puedeCapturarFechaHora
+            ? Carbon::parse($validated['fecha'] ?? $ahora->toDateString(), 'America/Mexico_City')->toDateString()
+            : $ahora->toDateString();
+        $validated['hora'] = $puedeCapturarFechaHora
+            ? ($validated['hora'] ?? $ahora->format('H:i'))
+            : $ahora->format('H:i');
 
         $validated['nombre'] = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $validated['cantidad'] = 1;
@@ -371,6 +380,7 @@ class ActividadController extends Controller
         $this->authorize('editar actividades');
 
         $usuario = Auth::user();
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
         $q = Actividad::query()->whereKey($actividad->id);
         $this->applyActividadesVisibilityScope($q, $usuario);
@@ -382,8 +392,8 @@ class ActividadController extends Controller
         $validated = $request->validate([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'nullable|exists:actividad_subcategorias,id',
-            'fecha'                          => 'required|date',
-            'hora'                           => 'nullable|date_format:H:i',
+            'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
+            'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar'                          => 'nullable|string|max:255',
             'municipio'                      => 'nullable|string|max:255',
             'carretera'                      => 'nullable|string|max:255',
@@ -430,8 +440,21 @@ class ActividadController extends Controller
         }
 
         $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
+        $tz = 'America/Mexico_City';
+        $fechaRespaldo = $actividad->created_at
+            ? Carbon::parse($actividad->created_at, $tz)->toDateString()
+            : now($tz)->toDateString();
+        $horaRespaldo = $actividad->created_at
+            ? Carbon::parse($actividad->created_at, $tz)->format('H:i')
+            : now($tz)->format('H:i');
+        $fechaCaptura = $puedeCapturarFechaHora
+            ? Carbon::parse($validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo, $tz)->toDateString()
+            : ($actividad->fecha ?? $fechaRespaldo);
+        $horaCaptura = $puedeCapturarFechaHora
+            ? ($validated['hora'] ?? $actividad->hora ?? $horaRespaldo)
+            : ($actividad->hora ?? $horaRespaldo);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura) {
             $actividad->update([
                 'sync_status'                   => $actividad->sync_status ?: 'local',
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
@@ -442,8 +465,8 @@ class ActividadController extends Controller
                 'unidad_org_id'                 => $actividad->unidad_org_id ?? $usuario->unidad_id,
                 'delegacion_id'                 => $actividad->delegacion_id ?? $usuario->delegacion_id,
                 'destacamento_id'               => $validated['destacamento_id'] ?? null,
-                'fecha'                         => $validated['fecha'],
-                'hora'                          => $validated['hora'] ?? null,
+                'fecha'                         => $fechaCaptura,
+                'hora'                          => $horaCaptura,
                 'lugar'                         => $this->toUpperOrNull($validated['lugar'] ?? null),
                 'municipio'                     => $this->toUpperOrNull($validated['municipio'] ?? null),
                 'carretera'                     => $this->toUpperOrNull($validated['carretera'] ?? null),
@@ -886,6 +909,15 @@ class ActividadController extends Controller
         return $usuario->hasRole('Administrador')
             || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
+    }
+
+    private function userCanCaptureFechaHora($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
     }
 
     private function scopeActividadesUnidad($query, int $unidadId): void

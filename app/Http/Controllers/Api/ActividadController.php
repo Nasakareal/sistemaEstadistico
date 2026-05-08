@@ -116,12 +116,15 @@ class ActividadController extends Controller
     {
         $this->authorize('crear actividades');
 
+        $user = Auth::user();
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+
         $validated = $request->validate([
             'client_uuid' => 'nullable|string|max:36',
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
-            'fecha' => 'nullable|date',
-            'hora' => 'nullable|date_format:H:i',
+            'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
+            'hora' => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar' => 'nullable|string|max:255',
             'municipio' => 'nullable|string|max:255',
             'carretera' => 'nullable|string|max:255',
@@ -208,8 +211,6 @@ class ActividadController extends Controller
             ], 422);
         }
 
-        $user = Auth::user();
-
         if ($response = $this->validarGruasPermitidasEnVehiculosJson($validated['vehiculos'] ?? [], $user)) {
             return $response;
         }
@@ -217,8 +218,12 @@ class ActividadController extends Controller
         $tz = config('app.timezone', 'America/Mexico_City');
         $ahora = now($tz);
 
-        $fecha = !empty($validated['fecha']) ? Carbon::parse($validated['fecha'], $tz)->toDateString() : $ahora->toDateString();
-        $hora = !empty($validated['hora']) ? $validated['hora'] : $ahora->format('H:i');
+        $fecha = $puedeCapturarFechaHora && !empty($validated['fecha'])
+            ? Carbon::parse($validated['fecha'], $tz)->toDateString()
+            : $ahora->toDateString();
+        $hora = $puedeCapturarFechaHora && !empty($validated['hora'])
+            ? $validated['hora']
+            : $ahora->format('H:i');
 
         $hasCoords = $request->filled('lat') && $request->filled('lng');
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
@@ -466,6 +471,7 @@ class ActividadController extends Controller
         $this->authorize('editar actividades');
 
         $usuario = Auth::user();
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
         $q = Actividad::query()->whereKey($actividad->id);
         $this->applyActividadesVisibilityScope($q, $usuario);
@@ -480,8 +486,8 @@ class ActividadController extends Controller
         $validated = $request->validate([
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
-            'fecha' => 'nullable|date',
-            'hora' => 'nullable|date_format:H:i',
+            'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
+            'hora' => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar' => 'nullable|string|max:255',
             'municipio' => 'nullable|string|max:255',
             'carretera' => 'nullable|string|max:255',
@@ -512,7 +518,7 @@ class ActividadController extends Controller
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
-        $user = Auth::user();
+        $user = $usuario;
         $tz = config('app.timezone', 'America/Mexico_City');
 
         $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
@@ -550,7 +556,7 @@ class ActividadController extends Controller
 
         $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora) {
             $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
                 ->map(function ($id) {
                     return (int) $id;
@@ -650,6 +656,12 @@ class ActividadController extends Controller
             $horaRespaldo = $actividad->created_at
                 ? Carbon::parse($actividad->created_at, $tz)->format('H:i')
                 : now($tz)->format('H:i');
+            $fechaCaptura = $puedeCapturarFechaHora
+                ? ($validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo)
+                : ($actividad->fecha ?? $fechaRespaldo);
+            $horaCaptura = $puedeCapturarFechaHora
+                ? ($validated['hora'] ?? $actividad->hora ?? $horaRespaldo)
+                : ($actividad->hora ?? $horaRespaldo);
 
             $actividad->update([
                 'actividad_categoria_id' => $validated['actividad_categoria_id'],
@@ -657,8 +669,8 @@ class ActividadController extends Controller
                 'nombre' => $nombre,
                 'cantidad' => $cantidad,
                 'updated_by' => $user->id,
-                'fecha' => $validated['fecha'] ?? $actividad->fecha ?? $fechaRespaldo,
-                'hora' => $validated['hora'] ?? $actividad->hora ?? $horaRespaldo,
+                'fecha' => $fechaCaptura,
+                'hora' => $horaCaptura,
                 'destacamento_id' => $validated['destacamento_id'] ?? $actividad->destacamento_id,
                 'lugar' => array_key_exists('lugar', $validated) ? $this->toUpperOrNull($validated['lugar']) : $actividad->lugar,
                 'municipio' => array_key_exists('municipio', $validated) ? $this->toUpperOrNull($validated['municipio']) : $actividad->municipio,
@@ -1118,6 +1130,15 @@ class ActividadController extends Controller
         return $usuario->hasRole('Administrador')
             || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
+    }
+
+    private function userCanCaptureFechaHora($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
     }
 
     private function scopeActividadesUnidad($query, int $unidadId): void

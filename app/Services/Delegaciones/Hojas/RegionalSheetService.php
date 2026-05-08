@@ -187,10 +187,14 @@ class RegionalSheetService
                 ->toArray();
         }
 
+        $scopeNormalizado = $this->normalizarTextoComparacion($scope);
         $region = DB::table('delegaciones')
-            ->whereRaw('UPPER(nombre) = ?', [mb_strtoupper($scope)])
             ->whereNull('delegacion_padre_id')
-            ->first();
+            ->where('activa', 1)
+            ->get()
+            ->first(function ($delegacion) use ($scopeNormalizado) {
+                return $this->normalizarTextoComparacion($delegacion->nombre) === $scopeNormalizado;
+            });
 
         if (!$region) {
             return [];

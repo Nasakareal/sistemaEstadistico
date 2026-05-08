@@ -135,7 +135,7 @@ class ActividadController extends Controller
 
         $validated = $request->validate([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
-            'actividad_subcategoria_id'      => 'nullable|exists:actividad_subcategorias,id',
+            'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar'                          => 'nullable|string|max:255',
@@ -391,7 +391,7 @@ class ActividadController extends Controller
 
         $validated = $request->validate([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
-            'actividad_subcategoria_id'      => 'nullable|exists:actividad_subcategorias,id',
+            'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar'                          => 'nullable|string|max:255',

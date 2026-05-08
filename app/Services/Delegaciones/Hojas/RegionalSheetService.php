@@ -2737,6 +2737,7 @@ class RegionalSheetService
 
         $sheet->setCellValue('F146', 1);
         $sheet->setCellValue('G146', 'MONTO DAÑOS MATERIALES ($)');
+        // Borrado Monto Daños $sheet->setCellValue('H146', $choques['monto_danios']);
         $sheet->setCellValue('H146', $choques['monto_danios']);
 
         $sheet->setCellValue('F147', 2);
@@ -2749,7 +2750,8 @@ class RegionalSheetService
 
         $sheet->mergeCells('F149:G149');
         $sheet->setCellValue('F149', 'TOTAL');
-        $sheet->setCellValue('H149', '=SUM(H146:H148)');
+        // Borrado Monto Daños $sheet->setCellValue('H149', '=SUM(H146:H148)');
+        $sheet->setCellValue('H149', 0);
 
         $sheet->getStyle('B145:D145')->applyFromArray([
             'font' => [

@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Actividad;
+use App\Models\Delegacion;
 use App\Models\Hechos;
 use App\Models\Lesionado;
 use App\Models\PuestaDisposicion;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -135,6 +137,23 @@ class DelegacionesWhatsAppAlertService
 
             $this->sendHechoIncompletoTemplate($hecho, $minutosPendiente);
         });
+    }
+
+    public function destinatariosHechoIncompleto(Hechos $hecho): array
+    {
+        $hecho->loadMissing('delegacion.padre');
+
+        $recipients = $this->recipients();
+
+        if ((bool) config('services.whatsapp.delegaciones.incompletos_notify_delegados', true)) {
+            $recipients = array_merge(
+                $recipients,
+                $this->configuredDelegacionRecipients($hecho),
+                $this->delegadoUserRecipients($hecho)
+            );
+        }
+
+        return $this->uniqueNumbers($recipients);
     }
 
     public function debeNotificarNuevaPuestaHecho(?Hechos $antes, Hechos $actual): bool
@@ -275,7 +294,7 @@ class DelegacionesWhatsAppAlertService
 
     private function sendHechoIncompletoTemplate(Hechos $hecho, int $minutosPendiente): void
     {
-        $recipients = $this->recipients();
+        $recipients = $this->destinatariosHechoIncompleto($hecho);
         $template = (string) config(
             'services.whatsapp.delegaciones.incompletos_template',
             'alerta_hecho_incompleto_delegaciones'
@@ -287,6 +306,7 @@ class DelegacionesWhatsAppAlertService
                 'template' => $template,
                 'context' => [
                     'hecho_id' => $hecho->id,
+                    'delegacion_id' => $hecho->delegacion_id,
                 ],
             ]);
 
@@ -298,6 +318,7 @@ class DelegacionesWhatsAppAlertService
                 'event' => 'hecho_incompleto',
                 'context' => [
                     'hecho_id' => $hecho->id,
+                    'delegacion_id' => $hecho->delegacion_id,
                 ],
             ]);
 
@@ -334,6 +355,7 @@ class DelegacionesWhatsAppAlertService
                     'status' => $response['status'] ?? null,
                     'context' => [
                         'hecho_id' => $hecho->id,
+                        'delegacion_id' => $hecho->delegacion_id,
                         'minutos_pendiente' => $minutosPendiente,
                     ],
                 ]);
@@ -344,6 +366,7 @@ class DelegacionesWhatsAppAlertService
                     'to' => $to,
                     'context' => [
                         'hecho_id' => $hecho->id,
+                        'delegacion_id' => $hecho->delegacion_id,
                         'minutos_pendiente' => $minutosPendiente,
                     ],
                     'error' => $e->getMessage(),
@@ -355,11 +378,181 @@ class DelegacionesWhatsAppAlertService
     private function recipients(): array
     {
         $configured = (string) config('services.whatsapp.delegaciones.alertas_to', '');
-        $parts = preg_split('/[\s,;]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+        return $this->numbersFromText($configured);
+    }
+
+    private function configuredDelegacionRecipients(Hechos $hecho): array
+    {
+        $delegacion = $hecho->delegacion;
+
+        if (!$delegacion) {
+            return [];
+        }
+
+        $map = $this->delegacionRecipientsMap(
+            (string) config('services.whatsapp.delegaciones.incompletos_delegados_to', '')
+        );
+
+        if (empty($map)) {
+            return [];
+        }
+
         $numbers = [];
 
-        foreach ($parts ?: [] as $part) {
-            $number = preg_replace('/\D+/', '', (string) $part);
+        foreach ($this->delegacionLookupKeys($delegacion) as $key) {
+            if (isset($map[$key])) {
+                $numbers = array_merge($numbers, $map[$key]);
+            }
+        }
+
+        return $this->uniqueNumbers($numbers);
+    }
+
+    private function delegadoUserRecipients(Hechos $hecho): array
+    {
+        if (!(bool) config('services.whatsapp.delegaciones.incompletos_delegados_from_users', true)) {
+            return [];
+        }
+
+        $delegacion = $hecho->delegacion;
+
+        if (!$delegacion) {
+            return [];
+        }
+
+        $delegacionIds = $this->delegacionIdsParaDelegado($delegacion);
+        $roles = $this->delegadoRoleNames();
+
+        if (empty($delegacionIds) || empty($roles)) {
+            return [];
+        }
+
+        try {
+            $numbers = User::query()
+                ->whereNotNull('telefono')
+                ->where('telefono', '<>', '')
+                ->where(function ($query) use ($delegacionIds) {
+                    $query->whereIn('delegacion_id', $delegacionIds)
+                        ->orWhereIn('id', function ($subQuery) use ($delegacionIds) {
+                            $subQuery->select('user_id')
+                                ->from('delegacion_user')
+                                ->whereIn('delegacion_id', $delegacionIds);
+                        });
+                })
+                ->whereHas('roles', function ($query) use ($roles) {
+                    $query->whereIn('name', $roles);
+                })
+                ->where(function ($query) {
+                    $query->whereNull('estado')
+                        ->orWhereRaw('UPPER(TRIM(estado)) <> ?', ['INACTIVO']);
+                })
+                ->pluck('telefono')
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('No se pudieron resolver delegados para WhatsApp incompleto', [
+                'hecho_id' => $hecho->id,
+                'delegacion_id' => $hecho->delegacion_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+
+        return $this->uniqueNumbers($numbers);
+    }
+
+    private function delegacionRecipientsMap(string $configured): array
+    {
+        $entries = preg_split('/[;\r\n]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+        $map = [];
+
+        foreach ($entries ?: [] as $entry) {
+            $separator = strpos($entry, '=');
+
+            if ($separator === false) {
+                $separator = strpos($entry, ':');
+            }
+
+            if ($separator === false) {
+                continue;
+            }
+
+            $key = $this->delegacionKey(substr($entry, 0, $separator));
+            $numbers = $this->numbersFromText(substr($entry, $separator + 1));
+
+            if ($key === '' || empty($numbers)) {
+                continue;
+            }
+
+            $map[$key] = $this->uniqueNumbers(array_merge($map[$key] ?? [], $numbers));
+        }
+
+        return $map;
+    }
+
+    private function delegacionLookupKeys(Delegacion $delegacion): array
+    {
+        $delegacion->loadMissing('padre');
+
+        $values = [
+            $delegacion->id,
+            $delegacion->clave,
+            $delegacion->nombre,
+            $delegacion->municipio,
+        ];
+
+        if ($delegacion->padre) {
+            $values[] = $delegacion->padre->id;
+            $values[] = $delegacion->padre->clave;
+            $values[] = $delegacion->padre->nombre;
+            $values[] = $delegacion->padre->municipio;
+        }
+
+        $keys = [];
+
+        foreach ($values as $value) {
+            $key = $this->delegacionKey($value);
+
+            if ($key !== '') {
+                $keys[] = $key;
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    private function delegacionIdsParaDelegado(Delegacion $delegacion): array
+    {
+        $ids = [(int) $delegacion->id];
+
+        if (!empty($delegacion->delegacion_padre_id)) {
+            $ids[] = (int) $delegacion->delegacion_padre_id;
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    private function delegadoRoleNames(): array
+    {
+        $configured = (string) config('services.whatsapp.delegaciones.incompletos_delegado_roles', 'Delegado');
+        $parts = preg_split('/[,;|]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+
+        return array_values(array_unique(array_filter(array_map('trim', $parts ?: []))));
+    }
+
+    private function numbersFromText(string $configured): array
+    {
+        $parts = preg_split('/[\s,;|]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+
+        return $this->uniqueNumbers($parts ?: []);
+    }
+
+    private function uniqueNumbers(array $values): array
+    {
+        $numbers = [];
+
+        foreach ($values as $value) {
+            $number = preg_replace('/\D+/', '', (string) $value);
 
             if ($number !== '') {
                 $numbers[] = $number;
@@ -367,6 +560,25 @@ class DelegacionesWhatsAppAlertService
         }
 
         return array_values(array_unique($numbers));
+    }
+
+    private function delegacionKey($value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        $map = [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U',
+            'Ñ' => 'N', 'ñ' => 'N',
+        ];
+
+        $value = strtr($value, $map);
+
+        return strtolower(preg_replace('/[^A-Za-z0-9]+/', '', $value));
     }
 
     private function mensajeFallecido(Lesionado $lesionado, Hechos $hecho): string

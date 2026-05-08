@@ -84,14 +84,16 @@ class NotificarHechosIncompletosDelegaciones extends Command
 
         if ($this->option('dry-run')) {
             $this->table(
-                ['Hecho', 'Fecha/hora', 'Pendiente', 'Faltantes', 'Capturo'],
-                $hechos->map(function (Hechos $hecho) {
+                ['Hecho', 'Fecha/hora', 'Delegacion', 'Pendiente', 'Faltantes', 'Capturo', 'Destinatarios WA'],
+                $hechos->map(function (Hechos $hecho) use ($alertas) {
                     return [
                         $hecho->id,
                         $hecho->alerta_delegaciones_evento_at->format('Y-m-d H:i'),
+                        optional($hecho->delegacion)->nombre ?: 'No especificada',
                         $this->formatoDuracion($hecho->alerta_delegaciones_minutos),
                         implode(', ', $hecho->faltantesCapturaTexto()),
                         optional($hecho->creator)->name ?: 'No especificado',
+                        implode(', ', $alertas->destinatariosHechoIncompleto($hecho)) ?: 'Sin destinatarios',
                     ];
                 })->all()
             );

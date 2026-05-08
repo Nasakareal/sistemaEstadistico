@@ -62,10 +62,11 @@
 
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="actividad_subcategoria_id">Subcategoría</label>
+                                    <label for="actividad_subcategoria_id">Subcategoría<span style="color:red">*</span></label>
                                     <select name="actividad_subcategoria_id"
                                             id="actividad_subcategoria_id"
                                             class="form-control @error('actividad_subcategoria_id') is-invalid @enderror"
+                                            required
                                             disabled>
                                         <option value="" selected>Seleccione una categoría primero...</option>
                                     </select>
@@ -74,7 +75,6 @@
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
-                                    <small class="help-muted">Opcional. Si no aplica, déjelo vacío.</small>
                                 </div>
                             </div>
                         </div>
@@ -534,7 +534,9 @@
 
                 const optEmpty = document.createElement('option');
                 optEmpty.value = '';
-                optEmpty.textContent = 'Sin subcategoría';
+                optEmpty.textContent = 'Seleccione una subcategoría...';
+                optEmpty.selected = true;
+                optEmpty.disabled = true;
                 subcatSelect.appendChild(optEmpty);
 
                 if (msgOpcional) {

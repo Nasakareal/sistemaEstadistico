@@ -57,6 +57,10 @@ return [
             'incompletos_template' => env('WHATSAPP_DELEGACIONES_INCOMPLETOS_TEMPLATE', 'alerta_hecho_incompleto_delegaciones'),
             'incompletos_min_hours' => (int) env('WHATSAPP_DELEGACIONES_INCOMPLETOS_MIN_HOURS', 3),
             'incompletos_lookback_days' => (int) env('WHATSAPP_DELEGACIONES_INCOMPLETOS_LOOKBACK_DAYS', 3),
+            'incompletos_notify_delegados' => filter_var(env('WHATSAPP_DELEGACIONES_INCOMPLETOS_NOTIFY_DELEGADOS', true), FILTER_VALIDATE_BOOLEAN),
+            'incompletos_delegados_from_users' => filter_var(env('WHATSAPP_DELEGACIONES_INCOMPLETOS_DELEGADOS_FROM_USERS', true), FILTER_VALIDATE_BOOLEAN),
+            'incompletos_delegado_roles' => env('WHATSAPP_DELEGACIONES_INCOMPLETOS_DELEGADO_ROLES', 'Delegado'),
+            'incompletos_delegados_to' => env('WHATSAPP_DELEGACIONES_INCOMPLETOS_DELEGADOS_TO'),
         ],
     ],
 

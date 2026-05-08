@@ -386,7 +386,7 @@ class DelegacionesExcelRevisionService
             ->limit(120)
             ->get()
             ->map(function ($row) {
-                return $this->detalleHecho($row, 'Cuenta como 2 dispositivos: SINIESTROS y ACCIDENTES') + [
+                return $this->detalleHecho($row, 'El formato lo refleja en 2 renglones del Excel: SINIESTROS y ACCIDENTES') + [
                     'peso_dispositivo' => 2,
                     'renglon_excel' => 'SINIESTROS + ACCIDENTES',
                 ];

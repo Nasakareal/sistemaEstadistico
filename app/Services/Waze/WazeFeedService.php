@@ -354,7 +354,7 @@ class WazeFeedService
             return $storedPolyline;
         }
 
-        return $this->buildPointPolyline($lat, $lng);
+        return $this->buildPointPolyline($lat, $lng, $hecho);
     }
 
     protected function storedPolyline($hecho): ?string
@@ -376,11 +376,27 @@ class WazeFeedService
         return null;
     }
 
-    protected function buildPointPolyline(float $lat, float $lng): string
+    protected function buildPointPolyline(float $lat, float $lng, $hecho = null): string
     {
+        $delta = 0.00012;
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+
+        if ($this->looksNorthSouth($street)) {
+            return $this->formatPolyline([
+                [$lat - $delta, $lng],
+                [$lat + $delta, $lng],
+            ]);
+        }
+
         return $this->formatPolyline([
-            [$lat, $lng],
+            [$lat, $lng - $delta],
+            [$lat, $lng + $delta],
         ]);
+    }
+
+    protected function looksNorthSouth(string $street): bool
+    {
+        return preg_match('/\b(HIDALGO|MORELOS|ALLENDE|JUAREZ|ABASOLO|ALDAMA|GALEANA|MATAMOROS|GUERRERO|NICOLAS BRAVO)\b/u', $street) === 1;
     }
 
     protected function formatPolyline(array $points): string

@@ -248,12 +248,14 @@ class DelegacionesExcelRevisionService
             $personasAlcanzadasHijas = array_sum(array_map(fn ($item) => (int) ($item['personas_alcanzadas'] ?? 0), $hijas));
             $personasParticipantesHijas = array_sum(array_map(fn ($item) => (int) ($item['personas_participantes'] ?? 0), $hijas));
             $personasDetenidasHijas = array_sum(array_map(fn ($item) => (int) ($item['personas_detenidas'] ?? 0), $hijas));
+            $delegacionIds = array_values(array_filter(array_map(fn ($item) => (int) ($item['id'] ?? 0), $hijas)));
 
             $regionales[] = [
                 'nombre' => $nombre,
                 'estado' => $estado,
                 'alertas' => $alertas,
                 'hijas' => $hijas,
+                'diferencias_renglones' => $this->leerDiferenciasRenglonesRegional($sheet, $inicio, $fin, $delegacionIds),
                 'dispositivos_hijas_total' => $totalHijas,
                 'diferencia_hijas' => (int) ($resumen['dispositivos'] ?? 0) - (int) $totalHijas,
                 'personas_alcanzadas_hijas_total' => $personasAlcanzadasHijas,
@@ -357,7 +359,124 @@ class DelegacionesExcelRevisionService
             'personas_participantes' => $personasParticipantes,
             'personas_alcanzadas' => $personasAlcanzadas,
             'personas_detenidas' => $personasDetenidas,
+            'registros_contados' => $this->leerRegistrosContadosDelegacion($inicio, $fin, $delegacionId),
         ];
+    }
+
+    private function leerRegistrosContadosDelegacion(Carbon $inicio, Carbon $fin, int $delegacionId): array
+    {
+        $actividades = $this->queryActividadesDispositivo($inicio, $fin)
+            ->where('a.delegacion_id', $delegacionId)
+            ->orderBy('a.fecha')
+            ->orderBy('a.hora')
+            ->limit(120)
+            ->get()
+            ->map(function ($row) {
+                return $this->detalleActividad($row, 'Cuenta como 1 dispositivo en la suma actual') + [
+                    'peso_dispositivo' => 1,
+                    'renglon_excel' => $row->subcategoria,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $hechos = $this->queryHechosContadosExcel($inicio, $fin)
+            ->where('h.delegacion_id', $delegacionId)
+            ->orderBy('h.captura_completa_at')
+            ->limit(120)
+            ->get()
+            ->map(function ($row) {
+                return $this->detalleHecho($row, 'Cuenta como 2 dispositivos: SINIESTROS y ACCIDENTES') + [
+                    'peso_dispositivo' => 2,
+                    'renglon_excel' => 'SINIESTROS + ACCIDENTES',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return array_slice(array_merge($actividades, $hechos), 0, 160);
+    }
+
+    private function leerDiferenciasRenglonesRegional(Worksheet $sheet, Carbon $inicio, Carbon $fin, array $delegacionIds): array
+    {
+        if (empty($delegacionIds)) {
+            return [];
+        }
+
+        $excel = [];
+
+        for ($row = 4; $row <= 77; $row++) {
+            $actividad = trim((string) $sheet->getCell('C' . $row)->getCalculatedValue());
+
+            if ($actividad === '') {
+                continue;
+            }
+
+            $excel[$actividad] = ($excel[$actividad] ?? 0) + $this->intCell($sheet, 'D' . $row);
+        }
+
+        $base = [];
+        $actividadRows = DB::table('actividades as a')
+            ->join('actividad_subcategorias as s', 'a.actividad_subcategoria_id', '=', 's.id')
+            ->select('s.nombre as actividad', DB::raw('COUNT(*) as total'))
+            ->whereRaw('TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?', [
+                $inicio->toDateTimeString(),
+                $fin->toDateTimeString(),
+            ])
+            ->where('a.unidad_org_id', 2)
+            ->whereIn('a.delegacion_id', $delegacionIds)
+            ->where(function ($q) {
+                foreach (self::SUBCATEGORIAS_DISPOSITIVOS as $categoriaId => $subcategorias) {
+                    $q->orWhere(function ($nested) use ($categoriaId, $subcategorias) {
+                        $nested->where('a.actividad_categoria_id', $categoriaId)
+                            ->whereIn('s.nombre', $subcategorias);
+                    });
+                }
+            })
+            ->groupBy('s.nombre')
+            ->get();
+
+        foreach ($actividadRows as $row) {
+            $actividad = (string) $row->actividad;
+            $base[$actividad] = ($base[$actividad] ?? 0) + (int) $row->total;
+        }
+
+        $hechos = $this->queryHechosContadosExcel($inicio, $fin)
+            ->whereIn('h.delegacion_id', $delegacionIds)
+            ->count();
+
+        $base['SINIESTROS'] = ($base['SINIESTROS'] ?? 0) + (int) $hechos;
+        $base['ACCIDENTES'] = ($base['ACCIDENTES'] ?? 0) + (int) $hechos;
+
+        $actividades = array_values(array_unique(array_merge(array_keys($excel), array_keys($base))));
+        $diferencias = [];
+
+        foreach ($actividades as $actividad) {
+            $excelTotal = (int) ($excel[$actividad] ?? 0);
+            $baseTotal = (int) ($base[$actividad] ?? 0);
+            $diferencia = $excelTotal - $baseTotal;
+
+            if ($diferencia === 0) {
+                continue;
+            }
+
+            $diferencias[] = [
+                'actividad' => $actividad,
+                'excel' => $excelTotal,
+                'base_actual' => $baseTotal,
+                'diferencia' => $diferencia,
+                'lectura' => $diferencia < 0
+                    ? 'La base actual trae ' . abs($diferencia) . ' más que el Excel guardado.'
+                    : 'El Excel guardado trae ' . abs($diferencia) . ' más que la base actual.',
+            ];
+        }
+
+        usort($diferencias, function (array $a, array $b) {
+            return abs($b['diferencia']) <=> abs($a['diferencia'])
+                ?: strcmp($a['actividad'], $b['actividad']);
+        });
+
+        return array_slice($diferencias, 0, 20);
     }
 
     private function normalizarNombre(?string $texto): string
@@ -620,6 +739,19 @@ class DelegacionesExcelRevisionService
                     ->orWhereNull('c.id')
                     ->orWhereNull('s.id')
                     ->orWhereColumn('s.actividad_categoria_id', '<>', 'a.actividad_categoria_id');
+            });
+    }
+
+    private function queryActividadesDispositivo(Carbon $inicio, Carbon $fin)
+    {
+        return $this->queryActividadesBase($inicio, $fin)
+            ->where(function ($q) {
+                foreach (self::SUBCATEGORIAS_DISPOSITIVOS as $categoriaId => $subcategorias) {
+                    $q->orWhere(function ($nested) use ($categoriaId, $subcategorias) {
+                        $nested->where('a.actividad_categoria_id', $categoriaId)
+                            ->whereIn('s.nombre', $subcategorias);
+                    });
+                }
             });
     }
 

@@ -103,6 +103,17 @@ class Hechos extends Model
             ->withTimestamps();
     }
 
+    public function vehiculosEnCorralon(): BelongsToMany
+    {
+        return $this->vehiculos()
+            ->whereNotNull('vehiculos.corralon')
+            ->whereRaw("TRIM(vehiculos.corralon) <> ''")
+            ->whereRaw(
+                "UPPER(TRIM(vehiculos.corralon)) NOT IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ['N/A', 'NA', 'NO', 'NO APLICA', 'NO SE UTILIZA', 'NO SE UTILIZO', 'NINGUNO', 'NULL', 'O', 'SIN CORRALON']
+            );
+    }
+
     public function lesionados(): HasMany
     {
         return $this->hasMany(Lesionado::class, 'hecho_id');

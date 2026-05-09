@@ -72,6 +72,7 @@
                                     <th class="text-center">Foto Lugar</th>
                                     <th class="text-center">Estado</th>
                                     <th class="text-center">Captura</th>
+                                    <th class="text-center">Corralón</th>
                                     <th class="text-center">Relevante</th>
                                     <th class="text-center">Revisado por</th>
                                     <th class="text-center">Creado por</th>
@@ -140,6 +141,18 @@
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
+                                        </td>
+
+                                        <td>
+                                            @php
+                                                $vehiculosCorralon = (int) ($hecho->vehiculos_corralon_count ?? 0);
+                                            @endphp
+
+                                            <span class="badge {{ $vehiculosCorralon > 0 ? 'badge-info' : 'badge-secondary' }} corralon-count">
+                                                <i class="fa-solid fa-warehouse"></i>
+                                                {{ $vehiculosCorralon }}
+                                                {{ $vehiculosCorralon === 1 ? 'vehículo' : 'vehículos' }}
+                                            </span>
                                         </td>
 
                                         <td>
@@ -283,6 +296,19 @@
             border-radius: 6px;
             border: 1px solid rgba(0,0,0,.12);
             background: #f8f9fa;
+        }
+
+        .corralon-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .25rem;
+            min-width: 86px;
+            padding: .32rem .48rem;
+            border-radius: 6px;
+            font-size: .78rem;
+            line-height: 1.15;
+            white-space: nowrap;
         }
     </style>
 @stop

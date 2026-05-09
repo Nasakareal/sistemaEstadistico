@@ -169,6 +169,7 @@
                             <th>Ubicación</th>
                             <th>Foto</th>
                             <th>Situación</th>
+                            <th>Corralón</th>
                             <th>Creado por</th>
                             <th>Acciones</th>
                         </tr>
@@ -243,6 +244,18 @@
                                             @endforelse
                                         </div>
                                     @endif
+                                </td>
+
+                                <td>
+                                    @php
+                                        $vehiculosCorralon = (int) ($hecho->vehiculos_corralon_count ?? 0);
+                                    @endphp
+
+                                    <span class="sv-corralon-count {{ $vehiculosCorralon > 0 ? 'has-items' : '' }}">
+                                        <i class="fa-solid fa-warehouse"></i>
+                                        {{ $vehiculosCorralon }}
+                                        {{ $vehiculosCorralon === 1 ? 'vehículo' : 'vehículos' }}
+                                    </span>
                                 </td>
 
                                 <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
@@ -556,6 +569,27 @@
             padding: .32rem .55rem;
             font-size: .78rem;
             text-transform: uppercase;
+        }
+
+        .sv-corralon-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .25rem;
+            min-width: 92px;
+            padding: .32rem .5rem;
+            border-radius: 6px;
+            color: #e2e8f0;
+            background: #64748b;
+            font-size: .78rem;
+            font-weight: 800;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+
+        .sv-corralon-count.has-items {
+            color: #082f49;
+            background: #38bdf8;
         }
 
         .sv-status--warning {

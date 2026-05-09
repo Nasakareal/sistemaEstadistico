@@ -37,7 +37,10 @@ class HechosController extends Controller
 
         $hechosQuery = Hechos::query()
             ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis', 'creator'])
-            ->withCount('lesionados')
+            ->withCount([
+                'lesionados',
+                'vehiculosEnCorralon as vehiculos_corralon_count',
+            ])
             ->whereDate('fecha', $fechaSeleccionada);
 
         $this->applyHechosVisibilityScope($hechosQuery, $usuario);
@@ -1076,7 +1079,9 @@ class HechosController extends Controller
             ],
         ];
 
-        $query = Hechos::query()->with(['creator', 'unidadOrganizacional', 'delegacion']);
+        $query = Hechos::query()
+            ->with(['creator', 'unidadOrganizacional', 'delegacion'])
+            ->withCount(['vehiculosEnCorralon as vehiculos_corralon_count']);
 
         if ($periodo === 'SEMANA') {
             $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);

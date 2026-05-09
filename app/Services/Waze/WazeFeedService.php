@@ -7,6 +7,13 @@ use Carbon\Carbon;
 
 class WazeFeedService
 {
+    private WazeReverseGeocodingService $reverseGeocoder;
+
+    public function __construct(WazeReverseGeocodingService $reverseGeocoder)
+    {
+        $this->reverseGeocoder = $reverseGeocoder;
+    }
+
     public function buildIncidentsFeed(): array
     {
         $hechos = $this->queryHechos();
@@ -64,6 +71,12 @@ class WazeFeedService
             return null;
         }
 
+        $wazeStreet = $this->resolveWazeStreet($lat, $lng);
+
+        if ($wazeStreet === null && (bool) config('waze.require_reverse_geocoding_match', false)) {
+            return null;
+        }
+
         $type = $this->resolveFeedType($hecho);
 
         $polyline = $this->buildPolyline($lat, $lng, $hecho, $type);
@@ -72,12 +85,18 @@ class WazeFeedService
             return null;
         }
 
+        $street = $this->buildStreet($hecho, $wazeStreet);
+
+        if ($street === null) {
+            return null;
+        }
+
         $payload = [
             'id' => 'hecho_' . $hecho->id,
             'type' => $type,
             'polyline' => $polyline,
             'direction' => $this->resolveDirection($hecho, $type),
-            'street' => $this->buildStreet($hecho),
+            'street' => $street,
             'starttime' => $startTime->format('c'),
             'creationtime' => $this->resolveCreationTime($hecho, $startTime)->format('c'),
             'updatetime' => $this->resolveUpdateTime($hecho, $startTime)->format('c'),
@@ -378,25 +397,23 @@ class WazeFeedService
 
     protected function buildPointPolyline(float $lat, float $lng, $hecho = null): string
     {
-        $delta = 0.00012;
-        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
-
-        if ($this->looksNorthSouth($street)) {
-            return $this->formatPolyline([
-                [$lat - $delta, $lng],
-                [$lat + $delta, $lng],
-            ]);
-        }
-
         return $this->formatPolyline([
-            [$lat, $lng - $delta],
-            [$lat, $lng + $delta],
+            [$lat, $lng],
+            [$lat, $lng],
         ]);
     }
 
-    protected function looksNorthSouth(string $street): bool
+    protected function resolveWazeStreet(float $lat, float $lng): ?string
     {
-        return preg_match('/\b(HIDALGO|MORELOS|ALLENDE|JUAREZ|ABASOLO|ALDAMA|GALEANA|MATAMOROS|GUERRERO|NICOLAS BRAVO)\b/u', $street) === 1;
+        $match = $this->reverseGeocoder->nearestStreet($lat, $lng);
+
+        if (!is_array($match)) {
+            return null;
+        }
+
+        $street = trim((string) ($match['street'] ?? ''));
+
+        return $street !== '' ? $street : null;
     }
 
     protected function formatPolyline(array $points): string
@@ -467,25 +484,19 @@ class WazeFeedService
         return number_format($value, 7, '.', '');
     }
 
-    protected function buildStreet($hecho): string
+    protected function buildStreet($hecho, ?string $wazeStreet = null): ?string
     {
-        $partes = [];
+        if ($wazeStreet !== null && trim($wazeStreet) !== '') {
+            return $this->cleanText($wazeStreet);
+        }
 
         if (!empty($hecho->calle)) {
-            $partes[] = $this->cleanText($hecho->calle);
+            $street = $this->cleanStreetName($hecho->calle);
+
+            return $street !== 'SIN CALLE' ? $street : null;
         }
 
-        if (!empty($hecho->entre_calles)) {
-            $partes[] = 'ENTRE ' . $this->cleanText($hecho->entre_calles);
-        }
-
-        if (!empty($hecho->colonia)) {
-            $partes[] = 'COL. ' . $this->cleanText($hecho->colonia);
-        }
-
-        $texto = trim(implode(', ', $partes));
-
-        return $texto !== '' ? $texto : 'SIN CALLE';
+        return null;
     }
 
     protected function buildDescription($hecho, string $type): string
@@ -518,6 +529,20 @@ class WazeFeedService
         }
 
         return preg_replace('/\s+/', ' ', $text);
+    }
+
+    protected function cleanStreetName($value): string
+    {
+        $street = $this->cleanText($value);
+
+        if ($street === '') {
+            return 'SIN CALLE';
+        }
+
+        $street = preg_replace('/,\s*(ENTRE|COL\.?|COLONIA)\b.*$/iu', '', $street) ?: $street;
+        $street = preg_replace('/\s+/', ' ', trim($street)) ?: '';
+
+        return $street !== '' ? $street : 'SIN CALLE';
     }
 
     protected function limitText(string $text, int $limit): string

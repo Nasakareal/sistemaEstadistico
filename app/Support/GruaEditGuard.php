@@ -32,7 +32,9 @@ class GruaEditGuard
             return false;
         }
 
-        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
+        return $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Subdirector');
     }
 
     public static function locksHecho($usuario, Hechos $hecho): bool

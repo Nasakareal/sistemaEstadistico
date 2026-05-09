@@ -35,6 +35,10 @@
                             </thead>
                             <tbody>
                                 @foreach ($vehiculos as $vehiculo)
+                                    @php
+                                        $eliminarGruaBloqueado = !empty($gruaBloqueada)
+                                            && \App\Support\GruaEditGuard::vehicleHasGruaData($vehiculo);
+                                    @endphp
                                     <tr>
                                         <td>{{ $vehiculo->marca }}</td>
                                         <td>{{ $vehiculo->modelo }}</td>
@@ -54,13 +58,19 @@
                                                 {{ $vehiculo->fotos ? 'Ver/Editar Foto' : 'Subir Foto' }}
                                             </a>
 
-                                            <form action="{{ route('vehiculos.destroy', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}" method="POST" style="display: inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este vehículo?');">
-                                                    <i class="fa-solid fa-trash"></i> Eliminar
+                                            @if($eliminarGruaBloqueado)
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Solicita autorización de un Administrador">
+                                                    <i class="fa-solid fa-lock"></i> Bloqueado
                                                 </button>
-                                            </form>
+                                            @else
+                                                <form action="{{ route('vehiculos.destroy', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id]) }}" method="POST" style="display: inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este vehículo?');">
+                                                        <i class="fa-solid fa-trash"></i> Eliminar
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -119,6 +129,15 @@
                 title: '{{ session('success') }}',
                 showConfirmButton: false,
                 timer: 3000
+            });
+        @endif
+
+        @if (session('error'))
+            Swal.fire({
+                position: 'center',
+                icon: 'warning',
+                title: '{{ session('error') }}',
+                confirmButtonText: 'Aceptar'
             });
         @endif
     </script>

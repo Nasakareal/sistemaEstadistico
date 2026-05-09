@@ -13,6 +13,7 @@ use App\Models\Grua;
 use App\Models\Vehiculo;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\ImageThumbnailService;
+use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -792,6 +793,18 @@ class ActividadController extends Controller
             ], 403);
         }
 
+        $actividad->loadMissing('vehiculos');
+
+        if (
+            GruaEditGuard::locksActividad($usuario, $actividad)
+            && $actividad->vehiculos->contains(fn ($vehiculo) => GruaEditGuard::vehicleHasGruaData($vehiculo))
+        ) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Esta actividad tiene grúa o corralón bloqueado. Solicita autorización de un Administrador.',
+            ], 403);
+        }
+
         return DB::transaction(function () use ($actividad) {
 
             if (!empty($actividad->foto_path) && Storage::disk('public')->exists($actividad->foto_path)) {
@@ -1217,6 +1230,25 @@ class ActividadController extends Controller
             return response()->json([
                 'ok' => false,
                 'message' => 'No autorizado para modificar esta actividad'
+            ], 403);
+        }
+
+        $vehiculo = Vehiculo::find($vehiculoId);
+
+        if (!$vehiculo || !$actividad->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontró el vehículo dentro de esta actividad.',
+            ], 404);
+        }
+
+        if (
+            GruaEditGuard::locksActividad($usuario, $actividad)
+            && GruaEditGuard::vehicleHasGruaData($vehiculo)
+        ) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La grúa o corralón de este vehículo está bloqueado. Solicita autorización de un Administrador.',
             ], 403);
         }
 

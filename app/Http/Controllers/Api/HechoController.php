@@ -16,6 +16,7 @@ use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
 use App\Support\HechoAccess;
 use App\Support\HechoLocationGuard;
+use App\Support\GruaEditGuard;
 use Illuminate\Support\Facades\DB;
 
 class HechoController extends Controller
@@ -983,6 +984,17 @@ class HechoController extends Controller
         if (!$this->userCanDeleteHecho($user)) {
             return response()->json([
                 'message' => 'No tienes permiso para eliminar este hecho.',
+            ], 403);
+        }
+
+        $hecho->loadMissing('vehiculos');
+
+        if (
+            GruaEditGuard::locksHecho($user, $hecho)
+            && $hecho->vehiculos->contains(fn ($vehiculo) => GruaEditGuard::vehicleHasGruaData($vehiculo))
+        ) {
+            return response()->json([
+                'message' => 'Este hecho tiene grúa o corralón bloqueado. Solicita autorización de un Administrador.',
             ], 403);
         }
 

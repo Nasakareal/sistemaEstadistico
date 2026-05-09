@@ -824,6 +824,14 @@
                 confirmButtonText: 'Aceptar'
             });
         @endif
+
+        @if (session('error'))
+            Swal.fire({
+                icon: 'warning',
+                title: '{{ session('error') }}',
+                confirmButtonText: 'Aceptar'
+            });
+        @endif
     </script>
 
     @include('actividades.partials.vehiculos_scripts', ['modo' => 'edit'])

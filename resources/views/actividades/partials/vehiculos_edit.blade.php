@@ -2,6 +2,7 @@
     $vehiculosActividad = $actividad->relationLoaded('vehiculos')
         ? $actividad->vehiculos
         : $actividad->vehiculos()->orderBy('vehiculos.id')->get();
+    $gruasBloqueadasActividad = \App\Support\GruaEditGuard::locksActividad(auth()->user(), $actividad);
 @endphp
 
 <div class="card card-outline card-info mt-4">
@@ -41,6 +42,8 @@
                         $corralon = trim((string) ($vehiculo->corralon ?? ''));
                         $aseguradora = trim((string) ($vehiculo->aseguradora ?? ''));
                         $serie = trim((string) ($vehiculo->serie ?? ''));
+                        $vehiculoGruaBloqueada = $gruasBloqueadasActividad
+                            && \App\Support\GruaEditGuard::vehicleHasGruaData($vehiculo);
                     @endphp
 
                     <div class="vehiculo-card">
@@ -111,15 +114,24 @@
                                     Antecedente: {{ $vehiculo->antecedente_vehiculo ? 'SÍ' : 'NO' }}
                                 </span>
 
-                                <form action="{{ route('actividades.vehiculos.destroy', [$actividad->id, $vehiculo->id]) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('¿Desvincular este vehículo de la actividad?');">
-                                        <i class="fa-solid fa-link-slash"></i> Desvincular
+                                @if($vehiculoGruaBloqueada)
+                                    <span class="badge badge-warning">
+                                        <i class="fa-solid fa-lock"></i> Grúa bloqueada
+                                    </span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Solicita autorización de un Administrador">
+                                        <i class="fa-solid fa-lock"></i> Bloqueado
                                     </button>
-                                </form>
+                                @else
+                                    <form action="{{ route('actividades.vehiculos.destroy', [$actividad->id, $vehiculo->id]) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="btn btn-outline-danger btn-sm"
+                                                onclick="return confirm('¿Desvincular este vehículo de la actividad?');">
+                                            <i class="fa-solid fa-link-slash"></i> Desvincular
+                                        </button>
+                                    </form>
+                                @endif
                             </div>
                         </div>
                     </div>

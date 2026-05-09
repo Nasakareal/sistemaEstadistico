@@ -10,6 +10,7 @@ use App\Models\Grua;
 use App\Models\Unidad;
 use App\Models\Vehiculo;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Support\GruaEditGuard;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -560,6 +561,15 @@ class ActividadController extends Controller
 
         if (!$q->exists()) {
             abort(404);
+        }
+
+        $actividad->loadMissing('vehiculos');
+
+        if (
+            GruaEditGuard::locksActividad($usuario, $actividad)
+            && $actividad->vehiculos->contains(fn ($vehiculo) => GruaEditGuard::vehicleHasGruaData($vehiculo))
+        ) {
+            return back()->with('error', 'Esta actividad tiene grúa o corralón bloqueado. Solicita autorización de un Administrador.');
         }
 
         return DB::transaction(function () use ($actividad) {
@@ -1225,6 +1235,19 @@ class ActividadController extends Controller
 
         if (!$q->exists()) {
             abort(404);
+        }
+
+        $vehiculo = Vehiculo::findOrFail($vehiculoId);
+
+        if (!$actividad->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
+            abort(404);
+        }
+
+        if (
+            GruaEditGuard::locksActividad($usuario, $actividad)
+            && GruaEditGuard::vehicleHasGruaData($vehiculo)
+        ) {
+            return back()->with('error', 'La grúa o corralón de este vehículo está bloqueado. Solicita autorización de un Administrador.');
         }
 
         return DB::transaction(function () use ($actividad, $vehiculoId) {

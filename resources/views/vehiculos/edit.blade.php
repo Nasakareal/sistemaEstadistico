@@ -18,6 +18,13 @@
                         @csrf
                         @method('PUT')
 
+                        @if(!empty($gruaBloqueada))
+                            <div class="alert alert-warning">
+                                <i class="fa-solid fa-lock"></i>
+                                La grúa y el corralón ya quedaron fijos para este hecho de Delegaciones. Solicita autorización de un Administrador para cambiarlos o quitarlos.
+                            </div>
+                        @endif
+
                         <div class="row">
                             <!-- Marca -->
                             <div class="col-md-3">
@@ -450,7 +457,7 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="grua_id">Grúa</label>
-                                    <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror">
+                                    <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror" {{ !empty($gruaBloqueada) ? 'disabled' : '' }}>
                                         <option value="">Seleccione una grúa</option>
                                         @foreach ($gruas as $grua)
                                             <option value="{{ $grua->id }}" 
@@ -472,7 +479,7 @@
                                 <div class="form-group">
                                     <label for="corralon">Corralón</label>
                                     <select name="corralon" id="corralon"
-                                            class="form-control @error('corralon') is-invalid @enderror">
+                                            class="form-control @error('corralon') is-invalid @enderror" {{ !empty($gruaBloqueada) ? 'disabled' : '' }}>
                                         <option value="">Seleccione un corralón</option>
                                         @foreach ([
                                             'ESTRELLA 1', 'ESTRELLA 2', 'AUTOPISTA', 'DANNYS', 'EXPRESS', 'GALVAN',

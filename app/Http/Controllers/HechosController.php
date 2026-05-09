@@ -18,6 +18,7 @@ use App\Services\WhatsApp\C5IReport;
 use App\Services\WhatsApp\NearestUnit;
 use App\Support\HechoLocationGuard;
 use App\Support\HechoAccess;
+use App\Support\GruaEditGuard;
 
 class HechosController extends Controller
 {
@@ -657,6 +658,16 @@ class HechosController extends Controller
 
         if ($unidadId === 3) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para eliminar este hecho.');
+        }
+
+        $hecho->loadMissing('vehiculos');
+
+        if (
+            GruaEditGuard::locksHecho($usuario, $hecho)
+            && $hecho->vehiculos->contains(fn ($vehiculo) => GruaEditGuard::vehicleHasGruaData($vehiculo))
+        ) {
+            return redirect()->route('hechos.index')
+                ->with('error', 'Este hecho tiene grúa o corralón bloqueado. Solicita autorización de un Administrador.');
         }
 
         try {

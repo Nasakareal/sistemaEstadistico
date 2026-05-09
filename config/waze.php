@@ -13,4 +13,6 @@ return [
     'reverse_geocoding_cache_seconds' => env('WAZE_REVERSE_GEOCODING_CACHE_SECONDS', 604800),
     'reverse_geocoding_max_distance_meters' => env('WAZE_REVERSE_GEOCODING_MAX_DISTANCE_METERS', 50),
     'require_reverse_geocoding_match' => filter_var(env('WAZE_REQUIRE_REVERSE_GEOCODING_MATCH', false), FILTER_VALIDATE_BOOLEAN),
+    'generated_polyline_half_meters' => env('WAZE_GENERATED_POLYLINE_HALF_METERS', 18),
+    'tramo_polyline_match_meters' => env('WAZE_TRAMO_POLYLINE_MATCH_METERS', 60),
 ];

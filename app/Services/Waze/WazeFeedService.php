@@ -482,9 +482,22 @@ class WazeFeedService
 
     protected function buildPointPolyline(float $lat, float $lng, $hecho = null): string
     {
+        $tramoPolyline = $this->buildPolylineFromNearbyTramo($lat, $lng);
+
+        if ($tramoPolyline !== null) {
+            return $tramoPolyline;
+        }
+
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+        $bearing = $this->bearingFromStreet($street);
+        $halfMeters = max(8, (float) config('waze.generated_polyline_half_meters', 18));
+
+        $start = $this->offsetCoordinate($lat, $lng, $bearing + 180, $halfMeters);
+        $end = $this->offsetCoordinate($lat, $lng, $bearing, $halfMeters);
+
         return $this->formatPolyline([
-            [$lat, $lng],
-            [$lat, $lng],
+            $start,
+            $end,
         ]);
     }
 
@@ -499,6 +512,210 @@ class WazeFeedService
         $street = trim((string) ($match['street'] ?? ''));
 
         return $street !== '' ? $street : null;
+    }
+
+    protected function buildPolylineFromNearbyTramo(float $lat, float $lng): ?string
+    {
+        $columns = $this->tramosGeometryColumns();
+        $hasPuntosJson = in_array('puntos_json', $columns, true);
+        $hasEndpointCoords = count(array_intersect(['lat_inicio', 'lng_inicio', 'lat_fin', 'lng_fin'], $columns)) === 4;
+
+        if (!$hasPuntosJson && !$hasEndpointCoords) {
+            return null;
+        }
+
+        $query = \App\Models\Tramo::query();
+
+        if (in_array('activo', $columns, true)) {
+            $query->where('activo', 1);
+        }
+
+        $query->where(function ($where) use ($hasPuntosJson, $hasEndpointCoords) {
+            if ($hasPuntosJson) {
+                $where->whereNotNull('puntos_json');
+            }
+
+            if ($hasEndpointCoords) {
+                $method = $hasPuntosJson ? 'orWhere' : 'where';
+                $where->{$method}(function ($q) {
+                    $q->whereNotNull('lat_inicio')
+                        ->whereNotNull('lng_inicio')
+                        ->whereNotNull('lat_fin')
+                        ->whereNotNull('lng_fin');
+                });
+            }
+        });
+
+        $tramos = $query->get(array_values(array_unique(array_merge(['id'], $columns))));
+
+        $best = null;
+        $originLat = $lat;
+        $point = $this->latLngToMeters($lat, $lng, $originLat);
+
+        foreach ($tramos as $tramo) {
+            $points = $this->pointsFromTramo($tramo);
+
+            if (count($points) < 2) {
+                continue;
+            }
+
+            for ($i = 0; $i < count($points) - 1; $i++) {
+                [$aLat, $aLng] = $points[$i];
+                [$bLat, $bLng] = $points[$i + 1];
+
+                $a = $this->latLngToMeters($aLat, $aLng, $originLat);
+                $b = $this->latLngToMeters($bLat, $bLng, $originLat);
+                $projection = $this->projectPointOnSegment($point, $a, $b);
+
+                if ($projection === null) {
+                    continue;
+                }
+
+                if ($best === null || $projection['distance'] < $best['distance']) {
+                    $best = $projection;
+                }
+            }
+        }
+
+        if ($best === null || $best['distance'] > (float) config('waze.tramo_polyline_match_meters', 60)) {
+            return null;
+        }
+
+        $halfMeters = max(8, (float) config('waze.generated_polyline_half_meters', 18));
+        $start = [
+            'x' => $best['x'] - ($best['ux'] * $halfMeters),
+            'y' => $best['y'] - ($best['uy'] * $halfMeters),
+        ];
+        $end = [
+            'x' => $best['x'] + ($best['ux'] * $halfMeters),
+            'y' => $best['y'] + ($best['uy'] * $halfMeters),
+        ];
+
+        return $this->formatPolyline([
+            $this->metersToLatLng($start['x'], $start['y'], $originLat),
+            $this->metersToLatLng($end['x'], $end['y'], $originLat),
+        ]);
+    }
+
+    protected function pointsFromTramo($tramo): array
+    {
+        $points = [];
+        $puntosJson = $tramo->getAttribute('puntos_json');
+
+        if (is_array($puntosJson)) {
+            foreach ($puntosJson as $point) {
+                if (!is_array($point)) {
+                    continue;
+                }
+
+                $lat = $point['lat'] ?? ($point[0] ?? null);
+                $lng = $point['lng'] ?? ($point[1] ?? null);
+
+                if (is_numeric($lat) && is_numeric($lng)) {
+                    $points[] = [(float) $lat, (float) $lng];
+                }
+            }
+        }
+
+        if (count($points) < 2 && is_numeric($tramo->lat_inicio) && is_numeric($tramo->lng_inicio) && is_numeric($tramo->lat_fin) && is_numeric($tramo->lng_fin)) {
+            $points = [
+                [(float) $tramo->lat_inicio, (float) $tramo->lng_inicio],
+                [(float) $tramo->lat_fin, (float) $tramo->lng_fin],
+            ];
+        }
+
+        return $points;
+    }
+
+    protected function tramosGeometryColumns(): array
+    {
+        static $columns = null;
+
+        if ($columns !== null) {
+            return $columns;
+        }
+
+        $columns = [];
+
+        foreach (['activo', 'puntos_json', 'lat_inicio', 'lng_inicio', 'lat_fin', 'lng_fin'] as $column) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('tramos', $column)) {
+                $columns[] = $column;
+            }
+        }
+
+        return $columns;
+    }
+
+    protected function projectPointOnSegment(array $point, array $a, array $b): ?array
+    {
+        $dx = $b['x'] - $a['x'];
+        $dy = $b['y'] - $a['y'];
+        $lengthSquared = ($dx * $dx) + ($dy * $dy);
+
+        if ($lengthSquared <= 0.000001) {
+            return null;
+        }
+
+        $t = (($point['x'] - $a['x']) * $dx + ($point['y'] - $a['y']) * $dy) / $lengthSquared;
+        $t = max(0, min(1, $t));
+
+        $x = $a['x'] + ($t * $dx);
+        $y = $a['y'] + ($t * $dy);
+        $distance = sqrt((($point['x'] - $x) ** 2) + (($point['y'] - $y) ** 2));
+        $length = sqrt($lengthSquared);
+
+        return [
+            'x' => $x,
+            'y' => $y,
+            'ux' => $dx / $length,
+            'uy' => $dy / $length,
+            'distance' => $distance,
+        ];
+    }
+
+    protected function bearingFromStreet(string $street): float
+    {
+        if (preg_match('/\b(NORTE|SUR|TORREON NUEVO|VENTURA PUENTE|ALDAMA|MORELOS|HIDALGO|ALLENDE|JUAREZ|ABASOLO|GALEANA|MATAMOROS|GUERRERO|NICOLAS BRAVO)\b/u', $street) === 1) {
+            return 0.0;
+        }
+
+        return 90.0;
+    }
+
+    protected function offsetCoordinate(float $lat, float $lng, float $bearingDegrees, float $meters): array
+    {
+        $radius = 6378137.0;
+        $bearing = deg2rad($bearingDegrees);
+        $latRad = deg2rad($lat);
+        $lngRad = deg2rad($lng);
+        $angularDistance = $meters / $radius;
+
+        $newLat = asin(
+            (sin($latRad) * cos($angularDistance)) +
+            (cos($latRad) * sin($angularDistance) * cos($bearing))
+        );
+        $newLng = $lngRad + atan2(
+            sin($bearing) * sin($angularDistance) * cos($latRad),
+            cos($angularDistance) - (sin($latRad) * sin($newLat))
+        );
+
+        return [rad2deg($newLat), rad2deg($newLng)];
+    }
+
+    protected function latLngToMeters(float $lat, float $lng, float $originLat): array
+    {
+        return [
+            'x' => $lng * 111320.0 * cos(deg2rad($originLat)),
+            'y' => $lat * 110540.0,
+        ];
+    }
+
+    protected function metersToLatLng(float $x, float $y, float $originLat): array
+    {
+        return [
+            $y / 110540.0,
+            $x / (111320.0 * cos(deg2rad($originLat))),
+        ];
     }
 
     protected function formatPolyline(array $points): string

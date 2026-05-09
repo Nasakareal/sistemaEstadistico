@@ -153,8 +153,13 @@ class HechoController extends Controller
     {
         $usuario = $request->user();
 
-        $periodo = strtoupper((string) $request->query('periodo', 'SEMANA'));
-        $situacion = strtoupper((string) $request->query('situacion', 'PENDIENTE'));
+        $esUsuarioDelegaciones = $usuario && (int) ($usuario->unidad_id ?? 0) === 2;
+        $periodoDefault = $esUsuarioDelegaciones ? 'ANIO' : 'SEMANA';
+        $situacionDefault = $esUsuarioDelegaciones ? 'TODOS' : 'PENDIENTE';
+        $puedeMostrarTodasSituaciones = $esUsuarioDelegaciones;
+
+        $periodo = strtoupper((string) $request->query('periodo', $periodoDefault));
+        $situacion = strtoupper((string) $request->query('situacion', $situacionDefault));
         $unidadFiltro = (string) $request->query('unidad_filtro', '');
         $perPage = (int) $request->query('per_page', 20);
         $perPage = $perPage > 0 ? min($perPage, 100) : 20;
@@ -169,14 +174,18 @@ class HechoController extends Controller
         ];
 
         $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'];
+        if ($puedeMostrarTodasSituaciones) {
+            $situacionesValidas[] = 'TODOS';
+        }
+
         $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
 
         if (!in_array($situacion, $situacionesValidas, true)) {
-            $situacion = 'PENDIENTE';
+            $situacion = $situacionDefault;
         }
 
         if (!in_array($periodo, $periodosValidos, true)) {
-            $periodo = 'SEMANA';
+            $periodo = $periodoDefault;
         }
 
         if (!$puedeFiltrarUnidad || !array_key_exists($unidadFiltro, $unidadesFiltro)) {
@@ -210,6 +219,16 @@ class HechoController extends Controller
             return $query;
         };
 
+        $crearQueryTodos = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
+            $query = Hechos::query()
+                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
+
+            $this->applyHechosVisibilityScope($query, $usuario);
+            $this->aplicarFiltroUnidadSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
+
+            return $query;
+        };
+
         $crearQueryFaltaCompletar = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
@@ -223,6 +242,7 @@ class HechoController extends Controller
         $conteos = [];
         foreach ($rangos as $key => [$inicio, $fin]) {
             $conteos[$key] = [
+                'TODOS' => $crearQueryTodos($inicio, $fin)->count(),
                 'PENDIENTE' => $crearQueryConteo($inicio, $fin, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicio, $fin, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicio, $fin, 'RESUELTO')->count(),
@@ -243,6 +263,8 @@ class HechoController extends Controller
 
         if ($situacion === 'FALTA_COMPLETAR') {
             $this->aplicarFiltroFaltaCompletarSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
+        } elseif ($situacion === 'TODOS') {
+            $this->aplicarFiltroUnidadSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
         } else {
             $query->where('situacion', $situacion);
             $this->aplicarFiltroUnidadSeguimiento($query, $puedeFiltrarUnidad, $unidadFiltro);
@@ -267,6 +289,7 @@ class HechoController extends Controller
                 'situacion' => $situacion,
                 'unidad_filtro' => $unidadFiltro,
                 'puede_filtrar_unidad' => $puedeFiltrarUnidad,
+                'puede_mostrar_todas_situaciones' => $puedeMostrarTodasSituaciones,
                 'unidades_filtro' => $unidadesFiltro,
             ],
             'meta' => [

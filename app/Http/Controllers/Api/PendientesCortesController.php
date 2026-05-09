@@ -3,16 +3,34 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Hechos;
 use App\Models\PendientesCorte;
-use App\Models\PendientesCorteDetalle;
+use App\Services\PendientesCortesService;
 use App\Support\HechoAccess;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class PendientesCortesController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, PendientesCortesService $cortesService)
+    {
+        return $this->indexPorUnidad($request, $cortesService, PendientesCortesService::UNIDAD_SINIESTROS_ID);
+    }
+
+    public function show(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService)
+    {
+        return $this->showPorUnidad($request, $corte, $cortesService, PendientesCortesService::UNIDAD_SINIESTROS_ID);
+    }
+
+    public function indexDelegaciones(Request $request, PendientesCortesService $cortesService)
+    {
+        return $this->indexPorUnidad($request, $cortesService, PendientesCortesService::UNIDAD_DELEGACIONES_ID);
+    }
+
+    public function showDelegaciones(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService)
+    {
+        return $this->showPorUnidad($request, $corte, $cortesService, PendientesCortesService::UNIDAD_DELEGACIONES_ID);
+    }
+
+    private function indexPorUnidad(Request $request, PendientesCortesService $cortesService, int $unidadId)
     {
         if (!HechoAccess::canUseHechosModule($request->user())) {
             return response()->json([
@@ -24,8 +42,7 @@ class PendientesCortesController extends Controller
         if ($perPage <= 0) $perPage = 30;
         if ($perPage > 100) $perPage = 100;
 
-        $cortes = PendientesCorte::orderByDesc('corte_fecha')
-            ->paginate($perPage);
+        $cortes = $cortesService->paginateCortes($request->user(), $unidadId, $perPage);
 
         return response()->json([
             'data' => $cortes->items(),
@@ -38,7 +55,7 @@ class PendientesCortesController extends Controller
         ]);
     }
 
-    public function show(Request $request, PendientesCorte $corte)
+    private function showPorUnidad(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService, int $unidadId)
     {
         if (!HechoAccess::canUseHechosModule($request->user())) {
             return response()->json([
@@ -46,76 +63,23 @@ class PendientesCortesController extends Controller
             ], 403);
         }
 
-        $tz = 'America/Mexico_City';
+        $detalle = $cortesService->detalle($corte, $request->user(), $unidadId);
 
-        $prevDate = Carbon::parse($corte->corte_fecha, $tz)->subWeek()->toDateString();
-        $prev = PendientesCorte::where('corte_fecha', $prevDate)->first();
-
-        $idsPrev = $prev
-            ? PendientesCorteDetalle::where('pendientes_corte_id', $prev->id)
-                ->pluck('hecho_id')->unique()->values()->all()
-            : [];
-
-        $idsNow = PendientesCorteDetalle::where('pendientes_corte_id', $corte->id)
-            ->pluck('hecho_id')->unique()->values()->all();
-
-        $hechosPrev = count($idsPrev)
-            ? Hechos::whereIn('id', $idsPrev)
-                ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
-                ->get()
-                ->keyBy('id')
-            : collect();
-
-        $hechosNow = count($idsNow)
-            ? Hechos::whereIn('id', $idsNow)
-                ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
-                ->get()
-            : collect();
-
-        $resueltos = [];
-        $turnados = [];
-        $siguen = [];
-        $otros = [];
-
-        foreach ($idsPrev as $id) {
-            $h = $hechosPrev->get($id);
-            if (!$h) continue;
-
-            if ($h->situacion === 'RESUELTO') {
-                $resueltos[] = $h;
-            } elseif ($h->situacion === 'TURNADO') {
-                $turnados[] = $h;
-            } elseif ($h->situacion === 'PENDIENTE') {
-                $siguen[] = $h;
-            } else {
-                $otros[] = $h;
-            }
+        if (!($detalle['visible'] ?? false)) {
+            return response()->json([
+                'message' => 'Corte no encontrado para la unidad solicitada.',
+            ], 404);
         }
-
-        $setPrev = array_fill_keys($idsPrev, true);
-
-        $nuevos = $hechosNow->filter(function ($h) use ($setPrev) {
-            return !isset($setPrev[$h->id]);
-        })->values();
-
-        $totales = [
-            'previos' => count($idsPrev),
-            'resueltos' => count($resueltos),
-            'turnados' => count($turnados),
-            'siguen_pendiente' => count($siguen),
-            'otros' => count($otros),
-            'nuevos_pendientes' => $nuevos->count(),
-        ];
 
         return response()->json([
             'corte' => $corte,
-            'prev' => $prev,
-            'totales' => $totales,
-            'resueltos' => $resueltos,
-            'turnados' => $turnados,
-            'siguen' => $siguen,
-            'otros' => $otros,
-            'nuevos' => $nuevos,
+            'prev' => $detalle['prev'],
+            'totales' => $detalle['totales'],
+            'resueltos' => $detalle['resueltos'],
+            'turnados' => $detalle['turnados'],
+            'siguen' => $detalle['siguen'],
+            'otros' => $detalle['otros'],
+            'nuevos' => $detalle['nuevos'],
         ]);
     }
 }

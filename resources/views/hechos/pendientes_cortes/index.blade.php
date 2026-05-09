@@ -1,9 +1,14 @@
 @extends('adminlte::page')
 
-@section('title', 'Cortes de Pendientes')
+@php
+    $titulo = $titulo ?? 'Cortes de Pendientes';
+    $routeShow = $routeShow ?? 'hechos.pendientes.cortes.show';
+@endphp
+
+@section('title', $titulo)
 
 @section('content_header')
-    <h1>Cortes de Pendientes</h1>
+    <h1>{{ $titulo }}</h1>
 @stop
 
 @section('content')
@@ -38,7 +43,7 @@
                                     <td>{{ $corte->corte_fecha }}</td>
                                     <td>{{ $corte->created_at ? $corte->created_at->format('Y-m-d H:i') : '' }}</td>
                                     <td style="text-align:center;">
-                                        <a href="{{ route('hechos.pendientes.cortes.show', $corte->id) }}" class="btn btn-info btn-sm">
+                                        <a href="{{ route($routeShow, $corte->id) }}" class="btn btn-info btn-sm">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
                                     </td>

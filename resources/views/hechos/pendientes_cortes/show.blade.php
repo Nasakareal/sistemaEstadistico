@@ -1,18 +1,24 @@
 @extends('adminlte::page')
 
-@section('title', 'Detalle del Corte de Pendientes')
+@php
+    $titulo = $titulo ?? 'Detalle del Corte de Pendientes';
+    $routeIndex = $routeIndex ?? 'hechos.pendientes.cortes.index';
+    $routeShow = $routeShow ?? 'hechos.pendientes.cortes.show';
+@endphp
+
+@section('title', $titulo)
 
 @section('content_header')
     <div class="d-flex align-items-center justify-content-between flex-wrap">
-        <h1 class="mb-0">Detalle del Corte de Pendientes</h1>
+        <h1 class="mb-0">{{ $titulo }}</h1>
 
         <div class="d-flex" style="gap:8px; flex-wrap:wrap;">
-            <a href="{{ route('hechos.pendientes.cortes.index') }}" class="btn btn-secondary btn-sm">
+            <a href="{{ route($routeIndex) }}" class="btn btn-secondary btn-sm">
                 <i class="fa-solid fa-arrow-left"></i> Volver
             </a>
 
             @if($prev)
-                <a href="{{ route('hechos.pendientes.cortes.show', $prev->id) }}" class="btn btn-outline-info btn-sm">
+                <a href="{{ route($routeShow, $prev->id) }}" class="btn btn-outline-info btn-sm">
                     <i class="fa-solid fa-backward-step"></i> Corte anterior
                 </a>
             @endif

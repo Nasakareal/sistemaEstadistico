@@ -7,15 +7,16 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Hechos;
 use App\Models\PendientesCorte;
 use App\Models\PendientesCorteDetalle;
+use App\Services\PendientesCortesService;
 use Carbon\Carbon;
 
-class GenerarPendientesCorte extends Command
+class ReportePendientesCorte extends Command
 {
     protected $signature = 'hechos:generar-corte-pendientes {--corte=} {--prev=} {--json}';
 
-    protected $description = 'Genera el corte semanal (domingo 6pm) guardando SOLO: pendientes del corte pasado + nuevos pendientes de la semana.';
+    protected $description = 'Genera el corte semanal de Siniestros y Delegaciones guardando pendientes previos + pendientes actuales.';
 
-    public function handle()
+    public function handle(PendientesCortesService $cortesService)
     {
         $tz = 'America/Mexico_City';
 
@@ -33,12 +34,13 @@ class GenerarPendientesCorte extends Command
             $cortePrevio = Carbon::parse($optPrev, $tz)->startOfDay();
         }
 
-        $inicioVentana = $cortePrevio->copy()->setTime(18, 0, 0);
         $finVentana = $corteActual->copy()->setTime(18, 0, 0);
 
-        $cortePrevioModel = PendientesCorte::where('corte_fecha', '<', $corteActual->toDateString())
-            ->orderByDesc('corte_fecha')
-            ->first();
+        $cortePrevioModel = $optPrev
+            ? PendientesCorte::where('corte_fecha', $cortePrevio->toDateString())->first()
+            : PendientesCorte::where('corte_fecha', '<', $corteActual->toDateString())
+                ->orderByDesc('corte_fecha')
+                ->first();
 
         $corteActualModel = PendientesCorte::firstOrCreate(
             ['corte_fecha' => $corteActual->toDateString()]
@@ -51,25 +53,45 @@ class GenerarPendientesCorte extends Command
                 ->unique()
                 ->values()
                 ->all();
+
+            if (!empty($idsPrev)) {
+                $idsPrevQuery = Hechos::whereIn('id', $idsPrev);
+                $cortesService->applyHechosUnidadesScope($idsPrevQuery, [
+                    PendientesCortesService::UNIDAD_SINIESTROS_ID,
+                    PendientesCortesService::UNIDAD_DELEGACIONES_ID,
+                ]);
+                $idsPrev = $idsPrevQuery
+                    ->pluck('id')
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
         }
 
-        $inicio = $inicioVentana->toDateTimeString();
         $fin = $finVentana->toDateTimeString();
 
-        $nuevosSemana = Hechos::where('situacion', 'PENDIENTE')
+        $pendientesActualesQuery = Hechos::where('situacion', 'PENDIENTE')
             ->whereRaw(
-                "STR_TO_DATE(CONCAT(fecha,' ',COALESCE(hora,'00:00:00')), '%Y-%m-%d %H:%i:%s') >= ?
-                 AND STR_TO_DATE(CONCAT(fecha,' ',COALESCE(hora,'00:00:00')), '%Y-%m-%d %H:%i:%s') < ?",
-                [$inicio, $fin]
-            )
+                "STR_TO_DATE(CONCAT(fecha,' ',COALESCE(hora,'00:00:00')), '%Y-%m-%d %H:%i:%s') < ?",
+                [$fin]
+            );
+
+        $cortesService->applyHechosUnidadesScope($pendientesActualesQuery, [
+            PendientesCortesService::UNIDAD_SINIESTROS_ID,
+            PendientesCortesService::UNIDAD_DELEGACIONES_ID,
+        ]);
+
+        $pendientesActuales = $pendientesActualesQuery
             ->pluck('id')
             ->unique()
             ->values()
             ->all();
 
-        $idsFinal = array_values(array_unique(array_merge($idsPrev, $nuevosSemana)));
+        $idsFinal = array_values(array_unique(array_merge($idsPrev, $pendientesActuales)));
+        $idsPrevSet = array_fill_keys($idsPrev, true);
+        $idsNuevos = array_values(array_filter($pendientesActuales, fn ($id) => !isset($idsPrevSet[$id])));
 
-        DB::transaction(function () use ($corteActualModel, $idsFinal) {
+        DB::transaction(function () use ($corteActualModel, $idsFinal, $cortesService) {
             PendientesCorteDetalle::where('pendientes_corte_id', $corteActualModel->id)->delete();
 
             if (count($idsFinal) === 0) {
@@ -79,10 +101,15 @@ class GenerarPendientesCorte extends Command
             $now = now();
             $rows = [];
 
-            $hechos = Hechos::whereIn('id', $idsFinal)
-                ->select(['id', 'situacion'])
-                ->get()
-                ->keyBy('id');
+            $hechosQuery = Hechos::whereIn('id', $idsFinal)
+                ->select(['id', 'situacion']);
+
+            $cortesService->applyHechosUnidadesScope($hechosQuery, [
+                PendientesCortesService::UNIDAD_SINIESTROS_ID,
+                PendientesCortesService::UNIDAD_DELEGACIONES_ID,
+            ]);
+
+            $hechos = $hechosQuery->get()->keyBy('id');
 
             foreach ($idsFinal as $hechoId) {
                 $h = $hechos->get($hechoId);
@@ -108,7 +135,7 @@ class GenerarPendientesCorte extends Command
             'corte_previo' => $cortePrevioModel ? $cortePrevioModel->corte_fecha : null,
             'totales' => [
                 'arrastrados_del_corte_previo' => count($idsPrev),
-                'nuevos_de_la_semana' => count($nuevosSemana),
+                'nuevos_pendientes' => count($idsNuevos),
                 'total_guardados_en_corte_actual' => count($idsFinal),
             ],
         ];
@@ -150,7 +177,7 @@ class GenerarPendientesCorte extends Command
 
         $t = $payload['totales'];
         $this->line('Arrastrados del corte previo: ' . $t['arrastrados_del_corte_previo']);
-        $this->line('Nuevos de la semana: ' . $t['nuevos_de_la_semana']);
+        $this->line('Nuevos pendientes: ' . $t['nuevos_pendientes']);
         $this->line('Total guardados en corte actual: ' . $t['total_guardados_en_corte_actual']);
 
         return 0;

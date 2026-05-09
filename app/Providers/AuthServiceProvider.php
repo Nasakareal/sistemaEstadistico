@@ -215,6 +215,25 @@ class AuthServiceProvider extends ServiceProvider
                 );
         });
 
+        Gate::define('menu-pendientes-cortes-siniestros', function ($user) {
+            return $user->can('ver hechos')
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 1
+                    || (int) $user->unidad_id === 3
+                    || $user->hasAnyRole(['Perito', 'Jefe de Grupo'])
+                );
+        });
+
+        Gate::define('menu-pendientes-cortes-delegaciones', function ($user) {
+            return $user->can('ver hechos')
+                && (
+                    $user->perteneceAUnidad('delegaciones')
+                    || (int) $user->unidad_id === 2
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
         Gate::define('menu-guardianes-pendientes-revision', function ($user) {
             return $user->isSuperadmin()
                 || (

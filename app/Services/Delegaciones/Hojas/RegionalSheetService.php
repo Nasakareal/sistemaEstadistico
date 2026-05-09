@@ -3054,19 +3054,23 @@ class RegionalSheetService
 
         $sheet->setCellValue('F162', 1);
         $sheet->setCellValue('G162', 'LIBERACIÓN MOTOCICLETAS');
-        $sheet->setCellValue('H162', $datos['liberaciones']['motos']);
+        // Borrado Liberaciones vehículos $sheet->setCellValue('H162', $datos['liberaciones']['motos']);
+        $sheet->setCellValue('H162', 0);
 
         $sheet->setCellValue('F163', 2);
         $sheet->setCellValue('G163', 'LIBERACIÓN VEHÍCULOS');
-        $sheet->setCellValue('H163', $datos['liberaciones']['vehiculos']);
+        // Borrado Liberaciones vehículos $sheet->setCellValue('H163', $datos['liberaciones']['vehiculos']);
+        $sheet->setCellValue('H163', 0);
 
         $sheet->setCellValue('F164', 3);
         $sheet->setCellValue('G164', 'LIBERACIÓN CAMIONES');
-        $sheet->setCellValue('H164', $datos['liberaciones']['camiones']);
+        // Borrado Liberaciones vehículos $sheet->setCellValue('H164', $datos['liberaciones']['camiones']);
+        $sheet->setCellValue('H164', 0);
 
         $sheet->setCellValue('F165', 4);
         $sheet->setCellValue('G165', 'LIBERACIÓN REMOLQUES');
-        $sheet->setCellValue('H165', $datos['liberaciones']['remolques']);
+        // Borrado Liberaciones vehículos $sheet->setCellValue('H165', $datos['liberaciones']['remolques']);
+        $sheet->setCellValue('H165', 0);
 
         $sheet->mergeCells('F166:G166');
         $sheet->setCellValue('F166', 'TOTAL');

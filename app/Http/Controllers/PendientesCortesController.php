@@ -2,90 +2,73 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Hechos;
 use App\Models\PendientesCorte;
-use App\Models\PendientesCorteDetalle;
+use App\Services\PendientesCortesService;
 use Illuminate\Http\Request;
 
 class PendientesCortesController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, PendientesCortesService $cortesService)
     {
-        $cortes = PendientesCorte::orderByDesc('corte_fecha')->paginate(30);
+        $cortes = $cortesService->paginateCortes(
+            $request->user(),
+            PendientesCortesService::UNIDAD_SINIESTROS_ID
+        );
+        $titulo = 'Cortes de Pendientes - Siniestros';
+        $routeShow = 'hechos.pendientes.cortes.show';
 
-        return view('hechos.pendientes_cortes.index', compact('cortes'));
+        return view('hechos.pendientes_cortes.index', compact('cortes', 'titulo', 'routeShow'));
     }
 
-    public function show(Request $request, PendientesCorte $corte)
+    public function show(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService)
     {
-        $prev = PendientesCorte::where('corte_fecha', '<', $corte->corte_fecha)
-            ->orderByDesc('corte_fecha')
-            ->first();
+        $detalle = $cortesService->detalle($corte, $request->user(), PendientesCortesService::UNIDAD_SINIESTROS_ID);
 
-        $idsPrev = $prev
-            ? PendientesCorteDetalle::where('pendientes_corte_id', $prev->id)
-                ->pluck('hecho_id')->unique()->values()->all()
-            : [];
-
-        $idsNow = PendientesCorteDetalle::where('pendientes_corte_id', $corte->id)
-            ->pluck('hecho_id')->unique()->values()->all();
-
-        $idsAll = array_values(array_unique(array_merge($idsPrev, $idsNow)));
-
-        $hechosAll = count($idsAll)
-            ? Hechos::whereIn('id', $idsAll)
-                ->where('unidad_org_id', 1)
-                ->select(['id', 'folio_c5i', 'fecha', 'sector', 'unidad', 'situacion'])
-                ->get()
-                ->keyBy('id')
-            : collect();
-
-        $resueltos = [];
-        $turnados = [];
-        $siguen = [];
-        $otros = [];
-
-        foreach ($idsPrev as $id) {
-            $h = $hechosAll->get($id);
-            if (!$h) continue;
-
-            if ($h->situacion === 'RESUELTO') {
-                $resueltos[] = $h;
-            } elseif ($h->situacion === 'TURNADO') {
-                $turnados[] = $h;
-            } elseif ($h->situacion === 'PENDIENTE') {
-                $siguen[] = $h;
-            } else {
-                $otros[] = $h;
-            }
+        if (!($detalle['visible'] ?? false)) {
+            abort(404);
         }
 
-        $setPrev = array_fill_keys($idsPrev, true);
+        $titulo = 'Detalle del Corte de Pendientes - Siniestros';
+        $routeIndex = 'hechos.pendientes.cortes.index';
+        $routeShow = 'hechos.pendientes.cortes.show';
 
-        $nuevos = collect($idsNow)
-            ->filter(fn ($id) => !isset($setPrev[$id]))
-            ->map(fn ($id) => $hechosAll->get($id))
-            ->filter()
-            ->values();
-
-        $totales = [
-            'previos' => count($idsPrev),
-            'resueltos' => count($resueltos),
-            'turnados' => count($turnados),
-            'siguen_pendiente' => count($siguen),
-            'otros' => count($otros),
-            'nuevos_pendientes' => $nuevos->count(),
-        ];
-
-        return view('hechos.pendientes_cortes.show', compact(
+        return view('hechos.pendientes_cortes.show', array_merge($detalle, compact(
             'corte',
-            'prev',
-            'totales',
-            'resueltos',
-            'turnados',
-            'siguen',
-            'otros',
-            'nuevos'
-        ));
+            'titulo',
+            'routeIndex',
+            'routeShow'
+        )));
+    }
+
+    public function indexDelegaciones(Request $request, PendientesCortesService $cortesService)
+    {
+        $cortes = $cortesService->paginateCortes(
+            $request->user(),
+            PendientesCortesService::UNIDAD_DELEGACIONES_ID
+        );
+        $titulo = 'Cortes de Pendientes - Delegaciones';
+        $routeShow = 'hechos.pendientes.delegaciones.cortes.show';
+
+        return view('hechos.pendientes_cortes.index', compact('cortes', 'titulo', 'routeShow'));
+    }
+
+    public function showDelegaciones(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService)
+    {
+        $detalle = $cortesService->detalle($corte, $request->user(), PendientesCortesService::UNIDAD_DELEGACIONES_ID);
+
+        if (!($detalle['visible'] ?? false)) {
+            abort(404);
+        }
+
+        $titulo = 'Detalle del Corte de Pendientes - Delegaciones';
+        $routeIndex = 'hechos.pendientes.delegaciones.cortes.index';
+        $routeShow = 'hechos.pendientes.delegaciones.cortes.show';
+
+        return view('hechos.pendientes_cortes.show', array_merge($detalle, compact(
+            'corte',
+            'titulo',
+            'routeIndex',
+            'routeShow'
+        )));
     }
 }

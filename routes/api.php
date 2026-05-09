@@ -174,7 +174,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('pendientes')->middleware('can:ver hechos')->group(function () {
         Route::get('/cortes', [PendientesCortesController::class, 'index'])->name('api.hechos.pendientes.cortes.index');
-        Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->name('api.hechos.pendientes.cortes.show');
+        Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->whereNumber('corte')->name('api.hechos.pendientes.cortes.show');
+        Route::get('/delegaciones/cortes', [PendientesCortesController::class, 'indexDelegaciones'])->name('api.hechos.pendientes.delegaciones.cortes.index');
+        Route::get('/delegaciones/cortes/{corte}', [PendientesCortesController::class, 'showDelegaciones'])->whereNumber('corte')->name('api.hechos.pendientes.delegaciones.cortes.show');
     });
 
     Route::prefix('actividades')->group(function () {

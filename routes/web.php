@@ -499,8 +499,20 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     });
 
     Route::prefix('pendientes')->group(function () {
-        Route::get('/cortes', [PendientesCortesController::class, 'index'])->name('hechos.pendientes.cortes.index');
-        Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])->name('hechos.pendientes.cortes.show');
+        Route::get('/cortes', [PendientesCortesController::class, 'index'])
+            ->middleware('can:menu-pendientes-cortes-siniestros')
+            ->name('hechos.pendientes.cortes.index');
+        Route::get('/cortes/{corte}', [PendientesCortesController::class, 'show'])
+            ->whereNumber('corte')
+            ->middleware('can:menu-pendientes-cortes-siniestros')
+            ->name('hechos.pendientes.cortes.show');
+        Route::get('/delegaciones/cortes', [PendientesCortesController::class, 'indexDelegaciones'])
+            ->middleware('can:menu-pendientes-cortes-delegaciones')
+            ->name('hechos.pendientes.delegaciones.cortes.index');
+        Route::get('/delegaciones/cortes/{corte}', [PendientesCortesController::class, 'showDelegaciones'])
+            ->whereNumber('corte')
+            ->middleware('can:menu-pendientes-cortes-delegaciones')
+            ->name('hechos.pendientes.delegaciones.cortes.show');
     });
     Route::get('/{hecho}/compartir', [HechosController::class, 'compartirNativo'])->name('hechos.compartir');
     Route::post('/{hecho}/whatsapp', [HechosController::class, 'sendWhatsapp'])->name('hechos.whatsapp.send');

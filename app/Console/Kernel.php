@@ -18,7 +18,7 @@ class Kernel extends ConsoleKernel
             ->at('18:05')
             ->withoutOverlapping();
 
-        $schedule->command('hechos:reporte-pendientes --json')
+        $schedule->command('hechos:generar-corte-pendientes --json')
             ->sundays()
             ->at('18:06')
             ->withoutOverlapping();

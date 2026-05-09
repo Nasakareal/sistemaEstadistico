@@ -942,8 +942,13 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
-        $periodo = strtoupper($request->get('periodo', 'SEMANA'));
-        $situacion = strtoupper($request->get('situacion', 'PENDIENTE'));
+        $esUsuarioDelegaciones = $usuario && (int) ($usuario->unidad_id ?? 0) === 2;
+        $periodoDefault = $esUsuarioDelegaciones ? 'ANIO' : 'SEMANA';
+        $situacionDefault = $esUsuarioDelegaciones ? 'TODOS' : 'PENDIENTE';
+        $puedeMostrarTodasSituaciones = $esUsuarioDelegaciones;
+
+        $periodo = strtoupper($request->get('periodo', $periodoDefault));
+        $situacion = strtoupper($request->get('situacion', $situacionDefault));
         $unidadFiltro = (string) $request->get('unidad_filtro', '');
         $puedeFiltrarUnidad = $usuario
             && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3);
@@ -954,14 +959,18 @@ class HechosController extends Controller
         ];
 
         $situacionesValidas = ['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'];
+        if ($puedeMostrarTodasSituaciones) {
+            $situacionesValidas[] = 'TODOS';
+        }
+
         $periodosValidos = ['SEMANA', 'MES', 'ANIO'];
 
         if (!in_array($situacion, $situacionesValidas, true)) {
-            $situacion = 'PENDIENTE';
+            $situacion = $situacionDefault;
         }
 
         if (!in_array($periodo, $periodosValidos, true)) {
-            $periodo = 'SEMANA';
+            $periodo = $periodoDefault;
         }
 
         if (!$puedeFiltrarUnidad || !array_key_exists($unidadFiltro, $unidadesFiltro)) {
@@ -1006,6 +1015,16 @@ class HechosController extends Controller
             return $query;
         };
 
+        $crearQueryTodos = function ($inicio, $fin) use ($usuario, $aplicarFiltroUnidad) {
+            $query = Hechos::query()
+                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
+
+            $this->applyHechosVisibilityScope($query, $usuario);
+            $aplicarFiltroUnidad($query);
+
+            return $query;
+        };
+
         $crearQueryFaltaCompletar = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
@@ -1024,18 +1043,21 @@ class HechosController extends Controller
 
         $conteos = [
             'semana' => [
+                'TODOS' => $crearQueryTodos($inicioSemana, $finSemana)->count(),
                 'PENDIENTE' => $crearQueryConteo($inicioSemana, $finSemana, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicioSemana, $finSemana, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicioSemana, $finSemana, 'RESUELTO')->count(),
                 'FALTA_COMPLETAR' => $crearQueryFaltaCompletar($inicioSemana, $finSemana)->count(),
             ],
             'mes' => [
+                'TODOS' => $crearQueryTodos($inicioMes, $finMes)->count(),
                 'PENDIENTE' => $crearQueryConteo($inicioMes, $finMes, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicioMes, $finMes, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicioMes, $finMes, 'RESUELTO')->count(),
                 'FALTA_COMPLETAR' => $crearQueryFaltaCompletar($inicioMes, $finMes)->count(),
             ],
             'anio' => [
+                'TODOS' => $crearQueryTodos($inicioAnio, $finAnio)->count(),
                 'PENDIENTE' => $crearQueryConteo($inicioAnio, $finAnio, 'PENDIENTE')->count(),
                 'TURNADO' => $crearQueryConteo($inicioAnio, $finAnio, 'TURNADO')->count(),
                 'RESUELTO' => $crearQueryConteo($inicioAnio, $finAnio, 'RESUELTO')->count(),
@@ -1062,6 +1084,8 @@ class HechosController extends Controller
                 $this->scopeHechosUnidad($query, 2);
                 $this->aplicarFiltroCapturaIncompletaDelegaciones($query);
             }
+        } elseif ($situacion === 'TODOS') {
+            $aplicarFiltroUnidad($query);
         } else {
             $query->where('situacion', $situacion);
             $aplicarFiltroUnidad($query);
@@ -1096,7 +1120,8 @@ class HechosController extends Controller
             'situacion',
             'unidadFiltro',
             'puedeFiltrarUnidad',
-            'unidadesFiltro'
+            'unidadesFiltro',
+            'puedeMostrarTodasSituaciones'
         ));
     }
 

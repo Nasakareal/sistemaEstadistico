@@ -12,6 +12,7 @@
         $situacionActual = strtoupper($situacion ?? 'PENDIENTE');
         $unidadActual = (string) ($unidadFiltro ?? '');
         $puedeFiltrarUnidad = $puedeFiltrarUnidad ?? false;
+        $puedeMostrarTodasSituaciones = $puedeMostrarTodasSituaciones ?? false;
         $unidadesFiltro = $unidadesFiltro ?? [
             '1' => 'Siniestros',
             '2' => 'Delegaciones',
@@ -25,6 +26,7 @@
         ];
 
         $labelsSituacion = [
+            'TODOS' => 'Todos',
             'PENDIENTE' => 'Pendientes',
             'TURNADO' => 'Turnados',
             'RESUELTO' => 'Resueltos',
@@ -32,6 +34,7 @@
         ];
 
         $clasesSituacion = [
+            'TODOS' => 'primary',
             'PENDIENTE' => 'warning',
             'TURNADO' => 'info',
             'RESUELTO' => 'success',
@@ -39,6 +42,7 @@
         ];
 
         $iconosSituacion = [
+            'TODOS' => 'fa-layer-group',
             'PENDIENTE' => 'fa-triangle-exclamation',
             'TURNADO' => 'fa-share',
             'RESUELTO' => 'fa-circle-check',
@@ -51,6 +55,9 @@
 
         $paramsUnidad = $unidadActual !== '' ? ['unidad_filtro' => $unidadActual] : [];
         $conteosPeriodo = $conteos[strtolower($periodoActual)] ?? [];
+        $estadosFiltro = $puedeMostrarTodasSituaciones
+            ? ['TODOS', 'PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR']
+            : ['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'];
     @endphp
 
     <div class="card card-outline card-primary seguimiento-card">
@@ -84,6 +91,9 @@
                     <div>
                         <label for="situacion">Situación</label>
                         <select name="situacion" id="situacion" class="form-control sv-input">
+                            @if($puedeMostrarTodasSituaciones)
+                                <option value="TODOS" {{ $situacionActual === 'TODOS' ? 'selected' : '' }}>Mostrar todo</option>
+                            @endif
                             <option value="PENDIENTE" {{ $situacionActual === 'PENDIENTE' ? 'selected' : '' }}>Pendientes</option>
                             <option value="TURNADO" {{ $situacionActual === 'TURNADO' ? 'selected' : '' }}>Turnados</option>
                             <option value="RESUELTO" {{ $situacionActual === 'RESUELTO' ? 'selected' : '' }}>Resueltos</option>
@@ -118,7 +128,7 @@
             </form>
 
             <div class="sv-kpi-grid">
-                @foreach (['PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR'] as $estado)
+                @foreach ($estadosFiltro as $estado)
                     <a
                         class="sv-kpi sv-kpi--{{ strtolower($estado) }} {{ $situacionActual === $estado ? 'is-active' : '' }}"
                         href="{{ route('hechos.seguimiento', array_merge($paramsUnidad, ['periodo' => $periodoActual, 'situacion' => $estado])) }}"
@@ -145,7 +155,7 @@
 
             @if ($hechos->count() === 0)
                 <div class="alert alert-info">
-                    No hay hechos en esta situación para el periodo y unidad seleccionados.
+                    No hay hechos para la selección actual.
                 </div>
             @endif
 

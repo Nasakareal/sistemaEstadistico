@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PendientesCorteDetalle extends Model
 {
@@ -13,4 +14,14 @@ class PendientesCorteDetalle extends Model
         'hecho_id',
         'situacion_en_corte',
     ];
+
+    public function corte(): BelongsTo
+    {
+        return $this->belongsTo(PendientesCorte::class, 'pendientes_corte_id');
+    }
+
+    public function hecho(): BelongsTo
+    {
+        return $this->belongsTo(Hechos::class, 'hecho_id');
+    }
 }

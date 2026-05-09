@@ -33,6 +33,53 @@ class WazeFeedService
         ];
     }
 
+    public function buildDebugReport(): array
+    {
+        $hechos = $this->queryHechos();
+        $skipped = [];
+        $examples = [];
+        $included = 0;
+
+        foreach ($hechos as $hecho) {
+            $reason = $this->skipReason($hecho);
+
+            if ($reason === null) {
+                $included++;
+                continue;
+            }
+
+            $skipped[$reason] = ($skipped[$reason] ?? 0) + 1;
+
+            if (count($examples) < 15) {
+                $examples[] = [
+                    'id' => $hecho->id,
+                    'reason' => $reason,
+                    'fecha' => $this->normalizeDate($hecho->fecha ?? null),
+                    'hora' => $this->normalizeTime($hecho->hora ?? null),
+                    'situacion' => $hecho->situacion,
+                    'tipo_hecho' => $hecho->tipo_hecho,
+                    'calle' => $hecho->calle,
+                    'lat' => $hecho->lat,
+                    'lng' => $hecho->lng,
+                ];
+            }
+        }
+
+        ksort($skipped);
+
+        return [
+            'now' => Carbon::now('America/Mexico_City')->format('c'),
+            'hours_back' => (int) config('waze.hours_back', 6),
+            'require_reverse_geocoding_match' => (bool) config('waze.require_reverse_geocoding_match', false),
+            'reverse_geocoding_enabled' => (bool) config('waze.reverse_geocoding_enabled', true),
+            'reverse_geocoding_token_configured' => trim((string) config('waze.reverse_geocoding_token', '')) !== '',
+            'candidates_after_main_filters' => $hechos->count(),
+            'included' => $included,
+            'skipped' => $skipped,
+            'examples' => $examples,
+        ];
+    }
+
     protected function queryHechos()
     {
         $hoursBack = (int) config('waze.hours_back', 6);
@@ -112,6 +159,44 @@ class WazeFeedService
         $payload['endtime'] = $this->resolveEndTime($hecho, $startTime, $type)->format('c');
 
         return $payload;
+    }
+
+    protected function skipReason($hecho): ?string
+    {
+        if (!$this->isSupportedTrafficEvent((string) $hecho->tipo_hecho)) {
+            return 'unsupported_tipo_hecho';
+        }
+
+        $startTime = $this->resolveStartTime($hecho);
+
+        if ($startTime === null) {
+            return 'invalid_start_time';
+        }
+
+        $lat = is_numeric($hecho->lat) ? (float) $hecho->lat : null;
+        $lng = is_numeric($hecho->lng) ? (float) $hecho->lng : null;
+
+        if ($lat === null || $lng === null) {
+            return 'missing_coordinates';
+        }
+
+        $wazeStreet = $this->resolveWazeStreet($lat, $lng);
+
+        if ($wazeStreet === null && (bool) config('waze.require_reverse_geocoding_match', false)) {
+            return 'reverse_geocoding_no_match';
+        }
+
+        $type = $this->resolveFeedType($hecho);
+
+        if ($this->buildPolyline($lat, $lng, $hecho, $type) === null) {
+            return 'missing_polyline';
+        }
+
+        if ($this->buildStreet($hecho, $wazeStreet) === null) {
+            return 'missing_street';
+        }
+
+        return null;
     }
 
     protected function isSupportedTrafficEvent(string $tipoHecho): bool

@@ -18,6 +18,10 @@ class WazeFeedController extends Controller
             ], 403);
         }
 
+        if ($request->boolean('debug')) {
+            return response()->json($service->buildDebugReport());
+        }
+
         return response()->json($service->buildIncidentsFeed());
     }
 }

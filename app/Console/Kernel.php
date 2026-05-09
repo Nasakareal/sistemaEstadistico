@@ -14,11 +14,13 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping();
 
         $schedule->command('hechos:corte-pendientes')
+            ->timezone('America/Mexico_City')
             ->sundays()
             ->at('18:05')
             ->withoutOverlapping();
 
         $schedule->command('hechos:generar-corte-pendientes --json')
+            ->timezone('America/Mexico_City')
             ->sundays()
             ->at('18:06')
             ->withoutOverlapping();

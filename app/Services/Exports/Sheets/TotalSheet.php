@@ -1640,6 +1640,7 @@ class TotalSheet
             $this->norm('COLISIÓN POR INVASIÓN DE CARRIL') => 'COLISION_INVASION_CARRIL',
 
             $this->norm('COLISIÓN POR CORTE DE CIRCULACIÓN') => 'COLISION_CORTE_CIRCULACION',
+            $this->norm('COLISIÓN CONTRA SEMOVIENTE') => 'COLISION_CORTE_CIRCULACION',
 
             $this->norm('COLISIÓN POR CAMBIO DE CARRIL') => 'COLISION_CAMBIO_CARRIL',
 

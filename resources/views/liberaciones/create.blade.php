@@ -50,7 +50,7 @@
                                 <select name="motivo_liberacion" id="motivo_liberacion"
                                     class="form-control @error('motivo_liberacion') is-invalid @enderror" required>
                                     <option value="">Seleccione una opción</option>
-                                    <option value="Convenio entre particulares" {{ old('Convenio entre particulares') == 'Convenio entre particulares' ? 'selected' : '' }}>Convenio, entregó documentación</option>
+                                    <option value="Convenio entre particulares" {{ old('motivo_liberacion') == 'Convenio entre particulares' ? 'selected' : '' }}>Convenio, entregó documentación</option>
                                     <option value="Error de detención" {{ old('motivo_liberacion') == 'Error de detención' ? 'selected' : '' }}>Error de detención</option>
                                     <option value="Acreditó propiedad" {{ old('motivo_liberacion') == 'Acreditó propiedad' ? 'selected' : '' }}>Acreditó propiedad</option>
                                     <option value="Orden del Ministerio Público" {{ old('motivo_liberacion') == 'Orden del Ministerio Público' ? 'selected' : '' }}>Orden del Ministerio Público</option>
@@ -68,9 +68,12 @@
                                 <label for="autoriza">Autoriza la Liberación</label>
                                 <select name="autoriza" id="autoriza"
                                     class="form-control @error('autoriza') is-invalid @enderror" required>
-                                    <option value="">Seleccione un comandante</option>
-                                    <option value="POL. 3° JORGE ARMANDO MORALES PÉREZ" {{ old('autoriza') == 'POL. 3° JORGE ARMANDO MORALES PÉREZ' ? 'selected' : '' }}>POL. 3° JORGE ARMANDO MORALES PÉREZ</option>
-                                    <option value="OFICIAL FERNANDO RUBALCAVA RIVERA" {{ old('autoriza') == 'OFICIAL FERNANDO RUBALCAVA RIVERA' ? 'selected' : '' }}>OFICIAL FERNANDO RUBALCAVA RIVERA</option>
+                                    <option value="">{{ $autorizaPlaceholder ?? 'Seleccione una opción' }}</option>
+                                    @foreach(($autorizaOptions ?? []) as $autorizaOption)
+                                        <option value="{{ $autorizaOption }}" {{ old('autoriza') == $autorizaOption ? 'selected' : '' }}>
+                                            {{ $autorizaOption }}
+                                        </option>
+                                    @endforeach
                                 </select>
                                 @error('autoriza')
                                     <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>

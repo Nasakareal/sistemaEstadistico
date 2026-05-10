@@ -5,14 +5,23 @@ namespace App\Http\Controllers;
 use App\Models\Liberacion;
 use App\Models\Vehiculo;
 use App\Models\Hechos;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 class LiberacionController extends Controller
 {
+    private const UNIDAD_DELEGACIONES_ID = 2;
+
+    private const AUTORIZADORES_SINIESTROS = [
+        'POL. 3° JORGE ARMANDO MORALES PÉREZ',
+        'OFICIAL FERNANDO RUBALCAVA RIVERA',
+    ];
+
     public function publica(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->first();
@@ -107,8 +116,11 @@ class LiberacionController extends Controller
         }
 
         $fechaActual = Carbon::now()->format('Y-m-d');
+        $hecho = $this->hechoDelVehiculo($vehiculo);
+        $autorizaOptions = $this->autorizaOptions($hecho);
+        $autorizaPlaceholder = $this->autorizaPlaceholder($hecho, $autorizaOptions);
 
-        return view('liberaciones.create', compact('vehiculo', 'fechaActual'));
+        return view('liberaciones.create', compact('vehiculo', 'fechaActual', 'autorizaOptions', 'autorizaPlaceholder'));
     }
 
     public function store(Request $request, Vehiculo $vehiculo)
@@ -117,30 +129,25 @@ class LiberacionController extends Controller
             return $this->redirectVehiculoSinCorralon($vehiculo);
         }
 
-        $request->validate([
-            'fecha_liberacion' => 'required|date',
-            'personas_autorizadas' => 'required|string',
-            'autoriza' => 'required|string',
-            'motivo_liberacion' => 'required|string',
-        ]);
+        $hecho = $this->hechoDelVehiculo($vehiculo);
+        $validated = $this->validarLiberacion($request, $hecho);
 
-        $anio = Carbon::parse($request->fecha_liberacion)->year;
+        $anio = Carbon::parse($validated['fecha_liberacion'])->year;
 
         $folio = Liberacion::whereYear('fecha_liberacion', $anio)->count() + 1;
         $folioFormateado = str_pad($folio, 3, '0', STR_PAD_LEFT);
         $folioAnual = "{$folioFormateado}/{$anio}";
 
-        $hecho = $vehiculo->hechos()->first();
         $hechoId = $hecho ? $hecho->id : null;
 
         $liberacion = Liberacion::create([
             'vehiculo_id' => $vehiculo->id,
             'hecho_id' => $hechoId,
             'token_unico' => Str::uuid(),
-            'fecha_liberacion' => $request->fecha_liberacion,
-            'personas_autorizadas' => $request->personas_autorizadas,
-            'autoriza' => $request->autoriza,
-            'motivo_liberacion' => $request->motivo_liberacion,
+            'fecha_liberacion' => $validated['fecha_liberacion'],
+            'personas_autorizadas' => $validated['personas_autorizadas'],
+            'autoriza' => $validated['autoriza'],
+            'motivo_liberacion' => $validated['motivo_liberacion'],
             'folio_anual' => $folioAnual,
             'creado_por' => Auth::id(),
         ]);
@@ -151,7 +158,11 @@ class LiberacionController extends Controller
     public function edit(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
-        return view('liberaciones.edit', compact('vehiculo', 'liberacion'));
+        $hecho = $liberacion->hecho ?: $this->hechoDelVehiculo($vehiculo);
+        $autorizaOptions = $this->autorizaOptions($hecho);
+        $autorizaPlaceholder = $this->autorizaPlaceholder($hecho, $autorizaOptions);
+
+        return view('liberaciones.edit', compact('vehiculo', 'liberacion', 'autorizaOptions', 'autorizaPlaceholder'));
     }
 
     public function update(Request $request, Vehiculo $vehiculo)
@@ -160,18 +171,14 @@ class LiberacionController extends Controller
             return $this->redirectVehiculoSinCorralon($vehiculo);
         }
 
-        $request->validate([
-            'fecha_liberacion' => 'required|date',
-            'personas_autorizadas' => 'required|string',
-            'autoriza' => 'required|string',
-            'motivo_liberacion' => 'required|string',
-        ]);
-
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->firstOrFail();
-        $liberacion->fecha_liberacion = $request->fecha_liberacion;
-        $liberacion->personas_autorizadas = $request->personas_autorizadas;
-        $liberacion->autoriza = $request->autoriza;
-        $liberacion->motivo_liberacion = $request->motivo_liberacion;
+        $hecho = $liberacion->hecho ?: $this->hechoDelVehiculo($vehiculo);
+        $validated = $this->validarLiberacion($request, $hecho);
+
+        $liberacion->fecha_liberacion = $validated['fecha_liberacion'];
+        $liberacion->personas_autorizadas = $validated['personas_autorizadas'];
+        $liberacion->autoriza = $validated['autoriza'];
+        $liberacion->motivo_liberacion = $validated['motivo_liberacion'];
         $liberacion->save();
 
         return redirect()->route('liberacion.detalles', $vehiculo->id)->with('success', 'Liberación actualizada correctamente.');
@@ -220,5 +227,128 @@ class LiberacionController extends Controller
         return redirect()
             ->route('hechos.index')
             ->with('error', $mensaje);
+    }
+
+    private function validarLiberacion(Request $request, ?Hechos $hecho): array
+    {
+        $autorizaOptions = $this->autorizaOptions($hecho);
+
+        return $request->validate([
+            'fecha_liberacion' => 'required|date',
+            'personas_autorizadas' => 'required|string',
+            'autoriza' => ['required', 'string', Rule::in($autorizaOptions)],
+            'motivo_liberacion' => 'required|string',
+        ], [
+            'autoriza.in' => $this->autorizaValidationMessage($hecho, $autorizaOptions),
+        ]);
+    }
+
+    private function autorizaOptions(?Hechos $hecho): array
+    {
+        if ($this->esHechoDelegaciones($hecho)) {
+            return $this->delegadosDeHecho($hecho);
+        }
+
+        return self::AUTORIZADORES_SINIESTROS;
+    }
+
+    private function autorizaPlaceholder(?Hechos $hecho, array $autorizaOptions): string
+    {
+        if ($this->esHechoDelegaciones($hecho)) {
+            return empty($autorizaOptions)
+                ? 'No se encontró delegado para esta delegación'
+                : 'Seleccione el delegado que autoriza';
+        }
+
+        return 'Seleccione un comandante';
+    }
+
+    private function autorizaValidationMessage(?Hechos $hecho, array $autorizaOptions): string
+    {
+        if ($this->esHechoDelegaciones($hecho) && empty($autorizaOptions)) {
+            return 'No se encontró un usuario activo con rol Delegado para la delegación que subió el hecho.';
+        }
+
+        return 'Selecciona una persona válida para autorizar la liberación.';
+    }
+
+    private function esHechoDelegaciones(?Hechos $hecho): bool
+    {
+        if (!$hecho) {
+            return false;
+        }
+
+        $hecho->loadMissing('creator');
+
+        $unidadId = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+
+        return $unidadId === self::UNIDAD_DELEGACIONES_ID;
+    }
+
+    private function delegadosDeHecho(?Hechos $hecho): array
+    {
+        if (!$hecho) {
+            return [];
+        }
+
+        $hecho->loadMissing(['delegacion', 'creator']);
+
+        $delegacionIds = $this->delegacionIdsParaDelegados($hecho);
+
+        if (empty($delegacionIds)) {
+            return [];
+        }
+
+        return User::query()
+            ->where(function ($query) use ($delegacionIds) {
+                $query->whereIn('delegacion_id', $delegacionIds)
+                    ->orWhereIn('id', function ($subQuery) use ($delegacionIds) {
+                        $subQuery->select('user_id')
+                            ->from('delegacion_user')
+                            ->whereIn('delegacion_id', $delegacionIds);
+                    });
+            })
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Delegado');
+            })
+            ->where(function ($query) {
+                $query->whereNull('estado')
+                    ->orWhereRaw('UPPER(TRIM(estado)) <> ?', ['INACTIVO']);
+            })
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(function ($name) {
+                return trim((string) $name);
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function delegacionIdsParaDelegados(Hechos $hecho): array
+    {
+        $ids = [];
+
+        if (!empty($hecho->delegacion_id)) {
+            $ids[] = (int) $hecho->delegacion_id;
+        }
+
+        if ($hecho->delegacion && !empty($hecho->delegacion->delegacion_padre_id)) {
+            $ids[] = (int) $hecho->delegacion->delegacion_padre_id;
+        }
+
+        if (empty($ids) && $hecho->creator && !empty($hecho->creator->delegacion_id)) {
+            $ids[] = (int) $hecho->creator->delegacion_id;
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    private function hechoDelVehiculo(Vehiculo $vehiculo): ?Hechos
+    {
+        return $vehiculo->hechos()
+            ->with(['delegacion', 'creator'])
+            ->first();
     }
 }

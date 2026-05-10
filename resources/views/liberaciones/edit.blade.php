@@ -134,13 +134,12 @@
 
                                 <select name="autoriza" id="autoriza"
                                     class="form-control @error('autoriza') is-invalid @enderror" required>
-                                    <option value="">Seleccione un comandante</option>
-                                    <option value="POL. 3° JORGE ARMANDO MORALES PÉREZ" {{ $autorizaSel == 'POL. 3° JORGE ARMANDO MORALES PÉREZ' ? 'selected' : '' }}>
-                                        POL. 3° JORGE ARMANDO MORALES PÉREZ
-                                    </option>
-                                    <option value="OFICIAL FERNANDO RUBALCAVA RIVERA" {{ $autorizaSel == 'OFICIAL FERNANDO RUBALCAVA RIVERA' ? 'selected' : '' }}>
-                                        OFICIAL FERNANDO RUBALCAVA RIVERA
-                                    </option>
+                                    <option value="">{{ $autorizaPlaceholder ?? 'Seleccione una opción' }}</option>
+                                    @foreach(($autorizaOptions ?? []) as $autorizaOption)
+                                        <option value="{{ $autorizaOption }}" {{ $autorizaSel == $autorizaOption ? 'selected' : '' }}>
+                                            {{ $autorizaOption }}
+                                        </option>
+                                    @endforeach
                                 </select>
 
                                 @error('autoriza')

@@ -8,6 +8,8 @@
 
 @section('content')
     @php
+        $usuario = auth()->user();
+        $puedeVerTarjetaWhatsApp = $usuario && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2);
         $periodoActual = strtoupper($periodo ?? 'SEMANA');
         $situacionActual = strtoupper($situacion ?? 'PENDIENTE');
         $unidadActual = (string) ($unidadFiltro ?? '');
@@ -282,6 +284,30 @@
                                         <i class="fa-brands fa-whatsapp"></i>
                                     </button>
 
+                                    @if(!empty($hecho->iph_delegaciones_path))
+                                        <a
+                                            href="{{ asset('storage/' . ltrim($hecho->iph_delegaciones_path, '/')) }}"
+                                            class="btn btn-outline-danger btn-sm"
+                                            target="_blank"
+                                            rel="noopener"
+                                            download
+                                            title="Descargar IPH"
+                                        >
+                                            <i class="fa-solid fa-file-pdf"></i>
+                                        </a>
+                                    @endif
+
+                                    @if($puedeVerTarjetaWhatsApp)
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-info btn-sm btn-preview-whatsapp-card"
+                                            title="Ver tarjeta WhatsApp"
+                                            data-url="{{ route('hechos.compartir', $hecho->id) }}"
+                                        >
+                                            <i class="fa-regular fa-rectangle-list"></i>
+                                        </button>
+                                    @endif
+
                                     <form action="{{ route('hechos.destroy', $hecho->id) }}" method="POST" class="d-inline-block">
                                         @csrf
                                         @method('DELETE')
@@ -313,9 +339,17 @@
             </div>
         </div>
     </div>
+
+    @if($puedeVerTarjetaWhatsApp)
+        @include('hechos.partials.whatsapp_preview_modal')
+    @endif
 @stop
 
 @section('css')
+    @if($puedeVerTarjetaWhatsApp)
+        @include('hechos.partials.whatsapp_preview_styles')
+    @endif
+
     <style>
         .seguimiento-card__header {
             display: flex;
@@ -859,4 +893,8 @@
             });
         @endif
     </script>
+
+    @if($puedeVerTarjetaWhatsApp)
+        @include('hechos.partials.whatsapp_preview_scripts')
+    @endif
 @stop

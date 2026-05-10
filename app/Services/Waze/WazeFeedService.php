@@ -118,6 +118,10 @@ class WazeFeedService
             return null;
         }
 
+        if (!$this->isValidCoordinatePair($lat, $lng)) {
+            return null;
+        }
+
         $wazeStreet = $this->resolveWazeStreet($lat, $lng);
 
         if ($wazeStreet === null && (bool) config('waze.require_reverse_geocoding_match', false)) {
@@ -178,6 +182,10 @@ class WazeFeedService
 
         if ($lat === null || $lng === null) {
             return 'missing_coordinates';
+        }
+
+        if (!$this->isValidCoordinatePair($lat, $lng)) {
+            return 'invalid_coordinates';
         }
 
         $wazeStreet = $this->resolveWazeStreet($lat, $lng);
@@ -454,11 +462,11 @@ class WazeFeedService
             return $storedPolyline;
         }
 
-        if ($storedPolyline !== null) {
-            return $storedPolyline;
-        }
-
-        return $this->buildPointPolyline($lat, $lng, $hecho);
+        // Incidents do not affect routing. A single-point polyline plus direction
+        // avoids fabricating short segments that Waze may reject during road matching.
+        return $this->formatPolyline([
+            [$lat, $lng],
+        ]);
     }
 
     protected function storedPolyline($hecho): ?string

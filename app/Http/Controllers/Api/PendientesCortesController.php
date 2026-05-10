@@ -42,7 +42,7 @@ class PendientesCortesController extends Controller
         if ($perPage <= 0) $perPage = 30;
         if ($perPage > 100) $perPage = 100;
 
-        $cortes = $cortesService->paginateCortes($request->user(), $unidadId, $perPage);
+        $cortes = $cortesService->paginateCortes($request->user(), $unidadId, $perPage, true);
 
         return response()->json([
             'data' => $cortes->items(),
@@ -63,7 +63,7 @@ class PendientesCortesController extends Controller
             ], 403);
         }
 
-        $detalle = $cortesService->detalle($corte, $request->user(), $unidadId);
+        $detalle = $cortesService->detalle($corte, $request->user(), $unidadId, true);
 
         if (!($detalle['visible'] ?? false)) {
             return response()->json([

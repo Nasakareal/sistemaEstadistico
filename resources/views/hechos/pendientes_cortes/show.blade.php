@@ -32,7 +32,16 @@
             if (is_null($v) || $v === '') return 'No especificado';
             return (string) $v;
         };
+
+        $corteSinPendientesUnidad = collect($totales ?? [])->sum() === 0;
     @endphp
+
+    @if($corteSinPendientesUnidad)
+        <div class="alert alert-success">
+            <i class="fa-solid fa-circle-check"></i>
+            Corte generado sin pendientes para esta unidad.
+        </div>
+    @endif
 
     {{-- TARJETAS --}}
     <div class="row">

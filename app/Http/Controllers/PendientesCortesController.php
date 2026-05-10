@@ -12,7 +12,9 @@ class PendientesCortesController extends Controller
     {
         $cortes = $cortesService->paginateCortes(
             $request->user(),
-            PendientesCortesService::UNIDAD_SINIESTROS_ID
+            PendientesCortesService::UNIDAD_SINIESTROS_ID,
+            30,
+            true
         );
         $titulo = 'Cortes de Pendientes - Siniestros';
         $routeShow = 'hechos.pendientes.cortes.show';
@@ -22,7 +24,7 @@ class PendientesCortesController extends Controller
 
     public function show(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService)
     {
-        $detalle = $cortesService->detalle($corte, $request->user(), PendientesCortesService::UNIDAD_SINIESTROS_ID);
+        $detalle = $cortesService->detalle($corte, $request->user(), PendientesCortesService::UNIDAD_SINIESTROS_ID, true);
 
         if (!($detalle['visible'] ?? false)) {
             abort(404);
@@ -44,7 +46,9 @@ class PendientesCortesController extends Controller
     {
         $cortes = $cortesService->paginateCortes(
             $request->user(),
-            PendientesCortesService::UNIDAD_DELEGACIONES_ID
+            PendientesCortesService::UNIDAD_DELEGACIONES_ID,
+            30,
+            true
         );
         $titulo = 'Cortes de Pendientes - Delegaciones';
         $routeShow = 'hechos.pendientes.delegaciones.cortes.show';
@@ -54,7 +58,7 @@ class PendientesCortesController extends Controller
 
     public function showDelegaciones(Request $request, PendientesCorte $corte, PendientesCortesService $cortesService)
     {
-        $detalle = $cortesService->detalle($corte, $request->user(), PendientesCortesService::UNIDAD_DELEGACIONES_ID);
+        $detalle = $cortesService->detalle($corte, $request->user(), PendientesCortesService::UNIDAD_DELEGACIONES_ID, true);
 
         if (!($detalle['visible'] ?? false)) {
             abort(404);

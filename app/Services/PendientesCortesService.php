@@ -14,24 +14,29 @@ class PendientesCortesService
     public const UNIDAD_SINIESTROS_ID = 1;
     public const UNIDAD_DELEGACIONES_ID = 2;
 
-    public function cortesQuery($usuario, int $unidadId): Builder
+    public function cortesQuery($usuario, int $unidadId, bool $incluirCortesVacios = false): Builder
     {
-        return PendientesCorte::query()
-            ->whereHas('detalles.hecho', function (Builder $query) use ($usuario, $unidadId) {
-                $this->applyHechosUnidadVisibleScope($query, $usuario, $unidadId);
-            });
+        $query = PendientesCorte::query();
+
+        if ($incluirCortesVacios) {
+            return $query;
+        }
+
+        return $query->whereHas('detalles.hecho', function (Builder $query) use ($usuario, $unidadId) {
+            $this->applyHechosUnidadVisibleScope($query, $usuario, $unidadId);
+        });
     }
 
-    public function paginateCortes($usuario, int $unidadId, int $perPage = 30)
+    public function paginateCortes($usuario, int $unidadId, int $perPage = 30, bool $incluirCortesVacios = false)
     {
-        return $this->cortesQuery($usuario, $unidadId)
+        return $this->cortesQuery($usuario, $unidadId, $incluirCortesVacios)
             ->orderByDesc('corte_fecha')
             ->paginate($perPage);
     }
 
-    public function detalle(PendientesCorte $corte, $usuario, int $unidadId): array
+    public function detalle(PendientesCorte $corte, $usuario, int $unidadId, bool $incluirCortesVacios = false): array
     {
-        $baseQuery = $this->cortesQuery($usuario, $unidadId);
+        $baseQuery = $this->cortesQuery($usuario, $unidadId, $incluirCortesVacios);
 
         if (!(clone $baseQuery)->whereKey($corte->id)->exists()) {
             return ['visible' => false];

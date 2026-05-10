@@ -2,10 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Actividad;
+use App\Models\Hechos;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class BackupsSqlController extends Controller
 {
@@ -62,15 +70,280 @@ class BackupsSqlController extends Controller
     {
         $this->ensureCanDownloadDelegacionesBackup($request);
 
-        $now = now('America/Mexico_City');
-        $filename = 'respaldo_delegaciones_' . $now->format('Ymd_His') . '.sql';
+        [$fechaInicio, $fechaFin] = $this->defaultDelegacionesReportDates();
 
-        return response()->streamDownload(function () use ($now) {
-            $this->streamDelegacionesSql($now);
-        }, $filename, [
-            'Content-Type' => 'application/sql; charset=UTF-8',
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        return view('admin.settings.backups_sql.delegaciones_reporte', compact('fechaInicio', 'fechaFin'));
+    }
+
+    public function downloadDelegacionesExcel(Request $request)
+    {
+        $this->ensureCanDownloadDelegacionesBackup($request);
+
+        $data = $request->validate([
+            'fecha_inicio' => ['required', 'date_format:Y-m-d'],
+            'fecha_fin' => ['required', 'date_format:Y-m-d', 'after_or_equal:fecha_inicio'],
         ]);
+
+        $reporte = $this->buildDelegacionesReportData($data['fecha_inicio'], $data['fecha_fin']);
+
+        return $this->downloadDelegacionesExcelFile($reporte);
+    }
+
+    private function defaultDelegacionesReportDates(): array
+    {
+        $today = Carbon::now('America/Mexico_City');
+
+        return [
+            $today->copy()->subDays(6)->toDateString(),
+            $today->toDateString(),
+        ];
+    }
+
+    private function buildDelegacionesReportData(string $fechaInicio, string $fechaFin): array
+    {
+        $tz = 'America/Mexico_City';
+        $inicio = Carbon::createFromFormat('Y-m-d', $fechaInicio, $tz)->startOfDay();
+        $fin = Carbon::createFromFormat('Y-m-d', $fechaFin, $tz)->endOfDay();
+
+        $actividades = Actividad::query()
+            ->with(['categoria', 'subcategoria', 'delegacion', 'creador'])
+            ->withCount('vehiculos')
+            ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
+            ->whereDate('fecha', '>=', $inicio->toDateString())
+            ->whereDate('fecha', '<=', $fin->toDateString())
+            ->orderBy('fecha')
+            ->orderBy('hora')
+            ->orderBy('id')
+            ->get();
+
+        $hechos = Hechos::query()
+            ->with(['delegacion', 'creator'])
+            ->withCount(['vehiculos', 'lesionados'])
+            ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
+            ->whereDate('fecha', '>=', $inicio->toDateString())
+            ->whereDate('fecha', '<=', $fin->toDateString())
+            ->orderBy('fecha')
+            ->orderBy('hora')
+            ->orderBy('id')
+            ->get();
+
+        return [
+            'fechaInicio' => $fechaInicio,
+            'fechaFin' => $fechaFin,
+            'inicio' => $inicio,
+            'fin' => $fin,
+            'generadoEn' => Carbon::now($tz),
+            'actividades' => $actividades,
+            'hechos' => $hechos,
+            'resumen' => [
+                'actividades_total' => $actividades->count(),
+                'hechos_total' => $hechos->count(),
+                'hechos_pendientes' => $hechos->where('situacion', 'PENDIENTE')->count(),
+                'hechos_turnados' => $hechos->where('situacion', 'TURNADO')->count(),
+                'hechos_resueltos' => $hechos->where('situacion', 'RESUELTO')->count(),
+            ],
+        ];
+    }
+
+    private function downloadDelegacionesExcelFile(array $reporte)
+    {
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setCreator('Sistema Estadistico')
+            ->setTitle('Reporte Delegaciones');
+
+        $actividadesSheet = $spreadsheet->getActiveSheet();
+        $actividadesSheet->setTitle('Actividades');
+        $this->fillDelegacionesActividadesSheet($actividadesSheet, $reporte);
+
+        $hechosSheet = $spreadsheet->createSheet();
+        $hechosSheet->setTitle('Hechos');
+        $this->fillDelegacionesHechosSheet($hechosSheet, $reporte);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $filename = 'reporte_delegaciones_' . $reporte['fechaInicio'] . '_' . $reporte['fechaFin'] . '.xlsx';
+        $tempPath = storage_path('app/temp/' . uniqid('reporte_delegaciones_', true) . '.xlsx');
+
+        if (!is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0775, true);
+        }
+
+        (new Xlsx($spreadsheet))->save($tempPath);
+
+        return response()
+            ->download($tempPath, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend(true);
+    }
+
+    private function fillDelegacionesActividadesSheet($sheet, array $reporte): void
+    {
+        $headers = [
+            'ID',
+            'Fecha',
+            'Hora',
+            'Delegacion',
+            'Municipio',
+            'Categoria',
+            'Subcategoria',
+            'Actividad',
+            'Lugar',
+            'Observaciones',
+            'Creado por',
+        ];
+
+        $this->writeReportHeader($sheet, $reporte, 'Actividades', count($headers));
+        $this->writeTableHeader($sheet, 6, $headers);
+
+        $row = 7;
+        foreach ($reporte['actividades'] as $actividad) {
+            $sheet->fromArray([
+                $actividad->id,
+                optional($actividad->fecha)->format('Y-m-d'),
+                $this->formatHora($actividad->hora),
+                optional($actividad->delegacion)->nombre,
+                $actividad->municipio,
+                optional($actividad->categoria)->nombre,
+                optional($actividad->subcategoria)->nombre,
+                $actividad->nombre,
+                $actividad->lugar,
+                $actividad->observaciones ?: $actividad->motivo ?: $actividad->narrativa,
+                optional($actividad->creador)->name,
+            ], null, 'A' . $row);
+            $row++;
+        }
+
+        $this->finishReportSheet($sheet, $row - 1, count($headers));
+    }
+
+    private function fillDelegacionesHechosSheet($sheet, array $reporte): void
+    {
+        $headers = [
+            'ID',
+            'Fecha',
+            'Hora',
+            'Folio C5i',
+            'Delegacion',
+            'Municipio',
+            'Tipo de hecho',
+            'Situacion',
+            'Calle',
+            'Colonia',
+            'Entre calles',
+            'Vehiculos',
+            'Lesionados',
+            'Estado revision',
+            'Creado por',
+        ];
+
+        $this->writeReportHeader($sheet, $reporte, 'Hechos', count($headers));
+        $this->writeTableHeader($sheet, 6, $headers);
+
+        $row = 7;
+        foreach ($reporte['hechos'] as $hecho) {
+            $sheet->fromArray([
+                $hecho->id,
+                optional($hecho->fecha)->format('Y-m-d'),
+                $this->formatHora($hecho->hora),
+                $hecho->folio_c5i,
+                optional($hecho->delegacion)->nombre,
+                $hecho->municipio,
+                $hecho->tipo_hecho,
+                $hecho->situacion,
+                $hecho->calle,
+                $hecho->colonia,
+                $hecho->entre_calles,
+                (int) $hecho->vehiculos_count,
+                (int) $hecho->lesionados_count,
+                $hecho->estado_revision,
+                optional($hecho->creator)->name,
+            ], null, 'A' . $row);
+            $row++;
+        }
+
+        $this->finishReportSheet($sheet, $row - 1, count($headers));
+    }
+
+    private function writeReportHeader($sheet, array $reporte, string $title, int $columnCount): void
+    {
+        $lastColumn = $this->columnLetter($columnCount);
+
+        $sheet->mergeCells('A1:' . $lastColumn . '1');
+        $sheet->setCellValue('A1', 'Reporte Delegaciones - ' . $title);
+        $sheet->mergeCells('A2:' . $lastColumn . '2');
+        $sheet->setCellValue('A2', 'Periodo: ' . $reporte['inicio']->format('d/m/Y') . ' al ' . $reporte['fin']->format('d/m/Y') . ' | Unidad org ID: 2 | Generado: ' . $reporte['generadoEn']->format('d/m/Y H:i'));
+        $sheet->mergeCells('A3:' . $lastColumn . '3');
+        $sheet->setCellValue('A3', 'Actividades: ' . $reporte['resumen']['actividades_total'] . ' | Hechos: ' . $reporte['resumen']['hechos_total']);
+
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A2:A3')->getFont()->setBold(true);
+        $sheet->getStyle('A1:A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    private function writeTableHeader($sheet, int $row, array $headers): void
+    {
+        $sheet->fromArray($headers, null, 'A' . $row);
+
+        $lastColumn = $this->columnLetter(count($headers));
+        $range = 'A' . $row . ':' . $lastColumn . $row;
+
+        $sheet->getStyle($range)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1F4F82');
+        $sheet->getStyle($range)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    private function finishReportSheet($sheet, int $lastRow, int $columnCount): void
+    {
+        $lastColumn = $this->columnLetter($columnCount);
+
+        if ($lastRow < 7) {
+            $sheet->setCellValue('A7', 'Sin informacion en el periodo.');
+            $sheet->mergeCells('A7:' . $lastColumn . '7');
+            $lastRow = 7;
+        }
+
+        $sheet->getStyle('A6:' . $lastColumn . $lastRow)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)
+            ->getColor()
+            ->setRGB('D5DDE8');
+
+        $sheet->getStyle('A7:' . $lastColumn . $lastRow)
+            ->getAlignment()
+            ->setVertical(Alignment::VERTICAL_TOP)
+            ->setWrapText(true);
+
+        $sheet->freezePane('A7');
+        $sheet->setAutoFilter('A6:' . $lastColumn . $lastRow);
+
+        for ($i = 1; $i <= $columnCount; $i++) {
+            $sheet->getColumnDimension($this->columnLetter($i))->setAutoSize(true);
+        }
+    }
+
+    private function columnLetter(int $index): string
+    {
+        $letter = '';
+
+        while ($index > 0) {
+            $index--;
+            $letter = chr(65 + ($index % 26)) . $letter;
+            $index = intdiv($index, 26);
+        }
+
+        return $letter;
+    }
+
+    private function formatHora($value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i');
+        }
+
+        return substr((string) $value, 0, 5);
     }
 
     private function ensureCanDownloadDelegacionesBackup(Request $request): void
@@ -91,9 +364,7 @@ class BackupsSqlController extends Controller
             return;
         }
 
-        $rolPermitido = $user->hasRole('Administrador') || $user->hasRole('Subdirector');
-
-        if ($unidadId === self::UNIDAD_DELEGACIONES_ID && $rolPermitido) {
+        if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
             return;
         }
 

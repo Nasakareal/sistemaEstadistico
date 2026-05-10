@@ -155,20 +155,20 @@ class LiberacionCorralonController extends Controller
                     ->orderByDesc('created_at')
                     ->limit(1);
             }, 'ultimo_servicio_at')
-            ->where(function ($query) use ($gruaId) {
-                if ($gruaId) {
+            ->when($gruaId, function ($query) use ($gruaId) {
+                $query->where(function ($query) use ($gruaId) {
                     $query->where('vehiculos.grua_id', $gruaId)
                         ->orWhereHas('servicios', function ($servicios) use ($gruaId) {
                             $servicios->where('grua_id', $gruaId);
                         });
-                    return;
-                }
-
-                $query->whereNotNull('vehiculos.grua_id')
-                    ->orWhereHas('servicios', function ($servicios) {
-                        $servicios->whereNotNull('grua_id');
-                    });
+                });
             })
+            ->whereNotNull('vehiculos.corralon')
+            ->whereRaw("TRIM(vehiculos.corralon) <> ''")
+            ->whereRaw(
+                "UPPER(TRIM(vehiculos.corralon)) NOT IN (" . implode(',', array_fill(0, count(Vehiculo::corralonValoresInvalidos()), '?')) . ")",
+                Vehiculo::corralonValoresInvalidos()
+            )
             ->whereDoesntHave('liberacionCorralon', function ($liberacion) {
                 $liberacion->where('estado', 'ENTREGADO');
             });

@@ -683,6 +683,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/', [BackupsSqlController::class, 'index'])->name('backups_sql.index');
         Route::get('/delegaciones/al-momento', [BackupsSqlController::class, 'downloadDelegaciones'])
             ->name('backups_sql.delegaciones');
+        Route::get('/delegaciones/reporte-excel', [BackupsSqlController::class, 'downloadDelegacionesExcel'])
+            ->name('backups_sql.delegaciones.excel');
 
         Route::get('/{file}', [BackupsSqlController::class, 'download'])
             ->where('file', '[A-Za-z0-9._-]+\.sql(\.gz)?')

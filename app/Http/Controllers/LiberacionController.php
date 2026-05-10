@@ -29,6 +29,10 @@ class LiberacionController extends Controller
                     return redirect()->route('liberacion.detalles', $vehiculo->id);
                 }
 
+                if (!$vehiculo->tieneCorralonValido()) {
+                    return $this->redirectVehiculoSinCorralon($vehiculo);
+                }
+
                 return redirect()->route('liberacion.create', $vehiculo->id);
             }
         }
@@ -98,6 +102,10 @@ class LiberacionController extends Controller
 
     public function create(Vehiculo $vehiculo)
     {
+        if (!$vehiculo->tieneCorralonValido()) {
+            return $this->redirectVehiculoSinCorralon($vehiculo);
+        }
+
         $fechaActual = Carbon::now()->format('Y-m-d');
 
         return view('liberaciones.create', compact('vehiculo', 'fechaActual'));
@@ -105,8 +113,8 @@ class LiberacionController extends Controller
 
     public function store(Request $request, Vehiculo $vehiculo)
     {
-        if (is_null($vehiculo->corralon)) {
-            return redirect()->back()->withErrors(['corralon' => 'No se puede liberar un vehículo que no está en resguardo (corralón).']);
+        if (!$vehiculo->tieneCorralonValido()) {
+            return $this->redirectVehiculoSinCorralon($vehiculo);
         }
 
         $request->validate([
@@ -148,8 +156,8 @@ class LiberacionController extends Controller
 
     public function update(Request $request, Vehiculo $vehiculo)
     {
-        if (is_null($vehiculo->corralon)) {
-            return redirect()->back()->withErrors(['corralon' => 'No se puede liberar un vehículo que no está en resguardo (corralón).']);
+        if (!$vehiculo->tieneCorralonValido()) {
+            return $this->redirectVehiculoSinCorralon($vehiculo);
         }
 
         $request->validate([
@@ -196,5 +204,21 @@ class LiberacionController extends Controller
         }
 
         return redirect()->route('liberacion.grua.ver', $vehiculo->id)->with('success', 'Liberación de grúas subida correctamente.');
+    }
+
+    private function redirectVehiculoSinCorralon(Vehiculo $vehiculo)
+    {
+        $mensaje = 'No se puede liberar un vehículo que no está en resguardo en un corralón.';
+        $hecho = $vehiculo->hechos()->first();
+
+        if ($hecho) {
+            return redirect()
+                ->route('hechos.show', $hecho->id)
+                ->with('error', $mensaje);
+        }
+
+        return redirect()
+            ->route('hechos.index')
+            ->with('error', $mensaje);
     }
 }

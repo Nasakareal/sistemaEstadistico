@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class DelegacionesWhatsAppAlertService
 {
+    private const UNIDAD_DELEGACIONES_ID = 2;
+
     private $whatsApp;
 
     public function __construct(WhatsAppCloudService $whatsApp)
@@ -103,6 +105,7 @@ class DelegacionesWhatsAppAlertService
             'puesta_disposicion_id' => $puesta->id,
         ], function () use ($puesta) {
             $puesta->loadMissing([
+                'hecho',
                 'personas',
                 'vehiculos',
                 'objetos',
@@ -111,6 +114,10 @@ class DelegacionesWhatsAppAlertService
                 'destacamento',
                 'creador',
             ]);
+
+            if (!$this->puestaGeneraAlertaDelegaciones($puesta)) {
+                return;
+            }
 
             $this->sendToRecipients(
                 'puesta_disposicion',
@@ -139,7 +146,41 @@ class DelegacionesWhatsAppAlertService
         });
     }
 
-    public function destinatariosHechoIncompleto(Hechos $hecho): array
+    public function notificarHechoPendienteSinResguardo(Hechos $hecho, int $minutosPendiente): void
+    {
+        $this->guard('hecho_pendiente_sin_resguardo', [
+            'hecho_id' => $hecho->id,
+        ], function () use ($hecho, $minutosPendiente) {
+            $hecho->loadMissing([
+                'creator',
+                'unidadOrganizacional',
+                'delegacion',
+                'vehiculos',
+            ]);
+
+            if ($this->upper($hecho->situacion ?? null) !== 'PENDIENTE') {
+                return;
+            }
+
+            if ($hecho->capturaCompletaCalculada()) {
+                return;
+            }
+
+            if ($this->hechoTieneVehiculosResguardados($hecho)) {
+                return;
+            }
+
+            $this->sendHechoIncompletoTemplate(
+                $hecho,
+                $minutosPendiente,
+                'hecho_pendiente_sin_resguardo',
+                $this->detallePendienteSinResguardo($hecho),
+                false
+            );
+        });
+    }
+
+    public function destinatariosHechoIncompleto(Hechos $hecho, bool $incluirDelegadosDesdeUsuarios = true): array
     {
         $hecho->loadMissing('delegacion.padre');
 
@@ -148,9 +189,12 @@ class DelegacionesWhatsAppAlertService
         if ((bool) config('services.whatsapp.delegaciones.incompletos_notify_delegados', true)) {
             $recipients = array_merge(
                 $recipients,
-                $this->configuredDelegacionRecipients($hecho),
-                $this->delegadoUserRecipients($hecho)
+                $this->configuredDelegacionRecipients($hecho)
             );
+
+            if ($incluirDelegadosDesdeUsuarios) {
+                $recipients = array_merge($recipients, $this->delegadoUserRecipients($hecho));
+            }
         }
 
         return $this->uniqueNumbers($recipients);
@@ -182,7 +226,20 @@ class DelegacionesWhatsAppAlertService
 
     public function hechoGeneraAlertaPuesta(Hechos $hecho): bool
     {
-        return $this->upper($hecho->situacion ?? null) === 'TURNADO';
+        return $this->upper($hecho->situacion ?? null) === 'TURNADO'
+            && (int) ($hecho->unidad_org_id ?? 0) === self::UNIDAD_DELEGACIONES_ID;
+    }
+
+    private function puestaGeneraAlertaDelegaciones(PuestaDisposicion $puesta): bool
+    {
+        if ((int) ($puesta->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES_ID) {
+            return true;
+        }
+
+        $puesta->loadMissing('hecho');
+
+        return $puesta->hecho
+            && (int) ($puesta->hecho->unidad_org_id ?? 0) === self::UNIDAD_DELEGACIONES_ID;
     }
 
     private function guard(string $event, array $context, callable $callback): void
@@ -292,9 +349,15 @@ class DelegacionesWhatsAppAlertService
         }
     }
 
-    private function sendHechoIncompletoTemplate(Hechos $hecho, int $minutosPendiente): void
+    private function sendHechoIncompletoTemplate(
+        Hechos $hecho,
+        int $minutosPendiente,
+        string $event = 'hecho_incompleto',
+        ?string $detallePendiente = null,
+        bool $incluirDelegadosDesdeUsuarios = true
+    ): void
     {
-        $recipients = $this->destinatariosHechoIncompleto($hecho);
+        $recipients = $this->destinatariosHechoIncompleto($hecho, $incluirDelegadosDesdeUsuarios);
         $template = (string) config(
             'services.whatsapp.delegaciones.incompletos_template',
             'alerta_hecho_incompleto_delegaciones'
@@ -302,7 +365,7 @@ class DelegacionesWhatsAppAlertService
 
         if (empty($recipients)) {
             Log::warning('WhatsApp alertas delegaciones sin destinatarios', [
-                'event' => 'hecho_incompleto',
+                'event' => $event,
                 'template' => $template,
                 'context' => [
                     'hecho_id' => $hecho->id,
@@ -315,7 +378,7 @@ class DelegacionesWhatsAppAlertService
 
         if ($template === '') {
             Log::warning('WhatsApp alerta delegaciones sin template de incompletos', [
-                'event' => 'hecho_incompleto',
+                'event' => $event,
                 'context' => [
                     'hecho_id' => $hecho->id,
                     'delegacion_id' => $hecho->delegacion_id,
@@ -326,6 +389,7 @@ class DelegacionesWhatsAppAlertService
         }
 
         $faltantes = implode(', ', $hecho->faltantesCapturaTexto());
+        $pendiente = $detallePendiente ?: ($faltantes !== '' ? $faltantes : 'Revisar captura pendiente');
 
         $params = [
             '#' . $hecho->id,
@@ -334,7 +398,7 @@ class DelegacionesWhatsAppAlertService
             $this->valorTemplate($hecho->tipo_hecho ?? null),
             $this->valorTemplate($this->ubicacionHecho($hecho)),
             $this->valorTemplate($this->formatoDuracion($minutosPendiente)),
-            $this->valorTemplate($faltantes !== '' ? $faltantes : 'Revisar captura pendiente'),
+            $this->valorTemplate($pendiente),
             $this->valorTemplate(optional($hecho->creator)->name),
         ];
 
@@ -348,7 +412,7 @@ class DelegacionesWhatsAppAlertService
                 );
 
                 Log::info('WhatsApp alerta delegaciones template enviada', [
-                    'event' => 'hecho_incompleto',
+                    'event' => $event,
                     'template' => $template,
                     'to' => $to,
                     'ok' => $response['ok'] ?? null,
@@ -361,7 +425,7 @@ class DelegacionesWhatsAppAlertService
                 ]);
             } catch (\Throwable $e) {
                 Log::error('Error enviando WhatsApp alerta delegaciones template', [
-                    'event' => 'hecho_incompleto',
+                    'event' => $event,
                     'template' => $template,
                     'to' => $to,
                     'context' => [
@@ -373,6 +437,31 @@ class DelegacionesWhatsAppAlertService
                 ]);
             }
         }
+    }
+
+    private function hechoTieneVehiculosResguardados(Hechos $hecho): bool
+    {
+        $hecho->loadMissing('vehiculos');
+
+        return $hecho->vehiculos->contains(function ($vehiculo) {
+            return method_exists($vehiculo, 'tieneCorralonValido')
+                ? $vehiculo->tieneCorralonValido()
+                : trim((string) ($vehiculo->corralon ?? '')) !== '';
+        });
+    }
+
+    private function detallePendienteSinResguardo(Hechos $hecho): string
+    {
+        $hecho->loadMissing('vehiculos');
+        $totalVehiculos = $hecho->vehiculos->count();
+
+        if ($totalVehiculos === 0) {
+            return 'Hecho pendiente sin vehiculos capturados ni resguardados en corralon';
+        }
+
+        return $totalVehiculos === 1
+            ? 'Hecho pendiente con 1 vehiculo relacionado sin resguardo en corralon'
+            : 'Hecho pendiente con ' . $totalVehiculos . ' vehiculos relacionados sin resguardo en corralon';
     }
 
     private function recipients(): array

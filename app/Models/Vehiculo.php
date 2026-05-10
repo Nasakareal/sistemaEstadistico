@@ -86,4 +86,63 @@ class Vehiculo extends Model
     {
         return $this->hasOne(LiberacionCorralon::class, 'vehiculo_id')->latest();
     }
+
+    public function tieneCorralonValido(): bool
+    {
+        return self::corralonEsValido($this->corralon);
+    }
+
+    public function nombreCorralonValido(): ?string
+    {
+        $corralon = self::normalizarCorralonValor($this->corralon);
+
+        return self::corralonEsValido($corralon) ? $corralon : null;
+    }
+
+    public static function corralonEsValido($value): bool
+    {
+        $corralon = self::normalizarCorralonValor($value);
+
+        if ($corralon === null) {
+            return false;
+        }
+
+        $normalizado = mb_strtoupper($corralon, 'UTF-8');
+        $normalizado = preg_replace('/\s+/', ' ', $normalizado) ?: '';
+
+        return !in_array($normalizado, self::corralonValoresInvalidos(), true);
+    }
+
+    public static function corralonValoresInvalidos(): array
+    {
+        return [
+            'N/A',
+            'NA',
+            'NO',
+            'NO APLICA',
+            'NO APLICA.',
+            'NINGUNO',
+            'NULL',
+            'SIN CORRALON',
+            'SIN CORRALÓN',
+            'NO TIENE CORRALON',
+            'NO TIENE CORRALÓN',
+            '-',
+        ];
+    }
+
+    private static function normalizarCorralonValor($value): ?string
+    {
+        if (is_object($value)) {
+            $value = $value->nombre ?? ($value->id ?? null);
+        }
+
+        if ($value === null) {
+            return null;
+        }
+
+        $corralon = trim((string) $value);
+
+        return $corralon !== '' ? $corralon : null;
+    }
 }

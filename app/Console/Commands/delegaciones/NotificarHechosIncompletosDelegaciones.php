@@ -3,6 +3,7 @@
 namespace App\Console\Commands\delegaciones;
 
 use App\Models\Hechos;
+use App\Models\Vehiculo;
 use App\Services\DelegacionesWhatsAppAlertService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -38,7 +39,7 @@ class NotificarHechosIncompletosDelegaciones extends Command
         $hechoId = $this->option('hecho_id');
 
         $query = Hechos::query()
-            ->with(['creator', 'unidadOrganizacional', 'delegacion'])
+            ->with(['creator', 'unidadOrganizacional', 'delegacion', 'vehiculos'])
             ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID);
 
         $this->aplicarFiltroCapturaIncompleta($query);
@@ -84,16 +85,24 @@ class NotificarHechosIncompletosDelegaciones extends Command
 
         if ($this->option('dry-run')) {
             $this->table(
-                ['Hecho', 'Fecha/hora', 'Delegacion', 'Pendiente', 'Faltantes', 'Capturo', 'Destinatarios WA'],
+                ['Hecho', 'Alerta', 'Fecha/hora', 'Delegacion', 'Pendiente', 'Faltantes', 'Capturo', 'Destinatarios WA'],
                 $hechos->map(function (Hechos $hecho) use ($alertas) {
+                    $tipoAlerta = $this->tipoAlerta($hecho);
+
                     return [
                         $hecho->id,
+                        $tipoAlerta === 'pendiente_sin_resguardo'
+                            ? 'Pendiente sin corralon'
+                            : 'Captura incompleta',
                         $hecho->alerta_delegaciones_evento_at->format('Y-m-d H:i'),
                         optional($hecho->delegacion)->nombre ?: 'No especificada',
                         $this->formatoDuracion($hecho->alerta_delegaciones_minutos),
                         implode(', ', $hecho->faltantesCapturaTexto()),
                         optional($hecho->creator)->name ?: 'No especificado',
-                        implode(', ', $alertas->destinatariosHechoIncompleto($hecho)) ?: 'Sin destinatarios',
+                        implode(', ', $alertas->destinatariosHechoIncompleto(
+                            $hecho,
+                            $tipoAlerta !== 'pendiente_sin_resguardo'
+                        )) ?: 'Sin destinatarios',
                     ];
                 })->all()
             );
@@ -107,12 +116,19 @@ class NotificarHechosIncompletosDelegaciones extends Command
         $omitidos = 0;
 
         foreach ($hechos as $hecho) {
-            if (!$this->option('force') && !$this->marcarAlertaPorHora($hecho, $now)) {
+            $tipoAlerta = $this->tipoAlerta($hecho);
+
+            if (!$this->option('force') && !$this->marcarAlertaPorHora($hecho, $now, $tipoAlerta)) {
                 $omitidos++;
                 continue;
             }
 
-            $alertas->notificarHechoIncompleto($hecho, $hecho->alerta_delegaciones_minutos);
+            if ($tipoAlerta === 'pendiente_sin_resguardo') {
+                $alertas->notificarHechoPendienteSinResguardo($hecho, $hecho->alerta_delegaciones_minutos);
+            } else {
+                $alertas->notificarHechoIncompleto($hecho, $hecho->alerta_delegaciones_minutos);
+            }
+
             $enviados++;
         }
 
@@ -172,9 +188,47 @@ class NotificarHechosIncompletosDelegaciones extends Command
         }
     }
 
-    private function marcarAlertaPorHora(Hechos $hecho, Carbon $now): bool
+    private function tipoAlerta(Hechos $hecho): string
     {
-        $key = 'delegaciones:hecho_incompleto_alertado:' . $hecho->id;
+        if (
+            $this->normalizarTexto($hecho->situacion ?? null) === 'PENDIENTE'
+            && !$this->hechoTieneVehiculosResguardados($hecho)
+        ) {
+            return 'pendiente_sin_resguardo';
+        }
+
+        return 'hecho_incompleto';
+    }
+
+    private function hechoTieneVehiculosResguardados(Hechos $hecho): bool
+    {
+        $hecho->loadMissing('vehiculos');
+
+        return $hecho->vehiculos->contains(function ($vehiculo) {
+            return Vehiculo::corralonEsValido($vehiculo->corralon ?? null);
+        });
+    }
+
+    private function normalizarTexto($value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        $map = [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U',
+            'Ñ' => 'N', 'ñ' => 'N',
+        ];
+
+        return mb_strtoupper(strtr($value, $map), 'UTF-8');
+    }
+
+    private function marcarAlertaPorHora(Hechos $hecho, Carbon $now, string $tipoAlerta): bool
+    {
+        $key = 'delegaciones:' . $tipoAlerta . '_alertado:' . $hecho->id;
 
         return Cache::add($key, true, $now->copy()->addMinutes(55));
     }

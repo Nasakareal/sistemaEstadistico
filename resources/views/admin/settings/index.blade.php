@@ -176,7 +176,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && ($user->hasRole('Superadmin') || (int)($user->unidad_id ?? 0) === 3 || ((int)($user->unidad_id ?? 0) === 2 && ($user->hasRole('Administrador') || $user->hasRole('Subdirector')))))
+        @if($user && ($user->hasRole('Superadmin') || in_array((int)($user->unidad_id ?? 0), [2, 3], true)))
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">
                     <div class="sv-card__icon bg-warning">
@@ -195,13 +195,13 @@
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">
                     <div class="sv-card__icon bg-dark">
-                        <i class="fa-solid fa-database"></i>
+                        <i class="fa-solid fa-file-pdf"></i>
                     </div>
                     <div class="sv-card__body">
-                        <div class="sv-card__title">SQL Delegaciones</div>
-                        <div class="sv-card__desc">Descarga el respaldo operativo de Delegaciones.</div>
+                        <div class="sv-card__title">Reporte Delegaciones</div>
+                        <div class="sv-card__desc">Descarga actividades y hechos por rango de fechas.</div>
                         <a href="{{ route('backups_sql.delegaciones') }}" class="btn sv-btn">
-                            <i class="fas fa-download"></i> Descargar
+                            <i class="fas fa-arrow-right"></i> Acceder
                         </a>
                     </div>
                 </div>

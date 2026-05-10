@@ -530,15 +530,8 @@
                                             $tieneGrua = $vehiculo->servicios->whereNotNull('grua_id')->count() > 0;
                                         }
 
-                                        $estaResguardado = $vehiculo->corralon !== null;
-
-                                        $corralonNombre = null;
-                                        if (is_object($vehiculo->corralon)) {
-                                            $corralonNombre = $vehiculo->corralon->nombre ?? (string)($vehiculo->corralon->id ?? null);
-                                        } else {
-                                            $corralonNombre = $vehiculo->corralon;
-                                        }
-                                        $corralonNombre = $corralonNombre ?: 'No especificado';
+                                        $corralonNombre = $vehiculo->nombreCorralonValido();
+                                        $estaResguardado = $corralonNombre !== null;
 
                                         $placas = $vehiculo->placas ?? null;
                                         $placasFmt = (!empty($placas) && trim((string)$placas) !== '') ? $placas : 'SIN PLACAS';

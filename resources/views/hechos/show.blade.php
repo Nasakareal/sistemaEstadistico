@@ -398,13 +398,18 @@
 
                                             if (
                                                 $usuario->hasRole('Superadmin') ||
-                                                $usuario->hasRole('Administrador') ||
-                                                $usuario->hasRole('Subdirector')
+                                                (
+                                                    (int) ($usuario->unidad_id ?? 0) !== 3
+                                                    && (
+                                                        $usuario->hasRole('Administrador') ||
+                                                        $usuario->hasRole('Subdirector')
+                                                    )
+                                                )
                                             ) {
                                                 $puedeRevisar = true;
                                             }
 
-                                            if ($usuario->hasRole('Jefe de Grupo')) {
+                                            if ((int) ($usuario->unidad_id ?? 0) !== 3 && $usuario->hasRole('Jefe de Grupo')) {
                                                 $creador = $hecho->creator;
 
                                                 if ($creador && (int) $creador->turno_id === (int) $usuario->turno_id) {

@@ -20,11 +20,12 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
+        $actor = $request->user();
         $q = trim((string) $request->query('q', ''));
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
 
-        $users = User::query()
-            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento'])
+        $users = $this->queryUsuariosVisiblesParaActor($actor)
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('name', 'like', "%{$q}%")
@@ -47,18 +48,15 @@ class UserController extends Controller
         ]);
     }
 
-    public function meta()
+    public function meta(Request $request)
     {
+        $actor = $request->user();
+
         return response()->json([
-            'roles' => Role::query()
-                ->with('unidad')
-                ->orderBy('name')
-                ->get()
+            'roles' => $this->rolesDisponiblesParaActor($actor)
                 ->map(fn (Role $role) => $this->serializeRole($role))
                 ->values(),
-            'unidades' => Unidad::query()
-                ->orderBy('nombre')
-                ->get()
+            'unidades' => $this->unidadesDisponiblesParaActor($actor)
                 ->map(fn (Unidad $unidad) => $this->serializeSimple($unidad, 'nombre', ['slug' => $unidad->slug]))
                 ->values(),
             'turnos' => Turno::query()
@@ -66,9 +64,7 @@ class UserController extends Controller
                 ->get()
                 ->map(fn (Turno $turno) => $this->serializeSimple($turno, 'nombre', ['slug' => $turno->slug]))
                 ->values(),
-            'patrullas' => Patrulla::query()
-                ->orderBy('numero_economico')
-                ->get()
+            'patrullas' => $this->patrullasDisponiblesParaActor($actor)
                 ->map(fn (Patrulla $patrulla) => $this->serializeSimple($patrulla, 'numero_economico', [
                     'unidad_id' => $patrulla->unidad_id,
                     'turno_id' => $patrulla->turno_id,
@@ -84,10 +80,7 @@ class UserController extends Controller
                     'municipio' => $delegacion->municipio,
                 ]))
                 ->values(),
-            'destacamentos' => Destacamento::query()
-                ->where('activo', 1)
-                ->orderBy('nombre')
-                ->get()
+            'destacamentos' => $this->destacamentosDisponiblesParaActor($actor)
                 ->map(fn (Destacamento $destacamento) => $this->serializeSimple($destacamento, 'nombre', [
                     'clave' => $destacamento->clave,
                     'municipio' => $destacamento->municipio,
@@ -99,9 +92,10 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $actor = $request->user();
         $validated = $this->validatePayload($request);
-        $role = $this->resolveAssignableRole((int) $validated['role_id']);
-        $this->normalizeAndValidateAssignments($validated, $role);
+        $role = $this->resolveAssignableRole($actor, (int) $validated['role_id']);
+        $this->normalizeAndValidateAssignments($actor, $validated, $role);
 
         $user = DB::transaction(function () use ($validated, $role) {
             $user = User::create([
@@ -120,12 +114,11 @@ class UserController extends Controller
             ]);
 
             $user->assignRole($role->name);
-            $user->unidades()->sync($this->normalizeIds($validated['unidades_ids'] ?? []));
 
             return $user;
         });
 
-        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento']);
+        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento']);
 
         return response()->json([
             'message' => 'Usuario creado correctamente.',
@@ -133,9 +126,12 @@ class UserController extends Controller
         ], 201);
     }
 
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
-        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento']);
+        $actor = $request->user();
+        abort_unless($this->queryUsuariosVisiblesParaActor($actor)->whereKey($user->id)->exists(), 404);
+
+        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento']);
 
         return response()->json([
             'data' => $this->serializeUser($user),
@@ -144,8 +140,11 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $actor = $request->user();
+        abort_unless($this->queryUsuariosVisiblesParaActor($actor)->whereKey($user->id)->exists(), 404);
+
         $validated = $this->validatePayload($request, $user);
-        $role = $this->resolveAssignableRole((int) $validated['role_id']);
+        $role = $this->resolveAssignableRole($actor, (int) $validated['role_id']);
 
         if ($user->hasRole('Superadmin') && $role->name !== 'Superadmin' && User::role('Superadmin')->count() <= 1) {
             throw ValidationException::withMessages([
@@ -153,7 +152,7 @@ class UserController extends Controller
             ]);
         }
 
-        $this->normalizeAndValidateAssignments($validated, $role);
+        $this->normalizeAndValidateAssignments($actor, $validated, $role);
 
         DB::transaction(function () use ($user, $validated, $role, $request) {
             $updates = [
@@ -176,13 +175,9 @@ class UserController extends Controller
 
             $user->update($updates);
             $user->syncRoles([$role->name]);
-
-            if ($request->has('unidades_ids')) {
-                $user->unidades()->sync($this->normalizeIds($validated['unidades_ids'] ?? []));
-            }
         });
 
-        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento']);
+        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento']);
 
         return response()->json([
             'message' => 'Usuario actualizado correctamente.',
@@ -214,8 +209,6 @@ class UserController extends Controller
             'patrulla_id' => ['nullable', 'integer', 'exists:patrullas,id'],
             'delegacion_id' => ['nullable', 'integer', 'exists:delegaciones,id'],
             'destacamento_id' => ['nullable', 'integer', 'exists:destacamentos,id'],
-            'unidades_ids' => ['nullable', 'array'],
-            'unidades_ids.*' => ['integer', 'exists:unidades,id'],
             'compartir_ubicacion' => ['nullable', 'boolean'],
         ]);
 
@@ -237,7 +230,7 @@ class UserController extends Controller
         return $validated;
     }
 
-    private function resolveAssignableRole(int $roleId): Role
+    private function resolveAssignableRole(User $actor, int $roleId): Role
     {
         $role = Role::query()->with('unidad')->find($roleId);
 
@@ -247,13 +240,28 @@ class UserController extends Controller
             ]);
         }
 
+        if ($actor->hasRole('Administrador') && !$actor->hasRole('Superadmin') && $role->name === 'Administrador') {
+            throw ValidationException::withMessages([
+                'role_id' => ['No puedes asignar ese rol.'],
+            ]);
+        }
+
+        if (!$actor->puedeVerRol($role)) {
+            throw ValidationException::withMessages([
+                'role_id' => ['No puedes asignar ese rol.'],
+            ]);
+        }
+
         return $role;
     }
 
-    private function normalizeAndValidateAssignments(array &$validated, Role $role): void
+    private function normalizeAndValidateAssignments(User $actor, array &$validated, Role $role): void
     {
         $unidadRolId = $role->unidadIdEfectiva();
-        if (!is_null($unidadRolId)) {
+
+        if (!$this->actorEsSuperadmin($actor)) {
+            $validated['unidad_id'] = $actor->unidad_id;
+        } elseif (!is_null($unidadRolId)) {
             $validated['unidad_id'] = (int) $unidadRolId;
         }
 
@@ -315,9 +323,9 @@ class UserController extends Controller
             'patrulla' => $this->serializeNullableSimple($user->patrulla, 'numero_economico'),
             'delegacion' => $this->serializeNullableSimple($user->delegacion, 'nombre'),
             'destacamento' => $this->serializeNullableSimple($user->destacamento, 'nombre'),
-            'unidades' => $user->unidades
-                ->map(fn (Unidad $unidad) => $this->serializeSimple($unidad, 'nombre', ['slug' => $unidad->slug]))
-                ->values(),
+            'unidades' => $user->unidad
+                ? [$this->serializeSimple($user->unidad, 'nombre', ['slug' => $user->unidad->slug])]
+                : [],
             'created_at' => optional($user->created_at)->toIso8601String(),
             'updated_at' => optional($user->updated_at)->toIso8601String(),
         ];
@@ -387,14 +395,89 @@ class UserController extends Controller
         return $carreterasId !== null && (int) $unidadId === (int) $carreterasId;
     }
 
-    private function normalizeIds(array $ids): array
+    private function actorEsSuperadmin(User $actor): bool
     {
-        return collect($ids)
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
+        return $actor->hasRole('Superadmin');
+    }
+
+    private function actorEsAdministrador(User $actor): bool
+    {
+        return $actor->hasRole('Administrador') && !$actor->hasRole('Superadmin');
+    }
+
+    private function actorTieneVisibilidadGlobal(User $actor): bool
+    {
+        return $this->actorEsSuperadmin($actor) || (int) ($actor->unidad_id ?? 0) === 3;
+    }
+
+    private function queryUsuariosVisiblesParaActor(User $actor)
+    {
+        return User::query()
+            ->when(!$this->actorEsSuperadmin($actor), function ($query) use ($actor) {
+                $query->whereDoesntHave('roles', function ($roles) {
+                    $roles->where('name', 'Superadmin');
+                });
+
+                if ($this->actorTieneVisibilidadGlobal($actor)) {
+                    return;
+                }
+
+                if ($this->actorEsAdministrador($actor)) {
+                    $query->where('unidad_id', $actor->unidad_id);
+                } else {
+                    $query->where('id', $actor->id);
+                }
+            });
+    }
+
+    private function rolesDisponiblesParaActor(User $actor)
+    {
+        return Role::query()
+            ->with('unidad')
+            ->orderBy('roles.name')
+            ->get()
+            ->filter(fn (Role $role) => $actor->puedeVerRol($role))
+            ->values();
+    }
+
+    private function unidadesDisponiblesParaActor(User $actor)
+    {
+        return Unidad::query()
+            ->when(!$this->actorEsSuperadmin($actor), function ($query) use ($actor) {
+                $query->where('id', $actor->unidad_id);
+            })
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function patrullasDisponiblesParaActor(User $actor)
+    {
+        return Patrulla::query()
+            ->when(!$this->actorEsSuperadmin($actor), function ($query) use ($actor) {
+                $query->where('unidad_id', $actor->unidad_id);
+            })
+            ->orderBy('numero_economico')
+            ->get();
+    }
+
+    private function destacamentosDisponiblesParaActor(User $actor)
+    {
+        $carreterasId = $this->unidadCarreterasId();
+
+        return Destacamento::query()
+            ->where('activo', 1)
+            ->when($carreterasId === null, function ($query) {
+                $query->whereRaw('1=0');
+            })
+            ->when($carreterasId !== null, function ($query) use ($actor, $carreterasId) {
+                $query->where('unidad_id', $carreterasId);
+
+                if (!$this->actorEsSuperadmin($actor) && (int) ($actor->unidad_id ?? 0) !== (int) $carreterasId) {
+                    $query->whereRaw('1=0');
+                }
+            })
+            ->orderBy('nombre')
+            ->get();
     }
 
     private function normalizarTelefonoMx(?string $telefono): ?string

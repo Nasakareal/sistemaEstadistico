@@ -53,11 +53,6 @@ class User extends Authenticatable
         return $this->belongsTo(\App\Models\Unidad::class, 'unidad_id');
     }
 
-    public function unidades()
-    {
-        return $this->belongsToMany(\App\Models\Unidad::class, 'unidad_user', 'user_id', 'unidad_id')->withTimestamps();
-    }
-
     public function turno()
     {
         return $this->belongsTo(\App\Models\Turno::class, 'turno_id');

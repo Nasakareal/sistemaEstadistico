@@ -19,9 +19,11 @@
                 <div class="card-header">
                     <h3 class="card-title">Hechos</h3>
                     <div class="card-tools">
-                        <a href="{{ url('/hechos/create') }}" class="btn btn-primary">
-                            <i class="fa-solid fa-plus"></i> Añadir nuevo accidente
-                        </a>
+                        @can('crear hechos')
+                            <a href="{{ url('/hechos/create') }}" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i> Añadir nuevo accidente
+                            </a>
+                        @endcan
                     </div>
                 </div>
 

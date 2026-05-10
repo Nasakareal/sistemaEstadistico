@@ -22,7 +22,7 @@ class UserController extends Controller
         $actor = Auth::user();
 
         $users = $this->queryUsuariosVisiblesParaActor($actor)
-            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento'])
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
             ->get();
 
         return view('admin.settings.users.index', compact('users'));
@@ -76,8 +76,6 @@ class UserController extends Controller
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
-            'unidades_ids' => 'nullable|array',
-            'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
         $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
@@ -142,11 +140,6 @@ class UserController extends Controller
             }
         }
 
-        $unidadesExtra = $this->unidadesExtraPermitidasParaActor(
-            $actor,
-            $validatedData['unidades_ids'] ?? []
-        );
-
         try {
             $user = User::create([
                 'name' => $validatedData['name'],
@@ -163,8 +156,6 @@ class UserController extends Controller
             ]);
 
             $user->assignRole($rol->name);
-
-            $user->unidades()->sync(!empty($unidadesExtra) ? $unidadesExtra : []);
 
             Log::info("Usuario creado exitosamente: {$user->name}");
 
@@ -185,7 +176,7 @@ class UserController extends Controller
         $actor = Auth::user();
 
         $user = $this->queryUsuariosVisiblesParaActor($actor)
-            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento'])
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
             ->findOrFail($id);
 
         return view('admin.settings.users.show', compact('user'));
@@ -196,7 +187,7 @@ class UserController extends Controller
         $actor = Auth::user();
 
         $user = $this->queryUsuariosVisiblesParaActor($actor)
-            ->with(['roles', 'unidad', 'turno', 'patrulla', 'unidades', 'delegacion', 'destacamento'])
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
             ->findOrFail($id);
 
         $roles = $this->rolesDisponiblesParaActor($actor);
@@ -214,15 +205,6 @@ class UserController extends Controller
         $unidadCarreterasId = $this->unidadCarreterasId();
         $destacamentos = $this->destacamentosDisponiblesParaActor($actor, $user->unidad_id ?? null);
 
-        $unidadesExtraSeleccionadas = $user->unidades->pluck('id')->all();
-
-        if (!$this->actorEsSuperadmin($actor)) {
-            $unidadesExtraSeleccionadas = collect($unidadesExtraSeleccionadas)
-                ->filter(fn ($unidadId) => (int) $unidadId === (int) $actor->unidad_id)
-                ->values()
-                ->all();
-        }
-
         return view('admin.settings.users.edit', compact(
             'user',
             'roles',
@@ -231,7 +213,6 @@ class UserController extends Controller
             'patrullas',
             'delegaciones',
             'unidadDelegacionesId',
-            'unidadesExtraSeleccionadas',
             'unidadCarreterasId',
             'destacamentos'
         ));
@@ -259,8 +240,6 @@ class UserController extends Controller
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
-            'unidades_ids' => 'nullable|array',
-            'unidades_ids.*' => 'integer|exists:unidades,id',
         ]);
 
         $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
@@ -338,11 +317,6 @@ class UserController extends Controller
             }
         }
 
-        $unidadesExtra = $this->unidadesExtraPermitidasParaActor(
-            $actor,
-            $validatedData['unidades_ids'] ?? []
-        );
-
         try {
             $user->update([
                 'name' => $validatedData['name'],
@@ -362,7 +336,6 @@ class UserController extends Controller
             }
 
             $user->syncRoles([$rol->name]);
-            $user->unidades()->sync($unidadesExtra);
 
             Log::info("Usuario actualizado exitosamente: {$user->name}");
 
@@ -529,6 +502,11 @@ class UserController extends Controller
         return $actor->hasRole('Administrador') && !$actor->hasRole('Superadmin');
     }
 
+    private function actorTieneVisibilidadGlobal(User $actor): bool
+    {
+        return $this->actorEsSuperadmin($actor) || (int) ($actor->unidad_id ?? 0) === 3;
+    }
+
     private function unidadesDisponiblesParaActor(User $actor)
     {
         return Unidad::query()
@@ -634,24 +612,6 @@ class UserController extends Controller
             ->exists();
     }
 
-    private function unidadesExtraPermitidasParaActor(User $actor, array $unidadesIds = []): array
-    {
-        $unidadesIds = array_map('intval', $unidadesIds);
-
-        if ($this->actorEsSuperadmin($actor)) {
-            return $unidadesIds;
-        }
-
-        if (empty($actor->unidad_id)) {
-            return [];
-        }
-
-        return collect($unidadesIds)
-            ->filter(fn ($id) => (int) $id === (int) $actor->unidad_id)
-            ->values()
-            ->all();
-    }
-
     private function queryUsuariosVisiblesParaActor(User $actor)
     {
         return User::query()
@@ -659,6 +619,10 @@ class UserController extends Controller
                 $q->whereDoesntHave('roles', function ($subQ) {
                     $subQ->where('name', 'Superadmin');
                 });
+
+                if ($this->actorTieneVisibilidadGlobal($actor)) {
+                    return;
+                }
 
                 if ($this->actorEsAdministrador($actor)) {
                     $q->where('unidad_id', $actor->unidad_id);

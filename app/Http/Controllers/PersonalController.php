@@ -33,6 +33,12 @@ class PersonalController extends Controller
         return $actor && $actor->hasRole('Administrador') && !$actor->hasRole('Superadmin');
     }
 
+    private function actorTieneVisibilidadGlobal(): bool
+    {
+        $actor = $this->actor();
+        return $this->actorEsSuperadmin() || (int) ($actor->unidad_id ?? 0) === 3;
+    }
+
     private function unidadIdActor(): ?int
     {
         return optional($this->actor())->unidad_id;
@@ -41,7 +47,7 @@ class PersonalController extends Controller
     private function queryPersonalVisibleParaActor()
     {
         return Personal::query()
-            ->when(!$this->actorEsSuperadmin(), function ($q) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) {
                 $q->where('unidad_id', $this->unidadIdActor());
             });
     }
@@ -55,7 +61,7 @@ class PersonalController extends Controller
     {
         return Unidad::query()
             ->where('activa', 1)
-            ->when(!$this->actorEsSuperadmin(), function ($q) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) {
                 $q->where('id', $this->unidadIdActor());
             })
             ->orderBy('nombre')
@@ -74,12 +80,12 @@ class PersonalController extends Controller
     {
         return Patrulla::query()
             ->where('activa', 1)
-            ->when($this->actorEsSuperadmin(), function ($q) use ($unidadId) {
+            ->when($this->actorTieneVisibilidadGlobal(), function ($q) use ($unidadId) {
                 if (!empty($unidadId)) {
                     $q->where('unidad_id', $unidadId);
                 }
             })
-            ->when(!$this->actorEsSuperadmin(), function ($q) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) {
                 $q->where('unidad_id', $this->unidadIdActor());
             })
             ->when($personalIdExcluir !== null, function ($q) use ($personalIdExcluir) {
@@ -102,10 +108,13 @@ class PersonalController extends Controller
     {
         return User::query()
             ->when(!$this->actorEsSuperadmin(), function ($q) {
-                $q->where('unidad_id', $this->unidadIdActor())
-                    ->whereDoesntHave('roles', function ($subQ) {
-                        $subQ->where('name', 'Superadmin');
-                    });
+                $q->whereDoesntHave('roles', function ($subQ) {
+                    $subQ->where('name', 'Superadmin');
+                });
+
+                if (!$this->actorTieneVisibilidadGlobal()) {
+                    $q->where('unidad_id', $this->unidadIdActor());
+                }
             })
             ->where(function ($q) use ($userIdActual) {
                 $q->whereDoesntHave('personal');
@@ -120,7 +129,7 @@ class PersonalController extends Controller
 
     private function normalizarUnidadParaActor(?int $unidadId): ?int
     {
-        if ($this->actorEsSuperadmin()) {
+        if ($this->actorTieneVisibilidadGlobal()) {
             return $unidadId;
         }
 

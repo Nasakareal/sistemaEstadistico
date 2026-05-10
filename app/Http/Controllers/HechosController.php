@@ -1191,6 +1191,10 @@ class HechosController extends Controller
 
     private function userCanMarkRelevante($usuario, Hechos $hecho): bool
     {
+        if ((int) ($usuario->unidad_id ?? 0) === 3 && !$usuario->hasRole('Superadmin')) {
+            return false;
+        }
+
         if (
             $usuario->hasRole('Superadmin')
             || $usuario->hasRole('Administrador')
@@ -1247,6 +1251,10 @@ class HechosController extends Controller
             abort(404);
         }
 
+        if ((int) ($usuario->unidad_id ?? 0) === 3 && !$usuario->hasRole('Superadmin')) {
+            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
+        }
+
         if (
             !$usuario->hasRole('Superadmin') &&
             !$usuario->hasRole('Administrador') &&
@@ -1286,6 +1294,10 @@ class HechosController extends Controller
 
         if (!$q->exists()) {
             abort(404);
+        }
+
+        if ((int) ($usuario->unidad_id ?? 0) === 3 && !$usuario->hasRole('Superadmin')) {
+            return redirect()->route('hechos.show', $hecho->id)->with('error', 'No tienes permiso para revisar este hecho.');
         }
 
         if (

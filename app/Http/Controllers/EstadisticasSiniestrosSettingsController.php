@@ -260,6 +260,8 @@ class EstadisticasSiniestrosSettingsController extends Controller
 
     public function guardarSectorizacion(Request $request)
     {
+        $this->abortIfSeguridadVialSoloLectura();
+
         $data = $request->validate([
             'fecha' => ['required', 'date'],
             'sectores' => ['required', 'array'],
@@ -423,6 +425,8 @@ class EstadisticasSiniestrosSettingsController extends Controller
 
     public function gestionarSectorizacion(string $fecha)
     {
+        $this->abortIfSeguridadVialSoloLectura();
+
         $fechaHora = Carbon::parse($fecha . ' 00:00:00', 'America/Mexico_City');
         $turnoActivo = $this->turnoService->turnoActivoEn($fechaHora);
         $personal = $this->obtenerPersonalSectorizacion($fechaHora, $turnoActivo ? (int) $turnoActivo->id : null);
@@ -629,5 +633,14 @@ class EstadisticasSiniestrosSettingsController extends Controller
             $row['index'] = $index + 1;
             return $row;
         })->all();
+    }
+
+    private function abortIfSeguridadVialSoloLectura(): void
+    {
+        $user = auth()->user();
+
+        if ($user && (int) ($user->unidad_id ?? 0) === 3 && !$user->hasRole('Superadmin')) {
+            abort(403);
+        }
     }
 }

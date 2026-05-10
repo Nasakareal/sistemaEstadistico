@@ -20,6 +20,20 @@ class AuthServiceProvider extends ServiceProvider
                 return true;
             }
 
+            if ($this->isSeguridadVialUser($user)) {
+                if ($ability === 'crear usuarios') {
+                    return true;
+                }
+
+                if ($this->isReadAbility($ability)) {
+                    return true;
+                }
+
+                if ($this->isWriteAbility($ability)) {
+                    return false;
+                }
+            }
+
             if (HechoAccess::shouldResolvePermissionDirectly($ability)) {
                 if (!HechoAccess::canUseHechosModule($user)) {
                     return false;
@@ -97,7 +111,10 @@ class AuthServiceProvider extends ServiceProvider
 
         Gate::define('menu-dictamenes', function ($user) {
             return $user->can('ver dictamenes')
-                && $user->perteneceAUnidad('siniestros');
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 3
+                );
         });
 
         Gate::define('menu-dictamenes-crear', function ($user) {
@@ -267,5 +284,55 @@ class AuthServiceProvider extends ServiceProvider
         });
 
 
+    }
+
+    private function isSeguridadVialUser($user): bool
+    {
+        return (int) ($user->unidad_id ?? 0) === 3;
+    }
+
+    private function isReadAbility($ability): bool
+    {
+        $ability = $this->normalizeAbility($ability);
+
+        return str_starts_with($ability, 'ver ');
+    }
+
+    private function isWriteAbility($ability): bool
+    {
+        $ability = $this->normalizeAbility($ability);
+
+        foreach ([
+            'crear ',
+            'editar ',
+            'eliminar ',
+            'borrar ',
+            'subir ',
+            'gestionar ',
+            'asignar ',
+            'quitar ',
+            'mover ',
+            'cerrar ',
+            'capturar ',
+            'generar ',
+            'guardar ',
+            'aprobar ',
+            'rechazar ',
+            'activar ',
+            'cancelar ',
+            'marcar ',
+            'desmarcar ',
+        ] as $prefix) {
+            if (str_starts_with($ability, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeAbility($ability): string
+    {
+        return mb_strtolower(trim((string) $ability), 'UTF-8');
     }
 }

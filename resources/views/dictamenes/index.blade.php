@@ -5,9 +5,11 @@
 @section('content_header')
     <div class="d-flex align-items-center justify-content-between">
         <h1 class="mb-0">Dictámenes</h1>
-        <a href="{{ route('dictamenes.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nuevo dictamen
-        </a>
+        @can('crear dictamenes')
+            <a href="{{ route('dictamenes.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nuevo dictamen
+            </a>
+        @endcan
     </div>
 @stop
 
@@ -98,8 +100,10 @@
 
                                     @php
                                         $u = auth()->user();
-                                        $puedeEditar = ($u->id === $d->created_by) || $u->hasRole(['Administrador','Superadmin','Administrativo']);
-                                        $esAdmin = $u->hasRole(['Administrador','Superadmin','Administrativo']);
+                                        $puedeEditar = $u->can('editar dictamenes')
+                                            && (($u->id === $d->created_by) || $u->hasRole(['Administrador','Superadmin','Administrativo']));
+                                        $puedeEliminar = $u->can('eliminar dictamenes')
+                                            && $u->hasRole(['Administrador','Superadmin','Administrativo']);
                                     @endphp
 
                                     @if($puedeEditar)
@@ -108,7 +112,7 @@
                                         </a>
                                     @endif
 
-                                    @if($esAdmin)
+                                    @if($puedeEliminar)
                                         <form action="{{ route('dictamenes.destroy', $d->id) }}" method="POST" class="d-inline"
                                               onsubmit="return confirm('¿Eliminar este dictamen?');">
                                             @csrf

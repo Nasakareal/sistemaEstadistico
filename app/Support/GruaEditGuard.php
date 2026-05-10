@@ -32,6 +32,10 @@ class GruaEditGuard
             return false;
         }
 
+        if ((int) ($usuario->unidad_id ?? 0) === 3 && !$usuario->hasRole('Superadmin')) {
+            return false;
+        }
+
         return $usuario->hasRole('Superadmin')
             || $usuario->hasRole('Administrador')
             || $usuario->hasRole('Subdirector');

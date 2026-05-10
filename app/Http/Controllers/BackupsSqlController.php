@@ -86,6 +86,11 @@ class BackupsSqlController extends Controller
         }
 
         $unidadId = (int) ($user->unidad_id ?? 0);
+
+        if ($unidadId === 3) {
+            return;
+        }
+
         $rolPermitido = $user->hasRole('Administrador') || $user->hasRole('Subdirector');
 
         if ($unidadId === self::UNIDAD_DELEGACIONES_ID && $rolPermitido) {

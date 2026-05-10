@@ -13,7 +13,14 @@ class DelegacionesExcelRevisionController extends Controller
     {
         $usuario = $request->user();
 
-        if (!$usuario || (!$usuario->isSuperadmin() && !$usuario->perteneceAUnidad('delegaciones'))) {
+        if (
+            !$usuario
+            || (
+                !$usuario->isSuperadmin()
+                && !$usuario->perteneceAUnidad('delegaciones')
+                && (int) ($usuario->unidad_id ?? 0) !== 3
+            )
+        ) {
             return response()->json([
                 'message' => 'No tienes acceso a la revisión del Excel de delegaciones.',
             ], 403);

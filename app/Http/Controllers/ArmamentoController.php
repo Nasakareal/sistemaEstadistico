@@ -21,6 +21,12 @@ class ArmamentoController extends Controller
         return $actor && $actor->hasRole('Superadmin');
     }
 
+    private function actorTieneVisibilidadGlobal(): bool
+    {
+        $actor = $this->actor();
+        return $this->actorEsSuperadmin() || (int) ($actor->unidad_id ?? 0) === 3;
+    }
+
     private function unidadIdActor(): ?int
     {
         $actor = $this->actor();
@@ -34,7 +40,7 @@ class ArmamentoController extends Controller
 
         return Armamento::query()
             ->with(['unidad'])
-            ->when(!$this->actorEsSuperadmin(), function ($q) use ($actor) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) use ($actor) {
                 if (!empty($actor->unidad_id)) {
                     $q->where('unidad_id', (int) $actor->unidad_id);
                 } else {
@@ -52,7 +58,7 @@ class ArmamentoController extends Controller
     {
         return Unidad::query()
             ->where('activa', 1)
-            ->when(!$this->actorEsSuperadmin(), function ($q) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) {
                 $q->where('id', $this->unidadIdActor());
             })
             ->orderBy('nombre')

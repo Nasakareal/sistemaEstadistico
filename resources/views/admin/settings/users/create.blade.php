@@ -224,31 +224,6 @@
                             </div>
                         </div>
 
-                        <div class="row" id="box_unidades_extra" style="display:none;">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label for="unidades_ids">Unidades adicionales</label>
-                                    <select name="unidades_ids[]" id="unidades_ids"
-                                            class="form-control @error('unidades_ids') is-invalid @enderror" multiple>
-                                        @foreach ($unidades as $u)
-                                            <option value="{{ $u->id }}" {{ collect(old('unidades_ids', []))->contains($u->id) ? 'selected' : '' }}>
-                                                {{ $u->nombre }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('unidades_ids')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                    @error('unidades_ids.*')
-                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                    <small class="text-muted">Solo aplica para roles globales como Coordinador, si así lo manejas.</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr>
-
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
@@ -403,17 +378,6 @@
                 }
             }
 
-            function toggleUnidadesExtra() {
-                const roleSelect = document.getElementById('role_id');
-                const roleOption = roleSelect ? roleSelect.options[roleSelect.selectedIndex] : null;
-                const roleName = roleOption ? roleOption.text.split(' - ')[0].trim() : '';
-                const box = document.getElementById('box_unidades_extra');
-
-                if (!box) return;
-
-                box.style.display = (roleName === 'Coordinador') ? '' : 'none';
-            }
-
             function syncUnidadConRol() {
                 const roleOption = getSelectedRoleOption();
                 const unidadSelect = document.getElementById('unidad_id');
@@ -472,7 +436,6 @@
                 if (roleSel) {
                     roleSel.addEventListener('change', function () {
                         syncUnidadConRol();
-                        toggleUnidadesExtra();
                         toggleUbicacionEspecial();
                     });
                 }
@@ -500,7 +463,6 @@
                 }
 
                 syncUnidadConRol();
-                toggleUnidadesExtra();
                 toggleUbicacionEspecial();
                 limpiarTelefonoInput();
             });

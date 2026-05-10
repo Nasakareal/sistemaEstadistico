@@ -76,6 +76,12 @@ class DictamenController extends Controller
     {
         $usuario = $request->user();
 
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return response()->json([
+                'message' => 'Seguridad Vial tiene acceso de solo lectura a dictámenes.',
+            ], 403);
+        }
+
         $request->merge([
             'nombre_policia' => strtoupper((string) $request->input('nombre_policia')),
             'nombre_mp'      => strtoupper((string) $request->input('nombre_mp')),
@@ -119,6 +125,12 @@ class DictamenController extends Controller
     public function update(Request $request, Dictamen $dictamen)
     {
         $usuario = $request->user();
+
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return response()->json([
+                'message' => 'Seguridad Vial tiene acceso de solo lectura a dictámenes.',
+            ], 403);
+        }
 
         if (!$this->puedeEditar($usuario, $dictamen)) {
             return response()->json([
@@ -178,6 +190,12 @@ class DictamenController extends Controller
     {
         $usuario = $request->user();
 
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return response()->json([
+                'message' => 'Seguridad Vial tiene acceso de solo lectura a dictámenes.',
+            ], 403);
+        }
+
         if (!$usuario->hasRole('Administrador')) {
             return response()->json([
                 'message' => 'No tienes permiso para eliminar este dictamen.',
@@ -221,6 +239,17 @@ class DictamenController extends Controller
 
     private function puedeEditar($usuario, Dictamen $dictamen): bool
     {
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return false;
+        }
+
         return ((int) $usuario->id === (int) $dictamen->created_by) || $usuario->hasRole('Administrador');
+    }
+
+    private function esSeguridadVialSoloLectura($usuario): bool
+    {
+        return $usuario
+            && (int) ($usuario->unidad_id ?? 0) === 3
+            && !$usuario->hasRole('Superadmin');
     }
 }

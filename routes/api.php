@@ -151,12 +151,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/delegaciones/excel-revision', [DelegacionesExcelRevisionController::class, 'show'])
         ->name('api.delegaciones.excel_revision.show');
 
-    Route::prefix('settings/users')->middleware('role:Superadmin')->group(function () {
+    Route::prefix('settings/users')->middleware('can:ver usuarios')->group(function () {
         Route::get('/meta', [ApiUserController::class, 'meta'])->name('api.settings.users.meta');
         Route::get('/', [ApiUserController::class, 'index'])->name('api.settings.users.index');
-        Route::post('/', [ApiUserController::class, 'store'])->name('api.settings.users.store');
+        Route::post('/', [ApiUserController::class, 'store'])->middleware('can:crear usuarios')->name('api.settings.users.store');
         Route::get('/{user}', [ApiUserController::class, 'show'])->whereNumber('user')->name('api.settings.users.show');
-        Route::put('/{user}', [ApiUserController::class, 'update'])->whereNumber('user')->name('api.settings.users.update');
+        Route::put('/{user}', [ApiUserController::class, 'update'])->middleware('can:editar usuarios')->whereNumber('user')->name('api.settings.users.update');
     });
 
     Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {

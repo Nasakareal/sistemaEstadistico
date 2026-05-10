@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Delegacion;
 use App\Models\Hechos;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class EstadisticasDelegacionesSettingsController extends Controller
 {
@@ -15,12 +22,14 @@ class EstadisticasDelegacionesSettingsController extends Controller
 
     public function index()
     {
+        $this->ensureCanViewDelegacionesStats(request());
+
         return view('admin.settings.estadisticas_delegaciones.index');
     }
 
     public function controlHechos(Request $request)
     {
-        $this->ensureCanManageDelegacionesStats($request);
+        $this->ensureCanViewDelegacionesStats($request);
 
         $tz = 'America/Mexico_City';
         $fechaCorte = Carbon::parse($request->input('fecha_corte', now($tz)->toDateString()), $tz)->format('Y-m-d');
@@ -82,6 +91,7 @@ class EstadisticasDelegacionesSettingsController extends Controller
             'url_descarga' => route('settings.estadisticas_delegaciones.excel_diario.descargar', $fechaCorte),
             'modificado' => file_exists($rutaExcel) ? Carbon::createFromTimestamp(filemtime($rutaExcel), $tz) : null,
         ];
+        $puedeMoverCortes = $this->canManageDelegacionesStats($request->user());
 
         if ($estado !== 'todos') {
             $hechosDecorados = $hechosDecorados->filter(function ($hecho) use ($estado) {
@@ -118,7 +128,8 @@ class EstadisticasDelegacionesSettingsController extends Controller
             'estado',
             'buscar',
             'resumen',
-            'excel'
+            'excel',
+            'puedeMoverCortes'
         ));
     }
 
@@ -155,8 +166,39 @@ class EstadisticasDelegacionesSettingsController extends Controller
             ->with('success', 'Corte actualizado.');
     }
 
+    public function gruasDelegaciones(Request $request)
+    {
+        $this->ensureCanViewDelegacionesStats($request);
+
+        $data = $this->obtenerGruasPorDelegacion($request);
+
+        return view('admin.settings.estadisticas_delegaciones.gruas.index', $data);
+    }
+
+    public function exportarGruasDelegaciones(Request $request, string $formato)
+    {
+        $this->ensureCanViewDelegacionesStats($request);
+
+        $data = $this->obtenerGruasPorDelegacion($request);
+
+        if ($formato === 'excel') {
+            return $this->descargarGruasDelegacionesExcel($data);
+        }
+
+        if ($formato === 'pdf') {
+            $pdf = Pdf::loadView('admin.settings.estadisticas_delegaciones.gruas.pdf', $data)
+                ->setPaper('letter', 'landscape');
+
+            return $pdf->download('gruas_delegaciones_' . now('America/Mexico_City')->format('Ymd_His') . '.pdf');
+        }
+
+        abort(404);
+    }
+
     public function excelDiario()
     {
+        $this->ensureCanViewDelegacionesStats(request());
+
         $disk = Storage::disk('local');
         $directorio = 'cortes/excel_delegaciones';
 
@@ -189,6 +231,8 @@ class EstadisticasDelegacionesSettingsController extends Controller
 
     public function descargarExcelDiario(string $fecha)
     {
+        $this->ensureCanViewDelegacionesStats(request());
+
         $nombreArchivo = 'excel_delegaciones_' . $fecha . '.xlsx';
         $ruta = storage_path('app/cortes/excel_delegaciones/' . $nombreArchivo);
 
@@ -203,6 +247,8 @@ class EstadisticasDelegacionesSettingsController extends Controller
 
     public function excelMensual()
     {
+        $this->ensureCanViewDelegacionesStats(request());
+
         $disk = Storage::disk('local');
         $directorio = 'cortes/excel_delegaciones_mensual';
 
@@ -235,6 +281,8 @@ class EstadisticasDelegacionesSettingsController extends Controller
 
     public function descargarExcelMensual(string $fecha)
     {
+        $this->ensureCanViewDelegacionesStats(request());
+
         $nombreArchivo = 'excel_delegaciones_' . $fecha . '.xlsx';
         $ruta = storage_path('app/cortes/excel_delegaciones_mensual/' . $nombreArchivo);
 
@@ -247,26 +295,261 @@ class EstadisticasDelegacionesSettingsController extends Controller
         );
     }
 
+    private function obtenerGruasPorDelegacion(Request $request): array
+    {
+        $buscar = trim((string) $request->input('buscar', ''));
+        $incluirInactivas = $request->boolean('incluir_inactivas');
+        $buscarNormalizado = $this->normalizarTexto($buscar);
+
+        $delegaciones = Delegacion::query()
+            ->with([
+                'padre:id,nombre,clave,municipio',
+                'gruas' => function ($query) {
+                    $query
+                        ->select('gruas.id', 'gruas.nombre', 'gruas.direccion', 'gruas.ubicacion_corralon', 'gruas.telefono', 'gruas.email')
+                        ->orderBy('gruas.nombre');
+                },
+            ])
+            ->when(!$incluirInactivas, fn ($query) => $query->where('activa', 1))
+            ->get(['id', 'clave', 'nombre', 'municipio', 'activa', 'delegacion_padre_id'])
+            ->map(function (Delegacion $delegacion) use ($buscarNormalizado) {
+                $regional = $delegacion->padre ?: $delegacion;
+                $textoDelegacion = $this->normalizarTexto(implode(' ', [
+                    $regional->nombre ?? '',
+                    $regional->clave ?? '',
+                    $delegacion->nombre ?? '',
+                    $delegacion->clave ?? '',
+                    $delegacion->municipio ?? '',
+                ]));
+
+                $coincideDelegacion = $buscarNormalizado === '' || str_contains($textoDelegacion, $buscarNormalizado);
+
+                $gruas = $delegacion->gruas
+                    ->filter(function ($grua) use ($buscarNormalizado, $coincideDelegacion) {
+                        if ($buscarNormalizado === '' || $coincideDelegacion) {
+                            return true;
+                        }
+
+                        return str_contains($this->normalizarTexto(implode(' ', [
+                            $grua->nombre ?? '',
+                            $grua->direccion ?? '',
+                            $grua->ubicacion_corralon ?? '',
+                            $grua->telefono ?? '',
+                            $grua->email ?? '',
+                        ])), $buscarNormalizado);
+                    })
+                    ->map(fn ($grua) => [
+                        'id' => (int) $grua->id,
+                        'nombre' => $grua->nombre,
+                        'direccion' => $grua->direccion,
+                        'ubicacion_corralon' => $grua->ubicacion_corralon,
+                        'telefono' => $grua->telefono,
+                        'email' => $grua->email,
+                    ])
+                    ->values();
+
+                if ($buscarNormalizado !== '' && !$coincideDelegacion && $gruas->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'id' => (int) $delegacion->id,
+                    'regional' => $regional->nombre,
+                    'delegacion' => $delegacion->nombre,
+                    'clave' => $delegacion->clave,
+                    'municipio' => $delegacion->municipio,
+                    'activa' => (bool) $delegacion->activa,
+                    'gruas' => $gruas,
+                    'total_gruas' => $gruas->count(),
+                ];
+            })
+            ->filter()
+            ->sortBy(fn (array $delegacion) => $this->normalizarTexto(
+                ($delegacion['regional'] ?? '') . ' ' . ($delegacion['delegacion'] ?? '')
+            ))
+            ->values();
+
+        $rows = $delegaciones
+            ->flatMap(function (array $delegacion) {
+                if ($delegacion['gruas']->isEmpty()) {
+                    return [[
+                        'regional' => $delegacion['regional'],
+                        'delegacion' => $delegacion['delegacion'],
+                        'clave' => $delegacion['clave'],
+                        'municipio' => $delegacion['municipio'],
+                        'grua' => null,
+                    ]];
+                }
+
+                return $delegacion['gruas']->map(fn (array $grua) => [
+                    'regional' => $delegacion['regional'],
+                    'delegacion' => $delegacion['delegacion'],
+                    'clave' => $delegacion['clave'],
+                    'municipio' => $delegacion['municipio'],
+                    'grua' => $grua,
+                ]);
+            })
+            ->values();
+
+        return [
+            'delegaciones' => $delegaciones,
+            'rows' => $rows,
+            'buscar' => $buscar,
+            'incluirInactivas' => $incluirInactivas,
+            'resumen' => [
+                'delegaciones' => $delegaciones->count(),
+                'gruas_asignadas' => $rows
+                    ->pluck('grua.id')
+                    ->filter()
+                    ->unique()
+                    ->count(),
+                'relaciones' => $rows->filter(fn ($row) => !empty($row['grua']))->count(),
+                'sin_gruas' => $delegaciones->filter(fn ($delegacion) => $delegacion['gruas']->isEmpty())->count(),
+            ],
+        ];
+    }
+
+    private function descargarGruasDelegacionesExcel(array $data)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('GRUAS DELEGACIONES');
+
+        $sheet->mergeCells('A1:I1');
+        $sheet->setCellValue('A1', 'GRUAS POR DELEGACION');
+        $sheet->setCellValue('A2', 'Generado: ' . now('America/Mexico_City')->format('d/m/Y H:i'));
+
+        $headers = [
+            'Regional',
+            'Delegacion',
+            'Clave',
+            'Municipio',
+            'Grua',
+            'Domicilio',
+            'Ubicacion corralon',
+            'Telefono',
+            'Correo',
+        ];
+
+        $sheet->fromArray($headers, null, 'A4');
+
+        $rowNumber = 5;
+        foreach ($data['rows'] as $row) {
+            $grua = $row['grua'] ?? [];
+
+            $sheet->fromArray([
+                $row['regional'] ?? '',
+                $row['delegacion'] ?? '',
+                $row['clave'] ?? '',
+                $row['municipio'] ?? '',
+                $grua['nombre'] ?? 'SIN GRUA ASIGNADA',
+                $grua['direccion'] ?? '',
+                $grua['ubicacion_corralon'] ?? '',
+                $grua['telefono'] ?? '',
+                $grua['email'] ?? '',
+            ], null, 'A' . $rowNumber);
+
+            $rowNumber++;
+        }
+
+        $lastRow = max(4, $rowNumber - 1);
+
+        $sheet->getStyle('A1:I1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E78']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $sheet->getStyle('A4:I4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2F75B5']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $sheet->getStyle("A4:I{$lastRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'B7B7B7'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_TOP,
+                'wrapText' => true,
+            ],
+        ]);
+
+        foreach (range('A', 'I') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $sheet->freezePane('A5');
+        $sheet->setAutoFilter("A4:I{$lastRow}");
+
+        $tempPath = storage_path('app/temp_gruas_delegaciones_' . now('America/Mexico_City')->format('Ymd_His') . '.xlsx');
+
+        if (!is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0775, true);
+        }
+
+        (new Xlsx($spreadsheet))->save($tempPath);
+
+        return response()
+            ->download(
+                $tempPath,
+                'gruas_delegaciones_' . now('America/Mexico_City')->format('Ymd_His') . '.xlsx',
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            )
+            ->deleteFileAfterSend(true);
+    }
+
     private function ensureCanManageDelegacionesStats(Request $request): void
     {
-        $user = $request->user();
-
-        if (!$user) {
+        if (!$this->canManageDelegacionesStats($request->user())) {
             abort(403);
+        }
+    }
+
+    private function ensureCanViewDelegacionesStats(Request $request): void
+    {
+        if (!$this->canViewDelegacionesStats($request->user())) {
+            abort(403);
+        }
+    }
+
+    private function canViewDelegacionesStats($user): bool
+    {
+        if (!$user) {
+            return false;
         }
 
         if ($user->hasRole('Superadmin')) {
-            return;
+            return true;
+        }
+
+        if ((int) ($user->unidad_id ?? 0) === 3) {
+            return true;
+        }
+
+        return $this->canManageDelegacionesStats($user);
+    }
+
+    private function canManageDelegacionesStats($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return true;
         }
 
         if (
             (int) ($user->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES_ID
             && ($user->hasRole('Administrador') || $user->hasRole('Subdirector'))
         ) {
-            return;
+            return true;
         }
 
-        abort(403);
+        return false;
     }
 
     private function decorarHechoParaControlDelegaciones(Hechos $hecho, Carbon $inicio, Carbon $fin, string $fechaCorte): Hechos

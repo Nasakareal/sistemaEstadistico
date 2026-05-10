@@ -68,18 +68,7 @@ class ConstanciaManejoController extends Controller
 
     private function unidadIdsUsuario($usuario): array
     {
-        $ids = [(int) ($usuario->unidad_id ?? 0)];
-
-        try {
-            $ids = array_merge(
-                $ids,
-                $usuario->unidades()->pluck('unidades.id')->map(fn ($id) => (int) $id)->all()
-            );
-        } catch (\Throwable $e) {
-            // La unidad principal basta en instalaciones sin pivote sincronizado.
-        }
-
-        return array_values(array_unique(array_filter($ids)));
+        return array_values(array_filter([(int) ($usuario->unidad_id ?? 0)]));
     }
 
     private function delegacionIdsUsuario($usuario): array

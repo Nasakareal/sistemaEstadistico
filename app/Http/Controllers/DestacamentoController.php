@@ -32,7 +32,7 @@ class DestacamentoController extends Controller
             return true;
         }
 
-        return (int) ($actor->unidad_id ?? 0) === $this->unidadCarreterasId();
+        return in_array((int) ($actor->unidad_id ?? 0), [3, $this->unidadCarreterasId()], true);
     }
 
     private function queryVisiblesParaActor(User $actor)

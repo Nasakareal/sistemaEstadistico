@@ -170,25 +170,27 @@
                                     <a href="{{ route('hechos.show', $hecho) }}" class="btn btn-info btn-sm">
                                         <i class="fa-regular fa-eye"></i>
                                     </a>
-                                    <a href="{{ route('hechos.edit', $hecho) }}" class="btn btn-success btn-sm">
-                                        <i class="fa-solid fa-pencil"></i>
-                                    </a>
+                                    @if($puedeMoverCortes)
+                                        <a href="{{ route('hechos.edit', $hecho) }}" class="btn btn-success btn-sm">
+                                            <i class="fa-solid fa-pencil"></i>
+                                        </a>
 
-                                    <form method="POST" action="{{ route('settings.estadisticas_delegaciones.control_hechos.mover_corte', $hecho) }}" class="d-inline">
-                                        @csrf
-                                        <input type="hidden" name="fecha_corte" value="{{ $hoy }}">
-                                        <button type="submit" class="btn btn-primary btn-sm" {{ $meta['captura_completa'] ? '' : 'disabled' }}>
-                                            Hoy
-                                        </button>
-                                    </form>
+                                        <form method="POST" action="{{ route('settings.estadisticas_delegaciones.control_hechos.mover_corte', $hecho) }}" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="fecha_corte" value="{{ $hoy }}">
+                                            <button type="submit" class="btn btn-primary btn-sm" {{ $meta['captura_completa'] ? '' : 'disabled' }}>
+                                                Hoy
+                                            </button>
+                                        </form>
 
-                                    <form method="POST" action="{{ route('settings.estadisticas_delegaciones.control_hechos.mover_corte', $hecho) }}" class="d-inline">
-                                        @csrf
-                                        <input type="hidden" name="fecha_corte" value="{{ $manana }}">
-                                        <button type="submit" class="btn btn-warning btn-sm" {{ $meta['captura_completa'] ? '' : 'disabled' }}>
-                                            Mañana
-                                        </button>
-                                    </form>
+                                        <form method="POST" action="{{ route('settings.estadisticas_delegaciones.control_hechos.mover_corte', $hecho) }}" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="fecha_corte" value="{{ $manana }}">
+                                            <button type="submit" class="btn btn-warning btn-sm" {{ $meta['captura_completa'] ? '' : 'disabled' }}>
+                                                Mañana
+                                            </button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

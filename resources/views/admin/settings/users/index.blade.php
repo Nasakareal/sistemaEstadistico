@@ -20,9 +20,11 @@
                             </a>
                         @endrole
 
-                        <a href="{{ url('/admin/settings/users/create') }}" class="btn btn-primary">
-                            <i class="fa-solid fa-plus"></i> Crear Nuevo Usuario
-                        </a>
+                        @can('crear usuarios')
+                            <a href="{{ url('/admin/settings/users/create') }}" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i> Crear Nuevo Usuario
+                            </a>
+                        @endcan
 
                     </div>
                 </div>
@@ -55,18 +57,21 @@
                                             <a href="{{ url('/admin/settings/users/' . $user->id) }}" class="btn btn-info btn-sm">
                                                 <i class="fa-regular fa-eye"></i>
                                             </a>
-                                            <a href="{{ url('/admin/settings/users/' . $user->id . '/edit') }}" class="btn btn-success btn-sm">
-                                                <i class="fa-regular fa-pen-to-square"></i>
-                                            </a>
-                                            {{-- Formulario de Eliminar --}}
-                                            <form action="{{ url('/admin/settings/users/' . $user->id) }}" 
-                                                  method="POST" style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="button" class="btn btn-danger btn-sm delete-btn">
-                                                    <i class="fa-regular fa-trash-can"></i>
-                                                </button>
-                                            </form>
+                                            @can('editar usuarios')
+                                                <a href="{{ url('/admin/settings/users/' . $user->id . '/edit') }}" class="btn btn-success btn-sm">
+                                                    <i class="fa-regular fa-pen-to-square"></i>
+                                                </a>
+                                            @endcan
+                                            @can('eliminar usuarios')
+                                                <form action="{{ url('/admin/settings/users/' . $user->id) }}"
+                                                      method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="button" class="btn btn-danger btn-sm delete-btn">
+                                                        <i class="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>

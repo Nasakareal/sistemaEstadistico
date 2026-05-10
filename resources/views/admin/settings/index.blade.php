@@ -118,7 +118,7 @@
 
         {{-- EXÁMENES DIARIOS --}}
         @can('ver modulo examenes')
-            @if(auth()->user()->perteneceAAlgunaUnidad(['siniestros','delegaciones']))
+            @if(auth()->user()->perteneceAAlgunaUnidad(['siniestros','delegaciones']) || (int)(auth()->user()->unidad_id ?? 0) === 3)
                 <div class="col-md-3 col-sm-6 col-12">
                     <div class="sv-card">
                         <div class="sv-card__icon bg-purple">
@@ -156,7 +156,7 @@
 
         {{-- DELEGACIONES --}}
         @can('ver delegaciones')
-            @if(auth()->user()->perteneceAUnidad('delegaciones'))
+            @if(auth()->user()->perteneceAUnidad('delegaciones') || (int)(auth()->user()->unidad_id ?? 0) === 3)
                 <div class="col-md-3 col-sm-6 col-12">
                     <div class="sv-card">
                         <div class="sv-card__icon bg-indigo">
@@ -176,7 +176,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && ($user->hasRole('Superadmin') || ((int)($user->unidad_id ?? 0) === 2 && ($user->hasRole('Administrador') || $user->hasRole('Subdirector')))))
+        @if($user && ($user->hasRole('Superadmin') || (int)($user->unidad_id ?? 0) === 3 || ((int)($user->unidad_id ?? 0) === 2 && ($user->hasRole('Administrador') || $user->hasRole('Subdirector')))))
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">
                     <div class="sv-card__icon bg-warning">
@@ -210,7 +210,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 4))
+        @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 3 || (int)$user->unidad_id === 4))
             @can('ver destacamentos')
                 <div class="col-md-3 col-sm-6 col-12">
                     <div class="sv-card">
@@ -253,7 +253,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && $user->perteneceAUnidad('siniestros'))
+        @if($user && ($user->perteneceAUnidad('siniestros') || (int)($user->unidad_id ?? 0) === 3))
 
             {{-- EXPORT ESTADO DE FUERZA (PRUEBA) --}}
             <div class="col-md-3 col-sm-6 col-12">
@@ -274,7 +274,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && $user->perteneceAUnidad('siniestros'))
+        @if($user && ($user->perteneceAUnidad('siniestros') || (int)($user->unidad_id ?? 0) === 3))
             @can('ver estadisticas')
                 <div class="col-md-3 col-sm-6 col-12">
                     <div class="sv-card">
@@ -331,7 +331,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 4))
+        @if($user && ($user->hasRole('Superadmin') || (int)$user->unidad_id === 3 || (int)$user->unidad_id === 4))
             @can('ver estadisticas')
                 <div class="col-md-3 col-sm-6 col-12">
                     <div class="sv-card">
@@ -352,7 +352,7 @@
 
         @php $user = auth()->user(); @endphp
 
-        @if($user && $user->perteneceAUnidad('siniestros'))
+        @if($user && ($user->perteneceAUnidad('siniestros') || (int)($user->unidad_id ?? 0) === 3))
 
             {{-- RADAR RIESGO --}}
             <div class="col-md-3 col-sm-6 col-12">

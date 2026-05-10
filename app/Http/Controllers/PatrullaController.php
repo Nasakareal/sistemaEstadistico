@@ -24,6 +24,12 @@ class PatrullaController extends Controller
         return $actor && $actor->hasRole('Superadmin');
     }
 
+    private function actorTieneVisibilidadGlobal(): bool
+    {
+        $actor = $this->actor();
+        return $this->actorEsSuperadmin() || (int) ($actor->unidad_id ?? 0) === 3;
+    }
+
     private function unidadIdActor(): ?int
     {
         return optional($this->actor())->unidad_id;
@@ -35,7 +41,7 @@ class PatrullaController extends Controller
 
         return Patrulla::query()
             ->with(['unidad', 'turno', 'fotos'])
-            ->when(!$this->actorEsSuperadmin(), function ($q) use ($actor) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) use ($actor) {
                 if (!empty($actor->unidad_id)) {
                     $q->where('unidad_id', (int) $actor->unidad_id);
                 } else {
@@ -52,7 +58,7 @@ class PatrullaController extends Controller
     private function unidadesDisponibles()
     {
         return Unidad::query()
-            ->when(!$this->actorEsSuperadmin(), function ($q) {
+            ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) {
                 $q->where('id', $this->unidadIdActor());
             })
             ->orderBy('nombre')

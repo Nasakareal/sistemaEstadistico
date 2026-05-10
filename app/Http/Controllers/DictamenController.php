@@ -17,7 +17,10 @@ class DictamenController extends Controller
 
             if (
                 !$usuario ||
-                (!$usuario->hasRole('Superadmin') && (int)$usuario->unidad_id !== 1)
+                (
+                    !$usuario->hasRole('Superadmin')
+                    && !in_array((int) $usuario->unidad_id, [1, 3], true)
+                )
             ) {
                 abort(403);
             }
@@ -114,6 +117,11 @@ class DictamenController extends Controller
     {
         $usuario = auth()->user();
 
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return redirect()->route('dictamenes.index')
+                ->with('error', 'Seguridad Vial tiene acceso de solo lectura a dictámenes.');
+        }
+
         $unidadNombre = null;
         if ($usuario->unidad_id) {
             $unidadNombre = Unidad::where('id', $usuario->unidad_id)->value('nombre');
@@ -164,6 +172,11 @@ class DictamenController extends Controller
     {
         $usuario = auth()->user();
 
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return redirect()->route('dictamenes.index')
+                ->with('error', 'Seguridad Vial tiene acceso de solo lectura a dictámenes.');
+        }
+
         if ($usuario->hasRole('Administrador')) {
             return view('dictamenes.edit', compact('dictamen'));
         }
@@ -193,6 +206,11 @@ class DictamenController extends Controller
     public function update(Request $request, Dictamen $dictamen)
     {
         $usuario = auth()->user();
+
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return redirect()->route('dictamenes.index')
+                ->with('error', 'Seguridad Vial tiene acceso de solo lectura a dictámenes.');
+        }
 
         if ($usuario->hasRole('Administrador')) {
         } elseif ($usuario->hasRole('Perito')) {
@@ -251,6 +269,11 @@ class DictamenController extends Controller
     {
         $usuario = auth()->user();
 
+        if ($this->esSeguridadVialSoloLectura($usuario)) {
+            return redirect()->route('dictamenes.index')
+                ->with('error', 'Seguridad Vial tiene acceso de solo lectura a dictámenes.');
+        }
+
         if (!$usuario->hasRole('Administrador') && !$usuario->hasRole('Superadmin')) {
             return redirect()->route('dictamenes.index')
                 ->with('error', 'No tienes permiso para eliminar este dictamen.');
@@ -260,5 +283,12 @@ class DictamenController extends Controller
 
         return redirect()->route('dictamenes.index')
             ->with('success', 'Dictamen eliminado exitosamente.');
+    }
+
+    private function esSeguridadVialSoloLectura($usuario): bool
+    {
+        return $usuario
+            && (int) ($usuario->unidad_id ?? 0) === 3
+            && !$usuario->hasRole('Superadmin');
     }
 }

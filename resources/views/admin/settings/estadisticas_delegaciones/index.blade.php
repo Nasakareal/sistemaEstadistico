@@ -67,6 +67,20 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-info">
+                    <i class="fa-solid fa-truck-pickup"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Grúas por Delegación</div>
+                    <div class="sv-card__desc">Consulta qué grúas usa cada delegación y exporta el directorio.</div>
+                    <a href="{{ route('settings.estadisticas_delegaciones.gruas') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 @stop
 

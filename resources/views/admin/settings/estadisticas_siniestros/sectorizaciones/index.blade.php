@@ -22,6 +22,11 @@
 @stop
 
 @section('content')
+    @php
+        $soloLecturaSeguridadVial = (int) (auth()->user()->unidad_id ?? 0) === 3
+            && !auth()->user()->hasRole('Superadmin');
+    @endphp
+
     <div class="row">
         <div class="col-12">
             <div class="sv-panel">
@@ -49,9 +54,11 @@
                                         <td>{{ $corte['archivo'] ?? '' }}</td>
                                         <td>
                                             <div class="d-flex flex-wrap" style="gap:8px;">
-                                                <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', $corte['fecha']) }}" class="btn sv-btn">
-                                                    <i class="fas fa-map-marked-alt"></i> Gestionar
-                                                </a>
+                                                @unless($soloLecturaSeguridadVial)
+                                                    <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', $corte['fecha']) }}" class="btn sv-btn">
+                                                        <i class="fas fa-map-marked-alt"></i> Gestionar
+                                                    </a>
+                                                @endunless
 
                                                 <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.descargar', $corte['fecha']) }}" class="btn sv-btn">
                                                     <i class="fas fa-download"></i> Descargar
@@ -72,13 +79,15 @@
                 @endif
 
                 <div class="sv-panel__footer">
-                    <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', now('America/Mexico_City')->toDateString()) }}" class="btn sv-btn">
-                        <i class="fas fa-plus-circle"></i> Gestionar sectorización de hoy
-                    </a>
+                    @unless($soloLecturaSeguridadVial)
+                        <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', now('America/Mexico_City')->toDateString()) }}" class="btn sv-btn">
+                            <i class="fas fa-plus-circle"></i> Gestionar sectorización de hoy
+                        </a>
 
-                    <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', now('America/Mexico_City')->addDay()->toDateString()) }}" class="btn sv-btn">
-                        <i class="fas fa-calendar-plus"></i> Preparar sectorización de mañana
-                    </a>
+                        <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', now('America/Mexico_City')->addDay()->toDateString()) }}" class="btn sv-btn">
+                            <i class="fas fa-calendar-plus"></i> Preparar sectorización de mañana
+                        </a>
+                    @endunless
                 </div>
             </div>
         </div>

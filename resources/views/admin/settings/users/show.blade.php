@@ -123,25 +123,6 @@
                         </div>
                     </div>
 
-                    @if ($user->hasRole('Coordinador'))
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label>Unidades adicionales</label>
-                                    @if ($user->unidades && $user->unidades->count())
-                                        <ul class="mb-0">
-                                            @foreach ($user->unidades as $u)
-                                                <li>{{ $u->nombre }}</li>
-                                            @endforeach
-                                        </ul>
-                                    @else
-                                        <p class="form-control-static">No tiene unidades adicionales asignadas.</p>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">

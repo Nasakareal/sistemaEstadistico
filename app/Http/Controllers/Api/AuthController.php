@@ -91,7 +91,6 @@ class AuthController extends Controller
 
         $user->loadMissing([
             'unidad',
-            'unidades',
             'delegacion',
             'destacamento',
             'turno',
@@ -112,11 +111,7 @@ class AuthController extends Controller
             'nombre' => $user->unidad->nombre,
             'slug' => $user->unidad->slug,
         ] : null;
-        $unidadesMeta = $user->unidades->map(fn ($unidad) => [
-            'id' => $unidad->id,
-            'nombre' => $unidad->nombre,
-            'slug' => $unidad->slug,
-        ])->values()->all();
+        $unidadesMeta = $unidadMeta ? [$unidadMeta] : [];
         $delegacionMeta = $user->delegacion ? [
             'id' => $user->delegacion->id,
             'nombre' => $user->delegacion->nombre,

@@ -739,6 +739,11 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
             ->name('settings.estadisticas_delegaciones.control_hechos');
         Route::post('/control-hechos/{hecho}/mover-corte', [EstadisticasDelegacionesSettingsController::class, 'moverHechoCorte'])
             ->name('settings.estadisticas_delegaciones.control_hechos.mover_corte');
+        Route::get('/gruas', [EstadisticasDelegacionesSettingsController::class, 'gruasDelegaciones'])
+            ->name('settings.estadisticas_delegaciones.gruas');
+        Route::get('/gruas/exportar/{formato}', [EstadisticasDelegacionesSettingsController::class, 'exportarGruasDelegaciones'])
+            ->where('formato', 'excel|pdf')
+            ->name('settings.estadisticas_delegaciones.gruas.exportar');
         Route::get('/excel-diario', [EstadisticasDelegacionesSettingsController::class, 'excelDiario'])->name('settings.estadisticas_delegaciones.excel_diario');
         Route::get('/excel-diario/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_delegaciones.excel_diario.descargar');
 

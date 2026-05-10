@@ -8,7 +8,8 @@
 
         @php
             $u = auth()->user();
-            $puedeEditar = ($u->id === $dictamen->created_by) || $u->hasRole(['Administrador','Superadmin','Administrativo']);
+            $puedeEditar = $u->can('editar dictamenes')
+                && (($u->id === $dictamen->created_by) || $u->hasRole(['Administrador','Superadmin','Administrativo']));
             $hecho = $dictamen->hecho ?? null;
         @endphp
 

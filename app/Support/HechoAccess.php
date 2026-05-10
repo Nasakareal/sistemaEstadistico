@@ -232,11 +232,11 @@ class HechoAccess
             return true;
         }
 
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        if ($unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+        if ((int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
             return false;
         }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
 
         if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
             if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
@@ -298,6 +298,10 @@ class HechoAccess
 
         if ($usuario->hasRole('Superadmin')) {
             return true;
+        }
+
+        if ((int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+            return false;
         }
 
         if (!$usuario->hasRole('Administrador') && !$usuario->hasRole('Subdirector')) {

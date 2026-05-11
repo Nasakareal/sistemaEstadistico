@@ -1498,7 +1498,7 @@ class ActividadController extends Controller
             return $query->whereRaw('1 = 0');
         }
 
-        if ($usuario->hasRole('Superadmin') || (int) $usuario->unidad_id === 3) {
+        if (GruaEditGuard::canViewFullGruaCatalog($usuario)) {
             return $query;
         }
 

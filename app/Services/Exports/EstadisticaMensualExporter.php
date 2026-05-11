@@ -10,6 +10,9 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class EstadisticaMensualExporter
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+    private const UNIDAD_DELEGACIONES_ID = 2;
+
     public function download(Request $request, int $anio, int $mes)
     {
         $reqDesde = trim((string)$request->query('desde', ''));
@@ -32,9 +35,19 @@ class EstadisticaMensualExporter
         $filename = "estadistica_{$desde}_{$hasta}.xlsx";
 
         $hechosQuery = DB::table('hechos')
-            ->whereBetween('fecha', [$desde, $hasta])
-            ->orderBy('fecha')
-            ->orderBy('id');
+            ->whereBetween('hechos.fecha', [$desde, $hasta]);
+
+        $this->applyScopeByUser($hechosQuery, $request);
+        $this->applyOrigenHechosFilter($hechosQuery, $request);
+
+        $delegacionId = trim((string)$request->query('delegacion_id', ''));
+        if ($delegacionId !== '') {
+            $hechosQuery->where('hechos.delegacion_id', $delegacionId);
+        }
+
+        $hechosQuery
+            ->orderBy('hechos.fecha')
+            ->orderBy('hechos.id');
 
         return new StreamedResponse(function () use ($hechosQuery) {
 
@@ -275,5 +288,83 @@ class EstadisticaMensualExporter
             'Content-Disposition' => 'attachment; filename="estadistica.xlsx"',
             'Cache-Control' => 'max-age=0',
         ]);
+    }
+
+    private function applyScopeByUser($q, Request $request): void
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            $q->whereRaw('1 = 0');
+            return;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return;
+        }
+
+        $unidadId = (int)($user->unidad_id ?? 0);
+
+        if ($unidadId === 3) {
+            return;
+        }
+
+        if ($unidadId > 0) {
+            $this->applyUnidadScope($q, $unidadId);
+            return;
+        }
+
+        $q->whereRaw('1 = 0');
+    }
+
+    private function applyUnidadScope($q, int $unidadId): void
+    {
+        $this->applyUnidadesScope($q, [$unidadId]);
+    }
+
+    private function applyOrigenHechosFilter($q, Request $request): void
+    {
+        $origen = strtolower(trim((string) $request->query('origen_hechos', '')));
+
+        if ($origen === 'ambas' || $origen === 'ambos') {
+            $this->applyUnidadesScope($q, [
+                self::UNIDAD_SINIESTROS_ID,
+                self::UNIDAD_DELEGACIONES_ID,
+            ]);
+            return;
+        }
+
+        if ($origen === 'siniestros') {
+            $this->applyUnidadScope($q, self::UNIDAD_SINIESTROS_ID);
+            return;
+        }
+
+        if ($origen === 'delegaciones') {
+            $this->applyUnidadScope($q, self::UNIDAD_DELEGACIONES_ID);
+        }
+    }
+
+    private function applyUnidadesScope($q, array $unidadIds): void
+    {
+        $unidadIds = array_values(array_unique(array_map('intval', $unidadIds)));
+        $unidadIds = array_values(array_filter($unidadIds, fn ($id) => $id > 0));
+
+        if (empty($unidadIds)) {
+            $q->whereRaw('1 = 0');
+            return;
+        }
+
+        $q->where(function ($scope) use ($unidadIds) {
+            $scope->whereIn('hechos.unidad_org_id', $unidadIds)
+                ->orWhere(function ($legacy) use ($unidadIds) {
+                    $legacy->whereNull('hechos.unidad_org_id')
+                        ->whereExists(function ($sub) use ($unidadIds) {
+                            $sub->selectRaw('1')
+                                ->from('users')
+                                ->whereColumn('users.id', 'hechos.created_by')
+                                ->whereIn('users.unidad_id', $unidadIds);
+                        });
+                });
+        });
     }
 }

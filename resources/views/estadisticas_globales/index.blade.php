@@ -22,6 +22,10 @@
 @stop
 
 @section('content')
+    @php
+        $puedeFiltrarOrigenHechos = auth()->user()->hasRole('Superadmin') || (int) auth()->user()->unidad_id === 3;
+    @endphp
+
     <div class="row">
         <div class="col-12">
             <div class="sv-panel">
@@ -50,6 +54,17 @@
                             <label>Hora hasta</label>
                             <input type="time" id="f_hora_hasta" class="form-control form-control-sm">
                         </div>
+
+                        @if($puedeFiltrarOrigenHechos)
+                            <div class="sv-field">
+                                <label>Origen</label>
+                                <select id="f_origen_hechos" class="form-control form-control-sm">
+                                    <option value="ambas">Siniestros + Delegaciones</option>
+                                    <option value="siniestros">Solo Siniestros</option>
+                                    <option value="delegaciones">Solo Delegaciones</option>
+                                </select>
+                            </div>
+                        @endif
 
                         <div class="sv-field">
                             <label>Sector</label>
@@ -304,7 +319,20 @@
         return n ? String(n.value ?? '').trim() : '';
     };
 
+    function syncDelegacionWithOrigen(){
+        const delegacion = el('f_delegacion');
+        if (!delegacion) return;
+
+        const soloSiniestros = val('f_origen_hechos') === 'siniestros';
+        if (soloSiniestros) {
+            delegacion.value = '';
+        }
+        delegacion.disabled = soloSiniestros;
+    }
+
     function qsFromFilters(extra = {}){
+        syncDelegacionWithOrigen();
+
         const params = new URLSearchParams();
 
         const desde = val('f_desde');
@@ -314,6 +342,7 @@
         const sector = val('f_sector');
         const tipo_hecho = val('f_tipo_hecho');
         const situacion = val('f_situacion');
+        const origen_hechos = val('f_origen_hechos');
         const veh_tipo = val('f_veh_tipo');
         const delegacion = val('f_delegacion');
         const group = val('f_group');
@@ -331,6 +360,7 @@
         if (sector) params.set('sector', sector);
         if (tipo_hecho) params.set('tipo_hecho', tipo_hecho);
         if (situacion) params.set('situacion', situacion);
+        if (origen_hechos) params.set('origen_hechos', origen_hechos);
         if (veh_tipo) params.set('veh_tipo', veh_tipo);
         if (delegacion) params.set('delegacion_id', delegacion);
 
@@ -408,7 +438,7 @@
         const ids = [
             'f_desde','f_hora_desde','f_hasta','f_hora_hasta','f_sector','f_tipo_hecho','f_situacion','f_veh_tipo',
             'f_con_lesionados','f_con_fallecidos',
-            'f_q','f_veh_placas','f_veh_serie','f_group','f_delegacion'
+            'f_q','f_veh_placas','f_veh_serie','f_group','f_delegacion','f_origen_hechos'
         ];
 
         ids.forEach(id => {

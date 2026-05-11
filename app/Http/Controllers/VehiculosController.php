@@ -30,7 +30,7 @@ class VehiculosController extends Controller
 
         $queryGruas = Grua::query()->orderBy('nombre');
 
-        if (!$usuario->hasRole('Superadmin') && (int) $usuario->unidad_id !== 3) {
+        if (!GruaEditGuard::canViewFullGruaCatalog($usuario)) {
             if ((int) $usuario->unidad_id === 1) {
                 $queryGruas->whereHas('unidades', function ($q) {
                     $q->where('unidades.id', 1);
@@ -269,7 +269,7 @@ class VehiculosController extends Controller
 
         $queryGruas = Grua::query()->orderBy('nombre');
 
-        if (!$usuario->hasRole('Superadmin') && (int) $usuario->unidad_id !== 3) {
+        if (!GruaEditGuard::canViewFullGruaCatalog($usuario)) {
             if ((int) $usuario->unidad_id === 1) {
                 $queryGruas->whereHas('unidades', function ($q) {
                     $q->where('unidades.id', 1);

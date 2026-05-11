@@ -57,14 +57,28 @@ class GruaEditGuardTest extends TestCase
         $this->assertTrue(GruaEditGuard::vehicleHasGruaData($conCorralon));
     }
 
-    private function usuarioConRoles(array $roles)
+    public function test_catalogo_completo_para_administrador_y_subdirector_de_delegaciones(): void
     {
-        return new class($roles) {
-            private array $roles;
+        $this->assertTrue(GruaEditGuard::canViewFullGruaCatalog($this->usuarioConRoles(['Administrador'], 2)));
+        $this->assertTrue(GruaEditGuard::canViewFullGruaCatalog($this->usuarioConRoles(['Subdirector'], 2)));
+    }
 
-            public function __construct(array $roles)
+    public function test_catalogo_completo_no_se_abre_a_otros_roles_de_delegaciones(): void
+    {
+        $this->assertFalse(GruaEditGuard::canViewFullGruaCatalog($this->usuarioConRoles(['Delegado'], 2)));
+        $this->assertFalse(GruaEditGuard::canViewFullGruaCatalog($this->usuarioConRoles(['Administrador'], 1)));
+    }
+
+    private function usuarioConRoles(array $roles, ?int $unidadId = null)
+    {
+        return new class($roles, $unidadId) {
+            private array $roles;
+            public ?int $unidad_id;
+
+            public function __construct(array $roles, ?int $unidadId)
             {
                 $this->roles = $roles;
+                $this->unidad_id = $unidadId;
             }
 
             public function hasRole(string $role): bool

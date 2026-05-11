@@ -41,6 +41,26 @@ class GruaEditGuard
             || $usuario->hasRole('Subdirector');
     }
 
+    public static function canViewFullGruaCatalog($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return $usuario->hasRole('Superadmin')
+            || (int) ($usuario->unidad_id ?? 0) === 3
+            || self::isDelegacionesManager($usuario);
+    }
+
+    private static function isDelegacionesManager($usuario): bool
+    {
+        return (int) ($usuario->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES_ID
+            && (
+                $usuario->hasRole('Administrador')
+                || $usuario->hasRole('Subdirector')
+            );
+    }
+
     public static function locksHecho($usuario, Hechos $hecho): bool
     {
         return self::isDelegacionesHecho($hecho)

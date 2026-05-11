@@ -11,6 +11,9 @@ use Illuminate\Support\Str;
 
 class EstadisticasGlobalesController extends Controller
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+    private const UNIDAD_DELEGACIONES_ID = 2;
+
     private bool $vehiculosJoined = false;
 
     public function index(Request $request)
@@ -442,6 +445,7 @@ class EstadisticasGlobalesController extends Controller
     private function applyHechosFilters($q, Request $request)
     {
         $this->applyScopeByUser($q);
+        $this->applyOrigenHechosFilter($q, $request);
 
         $delegacionId = trim((string)$request->query('delegacion_id', ''));
 
@@ -859,13 +863,13 @@ class EstadisticasGlobalesController extends Controller
             return;
         }
 
-        if ($unidadId === 1) {
-            $this->applyUnidadScope($q, 1);
+        if ($unidadId === self::UNIDAD_SINIESTROS_ID) {
+            $this->applyUnidadScope($q, self::UNIDAD_SINIESTROS_ID);
             return;
         }
 
-        if ($unidadId === 2) {
-            $this->applyUnidadScope($q, 2);
+        if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
+            $this->applyUnidadScope($q, self::UNIDAD_DELEGACIONES_ID);
             return;
         }
 
@@ -879,15 +883,50 @@ class EstadisticasGlobalesController extends Controller
 
     private function applyUnidadScope($q, int $unidadId): void
     {
-        $q->where(function ($scope) use ($unidadId) {
-            $scope->where('hechos.unidad_org_id', $unidadId)
-                ->orWhere(function ($legacy) use ($unidadId) {
+        $this->applyUnidadesScope($q, [$unidadId]);
+    }
+
+    private function applyOrigenHechosFilter($q, Request $request): void
+    {
+        $origen = strtolower(trim((string) $request->query('origen_hechos', '')));
+
+        if ($origen === 'ambas' || $origen === 'ambos') {
+            $this->applyUnidadesScope($q, [
+                self::UNIDAD_SINIESTROS_ID,
+                self::UNIDAD_DELEGACIONES_ID,
+            ]);
+            return;
+        }
+
+        if ($origen === 'siniestros') {
+            $this->applyUnidadScope($q, self::UNIDAD_SINIESTROS_ID);
+            return;
+        }
+
+        if ($origen === 'delegaciones') {
+            $this->applyUnidadScope($q, self::UNIDAD_DELEGACIONES_ID);
+        }
+    }
+
+    private function applyUnidadesScope($q, array $unidadIds): void
+    {
+        $unidadIds = array_values(array_unique(array_map('intval', $unidadIds)));
+        $unidadIds = array_values(array_filter($unidadIds, fn ($id) => $id > 0));
+
+        if (empty($unidadIds)) {
+            $q->whereRaw('1 = 0');
+            return;
+        }
+
+        $q->where(function ($scope) use ($unidadIds) {
+            $scope->whereIn('hechos.unidad_org_id', $unidadIds)
+                ->orWhere(function ($legacy) use ($unidadIds) {
                     $legacy->whereNull('hechos.unidad_org_id')
-                        ->whereExists(function ($sub) use ($unidadId) {
+                        ->whereExists(function ($sub) use ($unidadIds) {
                             $sub->selectRaw('1')
                                 ->from('users')
                                 ->whereColumn('users.id', 'hechos.created_by')
-                                ->where('users.unidad_id', $unidadId);
+                                ->whereIn('users.unidad_id', $unidadIds);
                         });
                 });
         });

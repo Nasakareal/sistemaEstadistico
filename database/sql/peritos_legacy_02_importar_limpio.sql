@@ -15,7 +15,7 @@ SET @usuario_importacion_id := 1;
 SET @unidad_siniestros_id := 1;
 SET @ahora_importacion := NOW();
 SET @fecha_importacion_default := DATE('1900-01-01');
-SET @legacy_notificaciones_silenciadas_at := TIMESTAMP('2099-01-01 00:00:00');
+SET @legacy_notificaciones_silenciadas_at := TIMESTAMP('2037-12-31 23:59:59');
 SET @legacy_sql_mode_original := @@SESSION.sql_mode;
 SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(REPLACE(REPLACE(REPLACE(CONCAT(',', @@SESSION.sql_mode, ','), ',NO_ZERO_DATE,', ','), ',NO_ZERO_IN_DATE,', ','), ',,', ','), ',,', ','));
 

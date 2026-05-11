@@ -39,6 +39,10 @@ class NotificarHechosPendientes extends Command
     {
         $hechos = Hechos::query()
             ->where('situacion', 'PENDIENTE')
+            ->where(function ($query) {
+                $query->whereNull('fuente_ubicacion')
+                    ->orWhere('fuente_ubicacion', '<>', 'legacy_peritos');
+            })
             ->whereNull('notificado_48_at')
             ->where('created_at', '<=', $now->copy()->subHours(48))
             ->orderBy('created_at')
@@ -73,6 +77,10 @@ class NotificarHechosPendientes extends Command
 
         $hechos = Hechos::query()
             ->where('situacion', 'PENDIENTE')
+            ->where(function ($query) {
+                $query->whereNull('fuente_ubicacion')
+                    ->orWhere('fuente_ubicacion', '<>', 'legacy_peritos');
+            })
             ->where('created_at', '<=', $now->copy()->subHours(72))
             ->orderBy('created_at')
             ->limit(500)

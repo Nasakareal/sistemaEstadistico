@@ -14,6 +14,10 @@ USE sistemaestadistico;
 SET @usuario_importacion_id := 1;
 SET @unidad_siniestros_id := 1;
 SET @ahora_importacion := NOW();
+SET @fecha_importacion_default := DATE('1900-01-01');
+SET @legacy_notificaciones_silenciadas_at := TIMESTAMP('2099-01-01 00:00:00');
+SET @legacy_sql_mode_original := @@SESSION.sql_mode;
+SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(REPLACE(REPLACE(REPLACE(CONCAT(',', @@SESSION.sql_mode, ','), ',NO_ZERO_DATE,', ','), ',NO_ZERO_IN_DATE,', ','), ',,', ','), ',,', ','));
 
 CREATE TABLE IF NOT EXISTS legacy_peritos_import_hechos (
     old_hecho_id INT NOT NULL PRIMARY KEY,
@@ -165,7 +169,10 @@ INSERT IGNORE INTO hechos (
     created_by,
     updated_by,
     created_at,
-    updated_at
+    updated_at,
+    notificado_48_at,
+    notificado_72_at,
+    ultimo_recordatorio_72_at
 )
 SELECT
     LOWER(CONCAT(
@@ -185,7 +192,10 @@ SELECT
         WHEN th.hora REGEXP '^[0-9]{4}$' THEN STR_TO_DATE(th.hora, '%H%i')
         ELSE '00:00:00'
     END,
-    th.fecha,
+    CASE
+        WHEN th.fecha IS NULL OR th.fecha = '0000-00-00' THEN @fecha_importacion_default
+        ELSE th.fecha
+    END,
     LEFT(COALESCE(NULLIF(TRIM(CAST(th.sector AS CHAR)), ''), '0'), 100),
     LEFT(COALESCE(NULLIF(TRIM(th.callea), ''), 'SIN DATO'), 255),
     LEFT(UPPER(COALESCE(NULLIF(TRIM(th.callea), ''), 'SIN DATO')), 255),
@@ -264,7 +274,14 @@ SELECT
     LEFT(NULLIF(TRIM(th.domicilio), ''), 65535),
     @usuario_importacion_id,
     @usuario_importacion_id,
-    COALESCE(TIMESTAMP(th.fecha_capt), TIMESTAMP(th.fecha)),
+    CASE
+        WHEN th.fecha_capt IS NOT NULL AND th.fecha_capt <> '0000-00-00' THEN TIMESTAMP(th.fecha_capt)
+        WHEN th.fecha IS NOT NULL AND th.fecha <> '0000-00-00' THEN TIMESTAMP(th.fecha)
+        ELSE TIMESTAMP(@fecha_importacion_default)
+    END,
+    @legacy_notificaciones_silenciadas_at,
+    @legacy_notificaciones_silenciadas_at,
+    @legacy_notificaciones_silenciadas_at,
     @ahora_importacion
 FROM tmp_legacy_hechos th
 JOIN legacy_peritos_import_hechos mh ON mh.old_hecho_id = th.old_hecho_id
@@ -280,6 +297,14 @@ JOIN hechos h ON h.client_uuid = LOWER(CONCAT(
 ))
 SET mh.new_hecho_id = h.id
 WHERE mh.new_hecho_id IS NULL;
+
+UPDATE hechos h
+JOIN legacy_peritos_import_hechos mh ON mh.new_hecho_id = h.id
+SET
+    h.notificado_48_at = COALESCE(h.notificado_48_at, @legacy_notificaciones_silenciadas_at),
+    h.notificado_72_at = COALESCE(h.notificado_72_at, @legacy_notificaciones_silenciadas_at),
+    h.ultimo_recordatorio_72_at = COALESCE(h.ultimo_recordatorio_72_at, @legacy_notificaciones_silenciadas_at)
+WHERE mh.new_hecho_id IS NOT NULL;
 
 DROP TEMPORARY TABLE IF EXISTS tmp_legacy_vehiculos_base;
 
@@ -727,3 +752,5 @@ UNION ALL
 SELECT 'lesionados_importados', COUNT(*)
 FROM legacy_peritos_import_lesionados
 WHERE new_lesionado_id IS NOT NULL;
+
+SET SESSION sql_mode = @legacy_sql_mode_original;

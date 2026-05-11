@@ -47,6 +47,8 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
             'UTF-8'
         );
         $caption = 'Estadistica diaria de actividades de siniestros ' . $fechaTexto . '.';
+        $template = (string) config('services.whatsapp.siniestros.actividades_template', '');
+        $templateLanguage = (string) config('services.whatsapp.siniestros.actividades_template_language', 'es_MX');
 
         if ($this->option('dry-run')) {
             $this->line('--- PDF ---');
@@ -55,6 +57,10 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
             $this->line($recipientSource);
             $this->line('--- DESTINATARIOS ---');
             $this->line(implode(', ', $recipients));
+            $this->line('--- CANAL WHATSAPP ---');
+            $this->line($template !== ''
+                ? 'Plantilla con documento: ' . $template . ' (' . $templateLanguage . ')'
+                : 'Documento directo sin plantilla (solo funciona con ventana de 24 horas abierta)');
             $this->line('--- CAPTION ---');
             $this->line($caption);
 
@@ -91,12 +97,23 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
 
         foreach ($recipients as $recipient) {
             try {
-                $response = $whatsApp->sendDocument(
-                    $recipient,
-                    (string) $mediaId,
-                    $archivo,
-                    $caption
-                );
+                if ($template !== '') {
+                    $response = $whatsApp->sendDocumentTemplate(
+                        $recipient,
+                        $template,
+                        (string) $mediaId,
+                        $archivo,
+                        [$fechaTexto],
+                        $templateLanguage
+                    );
+                } else {
+                    $response = $whatsApp->sendDocument(
+                        $recipient,
+                        (string) $mediaId,
+                        $archivo,
+                        $caption
+                    );
+                }
 
                 Log::info('Respuesta WhatsApp actividades siniestros', $response);
 

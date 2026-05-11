@@ -25,13 +25,21 @@ class VerificarResumenTodasUnidadesWhatsApp extends Command
 
         $resumen = $resumenService->generar($corte);
         $mensaje = (string) $resumen['mensaje'];
+        $dailyParams = $resumen['template_params'] ?? [];
 
         $usarTemplate = !$this->option('sin-template');
         $template = (string) config('services.whatsapp.todas_unidades.template', '');
-        $templateLayout = (string) config('services.whatsapp.todas_unidades.template_layout', 'diario');
+        $twoPartTemplate1 = (string) config('services.whatsapp.todas_unidades.two_part_template_1', 'reporte_todas_unidades_parte_1');
+        $twoPartTemplate2 = (string) config('services.whatsapp.todas_unidades.two_part_template_2', 'reporte_todas_unidades_parte_2');
+        $blockTemplate = (string) config('services.whatsapp.todas_unidades.block_template', 'reporte_todas_unidades_bloque');
+        $templateLayout = (string) config('services.whatsapp.todas_unidades.template_layout', 'dos_partes');
         $language = (string) config('services.whatsapp.todas_unidades.template_language', 'es_MX');
-        $templateChunkChars = (int) config('services.whatsapp.todas_unidades.template_chunk_chars', 30000);
+        $templateBodyMaxChars = (int) config('services.whatsapp.todas_unidades.template_body_max_chars', 1024);
+        $templateChunkChars = (int) config('services.whatsapp.todas_unidades.template_chunk_chars', 850);
         $textChunkChars = (int) config('services.whatsapp.todas_unidades.text_chunk_chars', 3900);
+        $dailyBodyChars = mb_strlen($this->renderDailyTemplateBody($dailyParams), 'UTF-8');
+        $twoPartBodies = $this->renderTwoPartTemplateBodies($dailyParams);
+        $selectedTemplateLayout = $this->resolveTemplateLayout($templateLayout, $dailyBodyChars, $templateBodyMaxChars);
 
         $to = (string) (
             $this->option('to')
@@ -54,15 +62,43 @@ class VerificarResumenTodasUnidadesWhatsApp extends Command
         if ($usarTemplate) {
             $this->line('Modo: plantilla');
             $this->line('Plantilla configurada: ' . ($template !== '' ? $template : 'SIN CONFIGURAR'));
-            $this->line('Layout: ' . $templateLayout);
+            $this->line('Plantilla parte 1: ' . ($twoPartTemplate1 !== '' ? $twoPartTemplate1 : 'SIN CONFIGURAR'));
+            $this->line('Plantilla parte 2: ' . ($twoPartTemplate2 !== '' ? $twoPartTemplate2 : 'SIN CONFIGURAR'));
+            $this->line('Plantilla respaldo por partes: ' . ($blockTemplate !== '' ? $blockTemplate : 'SIN CONFIGURAR'));
+            $this->line('Layout configurado: ' . $templateLayout);
+            $this->line('Layout elegido: ' . $selectedTemplateLayout);
             $this->line('Idioma: ' . $language);
+            $this->line('Limite cuerpo plantilla: ' . $templateBodyMaxChars . ' caracteres');
+            $this->line('Cuerpo estimado con plantilla diaria: ' . $dailyBodyChars . ' caracteres');
 
-            if ($template === '') {
+            if ($this->usaTemplateDosPartes($selectedTemplateLayout) && ($twoPartTemplate1 === '' || $twoPartTemplate2 === '')) {
+                $this->error('Faltan WHATSAPP_TODAS_UNIDADES_TEMPLATE_PARTE_1 o WHATSAPP_TODAS_UNIDADES_TEMPLATE_PARTE_2.');
+                return self::FAILURE;
+            }
+
+            if ($template === '' && !$this->usaTemplateBloque($selectedTemplateLayout) && !$this->usaTemplateDosPartes($selectedTemplateLayout)) {
                 $this->error('Falta WHATSAPP_TODAS_UNIDADES_TEMPLATE.');
                 return self::FAILURE;
             }
 
-            if ($this->usaTemplateBloque($templateLayout)) {
+            if ($blockTemplate === '' && $this->usaTemplateBloque($selectedTemplateLayout)) {
+                $this->error('Falta WHATSAPP_TODAS_UNIDADES_BLOCK_TEMPLATE.');
+                return self::FAILURE;
+            }
+
+            if ($this->usaTemplateDosPartes($selectedTemplateLayout)) {
+                $this->line('Cuerpos esperados en Meta:');
+                $this->line('');
+                $this->line('--- ' . $twoPartTemplate1 . ' ---');
+                $this->line($this->twoPartTemplateBody1());
+                $this->line('');
+                $this->line('--- ' . $twoPartTemplate2 . ' ---');
+                $this->line($this->twoPartTemplateBody2());
+                $this->line('');
+                $this->line('Mensajes a enviar: 2');
+                $this->line('Parte 1/2: ' . mb_strlen($twoPartBodies[0], 'UTF-8') . ' caracteres');
+                $this->line('Parte 2/2: ' . mb_strlen($twoPartBodies[1], 'UTF-8') . ' caracteres');
+            } elseif ($this->usaTemplateBloque($selectedTemplateLayout)) {
                 $this->line('Cuerpo esperado en Meta:');
                 $this->line('Reporte diario de todas las unidades');
                 $this->line('Parte {{1}} de {{2}}');
@@ -84,7 +120,7 @@ class VerificarResumenTodasUnidadesWhatsApp extends Command
                 $this->line('');
                 $this->line('Variables a enviar:');
 
-                foreach (($resumen['template_params'] ?? []) as $index => $param) {
+                foreach ($dailyParams as $index => $param) {
                     $this->line('{{' . ($index + 1) . '}}: ' . mb_strlen((string) $param, 'UTF-8') . ' caracteres');
                 }
 
@@ -123,6 +159,99 @@ class VerificarResumenTodasUnidadesWhatsApp extends Command
     protected function usaTemplateBloque(string $templateLayout): bool
     {
         return mb_strtolower(trim($templateLayout), 'UTF-8') === 'bloque';
+    }
+
+    protected function usaTemplateDosPartes(string $templateLayout): bool
+    {
+        return mb_strtolower(trim($templateLayout), 'UTF-8') === 'dos_partes';
+    }
+
+    protected function resolveTemplateLayout(string $templateLayout, int $dailyBodyChars, int $maxChars): string
+    {
+        $layout = mb_strtolower(trim($templateLayout), 'UTF-8');
+
+        if ($layout === 'bloque' || $layout === 'diario' || $layout === 'dos_partes') {
+            return $layout;
+        }
+
+        return $dailyBodyChars <= $maxChars ? 'diario' : 'dos_partes';
+    }
+
+    protected function renderDailyTemplateBody(array $params): string
+    {
+        $p = array_values(array_map('strval', $params));
+
+        for ($i = count($p); $i < 14; $i++) {
+            $p[] = '';
+        }
+
+        return "Agrupamiento de Seguridad Vial\n\n"
+            . "FECHA:\n{$p[0]}\n\n"
+            . "ASEGURAMIENTOS PUESTOS A DISPOSICIÓN DE LA FISCALÍA GENERAL DEL ESTADO:\n{$p[1]}\n\n"
+            . "SINIESTROS DE TRÁNSITO:\n{$p[2]}\n\n"
+            . "APOYO A INSTITUCIONES:\n{$p[3]}\n\n"
+            . "ATENCIÓN DE REPORTES DE C5i:\n{$p[4]}\n\n"
+            . "ABANDERAMIENTOS VIALES:\n{$p[5]}\n\n"
+            . "MONITOREOS:\n{$p[6]}\n\n"
+            . "AUXILIO VIAL A CONDUCTORES:\n{$p[7]}\n\n"
+            . "DISPOSITIVOS DE SEGURIDAD VIAL:\n{$p[8]}\n\n"
+            . "ACCIONES DE CONCIENTIZACIÓN VIAL:\n{$p[9]}\n\n"
+            . "CAMPAÑAS:\n{$p[10]}\n\n"
+            . "PROXIMIDAD SOCIAL:\n{$p[11]}\n\n"
+            . "SEGUNDO APARTADO DE TABLA G1\n"
+            . "OPERATIVOS:\n{$p[12]}\n\n"
+            . "INSPECCIONES:\n{$p[13]}\n\n"
+            . "Para conocimiento de la superioridad.";
+    }
+
+    protected function renderTwoPartTemplateBodies(array $params): array
+    {
+        $p = array_values(array_map('strval', $params));
+
+        for ($i = count($p); $i < 14; $i++) {
+            $p[] = '';
+        }
+
+        return [
+            str_replace(
+                ['{{1}}', '{{2}}', '{{3}}', '{{4}}', '{{5}}', '{{6}}', '{{7}}'],
+                array_slice($p, 0, 7),
+                $this->twoPartTemplateBody1()
+            ),
+            str_replace(
+                ['{{1}}', '{{2}}', '{{3}}', '{{4}}', '{{5}}', '{{6}}', '{{7}}'],
+                array_slice($p, 7, 7),
+                $this->twoPartTemplateBody2()
+            ),
+        ];
+    }
+
+    protected function twoPartTemplateBody1(): string
+    {
+        return "Agrupamiento de Seguridad Vial\n"
+            . "Parte 1 de 2\n\n"
+            . "FECHA:\n{{1}}\n\n"
+            . "ASEGURAMIENTOS PUESTOS A DISPOSICIÓN DE LA FISCALÍA GENERAL DEL ESTADO:\n{{2}}\n\n"
+            . "SINIESTROS DE TRÁNSITO:\n{{3}}\n\n"
+            . "APOYO A INSTITUCIONES:\n{{4}}\n\n"
+            . "ATENCIÓN DE REPORTES DE C5i:\n{{5}}\n\n"
+            . "ABANDERAMIENTOS VIALES:\n{{6}}\n\n"
+            . "MONITOREOS:\n{{7}}";
+    }
+
+    protected function twoPartTemplateBody2(): string
+    {
+        return "Agrupamiento de Seguridad Vial\n"
+            . "Parte 2 de 2\n\n"
+            . "AUXILIO VIAL A CONDUCTORES:\n{{1}}\n\n"
+            . "DISPOSITIVOS DE SEGURIDAD VIAL:\n{{2}}\n\n"
+            . "ACCIONES DE CONCIENTIZACIÓN VIAL:\n{{3}}\n\n"
+            . "CAMPAÑAS:\n{{4}}\n\n"
+            . "PROXIMIDAD SOCIAL:\n{{5}}\n\n"
+            . "SEGUNDO APARTADO DE TABLA G1\n"
+            . "OPERATIVOS:\n{{6}}\n\n"
+            . "INSPECCIONES:\n{{7}}\n\n"
+            . "Para conocimiento de la superioridad.";
     }
 
     protected function recipients(string $configured): array

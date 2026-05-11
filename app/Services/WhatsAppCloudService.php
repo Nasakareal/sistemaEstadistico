@@ -91,6 +91,59 @@ class WhatsAppCloudService
         ]);
     }
 
+    public function sendDocumentTemplate(
+        string $to,
+        string $templateName,
+        string $mediaId,
+        string $filename,
+        array $bodyParameters = [],
+        string $language = 'es_MX'
+    ): array {
+        $components = [
+            [
+                'type' => 'header',
+                'parameters' => [
+                    [
+                        'type' => 'document',
+                        'document' => [
+                            'id' => $mediaId,
+                            'filename' => $filename,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        if (!empty($bodyParameters)) {
+            $parameters = [];
+
+            foreach ($bodyParameters as $value) {
+                $parameters[] = [
+                    'type' => 'text',
+                    'text' => (string) $value,
+                ];
+            }
+
+            $components[] = [
+                'type' => 'body',
+                'parameters' => $parameters,
+            ];
+        }
+
+        return $this->request([
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizeTo($to),
+            'type' => 'template',
+            'template' => [
+                'name' => $templateName,
+                'language' => [
+                    'code' => $language,
+                ],
+                'components' => $components,
+            ],
+        ]);
+    }
+
     public function sendDocumentFromPath(string $to, string $filePath, ?string $filename = null, ?string $caption = null, string $mimeType = 'application/pdf'): array
     {
         $upload = $this->uploadMedia($filePath, $mimeType);

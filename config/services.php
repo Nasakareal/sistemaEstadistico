@@ -46,14 +46,20 @@ return [
             'actividades_to' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TO'),
             'resumen_template' => env('WHATSAPP_SINIESTROS_RESUMEN_TEMPLATE'),
             'tarjeta_hechos_template' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TEMPLATE'),
+            'actividades_template' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TEMPLATE'),
+            'actividades_template_language' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
         'todas_unidades' => [
             'to' => env('WHATSAPP_TODAS_UNIDADES_TO'),
             'template' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE', 'reporte_todas_unidades_diario'),
-            'template_layout' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_LAYOUT', 'diario'),
+            'two_part_template_1' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_PARTE_1', 'reporte_todas_unidades_parte_1'),
+            'two_part_template_2' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_PARTE_2', 'reporte_todas_unidades_parte_2'),
+            'block_template' => env('WHATSAPP_TODAS_UNIDADES_BLOCK_TEMPLATE', 'reporte_todas_unidades_bloque'),
+            'template_layout' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_LAYOUT', 'dos_partes'),
             'template_language' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_LANGUAGE', 'es_MX'),
-            'template_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_CHUNK_CHARS', 30000),
+            'template_body_max_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_BODY_MAX_CHARS', 1024),
+            'template_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_CHUNK_CHARS', 850),
             'text_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEXT_CHUNK_CHARS', 3900),
         ],
 

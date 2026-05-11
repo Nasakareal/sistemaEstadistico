@@ -50,6 +50,11 @@ return [
 
         'todas_unidades' => [
             'to' => env('WHATSAPP_TODAS_UNIDADES_TO'),
+            'template' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE', 'reporte_todas_unidades_diario'),
+            'template_layout' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_LAYOUT', 'diario'),
+            'template_language' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_LANGUAGE', 'es_MX'),
+            'template_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_CHUNK_CHARS', 30000),
+            'text_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEXT_CHUNK_CHARS', 3900),
         ],
 
         'delegaciones' => [

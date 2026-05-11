@@ -15,13 +15,15 @@ class ResumenTodasUnidadesWhatsAppService
     {
         [$inicio, $fin] = $this->rango($corte);
         $totales = $this->totales($inicio, $fin);
+        $mensaje = $this->mensaje($fin, $totales);
 
         return [
             'inicio' => $inicio,
             'fin' => $fin,
             'totales' => $totales,
-            'mensaje' => $this->mensaje($fin, $totales),
+            'mensaje' => $mensaje,
             'template_params' => $this->templateParams($fin, $totales),
+            'template_chunks' => $this->whatsAppTemplateChunks($mensaje),
         ];
     }
 
@@ -94,6 +96,43 @@ class ResumenTodasUnidadesWhatsAppService
         ];
     }
 
+    public function whatsAppTemplateChunks(string $mensaje, int $maxBodyChars = 30000): array
+    {
+        $chunks = $this->splitMessage($mensaje, $maxBodyChars);
+        $total = count($chunks);
+        $out = [];
+
+        foreach ($chunks as $index => $chunk) {
+            $part = $index + 1;
+            $out[] = [
+                'part' => $part,
+                'total' => $total,
+                'body' => $chunk,
+                'parameters' => [
+                    (string) $part,
+                    (string) $total,
+                    $chunk,
+                ],
+            ];
+        }
+
+        return $out;
+    }
+
+    public function whatsAppTextChunks(string $mensaje, int $maxBodyChars = 3900): array
+    {
+        $chunks = $this->splitMessage($mensaje, $maxBodyChars);
+        $total = count($chunks);
+
+        if ($total <= 1) {
+            return $chunks;
+        }
+
+        return array_map(function (string $chunk, int $index) use ($total) {
+            return 'Parte ' . ($index + 1) . ' de ' . $total . "\n\n" . $chunk;
+        }, $chunks, array_keys($chunks));
+    }
+
     protected function mensaje(Carbon $fin, array $t): string
     {
         $params = $this->templateParams($fin, $t);
@@ -142,6 +181,8 @@ class ResumenTodasUnidadesWhatsAppService
         $lineas[] = '';
         $lineas[] = 'INSPECCIONES:';
         $lineas[] = $params[13];
+        $lineas[] = '';
+        $lineas[] = 'Para conocimiento de la superioridad.';
 
         return implode("\n", $lineas);
     }
@@ -525,6 +566,119 @@ class ResumenTodasUnidadesWhatsAppService
         $last = array_pop($parts);
 
         return implode(', ', $parts) . ' y ' . $last . '.';
+    }
+
+    protected function splitMessage(string $mensaje, int $maxBodyChars): array
+    {
+        $maxBodyChars = max(500, $maxBodyChars);
+        $mensaje = trim(str_replace(["\r\n", "\r"], "\n", $mensaje));
+
+        if ($mensaje === '') {
+            return [''];
+        }
+
+        if (mb_strlen($mensaje, 'UTF-8') <= $maxBodyChars) {
+            return [$mensaje];
+        }
+
+        $chunks = [];
+        $current = '';
+        $blocks = preg_split("/\n{2,}/", $mensaje) ?: [$mensaje];
+
+        foreach ($blocks as $block) {
+            $block = trim($block);
+
+            if ($block === '') {
+                continue;
+            }
+
+            foreach ($this->splitBlock($block, $maxBodyChars) as $piece) {
+                $candidate = $current === ''
+                    ? $piece
+                    : $current . "\n\n" . $piece;
+
+                if (mb_strlen($candidate, 'UTF-8') <= $maxBodyChars) {
+                    $current = $candidate;
+                    continue;
+                }
+
+                if ($current !== '') {
+                    $chunks[] = $current;
+                }
+
+                $current = $piece;
+            }
+        }
+
+        if ($current !== '') {
+            $chunks[] = $current;
+        }
+
+        return $chunks ?: [''];
+    }
+
+    protected function splitBlock(string $block, int $maxBodyChars): array
+    {
+        if (mb_strlen($block, 'UTF-8') <= $maxBodyChars) {
+            return [$block];
+        }
+
+        $pieces = [];
+        $current = '';
+        $lines = preg_split("/\n/", $block) ?: [$block];
+
+        foreach ($lines as $line) {
+            foreach ($this->splitLine($line, $maxBodyChars) as $linePiece) {
+                $candidate = $current === ''
+                    ? $linePiece
+                    : $current . "\n" . $linePiece;
+
+                if (mb_strlen($candidate, 'UTF-8') <= $maxBodyChars) {
+                    $current = $candidate;
+                    continue;
+                }
+
+                if ($current !== '') {
+                    $pieces[] = $current;
+                }
+
+                $current = $linePiece;
+            }
+        }
+
+        if ($current !== '') {
+            $pieces[] = $current;
+        }
+
+        return $pieces;
+    }
+
+    protected function splitLine(string $line, int $maxBodyChars): array
+    {
+        if (mb_strlen($line, 'UTF-8') <= $maxBodyChars) {
+            return [$line];
+        }
+
+        $pieces = [];
+        $remaining = trim($line);
+
+        while (mb_strlen($remaining, 'UTF-8') > $maxBodyChars) {
+            $slice = mb_substr($remaining, 0, $maxBodyChars, 'UTF-8');
+            $breakAt = mb_strrpos($slice, ' ', 0, 'UTF-8');
+
+            if ($breakAt === false || $breakAt < (int) floor($maxBodyChars * 0.6)) {
+                $breakAt = $maxBodyChars;
+            }
+
+            $pieces[] = trim(mb_substr($remaining, 0, $breakAt, 'UTF-8'));
+            $remaining = trim(mb_substr($remaining, $breakAt, null, 'UTF-8'));
+        }
+
+        if ($remaining !== '') {
+            $pieces[] = $remaining;
+        }
+
+        return $pieces;
     }
 
     protected function nombreOperativo(string $nombre): string

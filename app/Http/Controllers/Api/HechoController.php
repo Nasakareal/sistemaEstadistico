@@ -515,7 +515,7 @@ class HechoController extends Controller
         $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
         $validated['delegacion_id'] = $user->delegacion_id ?? null;
         $validated['created_by'] = $user->id;
-        $validated['unidad_org_id'] = $user->unidad_id ?? null;
+        $validated['unidad_org_id'] = HechoAccess::effectiveUnidadId($user);
         $validated['estado_revision'] = 'pendiente';
         $validated['revisado_por'] = null;
         $validated['revisado_at'] = null;
@@ -1194,15 +1194,7 @@ class HechoController extends Controller
 
     private function scopeHechosUnidadSeguimiento($query, int $unidadId): void
     {
-        $query->where(function ($q) use ($unidadId) {
-            $q->where('unidad_org_id', $unidadId)
-                ->orWhere(function ($legacy) use ($unidadId) {
-                    $legacy->whereNull('unidad_org_id')
-                        ->whereHas('creator', function ($creator) use ($unidadId) {
-                            $creator->where('unidad_id', $unidadId);
-                        });
-                });
-        });
+        HechoAccess::applyUnidadScope($query, $unidadId);
     }
 
     private function aplicarFiltroCapturaIncompletaDelegacionesSeguimiento($query): void
@@ -1220,7 +1212,7 @@ class HechoController extends Controller
     {
         $hecho->loadMissing(['creator', 'unidadOrganizacional', 'delegacion']);
 
-        $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+        $unidadReal = HechoAccess::effectiveUnidadIdForHecho($hecho);
         $capturaCompleta = $unidadReal === 2
             ? $hecho->capturaCompletaCalculada()
             : (bool) $hecho->captura_completa;
@@ -1264,12 +1256,12 @@ class HechoController extends Controller
 
     private function usaReglasFlexiblesHechos($user): bool
     {
-        return in_array((int) ($user->unidad_id ?? 0), [2, 4], true);
+        return in_array(HechoAccess::effectiveUnidadId($user), [2, 4], true);
     }
 
     private function sectorPredeterminadoHechos($user): string
     {
-        return (int) ($user->unidad_id ?? 0) === 4
+        return HechoAccess::effectiveUnidadId($user) === 4
             ? 'PROTECCION A CARRETERAS'
             : 'DELEGACIONES';
     }
@@ -1579,8 +1571,8 @@ class HechoController extends Controller
         }
 
         $unidadId = $hecho
-            ? (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0))
-            : (int) ($user->unidad_id ?? 0);
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($user);
 
         return $unidadId === 1;
     }

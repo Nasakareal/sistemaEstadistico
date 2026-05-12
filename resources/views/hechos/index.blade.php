@@ -124,7 +124,7 @@
                                             ? substr((string) $hecho->hora, 0, 5)
                                             : '';
 
-                                        $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+                                        $unidadReal = \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho);
                                         $mostrarCaptura = $unidadReal === 2;
                                         $esIncompletoDelegaciones = $mostrarCaptura && !$hecho->captura_completa;
 

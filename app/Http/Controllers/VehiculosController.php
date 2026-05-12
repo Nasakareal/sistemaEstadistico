@@ -26,7 +26,6 @@ class VehiculosController extends Controller
     public function create(Hechos $hecho)
     {
         $usuario = Auth::user();
-        $conductores = Conductor::all();
 
         $queryGruas = Grua::query()->orderBy('nombre');
 
@@ -66,7 +65,7 @@ class VehiculosController extends Controller
 
         $gruas = $queryGruas->get();
 
-        return view('vehiculos.create', compact('hecho', 'conductores', 'gruas'));
+        return view('vehiculos.create', compact('hecho', 'gruas'));
     }
 
     public function store(Request $request, Hechos $hecho)

@@ -104,7 +104,25 @@ class HechoAccess
             return true;
         }
 
-        return !in_array((int) ($usuario->unidad_id ?? 0), self::UNIDADES_SIN_HECHOS, true);
+        return !in_array(self::effectiveUnidadId($usuario), self::UNIDADES_SIN_HECHOS, true);
+    }
+
+    public static function effectiveUnidadId($usuario): int
+    {
+        if (!$usuario) {
+            return 0;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        return $unidadId > 0 ? $unidadId : self::UNIDAD_SINIESTROS_ID;
+    }
+
+    public static function effectiveUnidadIdForHecho(Hechos $hecho): int
+    {
+        $unidadId = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+
+        return $unidadId > 0 ? $unidadId : self::UNIDAD_SINIESTROS_ID;
     }
 
     public static function filterPermissionsForUser($permissions, $usuario)
@@ -124,7 +142,7 @@ class HechoAccess
             return $permissions;
         }
 
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
+        $unidadId = self::effectiveUnidadId($usuario);
 
         return $permissions->reject(function ($permission) use ($unidadId, $usuario) {
             $name = mb_strtolower(trim((string) $permission), 'UTF-8');
@@ -163,7 +181,7 @@ class HechoAccess
             return false;
         }
 
-        return (int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SINIESTROS_ID
+        return self::effectiveUnidadId($usuario) === self::UNIDAD_SINIESTROS_ID
             || $usuario->hasAnyRole(['Perito', 'Jefe de Grupo']);
     }
 
@@ -174,11 +192,12 @@ class HechoAccess
             return;
         }
 
-        if ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+        $unidadId = self::effectiveUnidadId($usuario);
+
+        if ($usuario->hasRole('Superadmin') || $unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID) {
             return;
         }
 
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
         $delegacionId = (int) ($usuario->delegacion_id ?? 0);
 
         if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
@@ -232,11 +251,11 @@ class HechoAccess
             return true;
         }
 
-        if ((int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+        if (self::effectiveUnidadId($usuario) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
             return false;
         }
 
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
+        $unidadId = self::effectiveUnidadId($usuario);
 
         if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
             if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
@@ -300,7 +319,7 @@ class HechoAccess
             return true;
         }
 
-        if ((int) ($usuario->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+        if (self::effectiveUnidadId($usuario) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
             return false;
         }
 
@@ -309,8 +328,8 @@ class HechoAccess
         }
 
         $unidadId = $hecho
-            ? (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0))
-            : (int) ($usuario->unidad_id ?? 0);
+            ? self::effectiveUnidadIdForHecho($hecho)
+            : self::effectiveUnidadId($usuario);
 
         return $unidadId === self::UNIDAD_DELEGACIONES_ID;
     }
@@ -323,18 +342,27 @@ class HechoAccess
     private static function esRolAdministrativoUnidad($usuario): bool
     {
         return $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
     }
 
-    private static function applyUnidadScope($query, int $unidadId): void
+    public static function applyUnidadScope($query, int $unidadId): void
     {
         $query->where(function ($q) use ($unidadId) {
             $q->where('unidad_org_id', $unidadId)
                 ->orWhere(function ($legacy) use ($unidadId) {
                     $legacy->whereNull('unidad_org_id')
-                        ->whereHas('creator', function ($creator) use ($unidadId) {
-                            $creator->where('unidad_id', $unidadId);
+                        ->where(function ($creatorScope) use ($unidadId) {
+                            $creatorScope->whereHas('creator', function ($creator) use ($unidadId) {
+                                $creator->where('unidad_id', $unidadId);
+                            });
+
+                            if ($unidadId === self::UNIDAD_SINIESTROS_ID) {
+                                $creatorScope
+                                    ->orWhereDoesntHave('creator')
+                                    ->orWhereHas('creator', function ($creator) {
+                                        $creator->whereNull('unidad_id');
+                                    });
+                            }
                         });
                 });
         });

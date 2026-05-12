@@ -9,7 +9,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
-use App\Models\Delegacion;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Services\WhatsApp\WhatsAppBot;
@@ -70,13 +69,7 @@ class HechosController extends Controller
             in_array($unidadFiltro, ['1', '2', '4'], true)
         ) {
             $hechosQuery->where(function ($query) use ($unidadFiltro) {
-                $query->where('unidad_org_id', (int) $unidadFiltro)
-                    ->orWhere(function ($legacy) use ($unidadFiltro) {
-                        $legacy->whereNull('unidad_org_id')
-                            ->whereHas('creator', function ($creator) use ($unidadFiltro) {
-                                $creator->where('unidad_id', (int) $unidadFiltro);
-                            });
-                    });
+                HechoAccess::applyUnidadScope($query, (int) $unidadFiltro);
             });
         }
 
@@ -91,7 +84,7 @@ class HechosController extends Controller
             $hecho->puede_editar = $this->userCanEditHecho($usuario, $hecho);
             $hecho->tiene_croquis = !is_null($hecho->croquis);
 
-            $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+            $unidadReal = HechoAccess::effectiveUnidadIdForHecho($hecho);
             $capturaCompleta = $unidadReal === 2
                 ? $hecho->capturaCompletaCalculada()
                 : (bool) $hecho->captura_completa;
@@ -247,7 +240,7 @@ class HechosController extends Controller
 
         $validated['delegacion_id'] = $usuario->delegacion_id ?? null;
         $validated['created_by'] = $usuario->id;
-        $validated['unidad_org_id'] = $usuario->unidad_id ?? null;
+        $validated['unidad_org_id'] = HechoAccess::effectiveUnidadId($usuario);
         $validated['estado_revision'] = 'pendiente';
         $validated['revisado_por'] = null;
         $validated['revisado_at'] = null;
@@ -368,8 +361,8 @@ class HechosController extends Controller
 
         $updatesSellado = [];
 
-        if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
-            $updatesSellado['unidad_org_id'] = $usuario->unidad_id;
+        if (empty($hecho->unidad_org_id)) {
+            $updatesSellado['unidad_org_id'] = HechoAccess::effectiveUnidadId($usuario);
         }
 
         if (empty($hecho->delegacion_id) && !empty($usuario->delegacion_id)) {
@@ -415,8 +408,8 @@ class HechosController extends Controller
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para editar este hecho.');
         }
 
-        if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
-            $hecho->update(['unidad_org_id' => $usuario->unidad_id]);
+        if (empty($hecho->unidad_org_id)) {
+            $hecho->update(['unidad_org_id' => HechoAccess::effectiveUnidadId($usuario)]);
             $hecho->refresh();
         }
 
@@ -564,8 +557,8 @@ class HechosController extends Controller
                 : substr((string) $hecho->created_at, 11, 5);
         }
 
-        if (empty($hecho->unidad_org_id) && !empty($usuario->unidad_id)) {
-            $validated['unidad_org_id'] = $usuario->unidad_id;
+        if (empty($hecho->unidad_org_id)) {
+            $validated['unidad_org_id'] = HechoAccess::effectiveUnidadId($usuario);
         } elseif (!empty($hecho->unidad_org_id)) {
             $validated['unidad_org_id'] = $hecho->unidad_org_id;
         }
@@ -827,139 +820,17 @@ class HechosController extends Controller
 
     private function applyHechosVisibilityScope($query, $usuario): void
     {
-        if (!$usuario) {
-            $query->whereRaw('1=0');
-            return;
-        }
-
-        if ($usuario->hasRole('Superadmin')) {
-            return;
-        }
-
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        if ($unidadId === 3) {
-            return;
-        }
-
-        if ($unidadId === 4) {
-            $this->scopeHechosUnidad($query, 4);
-            return;
-        }
-
-        if ($unidadId === 2) {
-            $this->scopeHechosUnidad($query, 2);
-
-            if ($usuario->hasRole('Administrador') || $usuario->hasRole('Subdirector')) {
-                return;
-            }
-
-            $delegacionId = (int) ($usuario->delegacion_id ?? 0);
-
-            if ($delegacionId <= 0) {
-                $query->whereRaw('1=0');
-                return;
-            }
-
-            $esRegional = Delegacion::query()
-                ->where('id', $delegacionId)
-                ->whereNull('delegacion_padre_id')
-                ->exists();
-
-            if (in_array(true, [
-                $usuario->hasRole('Delegado'),
-                $usuario->hasRole('Policía'),
-                $usuario->hasRole('Administrativo'),
-            ], true)) {
-                if ($esRegional) {
-                    $ids = Delegacion::query()
-                        ->where('id', $delegacionId)
-                        ->orWhere('delegacion_padre_id', $delegacionId)
-                        ->pluck('id')
-                        ->toArray();
-
-                    $query->whereIn('delegacion_id', $ids);
-                } else {
-                    $query->where('delegacion_id', $delegacionId);
-                }
-
-                return;
-            }
-
-            $query->where('delegacion_id', $delegacionId);
-            return;
-        }
-
-        if ($unidadId === 1) {
-            $this->scopeHechosUnidad($query, 1);
-            return;
-        }
-
-        if ($unidadId > 0) {
-            $this->scopeHechosUnidad($query, $unidadId);
-            return;
-        }
-
-        $query->whereRaw('1=0');
+        HechoAccess::applyVisibilityScope($query, $usuario);
     }
 
     private function userCanEditHecho($usuario, Hechos $hecho): bool
     {
-        if (!$usuario) {
-            return false;
-        }
-
-        $q = Hechos::query()->whereKey($hecho->id);
-        $this->applyHechosVisibilityScope($q, $usuario);
-
-        if (!$q->exists()) {
-            return false;
-        }
-
-        if ($usuario->hasRole('Superadmin')) {
-            return true;
-        }
-
-        $unidadId = (int) ($usuario->unidad_id ?? 0);
-
-        if ($unidadId === 3) {
-            return false;
-        }
-
-        if (
-            $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
-            || $usuario->hasRole('Jefe de Grupo')
-            || $usuario->hasRole('Subdirector')
-        ) {
-            return true;
-        }
-
-        if ($usuario->hasRole('Perito')) {
-            $nombreUsuario = strtoupper($this->removeAccents(trim((string) ($usuario->name ?? ''))));
-            $nombrePeritoHecho = strtoupper($this->removeAccents(trim((string) ($hecho->perito ?? ''))));
-
-            return $nombreUsuario !== '' && $nombreUsuario === $nombrePeritoHecho;
-        }
-
-        if ((int) $usuario->id === (int) $hecho->created_by) {
-            return true;
-        }
-
-        return false;
+        return HechoAccess::canEdit($usuario, $hecho);
     }
 
     private function scopeHechosUnidad($query, int $unidadId): void
     {
-        $query->where(function ($q) use ($unidadId) {
-            $q->where('unidad_org_id', $unidadId)
-                ->orWhere(function ($legacy) use ($unidadId) {
-                    $legacy->whereNull('unidad_org_id')
-                        ->whereHas('creator', function ($creator) use ($unidadId) {
-                            $creator->where('unidad_id', $unidadId);
-                        });
-                });
-        });
+        HechoAccess::applyUnidadScope($query, $unidadId);
     }
 
     private function aplicarFiltroCapturaIncompletaDelegaciones($query): void
@@ -1017,15 +888,7 @@ class HechosController extends Controller
                 return;
             }
 
-            $query->where(function ($q) use ($unidadFiltro) {
-                $q->where('unidad_org_id', (int) $unidadFiltro)
-                    ->orWhere(function ($legacy) use ($unidadFiltro) {
-                        $legacy->whereNull('unidad_org_id')
-                            ->whereHas('creator', function ($creator) use ($unidadFiltro) {
-                                $creator->where('unidad_id', (int) $unidadFiltro);
-                            });
-                    });
-            });
+            $this->scopeHechosUnidad($query, (int) $unidadFiltro);
         };
 
         $hoy = now('America/Mexico_City');
@@ -1135,7 +998,7 @@ class HechosController extends Controller
             ->withQueryString();
 
         $hechos->getCollection()->transform(function ($hecho) {
-            $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+            $unidadReal = HechoAccess::effectiveUnidadIdForHecho($hecho);
             $capturaCompleta = $unidadReal === 2
                 ? $hecho->capturaCompletaCalculada()
                 : (bool) $hecho->captura_completa;
@@ -1450,20 +1313,20 @@ class HechosController extends Controller
         }
 
         $unidadId = $hecho
-            ? (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0))
-            : (int) ($usuario->unidad_id ?? 0);
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($usuario);
 
         return $unidadId === 1;
     }
 
     private function usaReglasFlexiblesHechos($usuario): bool
     {
-        return in_array((int) ($usuario->unidad_id ?? 0), [2, 4], true);
+        return in_array(HechoAccess::effectiveUnidadId($usuario), [2, 4], true);
     }
 
     private function sectorPredeterminadoHechos($usuario): string
     {
-        return (int) ($usuario->unidad_id ?? 0) === 4
+        return HechoAccess::effectiveUnidadId($usuario) === 4
             ? 'PROTECCION A CARRETERAS'
             : 'DELEGACIONES';
     }

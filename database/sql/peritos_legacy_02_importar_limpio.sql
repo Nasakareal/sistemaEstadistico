@@ -266,8 +266,54 @@ SELECT
     NULL,
     NULL,
     NULL,
-    NULL,
-    NULL,
+    CASE
+        WHEN th.punto IS NOT NULL
+            AND ST_Y(th.punto) BETWEEN -90 AND 90
+            AND ST_X(th.punto) BETWEEN -180 AND 180
+            AND NOT (ST_Y(th.punto) = 0 AND ST_X(th.punto) = 0)
+            THEN CAST(ST_Y(th.punto) AS DECIMAL(10,7))
+        WHEN TRIM(COALESCE(th.coordenadas, '')) REGEXP '^-?[0-9]+([.][0-9]+)?[[:space:]]*,[[:space:]]*-?[0-9]+([.][0-9]+)?$'
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) BETWEEN -90 AND 90
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) BETWEEN -180 AND 180
+            AND NOT (
+                CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) = 0
+                AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) = 0
+            )
+            THEN CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7))
+        WHEN TRIM(COALESCE(th.coordenadas, '')) REGEXP '^-?[0-9]+([.][0-9]+)?[[:space:]]*,[[:space:]]*-?[0-9]+([.][0-9]+)?$'
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) BETWEEN -180 AND 180
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) BETWEEN -90 AND 90
+            AND NOT (
+                CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) = 0
+                AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) = 0
+            )
+            THEN CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7))
+        ELSE NULL
+    END,
+    CASE
+        WHEN th.punto IS NOT NULL
+            AND ST_Y(th.punto) BETWEEN -90 AND 90
+            AND ST_X(th.punto) BETWEEN -180 AND 180
+            AND NOT (ST_Y(th.punto) = 0 AND ST_X(th.punto) = 0)
+            THEN CAST(ST_X(th.punto) AS DECIMAL(10,7))
+        WHEN TRIM(COALESCE(th.coordenadas, '')) REGEXP '^-?[0-9]+([.][0-9]+)?[[:space:]]*,[[:space:]]*-?[0-9]+([.][0-9]+)?$'
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) BETWEEN -90 AND 90
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) BETWEEN -180 AND 180
+            AND NOT (
+                CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) = 0
+                AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) = 0
+            )
+            THEN CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7))
+        WHEN TRIM(COALESCE(th.coordenadas, '')) REGEXP '^-?[0-9]+([.][0-9]+)?[[:space:]]*,[[:space:]]*-?[0-9]+([.][0-9]+)?$'
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) BETWEEN -180 AND 180
+            AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) BETWEEN -90 AND 90
+            AND NOT (
+                CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7)) = 0
+                AND CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', -1) AS DECIMAL(10,7)) = 0
+            )
+            THEN CAST(SUBSTRING_INDEX(TRIM(th.coordenadas), ',', 1) AS DECIMAL(10,7))
+        ELSE NULL
+    END,
     NULLIF(TRIM(CAST(th.calidad_geo AS CHAR)), ''),
     NULLIF(TRIM(CAST(th.nota_geo AS CHAR)), ''),
     'legacy_peritos',

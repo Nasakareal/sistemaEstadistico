@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class ChoquesDiariosController extends Controller
 {
+    private const LEGACY_PERITOS_DATABASE = 'peritos_legacy';
+
     public function index(Request $request)
     {
         $fecha = $request->get('fecha', now('America/Mexico_City')->toDateString());
@@ -108,7 +110,7 @@ class ChoquesDiariosController extends Controller
 
     private function queryHechos()
     {
-        return DB::table('hechos as h')
+        $query = DB::table('hechos as h')
             ->leftJoin('users as creator', 'creator.id', '=', 'h.created_by')
             ->where(function ($query) {
                 $query->whereRaw('COALESCE(h.unidad_org_id, creator.unidad_id) IS NULL')
@@ -120,8 +122,24 @@ class ChoquesDiariosController extends Controller
                             ->whereColumn('h.conductores_capturados', '>=', 'h.conductores_esperados')
                             ->whereColumn('h.lesionados_capturados', '>=', 'h.lesionados_esperados');
                     });
-            })
-            ->select(
+            });
+
+        if ($this->legacyAccidentestDisponible()) {
+            if ($this->legacyMapDisponible()) {
+                $query->leftJoin('legacy_peritos_import_hechos as legacy_map', 'legacy_map.new_hecho_id', '=', 'h.id');
+            }
+
+            $legacyId = $this->legacyMapDisponible()
+                ? DB::raw('COALESCE(legacy_map.old_hecho_id, h.id)')
+                : 'h.id';
+
+            $query->leftJoin(self::LEGACY_PERITOS_DATABASE . '.accidentest as legacy_accidente', function ($join) use ($legacyId) {
+                $join->on('legacy_accidente.id_accidentes', '=', $legacyId)
+                    ->where('h.fuente_ubicacion', '=', 'legacy_peritos');
+            });
+        }
+
+        $selects = [
                 'h.id',
                 'h.folio_c5i',
                 'h.fecha',
@@ -139,7 +157,19 @@ class ChoquesDiariosController extends Controller
                 'h.condiciones',
                 'h.causas',
                 'h.oficio_mp'
-            );
+        ];
+
+        if ($this->legacyAccidentestDisponible()) {
+            $selects[] = 'legacy_accidente.coordenadas as legacy_coordenadas';
+            $selects[] = DB::raw('ST_Y(legacy_accidente.punto) as legacy_lat_punto');
+            $selects[] = DB::raw('ST_X(legacy_accidente.punto) as legacy_lng_punto');
+        } else {
+            $selects[] = DB::raw('NULL as legacy_coordenadas');
+            $selects[] = DB::raw('NULL as legacy_lat_punto');
+            $selects[] = DB::raw('NULL as legacy_lng_punto');
+        }
+
+        return $query->select($selects);
     }
 
     private function formatearHecho($hecho)
@@ -167,10 +197,7 @@ class ChoquesDiariosController extends Controller
             'condiciones_climaticas' => $hecho->clima,
             'condiciones_via' => $hecho->condiciones,
 
-            'coordenadas_geograficas' => [
-                'lat' => $hecho->lat ? (float)$hecho->lat : null,
-                'lng' => $hecho->lng ? (float)$hecho->lng : null
-            ],
+            'coordenadas_geograficas' => $this->coordenadasGeograficas($hecho),
 
             'numero_vehiculos_involucrados' => $vehiculos->count(),
             'clasificacion_vehiculos' => $vehiculos->pluck('tipo')->filter()->unique()->values(),
@@ -253,5 +280,109 @@ class ChoquesDiariosController extends Controller
         if ((int)$c->certificado_alcoholemia === 1) return 'CON CERTIFICADO';
 
         return 'SIN DATOS';
+    }
+
+    private function coordenadasGeograficas($hecho): array
+    {
+        $coordenadas = $this->normalizarParCoordenadas($hecho->lat ?? null, $hecho->lng ?? null);
+
+        if ($coordenadas !== null) {
+            return $coordenadas;
+        }
+
+        $coordenadas = $this->normalizarParCoordenadas($hecho->legacy_lat_punto ?? null, $hecho->legacy_lng_punto ?? null);
+
+        if ($coordenadas !== null) {
+            return $coordenadas;
+        }
+
+        $coordenadas = $this->parsearCoordenadasLegacy($hecho->legacy_coordenadas ?? null);
+
+        if ($coordenadas !== null) {
+            return $coordenadas;
+        }
+
+        return ['lat' => null, 'lng' => null];
+    }
+
+    private function parsearCoordenadasLegacy($valor): ?array
+    {
+        $valor = trim((string) $valor);
+
+        if ($valor === '') {
+            return null;
+        }
+
+        if (!preg_match('/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/', $valor, $matches)) {
+            return null;
+        }
+
+        return $this->normalizarParCoordenadas($matches[1], $matches[2]);
+    }
+
+    private function normalizarParCoordenadas($lat, $lng): ?array
+    {
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            return null;
+        }
+
+        $lat = (float) $lat;
+        $lng = (float) $lng;
+
+        if (abs($lat) < 0.0000001 && abs($lng) < 0.0000001) {
+            return null;
+        }
+
+        if ($this->latitudValida($lat) && $this->longitudValida($lng)) {
+            return ['lat' => $lat, 'lng' => $lng];
+        }
+
+        if ($this->longitudValida($lat) && $this->latitudValida($lng)) {
+            return ['lat' => $lng, 'lng' => $lat];
+        }
+
+        return null;
+    }
+
+    private function latitudValida(float $valor): bool
+    {
+        return $valor >= -90 && $valor <= 90;
+    }
+
+    private function longitudValida(float $valor): bool
+    {
+        return $valor >= -180 && $valor <= 180;
+    }
+
+    private function legacyAccidentestDisponible(): bool
+    {
+        static $disponible = null;
+
+        if ($disponible !== null) {
+            return $disponible;
+        }
+
+        return $disponible = $this->tablaDisponible(self::LEGACY_PERITOS_DATABASE, 'accidentest');
+    }
+
+    private function legacyMapDisponible(): bool
+    {
+        static $disponible = null;
+
+        if ($disponible !== null) {
+            return $disponible;
+        }
+
+        return $disponible = $this->tablaDisponible(DB::getDatabaseName(), 'legacy_peritos_import_hechos');
+    }
+
+    private function tablaDisponible(string $database, string $tabla): bool
+    {
+        $resultado = DB::selectOne(
+            'SELECT 1 AS existe FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? LIMIT 1',
+            [$database, $tabla]
+        );
+
+        return $resultado !== null;
     }
 }

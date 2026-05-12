@@ -24,7 +24,7 @@ CREATE TEMPORARY TABLE tmp_legacy_hechos_sin_vehiculos (
     folio_c5i VARCHAR(20) NULL,
     fecha DATE NULL,
     lesionados_count INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NULL,
+    created_at DATETIME NULL,
     KEY tmp_legacy_hechos_sin_vehiculos_old_idx (old_hecho_id)
 ) ENGINE=InnoDB;
 
@@ -46,7 +46,10 @@ SELECT
         FROM lesionados l
         WHERE l.hecho_id = h.id
     ) AS lesionados_count,
-    h.created_at
+    CASE
+        WHEN CAST(h.created_at AS CHAR) IN ('0000-00-00 00:00:00', '') THEN NULL
+        ELSE h.created_at
+    END AS created_at
 FROM hechos h
 LEFT JOIN legacy_peritos_import_hechos mh ON mh.new_hecho_id = h.id
 WHERE h.fuente_ubicacion = 'legacy_peritos'
@@ -81,7 +84,7 @@ CREATE TABLE IF NOT EXISTS legacy_peritos_hechos_sin_vehiculos_eliminados (
     folio_c5i VARCHAR(20) NULL,
     fecha DATE NULL,
     lesionados_count INT NOT NULL DEFAULT 0,
-    original_created_at TIMESTAMP NULL,
+    original_created_at DATETIME NULL,
     deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY legacy_peritos_hechos_sin_vehiculos_old_idx (old_hecho_id),
     KEY legacy_peritos_hechos_sin_vehiculos_fecha_idx (fecha)

@@ -8,10 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class Hechos extends Model
 {
     use HasFactory;
+
+    private const NEXT_ID_LOCK_NAME = 'sistema_estadistico_hechos_next_id';
+
+    private static bool $nextIdLockHeld = false;
 
     protected $table = 'hechos';
 
@@ -96,6 +102,38 @@ class Hechos extends Model
         'captura_completa' => 'boolean',
         'captura_completa_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Hechos $hecho): void {
+            if (!empty($hecho->id) || DB::connection()->getDriverName() !== 'mysql') {
+                return;
+            }
+
+            $lock = DB::selectOne('SELECT GET_LOCK(?, 10) AS locked', [self::NEXT_ID_LOCK_NAME]);
+
+            if ((int) ($lock->locked ?? 0) !== 1) {
+                throw new RuntimeException('No se pudo reservar el siguiente ID de hechos.');
+            }
+
+            self::$nextIdLockHeld = true;
+            $hecho->id = ((int) DB::table($hecho->getTable())->max('id')) + 1;
+        });
+
+        static::created(function (): void {
+            self::releaseNextIdLock();
+        });
+    }
+
+    private static function releaseNextIdLock(): void
+    {
+        if (!self::$nextIdLockHeld || DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [self::NEXT_ID_LOCK_NAME]);
+        self::$nextIdLockHeld = false;
+    }
 
     public function vehiculos(): BelongsToMany
     {

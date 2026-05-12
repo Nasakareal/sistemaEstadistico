@@ -93,9 +93,17 @@ mysql -u USUARIO -p sistemaestadistico < database/sql/peritos_legacy_03_validaci
 
 El bloque `DUPLICADOS_REMANENTES_EN_IMPORTACION` debe salir en cero para folios, placas, series y conductores repetidos dentro del mismo hecho importado.
 
-9. Revisar la aplicación: listado de hechos, detalle de algunos hechos importados, vehículos, conductores, lesionados y estadísticas globales.
+9. Reordenar IDs para que los hechos legacy usen el ID viejo y el consecutivo de hechos actuales no quede brincado por el import.
 
-10. Sacar la aplicación de mantenimiento.
+```bash
+mysql -u USUARIO -p sistemaestadistico < database/sql/peritos_legacy_04_reordenar_ids_hechos.sql > reorden_ids_hechos_legacy.txt
+```
+
+Este script actualiza `hechos.id`, las columnas `hecho_id`/`new_hecho_id` del esquema, valida referencias y recalcula `AUTO_INCREMENT`.
+
+10. Revisar la aplicación: listado de hechos, detalle de algunos hechos importados, vehículos, conductores, lesionados y estadísticas globales.
+
+11. Sacar la aplicación de mantenimiento.
 
 ```bash
 php artisan up

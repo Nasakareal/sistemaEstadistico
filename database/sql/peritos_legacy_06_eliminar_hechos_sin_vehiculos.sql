@@ -22,7 +22,7 @@ CREATE TEMPORARY TABLE tmp_legacy_hechos_sin_vehiculos (
     hecho_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     old_hecho_id INT NULL,
     folio_c5i VARCHAR(20) NULL,
-    fecha DATE NULL,
+    fecha VARCHAR(10) NULL,
     lesionados_count INT NOT NULL DEFAULT 0,
     created_at DATETIME NULL,
     KEY tmp_legacy_hechos_sin_vehiculos_old_idx (old_hecho_id)
@@ -40,7 +40,7 @@ SELECT
     h.id AS hecho_id,
     mh.old_hecho_id,
     h.folio_c5i,
-    h.fecha,
+    CAST(h.fecha AS CHAR) AS fecha,
     (
         SELECT COUNT(*)
         FROM lesionados l
@@ -82,13 +82,17 @@ CREATE TABLE IF NOT EXISTS legacy_peritos_hechos_sin_vehiculos_eliminados (
     deleted_hecho_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
     old_hecho_id INT NULL,
     folio_c5i VARCHAR(20) NULL,
-    fecha DATE NULL,
+    fecha VARCHAR(10) NULL,
     lesionados_count INT NOT NULL DEFAULT 0,
     original_created_at DATETIME NULL,
     deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY legacy_peritos_hechos_sin_vehiculos_old_idx (old_hecho_id),
     KEY legacy_peritos_hechos_sin_vehiculos_fecha_idx (fecha)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE legacy_peritos_hechos_sin_vehiculos_eliminados
+    MODIFY COLUMN fecha VARCHAR(10) NULL,
+    MODIFY COLUMN original_created_at DATETIME NULL;
 
 INSERT IGNORE INTO legacy_peritos_hechos_sin_vehiculos_eliminados (
     deleted_hecho_id,

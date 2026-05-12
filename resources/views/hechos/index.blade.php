@@ -11,6 +11,9 @@
         $usuario = auth()->user();
         $puedeFiltrarUnidad = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3;
         $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
+        $origenFiltro = $origenFiltro ?? request('origen', 'todos');
+        $sinFecha = (bool) ($sinFecha ?? request()->boolean('sin_fecha'));
+        $fechaFiltro = $sinFecha ? '' : ($fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d'));
     @endphp
 
     <div class="row">
@@ -37,8 +40,28 @@
                                 id="fecha_filtro"
                                 name="fecha"
                                 class="form-control"
-                                value="{{ $fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d') }}"
+                                value="{{ $fechaFiltro }}"
                             >
+                            <div class="form-check mt-2">
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input"
+                                    id="sin_fecha"
+                                    name="sin_fecha"
+                                    value="1"
+                                    {{ $sinFecha ? 'checked' : '' }}
+                                >
+                                <label class="form-check-label" for="sin_fecha">Todas las fechas</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="origen_filtro">Origen:</label>
+                            <select id="origen_filtro" name="origen" class="form-control">
+                                <option value="todos" {{ $origenFiltro === 'todos' ? 'selected' : '' }}>Todos</option>
+                                <option value="actuales" {{ $origenFiltro === 'actuales' ? 'selected' : '' }}>Actuales</option>
+                                <option value="historicos" {{ $origenFiltro === 'historicos' ? 'selected' : '' }}>Históricos Peritos</option>
+                            </select>
                         </div>
 
                         @if($puedeFiltrarUnidad)
@@ -53,12 +76,16 @@
                         </div>
                         @endif
 
-                        <div class="col-md-6 d-flex align-items-end">
+                        <div class="{{ $puedeFiltrarUnidad ? 'col-md-3' : 'col-md-6' }} d-flex align-items-end flex-wrap">
                             <button type="submit" class="btn btn-primary mr-2">
                                 <i class="fa-solid fa-filter"></i> Filtrar
                             </button>
 
-                            <a href="{{ route('hechos.index') }}" class="btn btn-secondary">
+                            <a href="{{ route('hechos.index', array_filter(['origen' => 'historicos', 'sin_fecha' => 1, 'unidad_filtro' => $unidadFiltro ?: null])) }}" class="btn btn-outline-info mr-2">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Históricos
+                            </a>
+
+                            <a href="{{ route('hechos.index') }}" class="btn btn-secondary mt-2 mt-md-0">
                                 <i class="fa-solid fa-rotate-left"></i> Hoy
                             </a>
                         </div>
@@ -70,6 +97,7 @@
                                 <tr>
                                     <th class="text-center">ID</th>
                                     <th class="text-center">Fecha y Hora</th>
+                                    <th class="text-center">Origen</th>
                                     <th class="text-center">Ubicación</th>
                                     <th class="text-center">Foto Lugar</th>
                                     <th class="text-center">Estado</th>
@@ -112,12 +140,22 @@
 
                                         $puedeEliminarHecho = !$soloLecturaSeguridadVial
                                             && ($usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador'));
+
+                                        $esHistoricoPeritos = (string) $hecho->fuente_ubicacion === 'legacy_peritos';
                                     @endphp
 
                                     <tr class="{{ $esIncompletoDelegaciones ? 'table-danger' : '' }}">
                                         <td>{{ $hecho->id }}</td>
 
                                         <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
+
+                                        <td>
+                                            @if($esHistoricoPeritos)
+                                                <span class="badge badge-info">Histórico Peritos</span>
+                                            @else
+                                                <span class="badge badge-success">Actual</span>
+                                            @endif
+                                        </td>
 
                                         <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
 

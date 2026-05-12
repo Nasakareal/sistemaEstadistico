@@ -217,7 +217,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/liberacion/{vehiculo}/acuse',[LiberacionController::class,'generarAcuse'])->name('liberacion.descargar');
 });
 
-Route::get('/busqueda',[BusquedaController::class,'index'])->name('busqueda.index');
+Route::get('/busqueda',[BusquedaController::class,'index'])
+    ->middleware(['auth', 'can:ver hechos'])
+    ->name('busqueda.index');
 Route::get('/campanas',[CampanaController::class,'index'])->name('campanas.index');
 Route::get('/apoyo',[ApoyoController::class,'index'])->name('apoyo.index');
 

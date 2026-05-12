@@ -26,10 +26,18 @@ class HechosController extends Controller
     {
         $tz = 'America/Mexico_City';
 
-        $fechaSeleccionada = (string) $request->query('fecha', now($tz)->toDateString());
+        $origenFiltro = (string) $request->query('origen', 'todos');
 
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaSeleccionada)) {
+        if (!in_array($origenFiltro, ['todos', 'actuales', 'historicos'], true)) {
+            $origenFiltro = 'todos';
+        }
+
+        $sinFecha = $request->boolean('sin_fecha') || ($origenFiltro === 'historicos' && !$request->has('fecha'));
+        $fechaSeleccionada = $sinFecha ? '' : (string) $request->query('fecha', now($tz)->toDateString());
+
+        if ($fechaSeleccionada !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaSeleccionada)) {
             $fechaSeleccionada = now($tz)->toDateString();
+            $sinFecha = false;
         }
 
         $usuario = auth()->user();
@@ -40,8 +48,20 @@ class HechosController extends Controller
             ->withCount([
                 'lesionados',
                 'vehiculosEnCorralon as vehiculos_corralon_count',
-            ])
-            ->whereDate('fecha', $fechaSeleccionada);
+            ]);
+
+        if ($fechaSeleccionada !== '') {
+            $hechosQuery->whereDate('fecha', $fechaSeleccionada);
+        }
+
+        if ($origenFiltro === 'historicos') {
+            $hechosQuery->where('fuente_ubicacion', 'legacy_peritos');
+        } elseif ($origenFiltro === 'actuales') {
+            $hechosQuery->where(function ($query) {
+                $query->whereNull('fuente_ubicacion')
+                    ->orWhere('fuente_ubicacion', '<>', 'legacy_peritos');
+            });
+        }
 
         $this->applyHechosVisibilityScope($hechosQuery, $usuario);
 
@@ -61,6 +81,7 @@ class HechosController extends Controller
         }
 
         $hechos = $hechosQuery
+            ->orderByDesc('fecha')
             ->orderByDesc('hora')
             ->orderByDesc('created_at')
             ->paginate(50)
@@ -85,7 +106,7 @@ class HechosController extends Controller
             return $hecho;
         });
 
-        return view('hechos.index', compact('hechos', 'fechaSeleccionada', 'unidadFiltro'));
+        return view('hechos.index', compact('hechos', 'fechaSeleccionada', 'unidadFiltro', 'origenFiltro', 'sinFecha'));
     }
 
     public function create()

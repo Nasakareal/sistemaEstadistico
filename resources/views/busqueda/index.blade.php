@@ -8,10 +8,21 @@
 
 @section('content')
     <form method="GET" action="{{ route('busqueda.index') }}">
-        <div class="input-group mb-3">
-            <input type="text" name="query" class="form-control" placeholder="Buscar..." value="{{ request('query') }}" required>
-            <div class="input-group-append">
-                <button class="btn btn-primary" type="submit">Buscar</button>
+        <div class="row">
+            <div class="col-md-8">
+                <div class="input-group mb-3">
+                    <input type="text" name="query" class="form-control" placeholder="Buscar folio, ubicación, placa, serie o conductor..." value="{{ request('query') }}" required>
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Buscar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select name="origen" class="form-control mb-3" onchange="this.form.submit()">
+                    <option value="todos" {{ ($origen ?? request('origen', 'todos')) === 'todos' ? 'selected' : '' }}>Todos</option>
+                    <option value="actuales" {{ ($origen ?? request('origen')) === 'actuales' ? 'selected' : '' }}>Actuales</option>
+                    <option value="historicos" {{ ($origen ?? request('origen')) === 'historicos' ? 'selected' : '' }}>Históricos Peritos</option>
+                </select>
             </div>
         </div>
     </form>
@@ -33,24 +44,32 @@
                                 <th>Teléfono</th>
                                 <th>Domicilio</th>
                                 <th>Licencia</th>
+                                <th>Fecha</th>
+                                <th>Origen</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($conductores as $conductor)
+                                @php
+                                    $primerVehiculo = $conductor->vehiculos->first();
+                                    $primerHecho = $primerVehiculo ? $primerVehiculo->hechos->first() : null;
+                                @endphp
                                 <tr>
                                     <td>{{ $conductor->nombre }}</td>
                                     <td>{{ $conductor->telefono }}</td>
                                     <td>{{ $conductor->domicilio }}</td>
                                     <td>{{ $conductor->numero_licencia }}</td>
+                                    <td>{{ optional(optional($primerHecho)->fecha)->format('Y-m-d') ?: 'N/A' }}</td>
                                     <td>
-                                        @php
-                                            // Obtenemos el primer vehículo del conductor
-                                            $primerVehiculo = $conductor->vehiculos->first();
-                                            // Si existe un vehículo, obtenemos el primer hecho relacionado a ese vehículo
-                                            $primerHecho = $primerVehiculo ? $primerVehiculo->hechos->first() : null;
-                                        @endphp
+                                        @if(optional($primerHecho)->fuente_ubicacion === 'legacy_peritos')
+                                            <span class="badge badge-secondary">Histórico Peritos</span>
+                                        @else
+                                            <span class="badge badge-primary">Actual</span>
+                                        @endif
+                                    </td>
 
+                                    <td>
                                         @if($primerHecho)
                                             <a href="{{ route('hechos.show', $primerHecho->id) }}" class="btn btn-info btn-sm">Ver Hecho</a>
                                         @else
@@ -73,19 +92,37 @@
                                 <th>Modelo</th>
                                 <th>Placas</th>
                                 <th>Serie</th>
+                                <th>Conductor</th>
+                                <th>Fecha</th>
+                                <th>Origen</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($vehiculos as $vehiculo)
+                                @php
+                                    $primerHecho = $vehiculo->hechos->first();
+                                @endphp
                                 <tr>
                                     <td>{{ $vehiculo->marca }}</td>
                                     <td>{{ $vehiculo->modelo }}</td>
                                     <td>{{ $vehiculo->placas }}</td>
                                     <td>{{ $vehiculo->serie }}</td>
+                                    <td>{{ optional($vehiculo->conductores->first())->nombre ?: 'N/A' }}</td>
+                                    <td>{{ optional(optional($primerHecho)->fecha)->format('Y-m-d') ?: 'N/A' }}</td>
                                     <td>
-                                        {{-- Se mantiene la llamada directa en el vehículo, ya que la relación 'hechos' existe en Vehiculo --}}
-                                        <a href="{{ route('hechos.show', $vehiculo->hechos()->first()->id ?? '#') }}" class="btn btn-info btn-sm">Ver Hecho</a>
+                                        @if(optional($primerHecho)->fuente_ubicacion === 'legacy_peritos')
+                                            <span class="badge badge-secondary">Histórico Peritos</span>
+                                        @else
+                                            <span class="badge badge-primary">Actual</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($primerHecho)
+                                            <a href="{{ route('hechos.show', $primerHecho->id) }}" class="btn btn-info btn-sm">Ver Hecho</a>
+                                        @else
+                                            <span class="text-muted">Sin hechos</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -100,7 +137,9 @@
                         <thead>
                             <tr>
                                 <th>Folio</th>
+                                <th>Fecha</th>
                                 <th>Ubicación</th>
+                                <th>Origen</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -108,7 +147,15 @@
                             @foreach ($hechos as $hecho)
                                 <tr>
                                     <td>{{ $hecho->folio_c5i }}</td>
+                                    <td>{{ optional($hecho->fecha)->format('Y-m-d') }}</td>
                                     <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
+                                    <td>
+                                        @if($hecho->fuente_ubicacion === 'legacy_peritos')
+                                            <span class="badge badge-secondary">Histórico Peritos</span>
+                                        @else
+                                            <span class="badge badge-primary">Actual</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <a href="{{ route('hechos.show', $hecho->id) }}" class="btn btn-info btn-sm">Ver</a>
                                         <a href="{{ route('hechos.edit', $hecho->id) }}" class="btn btn-success btn-sm">Editar</a>

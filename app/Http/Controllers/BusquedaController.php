@@ -6,44 +6,148 @@ use Illuminate\Http\Request;
 use App\Models\Hechos;
 use App\Models\Vehiculo;
 use App\Models\Conductor;
+use App\Support\HechoAccess;
 
 class BusquedaController extends Controller
 {
     public function index(Request $request)
     {
-        $query = $request->input('query');
+        $query = trim((string) $request->input('query', ''));
+        $origen = $this->origenValido($request->input('origen', 'todos'));
 
         if (!$query) {
-            return view('busqueda.index', ['resultados' => []]);
+            return view('busqueda.index', [
+                'conductores' => collect(),
+                'vehiculos' => collect(),
+                'hechos' => collect(),
+                'query' => null,
+                'origen' => $origen,
+            ]);
         }
 
-        // Buscar en Conductores
-        $conductores = Conductor::where('nombre', 'LIKE', "%$query%")
-            ->orWhere('telefono', 'LIKE', "%$query%")
-            ->orWhere('domicilio', 'LIKE', "%$query%")
-            ->orWhere('numero_licencia', 'LIKE', "%$query%")
+        $like = $this->like($query);
+        $usuario = $request->user();
+        $limite = 50;
+
+        $conductores = Conductor::query()
+            ->with([
+                'vehiculos' => function ($vehiculos) use ($usuario, $origen) {
+                    $vehiculos->with(['hechos' => function ($hechos) use ($usuario, $origen) {
+                        $this->aplicarVisibilidadYOrigen($hechos, $usuario, $origen);
+                        $hechos->orderByDesc('fecha')->orderByDesc('id');
+                    }]);
+                },
+            ])
+            ->where(function ($q) use ($like) {
+                $q->where('nombre', 'LIKE', $like)
+                    ->orWhere('telefono', 'LIKE', $like)
+                    ->orWhere('domicilio', 'LIKE', $like)
+                    ->orWhere('numero_licencia', 'LIKE', $like);
+            })
+            ->whereHas('vehiculos.hechos', function ($hechos) use ($usuario, $origen) {
+                $this->aplicarVisibilidadYOrigen($hechos, $usuario, $origen);
+            })
+            ->orderBy('nombre')
+            ->limit($limite)
             ->get();
 
-        // Buscar en Vehículos
-        $vehiculos = Vehiculo::where('marca', 'LIKE', "%$query%")
-            ->orWhere('modelo', 'LIKE', "%$query%")
-            ->orWhere('placas', 'LIKE', "%$query%")
-            ->orWhere('serie', 'LIKE', "%$query%")
+        $vehiculos = Vehiculo::query()
+            ->with([
+                'conductores:id,nombre',
+                'hechos' => function ($hechos) use ($usuario, $origen) {
+                    $this->aplicarVisibilidadYOrigen($hechos, $usuario, $origen);
+                    $hechos->orderByDesc('fecha')->orderByDesc('id');
+                },
+            ])
+            ->where(function ($q) use ($like, $query) {
+                $q->where('marca', 'LIKE', $like)
+                    ->orWhere('modelo', 'LIKE', $like)
+                    ->orWhere('placas', 'LIKE', $like)
+                    ->orWhere('serie', 'LIKE', $like);
+
+                $this->orWhereNormalizado($q, 'vehiculos.placas', $query);
+                $this->orWhereNormalizado($q, 'vehiculos.serie', $query);
+            })
+            ->whereHas('hechos', function ($hechos) use ($usuario, $origen) {
+                $this->aplicarVisibilidadYOrigen($hechos, $usuario, $origen);
+            })
+            ->orderByDesc('id')
+            ->limit($limite)
             ->get();
 
-        // Buscar en Hechos
         $hechos = Hechos::query()
+            ->with(['vehiculos.conductores'])
+            ->where(function ($q) use ($query, $like) {
+                if (is_numeric($query)) {
+                    $q->orWhere('id', $query);
+                }
 
-        ->when(is_numeric($query), function ($q) use ($query) {
-            $q->orWhere('id', $query);
-        })
+                $q->orWhere('folio_c5i', 'LIKE', $like)
+                    ->orWhere('calle', 'LIKE', $like)
+                    ->orWhere('colonia', 'LIKE', $like)
+                    ->orWhere('municipio', 'LIKE', $like)
+                    ->orWhereHas('vehiculos', function ($vehiculos) use ($query, $like) {
+                        $vehiculos->where(function ($v) use ($query, $like) {
+                            $v->where('placas', 'LIKE', $like)
+                                ->orWhere('serie', 'LIKE', $like);
 
-        ->orWhere('folio_c5i', 'LIKE', "%$query%")
-        ->orWhere('calle', 'LIKE', "%$query%")
-        ->orWhere('colonia', 'LIKE', "%$query%")
-        ->orWhere('municipio', 'LIKE', "%$query%")
-        ->get();
+                            $this->orWhereNormalizado($v, 'vehiculos.placas', $query);
+                            $this->orWhereNormalizado($v, 'vehiculos.serie', $query);
+                        });
+                    })
+                    ->orWhereHas('vehiculos.conductores', function ($conductores) use ($like) {
+                        $conductores->where('nombre', 'LIKE', $like);
+                    });
+            });
 
-        return view('busqueda.index', compact('conductores', 'vehiculos', 'hechos', 'query'));
+        $this->aplicarVisibilidadYOrigen($hechos, $usuario, $origen);
+
+        $hechos = $hechos
+            ->orderByDesc('fecha')
+            ->orderByDesc('id')
+            ->limit($limite)
+            ->get();
+
+        return view('busqueda.index', compact('conductores', 'vehiculos', 'hechos', 'query', 'origen'));
+    }
+
+    private function aplicarVisibilidadYOrigen($query, $usuario, string $origen): void
+    {
+        HechoAccess::applyVisibilityScope($query, $usuario);
+
+        if ($origen === 'historicos') {
+            $query->where('fuente_ubicacion', 'legacy_peritos');
+        } elseif ($origen === 'actuales') {
+            $query->where(function ($q) {
+                $q->whereNull('fuente_ubicacion')
+                    ->orWhere('fuente_ubicacion', '<>', 'legacy_peritos');
+            });
+        }
+    }
+
+    private function origenValido($origen): string
+    {
+        $origen = strtolower(trim((string) $origen));
+
+        return in_array($origen, ['todos', 'actuales', 'historicos'], true) ? $origen : 'todos';
+    }
+
+    private function like(string $query): string
+    {
+        return '%' . addcslashes($query, "%_\\") . '%';
+    }
+
+    private function orWhereNormalizado($query, string $columna, string $valor): void
+    {
+        $normalizado = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $valor));
+
+        if ($normalizado === '') {
+            return;
+        }
+
+        $query->orWhereRaw(
+            "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE({$columna}, ''), '-', ''), ' ', ''), '.', ''), '/', '')) LIKE ?",
+            ['%' . $normalizado . '%']
+        );
     }
 }

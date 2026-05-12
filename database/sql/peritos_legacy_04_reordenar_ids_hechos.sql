@@ -96,16 +96,26 @@ BEGIN
     SELECT old_id
     FROM tmp_hecho_id_reorden;
 
-    SELECT COUNT(*)
-    INTO v_target_conflicts
+    DROP TEMPORARY TABLE IF EXISTS tmp_hecho_id_target_conflicts;
+    CREATE TEMPORARY TABLE tmp_hecho_id_target_conflicts (
+        old_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+        created_at TIMESTAMP NULL
+    ) ENGINE=InnoDB;
+
+    INSERT IGNORE INTO tmp_hecho_id_target_conflicts (old_id, created_at)
+    SELECT h.id, h.created_at
     FROM tmp_hecho_id_reorden m
     JOIN hechos h ON h.id = m.new_id
     LEFT JOIN tmp_hecho_id_reorden_old_ids moving ON moving.old_id = h.id
     WHERE moving.old_id IS NULL;
 
+    SELECT COUNT(*)
+    INTO v_target_conflicts
+    FROM tmp_hecho_id_target_conflicts;
+
     IF v_target_conflicts > 0 THEN
         SELECT
-            'CONFLICTOS_TARGET_ID_OCUPADO' AS seccion,
+            'CONFLICTOS_TARGET_ID_OCUPADO_SE_REUBICAN' AS seccion,
             m.old_id AS id_actual_legacy,
             m.new_id AS id_legacy_deseado,
             h.folio_c5i,
@@ -113,13 +123,9 @@ BEGIN
             h.fuente_ubicacion
         FROM tmp_hecho_id_reorden m
         JOIN hechos h ON h.id = m.new_id
-        LEFT JOIN tmp_hecho_id_reorden_old_ids moving ON moving.old_id = h.id
-        WHERE moving.old_id IS NULL
+        JOIN tmp_hecho_id_target_conflicts c ON c.old_id = h.id
         ORDER BY m.new_id
         LIMIT 50;
-
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Hay hechos actuales ocupando IDs antiguos; revisar CONFLICTOS_TARGET_ID_OCUPADO.';
     END IF;
 
     SELECT COALESCE(MAX(id), 0)
@@ -135,14 +141,35 @@ BEGIN
 
     SET v_base_final = GREATEST(v_max_actual_pre, v_max_legacy_old);
 
-    INSERT INTO tmp_hecho_id_reorden (old_id, new_id, motivo)
+    DROP TEMPORARY TABLE IF EXISTS tmp_hecho_id_actuales_a_mover;
+    CREATE TEMPORARY TABLE tmp_hecho_id_actuales_a_mover (
+        old_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+        created_at TIMESTAMP NULL,
+        motivo VARCHAR(40) NOT NULL
+    ) ENGINE=InnoDB;
+
+    INSERT IGNORE INTO tmp_hecho_id_actuales_a_mover (old_id, created_at, motivo)
+    SELECT
+        c.old_id,
+        c.created_at,
+        'actual_conflicto_legacy_target' AS motivo
+    FROM tmp_hecho_id_target_conflicts c;
+
+    INSERT IGNORE INTO tmp_hecho_id_actuales_a_mover (old_id, created_at, motivo)
     SELECT
         post_import.id AS old_id,
-        v_base_final + ROW_NUMBER() OVER (ORDER BY post_import.created_at, post_import.id) AS new_id,
+        post_import.created_at,
         'actual_post_import' AS motivo
     FROM hechos post_import
     WHERE COALESCE(post_import.fuente_ubicacion, '') <> 'legacy_peritos'
         AND post_import.id >= v_legacy_min_new;
+
+    INSERT INTO tmp_hecho_id_reorden (old_id, new_id, motivo)
+    SELECT
+        actual.old_id,
+        v_base_final + ROW_NUMBER() OVER (ORDER BY actual.created_at, actual.old_id) AS new_id,
+        actual.motivo
+    FROM tmp_hecho_id_actuales_a_mover actual;
 
     SELECT COALESCE(MAX(id), 0) + 1000000
     INTO v_temp_base

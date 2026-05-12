@@ -87,11 +87,20 @@ BEGIN
     WHERE h.fuente_ubicacion = 'legacy_peritos'
         AND mh.new_hecho_id <> mh.old_hecho_id;
 
+    DROP TEMPORARY TABLE IF EXISTS tmp_hecho_id_reorden_old_ids;
+    CREATE TEMPORARY TABLE tmp_hecho_id_reorden_old_ids (
+        old_id BIGINT UNSIGNED NOT NULL PRIMARY KEY
+    ) ENGINE=InnoDB;
+
+    INSERT INTO tmp_hecho_id_reorden_old_ids (old_id)
+    SELECT old_id
+    FROM tmp_hecho_id_reorden;
+
     SELECT COUNT(*)
     INTO v_target_conflicts
     FROM tmp_hecho_id_reorden m
     JOIN hechos h ON h.id = m.new_id
-    LEFT JOIN tmp_hecho_id_reorden moving ON moving.old_id = h.id
+    LEFT JOIN tmp_hecho_id_reorden_old_ids moving ON moving.old_id = h.id
     WHERE moving.old_id IS NULL;
 
     IF v_target_conflicts > 0 THEN
@@ -104,7 +113,7 @@ BEGIN
             h.fuente_ubicacion
         FROM tmp_hecho_id_reorden m
         JOIN hechos h ON h.id = m.new_id
-        LEFT JOIN tmp_hecho_id_reorden moving ON moving.old_id = h.id
+        LEFT JOIN tmp_hecho_id_reorden_old_ids moving ON moving.old_id = h.id
         WHERE moving.old_id IS NULL
         ORDER BY m.new_id
         LIMIT 50;

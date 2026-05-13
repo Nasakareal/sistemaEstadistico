@@ -70,11 +70,26 @@ class HomeController extends Controller
 
         $hechosQ = DB::table('hechos as h')
             ->join('users as u', 'u.id', '=', 'h.created_by')
+            ->leftJoin('delegaciones as dh', 'dh.id', '=', 'h.delegacion_id')
+            ->leftJoin('delegaciones as duh', 'duh.id', '=', 'u.delegacion_id')
             ->selectRaw("
                 'HECHO' as type,
                 h.id as item_id,
                 h.created_by as user_id,
                 u.name as user_name,
+                COALESCE(h.delegacion_id, u.delegacion_id) as delegacion_id,
+                COALESCE(
+                    CASE
+                        WHEN dh.id IS NOT NULL AND COALESCE(TRIM(dh.clave), '') <> '' THEN CONCAT(dh.nombre, ' (', dh.clave, ')')
+                        WHEN dh.id IS NOT NULL THEN dh.nombre
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN duh.id IS NOT NULL AND COALESCE(TRIM(duh.clave), '') <> '' THEN CONCAT(duh.nombre, ' (', duh.clave, ')')
+                        WHEN duh.id IS NOT NULL THEN duh.nombre
+                        ELSE NULL
+                    END
+                ) as delegacion_nombre,
                 CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
                 COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
                 h.created_at as created_at
@@ -82,11 +97,26 @@ class HomeController extends Controller
 
         $actividadesQ = DB::table('actividades as a')
             ->join('users as u', 'u.id', '=', 'a.created_by')
+            ->leftJoin('delegaciones as da', 'da.id', '=', 'a.delegacion_id')
+            ->leftJoin('delegaciones as dua', 'dua.id', '=', 'u.delegacion_id')
             ->selectRaw("
                 'ACTIVIDAD' as type,
                 a.id as item_id,
                 a.created_by as user_id,
                 u.name as user_name,
+                COALESCE(a.delegacion_id, u.delegacion_id) as delegacion_id,
+                COALESCE(
+                    CASE
+                        WHEN da.id IS NOT NULL AND COALESCE(TRIM(da.clave), '') <> '' THEN CONCAT(da.nombre, ' (', da.clave, ')')
+                        WHEN da.id IS NOT NULL THEN da.nombre
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN dua.id IS NOT NULL AND COALESCE(TRIM(dua.clave), '') <> '' THEN CONCAT(dua.nombre, ' (', dua.clave, ')')
+                        WHEN dua.id IS NOT NULL THEN dua.nombre
+                        ELSE NULL
+                    END
+                ) as delegacion_nombre,
                 a.nombre as resumen,
                 COALESCE(a.foto_path, a.foto_thumbnail_path) as foto_path,
                 a.created_at as created_at
@@ -154,6 +184,8 @@ class HomeController extends Controller
                 'id' => (int) $row->item_id,
                 'user_id' => (int) $row->user_id,
                 'user_name' => $row->user_name,
+                'delegacion_id' => isset($row->delegacion_id) ? (int) $row->delegacion_id : null,
+                'delegacion_nombre' => $this->normalizaTextoOpcional($row->delegacion_nombre ?? null),
                 'resumen' => $this->limpiaResumen($row->resumen, $row->type),
                 'foto_url' => $foto_url,
                 'created_at' => (string) $row->created_at,
@@ -178,6 +210,13 @@ class HomeController extends Controller
             'items' => $mapped,
             'next_cursor' => $next_cursor,
         ];
+    }
+
+    private function normalizaTextoOpcional($valor): ?string
+    {
+        $texto = trim((string) $valor);
+
+        return $texto === '' ? null : $texto;
     }
 
     private function limpiaResumen($resumen, string $type): string

@@ -232,6 +232,7 @@ Route::prefix('licencias')->group(function () {
 Auth::routes();
 
 Route::get('/home',[HomeController::class,'index'])->name('home');
+Route::get('/home/feed',[HomeController::class,'feed'])->name('home.feed');
 
 Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(function () {
     Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->name('actividades.subcategorias');

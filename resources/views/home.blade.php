@@ -38,6 +38,12 @@
                                     <div class="sv-post__meta">
                                         <div class="sv-post__name">{{ $item['user_name'] }}</div>
                                         <div class="sv-post__time">{{ $item['created_at'] }}</div>
+                                        @if(!empty($item['delegacion_nombre']))
+                                            <div class="sv-post__delegacion">
+                                                <i class="fa-solid fa-location-dot"></i>
+                                                <span>{{ $item['delegacion_nombre'] }}</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -303,6 +309,21 @@
         font-size: 13px;
         color: var(--sv-muted);
     }
+
+    .sv-post__delegacion{
+        margin-top: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        line-height: 1.2;
+        font-weight: 800;
+        color: rgba(191,219,254,.95);
+    }
+
+    .sv-post__delegacion i{
+        font-size: 11px;
+    }
 </style>
 @stop
 
@@ -338,6 +359,9 @@
         const img = item.foto_url
             ? `<div class="sv-post__imgwrap"><img src="${esc(item.foto_url)}" class="sv-post__img" alt="foto"></div>`
             : '';
+        const delegacion = item.delegacion_nombre
+            ? `<div class="sv-post__delegacion"><i class="fa-solid fa-location-dot"></i><span>${esc(item.delegacion_nombre)}</span></div>`
+            : '';
 
         return `
             <div class="sv-post" data-type="${esc(item.type)}" data-id="${esc(item.id)}">
@@ -347,6 +371,7 @@
                         <div class="sv-post__meta">
                             <div class="sv-post__name">${esc(item.user_name)}</div>
                             <div class="sv-post__time">${esc(item.created_at)}</div>
+                            ${delegacion}
                         </div>
                     </div>
                     <div class="sv-post__badge sv-post__badge--${esc(badgeClass)}">${esc(item.type)}</div>

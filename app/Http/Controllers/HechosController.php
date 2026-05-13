@@ -304,6 +304,11 @@ class HechosController extends Controller
 
         app(DelegacionesWhatsAppAlertService::class)->notificarHechoTurnado($hecho->fresh());
 
+        if ($this->debeEnviarDelegacionesTurnadoAlShow($usuario, $situacion, $validated)) {
+            return redirect()->route('hechos.show', $hecho->id)
+                ->with('success', 'Hecho creado como TURNADO. Desde aquí puedes vincular la puesta a disposición.');
+        }
+
         return redirect()->route('hechos.edit', $hecho->id)->with('success', 'Hecho creado exitosamente.');
     }
 
@@ -643,7 +648,26 @@ class HechosController extends Controller
             $alertService->notificarHechoTurnado($hecho);
         }
 
+        if ($this->debeEnviarDelegacionesTurnadoAlShow($usuario, $situacion, $validated)) {
+            return redirect()->route('hechos.show', $hecho->id)
+                ->with('success', 'Hecho actualizado como TURNADO. Desde aquí puedes vincular la puesta a disposición.');
+        }
+
         return redirect()->route('hechos.index')->with('success', 'Hecho actualizado exitosamente.');
+    }
+
+    private function debeEnviarDelegacionesTurnadoAlShow($usuario, string $situacion, array $data): bool
+    {
+        if (!$usuario || HechoAccess::effectiveUnidadId($usuario) !== 2) {
+            return false;
+        }
+
+        if (strtoupper(trim($situacion)) !== 'TURNADO') {
+            return false;
+        }
+
+        return (int) ($data['vehiculos_mp'] ?? 0) > 0
+            || (int) ($data['personas_mp'] ?? 0) > 0;
     }
 
     public function destroy(Hechos $hecho)

@@ -614,7 +614,7 @@ class HechoController extends Controller
 
         $this->normalizeCatalogFields($request);
 
-        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user, $hecho);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($user, $hecho);
@@ -759,7 +759,7 @@ class HechoController extends Controller
         }
 
         if ($usaReglasFlexibles && array_key_exists('sector', $validated) && empty($validated['sector'])) {
-            $validated['sector'] = $this->sectorPredeterminadoHechos($user);
+            $validated['sector'] = $this->sectorPredeterminadoHechos($user, $hecho);
         }
 
         $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
@@ -1254,14 +1254,22 @@ class HechoController extends Controller
         ], 422);
     }
 
-    private function usaReglasFlexiblesHechos($user): bool
+    private function usaReglasFlexiblesHechos($user, ?Hechos $hecho = null): bool
     {
-        return in_array(HechoAccess::effectiveUnidadId($user), [2, 4], true);
+        $unidadId = $hecho
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($user);
+
+        return in_array($unidadId, [2, 4], true);
     }
 
-    private function sectorPredeterminadoHechos($user): string
+    private function sectorPredeterminadoHechos($user, ?Hechos $hecho = null): string
     {
-        return HechoAccess::effectiveUnidadId($user) === 4
+        $unidadId = $hecho
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($user);
+
+        return $unidadId === 4
             ? 'PROTECCION A CARRETERAS'
             : 'DELEGACIONES';
     }
@@ -1583,7 +1591,7 @@ class HechoController extends Controller
             return false;
         }
 
-        return (int) ($user->unidad_id ?? 0) === 2;
+        return HechoAccess::effectiveUnidadIdForHecho($hecho) === 2;
     }
 
 }

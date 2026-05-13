@@ -10,7 +10,8 @@
     @php
         $usuario = auth()->user();
         $puedeFiltrarUnidad = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3;
-        $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
+        $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin')
+            || $hechos->getCollection()->contains(fn ($hecho) => \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho) === 2);
         $origenFiltro = $origenFiltro ?? request('origen', 'todos');
         $sinFecha = (bool) ($sinFecha ?? request()->boolean('sin_fecha'));
         $fechaFiltro = $sinFecha ? '' : ($fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d'));
@@ -126,6 +127,7 @@
 
                                         $unidadReal = \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho);
                                         $mostrarCaptura = $unidadReal === 2;
+                                        $puedeVerTarjetaWhatsAppHecho = $usuario->hasRole('Superadmin') || $unidadReal === 2;
                                         $esIncompletoDelegaciones = $mostrarCaptura && !$hecho->captura_completa;
 
                                         $esUnidadSeguridadVial = (int) ($usuario->unidad_id ?? 0) === 3;
@@ -249,7 +251,7 @@
                                                 <i class="fa-brands fa-whatsapp"></i>
                                             </button>
 
-                                            @if($puedeVerTarjetaWhatsApp)
+                                            @if($puedeVerTarjetaWhatsAppHecho)
                                                 <button type="button"
                                                     class="btn btn-outline-info btn-sm btn-preview-whatsapp-card"
                                                     title="Ver tarjeta WhatsApp"

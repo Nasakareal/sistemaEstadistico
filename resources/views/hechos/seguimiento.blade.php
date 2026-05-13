@@ -9,7 +9,10 @@
 @section('content')
     @php
         $usuario = auth()->user();
-        $puedeVerTarjetaWhatsApp = $usuario && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2);
+        $puedeVerTarjetaWhatsApp = $usuario && (
+            $usuario->hasRole('Superadmin')
+            || $hechos->getCollection()->contains(fn ($hecho) => \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho) === 2)
+        );
         $periodoActual = strtoupper($periodo ?? 'SEMANA');
         $situacionActual = strtoupper($situacion ?? 'PENDIENTE');
         $unidadActual = (string) ($unidadFiltro ?? '');
@@ -191,7 +194,8 @@
                                     ? substr((string) $hecho->hora, 0, 5)
                                     : '';
 
-                                $unidadReal = (int) ($hecho->unidad_org_id ?: ($hecho->creator->unidad_id ?? 0));
+                                $unidadReal = \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho);
+                                $puedeVerTarjetaWhatsAppHecho = $usuario && ($usuario->hasRole('Superadmin') || $unidadReal === 2);
                                 $unidadNombre = optional($hecho->unidadOrganizacional)->nombre
                                     ?: ($unidadesFiltro[(string) $unidadReal] ?? 'Sin unidad');
                                 $detalleUnidad = null;
@@ -297,7 +301,7 @@
                                         </a>
                                     @endif
 
-                                    @if($puedeVerTarjetaWhatsApp)
+                                    @if($puedeVerTarjetaWhatsAppHecho)
                                         <button
                                             type="button"
                                             class="btn btn-outline-info btn-sm btn-preview-whatsapp-card"

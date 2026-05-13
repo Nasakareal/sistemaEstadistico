@@ -4,7 +4,9 @@
 
 @php
     $usuario = auth()->user();
-    $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
+    $unidadRealHecho = \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho);
+    $esHechoDelegaciones = $unidadRealHecho === 2;
+    $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || $esHechoDelegaciones;
     $urlAnterior = url()->previous();
     $volverHechoUrl = $urlAnterior && $urlAnterior !== url()->current()
         ? $urlAnterior
@@ -141,8 +143,9 @@
     $camposMP = ['oficio_mp', 'vehiculos_mp', 'personas_mp'];
     $puestaHecho = $hecho->puestaDisposicion ?? null;
     $iphDelegacionesPath = $hecho->iph_delegaciones_path;
-    $mostrarAccionesTurnado = $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
+    $mostrarAccionesTurnado = $esHechoDelegaciones && $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
     $puedeCrearPuestaTurnado = $soloTurnado
+        && $esHechoDelegaciones
         && !$puestaHecho
         && $usuario
         && $usuario->can('crear puestas a disposicion');

@@ -304,7 +304,7 @@ class HechosController extends Controller
 
         app(DelegacionesWhatsAppAlertService::class)->notificarHechoTurnado($hecho->fresh());
 
-        if ($this->debeEnviarDelegacionesTurnadoAlShow($usuario, $situacion, $validated)) {
+        if ($this->debeEnviarDelegacionesTurnadoAlShow($hecho, $situacion, $validated)) {
             return redirect()->route('hechos.show', $hecho->id)
                 ->with('success', 'Hecho creado como TURNADO. Desde aquí puedes vincular la puesta a disposición.');
         }
@@ -428,7 +428,7 @@ class HechosController extends Controller
         $quitarFotoLugar = (string) $request->input('quitar_foto_lugar', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
-        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario, $hecho);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
@@ -517,7 +517,7 @@ class HechosController extends Controller
         }
 
         if ($usaReglasFlexibles && empty($validated['sector'])) {
-            $validated['sector'] = $this->sectorPredeterminadoHechos($usuario);
+            $validated['sector'] = $this->sectorPredeterminadoHechos($usuario, $hecho);
         }
 
         $validated['checaron_antecedentes'] = $request->has('checaron_antecedentes');
@@ -648,7 +648,7 @@ class HechosController extends Controller
             $alertService->notificarHechoTurnado($hecho);
         }
 
-        if ($this->debeEnviarDelegacionesTurnadoAlShow($usuario, $situacion, $validated)) {
+        if ($this->debeEnviarDelegacionesTurnadoAlShow($hecho, $situacion, $validated)) {
             return redirect()->route('hechos.show', $hecho->id)
                 ->with('success', 'Hecho actualizado como TURNADO. Desde aquí puedes vincular la puesta a disposición.');
         }
@@ -656,9 +656,9 @@ class HechosController extends Controller
         return redirect()->route('hechos.index')->with('success', 'Hecho actualizado exitosamente.');
     }
 
-    private function debeEnviarDelegacionesTurnadoAlShow($usuario, string $situacion, array $data): bool
+    private function debeEnviarDelegacionesTurnadoAlShow(Hechos $hecho, string $situacion, array $data): bool
     {
-        if (!$usuario || HechoAccess::effectiveUnidadId($usuario) !== 2) {
+        if (HechoAccess::effectiveUnidadIdForHecho($hecho) !== 2) {
             return false;
         }
 
@@ -1343,14 +1343,22 @@ class HechosController extends Controller
         return $unidadId === 1;
     }
 
-    private function usaReglasFlexiblesHechos($usuario): bool
+    private function usaReglasFlexiblesHechos($usuario, ?Hechos $hecho = null): bool
     {
-        return in_array(HechoAccess::effectiveUnidadId($usuario), [2, 4], true);
+        $unidadId = $hecho
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($usuario);
+
+        return in_array($unidadId, [2, 4], true);
     }
 
-    private function sectorPredeterminadoHechos($usuario): string
+    private function sectorPredeterminadoHechos($usuario, ?Hechos $hecho = null): string
     {
-        return HechoAccess::effectiveUnidadId($usuario) === 4
+        $unidadId = $hecho
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($usuario);
+
+        return $unidadId === 4
             ? 'PROTECCION A CARRETERAS'
             : 'DELEGACIONES';
     }

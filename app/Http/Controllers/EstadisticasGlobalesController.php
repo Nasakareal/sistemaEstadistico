@@ -678,6 +678,10 @@ class EstadisticasGlobalesController extends Controller
                 'Coupé',
                 'SUV',
                 'Convertible',
+                'Automovil',
+                'Automóvil',
+                'AUTOMOVIL',
+                'AUTOMÓVIL',
             ],
 
             'camioneta' => [
@@ -686,6 +690,12 @@ class EstadisticasGlobalesController extends Controller
                 'Vagoneta',
                 'Furgoneta',
                 'Van',
+                'Camioneta',
+                'Camioneta carga',
+                'Camioneta de pasajeros',
+                'CAMIONETA',
+                'CAMIONETA CARGA',
+                'CAMIONETA DE PASAJEROS',
             ],
 
             'camion' => [
@@ -701,6 +711,26 @@ class EstadisticasGlobalesController extends Controller
                 'Torton',
                 'Rabón',
                 'Tracto',
+                'Camion de carga',
+                'Camión de carga',
+                'Camion urbano pasajeros',
+                'Camión urbano pasajeros',
+                'Microbus',
+                'Microbús',
+                'Omnibus',
+                'Ómnibus',
+                'Autobus',
+                'Autobús',
+                'CAMION DE CARGA',
+                'CAMIÓN DE CARGA',
+                'CAMION URBANO PASAJEROS',
+                'CAMIÓN URBANO PASAJEROS',
+                'MICROBUS',
+                'MICROBÚS',
+                'OMNIBUS',
+                'ÓMNIBUS',
+                'AUTOBUS',
+                'AUTOBÚS',
             ],
 
             'motocicleta' => [
@@ -713,6 +743,10 @@ class EstadisticasGlobalesController extends Controller
                 'Pista',
                 'Chopper',
                 'Cuatrimoto',
+                'Motocicleta',
+                'Motoneta',
+                'MOTOCICLETA',
+                'MOTONETA',
             ],
 
             'bicicleta' => [
@@ -721,6 +755,8 @@ class EstadisticasGlobalesController extends Controller
                 'BMX',
                 'Urbana',
                 'Plegable',
+                'Bicicleta',
+                'BICICLETA',
             ],
 
             'remolque' => [
@@ -745,6 +781,8 @@ class EstadisticasGlobalesController extends Controller
                 'Grúa industrial',
                 'Montacargas',
                 'Tractor agrícola',
+                'Tractor',
+                'TRACTOR',
                 'Pavimentadora',
                 'Compactadora',
             ],
@@ -756,6 +794,8 @@ class EstadisticasGlobalesController extends Controller
                 'Tren de pasajeros',
                 'Tranvía',
                 'Metro',
+                'Ferrocarril',
+                'FERROCARRIL',
             ],
 
             'semoviente' => [
@@ -764,6 +804,8 @@ class EstadisticasGlobalesController extends Controller
                 'Vaca',
                 'Mula',
                 'Otro animal de tiro',
+                'Semoviente',
+                'SEMOVIENTE',
             ],
         ];
     }
@@ -773,6 +815,10 @@ class EstadisticasGlobalesController extends Controller
         $t = $this->norm($tipoCarroceria);
         if ($t === '') return 'NO ESPECIFICADO';
 
+        if ($this->isNoEspecificadoVehicleType($t)) {
+            return 'NO ESPECIFICADO';
+        }
+
         foreach ($this->carroceriasMap() as $general => $lista) {
             foreach ($lista as $x) {
                 if ($this->norm((string)$x) === $t) {
@@ -781,14 +827,102 @@ class EstadisticasGlobalesController extends Controller
             }
         }
 
+        if (
+            str_contains($t, 'MOTO') ||
+            str_contains($t, 'SCOOTER') ||
+            str_contains($t, 'MOTONETA') ||
+            str_contains($t, 'CUATRIMOTO')
+        ) {
+            return 'motocicleta';
+        }
+
+        if (
+            str_contains($t, 'CAMIONETA') ||
+            str_contains($t, 'PICK') ||
+            str_contains($t, 'VAGONETA') ||
+            str_contains($t, 'FURGON') ||
+            str_contains($t, 'VAN')
+        ) {
+            return 'camioneta';
+        }
+
+        if (
+            str_contains($t, 'CAMION') ||
+            str_contains($t, 'MICROBUS') ||
+            str_contains($t, 'OMNIBUS') ||
+            str_contains($t, 'AUTOBUS') ||
+            str_contains($t, 'TRACTO') ||
+            str_contains($t, 'TORTON') ||
+            str_contains($t, 'RABON')
+        ) {
+            return 'camion';
+        }
+
+        if (str_contains($t, 'REMOLQUE') || str_contains($t, 'DOLLY')) {
+            return 'remolque';
+        }
+
+        if (str_contains($t, 'AUTO') || str_contains($t, 'SEDAN') || str_contains($t, 'COUPE')) {
+            return 'automovil';
+        }
+
+        if (str_contains($t, 'BICICLETA') || $t === 'BICI') {
+            return 'bicicleta';
+        }
+
+        if (str_contains($t, 'FERROCARRIL') || str_contains($t, 'TREN') || str_contains($t, 'VAGON')) {
+            return 'tren';
+        }
+
+        if (str_contains($t, 'SEMOVIENTE') || str_contains($t, 'CABALLO') || str_contains($t, 'MULA') || str_contains($t, 'VACA')) {
+            return 'semoviente';
+        }
+
+        if (str_contains($t, 'TRACTOR') || str_contains($t, 'MAQUINARIA') || str_contains($t, 'MONTACARGAS')) {
+            return 'maquinaria';
+        }
+
         return 'OTRO';
     }
 
     private function carroceriasFromTipoGeneral(string $vehTipo): array
     {
-        $key = strtolower(trim($vehTipo));
+        $key = mb_strtolower($this->norm($vehTipo), 'UTF-8');
+
+        if ($key === 'no especificado' || $key === 'sin dato' || $key === 'sin datos') {
+            return [
+                'SIN DATO',
+                'SIN DATOS',
+                'sin dato',
+                'sin datos',
+                'NO ESPECIFICADO',
+                'NO ESPECIFICADA',
+                'N/A',
+                'NA',
+                'NULL',
+            ];
+        }
+
+        if ($key === 'otro' || $key === 'otros') {
+            return ['OTRO', 'OTROS', 'otro', 'otros'];
+        }
+
         $map = $this->carroceriasMap();
         return $map[$key] ?? [];
+    }
+
+    private function isNoEspecificadoVehicleType(string $tipo): bool
+    {
+        return in_array($tipo, [
+            'SIN DATO',
+            'SIN DATOS',
+            'NO ESPECIFICADO',
+            'NO ESPECIFICADA',
+            'N/A',
+            'NA',
+            'NULL',
+            '0',
+        ], true);
     }
 
     private function norm(string $s): string

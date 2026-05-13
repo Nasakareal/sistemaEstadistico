@@ -20,6 +20,12 @@ class SeguridadVialPowerPointServiceTest extends TestCase
             $this->assertNotFalse($zip->locateName('ppt/presProps.xml'));
             $this->assertNotFalse($zip->locateName('ppt/viewProps.xml'));
             $this->assertNotFalse($zip->locateName('ppt/tableStyles.xml'));
+            $this->assertNotFalse($zip->locateName('ppt/media/image1.png'));
+            $this->assertNotFalse($zip->locateName('ppt/media/image2.jpg'));
+
+            $slideRels = $zip->getFromName('ppt/slides/_rels/slide1.xml.rels');
+            $this->assertIsString($slideRels);
+            $this->assertStringContainsString('relationships/image', $slideRels);
 
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $name = $zip->getNameIndex($i);
@@ -33,6 +39,7 @@ class SeguridadVialPowerPointServiceTest extends TestCase
                 $this->assertIsString($xml, $name);
                 $this->assertStringNotContainsString('algn="c"', $xml, $name);
                 $this->assertStringNotContainsString('anchor="mid"', $xml, $name);
+                $this->assertStringNotContainsString('<a:spAutoFit/>', $xml, $name);
                 $this->assertXmlIsWellFormed($xml, $name);
             }
 

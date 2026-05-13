@@ -13,9 +13,15 @@ class SeguridadVialPowerPointService
     private const EMU = 914400;
 
     private int $shapeId = 2;
+    private int $mediaId = 1;
+    private array $currentSlideRelationships = [];
+    private array $media = [];
 
     public function generar(array $reporte): string
     {
+        $this->mediaId = 1;
+        $this->media = [];
+
         $slides = [
             $this->buildSlide(fn () => $this->slidePortada($reporte)),
             $this->buildSlide(fn () => $this->slideMunicipios($reporte)),
@@ -43,11 +49,15 @@ class SeguridadVialPowerPointService
         return $path;
     }
 
-    private function buildSlide(callable $builder): string
+    private function buildSlide(callable $builder): array
     {
         $this->shapeId = 2;
+        $this->currentSlideRelationships = [];
 
-        return $this->wrapSlide($builder());
+        return [
+            'xml' => $this->wrapSlide($builder()),
+            'relationships' => $this->currentSlideRelationships,
+        ];
     }
 
     private function slidePortada(array $reporte): string
@@ -55,11 +65,13 @@ class SeguridadVialPowerPointService
         $periodo = $this->periodoTexto($reporte);
 
         return implode('', [
-            $this->rect(0, 0, 13.333, 7.5, 'F7FAFC'),
-            $this->rect(0, 0, 13.333, .22, '0F766E'),
-            $this->rect(0, 7.18, 13.333, .32, 'C99743'),
-            $this->text(.58, .62, 3.2, .5, 'SECRETARIA DE SEGURIDAD PUBLICA', 11, '214269', true),
-            $this->text(9.15, .62, 3.55, .5, 'GOBIERNO DE MICHOACAN', 11, '214269', true, 'r'),
+            $this->rect(0, 0, 13.333, 7.5, '08172F'),
+            $this->rect(.22, .18, 12.9, 7.12, 'F7FAFC', true, 'DDE6F0'),
+            $this->rect(.22, .18, 12.9, .12, '0F766E'),
+            $this->rect(.22, 6.94, 12.9, .16, '0F766E'),
+            $this->rect(.22, 7.1, 12.9, .2, 'C99743'),
+            $this->image(public_path('img/michoacan_vertical.png'), .72, .62, .58, .75),
+            $this->image(public_path('ssp.jpg'), 10.12, .66, 2.32, .64),
             $this->text(.9, 1.56, 11.55, .42, 'INFORME INSTITUCIONAL', 15, '0F766E', true, 'c'),
             $this->text(.9, 2.15, 11.55, 1.48, "INFORME DE\nSEGURIDAD VIAL", 50, '0B2B61', true, 'c'),
             $this->rect(5.7, 3.88, 1.95, .08, '0F766E', true),
@@ -77,6 +89,7 @@ class SeguridadVialPowerPointService
         $content = [
             $this->slideBackground(),
             $this->slideHeader('Comparativa municipal', 'Municipios con mayor incidencia', $this->periodoTexto($reporte)),
+            $this->rect(.62, 1.48, 11.85, 4.75, 'F8FAFC', true, 'E2E8F0'),
             $this->text(10.35, .62, 2.2, .36, 'TOTAL', 12, '64748B', true, 'r'),
             $this->text(10.3, .94, 2.2, .66, $this->num($kpis['total_hechos'] ?? 0), 34, 'DC2626', true, 'r'),
             $this->text(10.3, 1.55, 2.2, .26, 'SINIESTROS', 10, '64748B', true, 'r'),
@@ -230,6 +243,8 @@ class SeguridadVialPowerPointService
             $this->insight(.82, 1.42, 'DIA DE LA SEMANA', $k['dia_pico'] ?? 'SIN DATOS', $k['dia_pico_total'] ?? 0),
             $this->insight(4.68, 1.42, 'HORA CRITICA', $k['hora_pico'] ?? 'SIN HORA', $k['hora_pico_total'] ?? 0),
             $this->insight(8.54, 1.42, 'PROMEDIO DIARIO', $this->num($k['promedio_diario'] ?? 0), 'HECHOS'),
+            $this->rect(.66, 2.48, 5.95, 3.42, 'F8FAFC', true, 'E2E8F0'),
+            $this->rect(6.62, 2.48, 5.95, 3.42, 'F8FAFC', true, 'E2E8F0'),
             $this->text(.82, 2.62, 5.4, .32, 'Siniestros por dia de la semana', 18, '0F172A', true),
             $this->text(6.8, 2.62, 5.4, .32, 'Siniestros por hora', 18, '0F172A', true),
         ];
@@ -251,6 +266,8 @@ class SeguridadVialPowerPointService
         $content = [
             $this->slideBackground(),
             $this->slideHeader('Lectura operativa', 'Tipo de siniestro y estatus', $this->periodoTexto($reporte)),
+            $this->rect(.66, 1.34, 6.45, 4.95, 'F8FAFC', true, 'E2E8F0'),
+            $this->rect(7.16, 1.34, 5.0, 4.95, 'F8FAFC', true, 'E2E8F0'),
             $this->text(.82, 1.42, 5.9, .28, 'TIPO PRINCIPAL', 11, '64748B', true),
             $this->text(.82, 1.72, 5.9, .38, $this->short($k['tipo_principal'] ?? 'SIN DATOS', 42), 18, '0F172A', true),
             $this->text(5.82, 1.58, .92, .48, $this->num($k['tipo_principal_total'] ?? 0), 28, 'DC2626', true, 'r'),
@@ -397,9 +414,10 @@ class SeguridadVialPowerPointService
     private function slideBackground(): string
     {
         return implode('', [
-            $this->rect(0, 0, 13.333, 7.5, 'F8FAFC'),
-            $this->rect(0, 0, 13.333, .18, '0F766E'),
-            $this->rect(0, 7.26, 13.333, .24, '0B2B61'),
+            $this->rect(0, 0, 13.333, 7.5, '08172F'),
+            $this->rect(.28, .26, 12.78, 6.98, 'FFFFFF', true, 'DDE6F0'),
+            $this->rect(.28, .26, 12.78, .09, '0F766E'),
+            $this->rect(.28, 7.02, 12.78, .09, '0B2B61'),
         ]);
     }
 
@@ -430,6 +448,38 @@ class SeguridadVialPowerPointService
         return $this->text($x, $y, $w, $h, $text, $size, $color, true, 'c', $fill, true);
     }
 
+    private function image(string $path, float $x, float $y, float $w, float $h): string
+    {
+        if (!is_file($path)) {
+            return '';
+        }
+
+        $absolutePath = realpath($path) ?: $path;
+        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+
+        if (!in_array($extension, ['png', 'jpg', 'jpeg'], true)) {
+            return '';
+        }
+
+        if (!isset($this->media[$absolutePath])) {
+            $partName = 'image' . $this->mediaId++ . '.' . $extension;
+            $this->media[$absolutePath] = [
+                'path' => $absolutePath,
+                'part' => $partName,
+            ];
+        }
+
+        $relationshipId = 'rId' . (count($this->currentSlideRelationships) + 2);
+        $this->currentSlideRelationships[] = [
+            'id' => $relationshipId,
+            'target' => '../media/' . $this->media[$absolutePath]['part'],
+        ];
+
+        $id = $this->shapeId++;
+
+        return '<p:pic><p:nvPicPr><p:cNvPr id="' . $id . '" name="Picture ' . $id . '"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="' . $relationshipId . '"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>';
+    }
+
     private function text(float $x, float $y, float $w, float $h, string $text, float $size, string $color, bool $bold = false, string $align = 'l', ?string $fill = null, bool $round = false): string
     {
         $id = $this->shapeId++;
@@ -441,7 +491,7 @@ class SeguridadVialPowerPointService
             ->map(fn ($line) => $this->paragraph($line, $size, $color, $bold, $align))
             ->implode('');
 
-        return '<p:sp><p:nvSpPr><p:cNvPr id="' . $id . '" name="Text ' . $id . '"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="' . $geom . '"><a:avLst/></a:prstGeom>' . $fillXml . '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" anchor="ctr"><a:spAutoFit/></a:bodyPr><a:lstStyle/>' . $paragraphs . '</p:txBody></p:sp>';
+        return '<p:sp><p:nvSpPr><p:cNvPr id="' . $id . '" name="Text ' . $id . '"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="' . $this->emu($x) . '" y="' . $this->emu($y) . '"/><a:ext cx="' . $this->emu($w) . '" cy="' . $this->emu($h) . '"/></a:xfrm><a:prstGeom prst="' . $geom . '"><a:avLst/></a:prstGeom>' . $fillXml . '<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" anchor="ctr" lIns="0" tIns="0" rIns="0" bIns="0"><a:noAutofit/></a:bodyPr><a:lstStyle/>' . $paragraphs . '</p:txBody></p:sp>';
     }
 
     private function paragraph(string $text, float $size, string $color, bool $bold, string $align): string
@@ -486,10 +536,14 @@ class SeguridadVialPowerPointService
         $zip->addFromString('ppt/slideLayouts/slideLayout1.xml', $this->slideLayoutXml());
         $zip->addFromString('ppt/slideLayouts/_rels/slideLayout1.xml.rels', $this->slideLayoutRels());
 
+        foreach ($this->media as $media) {
+            $zip->addFile($media['path'], 'ppt/media/' . $media['part']);
+        }
+
         foreach ($slides as $index => $xml) {
             $n = $index + 1;
-            $zip->addFromString("ppt/slides/slide{$n}.xml", $xml);
-            $zip->addFromString("ppt/slides/_rels/slide{$n}.xml.rels", $this->slideRels());
+            $zip->addFromString("ppt/slides/slide{$n}.xml", $xml['xml']);
+            $zip->addFromString("ppt/slides/_rels/slide{$n}.xml.rels", $this->slideRels($xml['relationships']));
         }
     }
 
@@ -501,7 +555,7 @@ class SeguridadVialPowerPointService
             $slides .= '<Override PartName="/ppt/slides/slide' . $i . '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>';
         }
 
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/><Override PartName="/ppt/viewProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml"/><Override PartName="/ppt/tableStyles.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' . $slides . '</Types>';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/><Override PartName="/ppt/viewProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml"/><Override PartName="/ppt/tableStyles.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' . $slides . '</Types>';
     }
 
     private function rootRels(): string
@@ -536,9 +590,15 @@ class SeguridadVialPowerPointService
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' . $rels . '</Relationships>';
     }
 
-    private function slideRels(): string
+    private function slideRels(array $relationships = []): string
     {
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>';
+        $rels = '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>';
+
+        foreach ($relationships as $relationship) {
+            $rels .= '<Relationship Id="' . $relationship['id'] . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' . $this->xml($relationship['target']) . '"/>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' . $rels . '</Relationships>';
     }
 
     private function presPropsXml(): string

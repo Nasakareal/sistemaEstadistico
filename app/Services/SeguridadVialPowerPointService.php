@@ -16,11 +16,13 @@ class SeguridadVialPowerPointService
     private int $mediaId = 1;
     private array $currentSlideRelationships = [];
     private array $media = [];
+    private array $temporaryMedia = [];
 
     public function generar(array $reporte): string
     {
         $this->mediaId = 1;
         $this->media = [];
+        $this->temporaryMedia = [];
 
         $slides = [
             $this->buildSlide(fn () => $this->slidePortada($reporte)),
@@ -43,8 +45,12 @@ class SeguridadVialPowerPointService
             throw new \RuntimeException('No se pudo crear el archivo PowerPoint.');
         }
 
-        $this->writePackage($zip, $slides);
-        $zip->close();
+        try {
+            $this->writePackage($zip, $slides);
+            $zip->close();
+        } finally {
+            $this->cleanupTemporaryMedia();
+        }
 
         return $path;
     }
@@ -124,27 +130,37 @@ class SeguridadVialPowerPointService
         $mapa = $reporte['mapa_morelia'] ?? [];
         $puntos = $this->values($mapa['puntos'] ?? []);
         $totales = $mapa['totales'] ?? [];
-        $bounds = $this->mapBounds($puntos);
+        $mapAsset = $this->createMoreliaMapImage($puntos);
+        $bounds = $mapAsset['bounds'] ?? $this->mapBounds($puntos);
         $maxTotal = max(1, (int) collect($puntos)->max('total'));
         $mapX = .82;
         $mapY = 1.55;
         $mapW = 8.35;
         $mapH = 4.88;
+        $plotX = $mapAsset ? $mapX + .04 : $mapX + .22;
+        $plotY = $mapAsset ? $mapY + .04 : $mapY + .2;
+        $plotW = $mapAsset ? $mapW - .08 : $mapW - .44;
+        $plotH = $mapAsset ? $mapH - .08 : $mapH - .4;
 
         $content = [
             $this->slideBackground(),
             $this->slideHeader('Lectura territorial', 'Mapa de calor Morelia', $this->periodoTexto($reporte)),
             $this->rect($mapX, $mapY, $mapW, $mapH, 'EEF6FF', true, 'CBD5E1'),
-            $this->rect($mapX + .22, $mapY + .2, $mapW - .44, $mapH - .4, 'F8FAFC', true, 'E2E8F0'),
         ];
 
-        foreach ([.25, .5, .75] as $ratio) {
-            $content[] = $this->rect($mapX + .22 + (($mapW - .44) * $ratio), $mapY + .2, .01, $mapH - .4, 'D9E6F3');
-            $content[] = $this->rect($mapX + .22, $mapY + .2 + (($mapH - .4) * $ratio), $mapW - .44, .01, 'D9E6F3');
+        if ($mapAsset) {
+            $content[] = $this->image($mapAsset['path'], $plotX, $plotY, $plotW, $plotH);
+        } else {
+            $content[] = $this->rect($plotX, $plotY, $plotW, $plotH, 'F8FAFC', true, 'E2E8F0');
+
+            foreach ([.25, .5, .75] as $ratio) {
+                $content[] = $this->rect($plotX + ($plotW * $ratio), $plotY, .01, $plotH, 'D9E6F3');
+                $content[] = $this->rect($plotX, $plotY + ($plotH * $ratio), $plotW, .01, 'D9E6F3');
+            }
         }
 
-        $content[] = $this->text($mapX + .44, $mapY + .34, 1.7, .26, 'MORELIA', 12, '64748B', true);
-        $content[] = $this->text($mapX + 5.92, $mapY + 4.18, 2.65, .24, 'Concentracion por coordenadas', 9.5, '64748B', true, 'r');
+        $content[] = $this->text($mapX + .3, $mapY + .24, 1.7, .26, 'MORELIA', 12, '64748B', true);
+        $content[] = $this->text($mapX + 5.78, $mapY + 4.35, 2.65, .24, 'Concentracion por coordenadas', 9.5, '64748B', true, 'r');
 
         if (count($puntos) === 0) {
             $content[] = $this->text($mapX + 1.2, $mapY + 2.1, 5.9, .46, 'SIN COORDENADAS DE MORELIA EN EL PERIODO', 18, '64748B', true, 'c');
@@ -155,7 +171,7 @@ class SeguridadVialPowerPointService
                 continue;
             }
 
-            [$px, $py] = $this->mapPoint((float) $punto['lat'], (float) $punto['lng'], $bounds, $mapX + .22, $mapY + .2, $mapW - .44, $mapH - .4);
+            [$px, $py] = $this->mapPoint((float) $punto['lat'], (float) $punto['lng'], $bounds, $plotX, $plotY, $plotW, $plotH);
             $ratio = sqrt(max(1, (int) ($punto['total'] ?? 1)) / $maxTotal);
             $size = .18 + (.54 * $ratio);
             $color = $this->heatPointColor($punto);
@@ -250,7 +266,7 @@ class SeguridadVialPowerPointService
         ];
 
         $content = array_merge($content, $this->verticalBars(.82, 3.05, 5.6, 2.5, $diaLabels, $diaSeries, '1D4ED8'));
-        $content = array_merge($content, $this->hourGrid(6.78, 3.08, 5.55, 2.62, $horaLabels, $horaSeries));
+        $content = array_merge($content, $this->hourBars(6.78, 3.08, 5.55, 2.62, $horaLabels, $horaSeries));
 
         return implode('', $content);
     }
@@ -347,26 +363,53 @@ class SeguridadVialPowerPointService
         return $content;
     }
 
-    private function hourGrid(float $x, float $y, float $w, float $h, array $labels, array $values): array
+    private function hourBars(float $x, float $y, float $w, float $h, array $labels, array $values): array
     {
         $content = [];
         $max = max(1, (int) max($values ?: [1]));
-        $cellW = $w / 12;
-        $cellH = $h / 2;
+        $plotTop = $y + .08;
+        $baseline = $y + $h - .34;
+        $plotH = max(.7, $baseline - $plotTop);
+        $slot = $w / 24;
+        $barW = max(.06, min(.15, $slot * .56));
+        $ranked = [];
 
         foreach (range(0, 23) as $i) {
-            $row = intdiv($i, 12);
-            $col = $i % 12;
+            $value = (int) ($values[$i] ?? 0);
+
+            if ($value > 0) {
+                $ranked[$i] = $value;
+            }
+        }
+
+        arsort($ranked);
+        $labelIndexes = array_slice(array_keys($ranked), 0, 4);
+
+        foreach ([.25, .5, .75] as $ratio) {
+            $gridY = $baseline - ($plotH * $ratio);
+            $content[] = $this->rect($x, $gridY, $w, .01, 'E2E8F0');
+        }
+
+        $content[] = $this->rect($x, $baseline, $w, .02, 'CBD5E1');
+
+        foreach (range(0, 23) as $i) {
             $value = (int) ($values[$i] ?? 0);
             $ratio = $value / $max;
-            $fill = $ratio >= .75 ? '0F766E' : ($ratio >= .5 ? '14B8A6' : ($ratio > 0 ? 'A7F3D0' : 'F1F5F9'));
-            $text = $ratio >= .5 ? 'FFFFFF' : '0F172A';
-            $xx = $x + ($col * $cellW);
-            $yy = $y + ($row * $cellH);
+            $barH = $value > 0 ? max(.06, $plotH * $ratio) : .03;
+            $xx = $x + ($i * $slot) + (($slot - $barW) / 2);
+            $yy = $baseline - $barH;
+            $fill = $value === $max && $value > 0 ? '0F766E' : ($value > 0 ? '14B8A6' : 'E2E8F0');
 
-            $content[] = $this->rect($xx + .03, $yy + .04, $cellW - .06, $cellH - .08, $fill, true, 'FFFFFF');
-            $content[] = $this->text($xx + .04, $yy + .16, $cellW - .08, .18, substr((string) ($labels[$i] ?? sprintf('%02d:00', $i)), 0, 2), 8, $text, true, 'c');
-            $content[] = $this->text($xx + .04, $yy + .45, $cellW - .08, .24, $this->num($value), 14, $text, true, 'c');
+            $content[] = $this->rect($xx, $yy, $barW, $barH, $fill, true);
+
+            if (in_array($i, $labelIndexes, true)) {
+                $content[] = $this->text($xx - .06, $yy - .22, $barW + .12, .18, $this->num($value), 8, '0F172A', true, 'c');
+            }
+
+            if ($i % 3 === 0) {
+                $hour = substr((string) ($labels[$i] ?? sprintf('%02d:00', $i)), 0, 2);
+                $content[] = $this->text($xx - .08, $baseline + .07, $barW + .16, .2, $hour, 7.5, '64748B', true, 'c');
+            }
         }
 
         return $content;
@@ -671,6 +714,266 @@ class SeguridadVialPowerPointService
         }
 
         return [];
+    }
+
+    private function cleanupTemporaryMedia(): void
+    {
+        foreach ($this->temporaryMedia as $path) {
+            if (is_string($path) && is_file($path)) {
+                @unlink($path);
+            }
+        }
+
+        $this->temporaryMedia = [];
+    }
+
+    private function createMoreliaMapImage(array $puntos): ?array
+    {
+        if (!extension_loaded('gd') || !function_exists('imagecreatetruecolor')) {
+            return null;
+        }
+
+        $geometry = $this->moreliaGeometry();
+
+        if (!$geometry) {
+            return null;
+        }
+
+        $bounds = $this->geometryBounds($geometry);
+
+        if (!$bounds) {
+            return null;
+        }
+
+        $bounds = $this->padBounds($bounds, .045);
+        $width = 1400;
+        $height = 820;
+        $image = imagecreatetruecolor($width, $height);
+
+        if (!$image) {
+            return null;
+        }
+
+        imagealphablending($image, true);
+        imagesavealpha($image, true);
+
+        if (function_exists('imageantialias')) {
+            imageantialias($image, true);
+        }
+
+        imagefilledrectangle($image, 0, 0, $width, $height, $this->gdColor($image, 'EEF6FF'));
+
+        $grid = $this->gdColor($image, 'DCEBFA');
+        $road = $this->gdColor($image, 'D9E2EC', 20);
+
+        foreach (range(1, 6) as $i) {
+            $yy = (int) round(($height / 7) * $i);
+            imageline($image, 0, $yy, $width, $yy, $grid);
+        }
+
+        foreach (range(1, 8) as $i) {
+            $xx = (int) round(($width / 9) * $i);
+            imageline($image, $xx, 0, $xx, $height, $grid);
+        }
+
+        foreach (range(-4, 14) as $i) {
+            $x1 = ($i * 115) - 80;
+            imageline($image, $x1, $height, $x1 + 520, 0, $road);
+        }
+
+        foreach (range(0, 11) as $i) {
+            $y1 = ($i * 86) - 120;
+            imageline($image, 0, $y1, $width, $y1 + 280, $road);
+        }
+
+        $this->drawMapGeometry(
+            $image,
+            $geometry,
+            $bounds,
+            $width,
+            $height,
+            $this->gdColor($image, 'F8FBFD'),
+            $this->gdColor($image, '64748B')
+        );
+
+        $maxTotal = max(1, (int) collect($puntos)->max('total'));
+
+        foreach (array_slice($puntos, 0, 80) as $punto) {
+            if (!is_numeric($punto['lat'] ?? null) || !is_numeric($punto['lng'] ?? null)) {
+                continue;
+            }
+
+            [$px, $py] = $this->projectMapPixel((float) $punto['lat'], (float) $punto['lng'], $bounds, $width, $height);
+            $ratio = sqrt(max(1, (int) ($punto['total'] ?? 1)) / $maxTotal);
+            $radius = (int) round(18 + (42 * $ratio));
+            $heat = $this->gdColor($image, $this->heatPointColor($punto), 78);
+
+            imagefilledellipse($image, $px, $py, $radius * 2, $radius * 2, $heat);
+        }
+
+        imagestring($image, 5, 32, 28, 'MORELIA', $this->gdColor($image, '334155'));
+        imagestring($image, 2, 32, 50, 'Base territorial local', $this->gdColor($image, '64748B'));
+
+        $path = storage_path('app/temp_seguridad_vial_map_' . uniqid('', true) . '.png');
+
+        if (!is_dir(dirname($path))) {
+            mkdir(dirname($path), 0775, true);
+        }
+
+        $saved = imagepng($image, $path, 8);
+        imagedestroy($image);
+
+        if (!$saved || !is_file($path)) {
+            return null;
+        }
+
+        $this->temporaryMedia[] = $path;
+
+        return [
+            'path' => $path,
+            'bounds' => $bounds,
+        ];
+    }
+
+    private function moreliaGeometry(): ?array
+    {
+        $path = public_path('geo/michoacan.json');
+
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $data = json_decode((string) file_get_contents($path), true);
+
+        foreach (($data['features'] ?? []) as $feature) {
+            $name = mb_strtoupper((string) ($feature['properties']['NOMGEO'] ?? ''), 'UTF-8');
+
+            if ($name === 'MORELIA' && isset($feature['geometry']) && is_array($feature['geometry'])) {
+                return $feature['geometry'];
+            }
+        }
+
+        return null;
+    }
+
+    private function geometryBounds(array $geometry): ?array
+    {
+        $lats = [];
+        $lngs = [];
+        $this->collectCoordinateBounds($geometry['coordinates'] ?? [], $lats, $lngs);
+
+        if (!$lats || !$lngs) {
+            return null;
+        }
+
+        return [min($lats), max($lats), min($lngs), max($lngs)];
+    }
+
+    private function collectCoordinateBounds($coordinates, array &$lats, array &$lngs): void
+    {
+        if (!is_array($coordinates)) {
+            return;
+        }
+
+        if (isset($coordinates[0], $coordinates[1]) && is_numeric($coordinates[0]) && is_numeric($coordinates[1])) {
+            $lngs[] = (float) $coordinates[0];
+            $lats[] = (float) $coordinates[1];
+
+            return;
+        }
+
+        foreach ($coordinates as $child) {
+            $this->collectCoordinateBounds($child, $lats, $lngs);
+        }
+    }
+
+    private function padBounds(array $bounds, float $ratio): array
+    {
+        [$latMin, $latMax, $lngMin, $lngMax] = $bounds;
+        $latPad = max(.005, ($latMax - $latMin) * $ratio);
+        $lngPad = max(.005, ($lngMax - $lngMin) * $ratio);
+
+        return [$latMin - $latPad, $latMax + $latPad, $lngMin - $lngPad, $lngMax + $lngPad];
+    }
+
+    private function drawMapGeometry($image, array $geometry, array $bounds, int $width, int $height, int $fill, int $line): void
+    {
+        $type = (string) ($geometry['type'] ?? '');
+        $coordinates = $geometry['coordinates'] ?? [];
+
+        if ($type === 'Polygon') {
+            foreach ($coordinates as $ring) {
+                $this->drawMapRing($image, $ring, $bounds, $width, $height, $fill, $line);
+            }
+
+            return;
+        }
+
+        if ($type === 'MultiPolygon') {
+            foreach ($coordinates as $polygon) {
+                foreach ($polygon as $ring) {
+                    $this->drawMapRing($image, $ring, $bounds, $width, $height, $fill, $line);
+                }
+            }
+        }
+    }
+
+    private function drawMapRing($image, array $ring, array $bounds, int $width, int $height, int $fill, int $line): void
+    {
+        $points = [];
+        $total = count($ring);
+        $step = max(1, (int) floor($total / 1100));
+
+        foreach ($ring as $index => $coordinate) {
+            if ($index % $step !== 0 && $index !== $total - 1) {
+                continue;
+            }
+
+            if (!isset($coordinate[0], $coordinate[1]) || !is_numeric($coordinate[0]) || !is_numeric($coordinate[1])) {
+                continue;
+            }
+
+            [$px, $py] = $this->projectMapPixel((float) $coordinate[1], (float) $coordinate[0], $bounds, $width, $height);
+            $points[] = $px;
+            $points[] = $py;
+        }
+
+        $numPoints = (int) (count($points) / 2);
+
+        if ($numPoints < 3) {
+            return;
+        }
+
+        imagefilledpolygon($image, $points, $numPoints, $fill);
+        imagepolygon($image, $points, $numPoints, $line);
+    }
+
+    private function projectMapPixel(float $lat, float $lng, array $bounds, int $width, int $height): array
+    {
+        [$latMin, $latMax, $lngMin, $lngMax] = $bounds;
+        $latSpan = max(.000001, $latMax - $latMin);
+        $lngSpan = max(.000001, $lngMax - $lngMin);
+        $x = (int) round((($lng - $lngMin) / $lngSpan) * $width);
+        $y = (int) round($height - ((($lat - $latMin) / $latSpan) * $height));
+
+        return [
+            max(0, min($width, $x)),
+            max(0, min($height, $y)),
+        ];
+    }
+
+    private function gdColor($image, string $hex, int $alpha = 0): int
+    {
+        $hex = ltrim($hex, '#');
+        $alpha = max(0, min(127, $alpha));
+
+        return imagecolorallocatealpha(
+            $image,
+            hexdec(substr($hex, 0, 2)),
+            hexdec(substr($hex, 2, 2)),
+            hexdec(substr($hex, 4, 2)),
+            $alpha
+        );
     }
 
     private function mapBounds(array $puntos): array

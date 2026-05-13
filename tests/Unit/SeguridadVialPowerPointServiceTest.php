@@ -23,6 +23,14 @@ class SeguridadVialPowerPointServiceTest extends TestCase
             $this->assertNotFalse($zip->locateName('ppt/media/image1.png'));
             $this->assertNotFalse($zip->locateName('ppt/media/image2.jpg'));
 
+            if (extension_loaded('gd') && is_file(public_path('geo/michoacan.json'))) {
+                $this->assertNotFalse($zip->locateName('ppt/media/image3.png'));
+
+                $mapRels = $zip->getFromName('ppt/slides/_rels/slide3.xml.rels');
+                $this->assertIsString($mapRels);
+                $this->assertStringContainsString('../media/image3.png', $mapRels);
+            }
+
             $slideRels = $zip->getFromName('ppt/slides/_rels/slide1.xml.rels');
             $this->assertIsString($slideRels);
             $this->assertStringContainsString('relationships/image', $slideRels);

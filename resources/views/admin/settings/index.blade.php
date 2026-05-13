@@ -174,6 +174,23 @@
             @endif
         @endcan
 
+        @can('ver catalogos actividades')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-primary">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Catálogos de Actividades</div>
+                        <div class="sv-card__desc">Categorías y subcategorías para captura de actividades.</div>
+                        <a href="{{ route('catalogos_actividades.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         @php $user = auth()->user(); @endphp
 
         @if($user && ($user->hasRole('Superadmin') || in_array((int)($user->unidad_id ?? 0), [2, 3], true)))

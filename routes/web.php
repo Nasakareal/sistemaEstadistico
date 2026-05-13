@@ -84,6 +84,9 @@ use App\Http\Controllers\ConstanciaPreguntaController;
 use App\Http\Controllers\GruaUsuarioController;
 use App\Http\Controllers\LiberacionCorralonController;
 
+use App\Http\Controllers\ActividadCategoriaController;
+use App\Http\Controllers\ActividadSubcategoriaController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::prefix('constancias-manejo')->group(function () {
@@ -716,6 +719,20 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{redApoyo}', [DestacamentoRedApoyoController::class, 'destroy'])->middleware('can:eliminar directorio red apoyo')->name('directorio_red_apoyo.destroy');
     });
 
+    Route::prefix('catalogos-actividades')->middleware('can:ver catalogos actividades')->group(function () {
+        Route::get('/', [ActividadCategoriaController::class, 'index'])->name('catalogos_actividades.index');
+        Route::get('/categorias/create', [ActividadCategoriaController::class, 'create'])->middleware('can:crear catalogos actividades')->name('catalogos_actividades.categorias.create');
+        Route::post('/categorias', [ActividadCategoriaController::class, 'store'])->middleware('can:crear catalogos actividades')->name('catalogos_actividades.categorias.store');
+        Route::get('/categorias/{actividadCategoria}/edit', [ActividadCategoriaController::class, 'edit'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.categorias.edit');
+        Route::put('/categorias/{actividadCategoria}', [ActividadCategoriaController::class, 'update'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.categorias.update');
+        Route::delete('/categorias/{actividadCategoria}', [ActividadCategoriaController::class, 'destroy'])->middleware('can:eliminar catalogos actividades')->name('catalogos_actividades.categorias.destroy');
+        Route::get('/categorias/{actividadCategoria}/subcategorias/create', [ActividadSubcategoriaController::class, 'create'])->middleware('can:crear catalogos actividades')->name('catalogos_actividades.subcategorias.create');
+        Route::post('/categorias/{actividadCategoria}/subcategorias', [ActividadSubcategoriaController::class, 'store'])->middleware('can:crear catalogos actividades')->name('catalogos_actividades.subcategorias.store');
+        Route::get('/subcategorias/{actividadSubcategoria}/edit', [ActividadSubcategoriaController::class, 'edit'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.subcategorias.edit');
+        Route::put('/subcategorias/{actividadSubcategoria}', [ActividadSubcategoriaController::class, 'update'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.subcategorias.update');
+        Route::delete('/subcategorias/{actividadSubcategoria}', [ActividadSubcategoriaController::class, 'destroy'])->middleware('can:eliminar catalogos actividades')->name('catalogos_actividades.subcategorias.destroy');
+    });
+
     Route::prefix('estadisticas-siniestros')->group(function () {
         Route::get('/', [EstadisticasSiniestrosSettingsController::class, 'index'])->name('settings.estadisticas_siniestros.index');
         Route::get('/parte-novedades', [EstadisticasSiniestrosSettingsController::class, 'parteNovedades'])->name('settings.estadisticas_siniestros.parte_novedades');
@@ -787,6 +804,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/data/mapa-calor-morelia', [EstadisticasSeguridadVialController::class, 'dataMapaCalorMorelia'])->name('estadisticas_seguridad_vial.data.mapa_calor_morelia');
         Route::get('/powerpoint', [EstadisticasSeguridadVialController::class, 'descargarPowerPoint'])->name('estadisticas_seguridad_vial.powerpoint');
     });
+
+
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

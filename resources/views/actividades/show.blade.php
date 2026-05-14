@@ -58,6 +58,10 @@
         $vehiculosActividad = $actividad->relationLoaded('vehiculos')
             ? $actividad->vehiculos
             : $actividad->vehiculos()->orderBy('vehiculos.id')->get();
+
+        $detalleFomento = $actividad->relationLoaded('fomentoCulturaVialDetalle')
+            ? $actividad->fomentoCulturaVialDetalle
+            : $actividad->fomentoCulturaVialDetalle()->first();
     @endphp
 
     <div class="row">
@@ -246,6 +250,50 @@
                     </div>
                 </div>
             </div>
+
+            @if ($detalleFomento)
+                <div class="card card-outline card-info mb-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Fomento a la Cultura Vial</h3>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row" style="row-gap:18px;">
+                            <div class="col-md-12">
+                                <label class="help-muted d-block">Programa / taller / campaña</label>
+                                <div class="form-control-like">{{ $detalleFomento->programa_nombre ?? optional($detalleFomento->programa)->nombre ?? '—' }}</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="help-muted d-block">Nivel educativo</label>
+                                <div class="form-control-like">{{ $detalleFomento->nivel_educativo ?? '—' }}</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="help-muted d-block">Sector</label>
+                                <div class="form-control-like">{{ $detalleFomento->sector ?? '—' }}</div>
+                            </div>
+
+                            @foreach ([
+                                'ninas' => 'Niñas',
+                                'ninos' => 'Niños',
+                                'adolescentes_mujeres' => 'Adolescentes mujeres',
+                                'adolescentes_hombres' => 'Adolescentes hombres',
+                                'docentes_hombres' => 'Docentes hombres',
+                                'docentes_mujeres' => 'Docentes mujeres',
+                                'hombres' => 'Hombres',
+                                'mujeres' => 'Mujeres',
+                                'total_poblacion_atendida' => 'Total población atendida',
+                            ] as $campo => $label)
+                                <div class="col-md-3">
+                                    <label class="help-muted d-block">{{ $label }}</label>
+                                    <div class="form-control-like">{{ (int) ($detalleFomento->{$campo} ?? 0) }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
 
             <div class="card card-outline card-secondary mb-4">
                 <div class="card-header">

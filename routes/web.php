@@ -86,6 +86,7 @@ use App\Http\Controllers\LiberacionCorralonController;
 
 use App\Http\Controllers\ActividadCategoriaController;
 use App\Http\Controllers\ActividadSubcategoriaController;
+use App\Http\Controllers\FomentoCulturaVialProgramaController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -307,6 +308,7 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
 
     Route::get('/export/actividades',[EstadisticasActividadesController::class,'exportActividades'])->name('estadisticas_actividades.export.actividades');
     Route::get('/export/mensual',[EstadisticasActividadesController::class,'exportMensual'])->name('estadisticas_actividades.export.mensual');
+    Route::get('/export/fomento-cultura-vial',[EstadisticasActividadesController::class,'exportFomentoCulturaVial'])->name('estadisticas_actividades.export.fomento_cultura_vial');
     Route::get('/export/puestas-disposicion',[EstadisticasActividadesController::class,'exportPuestasDisposicion'])->name('estadisticas_actividades.export.puestas_disposicion');
 });
 
@@ -731,6 +733,11 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/subcategorias/{actividadSubcategoria}/edit', [ActividadSubcategoriaController::class, 'edit'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.subcategorias.edit');
         Route::put('/subcategorias/{actividadSubcategoria}', [ActividadSubcategoriaController::class, 'update'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.subcategorias.update');
         Route::delete('/subcategorias/{actividadSubcategoria}', [ActividadSubcategoriaController::class, 'destroy'])->middleware('can:eliminar catalogos actividades')->name('catalogos_actividades.subcategorias.destroy');
+        Route::get('/subcategorias/{actividadSubcategoria}/fomento-programas/create', [FomentoCulturaVialProgramaController::class, 'create'])->middleware('can:crear catalogos actividades')->name('catalogos_actividades.fomento_programas.create');
+        Route::post('/subcategorias/{actividadSubcategoria}/fomento-programas', [FomentoCulturaVialProgramaController::class, 'store'])->middleware('can:crear catalogos actividades')->name('catalogos_actividades.fomento_programas.store');
+        Route::get('/fomento-programas/{fomentoPrograma}/edit', [FomentoCulturaVialProgramaController::class, 'edit'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.fomento_programas.edit');
+        Route::put('/fomento-programas/{fomentoPrograma}', [FomentoCulturaVialProgramaController::class, 'update'])->middleware('can:editar catalogos actividades')->name('catalogos_actividades.fomento_programas.update');
+        Route::delete('/fomento-programas/{fomentoPrograma}', [FomentoCulturaVialProgramaController::class, 'destroy'])->middleware('can:eliminar catalogos actividades')->name('catalogos_actividades.fomento_programas.destroy');
     });
 
     Route::prefix('estadisticas-siniestros')->group(function () {

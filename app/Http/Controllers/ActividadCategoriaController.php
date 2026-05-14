@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActividadCategoria;
+use App\Models\ActividadSubcategoria;
+use App\Models\FomentoCulturaVialPrograma;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -16,7 +18,33 @@ class ActividadCategoriaController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        return view('admin.settings.catalogos_actividades.index', compact('categorias'));
+        $fomentoSubcategorias = ActividadSubcategoria::query()
+            ->whereHas('categoria', function ($query) {
+                $query->where('slug', 'capacitaciones');
+            })
+            ->whereIn('slug', [
+                'taller-educacion-seguridad-vial',
+                'campana-educacion-seguridad-vial',
+                'capacitaciones-educacion-seguridad-vial',
+                'modulos-educacion-seguridad-vial',
+            ])
+            ->orderBy('nombre')
+            ->get();
+
+        $fomentoProgramasPorSubcategoria = FomentoCulturaVialPrograma::query()
+            ->with('subcategoria')
+            ->whereIn('actividad_subcategoria_id', $fomentoSubcategorias->pluck('id'))
+            ->orderBy('actividad_subcategoria_id')
+            ->orderBy('orden')
+            ->orderBy('nombre')
+            ->get()
+            ->groupBy('actividad_subcategoria_id');
+
+        return view('admin.settings.catalogos_actividades.index', compact(
+            'categorias',
+            'fomentoSubcategorias',
+            'fomentoProgramasPorSubcategoria'
+        ));
     }
 
     public function create()

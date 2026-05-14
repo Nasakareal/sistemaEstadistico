@@ -48,7 +48,9 @@
                                             required>
                                         <option value="" disabled {{ old('actividad_categoria_id', $actividad->actividad_categoria_id) ? '' : 'selected' }}>Seleccione...</option>
                                         @foreach ($categorias as $c)
-                                            <option value="{{ $c->id }}" {{ (string) old('actividad_categoria_id', $actividad->actividad_categoria_id) === (string) $c->id ? 'selected' : '' }}>
+                                            <option value="{{ $c->id }}"
+                                                    data-fomento="{{ in_array((int) $c->id, $fomentoCategoriaIds ?? [], true) ? '1' : '0' }}"
+                                                    {{ (string) old('actividad_categoria_id', $actividad->actividad_categoria_id) === (string) $c->id ? 'selected' : '' }}>
                                                 {{ $c->nombre }}
                                             </option>
                                         @endforeach
@@ -213,6 +215,8 @@
                                 </div>
                             </div>
                         </div>
+
+                        @include('actividades.partials.fomento_cultura_vial_fields', ['detalleFomento' => $actividad->fomentoCulturaVialDetalle])
 
                         <div class="row">
                             <div class="col-md-6">
@@ -537,6 +541,23 @@
             word-break: break-word;
         }
 
+        .fomento-panel {
+            padding: 16px;
+            margin-bottom: 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(45,168,255,.25);
+            background: rgba(45,168,255,.07);
+        }
+
+        .fomento-panel__title {
+            color: #eaf0ff;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         @include('actividades.partials.form_guardrails_styles')
 
         @include('actividades.partials.vehiculos_styles')
@@ -635,6 +656,8 @@
                     } else {
                         subcatSelect.value = '';
                     }
+
+                    subcatSelect.dispatchEvent(new Event('change'));
                 } catch (e) {
                     setSubcatBase('No hay subcategorías para esta categoría');
                 }
@@ -806,6 +829,8 @@
                     renderPreviewFotos(files);
                 });
             }
+
+            @include('actividades.partials.fomento_cultura_vial_scripts')
 
             @include('actividades.partials.form_guardrails_scripts')
         });

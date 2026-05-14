@@ -9,9 +9,11 @@ use App\Models\ActividadCategoria;
 use App\Models\ActividadFoto;
 use App\Models\ActividadSubcategoria;
 use App\Models\Delegacion;
+use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
 use App\Models\Vehiculo;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\ImageThumbnailService;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
@@ -64,7 +66,8 @@ class ActividadController extends Controller
                 'delegacion',
                 'destacamento',
                 'fotos',
-                'vehiculos'
+                'vehiculos',
+                'fomentoCulturaVialDetalle',
             ])
             ->where(function ($q) use ($start, $end, $dateSeleccionada) {
                 $q->whereDate('fecha', $dateSeleccionada)
@@ -120,7 +123,7 @@ class ActividadController extends Controller
         $user = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'client_uuid' => 'nullable|string|max:36',
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
@@ -169,7 +172,7 @@ class ActividadController extends Controller
             'vehiculos.*.antecedente_vehiculo' => 'nullable|boolean',
             'vehiculos.*.monto_danos' => 'nullable|numeric|min:0',
             'vehiculos.*.partes_danadas' => 'nullable|string',
-        ], [
+        ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
@@ -187,6 +190,7 @@ class ActividadController extends Controller
                     'destacamento',
                     'fotos',
                     'vehiculos',
+                    'fomentoCulturaVialDetalle',
                 ]);
 
                 return response()->json([
@@ -259,7 +263,9 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora) {
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+
+        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager) {
             $archivos = collect();
 
             if ($request->hasFile('foto')) {
@@ -358,6 +364,8 @@ class ActividadController extends Controller
                 'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? null,
             ]);
 
+            $fomentoManager->syncForActividad($actividad, $validated);
+
             $ordenBase = 0;
             $thumbnailDir = $this->actividadThumbnailDirectory($unidadOrg, $fecha);
 
@@ -422,6 +430,7 @@ class ActividadController extends Controller
                 'destacamento',
                 'fotos',
                 'vehiculos',
+                'fomentoCulturaVialDetalle',
             ]);
 
             return response()->json([
@@ -458,7 +467,8 @@ class ActividadController extends Controller
             'delegacion',
             'destacamento',
             'fotos',
-            'vehiculos'
+            'vehiculos',
+            'fomentoCulturaVialDetalle',
         ]);
 
         return response()->json([
@@ -484,7 +494,7 @@ class ActividadController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
@@ -515,7 +525,7 @@ class ActividadController extends Controller
             'fotos.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
             'eliminar_fotos' => 'nullable|array',
             'eliminar_fotos.*' => 'integer',
-        ], [
+        ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
@@ -557,7 +567,9 @@ class ActividadController extends Controller
 
         $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora) {
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+
+        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager) {
             $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
                 ->map(function ($id) {
                     return (int) $id;
@@ -695,6 +707,8 @@ class ActividadController extends Controller
                 'patrullas_participantes_texto' => array_key_exists('patrullas_participantes_texto', $validated) ? $validated['patrullas_participantes_texto'] : $actividad->patrullas_participantes_texto,
             ]);
 
+            $fomentoManager->syncForActividad($actividad, $validated);
+
             if (!empty($fotoIdsEliminar)) {
                 $fotosEliminar = $actividad->fotosTodas()
                     ->whereIn('id', $fotoIdsEliminar)
@@ -767,6 +781,7 @@ class ActividadController extends Controller
                 'destacamento',
                 'fotos',
                 'vehiculos',
+                'fomentoCulturaVialDetalle',
             ]);
 
             return response()->json([
@@ -826,10 +841,22 @@ class ActividadController extends Controller
 
     public function categorias()
     {
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+        $fomentoCategoriaIds = $fomentoManager->categoriaIds();
+        $usuarioEsFomento = $fomentoManager->usuarioEsFomento(Auth::user());
+
         $items = ActividadCategoria::query()
             ->where('activo', 1)
             ->orderBy('nombre')
-            ->get(['id', 'nombre']);
+            ->get(['id', 'nombre', 'slug'])
+            ->map(function ($categoria) use ($fomentoCategoriaIds, $usuarioEsFomento) {
+                return [
+                    'id' => (int) $categoria->id,
+                    'nombre' => $categoria->nombre,
+                    'slug' => $categoria->slug,
+                    'requiere_fomento_cultura_vial' => $usuarioEsFomento || in_array((int) $categoria->id, $fomentoCategoriaIds, true),
+                ];
+            });
 
         return response()->json([
             'ok' => true,
@@ -839,11 +866,32 @@ class ActividadController extends Controller
 
     public function subcategorias(ActividadCategoria $categoria)
     {
+        $programas = FomentoCulturaVialPrograma::query()
+            ->where('activo', 1)
+            ->orderBy('orden')
+            ->orderBy('nombre')
+            ->get(['id', 'actividad_subcategoria_id', 'nombre'])
+            ->groupBy('actividad_subcategoria_id');
+
         $items = ActividadSubcategoria::query()
             ->where('actividad_categoria_id', $categoria->id)
             ->where('activo', 1)
             ->orderBy('nombre')
-            ->get(['id', 'nombre']);
+            ->get(['id', 'nombre'])
+            ->map(function ($subcategoria) use ($programas) {
+                return [
+                    'id' => (int) $subcategoria->id,
+                    'nombre' => $subcategoria->nombre,
+                    'programas_fomento' => ($programas->get($subcategoria->id, collect()))
+                        ->map(function ($programa) {
+                            return [
+                                'id' => (int) $programa->id,
+                                'nombre' => $programa->nombre,
+                            ];
+                        })
+                        ->values(),
+                ];
+            });
 
         return response()->json([
             'ok' => true,

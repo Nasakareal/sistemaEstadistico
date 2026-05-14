@@ -6,10 +6,12 @@ use App\Models\Actividad;
 use App\Models\ActividadCategoria;
 use App\Models\ActividadSubcategoria;
 use App\Models\Delegacion;
+use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
 use App\Models\Unidad;
 use App\Models\Vehiculo;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\FomentoCulturaVialDetalleManager;
 use App\Support\GruaEditGuard;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -123,8 +125,14 @@ class ActividadController extends Controller
             ->get();
 
         $gruas = $this->obtenerGruasDisponiblesParaUsuario(Auth::user());
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+        $fomentoCategoriaIds = $fomentoManager->categoriaIds();
+        $categoriaSeleccionada = (int) old('actividad_categoria_id', 0);
+        $mostrarFomentoCulturaVial = $fomentoManager->usuarioEsFomento(Auth::user())
+            || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
+        $programasFomento = $this->obtenerProgramasFomentoCaptura();
 
-        return view('actividades.create', compact('categorias', 'gruas'));
+        return view('actividades.create', compact('categorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento'));
     }
 
     public function store(Request $request)
@@ -134,7 +142,7 @@ class ActividadController extends Controller
         $user = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
@@ -180,7 +188,7 @@ class ActividadController extends Controller
             'vehiculos.*.antecedente_vehiculo' => 'nullable|boolean',
             'vehiculos.*.monto_danos'        => 'nullable|numeric|min:0',
             'vehiculos.*.partes_danadas'     => 'nullable|string',
-        ], [
+        ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
@@ -215,7 +223,9 @@ class ActividadController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $user) {
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+
+        return DB::transaction(function () use ($request, $validated, $user, $fomentoManager) {
             $actividad = Actividad::create([
                 'client_uuid'                   => (string) Str::uuid(),
                 'sync_status'                   => 'local',
@@ -259,6 +269,8 @@ class ActividadController extends Controller
                 'revisado_at'                   => null,
                 'observacion_revision'          => null,
             ]);
+
+            $fomentoManager->syncForActividad($actividad, $validated);
 
             $ordenBase = 0;
 
@@ -341,6 +353,7 @@ class ActividadController extends Controller
             'actualizador',
             'revisor',
             'vehiculos',
+            'fomentoCulturaVialDetalle',
         ]);
 
         return view('actividades.show', compact('actividad'));
@@ -369,11 +382,18 @@ class ActividadController extends Controller
             $usuario
         );
 
-        $actividad->load('vehiculos');
+        $actividad->load(['vehiculos', 'fomentoCulturaVialDetalle']);
 
         $gruas = $this->obtenerGruasDisponiblesParaUsuario($usuario);
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+        $fomentoCategoriaIds = $fomentoManager->categoriaIds();
+        $categoriaSeleccionada = (int) old('actividad_categoria_id', $actividad->actividad_categoria_id);
+        $mostrarFomentoCulturaVial = $fomentoManager->usuarioEsFomento($usuario)
+            || $fomentoManager->actividadEsFomento($actividad)
+            || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
+        $programasFomento = $this->obtenerProgramasFomentoCaptura();
 
-        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas'));
+        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento'));
     }
 
     public function update(Request $request, Actividad $actividad)
@@ -390,7 +410,7 @@ class ActividadController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
@@ -417,7 +437,7 @@ class ActividadController extends Controller
             'destacamento_id'                => 'nullable|integer',
             'fotos'                          => 'nullable|array|min:1',
             'fotos.*'                        => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
-        ], [
+        ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
@@ -455,7 +475,9 @@ class ActividadController extends Controller
             ? ($validated['hora'] ?? $actividad->hora ?? $horaRespaldo)
             : ($actividad->hora ?? $horaRespaldo);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura) {
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+
+        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura, $fomentoManager) {
             $actividad->update([
                 'sync_status'                   => $actividad->sync_status ?: 'local',
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
@@ -488,6 +510,8 @@ class ActividadController extends Controller
                 'elementos_participantes_texto' => $validated['elementos_participantes_texto'] ?? null,
                 'patrullas_participantes_texto' => $validated['patrullas_participantes_texto'] ?? null,
             ]);
+
+            $fomentoManager->syncForActividad($actividad, $validated);
 
             if ($request->hasFile('fotos')) {
                 $ordenBase = (int) $actividad->fotos()->max('orden');
@@ -637,6 +661,16 @@ class ActividadController extends Controller
         }
 
         return $query->orderBy('nombre')->get();
+    }
+
+    private function obtenerProgramasFomentoCaptura()
+    {
+        return FomentoCulturaVialPrograma::query()
+            ->where('activo', 1)
+            ->orderBy('actividad_subcategoria_id')
+            ->orderBy('orden')
+            ->orderBy('nombre')
+            ->get(['id', 'actividad_subcategoria_id', 'nombre']);
     }
 
     private function subcategoriaPermitidaParaUsuario(int $categoriaId, int $subcategoriaId, $usuario): bool

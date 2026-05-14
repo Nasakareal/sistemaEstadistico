@@ -120,6 +120,20 @@
                                 <i class="fa-solid fa-file-excel"></i> Export Mensual
                             </a>
                         </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <a class="btn sv-btn w-100" id="btn_export_fomento_mensual" href="#" target="_blank">
+                                <i class="fa-solid fa-school"></i> Fomento mensual
+                            </a>
+                        </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <a class="btn sv-btn sv-btn--ghost w-100" id="btn_export_fomento_anual" href="#" target="_blank">
+                                <i class="fa-solid fa-calendar-days"></i> Fomento anual
+                            </a>
+                        </div>
                     </div>
 
                     <div class="sv-hint">
@@ -355,6 +369,24 @@
             params.set('anio', String(mm.anio));
             params.set('mes', String(mm.mes));
             aXls.href = `${base}/export/mensual?${params.toString()}`;
+        }
+
+        const aFomentoMensual = el('btn_export_fomento_mensual');
+        if (aFomentoMensual){
+            const mm = monthFromFilters();
+            const params = new URLSearchParams(qs ? qs : '');
+            params.set('anio', String(mm.anio));
+            params.set('mes', String(mm.mes));
+            aFomentoMensual.href = `${base}/export/fomento-cultura-vial?${params.toString()}`;
+        }
+
+        const aFomentoAnual = el('btn_export_fomento_anual');
+        if (aFomentoAnual){
+            const mm = monthFromFilters();
+            const params = new URLSearchParams(qs ? qs : '');
+            params.set('anio', String(mm.anio));
+            params.delete('mes');
+            aFomentoAnual.href = `${base}/export/fomento-cultura-vial?${params.toString()}`;
         }
     }
 

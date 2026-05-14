@@ -10,6 +10,7 @@ class ActividadCategoria extends Model
 
     protected $fillable = [
         'nombre',
+        'slug',
         'activo',
     ];
 

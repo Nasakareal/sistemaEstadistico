@@ -13,8 +13,10 @@ class FomentoCulturaVialDetalle extends Model
 
     protected $fillable = [
         'actividad_id',
+        'fomento_cultura_vial_programa_id',
         'nivel_educativo',
         'sector',
+        'programa_nombre',
         'ninas',
         'ninos',
         'adolescentes_mujeres',
@@ -26,8 +28,26 @@ class FomentoCulturaVialDetalle extends Model
         'total_poblacion_atendida',
     ];
 
+    protected $casts = [
+        'fomento_cultura_vial_programa_id' => 'integer',
+        'ninas' => 'integer',
+        'ninos' => 'integer',
+        'adolescentes_mujeres' => 'integer',
+        'adolescentes_hombres' => 'integer',
+        'docentes_hombres' => 'integer',
+        'docentes_mujeres' => 'integer',
+        'hombres' => 'integer',
+        'mujeres' => 'integer',
+        'total_poblacion_atendida' => 'integer',
+    ];
+
     public function actividad()
     {
         return $this->belongsTo(Actividad::class, 'actividad_id');
+    }
+
+    public function programa()
+    {
+        return $this->belongsTo(FomentoCulturaVialPrograma::class, 'fomento_cultura_vial_programa_id');
     }
 }

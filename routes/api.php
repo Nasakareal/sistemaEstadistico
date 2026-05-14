@@ -337,6 +337,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/catalogos/destacamentos', [EstadisticasActividadesController::class, 'catalogoDestacamentos'])->name('api.estadisticas_actividades.catalogos.destacamentos');
         Route::get('/export/actividades', [EstadisticasActividadesController::class, 'exportActividades'])->name('api.estadisticas_actividades.export.actividades');
         Route::get('/export/mensual', [EstadisticasActividadesController::class, 'exportMensual'])->name('api.estadisticas_actividades.export.mensual');
+        Route::get('/export/fomento-cultura-vial', [EstadisticasActividadesController::class, 'exportFomentoCulturaVial'])->name('api.estadisticas_actividades.export.fomento_cultura_vial');
         Route::get('/export/puestas-disposicion', [EstadisticasActividadesController::class, 'exportPuestasDisposicion'])->name('api.estadisticas_actividades.export.puestas_disposicion');
     });
 

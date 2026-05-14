@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EstadisticasActividadesController extends Controller
@@ -469,6 +473,294 @@ class EstadisticasActividadesController extends Controller
         ]);
 
         return $this->exportActividades($request);
+    }
+
+    public function exportFomentoCulturaVial(Request $request)
+    {
+        @ini_set('memory_limit', '1024M');
+        @set_time_limit(0);
+
+        if (!$this->hasTable('fomento_cultura_vial_detalles')) {
+            return back()->with('error', 'No existe la tabla fomento_cultura_vial_detalles.');
+        }
+
+        $anio = (int)$request->query('anio', now()->year);
+        $mesParam = trim((string)$request->query('mes', ''));
+
+        if ($anio < 2000 || $anio > 2100) {
+            return back()->with('error', 'Año inválido.');
+        }
+
+        if ($mesParam !== '') {
+            $mes = (int)$mesParam;
+
+            if ($mes < 1 || $mes > 12) {
+                return back()->with('error', 'Mes inválido.');
+            }
+
+            $desde = sprintf('%04d-%02d-01', $anio, $mes);
+            $hasta = date('Y-m-t', strtotime($desde));
+            $periodoTexto = sprintf('%04d-%02d', $anio, $mes);
+            $filename = 'fomento_cultura_vial_' . sprintf('%04d_%02d', $anio, $mes) . '.xlsx';
+        } else {
+            $desde = sprintf('%04d-01-01', $anio);
+            $hasta = sprintf('%04d-12-31', $anio);
+            $periodoTexto = (string)$anio;
+            $filename = 'fomento_cultura_vial_' . $anio . '.xlsx';
+        }
+
+        $request->merge([
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'cache_ttl' => 0,
+        ]);
+
+        $q = $this->baseActividadesQuery($request);
+        $this->applySearchFilter($q, $request);
+
+        $q->join('fomento_cultura_vial_detalles as fomento', 'fomento.actividad_id', '=', 'actividades.id')
+            ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
+            ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+            ->leftJoin('unidades', 'unidades.id', '=', 'actividades.unidad_org_id')
+            ->leftJoin('delegaciones', 'delegaciones.id', '=', 'actividades.delegacion_id')
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'actividades.destacamento_id');
+
+        $sums = "
+            COUNT(DISTINCT actividades.id) as actividades,
+            SUM(COALESCE(fomento.ninas, 0)) as ninas,
+            SUM(COALESCE(fomento.ninos, 0)) as ninos,
+            SUM(COALESCE(fomento.adolescentes_mujeres, 0)) as adolescentes_mujeres,
+            SUM(COALESCE(fomento.adolescentes_hombres, 0)) as adolescentes_hombres,
+            SUM(COALESCE(fomento.docentes_hombres, 0)) as docentes_hombres,
+            SUM(COALESCE(fomento.docentes_mujeres, 0)) as docentes_mujeres,
+            SUM(COALESCE(fomento.hombres, 0)) as hombres,
+            SUM(COALESCE(fomento.mujeres, 0)) as mujeres,
+            SUM(COALESCE(fomento.total_poblacion_atendida, 0)) as total_poblacion_atendida
+        ";
+
+        $totales = (clone $q)->selectRaw($sums)->first();
+
+        $porNivel = (clone $q)
+            ->selectRaw("
+                COALESCE(NULLIF(TRIM(fomento.nivel_educativo), ''), 'NO ESPECIFICADO') as label,
+                COUNT(DISTINCT actividades.id) as actividades,
+                SUM(COALESCE(fomento.total_poblacion_atendida, 0)) as total_poblacion_atendida
+            ")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $porSector = (clone $q)
+            ->selectRaw("
+                COALESCE(NULLIF(TRIM(fomento.sector), ''), 'NO ESPECIFICADO') as label,
+                COUNT(DISTINCT actividades.id) as actividades,
+                SUM(COALESCE(fomento.total_poblacion_atendida, 0)) as total_poblacion_atendida
+            ")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $porPrograma = (clone $q)
+            ->selectRaw("
+                COALESCE(NULLIF(TRIM(fomento.programa_nombre), ''), 'NO ESPECIFICADO') as label,
+                COUNT(DISTINCT actividades.id) as actividades,
+                SUM(COALESCE(fomento.total_poblacion_atendida, 0)) as total_poblacion_atendida
+            ")
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        $detalles = (clone $q)
+            ->select([
+                'actividades.id',
+                'actividades.fecha',
+                'actividades.hora',
+                'actividad_categorias.nombre as categoria',
+                'actividad_subcategorias.nombre as subcategoria',
+                'unidades.nombre as unidad',
+                'delegaciones.nombre as delegacion',
+                'destacamentos.nombre as destacamento',
+                'actividades.municipio',
+                'actividades.lugar',
+                'actividades.nombre as capturo',
+                'fomento.programa_nombre',
+                'fomento.nivel_educativo',
+                'fomento.sector',
+                'fomento.ninas',
+                'fomento.ninos',
+                'fomento.adolescentes_mujeres',
+                'fomento.adolescentes_hombres',
+                'fomento.docentes_hombres',
+                'fomento.docentes_mujeres',
+                'fomento.hombres',
+                'fomento.mujeres',
+                'fomento.total_poblacion_atendida',
+            ])
+            ->orderBy('actividades.fecha')
+            ->orderBy('actividades.hora')
+            ->orderBy('actividades.id')
+            ->get();
+
+        return new StreamedResponse(function () use ($totales, $porNivel, $porSector, $porPrograma, $detalles, $periodoTexto, $desde, $hasta) {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Resumen');
+
+            $sheet->setCellValue('A1', 'FOMENTO A LA CULTURA VIAL');
+            $sheet->setCellValue('A2', 'Periodo');
+            $sheet->setCellValue('B2', $periodoTexto);
+            $sheet->setCellValue('A3', 'Desde');
+            $sheet->setCellValue('B3', $desde);
+            $sheet->setCellValue('C3', 'Hasta');
+            $sheet->setCellValue('D3', $hasta);
+
+            $metricas = [
+                ['Actividades', (int)($totales->actividades ?? 0)],
+                ['Niñas', (int)($totales->ninas ?? 0)],
+                ['Niños', (int)($totales->ninos ?? 0)],
+                ['Adolescentes mujeres', (int)($totales->adolescentes_mujeres ?? 0)],
+                ['Adolescentes hombres', (int)($totales->adolescentes_hombres ?? 0)],
+                ['Docentes hombres', (int)($totales->docentes_hombres ?? 0)],
+                ['Docentes mujeres', (int)($totales->docentes_mujeres ?? 0)],
+                ['Hombres', (int)($totales->hombres ?? 0)],
+                ['Mujeres', (int)($totales->mujeres ?? 0)],
+                ['Total población atendida', (int)($totales->total_poblacion_atendida ?? 0)],
+            ];
+
+            $sheet->fromArray(['Concepto', 'Total'], null, 'A5');
+            $row = 6;
+
+            foreach ($metricas as $metrica) {
+                $sheet->fromArray($metrica, null, 'A' . $row);
+                $row++;
+            }
+
+            $row += 2;
+            $sheet->fromArray(['Nivel educativo', 'Actividades', 'Total población atendida'], null, 'A' . $row);
+            $row++;
+
+            foreach ($porNivel as $item) {
+                $sheet->fromArray([
+                    $item->label,
+                    (int)$item->actividades,
+                    (int)$item->total_poblacion_atendida,
+                ], null, 'A' . $row);
+                $row++;
+            }
+
+            $row += 2;
+            $sheet->fromArray(['Sector', 'Actividades', 'Total población atendida'], null, 'A' . $row);
+            $row++;
+
+            foreach ($porSector as $item) {
+                $sheet->fromArray([
+                    $item->label,
+                    (int)$item->actividades,
+                    (int)$item->total_poblacion_atendida,
+                ], null, 'A' . $row);
+                $row++;
+            }
+
+            $row += 2;
+            $sheet->fromArray(['Programa / taller / campaña', 'Actividades', 'Total población atendida'], null, 'A' . $row);
+            $row++;
+
+            foreach ($porPrograma as $item) {
+                $sheet->fromArray([
+                    $item->label,
+                    (int)$item->actividades,
+                    (int)$item->total_poblacion_atendida,
+                ], null, 'A' . $row);
+                $row++;
+            }
+
+            $detalleSheet = $spreadsheet->createSheet();
+            $detalleSheet->setTitle('Detalle');
+
+            $headers = [
+                'id',
+                'fecha',
+                'hora',
+                'categoria',
+                'subcategoria',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'municipio',
+                'lugar',
+                'capturo',
+                'programa',
+                'nivel_educativo',
+                'sector',
+                'ninas',
+                'ninos',
+                'adolescentes_mujeres',
+                'adolescentes_hombres',
+                'docentes_hombres',
+                'docentes_mujeres',
+                'hombres',
+                'mujeres',
+                'total_poblacion_atendida',
+            ];
+
+            $detalleSheet->fromArray($headers, null, 'A1');
+            $detalleRow = 2;
+
+            foreach ($detalles as $detalle) {
+                $detalleSheet->fromArray([
+                    $detalle->id,
+                    $detalle->fecha,
+                    $detalle->hora ? substr((string)$detalle->hora, 0, 5) : '',
+                    $detalle->categoria,
+                    $detalle->subcategoria,
+                    $detalle->unidad,
+                    $detalle->delegacion,
+                    $detalle->destacamento,
+                    $detalle->municipio,
+                    $detalle->lugar,
+                    $detalle->capturo,
+                    $detalle->programa_nombre,
+                    $detalle->nivel_educativo,
+                    $detalle->sector,
+                    (int)$detalle->ninas,
+                    (int)$detalle->ninos,
+                    (int)$detalle->adolescentes_mujeres,
+                    (int)$detalle->adolescentes_hombres,
+                    (int)$detalle->docentes_hombres,
+                    (int)$detalle->docentes_mujeres,
+                    (int)$detalle->hombres,
+                    (int)$detalle->mujeres,
+                    (int)$detalle->total_poblacion_atendida,
+                ], null, 'A' . $detalleRow);
+                $detalleRow++;
+            }
+
+            foreach ([$sheet, $detalleSheet] as $worksheet) {
+                $highestColumn = $worksheet->getHighestColumn();
+                $highestRow = $worksheet->getHighestRow();
+
+                $worksheet->freezePane('A2');
+                $worksheet->getStyle('A1:' . $highestColumn . '1')->getFont()->setBold(true);
+                $worksheet->getStyle('A1:' . $highestColumn . '1')
+                    ->getFill()
+                    ->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()
+                    ->setARGB('D9EAF7');
+                $worksheet->getStyle('A1:' . $highestColumn . $highestRow)
+                    ->getAlignment()
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+
+                for ($col = 'A'; $col <= $highestColumn; $col++) {
+                    $worksheet->getColumnDimension($col)->setAutoSize(true);
+                }
+            }
+
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 
     public function exportPuestasDisposicion(Request $request)

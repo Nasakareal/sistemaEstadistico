@@ -10,7 +10,9 @@ class ActividadSubcategoria extends Model
 
     protected $fillable = [
         'actividad_categoria_id',
+        'unidad_id',
         'nombre',
+        'slug',
         'activo',
     ];
 

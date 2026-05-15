@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Actividad;
 use App\Models\Hechos;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +22,8 @@ class BackupsSqlController extends Controller
 
     public function index()
     {
+        $this->ensureCanManageSqlBackups(request());
+
         $dir = 'backups_sql';
 
         if (!Storage::disk('local')->exists($dir)) {
@@ -29,8 +32,7 @@ class BackupsSqlController extends Controller
 
         $files = collect(Storage::disk('local')->files($dir))
             ->filter(function ($path) {
-                $name = basename($path);
-                return (bool) preg_match('/^[A-Za-z0-9._-]+\.sql(\.gz)?$/', $name);
+                return $this->isValidBackupFilename(basename($path));
             })
             ->map(function ($path) {
                 $disk = Storage::disk('local');
@@ -49,7 +51,9 @@ class BackupsSqlController extends Controller
 
     public function download(string $file)
     {
-        if (!preg_match('/^[A-Za-z0-9._-]+\.sql(\.gz)?$/', $file)) {
+        $this->ensureCanManageSqlBackups(request());
+
+        if (!$this->isValidBackupFilename($file)) {
             abort(404);
         }
 
@@ -64,6 +68,39 @@ class BackupsSqlController extends Controller
         return response()->download($absolutePath, $file, [
             'Content-Type' => 'application/octet-stream',
         ]);
+    }
+
+    public function upload(Request $request): RedirectResponse
+    {
+        $this->ensureCanManageSqlBackups($request);
+
+        $data = $request->validate([
+            'backup' => ['required', 'file'],
+        ]);
+
+        $file = $data['backup'];
+        $originalName = $file->getClientOriginalName();
+
+        if (!$this->isValidBackupFilename($originalName)) {
+            return redirect()
+                ->route('backups_sql.index')
+                ->with('error', 'El respaldo debe ser un archivo .sql o .sql.gz.');
+        }
+
+        $safeName = $this->sanitizeBackupFilename($originalName);
+        $disk = Storage::disk('local');
+        $dir = 'backups_sql';
+
+        if (!$disk->exists($dir)) {
+            $disk->makeDirectory($dir);
+        }
+
+        $storedName = $this->uniqueBackupFilename($dir, $safeName);
+        $file->storeAs($dir, $storedName, 'local');
+
+        return redirect()
+            ->route('backups_sql.index')
+            ->with('success', 'Respaldo cargado correctamente: ' . $storedName);
     }
 
     public function downloadDelegaciones(Request $request)
@@ -106,7 +143,7 @@ class BackupsSqlController extends Controller
         $fin = Carbon::createFromFormat('Y-m-d', $fechaFin, $tz)->endOfDay();
 
         $actividades = Actividad::query()
-            ->with(['categoria', 'subcategoria', 'delegacion', 'creador'])
+            ->with(['categoria', 'subcategoria', 'delegacion.padre', 'creador'])
             ->withCount('vehiculos')
             ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
             ->whereDate('fecha', '>=', $inicio->toDateString())
@@ -117,7 +154,7 @@ class BackupsSqlController extends Controller
             ->get();
 
         $hechos = Hechos::query()
-            ->with(['delegacion', 'creator'])
+            ->with(['delegacion.padre', 'creator'])
             ->withCount(['vehiculos', 'lesionados'])
             ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
             ->whereDate('fecha', '>=', $inicio->toDateString())
@@ -184,6 +221,7 @@ class BackupsSqlController extends Controller
             'ID',
             'Fecha',
             'Hora',
+            'Delegacion padre',
             'Delegacion',
             'Municipio',
             'Categoria',
@@ -191,6 +229,10 @@ class BackupsSqlController extends Controller
             'Actividad',
             'Lugar',
             'Observaciones',
+            'Cantidad de Personas alcanzadas',
+            'Numero de personas Participantes',
+            'Cantidad de Patrullas participantes',
+            'Kilometros recorridos',
             'Creado por',
         ];
 
@@ -203,6 +245,7 @@ class BackupsSqlController extends Controller
                 $actividad->id,
                 optional($actividad->fecha)->format('Y-m-d'),
                 $this->formatHora($actividad->hora),
+                $this->delegacionPadreNombre($actividad),
                 optional($actividad->delegacion)->nombre,
                 $actividad->municipio,
                 optional($actividad->categoria)->nombre,
@@ -210,8 +253,12 @@ class BackupsSqlController extends Controller
                 $actividad->nombre,
                 $actividad->lugar,
                 $actividad->observaciones ?: $actividad->motivo ?: $actividad->narrativa,
+                (int) ($actividad->personas_alcanzadas ?? 0),
+                (int) ($actividad->personas_participantes ?? 0),
+                $this->contarValoresTexto($actividad->patrullas_participantes_texto),
+                $this->formatDecimal($actividad->km_recorridos),
                 optional($actividad->creador)->name,
-            ], null, 'A' . $row);
+            ], null, 'A' . $row, true);
             $row++;
         }
 
@@ -225,6 +272,7 @@ class BackupsSqlController extends Controller
             'Fecha',
             'Hora',
             'Folio C5i',
+            'Delegacion padre',
             'Delegacion',
             'Municipio',
             'Tipo de hecho',
@@ -232,6 +280,7 @@ class BackupsSqlController extends Controller
             'Calle',
             'Colonia',
             'Entre calles',
+            'Kilometros recorridos',
             'Vehiculos',
             'Lesionados',
             'Estado revision',
@@ -248,6 +297,7 @@ class BackupsSqlController extends Controller
                 optional($hecho->fecha)->format('Y-m-d'),
                 $this->formatHora($hecho->hora),
                 $hecho->folio_c5i,
+                $this->delegacionPadreNombre($hecho),
                 optional($hecho->delegacion)->nombre,
                 $hecho->municipio,
                 $hecho->tipo_hecho,
@@ -255,11 +305,12 @@ class BackupsSqlController extends Controller
                 $hecho->calle,
                 $hecho->colonia,
                 $hecho->entre_calles,
+                $this->formatDecimal($hecho->km_recorridos),
                 (int) $hecho->vehiculos_count,
                 (int) $hecho->lesionados_count,
                 $hecho->estado_revision,
                 optional($hecho->creator)->name,
-            ], null, 'A' . $row);
+            ], null, 'A' . $row, true);
             $row++;
         }
 
@@ -346,6 +397,45 @@ class BackupsSqlController extends Controller
         return substr((string) $value, 0, 5);
     }
 
+    private function delegacionPadreNombre($registro): ?string
+    {
+        $delegacion = $registro->delegacion ?? null;
+
+        return optional(optional($delegacion)->padre)->nombre;
+    }
+
+    private function contarValoresTexto(?string $texto): int
+    {
+        $texto = trim((string) $texto);
+
+        if ($texto === '') {
+            return 0;
+        }
+
+        $texto = str_replace(["\r\n", "\r", "\n", ';'], ',', $texto);
+        $partes = array_filter(array_map('trim', explode(',', $texto)), fn ($valor) => $valor !== '');
+
+        return count($partes);
+    }
+
+    private function formatDecimal($value)
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        return is_numeric($value) ? (float) $value : $value;
+    }
+
+    private function ensureCanManageSqlBackups(Request $request): void
+    {
+        $user = $request->user();
+
+        if (!$user || !$user->hasRole('Superadmin')) {
+            abort(403);
+        }
+    }
+
     private function ensureCanDownloadDelegacionesBackup(Request $request): void
     {
         $user = $request->user();
@@ -369,6 +459,55 @@ class BackupsSqlController extends Controller
         }
 
         abort(403);
+    }
+
+    private function isValidBackupFilename(string $file): bool
+    {
+        if ($file === '' || strpos($file, '/') !== false || strpos($file, '\\') !== false || strpos($file, "\0") !== false) {
+            return false;
+        }
+
+        if (preg_match('/[\x00-\x1F\x7F]/u', $file)) {
+            return false;
+        }
+
+        return (bool) preg_match('/\.sql(\.gz)?$/iu', $file);
+    }
+
+    private function sanitizeBackupFilename(string $file): string
+    {
+        $file = trim($file);
+        $extension = $this->backupExtension($file);
+        $name = substr($file, 0, -strlen($extension));
+
+        $name = preg_replace('/[\/\\\\\x00-\x1F\x7F]+/u', '_', $name);
+        $name = preg_replace('/\s+/u', '_', $name);
+        $name = preg_replace('/[^\pL\pN._-]+/u', '_', $name);
+        $name = trim((string) $name, '._-');
+
+        return ($name !== '' ? $name : 'respaldo') . $extension;
+    }
+
+    private function uniqueBackupFilename(string $dir, string $file): string
+    {
+        $disk = Storage::disk('local');
+
+        if (!$disk->exists($dir . '/' . $file)) {
+            return $file;
+        }
+
+        $extension = $this->backupExtension($file);
+        $base = substr($file, 0, -strlen($extension));
+        $suffix = Carbon::now('America/Mexico_City')->format('Ymd_His');
+
+        return $base . '_' . $suffix . $extension;
+    }
+
+    private function backupExtension(string $file): string
+    {
+        $lower = mb_strtolower($file, 'UTF-8');
+
+        return substr($lower, -7) === '.sql.gz' ? '.sql.gz' : '.sql';
     }
 
     private function streamDelegacionesSql($generatedAt): void

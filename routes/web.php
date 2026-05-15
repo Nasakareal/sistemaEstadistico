@@ -689,13 +689,13 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
     Route::prefix('backups-sql')->middleware(['auth'])->group(function () {
         Route::get('/', [BackupsSqlController::class, 'index'])->name('backups_sql.index');
+        Route::post('/subir', [BackupsSqlController::class, 'upload'])->name('backups_sql.upload');
         Route::get('/delegaciones/al-momento', [BackupsSqlController::class, 'downloadDelegaciones'])
             ->name('backups_sql.delegaciones');
         Route::get('/delegaciones/reporte-excel', [BackupsSqlController::class, 'downloadDelegacionesExcel'])
             ->name('backups_sql.delegaciones.excel');
 
         Route::get('/{file}', [BackupsSqlController::class, 'download'])
-            ->where('file', '[A-Za-z0-9._-]+\.sql(\.gz)?')
             ->name('backups_sql.download');
     });
 

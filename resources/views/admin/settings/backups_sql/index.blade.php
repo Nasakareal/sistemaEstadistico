@@ -21,6 +21,53 @@
             </div>
 
             <div class="card-body">
+                @if (session('success'))
+                    <div class="alert alert-success">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="alert alert-danger">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        Revisa el archivo seleccionado. Solo se aceptan respaldos .sql o .sql.gz.
+                    </div>
+                @endif
+
+                <form action="{{ route('backups_sql.upload') }}"
+                      method="POST"
+                      enctype="multipart/form-data"
+                      class="mb-4">
+                    @csrf
+                    <div class="form-row align-items-end">
+                        <div class="form-group col-md-8 mb-md-0">
+                            <label for="backup">Subir respaldo de producción</label>
+                            <input type="file"
+                                   name="backup"
+                                   id="backup"
+                                   class="form-control-file @error('backup') is-invalid @enderror"
+                                   accept=".sql,.gz"
+                                   required>
+                            @error('backup')
+                                <span class="invalid-feedback d-block">{{ $message }}</span>
+                            @enderror
+                            <small class="form-text text-muted">
+                                Se guardará en storage/app/backups_sql. El archivo debe terminar en .sql o .sql.gz.
+                            </small>
+                        </div>
+                        <div class="form-group col-md-4 mb-md-0 text-md-right">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fa-solid fa-upload"></i> Subir respaldo
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
                 @if ($files->isEmpty())
                     <div class="alert alert-warning mb-0">
                         No hay respaldos aún. Coloca archivos .sql o .sql.gz en <b>storage/app/backups_sql</b>.

@@ -209,7 +209,7 @@ class PuestaDisposicionController extends Controller
             'lugar_puesta'=>'nullable|string|max:255',
             'narrativa'=>'nullable|string',
             'observaciones'=>'nullable|string',
-            'archivo_puesta'=>'nullable|file|mimes:pdf|max:10240',
+            'archivo_puesta'=>'nullable|file|mimes:pdf|max:20480',
 
             'personas'=>'nullable|array',
             'personas.*.nombre_completo'=>'nullable|string|max:255',

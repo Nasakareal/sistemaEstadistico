@@ -303,6 +303,7 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
 
     Route::get('/catalogos/categorias',[EstadisticasActividadesController::class,'catalogoCategorias'])->name('estadisticas_actividades.catalogos.categorias');
     Route::get('/catalogos/subcategorias',[EstadisticasActividadesController::class,'catalogoSubcategorias'])->name('estadisticas_actividades.catalogos.subcategorias');
+    Route::get('/catalogos/unidades',[EstadisticasActividadesController::class,'catalogoUnidades'])->name('estadisticas_actividades.catalogos.unidades');
     Route::get('/catalogos/delegaciones',[EstadisticasActividadesController::class,'catalogoDelegaciones'])->name('estadisticas_actividades.catalogos.delegaciones');
     Route::get('/catalogos/destacamentos',[EstadisticasActividadesController::class,'catalogoDestacamentos'])->name('estadisticas_actividades.catalogos.destacamentos');
 

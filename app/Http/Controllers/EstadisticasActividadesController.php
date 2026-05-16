@@ -13,9 +13,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EstadisticasActividadesController extends Controller
 {
+    private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
+
     public function index(Request $request)
     {
-        return view('estadisticas_actividades.index');
+        $unidadesFiltro = $this->unidadesDisponiblesParaFiltro($request->user());
+
+        return view('estadisticas_actividades.index', compact('unidadesFiltro'));
     }
 
     public function kpis(Request $request)
@@ -278,15 +282,8 @@ class EstadisticasActividadesController extends Controller
 
     public function catalogoUnidades(Request $request)
     {
-        return $this->cachedJson($request, 'catalogoUnidades', function () {
-            $q = DB::table('unidades')
-                ->select('id', 'nombre', 'slug');
-
-            if ($this->hasColumn('unidades', 'activa')) {
-                $q->where('activa', 1);
-            }
-
-            return $q->orderBy('nombre')->get();
+        return $this->cachedJson($request, 'catalogoUnidades', function () use ($request) {
+            return $this->unidadesDisponiblesParaFiltro($request->user());
         });
     }
 
@@ -819,6 +816,7 @@ class EstadisticasActividadesController extends Controller
     private function applyActividadesFilters($q, Request $request)
     {
         $this->applyScopeByUser($q);
+        $this->applySeguridadVialExclusion($q);
 
         $desde = trim((string)$request->query('desde', ''));
         $hasta = trim((string)$request->query('hasta', ''));
@@ -885,11 +883,21 @@ class EstadisticasActividadesController extends Controller
             }
         }
 
+        $unidadFiltro = trim((string)$request->query('unidad_org_id', $request->query('unidad_id', '')));
+
+        if ($unidadFiltro !== '') {
+            $unidadId = (int)$unidadFiltro;
+
+            if ($unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+                $q->whereRaw('1 = 0');
+            } elseif ($unidadId > 0) {
+                $this->applyUnidadScope($q, $unidadId);
+            }
+        }
+
         $map = [
             'actividad_categoria_id' => 'actividades.actividad_categoria_id',
             'actividad_subcategoria_id' => 'actividades.actividad_subcategoria_id',
-            'unidad_id' => 'actividades.unidad_org_id',
-            'unidad_org_id' => 'actividades.unidad_org_id',
             'delegacion_id' => 'actividades.delegacion_id',
             'destacamento_id' => 'actividades.destacamento_id',
             'estado_revision' => 'actividades.estado_revision',
@@ -1142,5 +1150,43 @@ class EstadisticasActividadesController extends Controller
                         });
                 });
         });
+    }
+
+    private function applySeguridadVialExclusion($q): void
+    {
+        $q->where(function ($scope) {
+            $scope->where(function ($known) {
+                $known->whereNotNull('actividades.unidad_org_id')
+                    ->where('actividades.unidad_org_id', '<>', self::UNIDAD_SEGURIDAD_VIAL_ID);
+            })->orWhere(function ($legacy) {
+                $legacy->whereNull('actividades.unidad_org_id')
+                    ->whereNotExists(function ($sub) {
+                        $sub->selectRaw('1')
+                            ->from('users')
+                            ->whereColumn('users.id', 'actividades.created_by')
+                            ->where('users.unidad_id', self::UNIDAD_SEGURIDAD_VIAL_ID);
+                    });
+            });
+        });
+    }
+
+    private function unidadesDisponiblesParaFiltro($user)
+    {
+        $q = DB::table('unidades')
+            ->select('id', 'nombre', 'slug')
+            ->where('id', '<>', self::UNIDAD_SEGURIDAD_VIAL_ID);
+
+        if ($this->hasColumn('unidades', 'activa')) {
+            $q->where('activa', 1);
+        }
+
+        if (
+            !$user
+            || (!$user->hasRole('Superadmin') && (int)($user->unidad_id ?? 0) !== self::UNIDAD_SEGURIDAD_VIAL_ID)
+        ) {
+            $q->where('id', (int)($user->unidad_id ?? 0));
+        }
+
+        return $q->orderBy('nombre')->get();
     }
 }

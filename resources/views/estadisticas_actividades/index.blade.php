@@ -7,7 +7,7 @@
         <div class="sv-hero__inner">
             <div class="sv-hero__badge">
                 <span class="sv-dot"></span>
-                <span>Actividades · Siniestros · Delegaciones</span>
+                <span>Actividades · Unidades operativas</span>
             </div>
 
             <div class="sv-hero__title">
@@ -37,16 +37,27 @@
                         </div>
 
                         <div class="sv-field">
+                            <label>Hora desde</label>
+                            <input type="time" id="f_hora_desde" class="form-control form-control-sm">
+                        </div>
+
+                        <div class="sv-field">
                             <label>Hasta</label>
                             <input type="date" id="f_hasta" class="form-control form-control-sm">
                         </div>
 
                         <div class="sv-field">
+                            <label>Hora hasta</label>
+                            <input type="time" id="f_hora_hasta" class="form-control form-control-sm">
+                        </div>
+
+                        <div class="sv-field">
                             <label>Unidad</label>
                             <select id="f_unidad" class="form-control form-control-sm">
-                                <option value="">Siniestros y Delegaciones</option>
-                                <option value="1">Siniestros</option>
-                                <option value="2">Delegaciones</option>
+                                <option value="">Todas excepto Seguridad Vial</option>
+                                @foreach(($unidadesFiltro ?? collect()) as $unidad)
+                                    <option value="{{ $unidad->id }}">{{ $unidad->nombre }}</option>
+                                @endforeach
                             </select>
                         </div>
 
@@ -137,7 +148,7 @@
                     </div>
 
                     <div class="sv-hint">
-                        * Puedes consultar actividades de Siniestros, Delegaciones o ambas unidades. Al seleccionar Delegaciones se habilita el filtro por delegación.
+                        * Puedes consultar actividades por unidad. Seguridad Vial queda fuera de este filtro; al seleccionar Delegaciones se habilita el filtro por delegación.
                     </div>
                 </div>
             </div>
@@ -288,7 +299,9 @@
         const params = new URLSearchParams();
 
         const desde = val('f_desde');
+        const hora_desde = val('f_hora_desde');
         const hasta = val('f_hasta');
+        const hora_hasta = val('f_hora_hasta');
         const unidad = val('f_unidad');
         const delegacion = val('f_delegacion');
         const destacamento = val('f_destacamento');
@@ -299,7 +312,9 @@
         const q = val('f_q');
 
         if (desde) params.set('desde', desde);
+        if (hora_desde) params.set('hora_desde', hora_desde);
         if (hasta) params.set('hasta', hasta);
+        if (hora_hasta) params.set('hora_hasta', hora_hasta);
         if (unidad) params.set('unidad_org_id', unidad);
         if (unidad === '2' && delegacion) params.set('delegacion_id', delegacion);
         if (destacamento) params.set('destacamento_id', destacamento);
@@ -393,7 +408,9 @@
     function wireExportLinkUpdates(){
         const ids = [
             'f_desde',
+            'f_hora_desde',
             'f_hasta',
+            'f_hora_hasta',
             'f_unidad',
             'f_delegacion',
             'f_destacamento',

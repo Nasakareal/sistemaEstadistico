@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
 
 class ActividadController extends Controller
 {
+    private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
+
     public function __construct()
     {
         $this->middleware(['auth', 'can:ver actividades']);
@@ -47,7 +49,9 @@ class ActividadController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        return view('actividades.index', compact('actividades', 'categorias', 'fechaSeleccionada'));
+        $unidadesFiltro = $this->unidadesDisponiblesParaFiltro(Auth::user());
+
+        return view('actividades.index', compact('actividades', 'categorias', 'fechaSeleccionada', 'unidadesFiltro'));
     }
 
     public function informeDiario(Request $request)
@@ -706,6 +710,34 @@ class ActividadController extends Controller
         $usuario = Auth::user();
 
         $this->applyActividadesVisibilityScope($query, $usuario);
+        $this->applySeguridadVialExclusion($query);
+
+        $horaDesde = $this->normalizeHourFilter($request->query('hora_desde', ''));
+        $horaHasta = $this->normalizeHourFilter($request->query('hora_hasta', ''));
+
+        if ($horaDesde !== null) {
+            $query->whereTime('hora', '>=', $horaDesde);
+        }
+
+        if ($horaHasta !== null) {
+            $query->whereTime('hora', '<=', $horaHasta);
+        }
+
+        $unidadFiltro = trim((string) $request->query('unidad_filtro', ''));
+
+        if ($unidadFiltro !== '') {
+            $unidadId = (int) $unidadFiltro;
+            $unidadesPermitidas = $this->unidadesDisponiblesParaFiltro($usuario)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if ($unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID || !in_array($unidadId, $unidadesPermitidas, true)) {
+                $query->whereRaw('1 = 0');
+            } elseif ($unidadId > 0) {
+                $this->scopeActividadesUnidad($query, $unidadId);
+            }
+        }
 
         if ($request->filled('actividad_categoria_id')) {
             $query->where('actividad_categoria_id', (int) $request->actividad_categoria_id);
@@ -975,6 +1007,74 @@ class ActividadController extends Controller
                         });
                 });
         });
+    }
+
+    private function applySeguridadVialExclusion($query): void
+    {
+        $query->where(function ($scope) {
+            $scope->where(function ($known) {
+                $known->whereNotNull('unidad_org_id')
+                    ->where('unidad_org_id', '<>', self::UNIDAD_SEGURIDAD_VIAL_ID);
+            })->orWhere(function ($legacy) {
+                $legacy->whereNull('unidad_org_id')
+                    ->whereDoesntHave('creador', function ($creador) {
+                        $creador->where('unidad_id', self::UNIDAD_SEGURIDAD_VIAL_ID);
+                    });
+            });
+        });
+    }
+
+    private function unidadesDisponiblesParaFiltro($usuario)
+    {
+        $query = Unidad::query()
+            ->where('id', '<>', self::UNIDAD_SEGURIDAD_VIAL_ID);
+
+        if ($this->unidadTieneColumnaActiva()) {
+            $query->where('activa', 1);
+        }
+
+        if (
+            !$usuario
+            || (!$usuario->hasRole('Superadmin') && (int) ($usuario->unidad_id ?? 0) !== self::UNIDAD_SEGURIDAD_VIAL_ID)
+        ) {
+            $query->where('id', (int) ($usuario->unidad_id ?? 0));
+        }
+
+        return $query->orderBy('nombre')->get();
+    }
+
+    private function unidadTieneColumnaActiva(): bool
+    {
+        static $tieneColumna = null;
+
+        if ($tieneColumna === null) {
+            try {
+                $tieneColumna = DB::getSchemaBuilder()->hasColumn('unidades', 'activa');
+            } catch (\Throwable $e) {
+                $tieneColumna = false;
+            }
+        }
+
+        return $tieneColumna;
+    }
+
+    private function normalizeHourFilter($value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{2}:\d{2}$/', $value)) {
+            return $value . ':00';
+        }
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $value)) {
+            return $value;
+        }
+
+        return null;
     }
 
     public function compartir(Actividad $actividad)

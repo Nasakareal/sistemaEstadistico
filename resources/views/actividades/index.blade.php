@@ -19,7 +19,7 @@
                     </h3>
 
                     <div class="card-tools">
-                        <a href="{{ route('actividades.informe.diario', request()->only(['fecha','actividad_categoria_id','actividad_subcategoria_id','q'])) }}" class="btn btn-danger">
+                        <a href="{{ route('actividades.informe.diario', request()->only(['fecha','hora_desde','hora_hasta','unidad_filtro','actividad_categoria_id','actividad_subcategoria_id','q'])) }}" class="btn btn-danger">
                             <i class="fa-solid fa-file-pdf"></i> Generar informe
                         </a>
 
@@ -54,6 +54,40 @@
                                 >
                             </div>
 
+                            <div class="col-md-2">
+                                <label for="hora_desde_filtro">Hora desde:</label>
+                                <input
+                                    type="time"
+                                    id="hora_desde_filtro"
+                                    name="hora_desde"
+                                    class="form-control"
+                                    value="{{ request('hora_desde') }}"
+                                >
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="hora_hasta_filtro">Hora hasta:</label>
+                                <input
+                                    type="time"
+                                    id="hora_hasta_filtro"
+                                    name="hora_hasta"
+                                    class="form-control"
+                                    value="{{ request('hora_hasta') }}"
+                                >
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="unidad_filtro">Unidad:</label>
+                                <select id="unidad_filtro" name="unidad_filtro" class="form-control">
+                                    <option value="">Todas excepto Seguridad Vial</option>
+                                    @foreach (($unidadesFiltro ?? collect()) as $unidad)
+                                        <option value="{{ $unidad->id }}" {{ (string)request('unidad_filtro') === (string)$unidad->id ? 'selected' : '' }}>
+                                            {{ $unidad->nombre }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <div class="col-md-3">
                                 <label for="categoria_filtro">Filtrar por categoría:</label>
                                 <select id="categoria_filtro" name="actividad_categoria_id" class="form-control">
@@ -65,7 +99,9 @@
                                     @endforeach
                                 </select>
                             </div>
+                        </div>
 
+                        <div class="row mb-3">
                             <div class="col-md-3">
                                 <label for="subcategoria_filtro">Filtrar por subcategoría:</label>
                                 <select id="subcategoria_filtro" name="actividad_subcategoria_id" class="form-control">
@@ -91,7 +127,7 @@
                                 </small>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-6">
                                 <label for="q_filtro">Buscar:</label>
                                 <input
                                     type="text"
@@ -102,10 +138,8 @@
                                     value="{{ request('q') }}"
                                 >
                             </div>
-                        </div>
 
-                        <div class="row mb-3">
-                            <div class="col-12 d-flex" style="gap:8px; flex-wrap: wrap;">
+                            <div class="col-md-3 d-flex align-items-end" style="gap:8px; flex-wrap: wrap;">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fa-solid fa-filter"></i> Aplicar filtros
                                 </button>
@@ -355,7 +389,7 @@
                 autoWidth: false
             });
 
-            $('#fecha_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {
+            $('#fecha_filtro, #hora_desde_filtro, #hora_hasta_filtro, #unidad_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {
                 $('#filtrosForm').submit();
             });
 

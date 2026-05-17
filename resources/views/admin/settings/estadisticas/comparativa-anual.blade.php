@@ -1,0 +1,497 @@
+@extends('adminlte::page')
+
+@section('title', 'Comparativa Anual de Choques')
+
+@section('content_header')
+    <div class="d-flex flex-wrap align-items-center justify-content-between">
+        <div>
+            <h1 class="m-0">Comparativa Anual de Choques</h1>
+            <small class="text-muted">Hechos, lesionados y defunciones · Siniestros actuales + peritos legacy</small>
+        </div>
+        <a href="{{ route('estadisticas.index') }}" class="btn btn-secondary btn-sm mt-2 mt-sm-0">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+@stop
+
+@section('content')
+    <div class="row">
+        <div class="col-12">
+            <div class="card card-outline card-primary">
+                <div class="card-header">
+                    <h3 class="card-title">Filtros</h3>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ route('estadisticas.comparativaAnual') }}" class="row align-items-end">
+                        <div class="col-md-3 col-sm-6">
+                            <div class="form-group mb-md-0">
+                                <label for="desde">Desde</label>
+                                <input type="number" min="1900" max="2100" id="desde" name="desde" class="form-control" value="{{ $anioInicio }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <div class="form-group mb-md-0">
+                                <label for="hasta">Hasta</label>
+                                <input type="number" min="1900" max="2100" id="hasta" name="hasta" class="form-control" value="{{ $anioFin }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-sync-alt"></i> Aplicar
+                            </button>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <a href="{{ route('estadisticas.comparativaAnual') }}" class="btn btn-outline-secondary btn-block">
+                                <i class="fas fa-undo"></i> Reiniciar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="info-box">
+                <span class="info-box-icon bg-primary"><i class="fas fa-car-crash"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Choques</span>
+                    <span class="info-box-number">{{ number_format($totales['hechos']) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="info-box">
+                <span class="info-box-icon bg-warning"><i class="fas fa-user-injured"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Lesionados</span>
+                    <span class="info-box-number">{{ number_format($totales['lesionados']) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="info-box">
+                <span class="info-box-icon bg-danger"><i class="fas fa-cross"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Defunciones</span>
+                    <span class="info-box-number">{{ number_format($totales['defunciones']) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="info-box">
+                <span class="info-box-icon bg-info"><i class="fas fa-calendar-alt"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Mayor registro</span>
+                    <span class="info-box-number">
+                        {{ $anioMayorHechos ? $anioMayorHechos->anio . ' · ' . number_format($anioMayorHechos->hechos) : 'Sin datos' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if($proyeccionAnual)
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-outline card-warning">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-line"></i>
+                            Proyección {{ $proyeccionAnual->anio }} al cierre de año
+                        </h3>
+                    </div>
+                    <div class="card-body py-3">
+                        <div class="projection-grid">
+                            <div>
+                                <span class="projection-label">Choques estimados</span>
+                                <strong>{{ number_format($proyeccionAnual->proyeccion_hechos) }}</strong>
+                            </div>
+                            <div>
+                                <span class="projection-label">Lesionados estimados</span>
+                                <strong>{{ number_format($proyeccionAnual->proyeccion_lesionados) }}</strong>
+                            </div>
+                            <div>
+                                <span class="projection-label">Defunciones estimadas</span>
+                                <strong>{{ number_format($proyeccionAnual->proyeccion_defunciones) }}</strong>
+                            </div>
+                            <div>
+                                <span class="projection-label">Corte</span>
+                                <strong>{{ $fechaCorteProyeccion->format('d/m/Y') }}</strong>
+                            </div>
+                        </div>
+                        <div class="projection-note">
+                            Método: acumulado {{ $proyeccionAnual->anio }} hasta el último dato capturado + promedio histórico restante
+                            ({{ $proyeccionRestanteHistorica['inicio_restante'] }} al 31/12 de {{ implode(', ', $proyeccionRestanteHistorica['anios']) }}).
+                            Promedio restante: {{ number_format($proyeccionRestanteHistorica['hechos']) }} choques,
+                            {{ number_format($proyeccionRestanteHistorica['lesionados']) }} lesionados y
+                            {{ number_format($proyeccionRestanteHistorica['defunciones']) }} defunciones.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <div class="row">
+        <div class="col-lg-8 col-12">
+            <div class="card card-outline card-info">
+                <div class="card-header">
+                    <h3 class="card-title">Tendencia por Año</h3>
+                </div>
+                <div class="card-body">
+                    <div class="chart-series-controls mb-3">
+                        <label class="chart-toggle chart-toggle--choques">
+                            <input type="checkbox" class="chart-series-toggle" data-dataset="0" checked>
+                            <span>Choques</span>
+                        </label>
+                        <label class="chart-toggle chart-toggle--lesionados">
+                            <input type="checkbox" class="chart-series-toggle" data-dataset="1" checked>
+                            <span>Lesionados</span>
+                        </label>
+                        <label class="chart-toggle chart-toggle--defunciones">
+                            <input type="checkbox" class="chart-series-toggle" data-dataset="2" checked>
+                            <span>Defunciones</span>
+                        </label>
+                        <label class="chart-toggle chart-toggle--proyeccion">
+                            <input type="checkbox" class="chart-series-toggle" data-dataset="3" checked>
+                            <span>Proy. choques</span>
+                        </label>
+                    </div>
+                    <div class="chart-wrap">
+                        <canvas id="comparativaAnualChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-12">
+            <div class="card card-outline card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title">Detalle</h3>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table id="tabla-comparativa-anual" class="table table-bordered table-hover table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Año</th>
+                                    <th>Choques</th>
+                                    <th>Actuales</th>
+                                    <th>Legacy</th>
+                                    <th>Lesionados</th>
+                                    <th>Defunciones</th>
+                                    <th>Proy. Choques</th>
+                                    <th>Proy. Lesionados</th>
+                                    <th>Proy. Defunciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($comparativa as $registro)
+                                    <tr>
+                                        <td>{{ $registro->anio }}</td>
+                                        <td>{{ number_format($registro->hechos) }}</td>
+                                        <td>{{ number_format($registro->hechos_actuales) }}</td>
+                                        <td>{{ number_format($registro->hechos_legacy) }}</td>
+                                        <td>{{ number_format($registro->lesionados) }}</td>
+                                        <td>{{ number_format($registro->defunciones) }}</td>
+                                        <td>{{ $registro->proyeccion_hechos !== null ? number_format($registro->proyeccion_hechos) : '-' }}</td>
+                                        <td>{{ $registro->proyeccion_lesionados !== null ? number_format($registro->proyeccion_lesionados) : '-' }}</td>
+                                        <td>{{ $registro->proyeccion_defunciones !== null ? number_format($registro->proyeccion_defunciones) : '-' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">Sin datos</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total</th>
+                                    <th>{{ number_format($totales['hechos']) }}</th>
+                                    <th>{{ number_format($comparativa->sum('hechos_actuales')) }}</th>
+                                    <th>{{ number_format($comparativa->sum('hechos_legacy')) }}</th>
+                                    <th>{{ number_format($totales['lesionados']) }}</th>
+                                    <th>{{ number_format($totales['defunciones']) }}</th>
+                                    <th>{{ $proyeccionAnual ? number_format($proyeccionAnual->proyeccion_hechos) : '-' }}</th>
+                                    <th>{{ $proyeccionAnual ? number_format($proyeccionAnual->proyeccion_lesionados) : '-' }}</th>
+                                    <th>{{ $proyeccionAnual ? number_format($proyeccionAnual->proyeccion_defunciones) : '-' }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@stop
+
+@section('css')
+    <style>
+        .chart-wrap {
+            min-height: 420px;
+            position: relative;
+        }
+
+        #comparativaAnualChart {
+            min-height: 420px;
+        }
+
+        .projection-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .projection-grid > div {
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 8px;
+            padding: 12px;
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .projection-label {
+            display: block;
+            color: rgba(255, 255, 255, .68);
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .projection-grid strong {
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .projection-note {
+            margin-top: 10px;
+            color: rgba(255, 255, 255, .68);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .chart-series-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .04);
+            color: rgba(255, 255, 255, .78);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 800;
+            user-select: none;
+        }
+
+        .chart-toggle input {
+            margin: 0;
+        }
+
+        .chart-toggle--choques {
+            border-color: rgba(0, 123, 255, .6);
+        }
+
+        .chart-toggle--lesionados {
+            border-color: rgba(255, 193, 7, .75);
+        }
+
+        .chart-toggle--defunciones {
+            border-color: rgba(220, 53, 69, .75);
+        }
+
+        .chart-toggle--proyeccion {
+            border-color: rgba(23, 162, 184, .75);
+        }
+
+        .table th,
+        .table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        @media (max-width: 767.98px) {
+            .projection-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+    </style>
+@stop
+
+@section('js')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        $(function () {
+            const registros = @json($comparativa);
+            const labels = registros.map((registro) => registro.anio);
+            const hechos = registros.map((registro) => registro.hechos);
+            const lesionados = registros.map((registro) => registro.lesionados);
+            const defunciones = registros.map((registro) => registro.defunciones);
+            const proyeccionHechos = registros.map((registro) => registro.proyeccion_hechos);
+            const maxLesionados = Math.max(...lesionados, 0);
+            const maxDefunciones = Math.max(...defunciones, 0);
+            const canvas = document.getElementById('comparativaAnualChart');
+            let comparativaChart = null;
+
+            if (canvas && window.Chart) {
+                comparativaChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Choques',
+                                data: hechos,
+                                yAxisID: 'yChoques',
+                                backgroundColor: 'rgba(0, 123, 255, 0.72)',
+                                borderColor: 'rgba(0, 123, 255, 1)',
+                                borderWidth: 1,
+                            },
+                            {
+                                type: 'line',
+                                label: 'Lesionados',
+                                data: lesionados,
+                                yAxisID: 'yLesionados',
+                                borderColor: 'rgba(255, 193, 7, 1)',
+                                backgroundColor: 'rgba(255, 193, 7, 0.18)',
+                                borderWidth: 3,
+                                tension: 0.28,
+                                pointRadius: 4,
+                                fill: false,
+                            },
+                            {
+                                type: 'line',
+                                label: 'Defunciones',
+                                data: defunciones,
+                                yAxisID: 'yDefunciones',
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                backgroundColor: 'rgba(220, 53, 69, 0.18)',
+                                borderWidth: 3,
+                                tension: 0.28,
+                                pointRadius: 4,
+                                fill: false,
+                            },
+                            {
+                                type: 'line',
+                                label: 'Proyección choques',
+                                data: proyeccionHechos,
+                                yAxisID: 'yChoques',
+                                borderColor: 'rgba(23, 162, 184, 1)',
+                                backgroundColor: 'rgba(23, 162, 184, 0.16)',
+                                borderWidth: 3,
+                                borderDash: [8, 6],
+                                tension: 0.28,
+                                pointRadius: 5,
+                                fill: false,
+                                spanGaps: false,
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            yChoques: {
+                                beginAtZero: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Choques',
+                                },
+                                ticks: {
+                                    precision: 0,
+                                },
+                            },
+                            yLesionados: {
+                                beginAtZero: true,
+                                position: 'right',
+                                suggestedMax: Math.max(10, Math.ceil(maxLesionados * 1.18)),
+                                grid: {
+                                    drawOnChartArea: false,
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Lesionados',
+                                },
+                                ticks: {
+                                    precision: 0,
+                                },
+                            },
+                            yDefunciones: {
+                                beginAtZero: true,
+                                position: 'right',
+                                suggestedMax: Math.max(10, Math.ceil(maxDefunciones * 1.25)),
+                                grid: {
+                                    drawOnChartArea: false,
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Defunciones',
+                                },
+                                ticks: {
+                                    precision: 0,
+                                },
+                            },
+                        },
+                    },
+                });
+
+                const updateAxisVisibility = () => {
+                    const showChoques = !comparativaChart.getDatasetMeta(0).hidden || !comparativaChart.getDatasetMeta(3).hidden;
+                    const showLesionados = !comparativaChart.getDatasetMeta(1).hidden;
+                    const showDefunciones = !comparativaChart.getDatasetMeta(2).hidden;
+
+                    comparativaChart.options.scales.yChoques.display = showChoques;
+                    comparativaChart.options.scales.yLesionados.display = showLesionados;
+                    comparativaChart.options.scales.yDefunciones.display = showDefunciones;
+                    comparativaChart.update();
+                };
+
+                $('.chart-series-toggle').on('change', function () {
+                    const datasetIndex = Number($(this).data('dataset'));
+                    comparativaChart.setDatasetVisibility(datasetIndex, this.checked);
+                    updateAxisVisibility();
+                });
+            }
+
+            $('#tabla-comparativa-anual').DataTable({
+                pageLength: 25,
+                order: [[0, 'desc']],
+                language: {
+                    emptyTable: 'No hay datos',
+                    info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                    infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+                    infoFiltered: '(filtrado de _MAX_ registros totales)',
+                    lengthMenu: 'Mostrar _MENU_ registros',
+                    loadingRecords: 'Cargando...',
+                    processing: 'Procesando...',
+                    search: 'Buscar:',
+                    zeroRecords: 'No se encontraron resultados',
+                    paginate: {
+                        first: 'Primero',
+                        last: 'Último',
+                        next: 'Siguiente',
+                        previous: 'Anterior',
+                    },
+                },
+                responsive: true,
+                lengthChange: true,
+                autoWidth: false,
+            });
+        });
+    </script>
+@stop

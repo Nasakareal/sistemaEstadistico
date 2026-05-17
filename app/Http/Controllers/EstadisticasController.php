@@ -28,6 +28,251 @@ class EstadisticasController extends Controller
         return view('admin.settings.estadisticas.index');
     }
 
+    public function comparativaAnual(Request $request)
+    {
+        $legacyDisponible = $this->peritosLegacyDisponible();
+        $fechaReferencia = Carbon::now(config('app.timezone', 'America/Mexico_City'))->startOfDay();
+        $fechaCorteProyeccion = $this->fechaCorteProyeccion((int) $fechaReferencia->format('Y'), $legacyDisponible)
+            ?: $fechaReferencia;
+        $anioActual = (int) $fechaCorteProyeccion->format('Y');
+        $anioInicio = (int) $request->input('desde', 2016);
+        $anioFin = (int) $request->input('hasta', $anioActual);
+        $diasTranscurridos = max(1, $fechaCorteProyeccion->dayOfYear);
+        $diasDelAnio = $fechaCorteProyeccion->isLeapYear() ? 366 : 365;
+        $proyeccionRestanteHistorica = $this->promedioHistoricoRestante($fechaCorteProyeccion, $legacyDisponible);
+
+        $anioInicio = max(1900, min(2100, $anioInicio));
+        $anioFin = max(1900, min(2100, $anioFin));
+
+        if ($anioInicio > $anioFin) {
+            [$anioInicio, $anioFin] = [$anioFin, $anioInicio];
+        }
+
+        $registrosActuales = DB::table('hechos')
+            ->leftJoin('lesionados', 'lesionados.hecho_id', '=', 'hechos.id')
+            ->whereNotNull('hechos.fecha')
+            ->whereBetween(DB::raw('YEAR(hechos.fecha)'), [$anioInicio, $anioFin])
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->selectRaw('YEAR(hechos.fecha) as anio')
+            ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
+            ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO' THEN 1 ELSE 0 END) as defunciones")
+            ->groupBy(DB::raw('YEAR(hechos.fecha)'))
+            ->orderBy('anio')
+            ->get()
+            ->keyBy('anio');
+
+        $registrosLegacy = $legacyDisponible
+            ? DB::table('peritos_legacy.accidentest as accidentes')
+                ->leftJoin('peritos_legacy.persona as personas', function ($join) {
+                    $join->on('personas.id_accidentes', '=', 'accidentes.id_accidentes')
+                        ->whereRaw("(personas.status IN ('1', '2') OR NULLIF(TRIM(COALESCE(personas.nombre, '')), '') IS NOT NULL)");
+                })
+                ->whereRaw('COALESCE(accidentes.borrado, 0) = 0')
+                ->whereBetween(DB::raw('YEAR(accidentes.fecha)'), [$anioInicio, $anioFin])
+                ->selectRaw('YEAR(accidentes.fecha) as anio')
+                ->selectRaw('COUNT(DISTINCT accidentes.id_accidentes) as hechos')
+                ->selectRaw("SUM(CASE WHEN personas.id_persona IS NOT NULL AND COALESCE(personas.status, '') <> '2' THEN 1 ELSE 0 END) as lesionados")
+                ->selectRaw("SUM(CASE WHEN personas.status = '2' THEN 1 ELSE 0 END) as defunciones")
+                ->groupBy(DB::raw('YEAR(accidentes.fecha)'))
+                ->orderBy('anio')
+                ->get()
+                ->keyBy('anio')
+            : collect();
+
+        $comparativa = collect(range($anioInicio, $anioFin))
+            ->map(function (int $anio) use ($anioActual, $registrosActuales, $registrosLegacy) {
+                $actual = $registrosActuales->get($anio);
+                $legacy = $registrosLegacy->get($anio);
+                $hechos = (int) ($actual->hechos ?? 0) + (int) ($legacy->hechos ?? 0);
+                $lesionados = (int) ($actual->lesionados ?? 0) + (int) ($legacy->lesionados ?? 0);
+                $defunciones = (int) ($actual->defunciones ?? 0) + (int) ($legacy->defunciones ?? 0);
+                $esAnioActual = $anio === $anioActual;
+
+                return (object) [
+                    'anio' => $anio,
+                    'hechos' => $hechos,
+                    'lesionados' => $lesionados,
+                    'defunciones' => $defunciones,
+                    'hechos_actuales' => (int) ($actual->hechos ?? 0),
+                    'hechos_legacy' => (int) ($legacy->hechos ?? 0),
+                    'es_anio_actual' => $esAnioActual,
+                    'proyeccion_hechos' => null,
+                    'proyeccion_lesionados' => null,
+                    'proyeccion_defunciones' => null,
+                ];
+            })
+            ->values();
+
+        $totales = [
+            'hechos' => (int) $comparativa->sum('hechos'),
+            'lesionados' => (int) $comparativa->sum('lesionados'),
+            'defunciones' => (int) $comparativa->sum('defunciones'),
+        ];
+
+        $anioMayorHechos = $comparativa->sortByDesc('hechos')->first();
+        $proyeccionAnual = $comparativa->firstWhere('es_anio_actual', true);
+
+        if ($proyeccionAnual) {
+            $proyeccionAnual->proyeccion_hechos = $proyeccionAnual->hechos + $proyeccionRestanteHistorica['hechos'];
+            $proyeccionAnual->proyeccion_lesionados = $proyeccionAnual->lesionados + $proyeccionRestanteHistorica['lesionados'];
+            $proyeccionAnual->proyeccion_defunciones = $proyeccionAnual->defunciones + $proyeccionRestanteHistorica['defunciones'];
+        }
+
+        return view('admin.settings.estadisticas.comparativa-anual', compact(
+            'anioInicio',
+            'anioFin',
+            'comparativa',
+            'totales',
+            'anioMayorHechos',
+            'registrosLegacy',
+            'proyeccionAnual',
+            'fechaCorteProyeccion',
+            'diasTranscurridos',
+            'diasDelAnio',
+            'proyeccionRestanteHistorica'
+        ));
+    }
+
+    private function fechaCorteProyeccion(int $anioActual, bool $legacyDisponible): ?Carbon
+    {
+        $fechas = [];
+
+        $fechaActual = DB::table('hechos')
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereYear('fecha', $anioActual)
+            ->max('fecha');
+
+        if ($fechaActual) {
+            $fechas[] = $fechaActual;
+        }
+
+        if ($legacyDisponible) {
+            $fechaLegacy = DB::table('peritos_legacy.accidentest')
+                ->whereRaw('COALESCE(borrado, 0) = 0')
+                ->whereYear('fecha', $anioActual)
+                ->max('fecha');
+
+            if ($fechaLegacy && $fechaLegacy !== '0000-00-00') {
+                $fechas[] = $fechaLegacy;
+            }
+        }
+
+        if (empty($fechas)) {
+            return null;
+        }
+
+        return Carbon::parse(max($fechas))->startOfDay();
+    }
+
+    private function promedioHistoricoRestante(Carbon $fechaCorte, bool $legacyDisponible): array
+    {
+        $anioActual = (int) $fechaCorte->format('Y');
+        $anioInicio = max(1900, $anioActual - 5);
+        $anios = range($anioInicio, $anioActual - 1);
+        $totales = [
+            'hechos' => 0,
+            'lesionados' => 0,
+            'defunciones' => 0,
+        ];
+        $aniosConDatos = [];
+
+        foreach ($anios as $anio) {
+            $inicioRestante = $this->mismaFechaEnAnio($fechaCorte, $anio)->addDay();
+            $finAnio = Carbon::create($anio, 12, 31)->toDateString();
+
+            if ($inicioRestante->year !== $anio || $inicioRestante->toDateString() > $finAnio) {
+                continue;
+            }
+
+            $conteo = $legacyDisponible
+                ? $this->conteoPeriodoLegacy($inicioRestante->toDateString(), $finAnio)
+                : $this->conteoPeriodoActual($inicioRestante->toDateString(), $finAnio);
+
+            if ($conteo['hechos'] === 0 && $conteo['lesionados'] === 0 && $conteo['defunciones'] === 0) {
+                continue;
+            }
+
+            $aniosConDatos[] = $anio;
+
+            foreach (['hechos', 'lesionados', 'defunciones'] as $campo) {
+                $totales[$campo] += $conteo[$campo];
+            }
+        }
+
+        $divisor = max(1, count($aniosConDatos));
+
+        return [
+            'hechos' => (int) round($totales['hechos'] / $divisor),
+            'lesionados' => (int) round($totales['lesionados'] / $divisor),
+            'defunciones' => (int) round($totales['defunciones'] / $divisor),
+            'anios' => $aniosConDatos,
+            'inicio_restante' => $fechaCorte->copy()->addDay()->format('d/m'),
+        ];
+    }
+
+    private function mismaFechaEnAnio(Carbon $fecha, int $anio): Carbon
+    {
+        $dia = min($fecha->day, Carbon::create($anio, $fecha->month, 1)->daysInMonth);
+
+        return Carbon::create($anio, $fecha->month, $dia)->startOfDay();
+    }
+
+    private function conteoPeriodoLegacy(string $inicio, string $fin): array
+    {
+        $hechos = DB::table('peritos_legacy.accidentest')
+            ->whereRaw('COALESCE(borrado, 0) = 0')
+            ->whereBetween('fecha', [$inicio, $fin])
+            ->count();
+
+        $personas = DB::table('peritos_legacy.persona as personas')
+            ->join('peritos_legacy.accidentest as accidentes', 'accidentes.id_accidentes', '=', 'personas.id_accidentes')
+            ->whereRaw('COALESCE(accidentes.borrado, 0) = 0')
+            ->whereBetween('accidentes.fecha', [$inicio, $fin])
+            ->whereRaw("(personas.status IN ('1', '2') OR NULLIF(TRIM(COALESCE(personas.nombre, '')), '') IS NOT NULL)");
+
+        return [
+            'hechos' => (int) $hechos,
+            'lesionados' => (int) (clone $personas)->whereRaw("COALESCE(personas.status, '') <> '2'")->count(),
+            'defunciones' => (int) (clone $personas)->where('personas.status', '2')->count(),
+        ];
+    }
+
+    private function conteoPeriodoActual(string $inicio, string $fin): array
+    {
+        $hechos = DB::table('hechos')
+            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereBetween('fecha', [$inicio, $fin])
+            ->count();
+
+        $lesionados = DB::table('lesionados')
+            ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereBetween('hechos.fecha', [$inicio, $fin]);
+
+        return [
+            'hechos' => (int) $hechos,
+            'lesionados' => (int) (clone $lesionados)
+                ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO'")
+                ->count(),
+            'defunciones' => (int) (clone $lesionados)
+                ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'")
+                ->count(),
+        ];
+    }
+
+    private function peritosLegacyDisponible(): bool
+    {
+        try {
+            return (bool) DB::selectOne(
+                'SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? LIMIT 1',
+                ['peritos_legacy', 'accidentest']
+            );
+        } catch (\Throwable $exception) {
+            return false;
+        }
+    }
+
     public function parteNovedades(Request $request)
     {
         $fecha = $request->input('fecha') ?? now()->format('Y-m-d');

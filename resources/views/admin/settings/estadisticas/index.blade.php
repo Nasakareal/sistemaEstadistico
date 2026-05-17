@@ -58,6 +58,15 @@
                                 </td>
                             </tr>
 
+                            <tr>
+                                <td><strong>Comparativa Anual de Choques</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.comparativaAnual') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-chart-line"></i> Ver Comparativa
+                                    </a>
+                                </td>
+                            </tr>
+
                             {{-- NUEVA ESTADÍSTICA: DICTAMEN --}}
                             <tr>
                                 <td><strong>Dictamen (Buscador)</strong></td>

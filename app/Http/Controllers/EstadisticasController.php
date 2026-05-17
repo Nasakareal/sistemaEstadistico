@@ -53,6 +53,7 @@ class EstadisticasController extends Controller
             ->whereNotNull('hechos.fecha')
             ->whereBetween(DB::raw('YEAR(hechos.fecha)'), [$anioInicio, $anioFin])
             ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'")
             ->selectRaw('YEAR(hechos.fecha) as anio')
             ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
             ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
@@ -141,6 +142,7 @@ class EstadisticasController extends Controller
         $fechaActual = DB::table('hechos')
             ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereYear('fecha', $anioActual)
+            ->whereRaw("LOWER(TRIM(COALESCE(fuente_ubicacion, ''))) <> 'legacy_peritos'")
             ->max('fecha');
 
         if ($fechaActual) {
@@ -243,12 +245,14 @@ class EstadisticasController extends Controller
         $hechos = DB::table('hechos')
             ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('fecha', [$inicio, $fin])
+            ->whereRaw("LOWER(TRIM(COALESCE(fuente_ubicacion, ''))) <> 'legacy_peritos'")
             ->count();
 
         $lesionados = DB::table('lesionados')
             ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
             ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
-            ->whereBetween('hechos.fecha', [$inicio, $fin]);
+            ->whereBetween('hechos.fecha', [$inicio, $fin])
+            ->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'");
 
         return [
             'hechos' => (int) $hechos,

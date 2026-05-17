@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CoepraPuntosLicenciasReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Hechos;
@@ -17,6 +18,7 @@ use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\SimpleType\TblWidth;
 use PhpOffice\PhpWord\Style\Table;
+use Symfony\Component\Process\Process;
 
 
 class EstadisticasController extends Controller
@@ -26,6 +28,52 @@ class EstadisticasController extends Controller
     public function index()
     {
         return view('admin.settings.estadisticas.index');
+    }
+
+    public function dataCoepraPuntosLicencias(CoepraPuntosLicenciasReportService $reporte)
+    {
+        return response()->json($reporte->generar());
+    }
+
+    public function descargarPowerPointCoepraPuntos(CoepraPuntosLicenciasReportService $reporte)
+    {
+        $dir = storage_path('app/presentaciones/coepra_puntos_licencias');
+        $script = $dir . DIRECTORY_SEPARATOR . 'build.ps1';
+        $outputDir = $dir . DIRECTORY_SEPARATOR . 'output';
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
+        file_put_contents(
+            $dir . DIRECTORY_SEPARATOR . 'data.json',
+            json_encode($reporte->generar(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+
+        if (is_file($script)) {
+            $powershell = PHP_OS_FAMILY === 'Windows'
+                ? 'C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+                : 'pwsh';
+            $process = new Process([$powershell, '-ExecutionPolicy', 'Bypass', '-File', $script], base_path(), null, null, 180);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                abort(500, trim($process->getErrorOutput() ?: $process->getOutput()) ?: 'No se pudo generar el PowerPoint COEPRA.');
+            }
+        }
+
+        $files = glob($outputDir . DIRECTORY_SEPARATOR . 'coepra_sistema_puntos_licencias*.pptx') ?: [];
+        $files = array_values(array_filter($files, 'is_file'));
+        usort($files, fn ($a, $b) => filemtime($b) <=> filemtime($a));
+        $path = $files[0] ?? null;
+
+        if (!$path || !is_file($path)) {
+            abort(404, 'No se encontró el PowerPoint COEPRA generado.');
+        }
+
+        return response()->download($path, 'coepra_sistema_puntos_licencias.pptx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ]);
     }
 
     public function comparativaAnual(Request $request)
@@ -143,6 +191,239 @@ class EstadisticasController extends Controller
             'comparativaMismoCorte',
             'resumenMismoCorte'
         ));
+    }
+
+    public function semaforoRiesgo(Request $request)
+    {
+        $legacyDisponible = $this->peritosLegacyDisponible();
+        $fechaReferencia = Carbon::now(config('app.timezone', 'America/Mexico_City'))->startOfDay();
+        $fechaCorte = $this->fechaCorteProyeccion((int) $fechaReferencia->format('Y'), $legacyDisponible)
+            ?: $fechaReferencia;
+
+        $agrupar = $request->input('agrupar', 'colonia');
+        $agrupar = in_array($agrupar, ['colonia', 'sector', 'calle'], true) ? $agrupar : 'colonia';
+
+        $fechaInicio = Carbon::parse($request->input('desde', $fechaCorte->copy()->startOfYear()->toDateString()))->startOfDay();
+        $fechaFin = Carbon::parse($request->input('hasta', $fechaCorte->toDateString()))->startOfDay();
+
+        if ($fechaInicio->gt($fechaFin)) {
+            [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+        }
+
+        $periodoAnteriorInicio = $fechaInicio->copy()->subYear();
+        $periodoAnteriorFin = $fechaFin->copy()->subYear();
+
+        $actual = $this->registrosRiesgoZona($fechaInicio->toDateString(), $fechaFin->toDateString(), $agrupar, $legacyDisponible);
+        $anterior = $this->registrosRiesgoZona($periodoAnteriorInicio->toDateString(), $periodoAnteriorFin->toDateString(), $agrupar, $legacyDisponible)
+            ->keyBy('zona_key');
+
+        $zonas = $actual
+            ->map(function (array $registro) use ($anterior) {
+                $previo = $anterior->get($registro['zona_key']);
+                $hechosPrevios = (int) ($previo['hechos'] ?? 0);
+                $score = $this->indiceSeveridad(
+                    $registro['hechos'],
+                    $registro['lesionados'],
+                    $registro['defunciones']
+                );
+                $impacto = $registro['hechos'] > 0
+                    ? (($registro['lesionados'] + ($registro['defunciones'] * 3)) / $registro['hechos']) * 100
+                    : 0;
+
+                return (object) [
+                    'zona' => $registro['zona'],
+                    'zona_key' => $registro['zona_key'],
+                    'hechos' => $registro['hechos'],
+                    'lesionados' => $registro['lesionados'],
+                    'defunciones' => $registro['defunciones'],
+                    'hechos_actuales' => $registro['hechos_actuales'],
+                    'hechos_legacy' => $registro['hechos_legacy'],
+                    'hechos_previos' => $hechosPrevios,
+                    'diferencia' => $registro['hechos'] - $hechosPrevios,
+                    'variacion' => $hechosPrevios > 0 ? (($registro['hechos'] - $hechosPrevios) / $hechosPrevios) * 100 : null,
+                    'indice' => $score,
+                    'impacto' => $impacto,
+                    'nivel' => 'BAJO',
+                ];
+            })
+            ->sortByDesc('indice')
+            ->values();
+
+        $zonas = $this->asignarNivelesRiesgo($zonas);
+        $topRiesgo = $zonas->first();
+        $topIncremento = $zonas->sortByDesc('diferencia')->first();
+        $zonasCriticas = $zonas->where('nivel', 'CRITICO')->count();
+        $promedioIndice = $zonas->count() > 0 ? round($zonas->avg('indice'), 1) : 0;
+        $topGrafica = $zonas->take(12)->values();
+        $topIncrementos = $zonas
+            ->filter(fn ($zona) => $zona->diferencia > 0)
+            ->sortByDesc('diferencia')
+            ->take(10)
+            ->values();
+
+        return view('admin.settings.estadisticas.semaforo-riesgo', compact(
+            'agrupar',
+            'fechaInicio',
+            'fechaFin',
+            'periodoAnteriorInicio',
+            'periodoAnteriorFin',
+            'zonas',
+            'topRiesgo',
+            'topIncremento',
+            'zonasCriticas',
+            'promedioIndice',
+            'topGrafica',
+            'topIncrementos'
+        ));
+    }
+
+    private function registrosRiesgoZona(string $inicio, string $fin, string $agrupar, bool $legacyDisponible)
+    {
+        $registros = [];
+
+        foreach ($this->registrosRiesgoActuales($inicio, $fin, $agrupar) as $row) {
+            $this->sumarRegistroZona($registros, $row->zona, [
+                'hechos' => (int) $row->hechos,
+                'lesionados' => (int) $row->lesionados,
+                'defunciones' => (int) $row->defunciones,
+                'hechos_actuales' => (int) $row->hechos,
+                'hechos_legacy' => 0,
+            ]);
+        }
+
+        if ($legacyDisponible) {
+            foreach ($this->registrosRiesgoLegacy($inicio, $fin, $agrupar) as $row) {
+                $this->sumarRegistroZona($registros, $row->zona, [
+                    'hechos' => (int) $row->hechos,
+                    'lesionados' => (int) $row->lesionados,
+                    'defunciones' => (int) $row->defunciones,
+                    'hechos_actuales' => 0,
+                    'hechos_legacy' => (int) $row->hechos,
+                ]);
+            }
+        }
+
+        return collect(array_values($registros))
+            ->filter(fn (array $registro) => $registro['hechos'] > 0)
+            ->values();
+    }
+
+    private function registrosRiesgoActuales(string $inicio, string $fin, string $agrupar)
+    {
+        $zona = $this->zonaExpressionActual($agrupar);
+
+        return DB::table('hechos')
+            ->leftJoin('lesionados', 'lesionados.hecho_id', '=', 'hechos.id')
+            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereBetween('hechos.fecha', [$inicio, $fin])
+            ->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'")
+            ->selectRaw("$zona as zona")
+            ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
+            ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO' THEN 1 ELSE 0 END) as defunciones")
+            ->groupBy(DB::raw($zona))
+            ->get();
+    }
+
+    private function registrosRiesgoLegacy(string $inicio, string $fin, string $agrupar)
+    {
+        $zona = $this->zonaExpressionLegacy($agrupar);
+
+        return DB::table('peritos_legacy.accidentest as accidentes')
+            ->leftJoin('peritos_legacy.persona as personas', function ($join) {
+                $join->on('personas.id_accidentes', '=', 'accidentes.id_accidentes')
+                    ->whereRaw("(personas.status IN ('1', '2') OR NULLIF(TRIM(COALESCE(personas.nombre, '')), '') IS NOT NULL)");
+            })
+            ->whereRaw('COALESCE(accidentes.borrado, 0) = 0')
+            ->whereBetween('accidentes.fecha', [$inicio, $fin])
+            ->selectRaw("$zona as zona")
+            ->selectRaw('COUNT(DISTINCT accidentes.id_accidentes) as hechos')
+            ->selectRaw("SUM(CASE WHEN personas.id_persona IS NOT NULL AND COALESCE(personas.status, '') <> '2' THEN 1 ELSE 0 END) as lesionados")
+            ->selectRaw("SUM(CASE WHEN personas.status = '2' THEN 1 ELSE 0 END) as defunciones")
+            ->groupBy(DB::raw($zona))
+            ->get();
+    }
+
+    private function sumarRegistroZona(array &$registros, ?string $zona, array $valores): void
+    {
+        $label = trim((string) $zona);
+        $label = $label !== '' ? $label : 'SIN DATO';
+        $key = $this->normalizarZonaKey($label);
+
+        if (!isset($registros[$key])) {
+            $registros[$key] = [
+                'zona' => $label,
+                'zona_key' => $key,
+                'hechos' => 0,
+                'lesionados' => 0,
+                'defunciones' => 0,
+                'hechos_actuales' => 0,
+                'hechos_legacy' => 0,
+            ];
+        }
+
+        foreach ($valores as $campo => $valor) {
+            $registros[$key][$campo] += (int) $valor;
+        }
+    }
+
+    private function asignarNivelesRiesgo($zonas)
+    {
+        $total = max(1, $zonas->count());
+
+        return $zonas
+            ->values()
+            ->map(function ($zona, int $index) use ($total) {
+                $percentil = ($index + 1) / $total;
+
+                if ($percentil <= 0.12) {
+                    $zona->nivel = 'CRITICO';
+                } elseif ($percentil <= 0.32) {
+                    $zona->nivel = 'ALTO';
+                } elseif ($percentil <= 0.62) {
+                    $zona->nivel = 'MEDIO';
+                } else {
+                    $zona->nivel = 'BAJO';
+                }
+
+                return $zona;
+            });
+    }
+
+    private function indiceSeveridad(int $hechos, int $lesionados, int $defunciones): int
+    {
+        return $hechos + ($lesionados * 3) + ($defunciones * 10);
+    }
+
+    private function zonaExpressionActual(string $agrupar): string
+    {
+        if ($agrupar === 'sector') {
+            return "COALESCE(NULLIF(TRIM(CAST(hechos.sector AS CHAR)), ''), 'SIN DATO')";
+        }
+
+        if ($agrupar === 'calle') {
+            return "COALESCE(NULLIF(TRIM(hechos.calle), ''), 'SIN DATO')";
+        }
+
+        return "COALESCE(NULLIF(TRIM(hechos.colonia), ''), 'SIN DATO')";
+    }
+
+    private function zonaExpressionLegacy(string $agrupar): string
+    {
+        if ($agrupar === 'sector') {
+            return "COALESCE(NULLIF(TRIM(CAST(accidentes.sector AS CHAR)), ''), 'SIN DATO')";
+        }
+
+        if ($agrupar === 'calle') {
+            return "COALESCE(NULLIF(TRIM(accidentes.callea), ''), 'SIN DATO')";
+        }
+
+        return "COALESCE(NULLIF(TRIM(accidentes.colonia), ''), 'SIN DATO')";
+    }
+
+    private function normalizarZonaKey(string $zona): string
+    {
+        return preg_replace('/\s+/', ' ', strtoupper(trim($zona))) ?: 'SIN DATO';
     }
 
     private function comparativaMismoCorte(int $anioInicio, int $anioFin, Carbon $fechaCorte, bool $legacyDisponible)

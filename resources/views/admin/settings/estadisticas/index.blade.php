@@ -67,6 +67,27 @@
                                 </td>
                             </tr>
 
+                            <tr>
+                                <td><strong>Semáforo de Riesgo por Zona</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.semaforoRiesgo') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-traffic-light"></i> Ver Semáforo
+                                    </a>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td><strong>Presentación COEPRA: Sistema de Puntos en Licencias</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.coepraPuntosLicencias.powerpoint') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-id-card"></i> Descargar PowerPoint
+                                    </a>
+                                    <a href="{{ route('estadisticas.coepraPuntosLicencias.data') }}" class="btn btn-outline-secondary btn-sm ml-1">
+                                        <i class="fas fa-database"></i> Ver consulta
+                                    </a>
+                                </td>
+                            </tr>
+
                             {{-- NUEVA ESTADÍSTICA: DICTAMEN --}}
                             <tr>
                                 <td><strong>Dictamen (Buscador)</strong></td>

@@ -671,6 +671,9 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
         Route::get('/',[EstadisticasController::class,'index'])->name('estadisticas.index');
         Route::get('/comparativa-anual',[EstadisticasController::class,'comparativaAnual'])->name('estadisticas.comparativaAnual');
+        Route::get('/semaforo-riesgo',[EstadisticasController::class,'semaforoRiesgo'])->name('estadisticas.semaforoRiesgo');
+        Route::get('/data/coepra-puntos-licencias',[EstadisticasController::class,'dataCoepraPuntosLicencias'])->name('estadisticas.coepraPuntosLicencias.data');
+        Route::get('/powerpoint/coepra-puntos-licencias',[EstadisticasController::class,'descargarPowerPointCoepraPuntos'])->name('estadisticas.coepraPuntosLicencias.powerpoint');
         Route::get('/parte-novedades',[EstadisticasController::class,'parteNovedades'])->name('estadisticas.parteNovedades');
         Route::get('/parte-novedades/descargar',[EstadisticasController::class,'descargarParte'])->name('estadisticas.parteNovedades.descargar');
         Route::get('/mini-parte',[EstadisticasController::class,'miniParte'])->name('estadisticas.miniParte');

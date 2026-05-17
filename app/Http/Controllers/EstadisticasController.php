@@ -120,6 +120,14 @@ class EstadisticasController extends Controller
             $proyeccionAnual->proyeccion_defunciones = $proyeccionAnual->defunciones + $proyeccionRestanteHistorica['defunciones'];
         }
 
+        $comparativaMismoCorte = $this->comparativaMismoCorte(
+            max($anioInicio, $anioActual - 5),
+            min($anioFin, $anioActual),
+            $fechaCorteProyeccion,
+            $legacyDisponible
+        );
+        $resumenMismoCorte = $this->resumenMismoCorte($comparativaMismoCorte, $anioActual);
+
         return view('admin.settings.estadisticas.comparativa-anual', compact(
             'anioInicio',
             'anioFin',
@@ -131,8 +139,68 @@ class EstadisticasController extends Controller
             'fechaCorteProyeccion',
             'diasTranscurridos',
             'diasDelAnio',
-            'proyeccionRestanteHistorica'
+            'proyeccionRestanteHistorica',
+            'comparativaMismoCorte',
+            'resumenMismoCorte'
         ));
+    }
+
+    private function comparativaMismoCorte(int $anioInicio, int $anioFin, Carbon $fechaCorte, bool $legacyDisponible)
+    {
+        if ($anioInicio > $anioFin) {
+            return collect();
+        }
+
+        return collect(range($anioInicio, $anioFin))
+            ->map(function (int $anio) use ($fechaCorte, $legacyDisponible) {
+                $inicio = Carbon::create($anio, 1, 1)->toDateString();
+                $corte = $this->mismaFechaEnAnio($fechaCorte, $anio)->toDateString();
+                $conteo = $this->conteoPeriodoTotal($inicio, $corte, $legacyDisponible);
+
+                return (object) [
+                    'anio' => $anio,
+                    'corte' => $corte,
+                    'hechos' => $conteo['hechos'],
+                    'lesionados' => $conteo['lesionados'],
+                    'defunciones' => $conteo['defunciones'],
+                    'es_actual' => $anio === (int) $fechaCorte->format('Y'),
+                ];
+            })
+            ->values();
+    }
+
+    private function resumenMismoCorte($comparativaMismoCorte, int $anioActual): ?array
+    {
+        $actual = $comparativaMismoCorte->firstWhere('anio', $anioActual);
+
+        if (!$actual) {
+            return null;
+        }
+
+        $anterior = $comparativaMismoCorte->firstWhere('anio', $anioActual - 1);
+        $historicos = $comparativaMismoCorte
+            ->filter(function ($registro) use ($anioActual) {
+                return $registro->anio < $anioActual && $registro->hechos > 0;
+            })
+            ->values();
+
+        $promedioHistorico = $historicos->count() > 0
+            ? (int) round($historicos->avg('hechos'))
+            : null;
+
+        return [
+            'actual' => $actual,
+            'anterior' => $anterior,
+            'promedio_historico' => $promedioHistorico,
+            'diferencia_anterior' => $anterior ? $actual->hechos - $anterior->hechos : null,
+            'porcentaje_anterior' => ($anterior && $anterior->hechos > 0)
+                ? (($actual->hechos - $anterior->hechos) / $anterior->hechos) * 100
+                : null,
+            'diferencia_promedio' => $promedioHistorico !== null ? $actual->hechos - $promedioHistorico : null,
+            'porcentaje_promedio' => ($promedioHistorico && $promedioHistorico > 0)
+                ? (($actual->hechos - $promedioHistorico) / $promedioHistorico) * 100
+                : null,
+        ];
     }
 
     private function fechaCorteProyeccion(int $anioActual, bool $legacyDisponible): ?Carbon
@@ -237,6 +305,20 @@ class EstadisticasController extends Controller
             'hechos' => (int) $hechos,
             'lesionados' => (int) (clone $personas)->whereRaw("COALESCE(personas.status, '') <> '2'")->count(),
             'defunciones' => (int) (clone $personas)->where('personas.status', '2')->count(),
+        ];
+    }
+
+    private function conteoPeriodoTotal(string $inicio, string $fin, bool $legacyDisponible): array
+    {
+        $actual = $this->conteoPeriodoActual($inicio, $fin);
+        $legacy = $legacyDisponible
+            ? $this->conteoPeriodoLegacy($inicio, $fin)
+            : ['hechos' => 0, 'lesionados' => 0, 'defunciones' => 0];
+
+        return [
+            'hechos' => $actual['hechos'] + $legacy['hechos'],
+            'lesionados' => $actual['lesionados'] + $legacy['lesionados'],
+            'defunciones' => $actual['defunciones'] + $legacy['defunciones'],
         ];
     }
 

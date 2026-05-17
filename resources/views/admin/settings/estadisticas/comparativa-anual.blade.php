@@ -134,6 +134,98 @@
         </div>
     @endif
 
+    @if($resumenMismoCorte)
+        @php
+            $actualCorte = $resumenMismoCorte['actual'];
+            $anioAnteriorCorte = $resumenMismoCorte['anterior'];
+            $diferenciaAnterior = $resumenMismoCorte['diferencia_anterior'];
+            $porcentajeAnterior = $resumenMismoCorte['porcentaje_anterior'];
+            $diferenciaPromedio = $resumenMismoCorte['diferencia_promedio'];
+            $porcentajePromedio = $resumenMismoCorte['porcentaje_promedio'];
+        @endphp
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-outline card-success">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-balance-scale"></i>
+                            {{ $actualCorte->anio }} contra el mismo corte histórico
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="same-cut-grid">
+                            <div class="same-cut-kpi">
+                                <span>Choques al corte</span>
+                                <strong>{{ number_format($actualCorte->hechos) }}</strong>
+                                <small>Del 01/01 al {{ \Carbon\Carbon::parse($actualCorte->corte)->format('d/m/Y') }}</small>
+                            </div>
+                            <div class="same-cut-kpi">
+                                <span>Contra {{ $anioAnteriorCorte ? $anioAnteriorCorte->anio : 'año anterior' }}</span>
+                                <strong class="{{ $diferenciaAnterior !== null && $diferenciaAnterior >= 0 ? 'same-cut-up' : 'same-cut-down' }}">
+                                    {{ $diferenciaAnterior !== null ? ($diferenciaAnterior >= 0 ? '+' : '') . number_format($diferenciaAnterior) : '-' }}
+                                </strong>
+                                <small>
+                                    {{ $porcentajeAnterior !== null ? ($porcentajeAnterior >= 0 ? '+' : '') . number_format($porcentajeAnterior, 1) . '%' : 'Sin referencia' }}
+                                </small>
+                            </div>
+                            <div class="same-cut-kpi">
+                                <span>Contra promedio histórico</span>
+                                <strong class="{{ $diferenciaPromedio !== null && $diferenciaPromedio >= 0 ? 'same-cut-up' : 'same-cut-down' }}">
+                                    {{ $diferenciaPromedio !== null ? ($diferenciaPromedio >= 0 ? '+' : '') . number_format($diferenciaPromedio) : '-' }}
+                                </strong>
+                                <small>
+                                    Promedio: {{ $resumenMismoCorte['promedio_historico'] !== null ? number_format($resumenMismoCorte['promedio_historico']) : '-' }}
+                                    @if($porcentajePromedio !== null)
+                                        ({{ $porcentajePromedio >= 0 ? '+' : '' }}{{ number_format($porcentajePromedio, 1) }}%)
+                                    @endif
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-lg-7 col-12">
+                                <div class="same-cut-chart">
+                                    <canvas id="mismoCorteChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-5 col-12">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Año</th>
+                                                <th>Corte</th>
+                                                <th>Choques</th>
+                                                <th>Lesionados</th>
+                                                <th>Defunciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($comparativaMismoCorte as $registro)
+                                                <tr class="{{ $registro->anio === $actualCorte->anio ? 'same-cut-current-row' : '' }}">
+                                                    <td>{{ $registro->anio }}</td>
+                                                    <td>{{ \Carbon\Carbon::parse($registro->corte)->format('d/m') }}</td>
+                                                    <td>{{ number_format($registro->hechos) }}</td>
+                                                    <td>{{ number_format($registro->lesionados) }}</td>
+                                                    <td>{{ number_format($registro->defunciones) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="projection-note">
+                            Lectura: esta comparación usa el mismo periodo de cada año, del 01/01 al {{ $fechaCorteProyeccion->format('d/m') }},
+                            para no comparar {{ $actualCorte->anio }} incompleto contra años completos.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-lg-8 col-12">
             <div class="card card-outline card-info">
@@ -238,6 +330,56 @@
             min-height: 420px;
         }
 
+        .same-cut-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .same-cut-kpi {
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 8px;
+            padding: 14px;
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .same-cut-kpi span,
+        .same-cut-kpi small {
+            display: block;
+            color: rgba(255, 255, 255, .68);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .same-cut-kpi strong {
+            display: block;
+            margin: 6px 0;
+            font-size: 26px;
+            line-height: 1;
+        }
+
+        .same-cut-up {
+            color: #ffc107;
+        }
+
+        .same-cut-down {
+            color: #17a2b8;
+        }
+
+        .same-cut-chart {
+            min-height: 260px;
+            position: relative;
+        }
+
+        #mismoCorteChart {
+            min-height: 260px;
+        }
+
+        .same-cut-current-row {
+            background: rgba(40, 167, 69, .12);
+            font-weight: 900;
+        }
+
         .projection-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -320,6 +462,7 @@
         }
 
         @media (max-width: 767.98px) {
+            .same-cut-grid,
             .projection-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -341,6 +484,8 @@
             const maxDefunciones = Math.max(...defunciones, 0);
             const canvas = document.getElementById('comparativaAnualChart');
             let comparativaChart = null;
+            const registrosMismoCorte = @json($comparativaMismoCorte);
+            const canvasMismoCorte = document.getElementById('mismoCorteChart');
 
             if (canvas && window.Chart) {
                 comparativaChart = new Chart(canvas, {
@@ -465,6 +610,41 @@
                     const datasetIndex = Number($(this).data('dataset'));
                     comparativaChart.setDatasetVisibility(datasetIndex, this.checked);
                     updateAxisVisibility();
+                });
+            }
+
+            if (canvasMismoCorte && window.Chart) {
+                new Chart(canvasMismoCorte, {
+                    type: 'bar',
+                    data: {
+                        labels: registrosMismoCorte.map((registro) => registro.anio),
+                        datasets: [
+                            {
+                                label: 'Choques al mismo corte',
+                                data: registrosMismoCorte.map((registro) => registro.hechos),
+                                backgroundColor: registrosMismoCorte.map((registro) => registro.es_actual ? 'rgba(40, 167, 69, 0.78)' : 'rgba(0, 123, 255, 0.62)'),
+                                borderColor: registrosMismoCorte.map((registro) => registro.es_actual ? 'rgba(40, 167, 69, 1)' : 'rgba(0, 123, 255, 1)'),
+                                borderWidth: 1,
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false,
+                            },
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0,
+                                },
+                            },
+                        },
+                    },
                 });
             }
 

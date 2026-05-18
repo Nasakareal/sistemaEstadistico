@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\WhatsAppCloudService;
+use App\Services\WhatsAppSendGuard;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -13,10 +14,10 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 {
     private const UNIDAD_SINIESTROS_ID = 1;
 
-    protected $signature = 'whatsapp:resumen-siniestros {--to=} {--sin-template}';
+    protected $signature = 'whatsapp:resumen-siniestros {--to=} {--sin-template} {--force}';
     protected $description = 'Envía el resumen diario de siniestros por WhatsApp';
 
-    public function handle(WhatsAppCloudService $whatsApp): int
+    public function handle(WhatsAppCloudService $whatsApp, WhatsAppSendGuard $sendGuard): int
     {
         $timezone = 'America/Mexico_City';
         $now = Carbon::now($timezone);
@@ -64,10 +65,18 @@ class EnviarResumenSiniesrosWhatsApp extends Command
             $firma
         );
 
+        $periodKey = $end->format('Y-m-d_H:i');
         $failures = 0;
         $sent = 0;
+        $skipped = 0;
 
         foreach ($recipients as $to) {
+            if (!$this->option('force') && !$sendGuard->reserve('resumen-siniestros', $periodKey, $to)) {
+                $this->warn('Resumen ya enviado o en proceso para ' . $to . ' en el corte ' . $periodKey . '. Usa --force para reenviar.');
+                $skipped++;
+                continue;
+            }
+
             try {
                 if ($this->option('sin-template') || $template === '') {
                     $response = $whatsApp->sendText($to, $mensaje);
@@ -88,6 +97,7 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
                 if (!($response['ok'] ?? false)) {
                     $this->error('Meta rechazó el envío para ' . $to . '.');
+                    $sendGuard->release('resumen-siniestros', $periodKey, $to);
                     $failures++;
                     continue;
                 }
@@ -97,13 +107,18 @@ class EnviarResumenSiniesrosWhatsApp extends Command
 
                 if (!$messageId) {
                     $this->error('Meta respondió sin message id para ' . $to . '.');
+                    $sendGuard->release('resumen-siniestros', $periodKey, $to);
                     $failures++;
                     continue;
                 }
 
+                $sendGuard->markSent('resumen-siniestros', $periodKey, $to, $messageId);
+
                 $this->info('Mensaje aceptado por Meta para ' . $to . '. ID: ' . $messageId);
                 $sent++;
             } catch (\Throwable $e) {
+                $sendGuard->release('resumen-siniestros', $periodKey, $to);
+
                 Log::error('Error enviando resumen WhatsApp', [
                     'to' => $to,
                     'error' => $e->getMessage(),
@@ -118,11 +133,11 @@ class EnviarResumenSiniesrosWhatsApp extends Command
         $this->line($mensaje);
 
         if ($failures > 0) {
-            $this->error("Resumen procesado con {$sent} enviado(s) y {$failures} error(es).");
+            $this->error("Resumen procesado con {$sent} enviado(s), {$skipped} omitido(s) y {$failures} error(es).");
             return self::FAILURE;
         }
 
-        $this->info("Resumen enviado a {$sent} destinatario(s).");
+        $this->info("Resumen enviado a {$sent} destinatario(s). Omitidos por duplicado: {$skipped}.");
         return self::SUCCESS;
     }
 

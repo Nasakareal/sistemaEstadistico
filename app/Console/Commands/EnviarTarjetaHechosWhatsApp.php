@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\WhatsAppCloudService;
+use App\Services\WhatsAppSendGuard;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -13,10 +14,10 @@ class EnviarTarjetaHechosWhatsApp extends Command
 {
     private const UNIDAD_SINIESTROS_ID = 1;
 
-    protected $signature = 'whatsapp:tarjeta-hechos {--to=} {--sin-template}';
+    protected $signature = 'whatsapp:tarjeta-hechos {--to=} {--sin-template} {--force}';
     protected $description = 'Envía la tarjeta diaria de hechos por WhatsApp con corte de 18:00 a 18:00';
 
-    public function handle(WhatsAppCloudService $whatsApp): int
+    public function handle(WhatsAppCloudService $whatsApp, WhatsAppSendGuard $sendGuard): int
     {
         $timezone = 'America/Mexico_City';
         $now = Carbon::now($timezone);
@@ -51,10 +52,18 @@ class EnviarTarjetaHechosWhatsApp extends Command
         }
 
         $mensaje = $this->buildMessage($end, $totales, $firma);
+        $periodKey = $end->format('Y-m-d_H:i');
         $failures = 0;
         $sent = 0;
+        $skipped = 0;
 
         foreach ($recipients as $recipient) {
+            if (!$this->option('force') && !$sendGuard->reserve('tarjeta-hechos', $periodKey, $recipient)) {
+                $this->warn('Tarjeta ya enviada o en proceso para ' . $recipient . ' en el corte ' . $periodKey . '. Usa --force para reenviar.');
+                $skipped++;
+                continue;
+            }
+
             try {
                 if ($this->option('sin-template') || $template === '') {
                     $response = $whatsApp->sendText($recipient, $mensaje);
@@ -85,6 +94,7 @@ class EnviarTarjetaHechosWhatsApp extends Command
 
                 if (!($response['ok'] ?? false)) {
                     $this->error('Meta rechazó el envío para ' . $recipient . '.');
+                    $sendGuard->release('tarjeta-hechos', $periodKey, $recipient);
                     $failures++;
                     continue;
                 }
@@ -94,13 +104,18 @@ class EnviarTarjetaHechosWhatsApp extends Command
 
                 if (!$messageId) {
                     $this->error('Meta respondió sin message id para ' . $recipient . '.');
+                    $sendGuard->release('tarjeta-hechos', $periodKey, $recipient);
                     $failures++;
                     continue;
                 }
 
+                $sendGuard->markSent('tarjeta-hechos', $periodKey, $recipient, $messageId);
+
                 $this->info('Mensaje aceptado por Meta para ' . $recipient . '. ID: '.$messageId);
                 $sent++;
             } catch (\Throwable $e) {
+                $sendGuard->release('tarjeta-hechos', $periodKey, $recipient);
+
                 Log::error('Error enviando tarjeta de hechos WhatsApp', [
                     'to' => $recipient,
                     'error' => $e->getMessage(),
@@ -115,11 +130,11 @@ class EnviarTarjetaHechosWhatsApp extends Command
         $this->line($mensaje);
 
         if ($failures > 0) {
-            $this->error("Tarjeta procesada con {$sent} enviado(s) y {$failures} error(es).");
+            $this->error("Tarjeta procesada con {$sent} enviado(s), {$skipped} omitido(s) y {$failures} error(es).");
             return self::FAILURE;
         }
 
-        $this->info("Tarjeta enviada a {$sent} destinatario(s).");
+        $this->info("Tarjeta enviada a {$sent} destinatario(s). Omitidos por duplicado: {$skipped}.");
         return self::SUCCESS;
     }
 

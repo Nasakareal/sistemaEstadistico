@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\ActividadInformeService;
 use App\Services\WhatsAppCloudService;
+use App\Services\WhatsAppSendGuard;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
@@ -12,10 +13,10 @@ use Illuminate\Support\Facades\Storage;
 
 class EnviarActividadesSiniestrosWhatsApp extends Command
 {
-    protected $signature = 'whatsapp:actividades-siniestros {--to=} {--fecha=} {--regenerar} {--dry-run}';
+    protected $signature = 'whatsapp:actividades-siniestros {--to=} {--fecha=} {--regenerar} {--dry-run} {--force}';
     protected $description = 'Envia el PDF diario de actividades de siniestros por WhatsApp';
 
-    public function handle(WhatsAppCloudService $whatsApp, ActividadInformeService $informeService): int
+    public function handle(WhatsAppCloudService $whatsApp, ActividadInformeService $informeService, WhatsAppSendGuard $sendGuard): int
     {
         $timezone = 'America/Mexico_City';
         $fecha = $this->resolveFecha($timezone);
@@ -94,8 +95,15 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
 
         $failures = 0;
         $sent = 0;
+        $skipped = 0;
 
         foreach ($recipients as $recipient) {
+            if (!$this->option('force') && !$sendGuard->reserve('actividades-siniestros', $fecha, $recipient)) {
+                $this->warn('Actividades ya enviado o en proceso para ' . $recipient . ' en la fecha ' . $fecha . '. Usa --force para reenviar.');
+                $skipped++;
+                continue;
+            }
+
             try {
                 if ($template !== '') {
                     $response = $whatsApp->sendDocumentTemplate(
@@ -122,6 +130,7 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
 
                 if (!($response['ok'] ?? false)) {
                     $this->error('Meta rechazo el envio para ' . $recipient . '.');
+                    $sendGuard->release('actividades-siniestros', $fecha, $recipient);
                     $failures++;
                     continue;
                 }
@@ -131,13 +140,18 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
 
                 if (!$messageId) {
                     $this->error('Meta respondio sin message id para ' . $recipient . '.');
+                    $sendGuard->release('actividades-siniestros', $fecha, $recipient);
                     $failures++;
                     continue;
                 }
 
+                $sendGuard->markSent('actividades-siniestros', $fecha, $recipient, $messageId);
+
                 $this->info('PDF aceptado por Meta para ' . $recipient . '. ID: ' . $messageId);
                 $sent++;
             } catch (\Throwable $e) {
+                $sendGuard->release('actividades-siniestros', $fecha, $recipient);
+
                 Log::error('Error enviando PDF de actividades WhatsApp', [
                     'to' => $recipient,
                     'archivo' => $rutaAbsoluta,
@@ -153,11 +167,11 @@ class EnviarActividadesSiniestrosWhatsApp extends Command
         $this->line($rutaAbsoluta);
 
         if ($failures > 0) {
-            $this->error("PDF procesado con {$sent} enviado(s) y {$failures} error(es).");
+            $this->error("PDF procesado con {$sent} enviado(s), {$skipped} omitido(s) y {$failures} error(es).");
             return self::FAILURE;
         }
 
-        $this->info("PDF enviado a {$sent} destinatario(s).");
+        $this->info("PDF enviado a {$sent} destinatario(s). Omitidos por duplicado: {$skipped}.");
         return self::SUCCESS;
     }
 

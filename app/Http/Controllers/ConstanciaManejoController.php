@@ -362,78 +362,18 @@ class ConstanciaManejoController extends Controller
     {
         $this->authorizeConstancia($constancia);
 
-        if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Solo se puede generar acceso a constancias inactivas.');
-        }
-
-        $constancia->update([
-            'tipo_examen' => 'LINEA',
-            'acceso_examen_token' => Str::random(60),
-            'acceso_examen_expira' => Carbon::now('America/Mexico_City')->addMinutes(30),
-        ]);
-
-        return redirect()->route('constancias_manejo.show', $constancia)->with('success', 'Acceso temporal generado.');
+        return redirect()
+            ->route('constancias_manejo.examenes.create')
+            ->with('error', 'Los exámenes se generan aparte y no consumen constancias impresas.');
     }
 
     public function capturarExamenImpreso(Request $request, ConstanciaManejo $constancia)
     {
         $this->authorizeConstancia($constancia);
 
-        if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Solo se puede capturar examen de constancias inactivas.');
-        }
-
-        $request->validate([
-            'nombre_solicitante' => ['required', 'string', 'max:255'],
-            'sexo' => ['required', 'in:HOMBRE,MUJER'],
-            'curp' => ['nullable', 'string', 'max:18'],
-            'telefono' => ['nullable', 'string', 'max:20'],
-            'tipo_licencia' => ['required', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
-            'calificacion' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'total_preguntas' => ['required', 'integer', 'min:1'],
-            'aciertos' => ['required', 'integer', 'min:0'],
-            'errores' => ['required', 'integer', 'min:0'],
-            'observaciones' => ['nullable', 'string'],
-        ]);
-
-        if ((int) $request->aciertos + (int) $request->errores !== (int) $request->total_preguntas) {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Los aciertos y errores no coinciden con el total de preguntas.');
-        }
-
-        $calificacion = round(((int) $request->aciertos / (int) $request->total_preguntas) * 100, 2);
-        $resultado = $calificacion >= 80 ? 'APROBADO' : 'REPROBADO';
-
-        DB::transaction(function () use ($request, $constancia, $resultado, $calificacion) {
-            $constancia->update([
-                'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
-                'sexo' => $request->sexo,
-                'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
-                'telefono' => $request->telefono,
-                'tipo_licencia' => $request->tipo_licencia,
-                'tipo_examen' => 'IMPRESO',
-                'acceso_examen_token' => null,
-                'acceso_examen_expira' => null,
-            ]);
-
-            ConstanciaExamen::updateOrCreate(
-                [
-                    'constancia_id' => $constancia->id,
-                ],
-                [
-                    'modalidad' => 'IMPRESO',
-                    'calificacion' => $calificacion,
-                    'total_preguntas' => $request->total_preguntas,
-                    'aciertos' => $request->aciertos,
-                    'errores' => $request->errores,
-                    'resultado' => $resultado,
-                    'capturado_por' => auth()->id(),
-                    'fecha_examen' => Carbon::now('America/Mexico_City'),
-                    'observaciones' => $request->observaciones,
-                ]
-            );
-        });
-
-        return redirect()->route('constancias_manejo.show', $constancia)->with('success', 'Examen impreso capturado.');
+        return redirect()
+            ->route('constancias_manejo.examenes.create')
+            ->with('error', 'Captura el examen como registro independiente y actívalo después con una constancia impresa.');
     }
 
     public function activar(ConstanciaManejo $constancia)

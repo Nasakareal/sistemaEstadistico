@@ -1,9 +1,9 @@
 @extends('adminlte::page')
 
-@section('title', 'Constancias de Manejo')
+@section('title', 'Imprimir Constancias')
 
 @section('content_header')
-    <h1>Constancias de Manejo</h1>
+    <h1>Imprimir Constancias</h1>
 @stop
 
 @section('content')
@@ -12,13 +12,13 @@
         <div class="card card-outline card-primary">
 
             <div class="card-header">
-                <h3 class="card-title">Listado de Constancias</h3>
+                <h3 class="card-title">Inventario de constancias impresas</h3>
 
                 <div class="card-tools">
 
                     @can('crear modulo examenes')
                         <a href="{{ route('constancias_manejo.create') }}" class="btn btn-primary">
-                            <i class="fa-solid fa-plus"></i> Nueva Constancia
+                            <i class="fa-solid fa-print"></i> Generar lote
                         </a>
                     @endcan
 
@@ -95,16 +95,6 @@
                                            class="btn btn-secondary btn-sm">
                                             <i class="fa-solid fa-print"></i>
                                         </a>
-
-                                        @if($c->estatus == 'IMPRESA_INACTIVA')
-                                            <form action="{{ route('constancias_manejo.generar_acceso', $c->id) }}"
-                                                  method="POST" style="display:inline;">
-                                                @csrf
-                                                <button class="btn btn-warning btn-sm">
-                                                    <i class="fa-solid fa-key"></i>
-                                                </button>
-                                            </form>
-                                        @endif
 
                                         @if($c->estatus == 'IMPRESA_INACTIVA' && $c->examen && $c->examen->resultado == 'APROBADO')
                                             <form action="{{ route('constancias_manejo.activar', $c->id) }}"

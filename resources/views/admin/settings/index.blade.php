@@ -136,6 +136,26 @@
             @endif
         @endcan
 
+        {{-- BANCO DE PREGUNTAS CONSTANCIAS --}}
+        @can('ver modulo examenes')
+            @if(auth()->user()->perteneceAAlgunaUnidad(['siniestros','delegaciones']) || (int)(auth()->user()->unidad_id ?? 0) === 3)
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="sv-card">
+                        <div class="sv-card__icon bg-info">
+                            <i class="fa-solid fa-circle-question"></i>
+                        </div>
+                        <div class="sv-card__body">
+                            <div class="sv-card__title">Banco de Preguntas</div>
+                            <div class="sv-card__desc">Preguntas y respuestas para exámenes de constancias.</div>
+                            <a href="{{ route('constancias_manejo.preguntas.index') }}" class="btn sv-btn">
+                                <i class="fas fa-arrow-right"></i> Acceder
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endcan
+
         {{-- ESTADISTICAS --}}
         @can('ver estadisticas')
             <div class="col-md-3 col-sm-6 col-12">

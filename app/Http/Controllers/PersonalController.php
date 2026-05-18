@@ -233,7 +233,7 @@ class PersonalController extends Controller
             'rfc' => 'nullable|string|max:13',
 
             'cuip' => 'nullable|string|max:30|unique:personals,cuip',
-            'cup' => 'nullable|string|max:30|unique:personals,cup',
+            'cup' => 'nullable|string|max:100|unique:personals,cup',
 
             'grado' => 'nullable|string|max:120',
             'puesto' => 'nullable|string|max:120',
@@ -415,7 +415,7 @@ class PersonalController extends Controller
             'rfc' => 'nullable|string|max:13',
 
             'cuip' => 'nullable|string|max:30|unique:personals,cuip,' . $personal->id,
-            'cup' => 'nullable|string|max:30|unique:personals,cup,' . $personal->id,
+            'cup' => 'nullable|string|max:100|unique:personals,cup,' . $personal->id,
 
             'grado' => 'nullable|string|max:120',
             'puesto' => 'nullable|string|max:120',

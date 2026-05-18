@@ -452,43 +452,10 @@ class ConstanciaManejoController extends Controller
         $this->authorizeConstanciasUnidad();
         $this->authorizeConstancia($constancia);
 
-        if (!$this->estaDisponibleParaExamen($constancia)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'La constancia no esta disponible.'
-            ], 400);
-        }
-
-        $request->merge(['sexo' => $this->normalizarSexo($request->input('sexo'))]);
-
-        $request->validate([
-            'nombre_solicitante' => 'required|string|max:255',
-            'sexo' => 'required|in:HOMBRE,MUJER',
-            'curp' => 'nullable|string|max:18',
-            'telefono' => 'nullable|string|max:20',
-            'tipo_licencia' => 'required|in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO',
-        ]);
-
-        $constancia->update([
-            'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
-            'sexo' => $request->input('sexo'),
-            'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
-            'telefono' => $request->telefono,
-            'tipo_licencia' => $request->tipo_licencia,
-            'tipo_examen' => 'LINEA',
-            'acceso_examen_token' => Str::random(60),
-            'acceso_examen_expira' => Carbon::now('America/Mexico_City')->addMinutes(30),
-        ]);
-
-        $constancia->load(['modulo', 'examen', 'peritoActivador']);
-
         return response()->json([
-            'ok' => true,
-            'message' => 'Acceso generado.',
-            'url_examen' => $this->examenUrl($constancia),
-            'url_examen_qr' => $this->examenQrUrl($constancia),
-            'constancia' => $this->constanciaPayload($constancia),
-        ]);
+            'ok' => false,
+            'message' => 'Los examenes se generan aparte. Usa POST /api/constancias-manejo/examenes y despues activa con /api/constancias-manejo/examenes/{id}/activar-constancia.',
+        ], 409);
     }
 
     public function generarExamenEscrito(Request $request, ConstanciaManejo $constancia)
@@ -496,43 +463,10 @@ class ConstanciaManejoController extends Controller
         $this->authorizeConstanciasUnidad();
         $this->authorizeConstancia($constancia);
 
-        if (!$this->estaDisponibleParaExamen($constancia)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'La constancia no esta disponible.'
-            ], 400);
-        }
-
-        $request->merge(['sexo' => $this->normalizarSexo($request->input('sexo'))]);
-
-        $request->validate([
-            'nombre_solicitante' => 'required|string|max:255',
-            'sexo' => 'required|in:HOMBRE,MUJER',
-            'curp' => 'nullable|string|max:18',
-            'telefono' => 'nullable|string|max:20',
-            'tipo_licencia' => 'required|in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO',
-        ]);
-
-        $constancia->update([
-            'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
-            'sexo' => $request->input('sexo'),
-            'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
-            'telefono' => $request->telefono,
-            'tipo_licencia' => $request->tipo_licencia,
-            'tipo_examen' => 'IMPRESO',
-            'acceso_examen_token' => Str::random(60),
-            'acceso_examen_expira' => Carbon::now('America/Mexico_City')->endOfDay(),
-        ]);
-
-        $constancia->load(['modulo', 'examen', 'peritoActivador']);
-
         return response()->json([
-            'ok' => true,
-            'message' => 'Examen escrito generado.',
-            'url_examen_escrito' => $this->examenEscritoUrl($constancia),
-            'url_examen_escrito_qr' => $this->examenEscritoQrUrl($constancia),
-            'constancia' => $this->constanciaPayload($constancia),
-        ]);
+            'ok' => false,
+            'message' => 'Los examenes escritos se generan aparte. Usa POST /api/constancias-manejo/examenes con modalidad IMPRESO.',
+        ], 409);
     }
 
     public function capturarImpreso(Request $request, ConstanciaManejo $constancia)
@@ -540,81 +474,10 @@ class ConstanciaManejoController extends Controller
         $this->authorizeConstanciasUnidad();
         $this->authorizeConstancia($constancia);
 
-        if (!$this->estaDisponibleParaExamen($constancia)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'La constancia no esta disponible.'
-            ], 400);
-        }
-
-        if ($constancia->tipo_examen !== 'IMPRESO') {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Primero genera o escanea el QR del examen escrito.'
-            ], 400);
-        }
-
-        $request->merge(['sexo' => $this->normalizarSexo($request->input('sexo'))]);
-
-        $request->validate([
-            'nombre_solicitante' => 'required|string|max:255',
-            'sexo' => 'required|in:HOMBRE,MUJER',
-            'curp' => 'nullable|string|max:18',
-            'telefono' => 'nullable|string|max:20',
-            'tipo_licencia' => 'required|in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO',
-            'calificacion' => 'nullable|numeric|min:0|max:100',
-            'total_preguntas' => 'required|integer|min:1',
-            'aciertos' => 'required|integer|min:0',
-            'errores' => 'required|integer|min:0',
-            'observaciones' => 'nullable|string',
-        ]);
-
-        if (($request->aciertos + $request->errores) != $request->total_preguntas) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Aciertos y errores no coinciden.'
-            ], 400);
-        }
-
-        $calificacion = round(($request->aciertos / $request->total_preguntas) * 100, 2);
-        $resultado = $calificacion >= 80 ? 'APROBADO' : 'REPROBADO';
-
-        DB::transaction(function () use ($request, $constancia, $resultado, $calificacion) {
-            $constancia->update([
-                'nombre_solicitante' => mb_strtoupper($request->nombre_solicitante, 'UTF-8'),
-                'sexo' => $request->input('sexo'),
-                'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
-                'telefono' => $request->telefono,
-                'tipo_licencia' => $request->tipo_licencia,
-                'tipo_examen' => 'IMPRESO',
-                'acceso_examen_token' => null,
-                'acceso_examen_expira' => null,
-            ]);
-
-            ConstanciaExamen::updateOrCreate(
-                ['constancia_id' => $constancia->id],
-                [
-                    'modalidad' => 'IMPRESO',
-                    'calificacion' => $calificacion,
-                    'total_preguntas' => $request->total_preguntas,
-                    'aciertos' => $request->aciertos,
-                    'errores' => $request->errores,
-                    'resultado' => $resultado,
-                    'capturado_por' => auth()->id(),
-                    'fecha_examen' => Carbon::now('America/Mexico_City'),
-                    'observaciones' => $request->observaciones,
-                ]
-            );
-        });
-
-        $constancia->load(['modulo', 'examen', 'peritoActivador']);
-
         return response()->json([
-            'ok' => true,
-            'message' => 'Examen capturado.',
-            'resultado' => $resultado,
-            'constancia' => $this->constanciaPayload($constancia),
-        ]);
+            'ok' => false,
+            'message' => 'Captura el resultado en /api/constancias-manejo/examenes/{id}/capturar-impreso y activa despues con una constancia impresa.',
+        ], 409);
     }
 
     public function activar(ConstanciaManejo $constancia)

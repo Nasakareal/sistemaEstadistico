@@ -144,102 +144,17 @@
         <div class="constancia-show-card mt-4">
             <div class="constancia-show-card-header">
                 <div>
-                    <h3>Examen en Línea</h3>
-                    <span>El examen se genera sin gastar un folio impreso</span>
+                    <h3>Activación con examen aprobado</h3>
+                    <span>Esta constancia sigue disponible hasta que un perito la active</span>
                 </div>
-                <i class="fa-solid fa-key"></i>
+                <i class="fa-solid fa-qrcode"></i>
             </div>
 
             <div class="constancia-show-card-body">
                 <div class="empty-box">
-                    Genera el acceso desde la app en <strong>Nuevo examen</strong>. Si reprueba, esta constancia impresa sigue intacta; si aprueba, escanea este folio y actívalo con ese examen.
+                    Genera y califica el examen desde <strong>Exámenes de Manejo</strong>. Cuando el examen esté aprobado, escanea este folio impreso para activarlo.
                 </div>
             </div>
-        </div>
-
-        <div class="constancia-show-card mt-4">
-            <div class="constancia-show-card-header">
-                <div>
-                    <h3>Capturar Examen Impreso</h3>
-                    <span>Para personas que no harán examen digital</span>
-                </div>
-                <i class="fa-solid fa-clipboard-check"></i>
-            </div>
-
-            <form action="{{ route('constancias_manejo.capturar_examen_impreso', $constancia->id) }}" method="POST">
-                @csrf
-
-                <div class="constancia-show-card-body">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Nombre del solicitante</label>
-                            <input type="text" name="nombre_solicitante" class="form-control" value="{{ old('nombre_solicitante', $constancia->nombre_solicitante) }}" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>CURP</label>
-                            <input type="text" name="curp" class="form-control" maxlength="18" value="{{ old('curp', $constancia->curp) }}">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Sexo</label>
-                            <select name="sexo" class="form-control" required>
-                                <option value="">Seleccione</option>
-                                <option value="HOMBRE" {{ old('sexo', $constancia->sexo) == 'HOMBRE' ? 'selected' : '' }}>Hombre</option>
-                                <option value="MUJER" {{ old('sexo', $constancia->sexo) == 'MUJER' ? 'selected' : '' }}>Mujer</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Teléfono</label>
-                            <input type="text" name="telefono" class="form-control" value="{{ old('telefono', $constancia->telefono) }}">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Tipo de licencia</label>
-                            <select name="tipo_licencia" class="form-control" required>
-                                <option value="">Seleccione</option>
-                                <option value="SERVICIO_PUBLICO" {{ old('tipo_licencia', $constancia->tipo_licencia) == 'SERVICIO_PUBLICO' ? 'selected' : '' }}>Servicio Público</option>
-                                <option value="AUTOMOVILISTA" {{ old('tipo_licencia', $constancia->tipo_licencia) == 'AUTOMOVILISTA' ? 'selected' : '' }}>Automovilista</option>
-                                <option value="CHOFER" {{ old('tipo_licencia', $constancia->tipo_licencia) == 'CHOFER' ? 'selected' : '' }}>Chofer</option>
-                                <option value="MOTOCICLISTA" {{ old('tipo_licencia', $constancia->tipo_licencia) == 'MOTOCICLISTA' ? 'selected' : '' }}>Motociclista</option>
-                                <option value="PERMISO" {{ old('tipo_licencia', $constancia->tipo_licencia) == 'PERMISO' ? 'selected' : '' }}>Permiso</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Total preguntas</label>
-                            <input type="number" name="total_preguntas" class="form-control" min="1" value="{{ old('total_preguntas', optional($constancia->examen)->total_preguntas ?? 20) }}" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Aciertos</label>
-                            <input type="number" name="aciertos" class="form-control" min="0" value="{{ old('aciertos', optional($constancia->examen)->aciertos ?? 0) }}" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Errores</label>
-                            <input type="number" name="errores" class="form-control" min="0" value="{{ old('errores', optional($constancia->examen)->errores ?? 0) }}" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Calificación</label>
-                            <input type="number" name="calificacion" class="form-control" min="0" max="100" step="0.01" value="{{ old('calificacion', optional($constancia->examen)->calificacion) }}" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Observaciones</label>
-                        <textarea name="observaciones" class="form-control" rows="3">{{ old('observaciones', optional($constancia->examen)->observaciones) }}</textarea>
-                    </div>
-                </div>
-
-                <div class="constancia-show-card-footer">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-save"></i> Guardar examen impreso
-                    </button>
-                </div>
-            </form>
         </div>
     @endif
 

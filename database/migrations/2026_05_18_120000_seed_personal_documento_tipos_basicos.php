@@ -56,6 +56,14 @@ return new class extends Migration
                 'activo' => true,
             ],
             [
+                'clave' => 'RESGUARDO_ARMAMENTO',
+                'nombre' => 'Resguardo de armamento',
+                'requiere_vigencia' => false,
+                'dias_vigencia' => null,
+                'sensible' => true,
+                'activo' => true,
+            ],
+            [
                 'clave' => 'OTRO_DOCUMENTO',
                 'nombre' => 'Otro documento',
                 'requiere_vigencia' => false,
@@ -93,6 +101,7 @@ return new class extends Migration
                 'CUIP',
                 'LICENCIA_CONDUCIR',
                 'CREDENCIAL_INSTITUCIONAL',
+                'RESGUARDO_ARMAMENTO',
                 'OTRO_DOCUMENTO',
             ])
             ->update([

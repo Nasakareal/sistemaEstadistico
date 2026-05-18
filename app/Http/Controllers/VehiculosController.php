@@ -64,8 +64,9 @@ class VehiculosController extends Controller
         }
 
         $gruas = $queryGruas->get();
+        $corralones = $this->corralonesDesdeGruas($gruas);
 
-        return view('vehiculos.create', compact('hecho', 'gruas'));
+        return view('vehiculos.create', compact('hecho', 'gruas', 'corralones'));
     }
 
     public function store(Request $request, Hechos $hecho)
@@ -83,7 +84,7 @@ class VehiculosController extends Controller
             'tipo_servicio'              => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
             'grua_id'                    => 'nullable|exists:gruas,id',
-            'corralon'                   => 'nullable|string|max:50',
+            'corralon'                   => 'nullable|string|max:255',
             'aseguradora'                => 'nullable|string|max:100',
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
@@ -153,10 +154,16 @@ class VehiculosController extends Controller
         $validated['partes_danadas'] = strtoupper($validated['partes_danadas']);
 
         $nombreGrua = 'N/A';
+        $gruaSeleccionada = null;
         if (!empty($validated['grua_id'])) {
-            $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
-            if (!empty($tmp)) {
-                $nombreGrua = strtoupper($tmp);
+            $gruaSeleccionada = Grua::find($validated['grua_id']);
+
+            if ($gruaSeleccionada && !empty($gruaSeleccionada->nombre)) {
+                $nombreGrua = strtoupper($gruaSeleccionada->nombre);
+            }
+
+            if ($validated['corralon'] === '' && $gruaSeleccionada && !empty($gruaSeleccionada->ubicacion_corralon)) {
+                $validated['corralon'] = strtoupper($gruaSeleccionada->ubicacion_corralon);
             }
         }
 
@@ -306,6 +313,8 @@ class VehiculosController extends Controller
         $servicioActual = $vehiculo->servicio;
         $gruaActualId = optional($servicioActual)->grua_id;
         $gruaBloqueada = GruaEditGuard::locksHecho($usuario, $hecho);
+        $gruaCampoBloqueado = $gruaBloqueada && GruaEditGuard::vehicleHasGrua($vehiculo);
+        $corralonCampoBloqueado = $gruaBloqueada && GruaEditGuard::vehicleHasCorralon($vehiculo);
 
         if (!$gruaActualId && !empty($vehiculo->grua) && strtoupper(trim($vehiculo->grua)) !== 'N/A') {
             $gruaActualId = optional($gruas->first(function ($grua) use ($vehiculo) {
@@ -321,7 +330,20 @@ class VehiculosController extends Controller
             }
         }
 
-        return view('vehiculos.edit', compact('hecho', 'vehiculo', 'conductor', 'gruas', 'servicioActual', 'gruaActualId', 'gruaBloqueada'));
+        $corralones = $this->corralonesDesdeGruas($gruas, $vehiculo->corralon);
+
+        return view('vehiculos.edit', compact(
+            'hecho',
+            'vehiculo',
+            'conductor',
+            'gruas',
+            'corralones',
+            'servicioActual',
+            'gruaActualId',
+            'gruaBloqueada',
+            'gruaCampoBloqueado',
+            'corralonCampoBloqueado'
+        ));
     }
 
     public function update(Request $request, Hechos $hecho, Vehiculo $vehiculo)
@@ -343,7 +365,7 @@ class VehiculosController extends Controller
             'tipo_servicio'              => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
             'grua_id'                    => 'nullable|exists:gruas,id',
-            'corralon'                   => 'nullable|string|max:50',
+            'corralon'                   => 'nullable|string|max:255',
             'aseguradora'                => 'nullable|string|max:100',
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
@@ -413,6 +435,8 @@ class VehiculosController extends Controller
         }
 
         $gruaBloqueada = GruaEditGuard::locksHecho($request->user(), $hecho);
+        $gruaCampoBloqueado = $gruaBloqueada && GruaEditGuard::vehicleHasGrua($vehiculo);
+        $corralonCampoBloqueado = $gruaBloqueada && GruaEditGuard::vehicleHasCorralon($vehiculo);
         $erroresGruaBloqueada = $gruaBloqueada
             ? $this->erroresCambioGruaBloqueada($request, $vehiculo)
             : [];
@@ -433,10 +457,16 @@ class VehiculosController extends Controller
         $validated['partes_danadas'] = strtoupper($validated['partes_danadas']);
 
         $nombreGrua = 'N/A';
+        $gruaSeleccionada = null;
         if (!empty($validated['grua_id'])) {
-            $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
-            if (!empty($tmp)) {
-                $nombreGrua = strtoupper($tmp);
+            $gruaSeleccionada = Grua::find($validated['grua_id']);
+
+            if ($gruaSeleccionada && !empty($gruaSeleccionada->nombre)) {
+                $nombreGrua = strtoupper($gruaSeleccionada->nombre);
+            }
+
+            if ($validated['corralon'] === '' && $gruaSeleccionada && !empty($gruaSeleccionada->ubicacion_corralon)) {
+                $validated['corralon'] = strtoupper($gruaSeleccionada->ubicacion_corralon);
             }
         }
 
@@ -451,7 +481,7 @@ class VehiculosController extends Controller
             $fechaServicio = $fechaBase . ' ' . $horaBase;
         }
 
-        DB::transaction(function () use ($validated, $vehiculo, $hecho, $nombreGrua, $fechaServicio, $gruaBloqueada) {
+        DB::transaction(function () use ($validated, $vehiculo, $hecho, $nombreGrua, $fechaServicio, $gruaCampoBloqueado, $corralonCampoBloqueado) {
             $vehiculoPayload = [
                 'marca'                      => $validated['marca'],
                 'modelo'                     => $validated['modelo'] ? strtoupper($validated['modelo']) : null,
@@ -473,8 +503,12 @@ class VehiculosController extends Controller
                 'antecedente_vehiculo'       => $validated['antecedente_vehiculo'],
             ];
 
-            if ($gruaBloqueada) {
-                unset($vehiculoPayload['grua'], $vehiculoPayload['grua_id'], $vehiculoPayload['corralon']);
+            if ($gruaCampoBloqueado) {
+                unset($vehiculoPayload['grua'], $vehiculoPayload['grua_id']);
+            }
+
+            if ($corralonCampoBloqueado) {
+                unset($vehiculoPayload['corralon']);
             }
 
             $vehiculo->update($vehiculoPayload);
@@ -531,7 +565,7 @@ class VehiculosController extends Controller
 
             $servicio = DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->first();
 
-            if ($gruaBloqueada) {
+            if ($gruaCampoBloqueado) {
                 if ($servicio) {
                     DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->update([
                         'tipo_vehiculo' => $validated['tipo'],
@@ -627,10 +661,9 @@ class VehiculosController extends Controller
         $errors = [];
 
         if ($request->exists('grua_id')) {
-            $gruaActualId = GruaEditGuard::currentGruaId($vehiculo);
             $gruaSolicitadaId = $request->filled('grua_id') ? (int) $request->input('grua_id') : null;
 
-            if ($gruaActualId !== $gruaSolicitadaId) {
+            if (!GruaEditGuard::requestedGruaMatchesCurrent($vehiculo, $gruaSolicitadaId)) {
                 $errors['grua_id'] = 'La grúa ya quedó fija. Solicita autorización de un Administrador para cambiarla o quitarla.';
             }
         }
@@ -639,12 +672,33 @@ class VehiculosController extends Controller
             $corralonActual = GruaEditGuard::normalizeProtectedText($vehiculo->corralon ?? null);
             $corralonSolicitado = GruaEditGuard::normalizeProtectedText($request->input('corralon'));
 
-            if ($corralonActual !== $corralonSolicitado) {
+            if ($corralonActual !== '' && $corralonActual !== $corralonSolicitado) {
                 $errors['corralon'] = 'El corralón ya quedó fijo. Solicita autorización de un Administrador para cambiarlo o quitarlo.';
             }
         }
 
         return $errors;
+    }
+
+    private function corralonesDesdeGruas($gruas, ?string $extra = null)
+    {
+        return collect($gruas)
+            ->map(function ($grua) {
+                return trim((string) ($grua->ubicacion_corralon ?: $grua->nombre));
+            })
+            ->when($extra !== null, function ($corralones) use ($extra) {
+                return $corralones->push(trim((string) $extra));
+            })
+            ->filter(function ($corralon) {
+                return GruaEditGuard::normalizeProtectedText($corralon) !== '';
+            })
+            ->unique(function ($corralon) {
+                return GruaEditGuard::normalizeProtectedText($corralon);
+            })
+            ->sortBy(function ($corralon) {
+                return GruaEditGuard::normalizeProtectedText($corralon);
+            })
+            ->values();
     }
 
     public function foto(Hechos $hecho, Vehiculo $vehiculo)

@@ -449,7 +449,11 @@
                                     <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror">
                                         <option value="">Seleccione una grúa</option>
                                         @foreach ($gruas as $grua)
+                                            @php
+                                                $corralonGrua = trim((string) ($grua->ubicacion_corralon ?: $grua->nombre));
+                                            @endphp
                                             <option value="{{ $grua->id }}" 
+                                                data-corralon="{{ $corralonGrua }}"
                                                 {{ old('grua_id') == $grua->id ? 'selected' : '' }}>
                                                 {{ $grua->nombre }}
                                             </option>
@@ -470,19 +474,11 @@
                                     <select name="corralon" id="corralon"
                                             class="form-control @error('corralon') is-invalid @enderror">
                                         <option value="">Seleccione un corralón</option>
-                                        <option value="ESTRELLA 1" {{ old('corralon') == 'ESTRELLA 1' ? 'selected' : '' }}>ESTRELLA 1</option>
-                                        <option value="ESTRELLA 2" {{ old('corralon') == 'ESTRELLA 2' ? 'selected' : '' }}>ESTRELLA 2</option>
-                                        <option value="AUTOPISTA" {{ old('corralon') == 'AUTOPISTA' ? 'selected' : '' }}>AUTOPISTA</option>
-                                        <option value="DANNYS" {{ old('corralon') == 'DANNYS' ? 'selected' : '' }}>DANNYS</option>
-                                        <option value="EXPRESS" {{ old('corralon') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
-                                        <option value="GALVAN" {{ old('corralon') == 'GALVAN' ? 'selected' : '' }}>GALVAN</option>
-                                        <option value="HERNANDEZ" {{ old('corralon') == 'HERNANDEZ' ? 'selected' : '' }}>HERNANDEZ</option>
-                                        <option value="PINEDA" {{ old('corralon') == 'PINEDA' ? 'selected' : '' }}>PINEDA</option>
-                                        <option value="PROFESIONALES" {{ old('corralon') == 'PROFESIONALES' ? 'selected' : '' }}>PROFESIONALES</option>
-                                        <option value="MORELIA" {{ old('corralon') == 'MORELIA' ? 'selected' : '' }}>MORELIA</option>
-                                        <option value="MONARCAS" {{ old('corralon') == 'MONARCAS' ? 'selected' : '' }}>MONARCAS</option>
-                                        <option value="EXPRESS" {{ old('corralon') == 'EXPRESS' ? 'selected' : '' }}>EXPRESS</option>
-                                        <option value="MUÑOZ" {{ old('corralon') == 'MUÑOZ' ? 'selected' : '' }}>MUÑOZ</option>
+                                        @foreach (($corralones ?? collect()) as $corralon)
+                                            <option value="{{ $corralon }}" {{ old('corralon') === $corralon ? 'selected' : '' }}>
+                                                {{ $corralon }}
+                                            </option>
+                                        @endforeach
                                     </select>
                                     @error('corralon')
                                         <span class="invalid-feedback" role="alert">
@@ -810,6 +806,45 @@
                 tipoGeneral.value = oldTipoGeneral;
                 tipoGeneral.dispatchEvent(new Event('change'));
                 tipo.value = oldTipo;
+            }
+
+            const gruaSelect = document.getElementById('grua_id');
+            const corralonSelect = document.getElementById('corralon');
+
+            function asegurarOpcionCorralon(valor) {
+                if (!corralonSelect || !valor) {
+                    return;
+                }
+
+                const existe = Array.from(corralonSelect.options).some(function (option) {
+                    return option.value === valor;
+                });
+
+                if (!existe) {
+                    const option = document.createElement('option');
+                    option.value = valor;
+                    option.textContent = valor;
+                    corralonSelect.appendChild(option);
+                }
+            }
+
+            function sincronizarCorralonConGrua() {
+                if (!gruaSelect || !corralonSelect) {
+                    return;
+                }
+
+                const option = gruaSelect.options[gruaSelect.selectedIndex];
+                const corralon = option ? (option.dataset.corralon || '') : '';
+                asegurarOpcionCorralon(corralon);
+                corralonSelect.value = corralon;
+            }
+
+            if (gruaSelect && corralonSelect) {
+                gruaSelect.addEventListener('change', sincronizarCorralonConGrua);
+
+                if (gruaSelect.value && !corralonSelect.value) {
+                    sincronizarCorralonConGrua();
+                }
             }
         });
     </script>

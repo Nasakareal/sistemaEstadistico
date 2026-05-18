@@ -18,10 +18,10 @@
                         @csrf
                         @method('PUT')
 
-                        @if(!empty($gruaBloqueada))
+                        @if(!empty($gruaCampoBloqueado) || !empty($corralonCampoBloqueado))
                             <div class="alert alert-warning">
                                 <i class="fa-solid fa-lock"></i>
-                                La grúa y el corralón ya quedaron fijos para este hecho de Delegaciones. Solicita autorización de un Administrador para cambiarlos o quitarlos.
+                                Los datos de grúa o corralón que ya estén capturados quedaron fijos para este hecho de Delegaciones. Los campos vacíos todavía se pueden capturar.
                             </div>
                         @endif
 
@@ -457,10 +457,14 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="grua_id">Grúa</label>
-                                    <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror" {{ !empty($gruaBloqueada) ? 'disabled' : '' }}>
+                                    <select name="grua_id" id="grua_id" class="form-control @error('grua_id') is-invalid @enderror" {{ !empty($gruaCampoBloqueado) ? 'disabled' : '' }}>
                                         <option value="">Seleccione una grúa</option>
                                         @foreach ($gruas as $grua)
+                                            @php
+                                                $corralonGrua = trim((string) ($grua->ubicacion_corralon ?: $grua->nombre));
+                                            @endphp
                                             <option value="{{ $grua->id }}" 
+                                                data-corralon="{{ $corralonGrua }}"
                                                 {{ old('grua_id', $gruaActualId) == $grua->id ? 'selected' : '' }}>
                                                 {{ $grua->nombre }}
                                             </option>
@@ -479,13 +483,15 @@
                                 <div class="form-group">
                                     <label for="corralon">Corralón</label>
                                     <select name="corralon" id="corralon"
-                                            class="form-control @error('corralon') is-invalid @enderror" {{ !empty($gruaBloqueada) ? 'disabled' : '' }}>
+                                            class="form-control @error('corralon') is-invalid @enderror" {{ !empty($corralonCampoBloqueado) ? 'disabled' : '' }}>
                                         <option value="">Seleccione un corralón</option>
-                                        @foreach ([
-                                            'ESTRELLA 1', 'ESTRELLA 2', 'AUTOPISTA', 'DANNYS', 'EXPRESS', 'GALVAN',
-                                            'HERNANDEZ', 'PINEDA', 'PROFESIONALES', 'MORELIA', 'MONARCAS', 'MUÑOZ'
-                                        ] as $opcion)
-                                            <option value="{{ $opcion }}" {{ old('corralon', $vehiculo->corralon) == $opcion ? 'selected' : '' }}>{{ $opcion }}</option>
+                                        @php
+                                            $corralonSeleccionado = old('corralon', $vehiculo->corralon);
+                                        @endphp
+                                        @foreach (($corralones ?? collect()) as $corralon)
+                                            <option value="{{ $corralon }}" {{ (string) $corralonSeleccionado === (string) $corralon ? 'selected' : '' }}>
+                                                {{ $corralon }}
+                                            </option>
                                         @endforeach
                                     </select>
                                     @error('corralon')
@@ -857,6 +863,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (tipoGeneral.value) {
         cargarOpciones();
+    }
+
+    const gruaSelect = document.getElementById('grua_id');
+    const corralonSelect = document.getElementById('corralon');
+
+    function asegurarOpcionCorralon(valor) {
+        if (!corralonSelect || !valor) {
+            return;
+        }
+
+        const existe = Array.from(corralonSelect.options).some(function (option) {
+            return option.value === valor;
+        });
+
+        if (!existe) {
+            const option = document.createElement('option');
+            option.value = valor;
+            option.textContent = valor;
+            corralonSelect.appendChild(option);
+        }
+    }
+
+    function sincronizarCorralonConGrua() {
+        if (!gruaSelect || !corralonSelect || corralonSelect.disabled) {
+            return;
+        }
+
+        const option = gruaSelect.options[gruaSelect.selectedIndex];
+        const corralon = option ? (option.dataset.corralon || '') : '';
+        asegurarOpcionCorralon(corralon);
+        corralonSelect.value = corralon;
+    }
+
+    if (gruaSelect && corralonSelect && !gruaSelect.disabled) {
+        gruaSelect.addEventListener('change', sincronizarCorralonConGrua);
+
+        if (gruaSelect.value && !corralonSelect.value) {
+            sincronizarCorralonConGrua();
+        }
     }
 });
 </script>

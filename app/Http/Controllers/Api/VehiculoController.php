@@ -82,10 +82,16 @@ class VehiculoController extends Controller
             }
 
             $validated['grua'] = 'N/A';
+            $gruaSeleccionada = null;
             if (!empty($validated['grua_id'])) {
-                $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
-                if (!empty($tmp)) {
-                    $validated['grua'] = strtoupper($this->removeAccents($tmp));
+                $gruaSeleccionada = Grua::find($validated['grua_id']);
+
+                if ($gruaSeleccionada && !empty($gruaSeleccionada->nombre)) {
+                    $validated['grua'] = strtoupper($this->removeAccents($gruaSeleccionada->nombre));
+                }
+
+                if (empty($validated['corralon']) && $gruaSeleccionada && !empty($gruaSeleccionada->ubicacion_corralon)) {
+                    $validated['corralon'] = strtoupper($this->removeAccents($gruaSeleccionada->ubicacion_corralon));
                 }
             }
 
@@ -215,6 +221,8 @@ class VehiculoController extends Controller
             $validated = $this->validateRequest($request, $vehiculo->id);
             $validated = $this->normalize($request, $validated);
             $gruaBloqueada = GruaEditGuard::locksHecho($request->user(), $hecho);
+            $gruaCampoBloqueado = $gruaBloqueada && GruaEditGuard::vehicleHasGrua($vehiculo);
+            $corralonCampoBloqueado = $gruaBloqueada && GruaEditGuard::vehicleHasCorralon($vehiculo);
 
             if ($gruaBloqueada) {
                 $erroresGruaBloqueada = $this->erroresCambioGruaBloqueada($request, $vehiculo);
@@ -229,10 +237,16 @@ class VehiculoController extends Controller
             }
 
             $validated['grua'] = 'N/A';
+            $gruaSeleccionada = null;
             if (!empty($validated['grua_id'])) {
-                $tmp = Grua::where('id', $validated['grua_id'])->value('nombre');
-                if (!empty($tmp)) {
-                    $validated['grua'] = strtoupper($this->removeAccents($tmp));
+                $gruaSeleccionada = Grua::find($validated['grua_id']);
+
+                if ($gruaSeleccionada && !empty($gruaSeleccionada->nombre)) {
+                    $validated['grua'] = strtoupper($this->removeAccents($gruaSeleccionada->nombre));
+                }
+
+                if (empty($validated['corralon']) && $gruaSeleccionada && !empty($gruaSeleccionada->ubicacion_corralon)) {
+                    $validated['corralon'] = strtoupper($this->removeAccents($gruaSeleccionada->ubicacion_corralon));
                 }
             }
 
@@ -241,16 +255,20 @@ class VehiculoController extends Controller
                 return $this->validationFailed($dupErrors, 'Duplicado dentro del hecho. Revisa los campos marcados.', 409);
             }
 
-            return DB::transaction(function () use ($validated, $vehiculo, $hecho, $gruaBloqueada) {
+            return DB::transaction(function () use ($validated, $vehiculo, $hecho, $gruaCampoBloqueado, $corralonCampoBloqueado) {
                 $payload = $this->onlyVehiculoForUpdate($validated);
 
-                if ($gruaBloqueada) {
-                    unset($payload['grua'], $payload['grua_id'], $payload['corralon']);
+                if ($gruaCampoBloqueado) {
+                    unset($payload['grua'], $payload['grua_id']);
+                }
+
+                if ($corralonCampoBloqueado) {
+                    unset($payload['corralon']);
                 }
 
                 $vehiculo->update($payload);
 
-                if ($gruaBloqueada) {
+                if ($gruaCampoBloqueado) {
                     if (DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->exists()) {
                         DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->update([
                             'tipo_vehiculo' => $validated['tipo'],
@@ -623,7 +641,7 @@ class VehiculoController extends Controller
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
 
             'grua_id' => 'nullable|exists:gruas,id',
-            'corralon' => 'nullable|string|max:50',
+            'corralon' => 'nullable|string|max:255',
             'aseguradora' => 'nullable|string|max:100',
             'monto_danos' => 'required|numeric|min:0',
             'partes_danadas' => 'required|string',
@@ -747,10 +765,9 @@ class VehiculoController extends Controller
         $errors = [];
 
         if ($request->exists('grua_id')) {
-            $gruaActualId = GruaEditGuard::currentGruaId($vehiculo);
             $gruaSolicitadaId = $request->filled('grua_id') ? (int) $request->input('grua_id') : null;
 
-            if ($gruaActualId !== $gruaSolicitadaId) {
+            if (!GruaEditGuard::requestedGruaMatchesCurrent($vehiculo, $gruaSolicitadaId)) {
                 $errors['grua_id'] = ['La grúa ya quedó fija. Solicita autorización de un Administrador para cambiarla o quitarla.'];
             }
         }
@@ -759,7 +776,7 @@ class VehiculoController extends Controller
             $corralonActual = GruaEditGuard::normalizeProtectedText($vehiculo->corralon ?? null);
             $corralonSolicitado = GruaEditGuard::normalizeProtectedText($request->input('corralon'));
 
-            if ($corralonActual !== $corralonSolicitado) {
+            if ($corralonActual !== '' && $corralonActual !== $corralonSolicitado) {
                 $errors['corralon'] = ['El corralón ya quedó fijo. Solicita autorización de un Administrador para cambiarlo o quitarlo.'];
             }
         }

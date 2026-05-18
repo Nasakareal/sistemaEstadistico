@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Actividad;
+use App\Models\Grua;
 use App\Models\Hechos;
 use App\Models\Vehiculo;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class GruaEditGuard
         'O',
         'SIN CORRALON',
         'SIN DATO',
+        'SIN GRUA',
     ];
 
     public static function canModifyDelegacionesGrua($usuario): bool
@@ -75,9 +77,42 @@ class GruaEditGuard
 
     public static function vehicleHasGruaData(Vehiculo $vehiculo): bool
     {
+        return self::vehicleHasGrua($vehiculo)
+            || self::vehicleHasCorralon($vehiculo);
+    }
+
+    public static function vehicleHasGrua(Vehiculo $vehiculo): bool
+    {
         return self::currentGruaId($vehiculo) !== null
-            || self::normalizeProtectedText($vehiculo->grua ?? null) !== ''
-            || self::normalizeProtectedText($vehiculo->corralon ?? null) !== '';
+            || self::normalizeProtectedText($vehiculo->grua ?? null) !== '';
+    }
+
+    public static function vehicleHasCorralon(Vehiculo $vehiculo): bool
+    {
+        return self::normalizeProtectedText($vehiculo->corralon ?? null) !== '';
+    }
+
+    public static function requestedGruaMatchesCurrent(Vehiculo $vehiculo, ?int $requestedGruaId): bool
+    {
+        $currentGruaId = self::currentGruaId($vehiculo);
+
+        if ($currentGruaId !== null) {
+            return $currentGruaId === $requestedGruaId;
+        }
+
+        $currentGruaName = self::normalizeProtectedText($vehiculo->grua ?? null);
+
+        if ($currentGruaName === '') {
+            return true;
+        }
+
+        if ($requestedGruaId === null) {
+            return false;
+        }
+
+        $requestedGruaName = Grua::whereKey($requestedGruaId)->value('nombre');
+
+        return $currentGruaName === self::normalizeProtectedText($requestedGruaName);
     }
 
     public static function currentGruaId(Vehiculo $vehiculo): ?int

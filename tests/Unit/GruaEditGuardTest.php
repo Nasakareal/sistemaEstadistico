@@ -57,6 +57,29 @@ class GruaEditGuardTest extends TestCase
         $this->assertTrue(GruaEditGuard::vehicleHasGruaData($conCorralon));
     }
 
+    public function test_permite_asignar_grua_si_el_vehiculo_aun_no_tiene_grua(): void
+    {
+        $vehiculo = new Vehiculo([
+            'grua' => 'N/A',
+            'corralon' => 'SIN CORRALON',
+        ]);
+
+        $this->assertFalse(GruaEditGuard::vehicleHasGrua($vehiculo));
+        $this->assertTrue(GruaEditGuard::requestedGruaMatchesCurrent($vehiculo, 99));
+    }
+
+    public function test_detecta_cambio_de_grua_cuando_ya_existe_grua(): void
+    {
+        $vehiculo = new Vehiculo([
+            'grua_id' => 10,
+            'grua' => 'N/A',
+        ]);
+
+        $this->assertTrue(GruaEditGuard::vehicleHasGrua($vehiculo));
+        $this->assertTrue(GruaEditGuard::requestedGruaMatchesCurrent($vehiculo, 10));
+        $this->assertFalse(GruaEditGuard::requestedGruaMatchesCurrent($vehiculo, 11));
+    }
+
     public function test_catalogo_completo_para_administrador_y_subdirector_de_delegaciones(): void
     {
         $this->assertTrue(GruaEditGuard::canViewFullGruaCatalog($this->usuarioConRoles(['Administrador'], 2)));

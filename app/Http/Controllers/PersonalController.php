@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Personal;
+use App\Models\DocumentoTipo;
 use App\Models\Unidad;
 use App\Models\Turno;
 use App\Models\Patrulla;
@@ -356,8 +357,14 @@ class PersonalController extends Controller
             ->orderBy('modelo')
             ->get();
 
+        $documentoTipos = DocumentoTipo::query()
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+
         return view('admin.settings.personal.show', compact(
             'personal',
+            'documentoTipos',
             'armamentosDisponibles',
             'asignacionesArmamentoActivas'
         ));

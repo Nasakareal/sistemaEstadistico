@@ -12,6 +12,7 @@
         $fotoActual = $personal->foto ?: optional($personal->fotoPrincipal)->ruta;
         $asignacionesActivas = $personal->asignaciones ? $personal->asignaciones->whereNull('fecha_fin') : collect();
         $documentosPersonal = $personal->documentos ?? collect();
+        $documentoTipos = $documentoTipos ?? collect();
     @endphp
 
     <div class="row">
@@ -397,15 +398,13 @@
                             <table class="table table-bordered table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Número</th>
-                                        <th>Oficio comisión secretario</th>
-                                        <th>Fecha oficio</th>
-                                        <th>Titular firma oficio</th>
-                                        <th>Archivo comisión</th>
-                                        <th>Oficio asignación</th>
-                                        <th>Fecha asignación</th>
-                                        <th>Titular firma asignación</th>
-                                        <th>Archivo asignación</th>
+                                        <th>Tipo</th>
+                                        <th>Número / folio</th>
+                                        <th>Emisión</th>
+                                        <th>Vencimiento</th>
+                                        <th>Archivo</th>
+                                        <th>Oficios</th>
+                                        <th>Estado</th>
                                         <th>Observaciones</th>
                                         <th style="width: 110px;">Acciones</th>
                                     </tr>
@@ -413,25 +412,58 @@
                                 <tbody>
                                     @foreach($documentosPersonal as $doc)
                                         <tr>
+                                            <td>{{ $doc->documentoTipo->nombre ?? 'Sin tipo' }}</td>
                                             <td>{{ $doc->numero ?? 'N/A' }}</td>
-                                            <td>{{ $doc->oficio_comision_secretario ?? 'N/A' }}</td>
-                                            <td>{{ $doc->fecha_oficio ? $doc->fecha_oficio->format('d-m-Y') : 'N/A' }}</td>
-                                            <td>{{ $doc->titular_firma_oficio ?? 'N/A' }}</td>
+                                            <td>{{ $doc->fecha_emision ? $doc->fecha_emision->format('d-m-Y') : 'N/A' }}</td>
+                                            <td>{{ $doc->fecha_vencimiento ? $doc->fecha_vencimiento->format('d-m-Y') : 'N/A' }}</td>
                                             <td>
-                                                @if($doc->archivo_oficio_comision)
-                                                    <a href="{{ asset('storage/' . $doc->archivo_oficio_comision) }}" target="_blank">Ver archivo</a>
+                                                @if($doc->archivo_path)
+                                                    <a href="{{ asset('storage/' . $doc->archivo_path) }}" target="_blank">
+                                                        {{ $doc->archivo_nombre ?: 'Ver archivo' }}
+                                                    </a>
                                                 @else
                                                     N/A
                                                 @endif
                                             </td>
-                                            <td>{{ $doc->oficio_asignacion ?? 'N/A' }}</td>
-                                            <td>{{ $doc->fecha_asignacion ? $doc->fecha_asignacion->format('d-m-Y') : 'N/A' }}</td>
-                                            <td>{{ $doc->titular_firma_asignacion ?? 'N/A' }}</td>
                                             <td>
-                                                @if($doc->archivo_oficio_asignacion)
-                                                    <a href="{{ asset('storage/' . $doc->archivo_oficio_asignacion) }}" target="_blank">Ver archivo</a>
+                                                @if($doc->oficio_comision_secretario || $doc->oficio_asignacion || $doc->titular_firma_oficio || $doc->titular_firma_asignacion)
+                                                    @if($doc->oficio_comision_secretario)
+                                                        <div>
+                                                            <strong>Comisión:</strong> {{ $doc->oficio_comision_secretario }}
+                                                            @if($doc->fecha_oficio)
+                                                                <span class="text-muted">({{ $doc->fecha_oficio->format('d-m-Y') }})</span>
+                                                            @endif
+                                                            @if($doc->archivo_oficio_comision)
+                                                                <a href="{{ asset('storage/' . $doc->archivo_oficio_comision) }}" target="_blank" class="ml-1">Archivo</a>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                    @if($doc->titular_firma_oficio)
+                                                        <div class="text-muted">Firma oficio: {{ $doc->titular_firma_oficio }}</div>
+                                                    @endif
+                                                    @if($doc->oficio_asignacion)
+                                                        <div>
+                                                            <strong>Asignación:</strong> {{ $doc->oficio_asignacion }}
+                                                            @if($doc->fecha_asignacion)
+                                                                <span class="text-muted">({{ $doc->fecha_asignacion->format('d-m-Y') }})</span>
+                                                            @endif
+                                                            @if($doc->archivo_oficio_asignacion)
+                                                                <a href="{{ asset('storage/' . $doc->archivo_oficio_asignacion) }}" target="_blank" class="ml-1">Archivo</a>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                    @if($doc->titular_firma_asignacion)
+                                                        <div class="text-muted">Firma asignación: {{ $doc->titular_firma_asignacion }}</div>
+                                                    @endif
                                                 @else
                                                     N/A
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($doc->activo)
+                                                    <span class="badge badge-success">Activo</span>
+                                                @else
+                                                    <span class="badge badge-secondary">Inactivo</span>
                                                 @endif
                                             </td>
                                             <td>{{ $doc->observaciones ?? '' }}</td>
@@ -827,20 +859,72 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
+                                    <label>Tipo de documento</label>
+                                    <select name="documento_tipo_id" class="form-control" {{ $documentoTipos->count() ? 'required' : '' }}>
+                                        <option value="">Seleccionar</option>
+                                        @foreach($documentoTipos as $tipo)
+                                            <option value="{{ $tipo->id }}" {{ (string) old('documento_tipo_id') === (string) $tipo->id ? 'selected' : '' }}>
+                                                {{ $tipo->nombre }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Número / folio</label>
+                                    <input type="text" name="numero" class="form-control" value="{{ old('numero') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Activo</label>
+                                    <input type="hidden" name="activo" value="0">
+                                    <div class="custom-control custom-switch mt-2">
+                                        <input type="checkbox" name="activo" value="1" class="custom-control-input" id="documentoActivo" {{ old('activo', '1') === '1' ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="documentoActivo">Sí</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Fecha de emisión</label>
+                                    <input type="date" name="fecha_emision" class="form-control" value="{{ old('fecha_emision') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Fecha de vencimiento</label>
+                                    <input type="date" name="fecha_vencimiento" class="form-control" value="{{ old('fecha_vencimiento') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Archivo principal</label>
+                                    <input type="file" name="archivo" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
                                     <label>Oficio comisión secretario</label>
-                                    <input type="text" name="oficio_comision_secretario" class="form-control">
+                                    <input type="text" name="oficio_comision_secretario" class="form-control" value="{{ old('oficio_comision_secretario') }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Fecha oficio</label>
-                                    <input type="date" name="fecha_oficio" class="form-control">
+                                    <input type="date" name="fecha_oficio" class="form-control" value="{{ old('fecha_oficio') }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Titular firma oficio</label>
-                                    <input type="text" name="titular_firma_oficio" class="form-control">
+                                    <input type="text" name="titular_firma_oficio" class="form-control" value="{{ old('titular_firma_oficio') }}">
                                 </div>
                             </div>
                         </div>
@@ -853,19 +937,19 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Oficio asignación</label>
-                                    <input type="text" name="oficio_asignacion" class="form-control">
+                                    <input type="text" name="oficio_asignacion" class="form-control" value="{{ old('oficio_asignacion') }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Fecha asignación</label>
-                                    <input type="date" name="fecha_asignacion" class="form-control">
+                                    <input type="date" name="fecha_asignacion" class="form-control" value="{{ old('fecha_asignacion') }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Titular firma asignación</label>
-                                    <input type="text" name="titular_firma_asignacion" class="form-control">
+                                    <input type="text" name="titular_firma_asignacion" class="form-control" value="{{ old('titular_firma_asignacion') }}">
                                 </div>
                             </div>
                         </div>
@@ -875,7 +959,7 @@
                         </div>
                         <div class="form-group mb-0">
                             <label>Observaciones</label>
-                            <textarea name="observaciones" class="form-control" rows="2"></textarea>
+                            <textarea name="observaciones" class="form-control" rows="2">{{ old('observaciones') }}</textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -983,7 +1067,7 @@
                                         <option value="">Sin documento</option>
                                         @foreach($documentosPersonal as $doc)
                                             <option value="{{ $doc->id }}">
-                                                {{ $doc->numero ?? $doc->oficio_asignacion ?? $doc->oficio_comision_secretario ?? ('Documento #' . $doc->id) }}
+                                                {{ trim(($doc->documentoTipo->nombre ?? 'Documento') . ' - ' . ($doc->numero ?? $doc->oficio_asignacion ?? $doc->oficio_comision_secretario ?? ('#' . $doc->id)), ' -') }}
                                             </option>
                                         @endforeach
                                     </select>

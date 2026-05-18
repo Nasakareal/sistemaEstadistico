@@ -19,7 +19,7 @@
                     </h3>
 
                     <div class="card-tools">
-                        <a href="{{ route('actividades.informe.diario', request()->only(['fecha','hora_desde','hora_hasta','unidad_filtro','actividad_categoria_id','actividad_subcategoria_id','q'])) }}" class="btn btn-danger">
+                        <a href="{{ route('actividades.informe.diario', request()->only(['fecha','hora_desde','hora_hasta','unidad_filtro','delegacion_filtro','actividad_categoria_id','actividad_subcategoria_id','q'])) }}" class="btn btn-danger">
                             <i class="fa-solid fa-file-pdf"></i> Generar informe
                         </a>
 
@@ -102,6 +102,22 @@
                         </div>
 
                         <div class="row mb-3">
+                            <div
+                                class="col-md-3"
+                                id="delegacion_filtro_wrap"
+                                style="{{ ($mostrarFiltroDelegaciones ?? false) && ($delegacionesFiltro ?? collect())->isNotEmpty() ? '' : 'display:none;' }}"
+                            >
+                                <label for="delegacion_filtro">Delegación:</label>
+                                <select id="delegacion_filtro" name="delegacion_filtro" class="form-control">
+                                    <option value="">Todas las delegaciones</option>
+                                    @foreach (($delegacionesFiltro ?? collect()) as $delegacion)
+                                        <option value="{{ $delegacion->id }}" {{ (string)request('delegacion_filtro') === (string)$delegacion->id ? 'selected' : '' }}>
+                                            {{ $delegacion->nombre_con_clave }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <div class="col-md-3">
                                 <label for="subcategoria_filtro">Filtrar por subcategoría:</label>
                                 <select id="subcategoria_filtro" name="actividad_subcategoria_id" class="form-control">
@@ -127,7 +143,7 @@
                                 </small>
                             </div>
 
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label for="q_filtro">Buscar:</label>
                                 <input
                                     type="text"
@@ -139,7 +155,7 @@
                                 >
                             </div>
 
-                            <div class="col-md-3 d-flex align-items-end" style="gap:8px; flex-wrap: wrap;">
+                            <div class="col-md-2 d-flex align-items-end" style="gap:8px; flex-wrap: wrap;">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fa-solid fa-filter"></i> Aplicar filtros
                                 </button>
@@ -364,6 +380,22 @@
         }
 
         $(function () {
+            const unidadDelegacionesId = '2';
+            const usuarioUnidadId = @json((string) (auth()->user()->unidad_id ?? ''));
+            const tieneDelegacionesFiltro = @json(($delegacionesFiltro ?? collect())->isNotEmpty());
+
+            function actualizarFiltroDelegacion() {
+                const unidadSeleccionada = $('#unidad_filtro').val() || '';
+                const mostrar = tieneDelegacionesFiltro
+                    && (unidadSeleccionada === unidadDelegacionesId || (unidadSeleccionada === '' && usuarioUnidadId === unidadDelegacionesId));
+
+                $('#delegacion_filtro_wrap').toggle(mostrar);
+
+                if (!mostrar) {
+                    $('#delegacion_filtro').val('');
+                }
+            }
+
             $('#actividades').DataTable({
                 pageLength: 10,
                 order: [[0, 'desc']],
@@ -389,7 +421,13 @@
                 autoWidth: false
             });
 
-            $('#fecha_filtro, #hora_desde_filtro, #hora_hasta_filtro, #unidad_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {
+            $('#unidad_filtro').on('change', function () {
+                actualizarFiltroDelegacion();
+            });
+
+            actualizarFiltroDelegacion();
+
+            $('#fecha_filtro, #hora_desde_filtro, #hora_hasta_filtro, #unidad_filtro, #delegacion_filtro, #categoria_filtro, #subcategoria_filtro').on('change', function () {
                 $('#filtrosForm').submit();
             });
 

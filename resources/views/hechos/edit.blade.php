@@ -87,39 +87,39 @@
                         </div>
 
                         <div class="row">
-                            @if(!auth()->user()->hasRole('Perito'))
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="hora">Hora<span style="color: red">*</span></label>
-                                    <input type="text"
-                                           name="hora"
-                                           id="hora"
-                                           inputmode="numeric"
-                                           autocomplete="off"
-                                           class="form-control @error('hora') is-invalid @enderror"
-                                           value="{{ old('hora', !empty($hecho->hora) ? substr($hecho->hora, 0, 5) : '') }}"
-                                           placeholder="HH:MM"
-                                           required>
-                                    @error('hora')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
+                            @if($puedeCapturarFechaHora ?? false)
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="hora">Hora<span style="color: red">*</span></label>
+                                        <input type="text"
+                                               name="hora"
+                                               id="hora"
+                                               inputmode="numeric"
+                                               autocomplete="off"
+                                               class="form-control @error('hora') is-invalid @enderror"
+                                               value="{{ old('hora', !empty($hecho->hora) ? substr($hecho->hora, 0, 5) : '') }}"
+                                               placeholder="HH:MM"
+                                               required>
+                                        @error('hora')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
                                 </div>
-                            </div>
+
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="fecha">Fecha<span style="color: red">*</span></label>
+                                        <input type="date" name="fecha" id="fecha"
+                                               class="form-control @error('fecha') is-invalid @enderror"
+                                               value="{{ old('fecha', \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')) }}" required>
+                                        @error('fecha')
+                                            <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                </div>
                             @endif
 
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="fecha">Fecha<span style="color: red">*</span></label>
-                                    <input type="date" name="fecha" id="fecha"
-                                           class="form-control @error('fecha') is-invalid @enderror"
-                                           value="{{ old('fecha', \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')) }}" required>
-                                    @error('fecha')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
+                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-3' : 'col-md-6' }}">
                                 <div class="form-group">
                                     <label for="sector">Sector<span style="color: red">*</span></label>
                                     <select name="sector" id="sector" class="form-control @error('sector') is-invalid @enderror" required>
@@ -136,7 +136,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-3' : 'col-md-6' }}">
                                 <div class="form-group">
                                     <label for="municipio">Municipio<span style="color: red">*</span></label>
                                     <input type="text" name="municipio" id="municipio"
@@ -658,6 +658,7 @@
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    @include('partials.landscape_photo_cropper_styles')
 
     <style>
         .help-muted { color: rgba(234,240,255,.65); }
@@ -722,6 +723,7 @@
 
 @section('js')
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    @include('partials.landscape_photo_cropper_scripts')
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -755,6 +757,10 @@
             const danosFields = document.getElementById('danos_patrimoniales_fields');
             const propiedadesAfectadasInput = document.getElementById('propiedades_afectadas');
             const montoDanosInput = document.getElementById('monto_danos_patrimoniales');
+
+            if (window.SeguridadVialLandscapeCropper) {
+                window.SeguridadVialLandscapeCropper.attach(fotoLugarInput);
+            }
 
             function toastError(msg) {
                 if (window.Swal) {

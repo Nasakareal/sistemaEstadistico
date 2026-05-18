@@ -107,6 +107,7 @@ class HechosController extends Controller
         $usuario = auth()->user();
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario);
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
         $dictamenesDisponibles = $puedeUsarDictamenes
             ? Dictamen::query()
@@ -116,7 +117,7 @@ class HechosController extends Controller
                 ->get()
             : collect();
 
-        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados'));
+        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora'));
     }
 
     public function store(Request $request)
@@ -401,8 +402,9 @@ class HechosController extends Controller
         }
 
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -1327,7 +1329,9 @@ class HechosController extends Controller
             return false;
         }
 
-        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
+        return $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Subdirector');
     }
 
     private function userCanUseDictamenes($usuario, ?Hechos $hecho = null): bool

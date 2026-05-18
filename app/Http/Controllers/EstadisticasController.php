@@ -78,16 +78,17 @@ class EstadisticasController extends Controller
 
     public function comparativaAnual(Request $request)
     {
-        $legacyDisponible = $this->peritosLegacyDisponible();
+        $legacyImportadoEnHechos = $this->legacyImportadoEnHechosDisponible();
+        $legacyDisponible = !$legacyImportadoEnHechos && $this->peritosLegacyDisponible();
         $fechaReferencia = Carbon::now(config('app.timezone', 'America/Mexico_City'))->startOfDay();
-        $fechaCorteProyeccion = $this->fechaCorteProyeccion((int) $fechaReferencia->format('Y'), $legacyDisponible)
+        $fechaCorteProyeccion = $this->fechaCorteProyeccion((int) $fechaReferencia->format('Y'), $legacyDisponible, $legacyImportadoEnHechos)
             ?: $fechaReferencia;
         $anioActual = (int) $fechaCorteProyeccion->format('Y');
         $anioInicio = (int) $request->input('desde', 2016);
         $anioFin = (int) $request->input('hasta', $anioActual);
         $diasTranscurridos = max(1, $fechaCorteProyeccion->dayOfYear);
         $diasDelAnio = $fechaCorteProyeccion->isLeapYear() ? 366 : 365;
-        $proyeccionRestanteHistorica = $this->promedioHistoricoRestante($fechaCorteProyeccion, $legacyDisponible);
+        $proyeccionRestanteHistorica = $this->promedioHistoricoRestante($fechaCorteProyeccion, $legacyDisponible, $legacyImportadoEnHechos);
 
         $anioInicio = max(1900, min(2100, $anioInicio));
         $anioFin = max(1900, min(2100, $anioFin));
@@ -99,9 +100,11 @@ class EstadisticasController extends Controller
         $registrosActuales = DB::table('hechos')
             ->leftJoin('lesionados', 'lesionados.hecho_id', '=', 'hechos.id')
             ->whereNotNull('hechos.fecha')
-            ->whereBetween(DB::raw('YEAR(hechos.fecha)'), [$anioInicio, $anioFin])
-            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
-            ->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'")
+            ->whereBetween(DB::raw('YEAR(hechos.fecha)'), [$anioInicio, $anioFin]);
+
+        $this->scopeHechosActualesNoLegacy($registrosActuales);
+
+        $registrosActuales = $registrosActuales
             ->selectRaw('YEAR(hechos.fecha) as anio')
             ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
             ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
@@ -111,8 +114,25 @@ class EstadisticasController extends Controller
             ->get()
             ->keyBy('anio');
 
-        $registrosLegacy = $legacyDisponible
-            ? DB::table('peritos_legacy.accidentest as accidentes')
+        if ($legacyImportadoEnHechos) {
+            $registrosLegacy = DB::table('hechos')
+                ->leftJoin('lesionados', 'lesionados.hecho_id', '=', 'hechos.id')
+                ->whereNotNull('hechos.fecha')
+                ->whereBetween(DB::raw('YEAR(hechos.fecha)'), [$anioInicio, $anioFin]);
+
+            $this->scopeHechosLegacyImportados($registrosLegacy);
+
+            $registrosLegacy = $registrosLegacy
+                ->selectRaw('YEAR(hechos.fecha) as anio')
+                ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
+                ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
+                ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO' THEN 1 ELSE 0 END) as defunciones")
+                ->groupBy(DB::raw('YEAR(hechos.fecha)'))
+                ->orderBy('anio')
+                ->get()
+                ->keyBy('anio');
+        } elseif ($legacyDisponible) {
+            $registrosLegacy = DB::table('peritos_legacy.accidentest as accidentes')
                 ->leftJoin('peritos_legacy.persona as personas', function ($join) {
                     $join->on('personas.id_accidentes', '=', 'accidentes.id_accidentes')
                         ->whereRaw("(personas.status IN ('1', '2') OR NULLIF(TRIM(COALESCE(personas.nombre, '')), '') IS NOT NULL)");
@@ -126,8 +146,10 @@ class EstadisticasController extends Controller
                 ->groupBy(DB::raw('YEAR(accidentes.fecha)'))
                 ->orderBy('anio')
                 ->get()
-                ->keyBy('anio')
-            : collect();
+                ->keyBy('anio');
+        } else {
+            $registrosLegacy = collect();
+        }
 
         $comparativa = collect(range($anioInicio, $anioFin))
             ->map(function (int $anio) use ($anioActual, $registrosActuales, $registrosLegacy) {
@@ -172,7 +194,8 @@ class EstadisticasController extends Controller
             max($anioInicio, $anioActual - 5),
             min($anioFin, $anioActual),
             $fechaCorteProyeccion,
-            $legacyDisponible
+            $legacyDisponible,
+            $legacyImportadoEnHechos
         );
         $resumenMismoCorte = $this->resumenMismoCorte($comparativaMismoCorte, $anioActual);
 
@@ -195,9 +218,10 @@ class EstadisticasController extends Controller
 
     public function semaforoRiesgo(Request $request)
     {
-        $legacyDisponible = $this->peritosLegacyDisponible();
+        $legacyImportadoEnHechos = $this->legacyImportadoEnHechosDisponible();
+        $legacyDisponible = !$legacyImportadoEnHechos && $this->peritosLegacyDisponible();
         $fechaReferencia = Carbon::now(config('app.timezone', 'America/Mexico_City'))->startOfDay();
-        $fechaCorte = $this->fechaCorteProyeccion((int) $fechaReferencia->format('Y'), $legacyDisponible)
+        $fechaCorte = $this->fechaCorteProyeccion((int) $fechaReferencia->format('Y'), $legacyDisponible, $legacyImportadoEnHechos)
             ?: $fechaReferencia;
 
         $agrupar = $request->input('agrupar', 'colonia');
@@ -213,8 +237,8 @@ class EstadisticasController extends Controller
         $periodoAnteriorInicio = $fechaInicio->copy()->subYear();
         $periodoAnteriorFin = $fechaFin->copy()->subYear();
 
-        $actual = $this->registrosRiesgoZona($fechaInicio->toDateString(), $fechaFin->toDateString(), $agrupar, $legacyDisponible);
-        $anterior = $this->registrosRiesgoZona($periodoAnteriorInicio->toDateString(), $periodoAnteriorFin->toDateString(), $agrupar, $legacyDisponible)
+        $actual = $this->registrosRiesgoZona($fechaInicio->toDateString(), $fechaFin->toDateString(), $agrupar, $legacyDisponible, $legacyImportadoEnHechos);
+        $anterior = $this->registrosRiesgoZona($periodoAnteriorInicio->toDateString(), $periodoAnteriorFin->toDateString(), $agrupar, $legacyDisponible, $legacyImportadoEnHechos)
             ->keyBy('zona_key');
 
         $zonas = $actual
@@ -277,7 +301,7 @@ class EstadisticasController extends Controller
         ));
     }
 
-    private function registrosRiesgoZona(string $inicio, string $fin, string $agrupar, bool $legacyDisponible)
+    private function registrosRiesgoZona(string $inicio, string $fin, string $agrupar, bool $legacyDisponible, bool $legacyImportadoEnHechos = false)
     {
         $registros = [];
 
@@ -291,7 +315,17 @@ class EstadisticasController extends Controller
             ]);
         }
 
-        if ($legacyDisponible) {
+        if ($legacyImportadoEnHechos) {
+            foreach ($this->registrosRiesgoLegacyImportados($inicio, $fin, $agrupar) as $row) {
+                $this->sumarRegistroZona($registros, $row->zona, [
+                    'hechos' => (int) $row->hechos,
+                    'lesionados' => (int) $row->lesionados,
+                    'defunciones' => (int) $row->defunciones,
+                    'hechos_actuales' => 0,
+                    'hechos_legacy' => (int) $row->hechos,
+                ]);
+            }
+        } elseif ($legacyDisponible) {
             foreach ($this->registrosRiesgoLegacy($inicio, $fin, $agrupar) as $row) {
                 $this->sumarRegistroZona($registros, $row->zona, [
                     'hechos' => (int) $row->hechos,
@@ -317,6 +351,25 @@ class EstadisticasController extends Controller
             ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
             ->whereBetween('hechos.fecha', [$inicio, $fin])
             ->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'")
+            ->selectRaw("$zona as zona")
+            ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
+            ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO' THEN 1 ELSE 0 END) as defunciones")
+            ->groupBy(DB::raw($zona))
+            ->get();
+    }
+
+    private function registrosRiesgoLegacyImportados(string $inicio, string $fin, string $agrupar)
+    {
+        $zona = $this->zonaExpressionActual($agrupar);
+
+        $query = DB::table('hechos')
+            ->leftJoin('lesionados', 'lesionados.hecho_id', '=', 'hechos.id')
+            ->whereBetween('hechos.fecha', [$inicio, $fin]);
+
+        $this->scopeHechosLegacyImportados($query);
+
+        return $query
             ->selectRaw("$zona as zona")
             ->selectRaw('COUNT(DISTINCT hechos.id) as hechos')
             ->selectRaw("SUM(CASE WHEN lesionados.id IS NOT NULL AND UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO' THEN 1 ELSE 0 END) as lesionados")
@@ -426,17 +479,17 @@ class EstadisticasController extends Controller
         return preg_replace('/\s+/', ' ', strtoupper(trim($zona))) ?: 'SIN DATO';
     }
 
-    private function comparativaMismoCorte(int $anioInicio, int $anioFin, Carbon $fechaCorte, bool $legacyDisponible)
+    private function comparativaMismoCorte(int $anioInicio, int $anioFin, Carbon $fechaCorte, bool $legacyDisponible, bool $legacyImportadoEnHechos = false)
     {
         if ($anioInicio > $anioFin) {
             return collect();
         }
 
         return collect(range($anioInicio, $anioFin))
-            ->map(function (int $anio) use ($fechaCorte, $legacyDisponible) {
+            ->map(function (int $anio) use ($fechaCorte, $legacyDisponible, $legacyImportadoEnHechos) {
                 $inicio = Carbon::create($anio, 1, 1)->toDateString();
                 $corte = $this->mismaFechaEnAnio($fechaCorte, $anio)->toDateString();
-                $conteo = $this->conteoPeriodoTotal($inicio, $corte, $legacyDisponible);
+                $conteo = $this->conteoPeriodoTotal($inicio, $corte, $legacyDisponible, $legacyImportadoEnHechos);
 
                 return (object) [
                     'anio' => $anio,
@@ -458,7 +511,9 @@ class EstadisticasController extends Controller
             return null;
         }
 
-        $anterior = $comparativaMismoCorte->firstWhere('anio', $anioActual - 1);
+        $anioReferencia = 2024;
+        $anterior = $comparativaMismoCorte->firstWhere('anio', $anioReferencia)
+            ?: $comparativaMismoCorte->firstWhere('anio', $anioActual - 1);
         $historicos = $comparativaMismoCorte
             ->filter(function ($registro) use ($anioActual) {
                 return $registro->anio < $anioActual && $registro->hechos > 0;
@@ -484,15 +539,20 @@ class EstadisticasController extends Controller
         ];
     }
 
-    private function fechaCorteProyeccion(int $anioActual, bool $legacyDisponible): ?Carbon
+    private function fechaCorteProyeccion(int $anioActual, bool $legacyDisponible, bool $legacyImportadoEnHechos = false): ?Carbon
     {
         $fechas = [];
 
         $fechaActual = DB::table('hechos')
-            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
-            ->whereYear('fecha', $anioActual)
-            ->whereRaw("LOWER(TRIM(COALESCE(fuente_ubicacion, ''))) <> 'legacy_peritos'")
-            ->max('fecha');
+            ->whereYear('fecha', $anioActual);
+
+        if ($legacyImportadoEnHechos) {
+            $this->scopeHechosSiniestros($fechaActual);
+        } else {
+            $this->scopeHechosActualesNoLegacy($fechaActual);
+        }
+
+        $fechaActual = $fechaActual->max('fecha');
 
         if ($fechaActual) {
             $fechas[] = $fechaActual;
@@ -516,7 +576,7 @@ class EstadisticasController extends Controller
         return Carbon::parse(max($fechas))->startOfDay();
     }
 
-    private function promedioHistoricoRestante(Carbon $fechaCorte, bool $legacyDisponible): array
+    private function promedioHistoricoRestante(Carbon $fechaCorte, bool $legacyDisponible, bool $legacyImportadoEnHechos = false): array
     {
         $anioActual = (int) $fechaCorte->format('Y');
         $anioInicio = max(1900, $anioActual - 5);
@@ -536,9 +596,12 @@ class EstadisticasController extends Controller
                 continue;
             }
 
-            $conteo = $legacyDisponible
-                ? $this->conteoPeriodoLegacy($inicioRestante->toDateString(), $finAnio)
-                : $this->conteoPeriodoActual($inicioRestante->toDateString(), $finAnio);
+            $conteo = $this->conteoPeriodoTotal(
+                $inicioRestante->toDateString(),
+                $finAnio,
+                $legacyDisponible,
+                $legacyImportadoEnHechos
+            );
 
             if ($conteo['hechos'] === 0 && $conteo['lesionados'] === 0 && $conteo['defunciones'] === 0) {
                 continue;
@@ -589,12 +652,17 @@ class EstadisticasController extends Controller
         ];
     }
 
-    private function conteoPeriodoTotal(string $inicio, string $fin, bool $legacyDisponible): array
+    private function conteoPeriodoTotal(string $inicio, string $fin, bool $legacyDisponible, bool $legacyImportadoEnHechos = false): array
     {
         $actual = $this->conteoPeriodoActual($inicio, $fin);
-        $legacy = $legacyDisponible
-            ? $this->conteoPeriodoLegacy($inicio, $fin)
-            : ['hechos' => 0, 'lesionados' => 0, 'defunciones' => 0];
+
+        $legacy = $legacyImportadoEnHechos
+            ? $this->conteoPeriodoLegacyImportado($inicio, $fin)
+            : (
+                $legacyDisponible
+                    ? $this->conteoPeriodoLegacy($inicio, $fin)
+                    : ['hechos' => 0, 'lesionados' => 0, 'defunciones' => 0]
+            );
 
         return [
             'hechos' => $actual['hechos'] + $legacy['hechos'],
@@ -606,16 +674,17 @@ class EstadisticasController extends Controller
     private function conteoPeriodoActual(string $inicio, string $fin): array
     {
         $hechos = DB::table('hechos')
-            ->where('unidad_org_id', self::UNIDAD_SINIESTROS_ID)
-            ->whereBetween('fecha', [$inicio, $fin])
-            ->whereRaw("LOWER(TRIM(COALESCE(fuente_ubicacion, ''))) <> 'legacy_peritos'")
-            ->count();
+            ->whereBetween('fecha', [$inicio, $fin]);
+
+        $this->scopeHechosActualesNoLegacy($hechos);
+
+        $hechos = $hechos->count();
 
         $lesionados = DB::table('lesionados')
             ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
-            ->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID)
-            ->whereBetween('hechos.fecha', [$inicio, $fin])
-            ->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'");
+            ->whereBetween('hechos.fecha', [$inicio, $fin]);
+
+        $this->scopeHechosActualesNoLegacy($lesionados);
 
         return [
             'hechos' => (int) $hechos,
@@ -626,6 +695,70 @@ class EstadisticasController extends Controller
                 ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'")
                 ->count(),
         ];
+    }
+
+    private function conteoPeriodoLegacyImportado(string $inicio, string $fin): array
+    {
+        $hechos = DB::table('hechos')
+            ->whereBetween('fecha', [$inicio, $fin]);
+
+        $this->scopeHechosLegacyImportados($hechos);
+
+        $hechos = $hechos->count();
+
+        $lesionados = DB::table('lesionados')
+            ->join('hechos', 'hechos.id', '=', 'lesionados.hecho_id')
+            ->whereBetween('hechos.fecha', [$inicio, $fin]);
+
+        $this->scopeHechosLegacyImportados($lesionados);
+
+        return [
+            'hechos' => (int) $hechos,
+            'lesionados' => (int) (clone $lesionados)
+                ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) <> 'FALLECIDO'")
+                ->count(),
+            'defunciones' => (int) (clone $lesionados)
+                ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion, ''))) = 'FALLECIDO'")
+                ->count(),
+        ];
+    }
+
+    private function scopeHechosSiniestros($query): void
+    {
+        $query->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID);
+    }
+
+    private function scopeHechosActualesNoLegacy($query): void
+    {
+        $this->scopeHechosSiniestros($query);
+
+        $query->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'");
+    }
+
+    private function scopeHechosLegacyImportados($query): void
+    {
+        $this->scopeHechosSiniestros($query);
+
+        $query->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) = 'legacy_peritos'");
+    }
+
+    private function legacyImportadoEnHechosDisponible(): bool
+    {
+        try {
+            if (DB::table('hechos')->where('fuente_ubicacion', 'legacy_peritos')->exists()) {
+                return true;
+            }
+
+            if (DB::getSchemaBuilder()->hasTable('legacy_peritos_import_hechos')) {
+                return DB::table('legacy_peritos_import_hechos')
+                    ->whereNotNull('new_hecho_id')
+                    ->exists();
+            }
+        } catch (\Throwable $exception) {
+            return false;
+        }
+
+        return false;
     }
 
     private function peritosLegacyDisponible(): bool

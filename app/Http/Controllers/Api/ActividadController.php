@@ -1199,7 +1199,9 @@ class ActividadController extends Controller
             return false;
         }
 
-        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
+        return $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Subdirector');
     }
 
     private function scopeActividadesUnidad($query, int $unidadId): void

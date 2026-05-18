@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
 
 class ActividadController extends Controller
 {
+    private const UNIDAD_DELEGACIONES_ID = 2;
     private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
 
     public function __construct()
@@ -40,6 +41,8 @@ class ActividadController extends Controller
         $inicioDia = Carbon::parse($fechaSeleccionada, $tz)->startOfDay();
         $finDia = Carbon::parse($fechaSeleccionada, $tz)->endOfDay();
 
+        $usuario = Auth::user();
+
         $query = $this->buildQuery($request, $inicioDia, $finDia);
 
         $actividades = $query->get();
@@ -49,9 +52,18 @@ class ActividadController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $unidadesFiltro = $this->unidadesDisponiblesParaFiltro(Auth::user());
+        $unidadesFiltro = $this->unidadesDisponiblesParaFiltro($usuario);
+        $delegacionesFiltro = $this->delegacionesDisponiblesParaFiltro($usuario);
+        $mostrarFiltroDelegaciones = $this->debeMostrarFiltroDelegaciones($request, $usuario);
 
-        return view('actividades.index', compact('actividades', 'categorias', 'fechaSeleccionada', 'unidadesFiltro'));
+        return view('actividades.index', compact(
+            'actividades',
+            'categorias',
+            'fechaSeleccionada',
+            'unidadesFiltro',
+            'delegacionesFiltro',
+            'mostrarFiltroDelegaciones'
+        ));
     }
 
     public function informeDiario(Request $request)
@@ -135,8 +147,9 @@ class ActividadController extends Controller
         $mostrarFomentoCulturaVial = $fomentoManager->usuarioEsFomento(Auth::user())
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora(Auth::user());
 
-        return view('actividades.create', compact('categorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento'));
+        return view('actividades.create', compact('categorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora'));
     }
 
     public function store(Request $request)
@@ -396,8 +409,9 @@ class ActividadController extends Controller
             || $fomentoManager->actividadEsFomento($actividad)
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento'));
+        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora'));
     }
 
     public function update(Request $request, Actividad $actividad)
@@ -739,6 +753,28 @@ class ActividadController extends Controller
             }
         }
 
+        $delegacionFiltro = trim((string) $request->query('delegacion_filtro', ''));
+
+        if ($delegacionFiltro !== '') {
+            $delegacionId = (int) $delegacionFiltro;
+            $unidadId = $unidadFiltro !== '' ? (int) $unidadFiltro : (int) ($usuario->unidad_id ?? 0);
+            $delegacionesPermitidas = $this->delegacionesDisponiblesParaFiltro($usuario)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            if (
+                $unidadId !== self::UNIDAD_DELEGACIONES_ID
+                || $delegacionId <= 0
+                || !in_array($delegacionId, $delegacionesPermitidas, true)
+            ) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $this->scopeActividadesUnidad($query, self::UNIDAD_DELEGACIONES_ID);
+                $query->where('delegacion_id', $delegacionId);
+            }
+        }
+
         if ($request->filled('actividad_categoria_id')) {
             $query->where('actividad_categoria_id', (int) $request->actividad_categoria_id);
         }
@@ -993,7 +1029,9 @@ class ActividadController extends Controller
             return false;
         }
 
-        return $usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador');
+        return $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Subdirector');
     }
 
     private function scopeActividadesUnidad($query, int $unidadId): void
@@ -1041,6 +1079,80 @@ class ActividadController extends Controller
         }
 
         return $query->orderBy('nombre')->get();
+    }
+
+    private function delegacionesDisponiblesParaFiltro($usuario)
+    {
+        $query = Delegacion::query()
+            ->where('activa', 1)
+            ->orderBy('nombre');
+
+        if (!$usuario) {
+            return collect();
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Coordinador')
+            || $unidadId === self::UNIDAD_SEGURIDAD_VIAL_ID
+            || ($unidadId === self::UNIDAD_DELEGACIONES_ID && $this->esRolAdministrativoUnidad($usuario))
+        ) {
+            return $query->get();
+        }
+
+        if ($unidadId !== self::UNIDAD_DELEGACIONES_ID) {
+            return collect();
+        }
+
+        $delegacionIds = $this->delegacionIdsVisiblesParaUsuario($usuario);
+
+        if (empty($delegacionIds)) {
+            return collect();
+        }
+
+        return $query->whereIn('id', $delegacionIds)->get();
+    }
+
+    private function debeMostrarFiltroDelegaciones(Request $request, $usuario): bool
+    {
+        $unidadFiltro = trim((string) $request->query('unidad_filtro', ''));
+
+        if ($unidadFiltro !== '') {
+            return (int) $unidadFiltro === self::UNIDAD_DELEGACIONES_ID;
+        }
+
+        return (int) ($usuario->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES_ID;
+    }
+
+    private function delegacionIdsVisiblesParaUsuario($usuario): array
+    {
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+        if ($delegacionId <= 0) {
+            return [];
+        }
+
+        if (!$this->puedeVerDelegacionesHijas($usuario)) {
+            return [$delegacionId];
+        }
+
+        $esRegional = Delegacion::query()
+            ->where('id', $delegacionId)
+            ->whereNull('delegacion_padre_id')
+            ->exists();
+
+        if (!$esRegional) {
+            return [$delegacionId];
+        }
+
+        return Delegacion::query()
+            ->where('id', $delegacionId)
+            ->orWhere('delegacion_padre_id', $delegacionId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
     }
 
     private function unidadTieneColumnaActiva(): bool

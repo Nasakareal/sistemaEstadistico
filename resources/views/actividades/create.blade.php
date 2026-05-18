@@ -85,40 +85,42 @@
                         <input type="hidden" name="destacamento_id" value="{{ old('destacamento_id') }}">
 
                         <div class="row">
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="fecha">Fecha<span style="color:red">*</span></label>
-                                    <input type="date"
-                                           name="fecha"
-                                           id="fecha"
-                                           class="form-control @error('fecha') is-invalid @enderror"
-                                           value="{{ old('fecha', now('America/Mexico_City')->toDateString()) }}"
-                                           required>
-                                    @error('fecha')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
+                            @if($puedeCapturarFechaHora ?? false)
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="fecha">Fecha<span style="color:red">*</span></label>
+                                        <input type="date"
+                                               name="fecha"
+                                               id="fecha"
+                                               class="form-control @error('fecha') is-invalid @enderror"
+                                               value="{{ old('fecha', now('America/Mexico_City')->toDateString()) }}"
+                                               required>
+                                        @error('fecha')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="hora">Hora</label>
-                                    <input type="time"
-                                           name="hora"
-                                           id="hora"
-                                           class="form-control @error('hora') is-invalid @enderror"
-                                           value="{{ old('hora') }}">
-                                    @error('hora')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="hora">Hora</label>
+                                        <input type="time"
+                                               name="hora"
+                                               id="hora"
+                                               class="form-control @error('hora') is-invalid @enderror"
+                                               value="{{ old('hora') }}">
+                                        @error('hora')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
                                 </div>
-                            </div>
+                            @endif
 
-                            <div class="col-md-5">
+                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-5' : 'col-md-8' }}">
                                 <div class="form-group">
                                     <label for="lugar">Lugar</label>
                                     <input type="text"
@@ -135,7 +137,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-3' : 'col-md-4' }}">
                                 <div class="form-group">
                                     <label for="municipio">Municipio</label>
                                     <input type="text"
@@ -432,6 +434,8 @@
 @stop
 
 @section('css')
+    @include('partials.landscape_photo_cropper_styles')
+
     <style>
         .help-muted {
             color: rgba(234,240,255,.65);
@@ -520,6 +524,8 @@
 @stop
 
 @section('js')
+    @include('partials.landscape_photo_cropper_scripts')
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const categoriaSelect = document.getElementById('actividad_categoria_id');
@@ -540,6 +546,10 @@
             const ubicacionEstado = document.getElementById('ubicacion_estado');
             const ubicacionPreviewWrap = document.getElementById('ubicacion_preview_wrap');
             const ubicacionPreviewTexto = document.getElementById('ubicacion_preview_texto');
+
+            if (window.SeguridadVialLandscapeCropper) {
+                window.SeguridadVialLandscapeCropper.attach(fotoInput);
+            }
 
             function setSubcatDisabled(msg) {
                 if (!subcatSelect) return;

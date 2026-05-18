@@ -56,11 +56,12 @@
                         <label>Subir / Reemplazar foto</label>
                         <input type="file"
                                name="foto"
+                               id="foto"
                                class="form-control @error('foto') is-invalid @enderror"
                                accept="image/jpeg,image/png,image/webp">
 
                         <small class="text-muted">
-                            Formatos: JPG/PNG/WEBP. Máx: 2MB.
+                            Formatos: JPG/PNG/WEBP. Máx: 2MB. Si la foto está vertical, se recortará a horizontal antes de subir.
                         </small>
 
                         @error('foto')
@@ -78,8 +79,21 @@
 </div>
 @stop
 
+@section('css')
+    @include('partials.landscape_photo_cropper_styles')
+@stop
+
 @section('js')
+@include('partials.landscape_photo_cropper_scripts')
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const fotoInput = document.getElementById('foto');
+
+        if (window.SeguridadVialLandscapeCropper) {
+            window.SeguridadVialLandscapeCropper.attach(fotoInput);
+        }
+    });
+
     @if (session('success'))
         Swal.fire({
             position: 'center',

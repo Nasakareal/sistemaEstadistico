@@ -1569,7 +1569,9 @@ class HechoController extends Controller
             return false;
         }
 
-        return $user->hasRole('Superadmin') || $user->hasRole('Administrador');
+        return $user->hasRole('Superadmin')
+            || $user->hasRole('Administrador')
+            || $user->hasRole('Subdirector');
     }
 
     private function userCanUseDictamenes($user, ?Hechos $hecho = null): bool

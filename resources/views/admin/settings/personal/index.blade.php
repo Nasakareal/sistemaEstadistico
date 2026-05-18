@@ -30,6 +30,7 @@
                                 <th><center>Unidad</center></th>
                                 <th><center>Turno</center></th>
                                 <th><center>CUIP</center></th>
+                                <th><center>CUP</center></th>
                                 <th><center>CURP</center></th>
                                 <th><center>Grado</center></th>
                                 <th><center>Estatus</center></th>
@@ -47,6 +48,7 @@
                                     <td>{{ $personal->unidad->nombre ?? 'N/A' }}</td>
                                     <td>{{ $personal->turno->nombre ?? 'N/A' }}</td>
                                     <td>{{ $personal->cuip ?? 'N/A' }}</td>
+                                    <td>{{ $personal->cup ?? 'N/A' }}</td>
                                     <td>{{ $personal->curp ?? 'N/A' }}</td>
                                     <td>{{ $personal->grado ?? 'N/A' }}</td>
                                     <td>{{ $personal->estatus ?? 'N/A' }}</td>

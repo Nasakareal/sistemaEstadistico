@@ -111,17 +111,22 @@
                                     {{ $personal->area ?? 'N/A' }}
                                 </div>
 
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <strong>CUIP:</strong><br>
                                     {{ $personal->cuip ?? 'N/A' }}
                                 </div>
 
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    <strong>CUP:</strong><br>
+                                    {{ $personal->cup ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
                                     <strong>CURP:</strong><br>
                                     {{ $personal->curp ?? 'N/A' }}
                                 </div>
 
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <strong>RFC:</strong><br>
                                     {{ $personal->rfc ?? 'N/A' }}
                                 </div>

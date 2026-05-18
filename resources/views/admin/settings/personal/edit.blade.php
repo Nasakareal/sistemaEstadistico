@@ -123,7 +123,7 @@
                         <hr>
 
                         <div class="row">
-                            <div class="col-md-3">
+                            <div class="col-md">
                                 <div class="form-group">
                                     <label for="curp">CURP</label>
                                     <input type="text" name="curp" id="curp"
@@ -135,7 +135,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md">
                                 <div class="form-group">
                                     <label for="rfc">RFC</label>
                                     <input type="text" name="rfc" id="rfc"
@@ -147,7 +147,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md">
                                 <div class="form-group">
                                     <label for="cuip">CUIP</label>
                                     <input type="text" name="cuip" id="cuip"
@@ -159,7 +159,19 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md">
+                                <div class="form-group">
+                                    <label for="cup">CUP</label>
+                                    <input type="text" name="cup" id="cup"
+                                           class="form-control @error('cup') is-invalid @enderror"
+                                           value="{{ old('cup', $personal->cup) }}">
+                                    @error('cup')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md">
                                 <div class="form-group">
                                     <label for="grado">Grado</label>
                                     <input type="text" name="grado" id="grado"

@@ -261,7 +261,7 @@ REGLAS DE ACCIÓN:
 - Si pide estadística, resumen o desglose de hechos, usa estadistica_hechos o resumen_hechos.
 - Si pide personal armado, relación de armamento o lista de elementos armados, usa personal_armado.
 - Si pide personal activo, usa personal_activo.
-- Si pide expediente, ficha, perfil, foto, patrulla o información de un elemento, usa detalle_personal y llena persona con el nombre, número de empleado, CUIP, CURP o RFC.
+- Si pide expediente, ficha, perfil, foto, patrulla o información de un elemento, usa detalle_personal y llena persona con el nombre, número de empleado, CUP, CUIP, CURP o RFC.
 - Si pide resumen general de hechos, usa estadistica_resumen_general.
 - Si pide lesionados, usa estadistica_lesionados.
 - Si pide fallecidos, usa estadistica_fallecidos.
@@ -747,7 +747,7 @@ PROMPT;
             return $this->limpiarBusquedaPersonal($matches[1]);
         }
 
-        if (preg_match('/\b(?:n[uú]mero\s+de\s+empleado|no\.?\s*empleado|empleado|cuip|curp|rfc|id)\s*[:#-]?\s*([A-Za-z0-9-]+)/iu', $mensaje, $matches)) {
+        if (preg_match('/\b(?:n[uú]mero\s+de\s+empleado|no\.?\s*empleado|empleado|cup|cuip|curp|rfc|id)\s*[:#-]?\s*([A-Za-z0-9-]+)/iu', $mensaje, $matches)) {
             return $this->limpiarBusquedaPersonal($matches[1]);
         }
 

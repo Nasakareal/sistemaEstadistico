@@ -547,7 +547,7 @@ class WhatsAppMenuService
         } elseif ($action === 'operativos_tipo') {
             $text = "Escribe el tipo de operativo.\n\nEjemplo:\nCASCO";
         } elseif ($action === 'expediente_personal') {
-            $text = "Escribe el nombre, número de empleado, CURP, RFC o CUIP.\n\nEjemplo:\nJuan Pérez";
+            $text = "Escribe el nombre, número de empleado, CUP, CUIP, CURP o RFC.\n\nEjemplo:\nJuan Pérez";
         } elseif (in_array($action, [
             'estadistica_resumen_general',
             'estadistica_motocicletas',

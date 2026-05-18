@@ -877,7 +877,7 @@ class WhatsAppQueryService
 
         if ($busqueda === '') {
             return [
-                'text' => 'Indica el nombre, número de empleado, CURP, RFC o CUIP del elemento.',
+                'text' => 'Indica el nombre, número de empleado, CUP, CUIP, CURP o RFC del elemento.',
             ];
         }
 
@@ -914,7 +914,7 @@ class WhatsAppQueryService
                     'SIN PERIODO ESPECIFICADO',
                     array_merge([
                         'Encontré varias coincidencias para "' . $busqueda . '".',
-                        'Escribe el nombre completo, número de empleado, CURP, RFC o CUIP.',
+                        'Escribe el nombre completo, número de empleado, CUP, CUIP, CURP o RFC.',
                     ], $lineas)
                 ),
             ];
@@ -1290,7 +1290,7 @@ class WhatsAppQueryService
                 $q->orWhere('id', (int) $terminoNormalizado);
             }
 
-            foreach (['numero_empleado', 'cuip', 'curp', 'rfc'] as $campo) {
+            foreach (['numero_empleado', 'cup', 'cuip', 'curp', 'rfc'] as $campo) {
                 $q->orWhereRaw("REPLACE(REPLACE(REPLACE(UPPER(COALESCE({$campo}, '')), '-', ''), ' ', ''), '.', '') = ?", [$terminoNormalizado]);
                 $q->orWhereRaw("UPPER(COALESCE({$campo}, '')) LIKE ?", ['%' . $terminoUpper . '%']);
             }
@@ -1328,7 +1328,7 @@ class WhatsAppQueryService
             $puntaje += 220;
         }
 
-        foreach ([$personal->numero_empleado, $personal->cuip, $personal->curp, $personal->rfc, $personal->id] as $valor) {
+        foreach ([$personal->numero_empleado, $personal->cup, $personal->cuip, $personal->curp, $personal->rfc, $personal->id] as $valor) {
             if ($busquedaNormalizada !== '' && $this->normalizarTextoBusqueda((string) $valor) === $busquedaNormalizada) {
                 $puntaje += 400;
             }

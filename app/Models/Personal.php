@@ -24,6 +24,7 @@ class Personal extends Model
         'curp',
         'rfc',
         'cuip',
+        'cup',
         'grado',
         'puesto',
         'adscripcion',

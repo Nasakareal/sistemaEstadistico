@@ -226,6 +226,7 @@ class WhatsAppRenderService
             'Estatus: ' . ($personal->estatus ?: 'SIN ESTATUS'),
             'Grado / puesto: ' . trim(($personal->grado ?: 'S/G') . ' / ' . ($personal->puesto ?: 'S/P')),
             'Número de empleado: ' . ($personal->numero_empleado ?: 'S/N'),
+            'CUP: ' . ($personal->cup ?: 'S/D'),
             'CUIP: ' . ($personal->cuip ?: 'S/D'),
             'Categoría: ' . ($personal->categoria ?: 'S/D'),
             'Unidad: ' . (optional($personal->unidad)->nombre ?: 'SIN UNIDAD'),

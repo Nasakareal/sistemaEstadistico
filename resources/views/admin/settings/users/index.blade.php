@@ -36,7 +36,7 @@
                                 <th><center>Nombres del Usuario</center></th>
                                 <th><center>Rol</center></th>
                                 <th><center>Email</center></th>
-                                <th><center>Área</center></th>
+                                <th><center>Unidad Org ID</center></th>
                                 <th><center>Fecha de Creación</center></th>
                                 <th><center>Estado</center></th>
                                 <th><center>Acciones</center></th>
@@ -49,7 +49,7 @@
                                     <td>{{ $user->name }}</td>
                                     <td>{{ $user->roles->pluck('name')->join(', ') }}</td>
                                     <td>{{ $user->email }}</td>
-                                    <td>{{ $user->area }}</td>
+                                    <td>{{ $user->unidad_id ?? 'Sin asignar' }}</td>
                                     <td>{{ $user->created_at->format('d-m-Y') }}</td>
                                     <td>{{ $user->estado }}</td>
                                     <td style="text-align: center">

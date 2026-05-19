@@ -25,12 +25,9 @@
                         <thead>
                             <tr>
                                 <th><center>No.</center></th>
-                                <th><center>Número empleado</center></th>
                                 <th><center>Nombre</center></th>
                                 <th><center>Unidad</center></th>
-                                <th><center>Turno</center></th>
                                 <th><center>CUIP</center></th>
-                                <th><center>CUP</center></th>
                                 <th><center>CURP</center></th>
                                 <th><center>Grado</center></th>
                                 <th><center>Estatus</center></th>
@@ -41,14 +38,11 @@
                             @foreach ($personals as $index => $personal)
                                 <tr>
                                     <td style="text-align: center">{{ $index + 1 }}</td>
-                                    <td>{{ $personal->numero_empleado ?? 'N/A' }}</td>
                                     <td>
                                         {{ trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? '')) }}
                                     </td>
                                     <td>{{ $personal->unidad->nombre ?? 'N/A' }}</td>
-                                    <td>{{ $personal->turno->nombre ?? 'N/A' }}</td>
                                     <td>{{ $personal->cuip ?? 'N/A' }}</td>
-                                    <td>{{ $personal->cup ?? 'N/A' }}</td>
                                     <td>{{ $personal->curp ?? 'N/A' }}</td>
                                     <td>{{ $personal->grado ?? 'N/A' }}</td>
                                     <td>{{ $personal->estatus ?? 'N/A' }}</td>

@@ -11,6 +11,7 @@ use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
+use App\Services\IphPuestaDisposicionService;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\WhatsApp\C5IReport;
@@ -340,6 +341,26 @@ class HechosController extends Controller
         $croquisData = $this->croquisData($hecho->croquis);
 
         return view('hechos.show', compact('hecho', 'puedeEditar', 'croquisData'));
+    }
+
+    public function imprimirIphPuestaDisposicion(Hechos $hecho, IphPuestaDisposicionService $iphService)
+    {
+        $usuario = auth()->user();
+
+        if (!$iphService->puedeGenerar($usuario)) {
+            abort(403);
+        }
+
+        $q = Hechos::query()->whereKey($hecho->id);
+        $this->applyHechosVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            abort(404);
+        }
+
+        $mapeo = $iphService->mapearDesdeHecho($hecho);
+
+        return view('hechos.iph_puesta_disposicion.print', compact('hecho', 'mapeo'));
     }
 
     private function croquisData(?\App\Models\Croquis $croquis): array

@@ -6,6 +6,7 @@ use App\Models\Hechos;
 use App\Models\Personal;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 class WhatsAppRenderService
 {
@@ -278,17 +279,49 @@ class WhatsAppRenderService
             $lineas[] = 'Armamento actual: ' . implode(' | ', $armamentoResumen);
         }
 
-        $imagenes = array_values(array_unique(array_filter(array_merge(
-            $this->extraerUrlsDesdeCampo($personal->foto ?? null),
-            $this->extraerUrlsDesdeCampo(optional($personal->fotoPrincipal)->ruta),
-            $this->extraerUrlsDesdeCampo(collect($personal->fotos ?? [])->pluck('ruta')->all())
-        ))));
+        $imagenes = $this->urlsTemporalesFotosPersonal($personal);
 
         return [
             'unidad' => $this->lineaUnidadPorId($personal->unidad_id ? (int) $personal->unidad_id : null),
             'lineas' => $lineas,
             'imagenes' => array_slice($imagenes, 0, 3),
         ];
+    }
+
+    protected function urlsTemporalesFotosPersonal(Personal $personal): array
+    {
+        try {
+            $personal->loadMissing(['fotos', 'fotoPrincipal']);
+
+            $fotos = collect();
+
+            if ($personal->fotoPrincipal) {
+                $fotos->push($personal->fotoPrincipal);
+            }
+
+            if ($personal->fotos) {
+                $fotos = $fotos->merge($personal->fotos);
+            }
+
+            return $fotos
+                ->filter(fn ($foto) => $foto && $foto->id && $foto->ruta)
+                ->unique('id')
+                ->take(3)
+                ->map(fn ($foto) => URL::temporarySignedRoute(
+                    'personal.fotos.signed',
+                    now()->addMinutes(15),
+                    ['foto' => $foto->id]
+                ))
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('WA personal temporary photo URL error', [
+                'personal_id' => $personal->id ?? null,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     protected function resolverLineaUnidad(Hechos $hecho): string

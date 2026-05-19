@@ -12,6 +12,7 @@
         $puedeFiltrarUnidad = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3;
         $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin')
             || $hechos->getCollection()->contains(fn ($hecho) => \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho) === 2);
+        $puedeGenerarIphPuesta = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
         $origenFiltro = $origenFiltro ?? request('origen', 'todos');
         $sinFecha = (bool) ($sinFecha ?? request()->boolean('sin_fecha'));
         $fechaFiltro = $sinFecha ? '' : ($fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d'));
@@ -258,6 +259,16 @@
                                                     data-url="{{ route('hechos.compartir', $hecho->id) }}">
                                                     <i class="fa-regular fa-rectangle-list"></i>
                                                 </button>
+                                            @endif
+
+                                            @if($puedeGenerarIphPuesta)
+                                                <a href="{{ route('hechos.iph_puesta_disposicion.imprimir', $hecho->id) }}"
+                                                   class="btn btn-outline-dark btn-sm"
+                                                   target="_blank"
+                                                   rel="noopener"
+                                                   title="Generar IPH de puesta a disposición">
+                                                    <i class="fa-solid fa-file-signature"></i>
+                                                </a>
                                             @endif
 
                                             @if($puedeEliminarHecho)

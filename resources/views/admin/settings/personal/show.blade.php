@@ -9,7 +9,15 @@
 @section('content')
     @php
         $nombreCompleto = trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? ''));
-        $fotoActual = $personal->foto ?: optional($personal->fotoPrincipal)->ruta;
+        $fotosPersonal = $personal->fotos ?? collect();
+        $fotoActualModelo = $personal->foto && $fotosPersonal
+            ? $fotosPersonal->firstWhere('ruta', $personal->foto)
+            : null;
+        $fotoActualModelo = $fotoActualModelo ?: $personal->fotoPrincipal;
+        $fotoActual = $personal->foto ?: optional($fotoActualModelo)->ruta;
+        $fotoActualUrl = $fotoActualModelo
+            ? route('personal.fotos.show', [$personal->id, $fotoActualModelo->id])
+            : ($fotoActual ? route('personal.fotos.principal', $personal->id) : null);
         $asignacionesActivas = $personal->asignaciones ? $personal->asignaciones->whereNull('fecha_fin') : collect();
         $documentosPersonal = $personal->documentos ?? collect();
         $documentoTipos = $documentoTipos ?? collect();
@@ -34,8 +42,8 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            @if($fotoActual)
-                                <img src="{{ asset('storage/' . $fotoActual) }}" alt="Foto de {{ $nombreCompleto }}" class="img-fluid rounded personal-photo">
+                            @if($fotoActualUrl)
+                                <img src="{{ $fotoActualUrl }}" alt="Foto de {{ $nombreCompleto }}" class="img-fluid rounded personal-photo">
                             @else
                                 <div class="personal-photo-placeholder">
                                     Sin foto
@@ -162,7 +170,7 @@
                         <div class="row">
                             @foreach($personal->fotos as $foto)
                                 <div class="col-md-2 col-sm-4 mb-3">
-                                    <img src="{{ asset('storage/' . $foto->ruta) }}" alt="{{ $foto->nombre_original ?? 'Foto de personal' }}" class="img-fluid rounded personal-gallery-photo">
+                                    <img src="{{ route('personal.fotos.show', [$personal->id, $foto->id]) }}" alt="{{ $foto->nombre_original ?? 'Foto de personal' }}" class="img-fluid rounded personal-gallery-photo">
                                     <div class="small text-muted mt-1 text-truncate">{{ $foto->nombre_original ?? basename($foto->ruta) }}</div>
                                     @can('editar personal')
                                         <form action="{{ route('personal.fotos.destroy', [$personal->id, $foto->id]) }}" method="POST" class="mt-1">

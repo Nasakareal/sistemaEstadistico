@@ -5,14 +5,46 @@ namespace App\Http\Controllers;
 use App\Models\Personal;
 use App\Models\PersonalFoto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class PersonalFotoController extends Controller
 {
+    public function show(Personal $personal, PersonalFoto $foto)
+    {
+        $this->abortUnlessCanView($personal);
+
+        if ((int) $foto->personal_id !== (int) $personal->id) {
+            abort(404);
+        }
+
+        return $this->streamFoto($foto->ruta, $foto->mime_type, $foto->nombre_original);
+    }
+
+    public function showPrincipal(Personal $personal)
+    {
+        $this->abortUnlessCanView($personal);
+
+        $ruta = $personal->foto ?: optional($personal->fotoPrincipal)->ruta;
+
+        if (!$ruta) {
+            abort(404);
+        }
+
+        return $this->streamFoto($ruta);
+    }
+
+    public function showSigned(PersonalFoto $foto)
+    {
+        return $this->streamFoto($foto->ruta, $foto->mime_type, $foto->nombre_original);
+    }
+
     public function store(Request $request, Personal $personal)
     {
+        $this->abortUnlessCanView($personal);
+
         $request->validate([
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'fotos' => 'nullable|array',
@@ -41,7 +73,7 @@ class PersonalFotoController extends Controller
             $primeraRuta = null;
 
             foreach ($archivos as $archivo) {
-                $ruta = $archivo->store('personals/fotos', 'public');
+                $ruta = $archivo->store('personals/fotos');
                 if ($primeraRuta === null) {
                     $primeraRuta = $ruta;
                 }
@@ -72,11 +104,17 @@ class PersonalFotoController extends Controller
 
     public function destroy(Personal $personal, PersonalFoto $foto)
     {
+        $this->abortUnlessCanView($personal);
+
         if ((int) $foto->personal_id !== (int) $personal->id) {
             abort(404);
         }
 
         try {
+            if ($foto->ruta && Storage::disk('local')->exists($foto->ruta)) {
+                Storage::disk('local')->delete($foto->ruta);
+            }
+
             if ($foto->ruta && Storage::disk('public')->exists($foto->ruta)) {
                 Storage::disk('public')->delete($foto->ruta);
             }
@@ -102,5 +140,52 @@ class PersonalFotoController extends Controller
 
             return back()->withErrors('Hubo un error al eliminar la foto.');
         }
+    }
+
+    private function abortUnlessCanView(Personal $personal): void
+    {
+        $actor = Auth::user();
+
+        if (!$actor) {
+            abort(401);
+        }
+
+        if ($actor->hasRole('Superadmin') || (int) ($actor->unidad_id ?? 0) === 3) {
+            return;
+        }
+
+        if ((int) ($actor->unidad_id ?? 0) === (int) ($personal->unidad_id ?? 0)) {
+            return;
+        }
+
+        abort(404);
+    }
+
+    private function streamFoto(?string $ruta, ?string $mimeType = null, ?string $nombre = null)
+    {
+        $ruta = ltrim(str_replace('\\', '/', (string) $ruta), '/');
+
+        if ($ruta === '' || strpos($ruta, '..') !== false || !str_starts_with($ruta, 'personals/fotos/')) {
+            abort(404);
+        }
+
+        if (Storage::disk('local')->exists($ruta)) {
+            return Storage::disk('local')->response($ruta, $nombre ?: basename($ruta), $this->headersArchivo('local', $ruta, $mimeType), 'inline');
+        }
+
+        if (Storage::disk('public')->exists($ruta)) {
+            return Storage::disk('public')->response($ruta, $nombre ?: basename($ruta), $this->headersArchivo('public', $ruta, $mimeType), 'inline');
+        }
+
+        abort(404);
+    }
+
+    private function headersArchivo(string $disk, string $ruta, ?string $mimeType = null): array
+    {
+        return [
+            'Content-Type' => $mimeType ?: (Storage::disk($disk)->mimeType($ruta) ?: 'application/octet-stream'),
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
     }
 }

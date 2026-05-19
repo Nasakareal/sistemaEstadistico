@@ -5,6 +5,9 @@
 
     RewriteEngine On
 
+    # Las fotos de personal se sirven por una ruta autenticada, no por /storage.
+    RewriteRule ^storage/personals/fotos/ - [F,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

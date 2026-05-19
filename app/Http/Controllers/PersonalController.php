@@ -286,7 +286,7 @@ class PersonalController extends Controller
             $personal = Personal::create($validated);
 
             if ($fotoSubida) {
-                $rutaFoto = $fotoSubida->store('personals/fotos', 'public');
+                $rutaFoto = $fotoSubida->store('personals/fotos');
 
                 $personal->update([
                     'foto' => $rutaFoto,
@@ -469,7 +469,7 @@ class PersonalController extends Controller
             $personal->update($validated);
 
             if ($fotoSubida) {
-                $rutaFoto = $fotoSubida->store('personals/fotos', 'public');
+                $rutaFoto = $fotoSubida->store('personals/fotos');
 
                 $personal->update([
                     'foto' => $rutaFoto,

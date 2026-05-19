@@ -241,6 +241,10 @@ Route::prefix('licencias')->group(function () {
 
 Auth::routes();
 
+Route::get('/personal-fotos/{foto}/archivo-temporal', [PersonalFotoController::class, 'showSigned'])
+    ->middleware('signed')
+    ->name('personal.fotos.signed');
+
 Route::get('/home',[HomeController::class,'index'])->name('home');
 Route::get('/home/feed',[HomeController::class,'feed'])->name('home.feed');
 
@@ -480,6 +484,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::put('/{hecho}',[HechosController::class,'update'])->middleware('can:editar hechos')->name('hechos.update');
     Route::delete('/{hecho}',[HechosController::class,'destroy'])->middleware('can:eliminar hechos')->name('hechos.destroy');
     Route::get('/{hecho}/descargar',[DocumentoHechoController::class,'descargarDocx'])->name('hechos.descargar');
+    Route::get('/{hecho}/iph-puesta-disposicion',[HechosController::class,'imprimirIphPuestaDisposicion'])->name('hechos.iph_puesta_disposicion.imprimir');
 
     Route::prefix('/{hecho}/croquis')->group(function () {
         Route::get('/', [\App\Http\Controllers\CroquisController::class, 'show'])->name('croquis.show');
@@ -655,6 +660,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{personal}/documentos/{documento}', [PersonalDocumentoController::class, 'destroy'])->middleware('can:editar personal')->name('personal.documentos.destroy');
 
         Route::post('/{personal}/fotos', [PersonalFotoController::class, 'store'])->middleware('can:editar personal')->name('personal.fotos.store');
+        Route::get('/{personal}/fotos/principal', [PersonalFotoController::class, 'showPrincipal'])->middleware('auth')->name('personal.fotos.principal');
+        Route::get('/{personal}/fotos/{foto}/archivo', [PersonalFotoController::class, 'show'])->middleware('auth')->name('personal.fotos.show');
         Route::delete('/{personal}/fotos/{foto}', [PersonalFotoController::class, 'destroy'])->middleware('can:editar personal')->name('personal.fotos.destroy');
 
         Route::get('/{personal}/incidencias/create', [PersonalIncidenciaController::class, 'create'])->middleware('can:editar personal')->name('personal.incidencias.create');

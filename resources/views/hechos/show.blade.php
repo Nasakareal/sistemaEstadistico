@@ -7,6 +7,7 @@
     $unidadRealHecho = \App\Support\HechoAccess::effectiveUnidadIdForHecho($hecho);
     $esHechoDelegaciones = $unidadRealHecho === 2;
     $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || $esHechoDelegaciones;
+    $puedeGenerarIphPuesta = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
     $urlAnterior = url()->previous();
     $volverHechoUrl = $urlAnterior && $urlAnterior !== url()->current()
         ? $urlAnterior
@@ -73,6 +74,17 @@
                         data-url="{{ route('hechos.compartir', $hecho->id) }}">
                     <i class="fa-regular fa-rectangle-list"></i>
                 </button>
+            @endif
+
+            @if($puedeGenerarIphPuesta)
+                <a href="{{ route('hechos.iph_puesta_disposicion.imprimir', $hecho->id) }}"
+                   class="btn btn-outline-dark btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                   style="width:36px;height:36px;padding:0;"
+                   target="_blank"
+                   rel="noopener"
+                   title="Generar IPH de puesta a disposición">
+                    <i class="fa-solid fa-file-signature"></i>
+                </a>
             @endif
 
             @can('borrar hechos')
@@ -457,6 +469,15 @@
                                                         data-url="{{ route('hechos.compartir', $hecho->id) }}">
                                                     <i class="fa-regular fa-rectangle-list"></i> Ver tarjeta
                                                 </button>
+                                            @endif
+
+                                            @if($puedeGenerarIphPuesta)
+                                                <a href="{{ route('hechos.iph_puesta_disposicion.imprimir', $hecho->id) }}"
+                                                   class="btn btn-outline-dark btn-sm"
+                                                   target="_blank"
+                                                   rel="noopener">
+                                                    <i class="fa-solid fa-file-signature"></i> Generar IPH puesta
+                                                </a>
                                             @endif
 
                                             @if($puedeRevisar)
@@ -965,7 +986,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-
         const croquisData = @json($croquisData);
 
         if (croquisData && croquisData.length) {

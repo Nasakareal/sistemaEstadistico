@@ -1279,13 +1279,18 @@ class WhatsAppQueryService
         $terminoUpper = $this->upper($termino);
         $terminoNormalizado = $this->normalizarTextoBusqueda($termino);
         $tokens = array_values(array_filter(preg_split('/\s+/', $terminoUpper)));
+        $tokensNormalizados = $this->tokensBusquedaPersonal($terminoNormalizado);
+        $tokensSql = array_values(array_unique(array_filter(array_merge(
+            $tokens,
+            array_map(fn ($token) => $this->upper($token), $tokensNormalizados)
+        ))));
 
         $query = Personal::query()
             ->with(['unidad', 'turno', 'patrulla', 'user.patrulla', 'fotoPrincipal', 'fotos', 'asignaciones.armamento']);
 
         $this->applyUnitFilter($query, 'unidad_id', $unidadId);
 
-        $query->where(function ($q) use ($termino, $terminoUpper, $terminoNormalizado, $tokens) {
+        $query->where(function ($q) use ($termino, $terminoUpper, $terminoNormalizado, $tokensSql) {
             if (ctype_digit($terminoNormalizado)) {
                 $q->orWhere('id', (int) $terminoNormalizado);
             }
@@ -1296,46 +1301,79 @@ class WhatsAppQueryService
             }
 
             $nombreSql = "UPPER(CONCAT_WS(' ', COALESCE(nombre, ''), COALESCE(ap_paterno, ''), COALESCE(ap_materno, '')))";
+            $apellidosNombreSql = "UPPER(CONCAT_WS(' ', COALESCE(ap_paterno, ''), COALESCE(ap_materno, ''), COALESCE(nombre, '')))";
             $q->orWhereRaw("{$nombreSql} LIKE ?", ['%' . $terminoUpper . '%']);
+            $q->orWhereRaw("{$apellidosNombreSql} LIKE ?", ['%' . $terminoUpper . '%']);
 
-            foreach ($tokens as $token) {
+            if (count($tokensSql) > 1) {
+                $q->orWhere(function ($allTokens) use ($nombreSql, $apellidosNombreSql, $tokensSql) {
+                    foreach ($tokensSql as $token) {
+                        $allTokens->where(function ($tokenScope) use ($nombreSql, $apellidosNombreSql, $token) {
+                            $tokenScope
+                                ->whereRaw("{$nombreSql} LIKE ?", ['%' . $token . '%'])
+                                ->orWhereRaw("{$apellidosNombreSql} LIKE ?", ['%' . $token . '%']);
+                        });
+                    }
+                });
+            }
+
+            foreach ($tokensSql as $token) {
                 $q->orWhereRaw("{$nombreSql} LIKE ?", ['%' . $token . '%']);
+                $q->orWhereRaw("{$apellidosNombreSql} LIKE ?", ['%' . $token . '%']);
             }
         });
 
-        return $query
-            ->limit(10)
+        $puntajes = $query
+            ->limit(100)
             ->get()
-            ->sortByDesc(fn (Personal $personal) => $this->puntajeCoincidenciaPersonal($personal, $terminoNormalizado))
+            ->map(fn (Personal $personal) => [
+                'personal' => $personal,
+                'puntaje' => $this->puntajeCoincidenciaPersonal($personal, $terminoNormalizado),
+            ])
+            ->filter(function (array $row) use ($tokensNormalizados) {
+                $minimo = count($tokensNormalizados) > 1 ? 80 : 1;
+
+                return (int) $row['puntaje'] >= $minimo;
+            })
+            ->sortByDesc('puntaje')
+            ->values();
+
+        return $puntajes
+            ->map(fn (array $row) => $row['personal'])
             ->values();
     }
 
     protected function puntajeCoincidenciaPersonal(Personal $personal, string $busquedaNormalizada): int
     {
         $puntaje = 0;
-        $nombreCompleto = trim(implode(' ', array_filter([
-            $personal->nombre,
-            $personal->ap_paterno,
-            $personal->ap_materno,
-        ])));
-        $nombreNormalizado = $this->normalizarTextoBusqueda($nombreCompleto);
+        $variantesNombre = $this->variantesNombrePersonal($personal);
+        $tokensBusqueda = $this->tokensBusquedaPersonal($busquedaNormalizada);
+        $mejorNombre = 0;
 
-        if ($busquedaNormalizada !== '' && $nombreNormalizado === $busquedaNormalizada) {
-            $puntaje += 300;
+        foreach ($variantesNombre as $nombreNormalizado) {
+            if ($busquedaNormalizada !== '' && $nombreNormalizado === $busquedaNormalizada) {
+                $mejorNombre = max($mejorNombre, 320);
+            }
+
+            if ($busquedaNormalizada !== '' && $this->startsWith($nombreNormalizado, $busquedaNormalizada)) {
+                $mejorNombre = max($mejorNombre, 230);
+            }
+
+            if (!empty($tokensBusqueda) && $this->nombreContieneTodosLosTokens($nombreNormalizado, $tokensBusqueda)) {
+                $mejorNombre = max($mejorNombre, count($tokensBusqueda) >= 3 ? 280 : 240);
+            }
+
+            if ($busquedaNormalizada !== '' && str_contains($nombreNormalizado, $busquedaNormalizada)) {
+                $mejorNombre = max($mejorNombre, 130);
+            }
         }
 
-        if ($busquedaNormalizada !== '' && $this->startsWith($nombreNormalizado, $busquedaNormalizada)) {
-            $puntaje += 220;
-        }
+        $puntaje += $mejorNombre;
 
         foreach ([$personal->numero_empleado, $personal->cup, $personal->cuip, $personal->curp, $personal->rfc, $personal->id] as $valor) {
             if ($busquedaNormalizada !== '' && $this->normalizarTextoBusqueda((string) $valor) === $busquedaNormalizada) {
                 $puntaje += 400;
             }
-        }
-
-        if ($busquedaNormalizada !== '' && str_contains($nombreNormalizado, $busquedaNormalizada)) {
-            $puntaje += 120;
         }
 
         if (mb_strtoupper((string) $personal->estatus, 'UTF-8') === 'ACTIVO') {
@@ -1355,6 +1393,54 @@ class WhatsAppQueryService
         $puntajeSegundo = $this->puntajeCoincidenciaPersonal($coincidencias[1], $this->normalizarTextoBusqueda($busqueda));
 
         return $puntajePrimero <= 220 || ($puntajePrimero - $puntajeSegundo) < 40;
+    }
+
+    protected function variantesNombrePersonal(Personal $personal): array
+    {
+        $partes = [
+            'nombre' => trim((string) $personal->nombre),
+            'ap_paterno' => trim((string) $personal->ap_paterno),
+            'ap_materno' => trim((string) $personal->ap_materno),
+        ];
+
+        $variantes = [
+            [$partes['nombre'], $partes['ap_paterno'], $partes['ap_materno']],
+            [$partes['ap_paterno'], $partes['ap_materno'], $partes['nombre']],
+            [$partes['ap_paterno'], $partes['nombre'], $partes['ap_materno']],
+            [$partes['nombre'], $partes['ap_materno'], $partes['ap_paterno']],
+        ];
+
+        return collect($variantes)
+            ->map(fn (array $items) => $this->normalizarTextoBusqueda(trim(implode(' ', array_filter($items)))))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function tokensBusquedaPersonal(string $valor): array
+    {
+        return collect(preg_split('/\s+/', trim($valor)) ?: [])
+            ->map(fn ($token) => trim((string) $token))
+            ->filter(fn ($token) => $token !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function nombreContieneTodosLosTokens(string $nombreNormalizado, array $tokens): bool
+    {
+        foreach ($tokens as $token) {
+            if ($token === '') {
+                continue;
+            }
+
+            if (!str_contains($nombreNormalizado, $token)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function resolveUnitIdForJson($user, array $context, array $json): ?int

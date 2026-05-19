@@ -312,10 +312,10 @@
                 <div class="option-row">
                     <div class="option-label">Con vigencia de:</div>
                     <div class="options">
-                        2 anios [<span class="box"></span>]
-                        3 anios [<span class="box"></span>]
-                        4 anios [<span class="box"></span>]
-                        5 anios [<span class="box"></span>]
+                        2 años [<span class="box"></span>]
+                        3 años [<span class="box"></span>]
+                        4 años [<span class="box"></span>]
+                        5 años [<span class="box"></span>]
                         PERMANENTE [<span class="box"></span>]
                     </div>
                 </div>
@@ -330,7 +330,7 @@
                 <div class="option-row">
                     <div>Con vigencia de:</div>
                     <div class="options">
-                        1 anio [<span class="box"></span>]
+                        1 año [<span class="box"></span>]
                     </div>
                 </div>
 
@@ -343,7 +343,7 @@
                 </div>
 
                 <div class="permit-note">
-                    Para obtener el Permiso para Conducir <strong>"TIPO A"</strong> al Ciudadano (a) que tenga cumplidos 16 anios de edad.
+                    Para obtener el Permiso para Conducir <strong>"TIPO A"</strong> al Ciudadano (a) que tenga cumplidos 16 años de edad.
                 </div>
 
                 <div class="date-line">

@@ -96,7 +96,11 @@
                                             <i class="fa-solid fa-print"></i>
                                         </a>
 
-                                        @if($c->estatus == 'IMPRESA_INACTIVA' && $c->examen && $c->examen->resultado == 'APROBADO')
+                                        @php
+                                            $puedeActivarConstancia = $c->puedeActivar();
+                                        @endphp
+
+                                        @if($puedeActivarConstancia)
                                             <form action="{{ route('constancias_manejo.activar', $c->id) }}"
                                                   method="POST" style="display:inline;">
                                                 @csrf

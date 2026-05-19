@@ -480,7 +480,7 @@ class ConstanciaManejoController extends Controller
         ], 409);
     }
 
-    public function activar(ConstanciaManejo $constancia)
+    public function activar(Request $request, ConstanciaManejo $constancia)
     {
         $this->authorizeConstanciasUnidad();
         $this->authorizeConstancia($constancia);
@@ -494,24 +494,63 @@ class ConstanciaManejoController extends Controller
             ], 400);
         }
 
-        if (!$constancia->nombre_solicitante || !$constancia->sexo || !$constancia->tipo_licencia || !$constancia->tipo_examen) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Faltan datos del solicitante, sexo, tipo de licencia o tipo de examen.'
-            ], 400);
-        }
+        $request->merge([
+            'sexo' => $this->normalizarSexo($request->input('sexo', $constancia->sexo)),
+        ]);
 
-        if (!$constancia->examen || $constancia->examen->resultado !== 'APROBADO') {
+        $request->validate([
+            'nombre_solicitante' => ['nullable', 'string', 'max:255'],
+            'sexo' => ['nullable', 'in:HOMBRE,MUJER'],
+            'curp' => ['nullable', 'string', 'max:18'],
+            'telefono' => ['nullable', 'string', 'max:20'],
+            'tipo_licencia' => ['nullable', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
+        ]);
+
+        $nombre = $request->filled('nombre_solicitante')
+            ? mb_strtoupper($request->input('nombre_solicitante'), 'UTF-8')
+            : $constancia->nombre_solicitante;
+        $sexo = $request->filled('sexo') ? $request->input('sexo') : $constancia->sexo;
+        $curp = $request->filled('curp') ? mb_strtoupper($request->input('curp'), 'UTF-8') : $constancia->curp;
+        $telefono = $request->has('telefono') ? $request->input('telefono') : $constancia->telefono;
+        $tipoLicencia = $request->filled('tipo_licencia') ? $request->input('tipo_licencia') : $constancia->tipo_licencia;
+        $examenAprobado = $constancia->examen && $constancia->examen->resultado === 'APROBADO';
+        $activacionDirecta = !$constancia->examen && !$constancia->acceso_examen_token;
+
+        if (!$examenAprobado && !$activacionDirecta) {
             return response()->json([
                 'ok' => false,
                 'message' => 'No hay examen aprobado.'
             ], 400);
         }
 
+        if (!$nombre || !$sexo || !$tipoLicencia) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Faltan datos del solicitante, sexo o tipo de licencia.'
+            ], 400);
+        }
+
+        $tipoExamen = $examenAprobado
+            ? ($constancia->tipo_examen ?: $constancia->examen->modalidad)
+            : $constancia->tipo_examen;
+
+        if ($examenAprobado && !$tipoExamen) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Falta el tipo de examen.'
+            ], 400);
+        }
+
         $ahora = Carbon::now('America/Mexico_City');
 
-        DB::transaction(function () use ($constancia, $ahora) {
+        DB::transaction(function () use ($constancia, $ahora, $nombre, $sexo, $curp, $telefono, $tipoLicencia, $tipoExamen, $activacionDirecta) {
             $constancia->update([
+                'nombre_solicitante' => $nombre,
+                'sexo' => $sexo,
+                'curp' => $curp,
+                'telefono' => $telefono,
+                'tipo_licencia' => $tipoLicencia,
+                'tipo_examen' => $tipoExamen,
                 'estatus' => 'ACTIVA',
                 'perito_activador_id' => auth()->id(),
                 'fecha_activacion' => $ahora,
@@ -525,7 +564,7 @@ class ConstanciaManejoController extends Controller
                 'user_id' => auth()->id(),
                 'accion' => 'ACTIVADA',
                 'fecha' => $ahora,
-                'observaciones' => null,
+                'observaciones' => $activacionDirecta ? 'Activada sin examen asociado.' : null,
             ]);
         });
 
@@ -688,6 +727,10 @@ class ConstanciaManejoController extends Controller
         );
         $estaPendiente = $this->estaDisponibleParaExamen($constancia);
 
+        $puedeActivarDirectamente = $estaPendiente
+            && !$examen
+            && !$constancia->acceso_examen_token;
+
         return [
             'id' => $constancia->id,
             'folio' => $constancia->folio,
@@ -729,11 +772,13 @@ class ConstanciaManejoController extends Controller
             'puede_capturar_impreso' => $estaPendiente && !$examenAprobado && $constancia->tipo_examen === 'IMPRESO',
             'puede_imprimir' => $constancia->estatus !== 'CANCELADA',
             'puede_activar' => $estaPendiente
-                && $examenAprobado
                 && $constancia->nombre_solicitante
                 && $constancia->sexo
                 && $constancia->tipo_licencia
-                && $constancia->tipo_examen,
+                && (
+                    ($examenAprobado && $constancia->tipo_examen)
+                    || $puedeActivarDirectamente
+                ),
         ];
     }
 

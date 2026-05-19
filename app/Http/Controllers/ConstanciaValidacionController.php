@@ -27,13 +27,16 @@ class ConstanciaValidacionController extends Controller
             if (!auth()->user()->can('editar modulo examenes')) {
                 $mensaje = 'Constancia pendiente de activacion. Tu usuario no tiene permiso para activarla.';
                 $tipoMensaje = 'warning';
-            } elseif (!$constancia->nombre_solicitante || !$constancia->tipo_licencia || !$constancia->tipo_examen) {
-                $mensaje = 'No se activó: faltan datos del solicitante, tipo de licencia o tipo de examen.';
+            } elseif (!$constancia->tieneDatosMinimosActivacion()) {
+                $mensaje = 'No se activó: faltan datos del solicitante, sexo o tipo de licencia.';
                 $tipoMensaje = 'warning';
-            } elseif (!$constancia->examen || $constancia->examen->resultado !== 'APROBADO') {
+            } elseif (!$constancia->tieneExamenAprobado() && !$constancia->puedeActivarDirectamente()) {
                 $mensaje = 'No se activó: la constancia todavía no tiene examen aprobado.';
                 $tipoMensaje = 'warning';
             } else {
+                $observaciones = $constancia->puedeActivarDirectamente()
+                    ? 'Activada por escaneo de QR sin examen asociado.'
+                    : 'Activada por escaneo de QR.';
                 $ahora = Carbon::now('America/Mexico_City');
 
                 $constancia->update([
@@ -50,7 +53,7 @@ class ConstanciaValidacionController extends Controller
                     'user_id' => auth()->id(),
                     'accion' => 'ACTIVADA',
                     'fecha' => $ahora,
-                    'observaciones' => 'Activada por escaneo de QR.',
+                    'observaciones' => $observaciones,
                 ]);
 
                 $mensaje = 'Constancia activada. La vigencia de 10 días ya comenzó.';

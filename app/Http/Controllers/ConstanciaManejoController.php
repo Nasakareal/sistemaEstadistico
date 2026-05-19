@@ -385,11 +385,13 @@ class ConstanciaManejoController extends Controller
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'La constancia no esta inactiva.');
         }
 
-        if (!$constancia->nombre_solicitante || !$constancia->sexo || !$constancia->tipo_licencia || !$constancia->tipo_examen) {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Faltan datos del solicitante, sexo, tipo de licencia o tipo de examen.');
+        if (!$constancia->tieneDatosMinimosActivacion()) {
+            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Faltan datos del solicitante, sexo o tipo de licencia.');
         }
 
-        if (!$constancia->examen || $constancia->examen->resultado !== 'APROBADO') {
+        $examenAprobado = $constancia->tieneExamenAprobado();
+        $activacionDirecta = $constancia->puedeActivarDirectamente();
+        if (!$examenAprobado && !$activacionDirecta) {
             return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'No se puede activar sin examen aprobado.');
         }
 
@@ -409,7 +411,7 @@ class ConstanciaManejoController extends Controller
             'user_id' => auth()->id(),
             'accion' => 'ACTIVADA',
             'fecha' => $ahora,
-            'observaciones' => null,
+            'observaciones' => $activacionDirecta ? 'Activada sin examen asociado.' : null,
         ]);
 
         return redirect()->route('constancias_manejo.show', $constancia)->with('success', 'Constancia activada.');
@@ -449,8 +451,16 @@ class ConstanciaManejoController extends Controller
         $constancias = $this->queryConstanciasDisponibles()
             ->with(['modulo', 'examen'])
             ->where('estatus', 'IMPRESA_INACTIVA')
-            ->whereHas('examen', function ($query) {
-                $query->where('resultado', 'APROBADO');
+            ->where(function ($query) {
+                $query->whereHas('examen', function ($examen) {
+                    $examen->where('resultado', 'APROBADO');
+                })->orWhere(function ($directa) {
+                    $directa->whereDoesntHave('examen')
+                        ->whereNull('acceso_examen_token')
+                        ->whereNotNull('nombre_solicitante')
+                        ->whereNotNull('sexo')
+                        ->whereNotNull('tipo_licencia');
+                });
             })
             ->orderByDesc('id')
             ->paginate(25);

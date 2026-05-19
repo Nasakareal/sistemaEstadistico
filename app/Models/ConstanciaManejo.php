@@ -82,6 +82,32 @@ class ConstanciaManejo extends Model
         return $this->fecha_expiracion && now()->greaterThan($this->fecha_expiracion);
     }
 
+    public function tieneExamenAprobado(): bool
+    {
+        return $this->examen && $this->examen->resultado === 'APROBADO';
+    }
+
+    public function puedeActivarDirectamente(): bool
+    {
+        return !$this->examen && !$this->acceso_examen_token;
+    }
+
+    public function tieneDatosMinimosActivacion(): bool
+    {
+        return (bool) (
+            $this->nombre_solicitante
+            && $this->sexo
+            && $this->tipo_licencia
+        );
+    }
+
+    public function puedeActivar(): bool
+    {
+        return $this->estatus === 'IMPRESA_INACTIVA'
+            && $this->tieneDatosMinimosActivacion()
+            && ($this->tieneExamenAprobado() || $this->puedeActivarDirectamente());
+    }
+
     public function qrUrl(): string
     {
         return route('constancias_manejo.validar', $this->qr_token);

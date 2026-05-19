@@ -12,6 +12,7 @@ use App\Models\Delegacion;
 use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
 use App\Models\Vehiculo;
+use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\ImageThumbnailService;
@@ -216,6 +217,32 @@ class ActividadController extends Controller
             ], 422);
         }
 
+        $archivos = collect();
+
+        if ($request->hasFile('foto')) {
+            $archivos->push($request->file('foto'));
+        }
+
+        if ($request->hasFile('fotos')) {
+            foreach ((array) $request->file('fotos', []) as $file) {
+                if ($file) {
+                    $archivos->push($file);
+                }
+            }
+        }
+
+        $archivos = $archivos->values();
+
+        if ($archivos->isEmpty()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Debes subir al menos una foto.',
+                'errors' => [
+                    'foto' => ['Debes subir al menos una foto.'],
+                ],
+            ], 422);
+        }
+
         if ($response = $this->validarGruasPermitidasEnVehiculosJson($validated['vehiculos'] ?? [], $user)) {
             return $response;
         }
@@ -263,62 +290,39 @@ class ActividadController extends Controller
             }
         }
 
+        $duplicateGuard = app(ActividadDuplicateGuard::class);
+        $fotoHashes = $duplicateGuard->hashUploadedFiles($archivos);
+
+        if ($duplicateGuard->hasRepeatedHashes($fotoHashes)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Estas intentando subir fotos duplicadas en la misma solicitud.',
+                'errors' => [
+                    'fotos' => ['Estas intentando subir fotos duplicadas en la misma solicitud.'],
+                ],
+            ], 422);
+        }
+
+        $duplicatePayload = array_merge($validated, [
+            'fecha' => $fecha,
+            'hora' => $hora,
+            'unidad_org_id' => $unidadOrg,
+            'delegacion_id' => $delegacionId,
+        ]);
+
+        if ($duplicateGuard->findRecentDuplicate((int) $user->id, $duplicatePayload, $fotoHashes)) {
+            return response()->json([
+                'ok' => false,
+                'message' => ActividadDuplicateGuard::MESSAGE,
+                'errors' => [
+                    'fotos' => [ActividadDuplicateGuard::MESSAGE],
+                ],
+            ], 422);
+        }
+
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($request, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager) {
-            $archivos = collect();
-
-            if ($request->hasFile('foto')) {
-                $archivos->push($request->file('foto'));
-            }
-
-            if ($request->hasFile('fotos')) {
-                foreach ((array) $request->file('fotos', []) as $file) {
-                    if ($file) {
-                        $archivos->push($file);
-                    }
-                }
-            }
-
-            if ($archivos->isEmpty()) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'Debes subir al menos una foto.',
-                    'errors' => [
-                        'foto' => ['Debes subir al menos una foto.'],
-                    ],
-                ], 422);
-            }
-
-            $hashes = [];
-            foreach ($archivos as $file) {
-                $hash = hash_file('sha256', $file->getRealPath());
-
-                if (in_array($hash, $hashes, true)) {
-                    return response()->json([
-                        'ok' => false,
-                        'message' => 'Estás intentando subir fotos duplicadas en la misma solicitud.',
-                        'errors' => [
-                            'fotos' => ['Estás intentando subir fotos duplicadas en la misma solicitud.'],
-                        ],
-                    ], 422);
-                }
-
-                $hashes[] = $hash;
-
-                $yaExiste = Actividad::query()->where('foto_hash', $hash)->exists();
-
-                if ($yaExiste) {
-                    return response()->json([
-                        'ok' => false,
-                        'message' => 'Una de las fotos ya fue subida anteriormente.',
-                        'errors' => [
-                            'fotos' => ['Una de las fotos ya fue subida anteriormente.'],
-                        ],
-                    ], 422);
-                }
-            }
-
+        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager) {
             $actividad = Actividad::create([
                 'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
                 'sync_status' => 'local',
@@ -370,7 +374,7 @@ class ActividadController extends Controller
             $thumbnailDir = $this->actividadThumbnailDirectory($unidadOrg, $fecha);
 
             foreach ($archivos as $index => $file) {
-                $fotoHash = hash_file('sha256', $file->getRealPath());
+                $fotoHash = $fotoHashes[$index] ?? hash_file('sha256', $file->getRealPath());
                 $fotoNombreOriginal = $file->getClientOriginalName();
                 $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
                 $filename = now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $ext;
@@ -631,17 +635,6 @@ class ActividadController extends Controller
 
                 $hashes[] = $hash;
 
-                $yaExisteEnOtraActividad = Actividad::query()
-                    ->where('foto_hash', $hash)
-                    ->where('id', '!=', $actividad->id)
-                    ->whereNull('foto_eliminada_at')
-                    ->exists()
-                    || ActividadFoto::query()
-                        ->where('foto_hash', $hash)
-                        ->where('actividad_id', '!=', $actividad->id)
-                        ->whereNull('foto_eliminada_at')
-                        ->exists();
-
                 $yaExisteEnEstaActividad = ActividadFoto::query()
                     ->where('actividad_id', $actividad->id)
                     ->where('foto_hash', $hash)
@@ -651,12 +644,12 @@ class ActividadController extends Controller
                     })
                     ->exists();
 
-                if ($yaExisteEnOtraActividad || $yaExisteEnEstaActividad) {
+                if ($yaExisteEnEstaActividad) {
                     return response()->json([
                         'ok' => false,
-                        'message' => 'Una de las fotos ya fue subida anteriormente.',
+                        'message' => 'Una de las fotos ya existe en esta actividad.',
                         'errors' => [
-                            'fotos' => ['Una de las fotos ya fue subida anteriormente.'],
+                            'fotos' => ['Una de las fotos ya existe en esta actividad.'],
                         ],
                     ], 422);
                 }

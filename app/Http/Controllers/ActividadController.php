@@ -10,6 +10,7 @@ use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
 use App\Models\Unidad;
 use App\Models\Vehiculo;
+use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Support\GruaEditGuard;
@@ -240,9 +241,30 @@ class ActividadController extends Controller
             }
         }
 
+        $archivos = collect($request->file('fotos', []))->filter()->values();
+        $duplicateGuard = app(ActividadDuplicateGuard::class);
+        $fotoHashes = $duplicateGuard->hashUploadedFiles($archivos);
+
+        if ($duplicateGuard->hasRepeatedHashes($fotoHashes)) {
+            return back()->withErrors([
+                'fotos' => 'Estas intentando subir fotos duplicadas en la misma solicitud.',
+            ])->withInput();
+        }
+
+        $duplicatePayload = array_merge($validated, [
+            'unidad_org_id' => $user->unidad_id,
+            'delegacion_id' => $user->delegacion_id,
+        ]);
+
+        if ($duplicateGuard->findRecentDuplicate((int) $user->id, $duplicatePayload, $fotoHashes)) {
+            return back()->withErrors([
+                'fotos' => ActividadDuplicateGuard::MESSAGE,
+            ])->withInput();
+        }
+
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($request, $validated, $user, $fomentoManager) {
+        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $user, $fomentoManager) {
             $actividad = Actividad::create([
                 'client_uuid'                   => (string) Str::uuid(),
                 'sync_status'                   => 'local',
@@ -291,8 +313,8 @@ class ActividadController extends Controller
 
             $ordenBase = 0;
 
-            foreach ($request->file('fotos', []) as $index => $file) {
-                $fotoHash = hash_file('sha256', $file->getRealPath());
+            foreach ($archivos as $index => $file) {
+                $fotoHash = $fotoHashes[$index] ?? hash_file('sha256', $file->getRealPath());
 
                 $yaExiste = $actividad->fotos()
                     ->where('foto_hash', $fotoHash)

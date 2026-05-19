@@ -11,6 +11,9 @@
 
 @section('content')
 <div class="constancia-show-wrapper">
+@php
+    $puedeActivarConstancia = $constancia->puedeActivar();
+@endphp
 
     <div class="constancia-show-card">
         <div class="constancia-show-card-header">
@@ -120,7 +123,7 @@
                 <i class="fa-solid fa-file-arrow-down"></i> Reimprimir
             </a>
 
-            @if($constancia->estatus == 'IMPRESA_INACTIVA' && $constancia->examen && $constancia->examen->resultado == 'APROBADO')
+            @if($puedeActivarConstancia)
                 <form action="{{ route('constancias_manejo.activar', $constancia->id) }}" method="POST" class="form-inline">
                     @csrf
                     <button type="submit" class="btn btn-success btn-activar">
@@ -144,15 +147,23 @@
         <div class="constancia-show-card mt-4">
             <div class="constancia-show-card-header">
                 <div>
-                    <h3>Activación con examen aprobado</h3>
-                    <span>Esta constancia sigue disponible hasta que un perito la active</span>
+                    <h3>Activación</h3>
+                    <span>La vigencia inicia cuando un perito active esta constancia</span>
                 </div>
                 <i class="fa-solid fa-qrcode"></i>
             </div>
 
             <div class="constancia-show-card-body">
                 <div class="empty-box">
-                    Genera y califica el examen desde <strong>Exámenes de Manejo</strong>. Cuando el examen esté aprobado, escanea este folio impreso para activarlo.
+                    @if(!$constancia->tieneDatosMinimosActivacion())
+                        Captura nombre, sexo y tipo de licencia antes de activar este folio impreso.
+                    @elseif($constancia->puedeActivarDirectamente())
+                        Este folio impreso puede activarse sin examen asociado cuando se entregue.
+                    @elseif($constancia->tieneExamenAprobado())
+                        El examen ya está aprobado; puedes activar esta constancia.
+                    @else
+                        El examen se maneja aparte desde <strong>Exámenes de Manejo</strong>. Cuando esté aprobado, podrás activar esta constancia.
+                    @endif
                 </div>
             </div>
         </div>

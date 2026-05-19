@@ -22,6 +22,12 @@
                         </a>
                     @endcan
 
+                    @can('editar modulo examenes')
+                        <a href="{{ route('constancias_manejo.activar_manual') }}" class="btn btn-success">
+                            <i class="fa-solid fa-keyboard"></i> Activar manual
+                        </a>
+                    @endcan
+
                     <a href="{{ route('settings.index') }}" class="btn btn-secondary">
                         <i class="fa-solid fa-arrow-left"></i> Volver
                     </a>
@@ -95,6 +101,15 @@
                                            class="btn btn-secondary btn-sm">
                                             <i class="fa-solid fa-print"></i>
                                         </a>
+
+                                        @can('editar modulo examenes')
+                                            @if($c->estatus === 'IMPRESA_INACTIVA' && $c->puedeActivarDirectamente())
+                                                <a href="{{ route('constancias_manejo.activar_manual', ['folio' => $c->folio]) }}"
+                                                   class="btn btn-success btn-sm">
+                                                    <i class="fa-solid fa-keyboard"></i>
+                                                </a>
+                                            @endif
+                                        @endcan
 
                                         @php
                                             $puedeActivarConstancia = $c->puedeActivar();

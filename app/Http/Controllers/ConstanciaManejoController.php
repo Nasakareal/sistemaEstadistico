@@ -14,6 +14,14 @@ use Illuminate\Support\Str;
 
 class ConstanciaManejoController extends Controller
 {
+    private const TIPOS_LICENCIA = [
+        'SERVICIO_PUBLICO' => 'Servicio publico',
+        'AUTOMOVILISTA' => 'Automovilista',
+        'CHOFER' => 'Chofer',
+        'MOTOCICLISTA' => 'Motociclista',
+        'PERMISO' => 'Permiso',
+    ];
+
     private function queryModulosDisponibles()
     {
         $usuario = auth()->user();
@@ -305,6 +313,7 @@ class ConstanciaManejoController extends Controller
         return view('constancias_manejo.imprimir', [
             'constancias' => $constancias,
             'autoPrint' => true,
+            'loteIds' => $ids,
         ]);
     }
 
@@ -322,6 +331,7 @@ class ConstanciaManejoController extends Controller
         return view('constancias_manejo.imprimir', [
             'constancias' => $constancias,
             'autoPrint' => true,
+            'loteIds' => $ids,
         ]);
     }
 
@@ -417,6 +427,91 @@ class ConstanciaManejoController extends Controller
         return redirect()->route('constancias_manejo.show', $constancia)->with('success', 'Constancia activada.');
     }
 
+    public function activarManualForm(Request $request)
+    {
+        return view('constancias_manejo.activar_manual', [
+            'folio' => $request->query('folio'),
+            'tiposLicencia' => self::TIPOS_LICENCIA,
+            'constanciasLote' => $this->constanciasPermitidasDelLote($request),
+        ]);
+    }
+
+    public function activarManual(Request $request)
+    {
+        $request->merge([
+            'sexo' => $this->normalizarSexo($request->input('sexo')),
+        ]);
+
+        $validated = $request->validate([
+            'folio' => ['required', 'string', 'max:50'],
+            'nombre_solicitante' => ['required', 'string', 'max:255'],
+            'sexo' => ['required', 'in:HOMBRE,MUJER'],
+            'curp' => ['nullable', 'string', 'max:18'],
+            'telefono' => ['nullable', 'string', 'max:20'],
+            'tipo_licencia' => ['required', 'in:' . implode(',', array_keys(self::TIPOS_LICENCIA))],
+        ]);
+
+        $folio = $this->normalizarFolio($validated['folio']);
+        $constancia = $this->queryConstanciasDisponibles()
+            ->with('examen')
+            ->where(function ($query) use ($folio) {
+                $query->where('folio', $folio)
+                    ->orWhere('folio_qr', $folio);
+            })
+            ->first();
+
+        if (!$constancia) {
+            return redirect()
+                ->route('constancias_manejo.activar_manual')
+                ->withInput()
+                ->with('error', 'Constancia no encontrada en tus modulos permitidos.');
+        }
+
+        if ($constancia->estatus !== 'IMPRESA_INACTIVA') {
+            return redirect()
+                ->route('constancias_manejo.activar_manual', ['folio' => $folio])
+                ->withInput()
+                ->with('error', 'La constancia no esta inactiva.');
+        }
+
+        if (!$constancia->puedeActivarDirectamente()) {
+            return redirect()
+                ->route('constancias_manejo.activar_manual', ['folio' => $folio])
+                ->withInput()
+                ->with('error', 'Esta constancia tiene examen o acceso asociado; activala desde Examenes de Manejo.');
+        }
+
+        $ahora = Carbon::now('America/Mexico_City');
+
+        DB::transaction(function () use ($constancia, $validated, $ahora) {
+            $constancia->update([
+                'nombre_solicitante' => mb_strtoupper($validated['nombre_solicitante'], 'UTF-8'),
+                'sexo' => $validated['sexo'],
+                'curp' => !empty($validated['curp']) ? mb_strtoupper($validated['curp'], 'UTF-8') : null,
+                'telefono' => $validated['telefono'] ?? null,
+                'tipo_licencia' => $validated['tipo_licencia'],
+                'estatus' => 'ACTIVA',
+                'perito_activador_id' => auth()->id(),
+                'fecha_activacion' => $ahora,
+                'fecha_expiracion' => $ahora->copy()->addDays(10),
+                'acceso_examen_token' => null,
+                'acceso_examen_expira' => null,
+            ]);
+
+            ConstanciaActivacion::create([
+                'constancia_id' => $constancia->id,
+                'user_id' => auth()->id(),
+                'accion' => 'ACTIVADA',
+                'fecha' => $ahora,
+                'observaciones' => 'Activada manualmente sin examen asociado.',
+            ]);
+        });
+
+        return redirect()
+            ->route('constancias_manejo.show', $constancia)
+            ->with('success', 'Constancia activada manualmente.');
+    }
+
     public function cancelar(Request $request, ConstanciaManejo $constancia)
     {
         $this->authorizeConstancia($constancia);
@@ -479,5 +574,47 @@ class ConstanciaManejoController extends Controller
             ->paginate(25);
 
         return view('constancias_manejo.inactivas_vencidas', compact('constancias'));
+    }
+
+    private function constanciasPermitidasDelLote(Request $request)
+    {
+        $ids = collect(explode(',', (string) $request->query('ids')))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (count($ids) === 0) {
+            return collect();
+        }
+
+        return $this->queryConstanciasDisponibles()
+            ->with('modulo')
+            ->whereIn('id', $ids)
+            ->where('estatus', 'IMPRESA_INACTIVA')
+            ->get()
+            ->sortBy(fn ($constancia) => array_search($constancia->id, $ids, true))
+            ->values();
+    }
+
+    private function normalizarFolio(string $folio): string
+    {
+        return mb_strtoupper(trim($folio), 'UTF-8');
+    }
+
+    private function normalizarSexo($sexo): ?string
+    {
+        $value = mb_strtoupper(trim((string) $sexo), 'UTF-8');
+
+        if (in_array($value, ['H', 'HOMBRE', 'MASCULINO'], true)) {
+            return 'HOMBRE';
+        }
+
+        if (in_array($value, ['M', 'MUJER', 'FEMENINO'], true)) {
+            return 'MUJER';
+        }
+
+        return $value ?: null;
     }
 }

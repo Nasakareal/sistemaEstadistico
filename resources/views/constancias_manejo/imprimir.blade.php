@@ -231,6 +231,17 @@
             font-weight: 700;
         }
 
+        .print-actions a {
+            border: 0;
+            border-radius: 4px;
+            padding: 9px 14px;
+            background: #166534;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
         @media print {
             html, body {
                 width: 216mm;
@@ -257,6 +268,22 @@
 <body>
 <div class="print-actions">
     <button type="button" onclick="window.print()">Imprimir</button>
+    @auth
+        @can('editar modulo examenes')
+            @php
+                $activarQuery = [];
+
+                if ($constanciasPrint->count() === 1 && $firstConstancia) {
+                    $activarQuery['folio'] = $firstConstancia->folio;
+                } elseif (!empty($loteIds)) {
+                    $activarQuery['ids'] = implode(',', $loteIds);
+                } else {
+                    $activarQuery['ids'] = $constanciasPrint->pluck('id')->implode(',');
+                }
+            @endphp
+            <a href="{{ route('constancias_manejo.activar_manual', $activarQuery) }}">Activar manualmente</a>
+        @endcan
+    @endauth
 </div>
 
 @foreach($constanciasPrint as $constancia)

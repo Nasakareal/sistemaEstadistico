@@ -51,6 +51,7 @@ class IphPuestaDisposicionDocxService
 
         try {
             IOFactory::createWriter($phpWord, 'Word2007')->save($path);
+            $this->normalizarImagenesDocx($path);
         } finally {
             $this->limpiarTemporales();
         }
@@ -565,14 +566,16 @@ class IphPuestaDisposicionDocxService
 
     private function imagenEnMarco($section, ?string $path, int $maxW, int $maxH, string $empty): void
     {
+        if ($path && is_file($path)) {
+            $this->addImageFit($section, $path, $maxW, $maxH, Jc::CENTER);
+            $section->addTextBreak(1);
+
+            return;
+        }
+
         $tabla = $section->addTable('FormTable');
         $tabla->addRow(Converter::pointToTwip($maxH + 20));
         $cell = $tabla->addCell(self::CONTENT_W, ['valign' => 'center']);
-
-        if ($path && is_file($path)) {
-            $this->addImageFit($cell, $path, $maxW, $maxH, Jc::CENTER);
-            return;
-        }
 
         if ($empty !== '') {
             $cell->addText($empty, ['italic' => true], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
@@ -604,6 +607,77 @@ class IphPuestaDisposicionDocxService
         $container->addImage($path, $style);
 
         return true;
+    }
+
+    private function normalizarImagenesDocx(string $path): void
+    {
+        $zip = new \ZipArchive();
+
+        if ($zip->open($path) !== true) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+
+        if (!is_string($xml) || strpos($xml, '<w:pict>') === false) {
+            $zip->close();
+
+            return;
+        }
+
+        if (strpos($xml, 'xmlns:a=') === false) {
+            $xml = preg_replace('/<w:document\b/', '<w:document xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', $xml, 1);
+        }
+
+        if (strpos($xml, 'xmlns:pic=') === false) {
+            $xml = preg_replace('/<w:document\b/', '<w:document xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"', $xml, 1);
+        }
+
+        $contador = 1;
+        $xml = preg_replace_callback(
+            '/<w:pict>\s*<v:shape\b[^>]*style="([^"]+)"[^>]*>\s*(?:<w10:wrap\b[^>]*\/>\s*)?<v:imagedata\b[^>]*r:id="([^"]+)"[^>]*\/>\s*<\/v:shape>\s*<\/w:pict>/s',
+            function (array $matches) use (&$contador): string {
+                $width = $this->puntosAEmu($this->medidaPuntos($matches[1], 'width', 120));
+                $height = $this->puntosAEmu($this->medidaPuntos($matches[1], 'height', 90));
+                $id = $contador++;
+                $rId = htmlspecialchars($matches[2], ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+                return '<w:drawing>'
+                    . '<wp:inline distT="0" distB="0" distL="0" distR="0">'
+                    . '<wp:extent cx="' . $width . '" cy="' . $height . '"/>'
+                    . '<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+                    . '<wp:docPr id="' . $id . '" name="Imagen ' . $id . '"/>'
+                    . '<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+                    . '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+                    . '<pic:pic>'
+                    . '<pic:nvPicPr><pic:cNvPr id="' . $id . '" name="Imagen ' . $id . '"/><pic:cNvPicPr/></pic:nvPicPr>'
+                    . '<pic:blipFill><a:blip r:embed="' . $rId . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+                    . '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $width . '" cy="' . $height . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+                    . '</pic:pic>'
+                    . '</a:graphicData></a:graphic>'
+                    . '</wp:inline>'
+                    . '</w:drawing>';
+            },
+            $xml
+        );
+
+        $zip->deleteName('word/document.xml');
+        $zip->addFromString('word/document.xml', $xml);
+        $zip->close();
+    }
+
+    private function medidaPuntos(string $style, string $nombre, float $default): float
+    {
+        if (preg_match('/\b' . preg_quote($nombre, '/') . '\s*:\s*([0-9.]+)pt/i', $style, $matches)) {
+            return (float) $matches[1];
+        }
+
+        return $default;
+    }
+
+    private function puntosAEmu(float $points): int
+    {
+        return max(1, (int) round($points * 12700));
     }
 
     private function pieCadena($section, string $left): void

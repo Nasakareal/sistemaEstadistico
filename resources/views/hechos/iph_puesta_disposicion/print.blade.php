@@ -8,6 +8,7 @@
     $objetosPuesta = $mapeo['objetos'] ?? [];
     $anexos = $mapeo['anexos'] ?? [];
     $lesionadosHecho = $mapeo['lesionados_hecho'] ?? [];
+    $wordMode = $wordMode ?? false;
 
     $valor = function ($valor, string $default = 'No especificado') {
         if (is_bool($valor)) {
@@ -48,6 +49,7 @@
     $nombreCreadorHecho = mb_strtoupper($valor($hechoIph['creador_nombre'] ?? null, (string) ($hechoIph['perito'] ?? '')), 'UTF-8');
     $croquisPreview = trim((string) ($anexos['croquis_preview'] ?? ''));
     $croquisPreviewUrl = null;
+    $hayObjetosPuesta = count($objetosPuesta) > 0;
 
     if ($croquisPreview !== '') {
         $croquisPreviewUrl = preg_match('/^(data:image|https?:\/\/)/i', $croquisPreview)
@@ -281,6 +283,47 @@
         ? 'Prevalecía luz artificial, emitida por las lámparas de alumbrado público que hay en el lugar.'
         : 'Prevalecía luz natural en el lugar.';
     $narrativaHechoParte = 'Por los datos e informes recabados en el lugar del hecho, mediante la inspección ocular realizada por los suscritos, se hace constar de manera preliminar la intervención correspondiente al hecho de tránsito descrito en el presente informe, quedando la narrativa pormenorizada sujeta a la complementación por el personal actuante conforme a los datos obtenidos en campo.';
+    $narrativaIphGenerica = 'Siendo aproximadamente las ' . $horaHechoParte . ' horas del día ' . $fechaHechoParte . ', quien suscribe ' . $nombreQuienPoneIph . ', adscrito a ' . $adscripcionQuienPoneIph . ', ' . ($unidadArriboIph !== '' ? mb_strtolower($unidadArriboIph, 'UTF-8') . ', ' : '') . 'intervino en el hecho registrado como ' . ($tipoHechoParte !== '' ? $tipoHechoParte : 'hecho probablemente delictivo') . ', en ' . $calleHechoParte . ', colonia ' . $coloniaHechoParte . ', municipio de ' . $municipioIntervencionIph . ', Michoacán' . ($folioC5Iph !== '' ? ', relacionado con el folio C5i ' . $folioC5Iph : '') . '. Al encontrarse en el lugar de la intervención se asentaron los datos generales disponibles y se realizó la inspección correspondiente. PENDIENTE DE COMPLEMENTAR: falta narrar de manera cronológica y detallada cómo se tuvo conocimiento del hecho, el traslado y arribo al lugar, las condiciones observadas, las personas, vehículos u objetos localizados, las acciones realizadas por la autoridad y la forma en que se efectuó la puesta a disposición ante la autoridad competente.';
+    $fechaHoraHechoCadena = null;
+
+    if ($fechaHechoIph !== '' && $horaHechoIph !== '') {
+        try {
+            $fechaHoraHechoCadena = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $fechaHechoIph . ' ' . substr($horaHechoIph, 0, 5), 'America/Mexico_City');
+        } catch (\Throwable $e) {
+            $fechaHoraHechoCadena = null;
+        }
+    }
+
+    $recoleccionCadena = $fechaHoraHechoCadena
+        ? $fechaHoraHechoCadena->copy()->addMinutes(35)
+        : now('America/Mexico_City')->addMinutes(35);
+    $fechaIntervencionCadena = $fechaHoraHechoCadena
+        ? $fechaHoraHechoCadena->format('d-m-Y')
+        : ($fechaHechoPartes['dia'] && $fechaHechoPartes['mes'] && $fechaHechoPartes['anio']
+            ? $fechaHechoPartes['dia'] . '-' . $fechaHechoPartes['mes'] . '-' . $fechaHechoPartes['anio']
+            : now('America/Mexico_City')->format('d-m-Y'));
+    $horaIntervencionCadena = $fechaHoraHechoCadena
+        ? $fechaHoraHechoCadena->format('H:i')
+        : trim(($horaHechoPartes['hora'] ?? '') . ':' . ($horaHechoPartes['minuto'] ?? ''), ':');
+    $horaRecoleccionCadena = $recoleccionCadena->format('H:i');
+    $ubicacionCadenaPartes = collect([
+        $ubicacion['calle'] ?? null,
+        $ubicacion['colonia'] ?? null,
+        $ubicacion['municipio'] ?? null,
+    ])->map(fn ($dato) => trim((string) $dato))
+        ->filter(fn ($dato) => $dato !== '' && !in_array(mb_strtoupper($dato, 'UTF-8'), ['N/A', 'NA', 'NO ESPECIFICADO'], true))
+        ->values();
+    $ubicacionCadena = $ubicacionCadenaPartes->isNotEmpty()
+        ? $ubicacionCadenaPartes->implode(', ')
+        : $lugarHecho;
+
+    if (($ubicacion['lat'] ?? null) && ($ubicacion['lng'] ?? null)) {
+        $ubicacionCadena .= ' con coordenadas ' . $ubicacion['lat'] . ', ' . $ubicacion['lng'];
+    }
+
+    $ubicacionCadena = mb_strtoupper($ubicacionCadena, 'UTF-8');
+    $institucionCadena = mb_strtoupper($adscripcionQuienPoneIph ?: $oficinaEncabezado, 'UTF-8');
+    $folioCadena = $folioC5Iph !== '' ? $folioC5Iph : ($hecho->id ?? '');
 
     $letraIndice = function (int $index): string {
         return chr(65 + ($index % 26));
@@ -663,6 +706,15 @@
             return mb_strtoupper(($grua['nombre'] ?? '') . '|' . ($grua['direccion'] ?? ''), 'UTF-8');
         })
         ->values();
+    $lugarEntregaRecepcionCadena = collect([
+        $gruasParte->pluck('nombre')->filter()->first(),
+        $gruasParte->pluck('direccion')->filter()->first(),
+        $ubicacionCadena,
+    ])
+        ->map(fn ($dato) => trim((string) $dato))
+        ->filter()
+        ->first() ?: $ubicacionCadena;
+    $lugarEntregaRecepcionCadena = mb_strtoupper($lugarEntregaRecepcionCadena, 'UTF-8');
 
     $observacionesGruasParte = function () use ($gruasParte, $textoVehiculosParte, $vehiculosHecho): string {
         $totalVehiculos = count($vehiculosHecho);
@@ -752,6 +804,139 @@
         }
 
         return $frase . ', lo anterior para los fines legales a los que haya lugar.';
+    };
+
+    $normalizarClaveIph = function ($valor): string {
+        $texto = mb_strtoupper(trim((string) $valor), 'UTF-8');
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+
+        if ($ascii !== false) {
+            $texto = $ascii;
+        }
+
+        return preg_replace('/[^A-Z0-9]+/', '', $texto) ?: '';
+    };
+
+    $tipoInspeccionVehiculo = function (array $vehiculo) use ($normalizarClaveIph): array {
+        $tipo = $normalizarClaveIph($vehiculo['tipo'] ?? '');
+        $esAcuatico = str_contains($tipo, 'ACUATICO') || str_contains($tipo, 'BARCO') || str_contains($tipo, 'LANCHA');
+        $esAereo = str_contains($tipo, 'AEREO') || str_contains($tipo, 'AVION') || str_contains($tipo, 'HELICOPTERO');
+
+        return [
+            'terrestre' => ! $esAcuatico && ! $esAereo,
+            'acuatico' => $esAcuatico,
+            'aereo' => $esAereo,
+        ];
+    };
+
+    $procedenciaInspeccionVehiculo = function (array $vehiculo) use ($normalizarClaveIph): array {
+        $estado = $normalizarClaveIph($vehiculo['estado_placas'] ?? '');
+        $esExtranjero = str_contains($estado, 'EXTRANJERO')
+            || str_contains($estado, 'USA')
+            || str_contains($estado, 'EEUU')
+            || str_contains($estado, 'ESTADOSUNIDOS');
+
+        return [
+            'nacional' => ! $esExtranjero,
+            'extranjero' => $esExtranjero,
+        ];
+    };
+
+    $servicioInspeccionVehiculo = function (array $vehiculo) use ($normalizarClaveIph): array {
+        $texto = $normalizarClaveIph(($vehiculo['tipo_servicio'] ?? '') . ' ' . ($vehiculo['tipo'] ?? ''));
+        $esCarga = str_contains($texto, 'CARGA') || str_contains($texto, 'CAMION') || str_contains($texto, 'TRACTO');
+        $esPublico = ! $esCarga && (
+            str_contains($texto, 'PUBLICO')
+            || str_contains($texto, 'TAXI')
+            || str_contains($texto, 'COLECTIVO')
+            || str_contains($texto, 'URBANO')
+        );
+
+        return [
+            'particular' => ! $esCarga && ! $esPublico,
+            'publico' => $esPublico,
+            'carga' => $esCarga,
+        ];
+    };
+
+    $daniosInspeccionVehiculo = function (array $vehiculo, int $index) use ($textoLimpio, $numeroALetras, $pesosEnLetra): string {
+        $numeroTexto = mb_convert_case(mb_strtolower($numeroALetras($index + 1), 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+        $partes = $textoLimpio($vehiculo['partes_danadas'] ?? null);
+        $monto = $vehiculo['monto_danos'] ?? null;
+        $montoValido = is_numeric($monto) && (float) $monto > 0;
+        $frase = 'DAÑOS DEL VEHÍCULO (' . e($numeroTexto) . '): A simple vista ';
+
+        if ($partes) {
+            $frase .= 'el vehículo presenta daño en ' . e(mb_strtolower($partes, 'UTF-8'));
+        } else {
+            $frase .= 'no se cuenta con una descripción específica de daños capturada en el sistema';
+        }
+
+        if ($montoValido) {
+            $montoNumero = (float) $monto;
+            $frase .= ', con un valor aproximado de $' . number_format($montoNumero, 2)
+                . ' (' . e($pesosEnLetra($montoNumero)) . ')';
+        } else {
+            $frase .= ', con valor pendiente de precisar';
+        }
+
+        return $frase . '.';
+    };
+
+    $destinoInspeccionVehiculo = function (array $vehiculo) use ($valorGruaValido): string {
+        $nombreGrua = $valorGruaValido($vehiculo['grua_nombre'] ?? null)
+            ?: $valorGruaValido($vehiculo['grua'] ?? null);
+        $destino = $valorGruaValido($vehiculo['grua_direccion'] ?? null)
+            ?: $valorGruaValido($vehiculo['grua_ubicacion_corralon'] ?? null)
+            ?: $valorGruaValido($vehiculo['corralon'] ?? null);
+
+        if ($nombreGrua || $destino) {
+            $frase = 'Destino que se le dio: El vehículo fue remitido';
+
+            if ($nombreGrua) {
+                $frase .= ' al corralón de Grúas ' . e($nombreGrua);
+            } else {
+                $frase .= ' al lugar de resguardo registrado';
+            }
+
+            if ($destino) {
+                $frase .= ' ubicado en ' . e($destino);
+            }
+
+            return $frase . '.';
+        }
+
+        return 'Destino que se le dio: El destino o lugar de resguardo del vehículo queda pendiente de precisar en el presente anexo.';
+    };
+
+    $descripcionCadenaVehiculo = function (array $vehiculo, int $index) use ($textoLimpio, $letraIndice): string {
+        $partes = [];
+
+        foreach ([
+            'marca' => 'Marca',
+            'tipo' => 'Tipo',
+            'linea' => 'Línea',
+            'modelo' => 'Modelo',
+            'color' => 'Color',
+        ] as $campo => $etiqueta) {
+            if ($valor = $textoLimpio($vehiculo[$campo] ?? null)) {
+                $partes[] = $etiqueta . ' ' . mb_strtoupper($valor, 'UTF-8');
+            }
+        }
+
+        if ($placas = $textoLimpio($vehiculo['placas'] ?? null)) {
+            $partes[] = 'con número de placas de circulación ' . mb_strtoupper($placas, 'UTF-8');
+        }
+
+        if ($serie = $textoLimpio($vehiculo['serie'] ?? null)) {
+            $partes[] = 'con número de serie ' . mb_strtoupper($serie, 'UTF-8');
+        }
+
+        $descripcion = !empty($partes)
+            ? implode(', ', $partes)
+            : 'sin descripción vehicular completa capturada en el sistema';
+
+        return 'VEHÍCULO ' . $letraIndice($index) . ' EL CUAL ES DE LA ' . $descripcion . '.';
     };
 @endphp
 
@@ -1140,6 +1325,7 @@
         }
 
         .iph-front {
+            page: custody-letter;
             margin-top: 0;
             color: #000;
             font-family: Arial, Helvetica, sans-serif;
@@ -1373,6 +1559,718 @@
             line-height: 1;
         }
 
+        .iph-croquis-inspection-page {
+            min-height: 100%;
+        }
+
+        .iph-croquis-sheet {
+            border: 1px solid #1f2933;
+        }
+
+        .iph-croquis-title {
+            min-height: 6mm;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .iph-croquis-frame {
+            height: 132mm;
+            border-top: 1px solid #1f2933;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .iph-croquis-frame img {
+            width: 100%;
+            max-width: 100%;
+            max-height: 130mm;
+            object-fit: contain;
+            display: block;
+        }
+
+        .iph-croquis-frame .croquis-empty {
+            width: 100%;
+            height: 128mm;
+        }
+
+        .iph-inspection-grid {
+            border-top: 0;
+        }
+
+        .iph-inspection-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 7mm 5mm 32mm 7mm 5mm;
+            align-items: center;
+            min-height: 7mm;
+            border-top: 1px solid #1f2933;
+            padding: 0 6px;
+            column-gap: 3px;
+            font-size: 9.5px;
+        }
+
+        .iph-inspection-note {
+            font-size: 8px;
+            font-style: italic;
+        }
+
+        .iph-risk-row {
+            display: grid;
+            grid-template-columns: 48mm 24mm 5mm 28mm 5mm minmax(0, 1fr);
+            align-items: center;
+            min-height: 7mm;
+            border-top: 1px solid #1f2933;
+            padding: 0 6px;
+            column-gap: 5px;
+            font-size: 9.5px;
+        }
+
+        .iph-spec-row {
+            display: grid;
+            grid-template-columns: 30mm minmax(0, 1fr);
+            align-items: end;
+            min-height: 7mm;
+            border-top: 1px solid #1f2933;
+            padding: 0 6px 1px;
+            font-size: 9.5px;
+        }
+
+        .iph-spec-row.no-label {
+            grid-template-columns: 30mm minmax(0, 1fr);
+        }
+
+        .iph-spec-line {
+            min-height: 4.5mm;
+            border-bottom: 1px solid #1f2933;
+        }
+
+        .iph-narrative-page {
+            page: custody-letter;
+            min-height: 100%;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .iph-narrative-heading {
+            margin: 0 0 3px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .iph-narrative-body {
+            min-height: 230mm;
+            border: 1px solid #1f2933;
+            border-top: 0;
+            padding: 8px 8px 12px;
+            font-size: 10.5px;
+            line-height: 1.16;
+            text-align: justify;
+        }
+
+        .iph-narrative-body p {
+            margin: 0;
+        }
+
+        .iph-vehicle-page {
+            page: custody-letter;
+            min-height: 100%;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9.5px;
+            line-height: 1.12;
+        }
+
+        .iph-vehicle-heading {
+            margin: 0;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .iph-vehicle-instruction {
+            margin: 7px 0 11px;
+            text-align: center;
+            font-size: 9.5px;
+            font-weight: 700;
+        }
+
+        .iph-vehicle-sheet {
+            border: 1px solid #1f2933;
+        }
+
+        .iph-vehicle-number-row {
+            display: grid;
+            grid-template-columns: 28mm minmax(0, 1fr);
+            align-items: center;
+            min-height: 8mm;
+            padding: 0 6px;
+            border-bottom: 1px solid #1f2933;
+            background: #eee2c8;
+            font-weight: 700;
+        }
+
+        .iph-vehicle-number-value {
+            display: flex;
+            align-items: center;
+            gap: 5mm;
+        }
+
+        .iph-vehicle-subbar {
+            border-bottom: 1px solid #1f2933;
+            padding: 3px 6px;
+            background: #eee2c8;
+            color: #000;
+            font-size: 9.5px;
+            font-weight: 700;
+        }
+
+        .iph-vehicle-hint {
+            padding: 3px 6px;
+            border-bottom: 1px solid #1f2933;
+            font-size: 8.5px;
+            font-style: italic;
+        }
+
+        .iph-vehicle-date-row {
+            display: grid;
+            grid-template-columns: 18mm 1fr 14mm 1fr;
+            align-items: center;
+            gap: 7px;
+            min-height: 17mm;
+            padding: 4px 6px;
+            border-bottom: 1px solid #1f2933;
+        }
+
+        .iph-box-caption {
+            margin-top: 2px;
+            display: flex;
+            gap: 1px;
+            font-size: 6.5px;
+            font-weight: 700;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .iph-box-caption span {
+            width: 4.25mm;
+        }
+
+        .iph-vehicle-general {
+            padding: 5px 6px 4px;
+            border-bottom: 1px solid #1f2933;
+        }
+
+        .iph-vehicle-type-row,
+        .iph-vehicle-service-row,
+        .iph-vehicle-report-row,
+        .iph-vehicle-objects-row {
+            display: grid;
+            align-items: center;
+            gap: 7px;
+            min-height: 7mm;
+        }
+
+        .iph-vehicle-type-row {
+            grid-template-columns: 24mm repeat(3, auto 1fr) 28mm repeat(2, auto 1fr);
+        }
+
+        .iph-vehicle-info-row {
+            display: grid;
+            grid-template-columns: 31mm 1fr 27mm 1fr 24mm 1fr;
+            gap: 7px;
+            min-height: 12mm;
+            align-items: start;
+            padding-top: 3px;
+        }
+
+        .iph-vehicle-service-row {
+            grid-template-columns: 35mm auto 36mm auto 24mm auto minmax(0, 1fr);
+            padding-top: 3px;
+        }
+
+        .iph-vehicle-serial-row {
+            display: grid;
+            grid-template-columns: 29mm minmax(0, auto) 27mm minmax(0, auto);
+            align-items: center;
+            gap: 7px;
+            min-height: 9mm;
+            padding-top: 2px;
+        }
+
+        .iph-vehicle-report-row {
+            grid-template-columns: 40mm auto 40mm auto 40mm auto minmax(0, 1fr);
+            padding-top: 2px;
+        }
+
+        .iph-vehicle-text-block {
+            min-height: 24mm;
+            padding: 7px 8px;
+            border-bottom: 1px solid #1f2933;
+            font-size: 11px;
+            line-height: 1.12;
+            text-align: justify;
+        }
+
+        .iph-vehicle-destination {
+            min-height: 28mm;
+        }
+
+        .iph-vehicle-objects-row {
+            grid-template-columns: 1fr 6mm 6mm 22mm 6mm;
+            padding: 0 6px;
+            min-height: 8mm;
+            border-bottom: 1px solid #1f2933;
+        }
+
+        .iph-vehicle-signatures {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 5mm;
+            padding: 7px 6px 8px;
+        }
+
+        .iph-vehicle-signature {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4mm;
+        }
+
+        .iph-vehicle-signature-line {
+            min-height: 10mm;
+            border-bottom: 1px solid #1f2933;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            padding-bottom: 1px;
+            font-size: 7px;
+        }
+
+        .iph-vehicle-signature-meta {
+            display: grid;
+            grid-template-columns: 20mm 1fr 22mm 1fr 14mm 1fr;
+            gap: 2mm;
+            margin-top: 5mm;
+            align-items: end;
+            font-size: 8px;
+        }
+
+        .iph-vehicle-meta-line {
+            min-height: 4.5mm;
+            border-bottom: 1px solid #1f2933;
+        }
+
+        .custody-page {
+            page: custody-letter;
+            width: 190mm;
+            min-height: 250mm;
+            margin: 0 auto;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9px;
+            line-height: 1.1;
+        }
+
+        .custody-title {
+            margin: 0 0 8mm;
+            text-align: left;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .custody-top {
+            display: grid;
+            grid-template-columns: 1fr 66mm;
+            align-items: start;
+            gap: 14mm;
+            margin-bottom: 7mm;
+        }
+
+        .custody-reference {
+            border: 1px solid #1f2933;
+            text-align: center;
+        }
+
+        .custody-reference-title,
+        .custody-head,
+        .custody-green-cell {
+            background: #385c46;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .custody-reference-title {
+            padding: 2px 5px;
+            font-size: 10px;
+        }
+
+        .custody-reference-body {
+            min-height: 6mm;
+            padding: 2px 4px;
+            font-weight: 700;
+        }
+
+        .custody-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .custody-table th,
+        .custody-table td {
+            border: 1px solid #1f2933;
+            padding: 4px 5px;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        .custody-table th {
+            background: #385c46;
+            color: #fff;
+            text-align: center;
+            font-size: 9px;
+            line-height: 1.05;
+        }
+
+        .custody-summary td {
+            height: 20mm;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .custody-summary .custody-date-cell {
+            text-align: center;
+        }
+
+        .custody-start {
+            margin-top: 17mm;
+        }
+
+        .custody-start-title {
+            margin-bottom: 4mm;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .custody-start-options {
+            display: grid;
+            grid-template-columns: 37mm 18mm 37mm 18mm 37mm 1fr;
+            border: 1px solid #1f2933;
+            min-height: 8mm;
+        }
+
+        .custody-start-label {
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+            background: #385c46;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .custody-start-check {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .custody-identity-title {
+            margin: 8mm 0 4mm;
+            display: grid;
+            grid-template-columns: 8mm minmax(0, 1fr);
+            gap: 4mm;
+            font-size: 9px;
+            line-height: 1.25;
+            text-align: justify;
+        }
+
+        .custody-identity-title strong {
+            font-size: 12px;
+        }
+
+        .custody-items th {
+            font-size: 10px;
+        }
+
+        .custody-items td {
+            min-height: 26mm;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.08;
+            text-transform: uppercase;
+        }
+
+        .custody-items .custody-id-col {
+            width: 25mm;
+        }
+
+        .custody-items .custody-desc-col {
+            width: 79mm;
+        }
+
+        .custody-items .custody-place-col {
+            width: 63mm;
+        }
+
+        .custody-items .custody-time-col {
+            width: 23mm;
+        }
+
+        .custody-transfer {
+            margin-top: 9mm;
+        }
+
+        .custody-section-lead {
+            display: grid;
+            grid-template-columns: 8mm minmax(0, 1fr);
+            gap: 4mm;
+            margin-bottom: 4mm;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.16;
+        }
+
+        .custody-section-lead span {
+            font-size: 9px;
+            font-weight: 400;
+        }
+
+        .custody-transfer-box {
+            border: 1px solid #1f2933;
+        }
+
+        .custody-transfer-row {
+            display: grid;
+            grid-template-columns: 11mm 24mm 26mm 12mm 32mm 18mm 30mm 1fr;
+            align-items: center;
+            min-height: 10mm;
+            padding: 0 8px;
+            column-gap: 5px;
+            border-bottom: 1px solid #1f2933;
+            font-size: 11px;
+        }
+
+        .custody-transfer-row:last-child {
+            border-bottom: 0;
+        }
+
+        .custody-transfer-check {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 12mm;
+            height: 8mm;
+            border: 1px solid #1f2933;
+            font-weight: 700;
+        }
+
+        .custody-recommendations {
+            min-height: 20mm;
+            padding: 4px 6px;
+            border-top: 1px solid #1f2933;
+            font-size: 10px;
+        }
+
+        .custody-trace {
+            margin-top: 9mm;
+        }
+
+        .custody-trace-title {
+            display: grid;
+            grid-template-columns: 8mm minmax(0, 1fr);
+            gap: 4mm;
+            margin-bottom: 7mm;
+            font-size: 12px;
+            line-height: 1.12;
+            text-align: justify;
+        }
+
+        .custody-trace-title strong {
+            font-size: 13px;
+        }
+
+        .custody-trace-table th {
+            background: #385c46;
+            color: #fff;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .custody-trace-table td {
+            min-height: 9mm;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .custody-trace-table .custody-trace-green {
+            background: #385c46;
+            color: #fff;
+            text-align: center;
+        }
+
+        .custody-trace-observations {
+            background: #385c46;
+            color: #fff;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .custody-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin-top: 8mm;
+            font-size: 8px;
+        }
+
+        .custody-page-num {
+            text-align: right;
+            font-weight: 700;
+        }
+
+        .custody-delivery-page {
+            page: custody-letter;
+            width: 190mm;
+            min-height: 250mm;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9px;
+            line-height: 1.1;
+        }
+
+        .delivery-kicker {
+            margin: 0 10mm 7mm 0;
+            text-align: right;
+            font-family: "Times New Roman", serif;
+            font-size: 7px;
+            text-transform: uppercase;
+            text-decoration: underline;
+        }
+
+        .delivery-top {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 66mm;
+            align-items: start;
+            gap: 12mm;
+            margin-bottom: 7mm;
+        }
+
+        .delivery-title {
+            margin: 4mm 0 0 11mm;
+            width: 92mm;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .delivery-summary td {
+            height: 19mm;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .delivery-summary .delivery-place-cell {
+            font-size: 16px;
+        }
+
+        .delivery-section-title {
+            display: grid;
+            grid-template-columns: 8mm minmax(0, 1fr);
+            gap: 3mm;
+            margin: 7mm 0 2mm;
+            font-size: 9px;
+            line-height: 1.15;
+            text-align: justify;
+        }
+
+        .delivery-section-title strong {
+            font-size: 13px;
+        }
+
+        .delivery-inventory th {
+            font-size: 10px;
+        }
+
+        .delivery-inventory td {
+            height: 12mm;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+
+        .delivery-inventory .delivery-id-col {
+            width: 37mm;
+        }
+
+        .delivery-inventory .delivery-desc-col {
+            width: 153mm;
+        }
+
+        .delivery-packaging-box {
+            min-height: 25mm;
+            border: 1px solid #1f2933;
+            padding: 7px 8px;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .delivery-signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8mm;
+            margin-top: 8mm;
+        }
+
+        .delivery-signature-box {
+            border: 1px solid #1f2933;
+            min-height: 38mm;
+            display: grid;
+            grid-template-rows: 7mm minmax(0, 1fr) 6mm;
+        }
+
+        .delivery-signature-head,
+        .delivery-signature-foot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #385c46;
+            color: #fff;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .delivery-signature-body {
+            display: flex;
+            flex-direction: column;
+            justify-content: end;
+            padding: 6px 8px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .delivery-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin-top: auto;
+            font-size: 8px;
+        }
+
         .iph-small-boxes .iph-box {
             width: 5mm;
             height: 5mm;
@@ -1478,6 +2376,7 @@
         }
 
         .iph-continuation {
+            page: custody-letter;
             margin-top: 0;
             color: #000;
             font-family: Arial, Helvetica, sans-serif;
@@ -1789,6 +2688,11 @@
             margin: 10mm;
         }
 
+        @page custody-letter {
+            size: letter;
+            margin: 10mm;
+        }
+
         @media print {
             body {
                 background: #fff;
@@ -1817,10 +2721,12 @@
     </style>
 </head>
 <body>
+    @unless($wordMode)
     <div class="toolbar">
         <button type="button" onclick="window.print()">Imprimir</button>
         <a href="{{ route('hechos.show', $hecho->id) }}">Volver al hecho</a>
     </div>
+    @endunless
 
     <main class="sheet">
         <header class="letterhead" aria-label="Membrete institucional">
@@ -2414,220 +3320,496 @@
             </div>
         </section>
 
-        <section class="section">
-            <div class="section-title">1. Datos del hecho</div>
-            <div class="grid">
-                <div class="field">
-                    <span class="label">Folio C5i</span>
-                    <div class="value">{{ $valor($hechoIph['folio_c5i'] ?? null) }}</div>
+        <section class="iph-front iph-croquis-inspection-page force-next-page">
+            <div class="iph-croquis-sheet">
+                <div class="iph-croquis-title">Croquis del lugar</div>
+                <div class="iph-croquis-frame">
+                    @if($croquisPreviewUrl)
+                        <img src="{{ $croquisPreviewUrl }}" alt="Croquis del lugar de la intervención">
+                    @else
+                        <div class="croquis-empty" aria-hidden="true"></div>
+                    @endif
                 </div>
-                <div class="field">
-                    <span class="label">Fecha</span>
-                    <div class="value">{{ $valor($hechoIph['fecha'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Hora</span>
-                    <div class="value">{{ $valor($hechoIph['hora'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Estatus</span>
-                    <div class="value">{{ $valor($hechoIph['situacion'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Unidad</span>
-                    <div class="value">{{ $valor($hechoIph['unidad_org_nombre'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Delegación</span>
-                    <div class="value">{{ $valor($hechoIph['delegacion_nombre'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Perito / Patrullero</span>
-                    <div class="value">{{ $valor($hechoIph['perito'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Unidad económica</span>
-                    <div class="value">{{ $valor($hechoIph['unidad_numero_economico'] ?? null) }}</div>
-                </div>
-                <div class="field wide">
-                    <span class="label">Tipo de hecho</span>
-                    <div class="value">{{ $valor($hechoIph['tipo_hecho'] ?? null) }}</div>
-                </div>
-                <div class="field wide">
-                    <span class="label">Colisión / Camino</span>
-                    <div class="value">{{ $valor($hechoIph['colision_camino'] ?? null) }}</div>
-                </div>
-                <div class="field full">
-                    <span class="label">Lugar del hecho</span>
-                    <div class="value">{{ $valor($lugarHecho) }}</div>
-                </div>
-                <div class="field full">
-                    <span class="label">Causas / Observaciones iniciales</span>
-                    <div class="value">{{ $valor($hechoIph['causas'] ?? null) }}</div>
+
+                <div class="iph-subbar">Apartado 4.2 Inspección del lugar</div>
+                <div class="iph-inspection-grid">
+                    <div class="iph-inspection-row">
+                        <span>¿Realizó la inspección del lugar?</span>
+                        <span>Si</span>
+                        <span class="iph-check">X</span>
+                        <span></span>
+                        <span>No</span>
+                        <span class="iph-check"></span>
+                    </div>
+                    <div class="iph-inspection-row">
+                        <span>Al momento de realizar la inspección del lugar, ¿encontró algún objeto relacionado con los hechos?</span>
+                        <span>Si</span>
+                        <span class="iph-check">{{ $hayObjetosPuesta ? 'X' : '' }}</span>
+                        <span class="iph-inspection-note">Llene el anexo D</span>
+                        <span>No</span>
+                        <span class="iph-check">{{ $hayObjetosPuesta ? '' : 'X' }}</span>
+                    </div>
+                    <div class="iph-inspection-row">
+                        <span>¿Preservó el lugar de la intervención?</span>
+                        <span>Si</span>
+                        <span class="iph-check"></span>
+                        <span></span>
+                        <span>No</span>
+                        <span class="iph-check">X</span>
+                    </div>
+                    <div class="iph-inspection-row">
+                        <span>¿Llevó a cabo la priorización en el lugar de la intervención?</span>
+                        <span>Si</span>
+                        <span class="iph-check"></span>
+                        <span></span>
+                        <span>No</span>
+                        <span class="iph-check">X</span>
+                    </div>
+                    <div class="iph-risk-row">
+                        <span><strong>Tipo de riesgo presentado:</strong></span>
+                        <span>Sociales</span>
+                        <span class="iph-check"></span>
+                        <span>Naturales</span>
+                        <span class="iph-check"></span>
+                        <span></span>
+                    </div>
+                    <div class="iph-spec-row">
+                        <span><strong>Especifique:</strong></span>
+                        <span class="iph-spec-line"></span>
+                    </div>
+                    <div class="iph-spec-row no-label">
+                        <span></span>
+                        <span class="iph-spec-line"></span>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section class="section">
-            <div class="section-title">2. Datos de la puesta a disposición</div>
-            <div class="grid">
-                <div class="field">
-                    <span class="label">No. puesta</span>
-                    <div class="value">{{ $valor($puesta['folio'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Tipo</span>
-                    <div class="value">{{ $valor($puesta['tipo_puesta'] ?? null) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Motivo</span>
-                    <div class="value">{{ $valor($puesta['motivo'] ?? 'HECHO DE TRÁNSITO TURNADO') }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Oficio</span>
-                    <div class="value">{{ $valor($puesta['oficio'] ?? ($hechoIph['oficio_mp'] ?? null)) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Fecha puesta</span>
-                    <div class="value">{{ $valor($puesta['fecha_puesta'] ?? ($hechoIph['fecha'] ?? null)) }}</div>
-                </div>
-                <div class="field">
-                    <span class="label">Hora puesta</span>
-                    <div class="value">{{ $valor($puesta['hora_puesta'] ?? ($hechoIph['hora'] ?? null)) }}</div>
-                </div>
-                <div class="field wide">
-                    <span class="label">Lugar puesta</span>
-                    <div class="value">{{ $valor($puesta['lugar_puesta'] ?? $lugarHecho) }}</div>
-                </div>
-                <div class="field wide">
-                    <span class="label">Policía que pone a disposición</span>
-                    <div class="value">{{ $valor($puesta['nombre_policia'] ?? ($hechoIph['perito'] ?? null)) }}</div>
-                </div>
-                <div class="field wide">
-                    <span class="label">Autoridad receptora / MP</span>
-                    <div class="value">{{ $valor($puesta['autoridad_receptora'] ?? ($puesta['nombre_mp'] ?? null)) }}</div>
-                </div>
-                <div class="field full">
-                    <span class="label">Narrativa</span>
-                    <div class="value">{{ $valor($puesta['narrativa'] ?? null, '') }}</div>
-                </div>
-                <div class="field full">
-                    <span class="label">Observaciones</span>
-                    <div class="value">{{ $valor($puesta['observaciones'] ?? null, '') }}</div>
-                </div>
+        <section class="iph-narrative-page force-next-page">
+            <h2 class="iph-narrative-heading">Sección 5. Narrativa de los hechos</h2>
+            <div class="iph-subbar">Apartado 5.1 Descripción de los hechos y actuación de la autoridad</div>
+            <div class="iph-narrative-body">
+                <p>{{ $narrativaIphGenerica }}</p>
             </div>
         </section>
 
-        <section class="section">
-            <div class="section-title">3. Personas relacionadas</div>
-            <table>
+        @foreach($vehiculosHecho as $vehiculo)
+            @php
+                $tipoInspeccion = $tipoInspeccionVehiculo($vehiculo);
+                $procedenciaInspeccion = $procedenciaInspeccionVehiculo($vehiculo);
+                $servicioInspeccion = $servicioInspeccionVehiculo($vehiculo);
+                $numeroVehiculoIph = str_pad((string) $loop->iteration, 3, '0', STR_PAD_LEFT);
+                $fechaInspeccionValor = $arriboPartes['dia'] . $arriboPartes['mes'] . $arriboPartes['anio'];
+                $horaInspeccion = $arriboPartes['hora'] !== '' ? $arriboPartes : $horaHechoPartes;
+                $marcaVehiculo = $textoLimpio($vehiculo['marca'] ?? null) ?: '';
+                $subMarcaVehiculo = $textoLimpio($vehiculo['linea'] ?? null) ?: '';
+                $modeloVehiculo = $textoLimpio($vehiculo['modelo'] ?? null) ?: '';
+                $colorVehiculo = $textoLimpio($vehiculo['color'] ?? null) ?: '';
+                $placasVehiculo = preg_replace('/\s+/', '', (string) ($vehiculo['placas'] ?? '')) ?: '';
+                $serieVehiculo = preg_replace('/\s+/', '', (string) ($vehiculo['serie'] ?? '')) ?: '';
+                $tieneReporteRobo = (bool) ($vehiculo['antecedente_vehiculo'] ?? false);
+                $daniosVehiculoInspeccion = $daniosInspeccionVehiculo($vehiculo, $loop->index);
+                $destinoVehiculoInspeccion = $destinoInspeccionVehiculo($vehiculo);
+            @endphp
+
+            <section class="iph-vehicle-page force-next-page">
+                <h2 class="iph-vehicle-heading">Inspección de vehículo {{ $loop->iteration }}</h2>
+                <div class="iph-vehicle-instruction">Llene este Anexo por cada vehículo inspeccionado</div>
+
+                <div class="iph-vehicle-sheet">
+                    <div class="iph-vehicle-number-row">
+                        <span>Vehículo:</span>
+                        <span class="iph-vehicle-number-value">
+                            <span class="iph-date-boxes">{!! $renderIphBoxes($numeroVehiculoIph, 3) !!}</span>
+                            <span>(001, 002, ..., 010...)</span>
+                        </span>
+                    </div>
+
+                    <div class="iph-vehicle-subbar">Apartado C.1 Fecha y hora de la inspección</div>
+                    <div class="iph-vehicle-hint">Indique la fecha y la hora en que realizó la inspección</div>
+                    <div class="iph-vehicle-date-row">
+                        <span>Fecha</span>
+                        <span>
+                            <span class="iph-date-boxes">{!! $renderIphBoxes($fechaInspeccionValor, 8) !!}</span>
+                            <span class="iph-box-caption">
+                                <span>D</span><span>D</span><span>M</span><span>M</span><span>A</span><span>A</span><span>A</span><span>A</span>
+                            </span>
+                        </span>
+                        <span>Hora:</span>
+                        <span>
+                            <span class="iph-date-boxes">
+                                {!! $renderIphBoxes($horaInspeccion['hora'] ?? '', 2) !!}
+                                <span class="iph-colon">:</span>
+                                {!! $renderIphBoxes($horaInspeccion['minuto'] ?? '', 2) !!}
+                            </span>
+                            <span class="iph-box-caption">
+                                <span>h</span><span>h</span><span style="width:3mm"></span><span>M</span><span>M</span>
+                            </span>
+                        </span>
+                    </div>
+
+                    <div class="iph-vehicle-subbar">Apartado C.2 Datos generales del vehículo inspeccionado</div>
+                    <div class="iph-vehicle-general">
+                        <div class="iph-vehicle-type-row">
+                            <strong>Tipo:</strong>
+                            <span class="iph-check">{{ $tipoInspeccion['terrestre'] ? 'X' : '' }}</span><span>Terrestre</span>
+                            <span class="iph-check">{{ $tipoInspeccion['acuatico'] ? 'X' : '' }}</span><span>Acuático</span>
+                            <span class="iph-check">{{ $tipoInspeccion['aereo'] ? 'X' : '' }}</span><span>Aéreo</span>
+                            <strong>Procedencia:</strong>
+                            <span class="iph-check">{{ $procedenciaInspeccion['nacional'] ? 'X' : '' }}</span><span>Nacional</span>
+                            <span class="iph-check">{{ $procedenciaInspeccion['extranjero'] ? 'X' : '' }}</span><span>Extranjero</span>
+                        </div>
+
+                        <div class="iph-vehicle-info-row">
+                            <strong>Marca:</strong><span>{{ mb_strtoupper($marcaVehiculo, 'UTF-8') }}</span>
+                            <strong>Sub marca:</strong><span>{{ mb_strtoupper($subMarcaVehiculo, 'UTF-8') }}</span>
+                            <strong>Modelo:</strong><span>{{ mb_strtoupper($modeloVehiculo, 'UTF-8') }}</span>
+                        </div>
+                        <div class="iph-vehicle-info-row">
+                            <strong>Color:</strong><span>{{ mb_strtoupper($colorVehiculo, 'UTF-8') }}</span>
+                            <span></span><span></span>
+                            <span></span><span></span>
+                        </div>
+
+                        <div class="iph-vehicle-service-row">
+                            <span></span>
+                            <span class="iph-check">{{ $servicioInspeccion['particular'] ? 'X' : '' }}</span><span>Particular</span>
+                            <span class="iph-check">{{ $servicioInspeccion['publico'] ? 'X' : '' }}</span><span>Transporte público</span>
+                            <span class="iph-check">{{ $servicioInspeccion['carga'] ? 'X' : '' }}</span><span>Carga</span>
+                        </div>
+
+                        <div class="iph-vehicle-serial-row">
+                            <strong>Placa/Matrícula.</strong>
+                            <span class="iph-date-boxes">{!! $renderIphBoxes($placasVehiculo, max(8, mb_strlen($placasVehiculo, 'UTF-8'))) !!}</span>
+                            <strong>No. de serie:</strong>
+                            <span class="iph-date-boxes">{!! $renderIphBoxes($serieVehiculo, max(17, mb_strlen($serieVehiculo, 'UTF-8'))) !!}</span>
+                        </div>
+
+                        <div class="iph-vehicle-report-row">
+                            <strong>Situación</strong>
+                            <span class="iph-check">{{ $tieneReporteRobo ? 'X' : '' }}</span><span>Con reporte de robo</span>
+                            <span class="iph-check">{{ $tieneReporteRobo ? '' : 'X' }}</span><span>Sin reporte de robo</span>
+                            <span class="iph-check"></span><span>No es posible saberlo</span>
+                        </div>
+                    </div>
+
+                    <div class="iph-vehicle-text-block">
+                        {!! $daniosVehiculoInspeccion !!}
+                    </div>
+
+                    <div class="iph-vehicle-text-block iph-vehicle-destination">
+                        {!! $destinoVehiculoInspeccion !!}
+                    </div>
+
+                    <div class="iph-vehicle-subbar">Apartado C.3 Objetos encontrados en el vehículo inspeccionado</div>
+                    <div class="iph-vehicle-objects-row">
+                        <span>¿Encontró objetos relacionados con los hechos?</span>
+                        <span>Si</span>
+                        <span class="iph-check"></span>
+                        <span>No</span>
+                        <span class="iph-check">X</span>
+                    </div>
+
+                    <div class="iph-vehicle-subbar">Apartado C.4 Datos del primer respondiente que realizó la inspección, sólo si es diferente a quien firmó la puesta a disposición</div>
+                    <div class="iph-vehicle-signatures">
+                        @for($firmaVehiculo = 0; $firmaVehiculo < 2; $firmaVehiculo++)
+                            <div>
+                                <div class="iph-vehicle-signature">
+                                    <span class="iph-vehicle-signature-line">Primer apellido</span>
+                                    <span class="iph-vehicle-signature-line">Segundo apellido</span>
+                                    <span class="iph-vehicle-signature-line">Nombre(s)</span>
+                                </div>
+                                <div class="iph-vehicle-signature-meta">
+                                    <span>Adscripción:</span><span class="iph-vehicle-meta-line"></span>
+                                    <span>Cargo/grado:</span><span class="iph-vehicle-meta-line"></span>
+                                    <span>Firma:</span><span class="iph-vehicle-meta-line"></span>
+                                </div>
+                            </div>
+                        @endfor
+                    </div>
+                </div>
+            </section>
+        @endforeach
+
+        <section class="custody-page force-next-page">
+            <div class="custody-top">
+                <h2 class="custody-title">Registro de Cadena de Custodia</h2>
+                <div class="custody-reference">
+                    <div class="custody-reference-title">+No. de referencia</div>
+                    <div class="custody-reference-body">{{ $folioCadena }}</div>
+                </div>
+            </div>
+
+            <table class="custody-table custody-summary">
                 <thead>
                     <tr>
-                        <th>Nombre</th>
-                        <th>Calidad</th>
-                        <th>Edad</th>
-                        <th>Sexo</th>
-                        <th>Domicilio / Observaciones</th>
+                        <th style="width: 41mm;">Institución o unidad administrativa</th>
+                        <th style="width: 25mm;">Folio o llamado</th>
+                        <th>Lugar de intervención</th>
+                        <th style="width: 34mm;">Fecha y hora de intervención</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($personasPuesta as $persona)
-                        <tr>
-                            <td>{{ $valor($persona['nombre_completo'] ?? null) }}</td>
-                            <td>{{ $valor($persona['calidad'] ?? null) }}</td>
-                            <td>{{ $valor($persona['edad'] ?? null) }}</td>
-                            <td>{{ $valor($persona['sexo'] ?? null) }}</td>
-                            <td>{{ $valor($persona['domicilio'] ?? null) }}<br>{{ $valor($persona['observaciones'] ?? null, '') }}</td>
-                        </tr>
-                    @empty
-                        @forelse($conductoresHecho as $conductor)
-                            <tr>
-                                <td>{{ $valor($conductor['nombre'] ?? null) }}</td>
-                                <td>CONDUCTOR</td>
-                                <td>{{ $valor($conductor['edad'] ?? null) }}</td>
-                                <td>{{ $valor($conductor['sexo'] ?? null) }}</td>
-                                <td>{{ $valor($conductor['domicilio'] ?? null) }}<br>{{ $valor($conductor['vehiculo_label'] ?? null, '') }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5">No hay personas mapeadas todavía.</td>
-                            </tr>
-                        @endforelse
-                    @endforelse
+                    <tr>
+                        <td rowspan="2">{{ $institucionCadena }}</td>
+                        <td rowspan="2">{{ $folioCadena }}</td>
+                        <td rowspan="2">{{ $ubicacionCadena }}</td>
+                        <td class="custody-date-cell">{{ $fechaIntervencionCadena }}</td>
+                    </tr>
+                    <tr>
+                        <td class="custody-date-cell">{{ $horaIntervencionCadena }} HORAS</td>
+                    </tr>
                 </tbody>
             </table>
-        </section>
 
-        <section class="section">
-            <div class="section-title">4. Vehículos relacionados</div>
-            <table>
+            <div class="custody-start">
+                <div class="custody-start-title">
+                    Inicio de la cadena de custodia. <span style="font-size: 9px; font-weight: 400;">(Marque con "X" el motivo por el cual comienza el registro).</span>
+                </div>
+                <div class="custody-start-options">
+                    <div class="custody-start-label">Localización</div>
+                    <div class="custody-start-check">X</div>
+                    <div class="custody-start-label">Descubrimiento</div>
+                    <div class="custody-start-check"></div>
+                    <div class="custody-start-label">Aportación</div>
+                    <div class="custody-start-check"></div>
+                </div>
+            </div>
+
+            <div class="custody-identity-title">
+                <strong>1.</strong>
+                <div>
+                    <strong>Identidad.</strong>
+                    (Número, letra o combinación alfanumérica asignada al indicio o elemento material probatorio, descripción general,
+                    incluyendo en su caso el estado o condición original en el momento de su recolección, ubicación en el lugar de intervención y hora de recolección.
+                    Relacione la identificación por secuencias cuando se trate de indicios o elementos materiales probatorios del mismo tipo o clase; en caso contrario,
+                    registre individualmente. Cancele los espacios sobrantes).
+                </div>
+            </div>
+
+            <table class="custody-table custody-items">
                 <thead>
                     <tr>
-                        <th>Vehículo</th>
-                        <th>Placas</th>
-                        <th>Serie</th>
-                        <th>Color</th>
-                        <th>Calidad / Observaciones</th>
+                        <th class="custody-id-col">Identificación</th>
+                        <th class="custody-desc-col">Descripción</th>
+                        <th class="custody-place-col">Ubicación<br>en el lugar</th>
+                        <th class="custody-time-col">Hora de<br>recolección</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @php $vehiculosTabla = !empty($vehiculosPuesta) ? $vehiculosPuesta : $vehiculosHecho; @endphp
-                    @forelse($vehiculosTabla as $vehiculo)
+                    @forelse($vehiculosHecho as $vehiculo)
                         <tr>
-                            <td>{{ $valor(collect([$vehiculo['tipo'] ?? null, $vehiculo['marca'] ?? null, $vehiculo['submarca'] ?? ($vehiculo['linea'] ?? null), $vehiculo['modelo'] ?? null])->filter()->implode(' / ')) }}</td>
-                            <td>{{ $valor($vehiculo['placas'] ?? null) }}</td>
-                            <td>{{ $valor($vehiculo['serie'] ?? null) }}</td>
-                            <td>{{ $valor($vehiculo['color'] ?? null) }}</td>
-                            <td>{{ $valor($vehiculo['calidad'] ?? null, '') }} {{ $valor($vehiculo['observaciones'] ?? ($vehiculo['partes_danadas'] ?? null), '') }}</td>
+                            <td>VEHÍCULO {{ $letraIndice($loop->index) }}</td>
+                            <td>{{ $descripcionCadenaVehiculo($vehiculo, $loop->index) }}</td>
+                            <td>{{ $ubicacionCadena }}</td>
+                            <td>{{ $horaRecoleccionCadena }}<br>HORAS</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">No hay vehículos mapeados todavía.</td>
+                            <td colspan="4">Sin vehículos registrados para relacionar en cadena de custodia.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
+
+            <div class="custody-transfer">
+                <div class="custody-section-lead">
+                    <strong>5.</strong>
+                    <div>
+                        Traslado.
+                        <span>(Marque con “X” la vía empleada. En caso de ser necesaria alguna condición especial para la conservación o preservación de un indicio o elemento material probatorio en particular, el personal pericial o policial con capacidades para el procesar, según sea el caso, deberá recomendarla).</span>
+                    </div>
+                </div>
+                <div class="custody-transfer-box">
+                    <div class="custody-transfer-row">
+                        <strong>a)</strong>
+                        <span>Vía:</span>
+                        <span>Terrestre</span>
+                        <span class="custody-transfer-check">X</span>
+                        <span>Aérea</span>
+                        <span class="custody-transfer-check"></span>
+                        <span>Marítima</span>
+                        <span class="custody-transfer-check"></span>
+                    </div>
+                    <div class="custody-transfer-row">
+                        <strong>b)</strong>
+                        <span style="grid-column: span 3;">Se requieren condiciones especiales para su traslado:</span>
+                        <span>No</span>
+                        <span class="custody-transfer-check">X</span>
+                        <span>Sí</span>
+                        <span class="custody-transfer-check"></span>
+                    </div>
+                    <div class="custody-recommendations">Recomendaciones:</div>
+                </div>
+            </div>
+
+            <div class="custody-trace">
+                <div class="custody-trace-title">
+                    <strong>6.</strong>
+                    <div>
+                        <strong>Continuidad y trazabilidad.</strong>
+                        (Fecha y hora de la entrega-recepción, nombre completo de quien entrega y de quien recibe los indicios o elementos materiales probatorios en los cambios de custodia que realicen, institución a la que pertenecen, cargo o identificación dentro de la misma, propósito de la transferencia, firmas autógrafas y lugar de permanencia en la actividad respectiva. Anote las observaciones relacionadas con el embalaje, el indicio o elementos material probatorio o cualquier otra que considere necesario realizar. Agregue cuantas hojas sean necesarias. Cancele los espacios sobrantes después de que se haya cumplido con el destino final del indicio o elemento material probatorio).
+                    </div>
+                </div>
+
+                <table class="custody-table custody-trace-table">
+                    <tbody>
+                        <tr>
+                            <th style="width: 38mm;">Fecha y hora de<br>entrega recepción</th>
+                            <th>Nombre, institución y cargo o identificación de quien entrega</th>
+                            <th style="width: 36mm;">Actividad/propósito</th>
+                            <th style="width: 16mm;">Firma</th>
+                        </tr>
+                        <tr>
+                            <td rowspan="2">{{ $fechaIntervencionCadena }}<br>{{ $horaRecoleccionCadena }} HORAS</td>
+                            <td>{{ mb_strtoupper($nombreQuienPoneIph, 'UTF-8') }}</td>
+                            <td rowspan="2">ENTREGA</td>
+                            <td rowspan="2"></td>
+                        </tr>
+                        <tr>
+                            <td>{{ $institucionCadena }}</td>
+                        </tr>
+                        <tr>
+                            <td class="custody-trace-green">Lugar de<br>permanencia</td>
+                            <td class="custody-trace-green">Nombre, institución y cargo o identificación de quien recibe</td>
+                            <td class="custody-trace-green">Actividad/propósito</td>
+                            <td class="custody-trace-green">Firma</td>
+                        </tr>
+                        <tr>
+                            <td>{{ $ubicacionCadena }}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" class="custody-trace-observations">Observaciones</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" style="height: 14mm;"></td>
+                        </tr>
+                        <tr>
+                            <th>Fecha y hora de<br>entrega recepción</th>
+                            <th>Nombre, institución y cargo o identificación de quien entrega</th>
+                            <th>Actividad/propósito</th>
+                            <th>Firma</th>
+                        </tr>
+                        <tr>
+                            <td style="height: 10mm;"></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="custody-trace-green">Lugar de<br>permanencia</td>
+                            <td class="custody-trace-green">Nombre, institución y cargo o identificación de quien recibe</td>
+                            <td class="custody-trace-green">Actividad/propósito</td>
+                            <td class="custody-trace-green">Firma</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="custody-footer">
+                <div>Registro de Cadena de Custodia</div>
+                <div class="custody-page-num">Página ___ de ___</div>
+            </div>
         </section>
 
-        <section class="section">
-            <div class="section-title">5. Objetos / indicios relacionados</div>
-            <table>
+        <section class="custody-delivery-page">
+            <div class="delivery-kicker">Entrega-recepción de los indicios y/o elementos materiales probatorios</div>
+
+            <div class="delivery-top">
+                <h2 class="delivery-title">Entrega-recepción de Indicios o elementos materiales probatorios</h2>
+                <div class="custody-reference">
+                    <div class="custody-reference-title">No. de referencia</div>
+                    <div class="custody-reference-body">{{ $folioCadena }}</div>
+                </div>
+            </div>
+
+            <table class="custody-table delivery-summary">
                 <thead>
                     <tr>
-                        <th>Tipo</th>
-                        <th>Descripción</th>
-                        <th>Cantidad</th>
-                        <th>Cadena de custodia</th>
-                        <th>Observaciones</th>
+                        <th style="width: 34mm;">Folio o<br>llamado</th>
+                        <th>Lugar de la entrega-recepción</th>
+                        <th style="width: 42mm;">Fecha y hora<br>entrega/recepción</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($objetosPuesta as $objeto)
+                    <tr>
+                        <td>{{ $folioCadena }}</td>
+                        <td class="delivery-place-cell">{{ $lugarEntregaRecepcionCadena }}</td>
+                        <td>{{ $fechaIntervencionCadena }}<br>{{ $horaRecoleccionCadena }} HORAS</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="delivery-section-title">
+                <strong>1.</strong>
+                <div>
+                    <strong>Inventario.</strong>
+                    (Escriba el número, letra o combinación alfanumérica con la que se identifica a cada indicio o elemento material probatorio que se entrega, así como su tipo o clase. Cancele los espacios sobrantes).
+                </div>
+            </div>
+
+            <table class="custody-table delivery-inventory">
+                <thead>
+                    <tr>
+                        <th class="delivery-id-col">Identificación</th>
+                        <th class="delivery-desc-col">Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($vehiculosHecho as $vehiculo)
                         <tr>
-                            <td>{{ $valor($objeto['tipo_objeto'] ?? null) }}</td>
-                            <td>{{ $valor($objeto['descripcion'] ?? null) }}</td>
-                            <td>{{ $valor($objeto['cantidad'] ?? null) }} {{ $valor($objeto['unidad_medida'] ?? null, '') }}</td>
-                            <td>{{ $valor($objeto['cadena_custodia'] ?? null) }}</td>
-                            <td>{{ $valor($objeto['observaciones'] ?? null) }}</td>
+                            <td>VEHÍCULO {{ $letraIndice($loop->index) }}</td>
+                            <td>{{ $descripcionCadenaVehiculo($vehiculo, $loop->index) }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">No hay objetos mapeados todavía.</td>
+                            <td colspan="2">Sin vehículos registrados para relacionar en el inventario.</td>
                         </tr>
                     @endforelse
+                    @for($filaInventario = 0; $filaInventario < max(8 - count($vehiculosHecho), 2); $filaInventario++)
+                        <tr>
+                            <td>&nbsp;</td>
+                            <td></td>
+                        </tr>
+                    @endfor
                 </tbody>
             </table>
+
+            <div class="delivery-section-title">
+                <strong>2.</strong>
+                <div>
+                    <strong>Embalaje.</strong>
+                    (Señale las condiciones en las que se encuentran los embalajes. Cuando alguno de ellos presente alteración, deterioro o cualquier otra anomalía, especifique dicha condición).
+                </div>
+            </div>
+
+            <div class="delivery-packaging-box">No se puede por sus dimensiones</div>
+
+            <div class="delivery-signatures">
+                <div class="delivery-signature-box">
+                    <div class="delivery-signature-head">Persona que entrega</div>
+                    <div class="delivery-signature-body">
+                        <div>{{ mb_strtoupper($nombreQuienPoneIph, 'UTF-8') }}</div>
+                        <div>{{ $institucionCadena }}</div>
+                        <div>{{ mb_strtoupper($cargoQuienPoneIph, 'UTF-8') }} ESTATAL</div>
+                    </div>
+                    <div class="delivery-signature-foot">Nombre completo, institución, cargo y firma</div>
+                </div>
+                <div class="delivery-signature-box">
+                    <div class="delivery-signature-head">Persona que recibe</div>
+                    <div class="delivery-signature-body"></div>
+                    <div class="delivery-signature-foot">Nombre completo, institución, cargo y firma</div>
+                </div>
+            </div>
+
+            <div class="delivery-footer">
+                <div>Entrega-Recepción de indicios o elementos materiales probatorios</div>
+                <div class="custody-page-num">Página ___ de ___</div>
+            </div>
         </section>
-
-        <div class="signatures">
-            <div class="signature">Policía que pone a disposición</div>
-            <div class="signature">Autoridad receptora</div>
-            <div class="signature">Recibió</div>
-        </div>
-
-        <div class="hint">
-            Formato generado desde el sistema para impresión y entrega física ante el MP.
-        </div>
     </main>
 </body>
 </html>

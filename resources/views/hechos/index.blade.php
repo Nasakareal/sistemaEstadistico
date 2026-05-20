@@ -262,12 +262,10 @@
                                             @endif
 
                                             @if($puedeGenerarIphPuesta)
-                                                <a href="{{ route('hechos.iph_puesta_disposicion.imprimir', $hecho->id) }}"
+                                                <a href="{{ route('hechos.iph_puesta_disposicion.descargar', $hecho->id) }}"
                                                    class="btn btn-outline-dark btn-sm"
-                                                   target="_blank"
-                                                   rel="noopener"
-                                                   title="Generar IPH de puesta a disposición">
-                                                    <i class="fa-solid fa-file-signature"></i>
+                                                   title="Descargar IPH de puesta a disposición en Word">
+                                                    <i class="fa-solid fa-file-word"></i>
                                                 </a>
                                             @endif
 

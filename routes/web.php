@@ -484,7 +484,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
     Route::put('/{hecho}',[HechosController::class,'update'])->middleware('can:editar hechos')->name('hechos.update');
     Route::delete('/{hecho}',[HechosController::class,'destroy'])->middleware('can:eliminar hechos')->name('hechos.destroy');
     Route::get('/{hecho}/descargar',[DocumentoHechoController::class,'descargarDocx'])->name('hechos.descargar');
-    Route::get('/{hecho}/iph-puesta-disposicion',[HechosController::class,'imprimirIphPuestaDisposicion'])->name('hechos.iph_puesta_disposicion.imprimir');
+    Route::get('/{hecho}/iph-puesta-disposicion',[HechosController::class,'descargarIphPuestaDisposicion'])->name('hechos.iph_puesta_disposicion.descargar');
 
     Route::prefix('/{hecho}/croquis')->group(function () {
         Route::get('/', [\App\Http\Controllers\CroquisController::class, 'show'])->name('croquis.show');

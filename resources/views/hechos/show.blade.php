@@ -77,13 +77,11 @@
             @endif
 
             @if($puedeGenerarIphPuesta)
-                <a href="{{ route('hechos.iph_puesta_disposicion.imprimir', $hecho->id) }}"
+                <a href="{{ route('hechos.iph_puesta_disposicion.descargar', $hecho->id) }}"
                    class="btn btn-outline-dark btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
                    style="width:36px;height:36px;padding:0;"
-                   target="_blank"
-                   rel="noopener"
-                   title="Generar IPH de puesta a disposición">
-                    <i class="fa-solid fa-file-signature"></i>
+                   title="Descargar IPH de puesta a disposición en Word">
+                    <i class="fa-solid fa-file-word"></i>
                 </a>
             @endif
 
@@ -472,11 +470,9 @@
                                             @endif
 
                                             @if($puedeGenerarIphPuesta)
-                                                <a href="{{ route('hechos.iph_puesta_disposicion.imprimir', $hecho->id) }}"
-                                                   class="btn btn-outline-dark btn-sm"
-                                                   target="_blank"
-                                                   rel="noopener">
-                                                    <i class="fa-solid fa-file-signature"></i> Generar IPH puesta
+                                                <a href="{{ route('hechos.iph_puesta_disposicion.descargar', $hecho->id) }}"
+                                                   class="btn btn-outline-dark btn-sm">
+                                                    <i class="fa-solid fa-file-word"></i> Descargar IPH puesta
                                                 </a>
                                             @endif
 

@@ -11,6 +11,7 @@ use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
+use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\IphPuestaDisposicionService;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
@@ -343,7 +344,11 @@ class HechosController extends Controller
         return view('hechos.show', compact('hecho', 'puedeEditar', 'croquisData'));
     }
 
-    public function imprimirIphPuestaDisposicion(Hechos $hecho, IphPuestaDisposicionService $iphService)
+    public function descargarIphPuestaDisposicion(
+        Hechos $hecho,
+        IphPuestaDisposicionService $iphService,
+        IphPuestaDisposicionDocxService $docxService
+    )
     {
         $usuario = auth()->user();
 
@@ -359,8 +364,11 @@ class HechosController extends Controller
         }
 
         $mapeo = $iphService->mapearDesdeHecho($hecho);
+        [$path, $filename] = $docxService->generar($hecho, $mapeo);
 
-        return view('hechos.iph_puesta_disposicion.print', compact('hecho', 'mapeo'));
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])->deleteFileAfterSend(true);
     }
 
     private function croquisData(?\App\Models\Croquis $croquis): array

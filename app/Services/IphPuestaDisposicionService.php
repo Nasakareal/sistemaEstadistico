@@ -7,6 +7,13 @@ use App\Models\PuestaDisposicion;
 
 class IphPuestaDisposicionService
 {
+    private $croquisPreviewService;
+
+    public function __construct(CroquisPreviewService $croquisPreviewService)
+    {
+        $this->croquisPreviewService = $croquisPreviewService;
+    }
+
     public function puedeGenerar($usuario): bool
     {
         return $usuario
@@ -22,7 +29,9 @@ class IphPuestaDisposicionService
             'creator',
             'unidadOrganizacional',
             'delegacion',
+            'croquis',
             'vehiculos.conductores',
+            'vehiculos.gruaAsignada',
             'lesionados',
             'puestaDisposicion.personas',
             'puestaDisposicion.vehiculos',
@@ -34,12 +43,16 @@ class IphPuestaDisposicionService
         ]);
 
         $puesta = $hecho->puestaDisposicion;
+        $croquisPreview = $hecho->croquis
+            ? $this->croquisPreviewService->ensure($hecho->croquis, $hecho)
+            : null;
 
         return [
             'hecho' => $this->mapearHecho($hecho),
             'puesta_disposicion' => $puesta ? $this->mapearPuesta($puesta) : null,
             'vehiculos_hecho' => $this->mapearVehiculosHecho($hecho),
             'conductores_hecho' => $this->mapearConductoresHecho($hecho),
+            'lesionados_hecho' => $this->mapearLesionadosHecho($hecho),
             'personas' => $puesta ? $this->mapearPersonas($puesta) : [],
             'vehiculos' => $puesta ? $this->mapearVehiculos($puesta) : [],
             'objetos' => $puesta ? $this->mapearObjetos($puesta) : [],
@@ -48,12 +61,18 @@ class IphPuestaDisposicionService
                 'foto_situacion' => $hecho->foto_situacion,
                 'iph_delegaciones_path' => $hecho->iph_delegaciones_path,
                 'archivo_puesta' => $puesta ? $puesta->archivo_puesta : null,
+                'croquis_preview' => $croquisPreview,
             ],
         ];
     }
 
     private function mapearHecho(Hechos $hecho): array
     {
+        $fallecidos = $hecho->lesionados
+            ->filter(fn ($lesionado) => mb_strtoupper(trim((string) $lesionado->tipo_lesion), 'UTF-8') === 'FALLECIDO')
+            ->count();
+        $lesionados = $hecho->lesionados->count() - $fallecidos;
+
         return [
             'id' => $hecho->id,
             'folio_c5i' => $hecho->folio_c5i,
@@ -61,6 +80,7 @@ class IphPuestaDisposicionService
             'hora' => $this->hora($hecho->hora),
             'situacion' => $hecho->situacion,
             'perito' => $hecho->perito,
+            'creador_nombre' => $hecho->creator ? $hecho->creator->name : null,
             'unidad_numero_economico' => $hecho->unidad,
             'unidad_org_id' => $hecho->unidad_org_id,
             'unidad_org_nombre' => $hecho->unidadOrganizacional ? $hecho->unidadOrganizacional->nombre : null,
@@ -69,7 +89,12 @@ class IphPuestaDisposicionService
             'oficio_mp' => $hecho->oficio_mp,
             'vehiculos_mp' => (int) ($hecho->vehiculos_mp ?? 0),
             'personas_mp' => (int) ($hecho->personas_mp ?? 0),
+            'lesionados_count' => $lesionados,
+            'fallecidos_count' => $fallecidos,
             'tipo_hecho' => $hecho->tipo_hecho,
+            'tiempo' => $hecho->tiempo,
+            'clima' => $hecho->clima,
+            'condiciones' => $hecho->condiciones,
             'causas' => $hecho->causas,
             'colision_camino' => $hecho->colision_camino,
             'ubicacion' => [
@@ -79,6 +104,8 @@ class IphPuestaDisposicionService
                 'municipio' => $hecho->municipio,
                 'lat' => $hecho->lat,
                 'lng' => $hecho->lng,
+                'ubicacion_formateada' => $hecho->ubicacion_formateada,
+                'place_id' => $hecho->place_id,
             ],
         ];
     }
@@ -96,13 +123,51 @@ class IphPuestaDisposicionService
                 'placas' => $vehiculo->placas,
                 'estado_placas' => $vehiculo->estado_placas,
                 'serie' => $vehiculo->serie,
+                'capacidad_personas' => $vehiculo->capacidad_personas,
                 'tipo_servicio' => $vehiculo->tipo_servicio,
                 'tarjeta_circulacion_nombre' => $vehiculo->tarjeta_circulacion_nombre,
+                'foto' => $vehiculo->fotos,
                 'grua' => $vehiculo->grua,
+                'grua_id' => $vehiculo->grua_id,
+                'grua_nombre' => $vehiculo->gruaAsignada ? $vehiculo->gruaAsignada->nombre : null,
+                'grua_direccion' => $vehiculo->gruaAsignada ? $vehiculo->gruaAsignada->direccion : null,
+                'grua_ubicacion_corralon' => $vehiculo->gruaAsignada ? $vehiculo->gruaAsignada->ubicacion_corralon : null,
                 'corralon' => $vehiculo->corralon,
+                'monto_danos' => $vehiculo->monto_danos,
                 'partes_danadas' => $vehiculo->partes_danadas,
                 'aseguradora' => $vehiculo->aseguradora,
                 'antecedente_vehiculo' => (bool) $vehiculo->antecedente_vehiculo,
+                'conductores' => $vehiculo->conductores->map(function ($conductor) {
+                    return [
+                        'nombre' => $conductor->nombre,
+                        'edad' => $conductor->edad,
+                        'sexo' => $conductor->sexo,
+                        'domicilio' => $conductor->domicilio,
+                        'ocupacion' => $conductor->ocupacion,
+                        'numero_licencia' => $conductor->numero_licencia,
+                        'tipo_licencia' => $conductor->tipo_licencia,
+                        'estado_licencia' => $conductor->estado_licencia,
+                        'vigencia_licencia' => $this->fecha($conductor->vigencia_licencia),
+                    ];
+                })->values()->all(),
+            ];
+        })->values()->all();
+    }
+
+    private function mapearLesionadosHecho(Hechos $hecho): array
+    {
+        return $hecho->lesionados->map(function ($lesionado) {
+            return [
+                'nombre' => $lesionado->nombre,
+                'edad' => $lesionado->edad,
+                'sexo' => $lesionado->sexo,
+                'tipo_lesion' => $lesionado->tipo_lesion,
+                'hospitalizado' => (bool) $lesionado->hospitalizado,
+                'hospital' => $lesionado->hospital,
+                'atencion_en_sitio' => (bool) $lesionado->atencion_en_sitio,
+                'ambulancia' => $lesionado->ambulancia,
+                'paramedico' => $lesionado->paramedico,
+                'observaciones' => $lesionado->observaciones,
             ];
         })->values()->all();
     }

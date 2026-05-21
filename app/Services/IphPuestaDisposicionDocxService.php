@@ -240,7 +240,6 @@ class IphPuestaDisposicionDocxService
             $this->vinetaParte($section, $item);
         }
 
-        $section->addPageBreak();
         $this->encabezadoParte($section, 'VI.', 'CONDICIONES CLIMATOLÓGICAS:');
         $this->parrafoParte($section, $d['condiciones_climatologicas']);
         $this->encabezadoParte($section, 'VII.', 'CONDICIONES DE ILUMINACIÓN:');
@@ -248,8 +247,6 @@ class IphPuestaDisposicionDocxService
         $this->encabezadoParte($section, 'VIII.', 'DESCRIPCIÓN DEL LUGAR DE LOS HECHOS:');
         $this->parrafoParte($section, 'Corresponde a ' . $d['calle_parte'] . ', la cual se encuentra construida por una superficie de concreto, en buen estado de conservación, tramo a nivel, cuenta con paramentos a sus costados, tiene capacidad para dos carriles de circulación, uno para cada sentido, orientados de oriente a poniente y viceversa, a la hora de la intervención la superficie de rodamiento se encontraba limpia y seca.');
 
-        $section->addPageBreak();
-        $this->logoPaginaParte($section);
         $this->encabezadoParte($section, 'IX.', 'DESCRIPCIÓN DE VEHÍCULOS:');
 
         foreach ($d['vehiculos'] as $i => $vehiculo) {
@@ -263,20 +260,14 @@ class IphPuestaDisposicionDocxService
         $this->encabezadoParte($section, 'X.', 'DINÁMICA DEL HECHO DE TRÁNSITO:');
         $this->parrafoParte($section, 'Por los datos e informes recabados en el lugar del hecho, mediante la inspección ocular realizada por los suscritos, se hace constar de manera preliminar la intervención correspondiente al hecho de tránsito descrito en el presente informe, quedando la narrativa pormenorizada sujeta a la complementación por el personal actuante conforme a los datos obtenidos en campo.');
 
-        $section->addPageBreak();
-        $this->logoPaginaParte($section);
         $this->encabezadoParte($section, 'XI.', 'DIAGRAMA ILUSTRATIVO NO HECHO A ESCALA.');
         $this->imagenEnMarco($section, $d['croquis'], 640, 720, 'Sin croquis registrado en el sistema.');
 
         foreach ($d['fotos'] as $foto) {
-            $section->addPageBreak();
-            $this->logoPaginaParte($section);
             $this->encabezadoParte($section, 'XII.', 'FIJACIÓN FOTOGRÁFICA.');
             $this->imagenEnMarco($section, $foto['path'], 600, 520, 'Sin imagen disponible.');
         }
 
-        $section->addPageBreak();
-        $this->logoPaginaParte($section);
         $this->encabezadoParte($section, 'XIII.-', 'VÍCTIMAS:');
         $this->parrafoParte($section, empty($d['lesionados']) ? 'De este hecho de tránsito no se manifestaron víctimas ante el suscrito.' : 'Se registran personas relacionadas con el hecho, conforme a los datos asentados en el sistema.');
         $this->encabezadoParte($section, 'XIV.-', 'DAÑOS:');
@@ -352,8 +343,8 @@ class IphPuestaDisposicionDocxService
             return null;
         }
 
-        $width = 1900;
-        $height = 360;
+        $width = 1200;
+        $height = 320;
         $image = imagecreatetruecolor($width, $height);
         $white = imagecolorallocate($image, 255, 255, 255);
         $grey = imagecolorallocate($image, 233, 233, 233);
@@ -367,19 +358,19 @@ class IphPuestaDisposicionDocxService
             imagealphablending($logo, true);
             $sourceW = imagesx($logo);
             $sourceH = imagesy($logo);
-            $targetW = 600;
+            $targetW = 430;
             $targetH = (int) round($sourceH * ($targetW / max(1, $sourceW)));
-            imagecopyresampled($image, $logo, 35, 70, 0, 0, $targetW, $targetH, $sourceW, $sourceH);
+            imagecopyresampled($image, $logo, 35, 72, 0, 0, $targetW, $targetH, $sourceW, $sourceH);
             imagedestroy($logo);
         }
 
         $font = $this->fuenteGd(false);
         $fontBold = $this->fuenteGd(true);
-        $x = 900;
+        $x = 520;
         $y = 24;
-        $rowH = 42;
-        $labelW = 340;
-        $valueW = 600;
+        $rowH = 38;
+        $labelW = 210;
+        $valueW = 460;
         $rows = [
             ['Dependencia', 'Secretaría de Seguridad Pública'],
             ['', 'Del Estado de Michoacán de Ocampo'],
@@ -392,11 +383,11 @@ class IphPuestaDisposicionDocxService
         foreach ($rows as $index => $row) {
             $top = $y + ($index * ($rowH + 5));
             imagefilledrectangle($image, $x, $top, $x + $labelW + $valueW, $top + $rowH, $grey);
-            $this->textoGd($image, $row[0], $x + 20, $top + 27, 18, $dark, $font);
+            $this->textoGd($image, $row[0], $x + 16, $top + 26, 18, $dark, $font);
             $this->textoCentradoGd($image, $row[1], $x + $labelW, $top + 4, $valueW, $rowH, 18, $black, $fontBold);
         }
 
-        $this->textoGd($image, 'Asunto:', $x + 20, $y + (6 * ($rowH + 5)) + 28, 18, $dark, $fontBold);
+        $this->textoGd($image, 'Asunto:', $x + 16, $y + (6 * ($rowH + 5)) + 27, 18, $dark, $fontBold);
 
         $path = storage_path('app/temp/' . uniqid('iph_membrete_', true) . '.png');
         File::ensureDirectoryExists(dirname($path));
@@ -677,15 +668,18 @@ class IphPuestaDisposicionDocxService
         $this->texto($section, '1. Identidad. Número, letra o combinación alfanumérica asignada al indicio o elemento material probatorio.', ['bold' => true], ['spaceAfter' => 80]);
         $tabla = $section->addTable('FormTable');
         $tabla->addRow(420);
-        foreach ([2100 => 'Identificación', 4600 => 'Descripción', 3300 => 'Ubicación en el lugar', 1100 => 'Hora de recolección'] as $w => $head) {
-            $tabla->addCell($w, ['bgColor' => self::GREEN])->addText($head, ['bold' => true, 'color' => 'FFFFFF', 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        foreach ([2100 => ['Identificación'], 4400 => ['Descripción'], 3200 => ['Ubicación en el lugar'], 1400 => ['Hora de', 'recolección']] as $w => $head) {
+            $cell = $tabla->addCell($w, ['bgColor' => self::GREEN]);
+            foreach ($head as $line) {
+                $cell->addText($line, ['bold' => true, 'color' => 'FFFFFF', 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0, 'lineHeight' => 1]);
+            }
         }
         foreach ($d['vehiculos'] as $i => $vehiculo) {
             $tabla->addRow(1300);
             $tabla->addCell(2100)->addText('VEHÍCULO ' . $this->letraIndice($i), ['bold' => true], $this->p0());
-            $tabla->addCell(4600)->addText($this->descripcionCadenaVehiculo($vehiculo, $i), ['bold' => true, 'size' => 8], $this->p0());
-            $tabla->addCell(3300)->addText($d['ubicacion_cadena'], ['bold' => true, 'size' => 8], $this->p0());
-            $tabla->addCell(1100)->addText($d['hora_recoleccion_cadena'] . "\nHORAS", ['bold' => true, 'size' => 8], $this->p0());
+            $tabla->addCell(4400)->addText($this->descripcionCadenaVehiculo($vehiculo, $i), ['bold' => true, 'size' => 8], $this->p0());
+            $tabla->addCell(3200)->addText($d['ubicacion_cadena'], ['bold' => true, 'size' => 8], $this->p0());
+            $tabla->addCell(1400)->addText($d['hora_recoleccion_cadena'] . "\nHORAS", ['bold' => true, 'size' => 8], $this->p0());
         }
         $this->texto($section, '5. Traslado. Vía: Terrestre X    Aérea ___    Marítima ___    Condiciones especiales para traslado: No X    Sí ___', ['bold' => true, 'size' => 9], ['spaceBefore' => 220, 'spaceAfter' => 120]);
         $this->texto($section, '6. Continuidad y trazabilidad.', ['bold' => true, 'size' => 11], ['spaceAfter' => 60]);
@@ -796,7 +790,7 @@ class IphPuestaDisposicionDocxService
 
     private function encabezadoParte($section, string $roman, string $title): void
     {
-        $this->texto($section, '', ['size' => 1], ['spaceBefore' => 360, 'spaceAfter' => 0, 'lineHeight' => 1]);
+        $this->texto($section, '', ['size' => 1], ['spaceBefore' => 300, 'spaceAfter' => 0, 'lineHeight' => 1]);
 
         $heading = $section->addTable('NoBorder');
         $heading->addRow();
@@ -806,7 +800,7 @@ class IphPuestaDisposicionDocxService
             ->addText($title, ['bold' => true, 'size' => 14], ['alignment' => Jc::LEFT, 'spaceAfter' => 0, 'lineHeight' => 1.1]);
     }
 
-    private function parrafoParte($section, string $text, int $spaceBefore = 420): void
+    private function parrafoParte($section, string $text, int $spaceBefore = 360): void
     {
         $this->texto($section, $text, ['size' => 11], [
             'alignment' => Jc::LEFT,
@@ -817,7 +811,7 @@ class IphPuestaDisposicionDocxService
         ]);
     }
 
-    private function vinetaParte($section, string $text, int $spaceBefore = 300): void
+    private function vinetaParte($section, string $text, int $spaceBefore = 260): void
     {
         $this->texto($section, '•    ' . $text, ['size' => 11], [
             'alignment' => Jc::LEFT,
@@ -848,7 +842,7 @@ class IphPuestaDisposicionDocxService
             'alignment' => Jc::LEFT,
             'indentation' => ['firstLine' => 1580],
             'lineHeight' => 1.08,
-            'spaceBefore' => 420,
+            'spaceBefore' => 360,
             'spaceAfter' => 0,
         ]);
         $run->addText('Establecer las causas que originaron el hecho de tránsito terrestre en su modalidad de ', ['size' => 11]);
@@ -906,6 +900,7 @@ class IphPuestaDisposicionDocxService
             return false;
         }
 
+        $maxW = min($maxW, 535);
         $size = @getimagesize($path);
         $width = $maxW;
         $height = null;

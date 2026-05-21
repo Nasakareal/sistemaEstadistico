@@ -86,11 +86,13 @@ class IphPuestaDisposicionDocxService
             $lugar = trim((string) ($ubicacion['ubicacion_formateada'] ?? ''));
         }
 
-        $oficina = 'Unidad de Delegaciones';
+        $unidadId = (int) ($hechoIph['unidad_org_id'] ?? ($puesta['unidad_id'] ?? 0));
+        $unidadNombre = $this->valor($hechoIph['unidad_org_nombre'] ?? ($puesta['unidad_nombre'] ?? null), '');
+        $oficina = $this->nombreOficina($unidadId, $unidadNombre);
         $municipio = $this->title($ubicacion['municipio'] ?? 'Lazaro Cárdenas');
         $folio = preg_replace('/\s+/', '', (string) ($hechoIph['folio_c5i'] ?? '')) ?: (string) ($hecho->id ?? '');
         $nombrePolicia = $this->valor($puesta['nombre_policia'] ?? ($hechoIph['creador_nombre'] ?? ($hechoIph['perito'] ?? null)), '');
-        $adscripcion = mb_strtoupper($this->valor($hechoIph['unidad_org_nombre'] ?? $oficina, ''), 'UTF-8');
+        $adscripcion = mb_strtoupper($oficina, 'UTF-8');
         $tipoHechoParte = mb_strtoupper(trim((string) ($hechoIph['tipo_hecho'] ?? '')), 'UTF-8');
         $causasParte = mb_strtoupper(trim((string) ($hechoIph['causas'] ?? '')), 'UTF-8');
         $modalidadParte = trim(collect([
@@ -343,8 +345,8 @@ class IphPuestaDisposicionDocxService
             return null;
         }
 
-        $width = 1200;
-        $height = 320;
+        $width = 2400;
+        $height = 640;
         $image = imagecreatetruecolor($width, $height);
         $white = imagecolorallocate($image, 255, 255, 255);
         $grey = imagecolorallocate($image, 233, 233, 233);
@@ -358,19 +360,19 @@ class IphPuestaDisposicionDocxService
             imagealphablending($logo, true);
             $sourceW = imagesx($logo);
             $sourceH = imagesy($logo);
-            $targetW = 430;
+            $targetW = 860;
             $targetH = (int) round($sourceH * ($targetW / max(1, $sourceW)));
-            imagecopyresampled($image, $logo, 35, 72, 0, 0, $targetW, $targetH, $sourceW, $sourceH);
+            imagecopyresampled($image, $logo, 70, 144, 0, 0, $targetW, $targetH, $sourceW, $sourceH);
             imagedestroy($logo);
         }
 
         $font = $this->fuenteGd(false);
         $fontBold = $this->fuenteGd(true);
-        $x = 520;
-        $y = 24;
-        $rowH = 38;
-        $labelW = 210;
-        $valueW = 460;
+        $x = 1040;
+        $y = 48;
+        $rowH = 76;
+        $labelW = 420;
+        $valueW = 920;
         $rows = [
             ['Dependencia', 'Secretaría de Seguridad Pública'],
             ['', 'Del Estado de Michoacán de Ocampo'],
@@ -381,13 +383,13 @@ class IphPuestaDisposicionDocxService
         ];
 
         foreach ($rows as $index => $row) {
-            $top = $y + ($index * ($rowH + 5));
+            $top = $y + ($index * ($rowH + 10));
             imagefilledrectangle($image, $x, $top, $x + $labelW + $valueW, $top + $rowH, $grey);
-            $this->textoGd($image, $row[0], $x + 16, $top + 26, 18, $dark, $font);
-            $this->textoCentradoGd($image, $row[1], $x + $labelW, $top + 4, $valueW, $rowH, 18, $black, $fontBold);
+            $this->textoGd($image, $row[0], $x + 32, $top + 52, 36, $dark, $font);
+            $this->textoCentradoGd($image, $row[1], $x + $labelW, $top + 8, $valueW, $rowH, 36, $black, $fontBold);
         }
 
-        $this->textoGd($image, 'Asunto:', $x + 16, $y + (6 * ($rowH + 5)) + 27, 18, $dark, $fontBold);
+        $this->textoGd($image, 'Asunto:', $x + 32, $y + (6 * ($rowH + 10)) + 54, 36, $dark, $fontBold);
 
         $path = storage_path('app/temp/' . uniqid('iph_membrete_', true) . '.png');
         File::ensureDirectoryExists(dirname($path));
@@ -415,7 +417,7 @@ class IphPuestaDisposicionDocxService
 
     private function textoGd($image, string $text, int $x, int $baseline, int $size, int $color, ?string $font): void
     {
-        $text = $this->plain($text);
+        $text = $this->textoUtf8Gd($text);
 
         if ($font) {
             imagettftext($image, $size, 0, $x, $baseline, $color, $font, $text);
@@ -427,10 +429,10 @@ class IphPuestaDisposicionDocxService
 
     private function textoCentradoGd($image, string $text, int $x, int $y, int $width, int $height, int $size, int $color, ?string $font): void
     {
-        $lines = $this->lineasGd($text, $width - 24, $size, $font);
-        $lineHeight = $font ? $size + 8 : 18;
+        $lines = $this->lineasGd($text, $width - 48, $size, $font);
+        $lineHeight = $font ? $size + 16 : 36;
         $totalHeight = count($lines) * $lineHeight;
-        $baseline = $y + (int) round(($height - $totalHeight) / 2) + $size + 1;
+        $baseline = $y + (int) round(($height - $totalHeight) / 2) + $size + 2;
 
         foreach ($lines as $line) {
             $lineWidth = $this->anchoTextoGd($line, $size, $font);
@@ -441,7 +443,7 @@ class IphPuestaDisposicionDocxService
 
     private function lineasGd(string $text, int $maxWidth, int $size, ?string $font): array
     {
-        $words = preg_split('/\s+/', trim($this->plain($text)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $words = preg_split('/\s+/', trim($this->textoUtf8Gd($text)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $lines = [];
         $line = '';
 
@@ -466,18 +468,62 @@ class IphPuestaDisposicionDocxService
 
     private function anchoTextoGd(string $text, int $size, ?string $font): int
     {
+        $text = $this->textoUtf8Gd($text);
+
         if ($font) {
             $box = imagettfbbox($size, 0, $font, $text);
 
             return abs($box[2] - $box[0]);
         }
 
-        return strlen($text) * 9;
+        return strlen($text) * 18;
+    }
+
+    private function textoUtf8Gd(string $text): string
+    {
+        $text = $this->plain($text);
+
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252,ISO-8859-1');
+        }
+
+        return $text;
     }
 
     private function municipioFecha(string $municipio): string
     {
         return str_ireplace('Lazaro Cardenas', 'Lazaro Cárdenas', $municipio);
+    }
+
+    private function nombreOficina(int $unidadId, string $unidadNombre): string
+    {
+        $nombre = mb_strtoupper($this->plain($unidadNombre), 'UTF-8');
+
+        if ($unidadId === 1 || str_contains($nombre, 'SINIESTROS')) {
+            return 'Unidad de Atención a Siniestros';
+        }
+
+        if ($unidadId === 2 || str_contains($nombre, 'DELEGACIONES')) {
+            return 'Unidad de Delegaciones';
+        }
+
+        if ($unidadId === 3 || str_contains($nombre, 'SEGURIDAD VIAL')) {
+            return 'Agrupamiento de Seguridad Vial';
+        }
+
+        if ($unidadId === 4 || str_contains($nombre, 'CARRETERAS')) {
+            return 'División de Seguridad en Carreteras';
+        }
+
+        if ($unidadId === 5 || str_contains($nombre, 'VIALIDADES URBANAS')) {
+            return 'División de Seguridad en Vialidades Urbanas';
+        }
+
+        if ($unidadId === 6 || str_contains($nombre, 'CULTURA VIAL')) {
+            return 'Dirección de Fomento a la Cultura Vial';
+        }
+
+        return $unidadNombre !== '' ? $this->title($unidadNombre) : 'Unidad de Atención a Siniestros';
     }
 
     private function lineasAutoridadParte(string $autoridad): array

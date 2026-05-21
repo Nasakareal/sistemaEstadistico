@@ -208,12 +208,22 @@ class IphPuestaDisposicionDocxService
     {
         $section = $this->seccion($phpWord, 'legal');
         $this->membreteParte($section, $d);
-        $this->texto($section, $d['autoridad'], ['bold' => true, 'size' => 12], ['spaceBefore' => 120, 'spaceAfter' => 0, 'lineHeight' => 1.05]);
-        $this->texto($section, 'P R E S E N T E .', ['bold' => true, 'size' => 12, 'spacing' => 4], ['spaceAfter' => 420, 'lineHeight' => 1.05]);
+        foreach ($this->lineasAutoridadParte($d['autoridad']) as $index => $linea) {
+            $this->texto($section, $linea, ['bold' => true, 'size' => 11], [
+                'spaceBefore' => $index === 0 ? 90 : 0,
+                'spaceAfter' => 0,
+                'lineHeight' => 1.05,
+            ]);
+        }
+
+        $this->texto($section, 'P R E S E N T E .', ['bold' => true, 'size' => 11, 'spacing' => 4], [
+            'spaceAfter' => 360,
+            'lineHeight' => 1.05,
+        ]);
         $this->parrafoParteConNombre($section, $d);
-        $this->texto($section, 'PARTE INFORMATIVO', ['bold' => true, 'size' => 18], ['alignment' => Jc::CENTER, 'spaceBefore' => 260, 'spaceAfter' => 320]);
+        $this->texto($section, 'PARTE INFORMATIVO', ['bold' => true, 'size' => 16], ['alignment' => Jc::CENTER, 'spaceBefore' => 260, 'spaceAfter' => 260]);
         $this->encabezadoParte($section, 'I.', 'PLANTEAMIENTO DEL PROBLEMA:');
-        $this->parrafoParte($section, 'Establecer las causas que originaron el hecho de tránsito terrestre en su modalidad de (' . $d['modalidad_parte'] . '), ocurrido el día ' . $d['fecha_hecho'] . ', a las ' . substr($d['hora_hecho'], 0, 5) . ' horas en ' . $d['calle_parte'] . ', de la colonia ' . $d['colonia_parte'] . ', en esta ciudad.');
+        $this->parrafoProblemaParte($section, $d);
         $this->encabezadoParte($section, 'II.', 'METODOLOGÍA APLICADA AL PRESENTE INFORME PERICIAL:');
         $this->parrafoParte($section, 'La metodología propuesta por el método científico, en cuanto al planteamiento del problema, la recopilación de datos por medio de la observación metódica y directa.');
         $this->parrafoParte($section, 'Para realizar el presente Parte Informativo aplicaremos:');
@@ -320,10 +330,14 @@ class IphPuestaDisposicionDocxService
         $membrete = $this->crearMembreteParteImagen($d);
 
         if ($membrete) {
-            $this->addImageFit($section, $membrete, 620, 170, Jc::CENTER);
+            $this->addImageFit($section, $membrete, 535, 150, Jc::CENTER);
         }
 
-        $this->texto($section, $this->municipioFecha($d['municipio']) . ' Michoacán a ' . $d['fecha_encabezado'] . '.', ['size' => 12], ['alignment' => Jc::RIGHT, 'spaceBefore' => 110, 'spaceAfter' => 260]);
+        $this->texto($section, $this->municipioFecha($d['municipio']) . ' Michoacán a ' . $d['fecha_encabezado'] . '.', ['size' => 12], [
+            'alignment' => Jc::RIGHT,
+            'spaceBefore' => 90,
+            'spaceAfter' => 220,
+        ]);
     }
 
     private function crearMembreteParteImagen(array $d): ?string
@@ -473,6 +487,26 @@ class IphPuestaDisposicionDocxService
     private function municipioFecha(string $municipio): string
     {
         return str_ireplace('Lazaro Cardenas', 'Lazaro Cárdenas', $municipio);
+    }
+
+    private function lineasAutoridadParte(string $autoridad): array
+    {
+        $autoridad = trim(preg_replace('/\s+/', ' ', $this->plain($autoridad)));
+
+        if ($autoridad === '') {
+            return [];
+        }
+
+        $pos = mb_stripos($autoridad, ' FISCAL', 0, 'UTF-8');
+
+        if ($pos !== false) {
+            return [
+                trim(mb_substr($autoridad, 0, $pos, 'UTF-8')),
+                trim(mb_substr($autoridad, $pos + 1, null, 'UTF-8')),
+            ];
+        }
+
+        return explode("\n", wordwrap($autoridad, 54, "\n", false));
     }
 
     private function iphPortada($section, array $d): void
@@ -762,21 +796,22 @@ class IphPuestaDisposicionDocxService
 
     private function encabezadoParte($section, string $roman, string $title): void
     {
-        $this->texto($section, $roman . '        ' . $title, ['bold' => true, 'size' => 15], [
-            'alignment' => Jc::CENTER,
-            'keepNext' => true,
-            'lineHeight' => 1.08,
-            'spaceBefore' => 420,
-            'spaceAfter' => 0,
-        ]);
+        $this->texto($section, '', ['size' => 1], ['spaceBefore' => 360, 'spaceAfter' => 0, 'lineHeight' => 1]);
+
+        $heading = $section->addTable('NoBorder');
+        $heading->addRow();
+        $heading->addCell(2900, $this->sinBorde(['valign' => 'top']))
+            ->addText($roman, ['bold' => true, 'size' => 14], ['alignment' => Jc::RIGHT, 'spaceAfter' => 0, 'lineHeight' => 1.1]);
+        $heading->addCell(8200, $this->sinBorde(['valign' => 'top']))
+            ->addText($title, ['bold' => true, 'size' => 14], ['alignment' => Jc::LEFT, 'spaceAfter' => 0, 'lineHeight' => 1.1]);
     }
 
     private function parrafoParte($section, string $text, int $spaceBefore = 420): void
     {
-        $this->texto($section, $text, ['size' => 12], [
-            'alignment' => Jc::BOTH,
+        $this->texto($section, $text, ['size' => 11], [
+            'alignment' => Jc::LEFT,
             'indentation' => ['firstLine' => 1580],
-            'lineHeight' => 1.12,
+            'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
             'spaceAfter' => 0,
         ]);
@@ -784,10 +819,10 @@ class IphPuestaDisposicionDocxService
 
     private function vinetaParte($section, string $text, int $spaceBefore = 300): void
     {
-        $this->texto($section, '•    ' . $text, ['size' => 12], [
-            'alignment' => Jc::BOTH,
+        $this->texto($section, '•    ' . $text, ['size' => 11], [
+            'alignment' => Jc::LEFT,
             'indentation' => ['left' => 1580, 'hanging' => 260],
-            'lineHeight' => 1.12,
+            'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
             'spaceAfter' => 0,
         ]);
@@ -796,15 +831,31 @@ class IphPuestaDisposicionDocxService
     private function parrafoParteConNombre($section, array $d): void
     {
         $run = $section->addTextRun([
-            'alignment' => Jc::BOTH,
+            'alignment' => Jc::LEFT,
             'indentation' => ['firstLine' => 1580],
-            'lineHeight' => 1.12,
+            'lineHeight' => 1.08,
             'spaceBefore' => 0,
             'spaceAfter' => 0,
         ]);
-        $run->addText('El suscrito Perito en Hechos de Tránsito ', ['size' => 12]);
-        $run->addText($d['nombre_policia_mayus'], ['bold' => true, 'size' => 12]);
-        $run->addText(', adscrito a la Coordinación del Agrupamiento de Seguridad Vial, de la Secretaría de Seguridad Pública del Estado, tengo a bien emitir el siguiente:', ['size' => 12]);
+        $run->addText('El suscrito Perito en Hechos de Tránsito ', ['size' => 11]);
+        $run->addText($d['nombre_policia_mayus'], ['bold' => true, 'size' => 11]);
+        $run->addText(', adscrito a la Coordinación del Agrupamiento de Seguridad Vial, de la Secretaría de Seguridad Pública del Estado, tengo a bien emitir el siguiente:', ['size' => 11]);
+    }
+
+    private function parrafoProblemaParte($section, array $d): void
+    {
+        $run = $section->addTextRun([
+            'alignment' => Jc::LEFT,
+            'indentation' => ['firstLine' => 1580],
+            'lineHeight' => 1.08,
+            'spaceBefore' => 420,
+            'spaceAfter' => 0,
+        ]);
+        $run->addText('Establecer las causas que originaron el hecho de tránsito terrestre en su modalidad de ', ['size' => 11]);
+        $run->addText('(' . $d['modalidad_parte'] . ')', ['bold' => true, 'size' => 11]);
+        $run->addText(', ocurrido el día ' . $d['fecha_hecho'] . ', a las ' . substr($d['hora_hecho'], 0, 5) . ' horas en ' . $d['calle_parte'] . ', de la colonia ', ['size' => 11]);
+        $run->addText($d['colonia_parte'], ['bold' => true, 'size' => 11]);
+        $run->addText(', en esta ciudad.', ['size' => 11]);
     }
 
     private function texto($container, string $text, array $font = [], array $paragraph = []): void

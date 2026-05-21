@@ -99,13 +99,11 @@
                                 <tr>
                                     <th class="text-center">ID</th>
                                     <th class="text-center">Fecha y Hora</th>
-                                    <th class="text-center">Origen</th>
                                     <th class="text-center">Ubicación</th>
                                     <th class="text-center">Foto Lugar</th>
                                     <th class="text-center">Estado</th>
                                     <th class="text-center">Captura</th>
                                     <th class="text-center">Corralón</th>
-                                    <th class="text-center">Relevante</th>
                                     <th class="text-center">Revisado por</th>
                                     <th class="text-center">Creado por</th>
                                     <th class="text-center">Acciones</th>
@@ -152,14 +150,6 @@
 
                                         <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
 
-                                        <td>
-                                            @if($esHistoricoPeritos)
-                                                <span class="badge badge-info">Histórico Peritos</span>
-                                            @else
-                                                <span class="badge badge-success">Actual</span>
-                                            @endif
-                                        </td>
-
                                         <td>{{ $hecho->calle }}, {{ $hecho->colonia }}, {{ $hecho->municipio }}</td>
 
                                         <td>
@@ -196,14 +186,6 @@
                                                 {{ $vehiculosCorralon }}
                                                 {{ $vehiculosCorralon === 1 ? 'vehículo' : 'vehículos' }}
                                             </span>
-                                        </td>
-
-                                        <td>
-                                            @if ($hecho->es_relevante)
-                                                <span class="badge badge-warning">SÍ</span>
-                                            @else
-                                                <span class="badge badge-secondary">NO</span>
-                                            @endif
                                         </td>
 
                                         <td>{{ $hecho->revisadoPor ? $hecho->revisadoPor->name : 'SIN REVISIÓN' }}</td>

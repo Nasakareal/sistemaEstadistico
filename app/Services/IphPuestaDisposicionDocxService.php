@@ -698,7 +698,7 @@ class IphPuestaDisposicionDocxService
     private function encabezadoParte($section, string $roman, string $title): void
     {
         $this->texto($section, $roman . '      ' . $title, ['bold' => true, 'size' => 14], [
-            'alignment' => Jc::LEFT,
+            'alignment' => Jc::BOTH,
             'indentation' => ['firstLine' => self::PARTE_HEADING_FIRST_LINE],
             'lineHeight' => 1.1,
             'spaceBefore' => 300,
@@ -709,7 +709,7 @@ class IphPuestaDisposicionDocxService
     private function parrafoParte($section, string $text, int $spaceBefore = 360): void
     {
         $this->texto($section, $text, ['size' => 11], [
-            'alignment' => Jc::LEFT,
+            'alignment' => Jc::BOTH,
             'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
@@ -720,7 +720,7 @@ class IphPuestaDisposicionDocxService
     private function vinetaParte($section, string $text, int $spaceBefore = 260): void
     {
         $this->texto($section, '•    ' . $text, ['size' => 11], [
-            'alignment' => Jc::LEFT,
+            'alignment' => Jc::BOTH,
             'indentation' => ['left' => 1580, 'hanging' => 260],
             'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
@@ -731,7 +731,7 @@ class IphPuestaDisposicionDocxService
     private function parrafoParteConNombre($section, array $d): void
     {
         $run = $section->addTextRun([
-            'alignment' => Jc::LEFT,
+            'alignment' => Jc::BOTH,
             'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 0,
@@ -745,7 +745,7 @@ class IphPuestaDisposicionDocxService
     private function parrafoProblemaParte($section, array $d): void
     {
         $run = $section->addTextRun([
-            'alignment' => Jc::LEFT,
+            'alignment' => Jc::BOTH,
             'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 360,
@@ -761,7 +761,7 @@ class IphPuestaDisposicionDocxService
     private function parrafoVehiculoParte($section, array $vehiculo, int $i): void
     {
         $run = $section->addTextRun([
-            'alignment' => Jc::LEFT,
+            'alignment' => Jc::BOTH,
             'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 360,

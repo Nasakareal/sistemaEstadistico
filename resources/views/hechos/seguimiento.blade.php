@@ -209,6 +209,8 @@
                                         $detalleUnidad = null;
                                     }
                                 }
+
+                                $puestaPdfPath = optional($hecho->puestaDisposicion)->archivo_puesta;
                             @endphp
 
                             <tr>
@@ -278,6 +280,18 @@
                                     <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm" title="Descargar">
                                         <i class="fas fa-download"></i>
                                     </a>
+
+                                    @if($puestaPdfPath)
+                                        <a
+                                            href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                            class="btn btn-outline-danger btn-sm"
+                                            target="_blank"
+                                            rel="noopener"
+                                            title="Ver PDF de puesta a disposición"
+                                        >
+                                            <i class="fa-solid fa-file-pdf"></i>
+                                        </a>
+                                    @endif
 
                                     <button
                                         type="button"

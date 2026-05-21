@@ -143,6 +143,7 @@
                                             && ($usuario->hasRole('Superadmin') || $usuario->hasRole('Administrador'));
 
                                         $esHistoricoPeritos = (string) $hecho->fuente_ubicacion === 'legacy_peritos';
+                                        $puestaPdfPath = optional($hecho->puestaDisposicion)->archivo_puesta;
                                     @endphp
 
                                     <tr class="{{ $esIncompletoDelegaciones ? 'table-danger' : '' }}">
@@ -228,6 +229,16 @@
                                             <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-download"></i>
                                             </a>
+
+                                            @if($puestaPdfPath)
+                                                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                                   class="btn btn-outline-danger btn-sm"
+                                                   target="_blank"
+                                                   rel="noopener"
+                                                   title="Ver PDF de puesta a disposición">
+                                                    <i class="fa-solid fa-file-pdf"></i>
+                                                </a>
+                                            @endif
 
                                             <button type="button" class="btn btn-success btn-sm btn-compartir-hecho"
                                                 data-url="{{ route('hechos.compartir', $hecho->id) }}">

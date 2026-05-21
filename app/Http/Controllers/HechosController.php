@@ -45,7 +45,7 @@ class HechosController extends Controller
         $unidadFiltro = (string) $request->query('unidad_filtro', '');
 
         $hechosQuery = Hechos::query()
-            ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis', 'creator'])
+            ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis', 'creator', 'puestaDisposicion'])
             ->withCount([
                 'lesionados',
                 'vehiculosEnCorralon as vehiculos_corralon_count',
@@ -1019,7 +1019,7 @@ class HechosController extends Controller
         ];
 
         $query = Hechos::query()
-            ->with(['creator', 'unidadOrganizacional', 'delegacion'])
+            ->with(['creator', 'unidadOrganizacional', 'delegacion', 'puestaDisposicion'])
             ->withCount(['vehiculosEnCorralon as vehiculos_corralon_count']);
 
         if ($periodo === 'SEMANA') {

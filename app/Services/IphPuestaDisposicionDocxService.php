@@ -27,8 +27,9 @@ class IphPuestaDisposicionDocxService
     private const LETTER_H = 15840;
     private const MARGIN = 567;
     private const CONTENT_W = 11106;
-    private const PARTE_FIRST_LINE = 1440;
-    private const PARTE_HEADING_FIRST_LINE = 1440;
+    private const PARTE_TAB_PREFIX = "\t\t";
+    private const PARTE_BULLET_LEFT = 2160;
+    private const PARTE_BULLET_HANGING = 260;
 
     private $tempFiles = [];
 
@@ -275,8 +276,20 @@ class IphPuestaDisposicionDocxService
             $this->imagenEnMarco($section, $foto['path'], 600, 520, 'Sin imagen disponible.');
         }
 
+        if (!empty($d['fotos'])) {
+            $section->addPageBreak();
+        }
+
         $this->encabezadoParte($section, 'XIII.-', 'VÍCTIMAS:');
-        $this->parrafoParte($section, empty($d['lesionados']) ? 'De este hecho de tránsito no se manifestaron víctimas ante el suscrito.' : 'Se registran personas relacionadas con el hecho, conforme a los datos asentados en el sistema.');
+
+        if (empty($d['lesionados'])) {
+            $this->parrafoParte($section, 'De este hecho de tránsito no se manifestaron ante el suscrito.');
+        } else {
+            foreach ($d['lesionados'] as $lesionado) {
+                $this->parrafoParte($section, $this->descripcionVictimaParte($lesionado));
+            }
+        }
+
         $this->encabezadoParte($section, 'XIV.-', 'DAÑOS:');
 
         foreach ($d['vehiculos'] as $i => $vehiculo) {
@@ -285,13 +298,17 @@ class IphPuestaDisposicionDocxService
 
         if (empty($d['vehiculos'])) {
             $this->parrafoParte($section, 'No se cuenta con vehículos registrados para estimación de daños.');
+        } else {
+            $this->parrafoParte($section, 'Estos daños fueron estimados y calculados a simple vista y será salvo el presupuesto real que le sea presentado ante usted por las partes involucradas una vez que hayan sido desarmadas todas y cada una de las piezas dañadas.');
         }
 
         $this->encabezadoParte($section, 'XV.-', 'OBSERVACIONES:');
         $this->parrafoParte($section, $this->observacionesGruas($d['vehiculos']));
         $this->parrafoParte($section, 'De lo anteriormente expuesto y formulado se llega a las siguientes:');
         $this->texto($section, 'CONCLUSIONES:', ['bold' => true, 'size' => 16], ['alignment' => Jc::CENTER, 'spaceBefore' => 420, 'spaceAfter' => 220]);
-        $this->parrafoParte($section, 'ÚNICA.- Se emite el presente Parte Informativo con los datos disponibles en el sistema para los fines legales a que haya lugar, quedando pendiente complementar la narrativa detallada cuando corresponda.');
+        $this->parrafoParte($section, $this->conclusionCausaParte($d));
+        $this->parrafoParte($section, $this->conclusionDisposicionParte($d['vehiculos']));
+        $this->firmaParte($section, $d);
     }
 
     private function agregarIph(PhpWord $phpWord, array $d): void
@@ -697,9 +714,8 @@ class IphPuestaDisposicionDocxService
 
     private function encabezadoParte($section, string $roman, string $title): void
     {
-        $this->texto($section, $roman . '      ' . $title, ['bold' => true, 'size' => 14], [
+        $this->texto($section, self::PARTE_TAB_PREFIX . $roman . '      ' . $title, ['bold' => true, 'size' => 14], [
             'alignment' => Jc::BOTH,
-            'indentation' => ['firstLine' => self::PARTE_HEADING_FIRST_LINE],
             'lineHeight' => 1.1,
             'spaceBefore' => 300,
             'spaceAfter' => 0,
@@ -708,9 +724,8 @@ class IphPuestaDisposicionDocxService
 
     private function parrafoParte($section, string $text, int $spaceBefore = 360): void
     {
-        $this->texto($section, $text, ['size' => 11], [
+        $this->texto($section, self::PARTE_TAB_PREFIX . $text, ['size' => 11], [
             'alignment' => Jc::BOTH,
-            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
             'spaceAfter' => 0,
@@ -721,7 +736,7 @@ class IphPuestaDisposicionDocxService
     {
         $this->texto($section, '•    ' . $text, ['size' => 11], [
             'alignment' => Jc::BOTH,
-            'indentation' => ['left' => 1580, 'hanging' => 260],
+            'indentation' => ['left' => self::PARTE_BULLET_LEFT, 'hanging' => self::PARTE_BULLET_HANGING],
             'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
             'spaceAfter' => 0,
@@ -732,12 +747,11 @@ class IphPuestaDisposicionDocxService
     {
         $run = $section->addTextRun([
             'alignment' => Jc::BOTH,
-            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 0,
             'spaceAfter' => 0,
         ]);
-        $run->addText('El suscrito Perito en Hechos de Tránsito ', ['size' => 11]);
+        $run->addText(self::PARTE_TAB_PREFIX . 'El suscrito Perito en Hechos de Tránsito ', ['size' => 11]);
         $run->addText($d['nombre_policia_mayus'], ['bold' => true, 'size' => 11]);
         $run->addText(', adscrito a la Coordinación del Agrupamiento de Seguridad Vial, de la Secretaría de Seguridad Pública del Estado, tengo a bien emitir el siguiente:', ['size' => 11]);
     }
@@ -746,12 +760,11 @@ class IphPuestaDisposicionDocxService
     {
         $run = $section->addTextRun([
             'alignment' => Jc::BOTH,
-            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 360,
             'spaceAfter' => 0,
         ]);
-        $run->addText('Establecer las causas que originaron el hecho de tránsito terrestre en su modalidad de ', ['size' => 11]);
+        $run->addText(self::PARTE_TAB_PREFIX . 'Establecer las causas que originaron el hecho de tránsito terrestre en su modalidad de ', ['size' => 11]);
         $run->addText('(' . $d['modalidad_parte'] . ')', ['bold' => true, 'size' => 11]);
         $run->addText(', ocurrido el día ' . $d['fecha_hecho'] . ', a las ' . substr($d['hora_hecho'], 0, 5) . ' horas en ' . $d['calle_parte'] . ', de la colonia ', ['size' => 11]);
         $run->addText($d['colonia_parte'], ['bold' => true, 'size' => 11]);
@@ -762,43 +775,106 @@ class IphPuestaDisposicionDocxService
     {
         $run = $section->addTextRun([
             'alignment' => Jc::BOTH,
-            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 360,
             'spaceAfter' => 0,
         ]);
 
-        $run->addText('VEHÍCULO (' . $this->plain($this->letraIndice($i)) . ').- ', ['bold' => true, 'size' => 11]);
+        $run->addText(self::PARTE_TAB_PREFIX . 'VEHÍCULO (' . $this->plain($this->letraIndice($i)) . ').- ', ['bold' => true, 'size' => 11]);
+        $tieneDetalle = false;
+        $separador = function () use ($run, &$tieneDetalle): void {
+            $run->addText($tieneDetalle ? ', ' : ' ', ['size' => 11]);
+            $tieneDetalle = true;
+        };
 
-        $partes = [
-            ['Marca', $this->clean($vehiculo['marca'] ?? null), false],
-            ['Modelo', $this->clean($vehiculo['modelo'] ?? null), false],
-            ['Tipo', $this->clean($vehiculo['tipo'] ?? null), false],
-            ['Línea', $this->clean($vehiculo['linea'] ?? null), false],
-            ['Color', $this->clean($vehiculo['color'] ?? null), false],
-            ['Placas', $this->clean($vehiculo['placas'] ?? null), true],
-            ['Serie/NIV', $this->clean($vehiculo['serie'] ?? null), true],
-        ];
-
-        $primero = true;
-
-        foreach ($partes as [$etiqueta, $valor, $resaltarValor]) {
+        foreach ([
+            'Marca' => $this->clean($vehiculo['marca'] ?? null),
+            'Modelo' => $this->clean($vehiculo['modelo'] ?? null),
+            'Tipo' => $this->clean($vehiculo['tipo'] ?? null),
+            'Línea' => $this->clean($vehiculo['linea'] ?? null),
+            'Color' => $this->clean($vehiculo['color'] ?? null),
+        ] as $etiqueta => $valor) {
             if (!$valor) {
                 continue;
             }
 
-            if (!$primero) {
-                $run->addText(', ', ['size' => 11]);
+            $separador();
+            $run->addText($etiqueta . ' ' . $this->plain($valor), ['size' => 11]);
+        }
+
+        if ($capacidad = $this->clean($vehiculo['capacidad_personas'] ?? null)) {
+            $separador();
+            $run->addText('Capacidad para ' . $this->plain($capacidad) . ' Personas', ['size' => 11]);
+        }
+
+        if ($placas = $this->clean($vehiculo['placas'] ?? null)) {
+            $separador();
+            $run->addText('Placas para circular ', ['size' => 11]);
+            $run->addText($this->plain($placas), ['bold' => true, 'size' => 11]);
+
+            if ($servicio = $this->clean($vehiculo['tipo_servicio'] ?? null)) {
+                $run->addText(' del servicio ' . mb_strtolower($this->plain($servicio), 'UTF-8'), ['size' => 11]);
             }
 
-            if ($resaltarValor) {
-                $run->addText($etiqueta . ' ', ['size' => 11]);
-                $run->addText($this->plain($valor), ['bold' => true, 'size' => 11]);
-            } else {
-                $run->addText($etiqueta . ' ' . $this->plain($valor), ['size' => 11]);
+            if ($estadoPlacas = $this->clean($vehiculo['estado_placas'] ?? null)) {
+                $run->addText(' de ' . $this->plain($estadoPlacas), ['size' => 11]);
+            }
+        }
+
+        if ($serie = $this->clean($vehiculo['serie'] ?? null)) {
+            $separador();
+            $run->addText('Serie ', ['size' => 11]);
+            $run->addText($this->plain($serie), ['bold' => true, 'size' => 11]);
+        }
+
+        if ($tarjeta = $this->clean($vehiculo['tarjeta_circulacion_nombre'] ?? null)) {
+            $separador();
+            $run->addText('tarjeta de circulación a nombre de ' . $this->plain($tarjeta), ['size' => 11]);
+        }
+
+        $conductores = $vehiculo['conductores'] ?? [];
+
+        foreach ($conductores as $conductor) {
+            $nombreConductor = $this->clean($conductor['nombre'] ?? null);
+
+            if (!$nombreConductor || mb_strtoupper($nombreConductor, 'UTF-8') === 'SIN CONDUCTOR') {
+                continue;
             }
 
-            $primero = false;
+            $sexo = mb_strtoupper($this->clean($conductor['sexo'] ?? null), 'UTF-8');
+            $tratamiento = in_array($sexo, ['F', 'FEMENINO', 'MUJER'], true) || strpos($sexo, 'FEM') === 0
+                ? 'la C. '
+                : 'el C. ';
+            $separador();
+            $run->addText($tratamiento, ['size' => 11]);
+            $run->addText(mb_strtoupper($this->plain($nombreConductor), 'UTF-8'), ['bold' => true, 'size' => 11]);
+
+            if ($edad = $this->clean($conductor['edad'] ?? null)) {
+                $run->addText(' de ' . $this->plain($edad) . ' años de edad', ['size' => 11]);
+            }
+
+            if ($domicilio = $this->clean($conductor['domicilio'] ?? null)) {
+                $run->addText(', con domicilio en ' . $this->plain($domicilio) . ', en esta ciudad', ['size' => 11]);
+            }
+
+            $run->addText(', me manifestó ir a bordo del vehículo', ['size' => 11]);
+
+            $licenciaPartes = array_values(array_filter([
+                $this->clean($conductor['tipo_licencia'] ?? null),
+                $this->clean($conductor['numero_licencia'] ?? null),
+            ]));
+            $estadoLicencia = $this->clean($conductor['estado_licencia'] ?? null);
+            $estadoLicenciaNormalizado = mb_strtoupper($estadoLicencia, 'UTF-8');
+            $presentoLicencia = !empty($licenciaPartes)
+                || ($estadoLicencia !== '' && !in_array($estadoLicenciaNormalizado, ['NO', 'NO PRESENTO', 'NO PRESENTÓ', 'SIN LICENCIA'], true));
+
+            if ($presentoLicencia) {
+                $run->addText(', presentó licencia', ['size' => 11]);
+
+                if (!empty($licenciaPartes)) {
+                    $run->addText(' ' . $this->plain(implode(' ', $licenciaPartes)), ['size' => 11]);
+                }
+            }
         }
 
         $run->addText('.', ['size' => 11]);
@@ -1068,10 +1144,13 @@ class IphPuestaDisposicionDocxService
     {
         $partes = $this->clean($vehiculo['partes_danadas'] ?? null);
         $monto = $vehiculo['monto_danos'] ?? null;
-        $texto = 'VEHÍCULO (' . $this->letraIndice($i) . ').- ' . ($partes ? 'Presenta daños en ' . mb_strtolower($partes, 'UTF-8') : 'No se cuenta con partes dañadas registradas');
+        $texto = 'VEHÍCULO (' . $this->letraIndice($i) . ').- ' . ($partes ? 'Presenta daños en su ' . $this->title($partes) : 'No se cuenta con partes dañadas registradas');
 
         if (is_numeric($monto) && (float) $monto > 0) {
-            $texto .= ', con valor aproximado de $' . number_format((float) $monto, 2);
+            $montoNumero = (float) $monto;
+            $texto .= ', se estiman en la cantidad aproximada para su reparación de $ '
+                . number_format($montoNumero, 2)
+                . ' (' . $this->pesosEnLetra($montoNumero) . ')';
         }
 
         return $texto . '.';
@@ -1111,13 +1190,214 @@ class IphPuestaDisposicionDocxService
 
     private function observacionesGruas(array $vehiculos): string
     {
-        $gruas = collect($vehiculos)->map(fn ($vehiculo) => $this->valorGrua($vehiculo['grua_nombre'] ?? null) ?: $this->valorGrua($vehiculo['grua'] ?? null))->filter()->unique()->implode(' y ');
+        $totalVehiculos = count($vehiculos);
+        $sujeto = $this->textoVehiculosParte($totalVehiculos);
+        $gruas = $this->gruasParte($vehiculos);
 
-        if ($gruas === '') {
-            return 'Los vehículos no cuentan con registro de traslado o resguardo por grúa en el sistema.';
+        if ($gruas->isEmpty()) {
+            return $sujeto . ($totalVehiculos === 1 ? ' no cuenta' : ' no cuentan') . ' con registro de traslado o resguardo por grúa en el sistema.';
         }
 
-        return 'Los vehículos fueron resguardados con apoyo de ' . $gruas . '.';
+        $verbo = $totalVehiculos === 1 ? 'fue' : 'fueron';
+        $resguardado = $totalVehiculos === 1 ? 'resguardado' : 'resguardados';
+        $nombres = $gruas->pluck('nombre')->filter()->unique()->implode(' y ');
+        $direcciones = $gruas->pluck('direccion')->filter()->unique()->implode(' y ');
+        $frase = $sujeto . ' ' . $verbo . ' ' . $resguardado . ' por su propia tracción';
+
+        if ($nombres !== '') {
+            $frase .= ' en las instalaciones de ' . $nombres;
+        }
+
+        if ($direcciones !== '' && $nombres !== '') {
+            $frase .= ', garaje de apoyo a esta dependencia, ubicado en ' . $direcciones;
+        } elseif ($direcciones !== '') {
+            $frase .= ' en ' . $direcciones;
+        }
+
+        return $frase . '.';
+    }
+
+    private function descripcionVictimaParte(array $lesionado): string
+    {
+        $nombre = $this->clean($lesionado['nombre'] ?? null);
+        $edad = $this->clean($lesionado['edad'] ?? null);
+        $tipoLesion = mb_strtoupper($this->clean($lesionado['tipo_lesion'] ?? null), 'UTF-8');
+        $hospital = $this->clean($lesionado['hospital'] ?? null);
+        $ambulancia = $this->clean($lesionado['ambulancia'] ?? null);
+        $paramedico = $this->clean($lesionado['paramedico'] ?? null);
+        $observaciones = $this->clean($lesionado['observaciones'] ?? null);
+        $esFallecido = $tipoLesion === 'FALLECIDO';
+        $sexo = mb_strtoupper($this->clean($lesionado['sexo'] ?? null), 'UTF-8');
+        $tratamiento = in_array($sexo, ['F', 'FEMENINO', 'MUJER'], true) || strpos($sexo, 'FEM') === 0 ? 'la C. ' : 'el C. ';
+
+        if ($esFallecido) {
+            $frase = $nombre
+                ? 'De este hecho de tránsito resultó fallecido ' . $tratamiento . mb_strtoupper($nombre, 'UTF-8')
+                : 'De este hecho de tránsito resultó fallecida una persona';
+        } else {
+            $frase = $nombre
+                ? 'De este hecho de tránsito resultó lesionado ' . $tratamiento . mb_strtoupper($nombre, 'UTF-8')
+                : 'De este hecho de tránsito resultó lesionada una persona';
+        }
+
+        if ($edad) {
+            $frase .= ' de ' . $edad . ' años de edad';
+        }
+
+        if ($esFallecido) {
+            $frase .= $observaciones ? ', ' . mb_strtolower($observaciones, 'UTF-8') : ', quedando registrado su fallecimiento en el lugar';
+
+            return $frase . '.';
+        }
+
+        $atenciones = [];
+        $atendido = 'atendido';
+        $trasladado = 'trasladado';
+        $valorado = 'valorado';
+
+        if ($paramedico) {
+            $atenciones[] = $atendido . ' por el paramédico ' . $paramedico;
+        } elseif (!empty($lesionado['atencion_en_sitio'])) {
+            $atenciones[] = $atendido . ' en el lugar';
+        }
+
+        if (!empty($lesionado['hospitalizado']) || $hospital) {
+            $traslado = $trasladado;
+            $traslado .= $hospital ? ' al nosocomio ' . $hospital : ' a nosocomio para su atención médica';
+
+            if ($ambulancia) {
+                $traslado .= ' a bordo de la ambulancia ' . $ambulancia;
+            }
+
+            $atenciones[] = $traslado;
+        } elseif ($ambulancia) {
+            $atenciones[] = $valorado . ' por la ambulancia ' . $ambulancia;
+        }
+
+        if (!empty($atenciones)) {
+            $frase .= ', quien fue ' . implode(' y ', $atenciones);
+        }
+
+        if ($observaciones) {
+            $frase .= ', observándose ' . mb_strtolower($observaciones, 'UTF-8');
+        }
+
+        return $frase . '.';
+    }
+
+    private function conclusionCausaParte(array $d): string
+    {
+        $causa = $this->clean($d['causas'] ?? null);
+        $causaTexto = $causa !== '' ? mb_strtolower($causa, 'UTF-8') : 'la falta de precaución y cuidado';
+
+        return 'ÚNICA.- La causa que da origen al hecho de tránsito que nos ocupa se refiere a '
+            . $causaTexto
+            . ' por parte del conductor del vehículo (A), en consecuencia ocasionar '
+            . $this->resultadoLegalParte($d)
+            . ', violando por tal motivo el artículo 432 Fracción V, del Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.';
+    }
+
+    private function conclusionDisposicionParte(array $vehiculos): string
+    {
+        $vehiculosTexto = mb_strtolower($this->textoVehiculosParte(count($vehiculos)), 'UTF-8');
+        $frase = 'Con base en lo dispuesto en el artículo 59 de la Ley de Tránsito y Vialidad vigente en el Estado, Pongo a su disposición ' . $vehiculosTexto;
+        $nombres = $this->gruasParte($vehiculos)->pluck('nombre')->filter()->unique()->implode(' y ');
+
+        if ($nombres !== '') {
+            $frase .= ', en las instalaciones de ' . mb_strtoupper($nombres, 'UTF-8') . ', garaje de apoyo a esta dependencia';
+        }
+
+        return $frase . ', lo anterior para los fines legales a los que haya lugar.';
+    }
+
+    private function resultadoLegalParte(array $d): string
+    {
+        $lesionados = (int) ($d['hecho']['lesionados_count'] ?? 0);
+        $fallecidos = (int) ($d['hecho']['fallecidos_count'] ?? 0);
+
+        if ($lesionados === 0 && $fallecidos === 0 && !empty($d['lesionados'])) {
+            foreach ($d['lesionados'] as $lesionado) {
+                $tipo = mb_strtoupper($this->clean($lesionado['tipo_lesion'] ?? null), 'UTF-8');
+
+                if ($tipo === 'FALLECIDO') {
+                    $fallecidos++;
+                } else {
+                    $lesionados++;
+                }
+            }
+        }
+
+        $resultados = [];
+
+        if ($lesionados > 0) {
+            $resultados[] = 'lesiones';
+        }
+
+        if ($fallecidos > 0) {
+            $resultados[] = 'fallecimiento';
+        }
+
+        $resultados[] = 'daños materiales';
+
+        if (count($resultados) === 1) {
+            return $resultados[0];
+        }
+
+        $ultimo = array_pop($resultados);
+
+        return implode(', ', $resultados) . ' y ' . $ultimo;
+    }
+
+    private function textoVehiculosParte(int $total): string
+    {
+        if ($total === 1) {
+            return 'El vehículo';
+        }
+
+        if ($total === 2) {
+            return 'Ambos vehículos';
+        }
+
+        return 'Los vehículos';
+    }
+
+    private function gruasParte(array $vehiculos)
+    {
+        return collect($vehiculos)
+            ->map(function (array $vehiculo) {
+                $nombre = $this->valorGrua($vehiculo['grua_nombre'] ?? null) ?: $this->valorGrua($vehiculo['grua'] ?? null);
+                $direccion = $this->valorGrua($vehiculo['grua_direccion'] ?? null)
+                    ?: $this->valorGrua($vehiculo['grua_ubicacion_corralon'] ?? null)
+                    ?: $this->valorGrua($vehiculo['corralon'] ?? null);
+
+                return (!$nombre && !$direccion) ? null : ['nombre' => $nombre, 'direccion' => $direccion];
+            })
+            ->filter()
+            ->unique(fn ($grua) => mb_strtoupper(($grua['nombre'] ?? '') . '|' . ($grua['direccion'] ?? ''), 'UTF-8'))
+            ->values();
+    }
+
+    private function firmaParte($section, array $d): void
+    {
+        $section->addTextBreak(2);
+        $this->texto($section, 'ATENTAMENTE.', ['bold' => true, 'size' => 11], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $this->texto($section, 'PERITO DE TRÁNSITO.', ['bold' => true, 'size' => 11], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $section->addTextBreak(3);
+        $this->texto($section, $d['nombre_policia_mayus'], ['bold' => true, 'size' => 11], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+    }
+
+    private function pesosEnLetra($monto): string
+    {
+        $monto = is_numeric($monto) ? (float) $monto : 0.0;
+        $entero = (int) floor($monto);
+        $centavos = (int) round(($monto - $entero) * 100);
+
+        if ($centavos === 100) {
+            $entero++;
+            $centavos = 0;
+        }
+
+        return $this->numeroALetras($entero) . ' PESOS ' . str_pad((string) $centavos, 2, '0', STR_PAD_LEFT) . '/100 M.N.';
     }
 
     private function valorGrua($valor): ?string
@@ -1138,9 +1418,93 @@ class IphPuestaDisposicionDocxService
 
     private function numeroALetras(int $n): string
     {
-        $map = [1 => 'UNO', 2 => 'DOS', 3 => 'TRES', 4 => 'CUATRO', 5 => 'CINCO', 6 => 'SEIS', 7 => 'SIETE', 8 => 'OCHO', 9 => 'NUEVE', 10 => 'DIEZ'];
+        $unidades = [
+            0 => 'CERO',
+            1 => 'UNO',
+            2 => 'DOS',
+            3 => 'TRES',
+            4 => 'CUATRO',
+            5 => 'CINCO',
+            6 => 'SEIS',
+            7 => 'SIETE',
+            8 => 'OCHO',
+            9 => 'NUEVE',
+            10 => 'DIEZ',
+            11 => 'ONCE',
+            12 => 'DOCE',
+            13 => 'TRECE',
+            14 => 'CATORCE',
+            15 => 'QUINCE',
+            16 => 'DIECISÉIS',
+            17 => 'DIECISIETE',
+            18 => 'DIECIOCHO',
+            19 => 'DIECINUEVE',
+            20 => 'VEINTE',
+            21 => 'VEINTIUNO',
+            22 => 'VEINTIDÓS',
+            23 => 'VEINTITRÉS',
+            24 => 'VEINTICUATRO',
+            25 => 'VEINTICINCO',
+            26 => 'VEINTISÉIS',
+            27 => 'VEINTISIETE',
+            28 => 'VEINTIOCHO',
+            29 => 'VEINTINUEVE',
+        ];
+        $decenas = [30 => 'TREINTA', 40 => 'CUARENTA', 50 => 'CINCUENTA', 60 => 'SESENTA', 70 => 'SETENTA', 80 => 'OCHENTA', 90 => 'NOVENTA'];
+        $centenas = [100 => 'CIEN', 200 => 'DOSCIENTOS', 300 => 'TRESCIENTOS', 400 => 'CUATROCIENTOS', 500 => 'QUINIENTOS', 600 => 'SEISCIENTOS', 700 => 'SETECIENTOS', 800 => 'OCHOCIENTOS', 900 => 'NOVECIENTOS'];
 
-        return $map[$n] ?? (string) $n;
+        $convertir = function (int $numero) use (&$convertir, $unidades, $decenas, $centenas): string {
+            if ($numero < 30) {
+                return $unidades[$numero];
+            }
+
+            if ($numero < 100) {
+                $decena = (int) (floor($numero / 10) * 10);
+                $resto = $numero % 10;
+
+                return $resto ? $decenas[$decena] . ' Y ' . $unidades[$resto] : $decenas[$decena];
+            }
+
+            if ($numero < 1000) {
+                if ($numero === 100) {
+                    return 'CIEN';
+                }
+
+                $centena = (int) (floor($numero / 100) * 100);
+                $resto = $numero % 100;
+                $prefijo = $centena === 100 ? 'CIENTO' : $centenas[$centena];
+
+                return $resto ? $prefijo . ' ' . $convertir($resto) : $prefijo;
+            }
+
+            if ($numero < 2000) {
+                $resto = $numero - 1000;
+
+                return $resto ? 'MIL ' . $convertir($resto) : 'MIL';
+            }
+
+            if ($numero < 1000000) {
+                $miles = (int) floor($numero / 1000);
+                $resto = $numero % 1000;
+                $texto = $convertir($miles) . ' MIL';
+
+                return $resto ? $texto . ' ' . $convertir($resto) : $texto;
+            }
+
+            if ($numero < 2000000) {
+                $resto = $numero - 1000000;
+
+                return $resto ? 'UN MILLÓN ' . $convertir($resto) : 'UN MILLÓN';
+            }
+
+            $millones = (int) floor($numero / 1000000);
+            $resto = $numero % 1000000;
+            $texto = $convertir($millones) . ' MILLONES';
+
+            return $resto ? $texto . ' ' . $convertir($resto) : $texto;
+        };
+
+        return $convertir(max(0, $n));
     }
 
     private function valor($valor, string $default = 'No especificado'): string

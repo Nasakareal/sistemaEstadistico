@@ -8,6 +8,8 @@
     $esHechoDelegaciones = $unidadRealHecho === 2;
     $puedeVerTarjetaWhatsApp = $usuario->hasRole('Superadmin') || $esHechoDelegaciones;
     $puedeGenerarIphPuesta = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
+    $puestaHecho = $hecho->puestaDisposicion ?? null;
+    $puestaPdfPath = $puestaHecho ? $puestaHecho->archivo_puesta : null;
     $urlAnterior = url()->previous();
     $volverHechoUrl = $urlAnterior && $urlAnterior !== url()->current()
         ? $urlAnterior
@@ -57,6 +59,17 @@
                title="Descargar informe">
                 <i class="fas fa-download"></i>
             </a>
+
+            @if($puestaPdfPath)
+                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                   class="btn btn-outline-danger btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
+                   style="width:36px;height:36px;padding:0;"
+                   target="_blank"
+                   rel="noopener"
+                   title="Ver PDF de puesta a disposición">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </a>
+            @endif
 
             <button type="button"
                     class="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center btn-compartir-hecho"
@@ -151,7 +164,6 @@
     $sit = strtoupper(trim($sitRaw));
     $soloTurnado = ($sit === 'TURNADO'); // <- Regla exacta: solo TURNADO, nada más
     $camposMP = ['oficio_mp', 'vehiculos_mp', 'personas_mp'];
-    $puestaHecho = $hecho->puestaDisposicion ?? null;
     $iphDelegacionesPath = $hecho->iph_delegaciones_path;
     $mostrarAccionesTurnado = $esHechoDelegaciones && $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
     $puedeCrearPuestaTurnado = $soloTurnado
@@ -191,6 +203,17 @@
                                        title="Descargar IPH">
                                         <i class="fa-solid fa-file-pdf"></i>
                                         <span>Descargar IPH</span>
+                                    </a>
+                                @endif
+
+                                @if($puestaPdfPath)
+                                    <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                       class="btn btn-outline-danger btn-sm sv-status-action"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="Ver PDF de puesta a disposición">
+                                        <i class="fa-solid fa-file-pdf"></i>
+                                        <span>Ver PDF puesta</span>
                                     </a>
                                 @endif
 
@@ -256,6 +279,17 @@
                                                    title="Descargar IPH">
                                                     <i class="fa-solid fa-file-pdf"></i>
                                                     <span>Descargar IPH</span>
+                                                </a>
+                                            @endif
+
+                                            @if($puestaPdfPath)
+                                                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                                   class="btn btn-outline-danger btn-sm sv-status-action"
+                                                   target="_blank"
+                                                   rel="noopener"
+                                                   title="Ver PDF de puesta a disposición">
+                                                    <i class="fa-solid fa-file-pdf"></i>
+                                                    <span>Ver PDF puesta</span>
                                                 </a>
                                             @endif
 
@@ -454,6 +488,15 @@
                                             <a href="{{ route('hechos.descargar', $hecho->id) }}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-download"></i> Descargar informe
                                             </a>
+
+                                            @if($puestaPdfPath)
+                                                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                                   class="btn btn-outline-danger btn-sm"
+                                                   target="_blank"
+                                                   rel="noopener">
+                                                    <i class="fa-solid fa-file-pdf"></i> Ver PDF puesta
+                                                </a>
+                                            @endif
 
                                             <button type="button"
                                                     class="btn btn-success btn-sm btn-compartir-hecho"

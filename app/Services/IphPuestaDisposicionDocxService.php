@@ -27,6 +27,8 @@ class IphPuestaDisposicionDocxService
     private const LETTER_H = 15840;
     private const MARGIN = 567;
     private const CONTENT_W = 11106;
+    private const PARTE_FIRST_LINE = 1050;
+    private const PARTE_HEADING_FIRST_LINE = 1050;
 
     private $tempFiles = [];
 
@@ -253,18 +255,20 @@ class IphPuestaDisposicionDocxService
         $this->encabezadoParte($section, 'IX.', 'DESCRIPCIÓN DE VEHÍCULOS:');
 
         foreach ($d['vehiculos'] as $i => $vehiculo) {
-            $this->parrafoParte($section, $this->descripcionVehiculo($vehiculo, $i));
+            $this->parrafoVehiculoParte($section, $vehiculo, $i);
         }
 
         if (empty($d['vehiculos'])) {
             $this->parrafoParte($section, 'No se cuenta con vehículos registrados en el hecho.');
         }
 
+        $section->addPageBreak();
         $this->encabezadoParte($section, 'X.', 'DINÁMICA DEL HECHO DE TRÁNSITO:');
         $this->parrafoParte($section, 'Por los datos e informes recabados en el lugar del hecho, mediante la inspección ocular realizada por los suscritos, se hace constar de manera preliminar la intervención correspondiente al hecho de tránsito descrito en el presente informe, quedando la narrativa pormenorizada sujeta a la complementación por el personal actuante conforme a los datos obtenidos en campo.');
 
         $this->encabezadoParte($section, 'XI.', 'DIAGRAMA ILUSTRATIVO NO HECHO A ESCALA.');
         $this->imagenEnMarco($section, $d['croquis'], 640, 720, 'Sin croquis registrado en el sistema.');
+        $section->addPageBreak();
 
         foreach ($d['fotos'] as $foto) {
             $this->encabezadoParte($section, 'XII.', 'FIJACIÓN FOTOGRÁFICA.');
@@ -695,7 +699,7 @@ class IphPuestaDisposicionDocxService
     {
         $this->texto($section, $roman . '      ' . $title, ['bold' => true, 'size' => 14], [
             'alignment' => Jc::LEFT,
-            'indentation' => ['firstLine' => 2500],
+            'indentation' => ['firstLine' => self::PARTE_HEADING_FIRST_LINE],
             'lineHeight' => 1.1,
             'spaceBefore' => 300,
             'spaceAfter' => 0,
@@ -706,7 +710,7 @@ class IphPuestaDisposicionDocxService
     {
         $this->texto($section, $text, ['size' => 11], [
             'alignment' => Jc::LEFT,
-            'indentation' => ['firstLine' => 1580],
+            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => $spaceBefore,
             'spaceAfter' => 0,
@@ -728,7 +732,7 @@ class IphPuestaDisposicionDocxService
     {
         $run = $section->addTextRun([
             'alignment' => Jc::LEFT,
-            'indentation' => ['firstLine' => 1580],
+            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 0,
             'spaceAfter' => 0,
@@ -742,7 +746,7 @@ class IphPuestaDisposicionDocxService
     {
         $run = $section->addTextRun([
             'alignment' => Jc::LEFT,
-            'indentation' => ['firstLine' => 1580],
+            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
             'lineHeight' => 1.08,
             'spaceBefore' => 360,
             'spaceAfter' => 0,
@@ -752,6 +756,46 @@ class IphPuestaDisposicionDocxService
         $run->addText(', ocurrido el día ' . $d['fecha_hecho'] . ', a las ' . substr($d['hora_hecho'], 0, 5) . ' horas en ' . $d['calle_parte'] . ', de la colonia ', ['size' => 11]);
         $run->addText($d['colonia_parte'], ['bold' => true, 'size' => 11]);
         $run->addText(', en esta ciudad.', ['size' => 11]);
+    }
+
+    private function parrafoVehiculoParte($section, array $vehiculo, int $i): void
+    {
+        $run = $section->addTextRun([
+            'alignment' => Jc::LEFT,
+            'indentation' => ['firstLine' => self::PARTE_FIRST_LINE],
+            'lineHeight' => 1.08,
+            'spaceBefore' => 360,
+            'spaceAfter' => 0,
+        ]);
+
+        $run->addText('VEHÍCULO (' . $this->plain($this->letraIndice($i)) . ').- ', ['bold' => true, 'size' => 11]);
+
+        $partes = [
+            ['Marca', $this->clean($vehiculo['marca'] ?? null), false],
+            ['Modelo', $this->clean($vehiculo['modelo'] ?? null), false],
+            ['Tipo', $this->clean($vehiculo['tipo'] ?? null), false],
+            ['Línea', $this->clean($vehiculo['linea'] ?? null), false],
+            ['Color', $this->clean($vehiculo['color'] ?? null), false],
+            ['Placas', $this->clean($vehiculo['placas'] ?? null), true],
+            ['Serie/NIV', $this->clean($vehiculo['serie'] ?? null), true],
+        ];
+
+        $primero = true;
+
+        foreach ($partes as [$etiqueta, $valor, $resaltar]) {
+            if (!$valor) {
+                continue;
+            }
+
+            if (!$primero) {
+                $run->addText(', ', ['size' => 11]);
+            }
+
+            $run->addText($etiqueta . ' ' . $this->plain($valor), ['bold' => $resaltar, 'size' => 11]);
+            $primero = false;
+        }
+
+        $run->addText('.', ['size' => 11]);
     }
 
     private function texto($container, string $text, array $font = [], array $paragraph = []): void

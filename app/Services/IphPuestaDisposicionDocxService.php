@@ -27,8 +27,8 @@ class IphPuestaDisposicionDocxService
     private const LETTER_H = 15840;
     private const MARGIN = 567;
     private const CONTENT_W = 11106;
-    private const PARTE_FIRST_LINE = 1050;
-    private const PARTE_HEADING_FIRST_LINE = 1050;
+    private const PARTE_FIRST_LINE = 1440;
+    private const PARTE_HEADING_FIRST_LINE = 1440;
 
     private $tempFiles = [];
 
@@ -782,7 +782,7 @@ class IphPuestaDisposicionDocxService
 
         $primero = true;
 
-        foreach ($partes as [$etiqueta, $valor, $resaltar]) {
+        foreach ($partes as [$etiqueta, $valor, $resaltarValor]) {
             if (!$valor) {
                 continue;
             }
@@ -791,7 +791,13 @@ class IphPuestaDisposicionDocxService
                 $run->addText(', ', ['size' => 11]);
             }
 
-            $run->addText($etiqueta . ' ' . $this->plain($valor), ['bold' => $resaltar, 'size' => 11]);
+            if ($resaltarValor) {
+                $run->addText($etiqueta . ' ', ['size' => 11]);
+                $run->addText($this->plain($valor), ['bold' => true, 'size' => 11]);
+            } else {
+                $run->addText($etiqueta . ' ' . $this->plain($valor), ['size' => 11]);
+            }
+
             $primero = false;
         }
 

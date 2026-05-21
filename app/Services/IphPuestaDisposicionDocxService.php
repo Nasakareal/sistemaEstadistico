@@ -161,6 +161,7 @@ class IphPuestaDisposicionDocxService
             'vehiculos' => $vehiculos,
             'lesionados' => $lesionados,
             'objetos' => $mapeo['objetos'] ?? [],
+            'unidad_id' => $unidadId,
             'folio' => $folio,
             'fecha_hecho' => $fechaHecho,
             'hora_hecho' => $horaHecho,
@@ -320,10 +321,10 @@ class IphPuestaDisposicionDocxService
 
     private function membreteParte($section, array $d): void
     {
-        $membrete = $this->crearMembreteParteImagen($d);
+        $membrete = $this->imagenMembreteParte($d);
 
         if ($membrete) {
-            $this->addImageFit($section, $membrete, 535, 150, Jc::CENTER);
+            $this->addImageFit($section, $membrete, 535, 165, Jc::CENTER);
         }
 
         $this->texto($section, $this->municipioFecha($d['municipio']) . ' Michoacán a ' . $d['fecha_encabezado'] . '.', ['size' => 12], [
@@ -333,161 +334,17 @@ class IphPuestaDisposicionDocxService
         ]);
     }
 
-    private function crearMembreteParteImagen(array $d): ?string
+    private function imagenMembreteParte(array $d): ?string
     {
-        if (!function_exists('imagecreatetruecolor')) {
-            return null;
-        }
+        $unidadId = (int) ($d['unidad_id'] ?? 0);
+        $archivo = $unidadId === 2 ? 'encabezado2.png' : 'encabezado1.png';
+        $path = public_path('img/' . $archivo);
 
-        $logoPath = public_path('img/SSP_horizontal.png');
-
-        if (!is_file($logoPath)) {
-            return null;
-        }
-
-        $width = 2400;
-        $height = 640;
-        $image = imagecreatetruecolor($width, $height);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        $grey = imagecolorallocate($image, 233, 233, 233);
-        $black = imagecolorallocate($image, 0, 0, 0);
-        $dark = imagecolorallocate($image, 51, 51, 51);
-        imagefilledrectangle($image, 0, 0, $width, $height, $white);
-
-        $logo = @imagecreatefrompng($logoPath);
-
-        if ($logo) {
-            imagealphablending($logo, true);
-            $sourceW = imagesx($logo);
-            $sourceH = imagesy($logo);
-            $targetW = 860;
-            $targetH = (int) round($sourceH * ($targetW / max(1, $sourceW)));
-            imagecopyresampled($image, $logo, 70, 144, 0, 0, $targetW, $targetH, $sourceW, $sourceH);
-            imagedestroy($logo);
-        }
-
-        $font = $this->fuenteGd(false);
-        $fontBold = $this->fuenteGd(true);
-        $x = 1040;
-        $y = 48;
-        $rowH = 76;
-        $labelW = 420;
-        $valueW = 920;
-        $rows = [
-            ['Dependencia', 'Secretaría de Seguridad Pública'],
-            ['', 'Del Estado de Michoacán de Ocampo'],
-            ['Sub-dependencia', ''],
-            ['Oficina', $d['oficina']],
-            ['No. de oficio', $d['oficio']],
-            ['Expediente', $d['expediente']],
-        ];
-
-        foreach ($rows as $index => $row) {
-            $top = $y + ($index * ($rowH + 10));
-            imagefilledrectangle($image, $x, $top, $x + $labelW + $valueW, $top + $rowH, $grey);
-            $this->textoGd($image, $row[0], $x + 32, $top + 52, 36, $dark, $font);
-            $this->textoCentradoGd($image, $row[1], $x + $labelW, $top + 8, $valueW, $rowH, 36, $black, $fontBold);
-        }
-
-        $this->textoGd($image, 'Asunto:', $x + 32, $y + (6 * ($rowH + 10)) + 54, 36, $dark, $fontBold);
-
-        $path = storage_path('app/temp/' . uniqid('iph_membrete_', true) . '.png');
-        File::ensureDirectoryExists(dirname($path));
-        imagepng($image, $path);
-        imagedestroy($image);
-        $this->tempFiles[] = $path;
-
-        return $path;
-    }
-
-    private function fuenteGd(bool $bold): ?string
-    {
-        $candidatos = $bold
-            ? ['C:\\Windows\\Fonts\\arialbd.ttf', 'C:\\Windows\\Fonts\\ARIALBD.TTF']
-            : ['C:\\Windows\\Fonts\\arial.ttf', 'C:\\Windows\\Fonts\\ARIAL.TTF'];
-
-        foreach ($candidatos as $candidato) {
-            if (is_file($candidato)) {
-                return $candidato;
-            }
+        if (is_file($path)) {
+            return $path;
         }
 
         return null;
-    }
-
-    private function textoGd($image, string $text, int $x, int $baseline, int $size, int $color, ?string $font): void
-    {
-        $text = $this->textoUtf8Gd($text);
-
-        if ($font) {
-            imagettftext($image, $size, 0, $x, $baseline, $color, $font, $text);
-            return;
-        }
-
-        imagestring($image, 5, $x, $baseline - 18, $text, $color);
-    }
-
-    private function textoCentradoGd($image, string $text, int $x, int $y, int $width, int $height, int $size, int $color, ?string $font): void
-    {
-        $lines = $this->lineasGd($text, $width - 48, $size, $font);
-        $lineHeight = $font ? $size + 16 : 36;
-        $totalHeight = count($lines) * $lineHeight;
-        $baseline = $y + (int) round(($height - $totalHeight) / 2) + $size + 2;
-
-        foreach ($lines as $line) {
-            $lineWidth = $this->anchoTextoGd($line, $size, $font);
-            $this->textoGd($image, $line, $x + (int) round(($width - $lineWidth) / 2), $baseline, $size, $color, $font);
-            $baseline += $lineHeight;
-        }
-    }
-
-    private function lineasGd(string $text, int $maxWidth, int $size, ?string $font): array
-    {
-        $words = preg_split('/\s+/', trim($this->textoUtf8Gd($text)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $lines = [];
-        $line = '';
-
-        foreach ($words as $word) {
-            $candidate = trim($line . ' ' . $word);
-
-            if ($line !== '' && $this->anchoTextoGd($candidate, $size, $font) > $maxWidth) {
-                $lines[] = $line;
-                $line = $word;
-                continue;
-            }
-
-            $line = $candidate;
-        }
-
-        if ($line !== '') {
-            $lines[] = $line;
-        }
-
-        return $lines ?: [''];
-    }
-
-    private function anchoTextoGd(string $text, int $size, ?string $font): int
-    {
-        $text = $this->textoUtf8Gd($text);
-
-        if ($font) {
-            $box = imagettfbbox($size, 0, $font, $text);
-
-            return abs($box[2] - $box[0]);
-        }
-
-        return strlen($text) * 18;
-    }
-
-    private function textoUtf8Gd(string $text): string
-    {
-        $text = $this->plain($text);
-
-        if (!mb_check_encoding($text, 'UTF-8')) {
-            $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252,ISO-8859-1');
-        }
-
-        return $text;
     }
 
     private function municipioFecha(string $municipio): string
@@ -836,14 +693,13 @@ class IphPuestaDisposicionDocxService
 
     private function encabezadoParte($section, string $roman, string $title): void
     {
-        $this->texto($section, '', ['size' => 1], ['spaceBefore' => 300, 'spaceAfter' => 0, 'lineHeight' => 1]);
-
-        $heading = $section->addTable('NoBorder');
-        $heading->addRow();
-        $heading->addCell(2900, $this->sinBorde(['valign' => 'top']))
-            ->addText($roman, ['bold' => true, 'size' => 14], ['alignment' => Jc::RIGHT, 'spaceAfter' => 0, 'lineHeight' => 1.1]);
-        $heading->addCell(8200, $this->sinBorde(['valign' => 'top']))
-            ->addText($title, ['bold' => true, 'size' => 14], ['alignment' => Jc::LEFT, 'spaceAfter' => 0, 'lineHeight' => 1.1]);
+        $this->texto($section, $roman . '      ' . $title, ['bold' => true, 'size' => 14], [
+            'alignment' => Jc::LEFT,
+            'indentation' => ['firstLine' => 2500],
+            'lineHeight' => 1.1,
+            'spaceBefore' => 300,
+            'spaceAfter' => 0,
+        ]);
     }
 
     private function parrafoParte($section, string $text, int $spaceBefore = 360): void

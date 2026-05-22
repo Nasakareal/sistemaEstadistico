@@ -270,8 +270,6 @@
                                 <tr>
                                     <th>Año</th>
                                     <th>Choques</th>
-                                    <th>Actuales</th>
-                                    <th>Legacy</th>
                                     <th>Lesionados</th>
                                     <th>Defunciones</th>
                                     <th>Proy. Choques</th>
@@ -284,8 +282,6 @@
                                     <tr>
                                         <td>{{ $registro->anio }}</td>
                                         <td>{{ number_format($registro->hechos) }}</td>
-                                        <td>{{ number_format($registro->hechos_actuales) }}</td>
-                                        <td>{{ number_format($registro->hechos_legacy) }}</td>
                                         <td>{{ number_format($registro->lesionados) }}</td>
                                         <td>{{ number_format($registro->defunciones) }}</td>
                                         <td>{{ $registro->proyeccion_hechos !== null ? number_format($registro->proyeccion_hechos) : '-' }}</td>
@@ -302,8 +298,6 @@
                                 <tr>
                                     <th>Total</th>
                                     <th>{{ number_format($totales['hechos']) }}</th>
-                                    <th>{{ number_format($comparativa->sum('hechos_actuales')) }}</th>
-                                    <th>{{ number_format($comparativa->sum('hechos_legacy')) }}</th>
                                     <th>{{ number_format($totales['lesionados']) }}</th>
                                     <th>{{ number_format($totales['defunciones']) }}</th>
                                     <th>{{ $proyeccionAnual ? number_format($proyeccionAnual->proyeccion_hechos) : '-' }}</th>

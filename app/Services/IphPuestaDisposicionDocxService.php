@@ -13,6 +13,7 @@ use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\SimpleType\TblWidth;
+use PhpOffice\PhpWord\Style\Language;
 use PhpOffice\PhpWord\Style\Table;
 
 class IphPuestaDisposicionDocxService
@@ -41,6 +42,7 @@ class IphPuestaDisposicionDocxService
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Arial');
         $phpWord->setDefaultFontSize(10);
+        $phpWord->getSettings()->setThemeFontLang((new Language('es-MX', 'es-MX', 'es-MX'))->setLangId(2058));
         $this->registrarEstilos($phpWord);
 
         $this->agregarParteInformativo($phpWord, $data);
@@ -96,6 +98,7 @@ class IphPuestaDisposicionDocxService
         $folio = preg_replace('/\s+/', '', (string) ($hechoIph['folio_c5i'] ?? '')) ?: (string) ($hecho->id ?? '');
         $nombrePolicia = $this->valor($puesta['nombre_policia'] ?? ($hechoIph['creador_nombre'] ?? ($hechoIph['perito'] ?? null)), '');
         $adscripcion = mb_strtoupper($oficina, 'UTF-8');
+        $unidadArribo = trim((string) ($hechoIph['unidad_numero_economico'] ?? ($hechoIph['unidad'] ?? '')));
         $tipoHechoParte = mb_strtoupper(trim((string) ($hechoIph['tipo_hecho'] ?? '')), 'UTF-8');
         $causasParte = mb_strtoupper(trim((string) ($hechoIph['causas'] ?? '')), 'UTF-8');
         $modalidadParte = trim(collect([
@@ -105,6 +108,18 @@ class IphPuestaDisposicionDocxService
         $modalidadParte = $modalidadParte !== '' ? $modalidadParte : 'HECHO DE TRÁNSITO';
         $calle = $this->valor($ubicacion['calle'] ?? $lugar, 'el lugar de intervención');
         $colonia = $this->valor($ubicacion['colonia'] ?? null, 'la colonia señalada');
+        $ubicacionIph = [
+            'calle_tramo' => mb_strtoupper($this->valor($ubicacion['calle'] ?? ($ubicacion['ubicacion_formateada'] ?? $lugar), ''), 'UTF-8'),
+            'no_exterior' => mb_strtoupper($this->valor($ubicacion['numero_exterior'] ?? ($ubicacion['no_exterior'] ?? null), 'SIN NÚMERO'), 'UTF-8'),
+            'no_interior' => mb_strtoupper($this->valor($ubicacion['numero_interior'] ?? ($ubicacion['no_interior'] ?? null), ''), 'UTF-8'),
+            'codigo_postal' => mb_strtoupper($this->valor($ubicacion['codigo_postal'] ?? ($ubicacion['cp'] ?? null), ''), 'UTF-8'),
+            'colonia_localidad' => mb_strtoupper($this->valor($ubicacion['colonia'] ?? null, ''), 'UTF-8'),
+            'municipio' => mb_strtoupper($municipio, 'UTF-8'),
+            'entidad' => mb_strtoupper($this->valor($ubicacion['estado'] ?? ($ubicacion['entidad'] ?? null), 'MICHOACÁN'), 'UTF-8'),
+            'referencias' => mb_strtoupper($this->valor($ubicacion['entre_calles'] ?? ($ubicacion['referencias'] ?? null), ''), 'UTF-8'),
+            'latitud' => trim((string) ($ubicacion['lat'] ?? '')),
+            'longitud' => trim((string) ($ubicacion['lng'] ?? '')),
+        ];
         $horaEntera = is_string($horaHecho) ? (int) substr($horaHecho, 0, 2) : null;
         $momentoDia = 'Durante el día';
 
@@ -178,6 +193,7 @@ class IphPuestaDisposicionDocxService
             'hora_recoleccion_cadena' => $recoleccion->format('H:i'),
             'arribo' => $arribo,
             'lugar' => $lugar,
+            'ubicacion_iph' => $ubicacionIph,
             'ubicacion_cadena' => $ubicacionCadena,
             'lugar_entrega' => mb_strtoupper($lugarEntrega, 'UTF-8'),
             'oficina' => $oficina,
@@ -188,6 +204,8 @@ class IphPuestaDisposicionDocxService
             'nombre_policia' => $nombrePolicia,
             'nombre_policia_mayus' => mb_strtoupper($nombrePolicia, 'UTF-8'),
             'adscripcion' => $adscripcion,
+            'unidad_arribo' => mb_strtoupper($unidadArribo, 'UTF-8'),
+            'autoridad_portada_iph' => 'FISCALÍA GENERAL DEL ESTADO',
             'autoridad' => mb_strtoupper($this->valor($puesta['autoridad_receptora'] ?? 'DIRECCIÓN DE CARPETAS DE INVESTIGACIÓN DE LA FISCALÍA GENERAL DE JUSTICIA EN EL ESTADO', ''), 'UTF-8'),
             'tipo_hecho' => mb_strtoupper($this->valor($hechoIph['tipo_hecho'] ?? 'HECHO DE TRÁNSITO', 'HECHO DE TRÁNSITO'), 'UTF-8'),
             'causas' => mb_strtoupper($this->valor($hechoIph['causas'] ?? null, ''), 'UTF-8'),
@@ -426,98 +444,426 @@ class IphPuestaDisposicionDocxService
 
     private function iphPortada($section, array $d): void
     {
-        $this->texto($section, $d['municipio_mayus'] . ' - ' . $d['municipio_mayus'], ['bold' => true, 'size' => 10], ['alignment' => Jc::CENTER, 'spaceAfter' => 40]);
-        $top = $section->addTable('FormTable');
-        $top->addRow(360);
-        $top->addCell(4700)->addText('SISTEMA NACIONAL DE SEGURIDAD PÚBLICA', ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-        $top->addCell(6400)->addText('NO. DE REFERENCIA', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-        $top->addRow(430);
-        $top->addCell(4700)->addText('CNSP', ['size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-        $top->addCell(6400)->addText($this->referenciaSistema($d), ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-        $top->addRow(330);
-        $top->addCell(4700)->addText('', [], $this->p0());
-        $top->addCell(6400)->addText('NO. DE FOLIO ASIGNADO POR EL SISTEMA', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-        $top->addRow(430);
-        $top->addCell(4700)->addText('', [], $this->p0());
-        $top->addCell(6400)->addText($d['folio'], ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-        $this->texto($section, 'INFORME POLICIAL HOMOLOGADO (IPH2019)', ['bold' => true, 'size' => 12], ['alignment' => Jc::CENTER, 'spaceBefore' => 120, 'spaceAfter' => 30]);
+        $this->texto($section, $d['municipio_mayus'] . ' - ' . $d['municipio_mayus'], ['bold' => true, 'size' => 10], ['alignment' => Jc::CENTER, 'spaceAfter' => 20]);
+        $this->iphEncabezadoOficial($section, $d);
+
+        $title = $section->addTextRun(['alignment' => Jc::CENTER, 'spaceBefore' => 150, 'spaceAfter' => 35]);
+        $title->addText('INFORME POLICIAL HOMOLOGADO (IPH', ['bold' => true, 'size' => 12]);
+        $title->addText('2019', ['bold' => true, 'size' => 8, 'subScript' => true]);
+        $title->addText(')', ['bold' => true, 'size' => 12]);
         $this->barra($section, 'HECHO PROBABLEMENTE DELICTIVO', self::CREAM, '000000');
-        $this->barra($section, 'SECCIÓN 1. PUESTA A DISPOSICIÓN', 'FFFFFF', '000000', true);
+        $this->texto($section, 'SECCIÓN 1. PUESTA A DISPOSICIÓN', ['bold' => true, 'size' => 9], ['spaceBefore' => 120, 'spaceAfter' => 25]);
         $this->barra($section, 'Apartado 1.1. Fecha y hora de la puesta a disposición.', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(620);
-        $tabla->addCell(3200)->addText('Fecha: ' . $this->fechaCorta($d['fecha_puesta']), [], $this->p0());
-        $tabla->addCell(2600)->addText('Hora: ' . substr($d['hora_puesta'], 0, 5), [], $this->p0());
-        $tabla->addCell(5300)->addText('No. de expediente: ' . $d['expediente'], [], $this->p0());
-        $this->barra($section, 'Apartado 1.2. Datos generales de la puesta a disposición.', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(600);
-        $tabla->addCell(5550)->addText('Tipo de evento: ' . $d['tipo_hecho'], [], $this->p0());
-        $tabla->addCell(5550)->addText('Folio C5i: ' . $d['folio'], [], $this->p0());
-        $tabla->addRow(720);
-        $tabla->addCell(11100, ['gridSpan' => 2])->addText('Lugar de intervención: ' . $d['lugar'], [], $this->p0());
-        $this->barra($section, 'Apartado 1.3. Datos de quien pone a disposición.', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(620);
-        $tabla->addCell(6000)->addText('Nombre: ' . $d['nombre_policia_mayus'], [], $this->p0());
-        $tabla->addCell(5100)->addText('Adscripción: ' . $d['adscripcion'], [], $this->p0());
-        $tabla->addRow(620);
-        $tabla->addCell(6000)->addText('Cargo/grado: POLICÍA', [], $this->p0());
-        $tabla->addCell(5100)->addText('Firma:', [], $this->p0());
-        $this->barra($section, 'Apartado 1.4. Datos del lugar de intervención.', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(900);
-        $tabla->addCell(11100)->addText($d['lugar'], [], ['alignment' => Jc::BOTH, 'spaceAfter' => 0]);
+        $this->iphFechaHoraPuesta($section, $d);
+        $this->iphAnexosPuesta($section, $d);
+        $this->iphPersonaLineas($section, 'Datos de quien realiza la puesta a disposición', $this->partesNombreIph($d['nombre_policia_mayus']), [
+            'Adscripción:' => $d['adscripcion'],
+            'Cargo/grado:' => 'POLICÍA',
+            'Firma:' => '',
+        ]);
+        $this->iphPersonaLineas($section, 'Fiscal/Autoridad que recibe la puesta a disposición', $this->partesNombreIph(''), [
+            'Fiscalía/Autoridad:' => $d['autoridad_portada_iph'],
+            'Cargo:' => '',
+            'Firma:' => '',
+        ]);
     }
 
     private function iphPrimerRespondiente($section, array $d): void
     {
-        $this->barra($section, 'SECCIÓN 2. PRIMER RESPONDIENTE.', 'FFFFFF', '000000', true);
+        $nombre = $this->partesNombreIph($d['nombre_policia_mayus']);
+
+        $this->texto($section, 'SECCIÓN 2. PRIMER RESPONDIENTE.', ['bold' => true, 'size' => 9], ['spaceAfter' => 45]);
         $this->barra($section, 'Apartado 2.1. Datos de identificación', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(720);
-        $tabla->addCell(3700)->addText('Primer apellido', ['size' => 8], $this->p0());
-        $tabla->addCell(3700)->addText('Segundo apellido', ['size' => 8], $this->p0());
-        $tabla->addCell(3700)->addText('Nombre(s): ' . $d['nombre_policia_mayus'], ['size' => 8], $this->p0());
-        $tabla->addRow(720);
-        $tabla->addCell(5550)->addText('Adscripción: ' . $d['adscripcion'], [], $this->p0());
-        $tabla->addCell(5550, ['gridSpan' => 2])->addText('Cargo/grado: POLICÍA', [], $this->p0());
-        $this->barra($section, 'SECCIÓN 3. CONOCIMIENTO DEL HECHO Y SEGUIMIENTO DE LA ACTUACIÓN DE LA AUTORIDAD', 'FFFFFF', '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(700);
-        $tabla->addCell(11100)->addText('¿Cómo se enteró del hecho? Llamada de emergencia / C5i. Folio: ' . $d['folio'], [], $this->p0());
-        $tabla->addRow(700);
-        $tabla->addCell(11100)->addText('Fecha y hora del conocimiento: ' . $this->fechaCorta($d['fecha_hecho']) . ' ' . substr($d['hora_hecho'], 0, 5) . ' horas.', [], $this->p0());
-        $tabla->addRow(700);
-        $tabla->addCell(11100)->addText('Arribo al lugar: ' . ($d['arribo'] ? $d['arribo']->format('d-m-Y H:i') : 'Pendiente') . ' horas.', [], $this->p0());
+
+        $nombres = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 0,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+        $nombres->addRow(620);
+        foreach ([
+            [$nombre['primer_apellido'], 'Primer apellido'],
+            [$nombre['segundo_apellido'], 'Segundo apellido'],
+            [$nombre['nombres'], 'Nombre (s)'],
+        ] as [$valor, $etiqueta]) {
+            $cell = $nombres->addCell(3702, ['valign' => 'center']);
+            $cell->addText($valor, ['bold' => true, 'size' => 10], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+            $cell->addText($etiqueta, ['bold' => true, 'size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+
+        $tabla = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 0,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+        $tabla->addRow(260);
+        $tabla->addCell(self::CONTENT_W, ['gridSpan' => 3])
+            ->addText('Seleccione con una "X" la institución a la que pertenece, así como la entidad federativa o municipio de adscripción.', ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(920);
+        $cell = $tabla->addCell(2750, ['valign' => 'center']);
+        $cell->addText('[    ] Guardia Nacional', ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        $cell->addText('[    ] Policía Federal Ministerial', ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        $cell = $tabla->addCell(3000, ['valign' => 'center']);
+        $cell->addText('[    ] Policía Ministerial', ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        $cell->addText('[    ] Policía Mando Único', ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        $cell->addText('[ X ] Policía Estatal', ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        $cell->addText('Otra autoridad:', ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        $adscripcion = $tabla->addCell(5356, ['valign' => 'center']);
+        $adscripcion->addText('________________________________________', ['size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $adscripcion->addText($d['adscripcion'], ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $adscripcion->addText('________________________________________', ['size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+
+        $tabla->addRow(360);
+        $tabla->addCell(4300, ['valign' => 'center'])
+            ->addText('¿Cuál es su grado o cargo?', ['bold' => true, 'size' => 8], $this->p0());
+        $tabla->addCell(6806, ['gridSpan' => 2, 'valign' => 'center'])
+            ->addText('POLICÍA', ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(360);
+        $tabla->addCell(4300, ['valign' => 'center'])
+            ->addText('¿En qué unidad arribó al lugar de intervención?', ['bold' => true, 'size' => 8], $this->p0());
+        $tabla->addCell(6806, ['gridSpan' => 2, 'valign' => 'center'])
+            ->addText($d['unidad_arribo'], ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(360);
+        $tabla->addCell(4300, ['valign' => 'center'])
+            ->addText('¿Arribó más de un elemento al lugar de la intervención?', ['bold' => true, 'size' => 8], $this->p0());
+        $tabla->addCell(6806, ['gridSpan' => 2, 'valign' => 'center'])
+            ->addText('Sí [    ]     ¿Cuántos?  ___ ___ ___        No [ X ]', ['bold' => true, 'size' => 8], $this->p0());
+
+        $this->iphConocimientoSeguimiento($section, $d);
+        $this->iphLugarIntervencion($section, $d);
+    }
+
+    private function iphLugarIntervencion($section, array $d): void
+    {
+        $ubicacion = $d['ubicacion_iph'] ?? [];
+
+        $this->texto($section, 'SECCIÓN 4. LUGAR DE LA INTERVENCIÓN', ['bold' => true, 'size' => 9], ['spaceBefore' => 160, 'spaceAfter' => 45]);
         $this->barra($section, 'Apartado 4.1 Ubicación geográfica', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(2500);
-        $tabla->addCell(11100)->addText(mb_strtoupper($d['lugar'], 'UTF-8'), ['bold' => true], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+
+        $tabla = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 45,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $this->iphLugarLinea($tabla, 'Calle/Tramo carretero:', $ubicacion['calle_tramo'] ?? '');
+        $this->iphLugarLineaMultiple($tabla, [
+            ['No. exterior', $ubicacion['no_exterior'] ?? ''],
+            ['No. interior:', $ubicacion['no_interior'] ?? ''],
+            ['Código Postal:', $ubicacion['codigo_postal'] ?? ''],
+        ]);
+        $this->iphLugarLinea($tabla, 'Colonia/Localidad:', $ubicacion['colonia_localidad'] ?? '');
+        $this->iphLugarLinea($tabla, 'Municipio/Demarcación territorial:', $ubicacion['municipio'] ?? '');
+        $this->iphLugarLinea($tabla, 'Entidad federativa:', $ubicacion['entidad'] ?? '');
+        $this->iphLugarLinea($tabla, 'Referencias:', $ubicacion['referencias'] ?? '');
+        $this->iphLugarCoordenadas($tabla, $ubicacion['latitud'] ?? '', $ubicacion['longitud'] ?? '');
+    }
+
+    private function iphLugarLinea($tabla, string $label, string $value): void
+    {
+        $tabla->addRow(360);
+        $cell = $tabla->addCell(self::CONTENT_W, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ]);
+        $run = $cell->addTextRun($this->p0());
+        $run->addText($label . '   ', ['bold' => true, 'size' => 7]);
+        $run->addText($value, ['bold' => true, 'size' => 8]);
+    }
+
+    private function iphLugarLineaMultiple($tabla, array $fields): void
+    {
+        $tabla->addRow(360);
+        $cell = $tabla->addCell(self::CONTENT_W, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ]);
+        $run = $cell->addTextRun($this->p0());
+
+        foreach (array_values($fields) as $index => $field) {
+            [$label, $value] = $field + ['', ''];
+            $run->addText($label . '   ', ['bold' => true, 'size' => 7]);
+            $run->addText($value, ['bold' => true, 'size' => 8]);
+
+            if ($index < count($fields) - 1) {
+                $run->addText('          ', ['size' => 8]);
+            }
+        }
+    }
+
+    private function iphLugarCoordenadas($tabla, string $latitud, string $longitud): void
+    {
+        $tabla->addRow(430);
+        $cell = $tabla->addCell(self::CONTENT_W, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ]);
+        $run = $cell->addTextRun($this->p0());
+        $run->addText('Anote las coordenadas geográficas   ', ['italic' => true, 'size' => 7]);
+        $run->addText('Latitud   ', ['bold' => true, 'size' => 7]);
+        $run->addText($latitud, ['bold' => true, 'size' => 8]);
+        $run->addText('          ', ['size' => 8]);
+        $run->addText('Longitud:   ', ['bold' => true, 'size' => 7]);
+        $run->addText($longitud, ['bold' => true, 'size' => 8]);
+    }
+
+    private function iphConocimientoSeguimiento($section, array $d): void
+    {
+        $this->texto($section, 'SECCIÓN 3. CONOCIMIENTO DEL HECHO Y SEGUIMIENTO DE LA ACTUACIÓN DE LA AUTORIDAD', ['bold' => true, 'size' => 9], ['spaceBefore' => 160, 'spaceAfter' => 45]);
+        $this->barra($section, 'Apartado 3.1 Conocimiento del hecho por el primer respondiente', self::CREAM, '000000', true);
+
+        $tabla = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 45,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $tabla->addRow(260);
+        $tabla->addCell(self::CONTENT_W, [
+            'gridSpan' => 4,
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+        ])->addText('¿Cómo se enteró del hecho?', ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(330);
+        $this->iphOpcionConocimiento($tabla, 'Denuncia', false, 2600, false);
+        $this->iphOpcionConocimiento($tabla, 'Flagrancia', false, 2600, false);
+        $this->iphOpcionConocimiento($tabla, 'Localización', false, 2600, false);
+        $this->iphOpcionConocimiento($tabla, 'Mandamiento judicial', false, 3300, true);
+
+        $tabla->addRow(330);
+        $this->iphOpcionConocimiento($tabla, 'Llamada de emergencia', true, 2600, false);
+        $this->iphOpcionConocimiento($tabla, 'Descubrimiento', false, 2600, false);
+        $this->iphOpcionConocimiento($tabla, 'Aportación', false, 2600, false);
+        $this->iphOpcionConocimiento($tabla, '', false, 3300, true);
+
+        $tabla->addRow(370);
+        $cell = $tabla->addCell(self::CONTENT_W, [
+            'gridSpan' => 4,
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ]);
+        $run = $cell->addTextRun($this->p0());
+        $run->addText('911 No.   ', ['bold' => true, 'size' => 8]);
+        $run->addText($this->celdasTextoIph($d['folio'] ?? '', 18), ['bold' => true, 'size' => 8]);
+        $run->addText('       Sólo en caso de contar con él.', ['bold' => true, 'italic' => true, 'size' => 7]);
+
+        $this->barra($section, 'Apartado 3.2 Seguimiento de la actuación de la autoridad', self::CREAM, '000000', true);
+
+        $seguimiento = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 70,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+        $seguimiento->addRow(260);
+        $seguimiento->addCell(self::CONTENT_W, ['gridSpan' => 2])
+            ->addText('Indique la fecha y hora en cada recuadro.', ['italic' => true, 'size' => 8], $this->p0());
+
+        $seguimiento->addRow(1320);
+        $this->iphSeguimientoFechaHora($seguimiento->addCell(5550, ['valign' => 'center']), 'Conocimiento del hecho', $d['fecha_hecho'] ?? null, $d['hora_hecho'] ?? '');
+        $arriboFecha = $d['arribo'] ? $d['arribo']->format('Y-m-d') : null;
+        $arriboHora = $d['arribo'] ? $d['arribo']->format('H:i') : '';
+        $this->iphSeguimientoFechaHora($seguimiento->addCell(5550, ['valign' => 'center']), 'Arribo al lugar', $arriboFecha, $arriboHora);
+    }
+
+    private function iphOpcionConocimiento($tabla, string $label, bool $checked, int $width, bool $edge): void
+    {
+        $style = ['valign' => 'center'];
+
+        if ($edge) {
+            $style['borderRightSize'] = 6;
+            $style['borderRightColor'] = '000000';
+        }
+
+        if ($label === 'Denuncia' || $label === 'Llamada de emergencia') {
+            $style['borderLeftSize'] = 6;
+            $style['borderLeftColor'] = '000000';
+        }
+
+        $text = $label === '' ? '' : $label . '   ' . $this->checkIph($checked);
+        $tabla->addCell($width, $style)
+            ->addText($text, ['bold' => true, 'size' => 8], $this->p0());
+    }
+
+    private function iphSeguimientoFechaHora($cell, string $titulo, ?string $fecha, string $hora): void
+    {
+        $fechaPartes = $fecha ? $this->fechaPartesIph($fecha) : ['dia' => '', 'mes' => '', 'anio' => ''];
+        $horaPartes = preg_match('/^(\d{2}):(\d{2})/', $hora, $matches)
+            ? ['hora' => $matches[1], 'minuto' => $matches[2]]
+            : ['hora' => '', 'minuto' => ''];
+
+        $cell->addText($titulo, ['bold' => true, 'italic' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 80]);
+        $cell->addText('Fecha:  ' . $this->celdasTextoIph($fechaPartes['dia'] . $fechaPartes['mes'] . $fechaPartes['anio'], 8), ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 35]);
+        $cell->addText('        D   D   M   M   A   A   A   A', ['bold' => true, 'size' => 6], ['alignment' => Jc::CENTER, 'spaceAfter' => 80]);
+        $cell->addText('Hora:   ' . $this->celdasTextoIph($horaPartes['hora'], 2) . ' : ' . $this->celdasTextoIph($horaPartes['minuto'], 2) . '   (24 horas)', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 35]);
+        $cell->addText('         h   h          m   m', ['bold' => true, 'size' => 6], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+    }
+
+    private function checkIph(bool $checked): string
+    {
+        return $checked ? '[ X ]' : '[    ]';
+    }
+
+    private function celdasTextoIph($value, int $length): string
+    {
+        return collect($this->charsForBoxes($value, $length))
+            ->map(fn ($char) => '[ ' . ($char ?: ' ') . ' ]')
+            ->implode(' ');
     }
 
     private function iphCroquisInspeccion($section, array $d): void
     {
         $this->barra($section, 'Croquis del lugar', self::CREAM, '000000', true);
         $this->imagenEnMarco($section, $d['croquis'], 590, 470, '');
-        $this->barra($section, 'Apartado 4.2 Inspección del lugar', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $rows = [
-            ['¿Realizó la inspección del lugar?', 'Sí X', 'No'],
-            ['Al momento de realizar la inspección del lugar, ¿encontró algún objeto relacionado con los hechos?', empty($d['objetos']) ? 'Sí' : 'Sí X', empty($d['objetos']) ? 'No X' : 'No'],
-            ['¿Preservó el lugar de la intervención?', 'Sí', 'No X'],
-            ['¿Llevó a cabo la priorización en el lugar de la intervención?', 'Sí', 'No X'],
-        ];
+        $this->iphInspeccionLugar($section, $d);
+    }
 
-        foreach ($rows as $row) {
-            $tabla->addRow(420);
-            $tabla->addCell(7700)->addText($row[0], [], $this->p0());
-            $tabla->addCell(1700)->addText($row[1], [], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-            $tabla->addCell(1700)->addText($row[2], [], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+    private function iphInspeccionLugar($section, array $d): void
+    {
+        $objetos = !empty($d['objetos']);
+
+        $this->barra($section, 'Apartado 4.2 Inspección del lugar', self::CREAM, '000000', true);
+
+        $tabla = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 60,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $this->iphInspeccionPregunta($tabla, '¿Realizó la inspección del lugar?', true, false);
+        $this->iphInspeccionPregunta(
+            $tabla,
+            'Al momento de realizar la inspección del lugar, ¿encontró algún objeto relacionado con los hechos?',
+            $objetos,
+            !$objetos,
+            'Llene el anexo D'
+        );
+        $this->iphInspeccionPregunta($tabla, '¿Preservó el lugar de la intervención?', false, true);
+        $this->iphInspeccionPregunta($tabla, '¿Llevó a cabo la priorización en el lugar de la intervención?', true, false);
+
+        $riesgo = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 60,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $riesgo->addRow(360);
+        $cell = $riesgo->addCell(self::CONTENT_W, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'valign' => 'center',
+        ]);
+        $run = $cell->addTextRun($this->p0());
+        $run->addText('Tipo de riesgo presentado:        ', ['bold' => true, 'size' => 8]);
+        $run->addText('Sociales ' . $this->checkIph(true), ['size' => 8]);
+        $run->addText('                         ', ['size' => 8]);
+        $run->addText('Naturales ' . $this->checkIph(false), ['size' => 8]);
+
+        $riesgo->addRow(520);
+        $cell = $riesgo->addCell(self::CONTENT_W, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ]);
+        $run = $cell->addTextRun($this->p0());
+        $run->addText('Especifique:        ', ['bold' => true, 'size' => 8]);
+        $run->addText($this->especificacionRiesgoIph($d), ['italic' => true, 'size' => 8]);
+    }
+
+    private function iphInspeccionPregunta($tabla, string $pregunta, bool $si, bool $no, string $notaSi = ''): void
+    {
+        $tabla->addRow(340);
+        $tabla->addCell(7900, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'valign' => 'center',
+        ])->addText($pregunta, ['bold' => true, 'size' => 8], $this->p0());
+
+        $siCell = $tabla->addCell(1850, ['valign' => 'center']);
+        $siRun = $siCell->addTextRun(['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $siRun->addText('Sí ' . $this->checkIph($si), ['size' => 8]);
+
+        if ($notaSi !== '') {
+            $siRun->addText(' ' . $notaSi, ['italic' => true, 'size' => 7]);
         }
 
-        $tabla->addRow(600);
-        $tabla->addCell(11100, ['gridSpan' => 3])->addText('Tipo de riesgo presentado: Sociales ___    Naturales ___    Especifique: ______________________________', [], $this->p0());
+        $tabla->addCell(1356, [
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'valign' => 'center',
+        ])->addText('No ' . $this->checkIph($no), ['size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+    }
+
+    private function especificacionRiesgoIph(array $d): string
+    {
+        $ubicacion = $d['ubicacion_iph'] ?? [];
+        $partes = array_filter([
+            $ubicacion['calle_tramo'] ?? null,
+            $ubicacion['referencias'] ?? null,
+        ], fn ($valor) => trim((string) $valor) !== '');
+
+        $texto = trim(implode(', ', $partes));
+
+        return $texto !== '' ? $texto : 'VÍA DE CIRCULACIÓN EN EL LUGAR DE INTERVENCIÓN';
     }
 
     private function iphNarrativa($section, array $d): void
@@ -537,7 +883,7 @@ class IphPuestaDisposicionDocxService
         $this->barra($section, 'Vehículo: ' . str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT), self::CREAM, '000000', true);
         $this->barra($section, 'Apartado C.1 Fecha y hora de la inspección', self::CREAM, '000000', true);
         $tabla = $section->addTable('FormTable');
-        $tabla->addRow(620);
+        $tabla->addRow(430);
         $tabla->addCell(5550)->addText('Fecha: ' . ($d['arribo'] ? $d['arribo']->format('d-m-Y') : $this->fechaCorta($d['fecha_hecho'])), [], $this->p0());
         $tabla->addCell(5550)->addText('Hora: ' . ($d['arribo'] ? $d['arribo']->format('H:i') : substr($d['hora_hecho'], 0, 5)), [], $this->p0());
         $this->barra($section, 'Apartado C.2 Datos generales del vehículo inspeccionado', self::CREAM, '000000', true);
@@ -676,6 +1022,425 @@ class IphPuestaDisposicionDocxService
         return '16 PE 010 000 ' . str_replace('-', ' ', $this->fechaCorta($d['fecha_puesta'])) . ' HH MM';
     }
 
+    private function referenciaIphGrupos(array $d): array
+    {
+        $fecha = $this->fechaPartesIph($d['fecha_puesta'] ?? null);
+
+        return [
+            ['label' => 'EDO', 'value' => '16', 'length' => 2, 'cream' => true],
+            ['label' => 'INST', 'value' => 'PE', 'length' => 2, 'cream' => false],
+            ['label' => 'GOB', 'value' => '010', 'length' => 3, 'cream' => true],
+            ['label' => 'MPIO', 'value' => '000', 'length' => 3, 'cream' => false],
+            ['label' => 'DD', 'value' => $fecha['dia'], 'length' => 2, 'cream' => true],
+            ['label' => 'MM', 'value' => $fecha['mes'], 'length' => 2, 'cream' => false],
+            ['label' => 'AAAA', 'value' => $fecha['anio'], 'length' => 4, 'cream' => true],
+            ['label' => 'HH', 'value' => '', 'length' => 2, 'cream' => false],
+            ['label' => 'MM', 'value' => '', 'length' => 2, 'cream' => true],
+        ];
+    }
+
+    private function fechaPartesIph(?string $fecha): array
+    {
+        if ($fecha && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $matches)) {
+            return ['dia' => $matches[3], 'mes' => $matches[2], 'anio' => $matches[1]];
+        }
+
+        $ahora = now('America/Mexico_City');
+
+        return ['dia' => $ahora->format('d'), 'mes' => $ahora->format('m'), 'anio' => $ahora->format('Y')];
+    }
+
+    private function iphEncabezadoOficial($section, array $d): void
+    {
+        $this->iphEncabezadoOficialTabla($section, $d);
+    }
+
+    private function iphEncabezadoOficialTabla($section, array $d): void
+    {
+        $groups = $this->referenciaIphGrupos($d);
+        $boxWidth = 245;
+        $rightWidth = array_sum(array_map(fn ($group) => (int) ($group['length'] ?? 1), $groups)) * $boxWidth;
+        $leftWidth = self::CONTENT_W - $rightWidth;
+
+        $table = $section->addTable([
+            'borderSize' => 0,
+            'cellMargin' => 20,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $table->addRow(300);
+        $table->addCell($leftWidth, $this->sinBorde(['valign' => 'center']))
+            ->addText('SISTEMA NACIONAL DE SEGURIDAD PÚBLICA', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $table->addCell($rightWidth, [
+            'gridSpan' => 22,
+            'borderTopSize' => 8,
+            'borderTopColor' => '000000',
+            'borderRightSize' => 8,
+            'borderRightColor' => '000000',
+            'borderLeftSize' => 8,
+            'borderLeftColor' => '000000',
+            'borderBottomSize' => 0,
+            'valign' => 'center',
+        ])->addText('NO. DE REFERENCIA', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+
+        $table->addRow(290);
+        $table->addCell($leftWidth, $this->sinBorde(['valign' => 'center']));
+        foreach ($groups as $group) {
+            foreach ($this->charsForBoxes($group['value'] ?? '', (int) ($group['length'] ?? 1)) as $char) {
+                $table->addCell($boxWidth, [
+                    'borderSize' => 8,
+                    'borderColor' => '000000',
+                    'bgColor' => !empty($group['cream']) ? self::CREAM : 'FFFFFF',
+                    'valign' => 'center',
+                ])->addText($char, ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+            }
+        }
+
+        $table->addRow(180);
+        $table->addCell($leftWidth, $this->sinBorde(['valign' => 'center']))
+            ->addText('CNSP', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        foreach ($groups as $group) {
+            $length = (int) ($group['length'] ?? 1);
+            $table->addCell($boxWidth * $length, [
+                'gridSpan' => $length,
+                'borderSize' => 0,
+                'bgColor' => !empty($group['cream']) ? self::CREAM : 'FFFFFF',
+                'valign' => 'center',
+            ])->addText($group['label'] ?? '', ['bold' => true, 'size' => 5], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+
+        $table->addRow(300);
+        $table->addCell($leftWidth, $this->sinBorde());
+        $table->addCell($rightWidth, [
+            'gridSpan' => 22,
+            'borderRightSize' => 8,
+            'borderRightColor' => '000000',
+            'borderLeftSize' => 8,
+            'borderLeftColor' => '000000',
+            'borderTopSize' => 0,
+            'borderBottomSize' => 0,
+            'valign' => 'center',
+        ])->addText('NO. DE FOLIO ASIGNADO POR EL SISTEMA', ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+
+        $table->addRow(290);
+        $table->addCell($leftWidth, $this->sinBorde());
+        foreach ($this->charsForBoxes('', 20) as $char) {
+            $table->addCell($boxWidth, [
+                'borderSize' => 8,
+                'borderColor' => '000000',
+                'valign' => 'center',
+            ])->addText($char, ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+        $table->addCell($boxWidth * 2, [
+            'gridSpan' => 2,
+            'borderRightSize' => 8,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 8,
+            'borderBottomColor' => '000000',
+            'borderTopSize' => 0,
+            'borderLeftSize' => 0,
+        ])->addText('', [], $this->p0());
+    }
+
+    private function iphAnexosPuesta($section, array $d): void
+    {
+        $vehiculos = count($d['vehiculos'] ?? []);
+        $objetos = count($d['objetos'] ?? []);
+        $fotos = count($d['fotos'] ?? []);
+        $sinAnexos = $vehiculos === 0 && $objetos === 0;
+
+        $tabla = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 0,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $tabla->addRow(230);
+        $tabla->addCell(self::CONTENT_W, [
+            'gridSpan' => 9,
+            'borderTopSize' => 6,
+            'borderTopColor' => '000000',
+            'borderRightSize' => 6,
+            'borderRightColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+            'valign' => 'center',
+        ])->addText('Señale con una "X" el o los Anexos entregados e indique la cantidad de cada uno de ellos (sólo entregue los Anexos utilizados).', ['bold' => true, 'italic' => true, 'size' => 7], ['spaceAfter' => 0]);
+
+        $this->iphAnexoFila($tabla, ['Anexo A.', 'Detención(es)', false, 0], ['Anexo E.', 'Entrevistas', false, 0]);
+        $this->iphAnexoFila($tabla, ['Anexo B.', 'Informe de uso de la fuerza', false, 0], ['Anexo F.', 'Entrega - recepción del lugar de la intervención', false, 0]);
+        $this->iphAnexoFila($tabla, ['Anexo C.', 'Inspección de vehículo', $vehiculos > 0, $vehiculos], ['Anexo G.', 'Continuación de la narrativa de los hechos y/o entrevista', false, 0]);
+        $this->iphAnexoFila($tabla, ['Anexo D.', 'Inventario de armas y objetos', $objetos > 0, $objetos], ['No se entregan anexos', '', $sinAnexos, null]);
+
+        $this->iphDocumentacionComplementaria($section, $fotos);
+    }
+
+    private function iphDocumentacionComplementaria($section, int $fotos): void
+    {
+        $tabla = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 0,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $rowStyle = [
+            'borderTopSize' => 6,
+            'borderTopColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ];
+
+        $tabla->addRow(500);
+        $tabla->addCell(2100, array_merge($rowStyle, ['borderLeftSize' => 6, 'borderLeftColor' => '000000']))
+            ->addText("¿Anexa documentación\ncomplementaria?", ['size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0, 'lineHeight' => 1]);
+        $tabla->addCell(1250, $rowStyle)
+            ->addText('Sí ' . ($fotos > 0 ? 'X' : '') . '   No ' . ($fotos > 0 ? '' : 'X'), ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $tabla->addCell(550, $rowStyle)
+            ->addText('=>', ['bold' => true, 'size' => 13], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $tabla->addCell(2350, $rowStyle)
+            ->addText('Fotografías ' . ($fotos > 0 ? 'X' : '') . '   Videos   Otra', ['bold' => true, 'size' => 7], ['spaceAfter' => 0]);
+        $tabla->addCell(2650, $rowStyle)
+            ->addText('Audio   Certificados médicos   ¿Cuál?', ['bold' => true, 'size' => 7], ['spaceAfter' => 0]);
+        $tabla->addCell(2206, array_merge($rowStyle, ['borderRightSize' => 6, 'borderRightColor' => '000000']))
+            ->addText("(1) Inventario de\nResguardo de vehículos", ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0, 'lineHeight' => 1]);
+    }
+
+    private function iphAnexoFila($tabla, array $left, array $right): void
+    {
+        $tabla->addRow(335);
+        $this->iphAnexoCeldas($tabla, $left, 3300, true);
+        $tabla->addCell(260, [
+            'borderLeftSize' => 6,
+            'borderLeftColor' => '000000',
+        ])->addText('', [], $this->p0());
+        $this->iphAnexoCeldas($tabla, $right, 5786, false);
+    }
+
+    private function iphAnexoCeldas($tabla, array $data, int $labelWidth, bool $leftSide): void
+    {
+        [$prefix, $label, $checked, $count] = $data + ['', '', false, 0];
+        $texto = trim($prefix . ' ' . $label);
+        $labelStyle = ['valign' => 'center'];
+
+        if ($leftSide) {
+            $labelStyle['borderLeftSize'] = 6;
+            $labelStyle['borderLeftColor'] = '000000';
+        }
+
+        $tabla->addCell($labelWidth, $labelStyle)
+            ->addText($texto, ['bold' => $prefix !== 'No se entregan anexos', 'size' => 7], ['spaceAfter' => 0]);
+        $tabla->addCell(320, ['valign' => 'center'])
+            ->addText($checked ? 'X' : '', ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+
+        if ($count === null) {
+            $tabla->addCell(280, ['valign' => 'center'])->addText('', [], $this->p0());
+            $style = ['valign' => 'center'];
+
+            if (!$leftSide) {
+                $style['borderRightSize'] = 6;
+                $style['borderRightColor'] = '000000';
+            }
+
+            $tabla->addCell(280, $style)->addText('', [], $this->p0());
+
+            return;
+        }
+
+        foreach ($this->charsForBoxes(str_pad((string) max(0, (int) $count), 2, '0', STR_PAD_LEFT), 2) as $index => $char) {
+            $style = ['borderSize' => 6, 'borderColor' => '000000', 'valign' => 'center'];
+
+            if (!$leftSide && $index === 1) {
+                $style['borderRightSize'] = 6;
+                $style['borderRightColor'] = '000000';
+            }
+
+            $tabla->addCell(280, $style)
+                ->addText($char, ['bold' => true, 'size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+    }
+
+    private function iphPersonaLineas($section, string $titulo, array $nombre, array $extra): void
+    {
+        $tabla = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 30,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $tabla->addRow(280);
+        $tabla->addCell(self::CONTENT_W, ['gridSpan' => 2, 'bgColor' => self::CREAM])
+            ->addText($titulo, ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+
+        foreach ([
+            'Primer apellido:' => $nombre['primer_apellido'] ?? '',
+            'Segundo apellido:' => $nombre['segundo_apellido'] ?? '',
+            'Nombre (s):' => $nombre['nombres'] ?? '',
+        ] + $extra as $label => $value) {
+            $tabla->addRow(300);
+            $tabla->addCell(1700, ['valign' => 'center'])
+                ->addText($label, ['bold' => true, 'size' => 7], ['spaceAfter' => 0]);
+            $tabla->addCell(self::CONTENT_W - 1700, ['valign' => 'center'])
+                ->addText((string) $value, ['bold' => true, 'size' => 8], ['spaceAfter' => 0]);
+        }
+    }
+
+    private function partesNombreIph(string $nombre): array
+    {
+        $tokens = preg_split('/\s+/', trim($nombre), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if (count($tokens) >= 3) {
+            $primerTokenEsNombre = $this->tokenNombreComunIph($tokens[0]);
+            $tercerTokenEsNombre = $this->tokenNombreComunIph($tokens[2]);
+
+            if ($primerTokenEsNombre && !$tercerTokenEsNombre) {
+                return [
+                    'primer_apellido' => $tokens[count($tokens) - 2],
+                    'segundo_apellido' => $tokens[count($tokens) - 1],
+                    'nombres' => implode(' ', array_slice($tokens, 0, -2)),
+                ];
+            }
+
+            return [
+                'primer_apellido' => $tokens[0],
+                'segundo_apellido' => $tokens[1],
+                'nombres' => implode(' ', array_slice($tokens, 2)),
+            ];
+        }
+
+        if (count($tokens) === 2) {
+            if ($this->tokenNombreComunIph($tokens[0]) && !$this->tokenNombreComunIph($tokens[1])) {
+                return [
+                    'primer_apellido' => $tokens[1],
+                    'segundo_apellido' => '',
+                    'nombres' => $tokens[0],
+                ];
+            }
+
+            if (!$this->tokenNombreComunIph($tokens[0]) && $this->tokenNombreComunIph($tokens[1])) {
+                return [
+                    'primer_apellido' => $tokens[0],
+                    'segundo_apellido' => '',
+                    'nombres' => $tokens[1],
+                ];
+            }
+
+            return [
+                'primer_apellido' => '',
+                'segundo_apellido' => '',
+                'nombres' => implode(' ', $tokens),
+            ];
+        }
+
+        return [
+            'primer_apellido' => '',
+            'segundo_apellido' => '',
+            'nombres' => $tokens[0] ?? '',
+        ];
+    }
+
+    private function tokenNombreComunIph(string $token): bool
+    {
+        $normalizado = Str::ascii(mb_strtoupper(trim($token), 'UTF-8'));
+
+        return in_array($normalizado, [
+            'JOSE', 'JOSEFINA', 'MARIA', 'MA', 'JESUS', 'JUAN', 'LUIS', 'CARLOS', 'MIGUEL',
+            'ANGEL', 'MANUEL', 'FRANCISCO', 'JAVIER', 'ANTONIO', 'ROBERTO', 'RAUL', 'RUBEN',
+            'ALBERTO', 'ALEJANDRO', 'FERNANDO', 'RICARDO', 'EDUARDO', 'SERGIO', 'JORGE',
+            'DANIEL', 'DAVID', 'OSCAR', 'ARTURO', 'ENRIQUE', 'MARIO', 'MARTIN', 'PEDRO',
+            'GUADALUPE', 'ANA', 'LAURA', 'KARLA', 'KARINA', 'CLAUDIA', 'SANDRA', 'PATRICIA',
+            'ELIZABETH', 'ERIKA', 'VERONICA', 'ROSA', 'LETICIA', 'YOLANDA', 'TERESA',
+            'KATALINA', 'ROCIO', 'NOE', 'BRYAN',
+        ], true);
+    }
+
+    private function iphFechaHoraPuesta($section, array $d): void
+    {
+        $fecha = $this->fechaPartesIph($d['fecha_puesta'] ?? null);
+        $hora = substr((string) ($d['hora_puesta'] ?? ''), 0, 5);
+        $horaPartes = preg_match('/^(\d{2}):(\d{2})$/', $hora, $matches)
+            ? ['hora' => $matches[1], 'minuto' => $matches[2]]
+            : ['hora' => '', 'minuto' => ''];
+
+        $tabla = $section->addTable([
+            'borderSize' => 0,
+            'borderColor' => '000000',
+            'cellMargin' => 0,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $fieldStyle = [
+            'borderTopSize' => 6,
+            'borderTopColor' => '000000',
+            'borderBottomSize' => 6,
+            'borderBottomColor' => '000000',
+            'valign' => 'center',
+        ];
+        $boxStyle = ['borderSize' => 7, 'borderColor' => '000000', 'valign' => 'center'];
+
+        $tabla->addRow(430);
+        $tabla->addCell(850, array_merge($fieldStyle, ['borderLeftSize' => 6, 'borderLeftColor' => '000000']))
+            ->addText('Fecha:', ['size' => 7], ['alignment' => Jc::RIGHT, 'spaceAfter' => 0]);
+        foreach ($this->charsForBoxes($fecha['dia'] . $fecha['mes'] . $fecha['anio'], 8) as $char) {
+            $tabla->addCell(230, $boxStyle)
+                ->addText($char, ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+        $tabla->addCell(910, array_merge($fieldStyle, ['borderRightSize' => 6, 'borderRightColor' => '000000']))
+            ->addText('', [], $this->p0());
+
+        $tabla->addCell(730, $fieldStyle)
+            ->addText('Hora:', ['size' => 7], ['alignment' => Jc::RIGHT, 'spaceAfter' => 0]);
+        foreach ($this->charsForBoxes($horaPartes['hora'], 2) as $char) {
+            $tabla->addCell(230, $boxStyle)
+                ->addText($char, ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+        $tabla->addCell(100, $fieldStyle)
+            ->addText(':', ['bold' => true, 'size' => 10], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        foreach ($this->charsForBoxes($horaPartes['minuto'], 2) as $char) {
+            $tabla->addCell(230, $boxStyle)
+                ->addText($char, ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+        $tabla->addCell(850, array_merge($fieldStyle, ['borderRightSize' => 6, 'borderRightColor' => '000000']))
+            ->addText('', [], $this->p0());
+
+        $tabla->addCell(1200, $fieldStyle)
+            ->addText('No. de expediente:', ['bold' => true, 'size' => 7], ['alignment' => Jc::RIGHT, 'spaceAfter' => 0]);
+        foreach ($this->charsForBoxes($d['expediente'] ?? '', 18) as $char) {
+            $tabla->addCell(185, $boxStyle)
+                ->addText($char, ['bold' => true, 'size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        }
+        $tabla->addCell(376, array_merge($fieldStyle, ['borderRightSize' => 6, 'borderRightColor' => '000000']))
+            ->addText('', [], $this->p0());
+    }
+
+    private function charsForBoxes($value, int $length): array
+    {
+        $text = preg_replace('/\s+/', '', (string) $value) ?? '';
+        $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $result = [];
+
+        for ($i = 0; $i < $length; $i++) {
+            $result[] = $chars[$i] ?? '';
+        }
+
+        return $result;
+    }
+
     private function seccion(PhpWord $phpWord, string $size)
     {
         $isLegal = $size === 'legal';
@@ -693,8 +1458,8 @@ class IphPuestaDisposicionDocxService
     private function barra($section, string $text, string $bgColor, string $fontColor = '000000', bool $left = false): void
     {
         $tabla = $section->addTable('FormTable');
-        $tabla->addRow(320);
-        $tabla->addCell(self::CONTENT_W, ['bgColor' => $bgColor])->addText($text, ['bold' => true, 'color' => $fontColor, 'size' => 9], ['alignment' => $left ? Jc::LEFT : Jc::CENTER, 'spaceAfter' => 0]);
+        $tabla->addRow(380);
+        $tabla->addCell(self::CONTENT_W, ['bgColor' => $bgColor, 'valign' => 'center'])->addText($text, ['bold' => true, 'color' => $fontColor, 'size' => 9], ['alignment' => $left ? Jc::LEFT : Jc::CENTER, 'spaceAfter' => 0]);
     }
 
     private function tituloReporte($section, string $text): void

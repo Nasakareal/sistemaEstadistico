@@ -33,17 +33,20 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
                 'fallecidos_count' => 0,
                 'unidad_org_id' => 2,
                 'unidad_org_nombre' => 'Unidad de Delegaciones',
-                'creador_nombre' => 'AGENTE TEST',
+                'creador_nombre' => 'MENDEZ SAENZ JOSE RUBEN',
                 'ubicacion' => [
                     'calle' => 'AVENIDA TEST',
                     'colonia' => 'CENTRO',
+                    'entre_calles' => 'CALLE UNO Y CALLE DOS',
                     'municipio' => 'MORELIA',
+                    'lat' => '19.7000000',
+                    'lng' => '-101.1900000',
                 ],
             ],
             'puesta_disposicion' => [
                 'fecha_puesta' => '2026-03-11',
                 'hora_puesta' => '13:05',
-                'nombre_policia' => 'AGENTE TEST',
+                'nombre_policia' => 'MENDEZ SAENZ JOSE RUBEN',
                 'autoridad_receptora' => 'MINISTERIO PUBLICO',
             ],
             'vehiculos_hecho' => [
@@ -102,6 +105,22 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
         try {
             $texto = $this->textoDocx($path);
 
+            $this->assertStringContainsString('NO. DE REFERENCIA', $texto);
+            $this->assertStringContainsString('NO. DE FOLIO ASIGNADO POR EL SISTEMA', $texto);
+            $this->assertStringContainsString('Fiscalía/Autoridad:FISCALÍA GENERAL DEL ESTADO', $texto);
+            $this->assertStringContainsString('MENDEZPrimer apellidoSAENZSegundo apellidoJOSE RUBENNombre (s)', $texto);
+            $this->assertStringContainsString('[ X ] Policía Estatal', $texto);
+            $this->assertStringContainsString('No [ X ]', $texto);
+            $this->assertStringContainsString('SECCIÓN 4. LUGAR DE LA INTERVENCIÓN', $texto);
+            $this->assertStringContainsString('Calle/Tramo carretero:   AVENIDA TEST', $texto);
+            $this->assertStringContainsString('Referencias:   CALLE UNO Y CALLE DOS', $texto);
+            $this->assertStringContainsString('Latitud   19.7000000', $texto);
+            $this->assertStringContainsString('Longitud:   -101.1900000', $texto);
+            $this->assertStringContainsString('Apartado 4.2 Inspección del lugar', $texto);
+            $this->assertStringContainsString('Llene el anexo D', $texto);
+            $this->assertStringContainsString('Tipo de riesgo presentado:', $texto);
+            $this->assertStringContainsString('Sociales [ X ]', $texto);
+            $this->assertStringContainsString('Naturales [    ]', $texto);
             $this->assertStringContainsString('Capacidad para 5 Personas', $texto);
             $this->assertStringContainsString('Placas para circular PKP853B del servicio particular de esta entidad federativa', $texto);
             $this->assertStringContainsString('Serie 3G1TC5CF5BL147401', $texto);
@@ -116,7 +135,10 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
             $this->assertStringContainsString('Ambos vehículos fueron resguardados por su propia tracción en las instalaciones de Serví-Grúas Profesionales', $texto);
             $this->assertStringContainsString('ÚNICA.- La causa que da origen al hecho de tránsito que nos ocupa se refiere a falta de precaucion y cuidado por parte del conductor del vehículo (A), en consecuencia ocasionar daños materiales', $texto);
             $this->assertStringContainsString('Con base en lo dispuesto en el artículo 59 de la Ley de Tránsito y Vialidad vigente en el Estado, Pongo a su disposición ambos vehículos', $texto);
-            $this->assertStringContainsString('ATENTAMENTE.PERITO DE TRÁNSITO.AGENTE TEST', $texto);
+            $this->assertStringContainsString('ATENTAMENTE.PERITO DE TRÁNSITO.MENDEZ SAENZ JOSE RUBEN', $texto);
+
+            $this->assertStringContainsString('w:val="es-MX"', $this->xmlDocx($path, 'word/settings.xml'));
+            $this->assertStringContainsString('w:val="es-MX"', $this->xmlDocx($path, 'word/styles.xml'));
         } finally {
             if (is_file($path)) {
                 @unlink($path);
@@ -126,11 +148,7 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
 
     private function textoDocx(string $path): string
     {
-        $zip = new ZipArchive();
-        $this->assertTrue($zip->open($path) === true);
-        $xml = $zip->getFromName('word/document.xml');
-        $zip->close();
-        $this->assertIsString($xml);
+        $xml = $this->xmlDocx($path, 'word/document.xml');
 
         $previous = libxml_use_internal_errors(true);
         $dom = new DOMDocument();
@@ -145,5 +163,16 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
         }
 
         return $texto;
+    }
+
+    private function xmlDocx(string $path, string $entry): string
+    {
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($path) === true);
+        $xml = $zip->getFromName($entry);
+        $zip->close();
+        $this->assertIsString($xml);
+
+        return $xml;
     }
 }

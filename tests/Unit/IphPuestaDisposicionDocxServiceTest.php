@@ -116,6 +116,7 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
             $this->assertStringContainsString('Referencias:   CALLE UNO Y CALLE DOS', $texto);
             $this->assertStringContainsString('Latitud   19.7000000', $texto);
             $this->assertStringContainsString('Longitud:   -101.1900000', $texto);
+            $this->assertMatchesRegularExpression('/Conocimiento del hechoFecha:\s+\[ 1 \]\s+\[ 1 \]\s+\[ 0 \]\s+\[ 3 \]\s+\[ 2 \]\s+\[ 0 \]\s+\[ 2 \]\s+\[ 6 \].*Hora:\s+\[ 1 \]\s+\[ 1 \]\s+:\s+\[ 5 \]\s+\[ 5 \].*Arribo al lugarFecha:\s+\[ 1 \]\s+\[ 1 \]\s+\[ 0 \]\s+\[ 3 \]\s+\[ 2 \]\s+\[ 0 \]\s+\[ 2 \]\s+\[ 6 \].*Hora:\s+\[ 1 \]\s+\[ 2 \]\s+:\s+\[ 3 \]\s+\[ 0 \]/s', $texto);
             $this->assertStringContainsString('Apartado 4.2 Inspección del lugar', $texto);
             $this->assertStringContainsString('Llene el anexo D', $texto);
             $this->assertStringContainsString('Tipo de riesgo presentado:', $texto);
@@ -135,6 +136,18 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
             $this->assertStringContainsString('Ambos vehículos fueron resguardados por su propia tracción en las instalaciones de Serví-Grúas Profesionales', $texto);
             $this->assertStringContainsString('ÚNICA.- La causa que da origen al hecho de tránsito que nos ocupa se refiere a falta de precaucion y cuidado por parte del conductor del vehículo (A), en consecuencia ocasionar daños materiales', $texto);
             $this->assertStringContainsString('Con base en lo dispuesto en el artículo 59 de la Ley de Tránsito y Vialidad vigente en el Estado, Pongo a su disposición ambos vehículos', $texto);
+            $this->assertStringContainsString('tuvo conocimiento por medio del folio C5i TEST-IPH', $texto);
+            $this->assertStringContainsString('arribando aproximadamente a las 12:30 horas', $texto);
+            $this->assertStringContainsString('Al arribar al lugar de intervención se localizaron 2 vehículos', $texto);
+            $this->assertStringContainsString('Conductor registrado: NOE PEREZ CRUZ', $texto);
+            $this->assertStringContainsString('Queda pendiente que el elemento actuante complemente de manera cronológica y detallada', $texto);
+            $this->assertStringContainsString('ANEXO C. INSPECCIÓN DE VEHÍCULO', $texto);
+            $this->assertStringContainsString('Vehículo:  [ 0 ][ 0 ][ 1 ]', $texto);
+            $this->assertStringContainsString('Apartado C.2 Datos generales del vehículo inspeccionado', $texto);
+            $this->assertStringContainsString('Placa/Matrícula:', $texto);
+            $this->assertStringContainsString('No. de serie:', $texto);
+            $this->assertStringContainsString('Situación:   [    ] Con reporte de robo          [    ] Sin reporte de robo          [ X ] No es posible saberlo', $texto);
+            $this->assertStringContainsString('Apartado C.4 Datos del primer respondiente', $texto);
             $this->assertStringContainsString('ATENTAMENTE.PERITO DE TRÁNSITO.MENDEZ SAENZ JOSE RUBEN', $texto);
 
             $this->assertStringContainsString('w:val="es-MX"', $this->xmlDocx($path, 'word/settings.xml'));

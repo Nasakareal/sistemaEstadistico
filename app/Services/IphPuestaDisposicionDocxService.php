@@ -80,7 +80,8 @@ class IphPuestaDisposicionDocxService
         $fechaPuesta = trim((string) ($puesta['fecha_puesta'] ?? '')) ?: now('America/Mexico_City')->format('Y-m-d');
         $horaPuesta = trim((string) ($puesta['hora_puesta'] ?? '')) ?: now('America/Mexico_City')->format('H:i');
         $fechaHoraHecho = $this->carbon($fechaHecho, $horaHecho);
-        $arribo = $fechaHoraHecho ? $fechaHoraHecho->copy()->addMinutes(30) : null;
+        $conocimiento = $fechaHoraHecho ? $fechaHoraHecho->copy()->subMinutes(35) : null;
+        $arribo = $fechaHoraHecho ? $fechaHoraHecho->copy() : null;
         $recoleccion = $fechaHoraHecho ? $fechaHoraHecho->copy()->addMinutes(35) : now('America/Mexico_City')->addMinutes(35);
         $lugar = collect([$ubicacion['calle'] ?? null, $ubicacion['colonia'] ?? null, $ubicacion['municipio'] ?? null])
             ->map(fn ($dato) => trim((string) $dato))
@@ -191,6 +192,7 @@ class IphPuestaDisposicionDocxService
             'fecha_intervencion_cadena' => $fechaHoraHecho ? $fechaHoraHecho->format('d-m-Y') : $this->fechaCorta($fechaHecho),
             'hora_intervencion_cadena' => $fechaHoraHecho ? $fechaHoraHecho->format('H:i') : substr($horaHecho, 0, 5),
             'hora_recoleccion_cadena' => $recoleccion->format('H:i'),
+            'conocimiento' => $conocimiento,
             'arribo' => $arribo,
             'lugar' => $lugar,
             'ubicacion_iph' => $ubicacionIph,
@@ -705,7 +707,10 @@ class IphPuestaDisposicionDocxService
             ->addText('Indique la fecha y hora en cada recuadro.', ['italic' => true, 'size' => 8], $this->p0());
 
         $seguimiento->addRow(1320);
-        $this->iphSeguimientoFechaHora($seguimiento->addCell(5550, ['valign' => 'center']), 'Conocimiento del hecho', $d['fecha_hecho'] ?? null, $d['hora_hecho'] ?? '');
+        $conocimiento = $d['conocimiento'] ?? null;
+        $conocimientoFecha = $conocimiento ? $conocimiento->format('Y-m-d') : ($d['fecha_hecho'] ?? null);
+        $conocimientoHora = $conocimiento ? $conocimiento->format('H:i') : ($d['hora_hecho'] ?? '');
+        $this->iphSeguimientoFechaHora($seguimiento->addCell(5550, ['valign' => 'center']), 'Conocimiento del hecho', $conocimientoFecha, $conocimientoHora);
         $arriboFecha = $d['arribo'] ? $d['arribo']->format('Y-m-d') : null;
         $arriboHora = $d['arribo'] ? $d['arribo']->format('H:i') : '';
         $this->iphSeguimientoFechaHora($seguimiento->addCell(5550, ['valign' => 'center']), 'Arribo al lugar', $arriboFecha, $arriboHora);
@@ -752,8 +757,15 @@ class IphPuestaDisposicionDocxService
     private function celdasTextoIph($value, int $length): string
     {
         return collect($this->charsForBoxes($value, $length))
-            ->map(fn ($char) => '[ ' . ($char ?: ' ') . ' ]')
+            ->map(fn ($char) => '[ ' . ($char !== '' ? $char : ' ') . ' ]')
             ->implode(' ');
+    }
+
+    private function celdasTextoCompactas($value, int $length): string
+    {
+        return collect($this->charsForBoxes($value, $length))
+            ->map(fn ($char) => '[ ' . ($char !== '' ? $char : ' ') . ' ]')
+            ->implode('');
     }
 
     private function iphCroquisInspeccion($section, array $d): void
@@ -870,54 +882,188 @@ class IphPuestaDisposicionDocxService
     {
         $this->texto($section, 'SECCIÓN 5. NARRATIVA DE LOS HECHOS', ['bold' => true, 'size' => 11], ['alignment' => Jc::CENTER, 'spaceAfter' => 40]);
         $this->barra($section, 'Apartado 5.1 Descripción de los hechos y actuación de la autoridad', self::CREAM, '000000', true);
-        $narrativa = 'Siendo aproximadamente las ' . substr($d['hora_hecho'], 0, 5) . ' horas del día ' . $d['fecha_texto'] . ', quien suscribe ' . $d['nombre_policia'] . ', adscrito a ' . $d['adscripcion'] . ', intervino en el hecho registrado como ' . $d['tipo_hecho'] . ', en ' . $d['lugar'] . ', relacionado con el folio ' . $d['folio'] . '. PENDIENTE DE COMPLEMENTAR: falta narrar de manera cronológica y detallada cómo se tuvo conocimiento del hecho, el traslado y arribo al lugar, las condiciones observadas, personas, vehículos u objetos localizados, acciones realizadas por la autoridad y forma de puesta a disposición.';
         $tabla = $section->addTable('FormTable');
-        $tabla->addRow(9000);
-        $tabla->addCell(11100)->addText($narrativa, ['size' => 10], ['alignment' => Jc::BOTH, 'spaceAfter' => 0]);
+        $tabla->addRow();
+        $cell = $tabla->addCell(11100);
+
+        foreach ($this->narrativaIphParrafos($d) as $parrafo) {
+            $cell->addText($parrafo, ['size' => 10], ['alignment' => Jc::BOTH, 'spaceAfter' => 130]);
+        }
     }
 
     private function iphVehiculo($section, array $d, array $vehiculo, int $i): void
     {
-        $this->texto($section, 'INSPECCIÓN DE VEHÍCULO ' . ($i + 1), ['bold' => true, 'size' => 11], ['alignment' => Jc::CENTER, 'spaceAfter' => 30]);
-        $this->texto($section, 'Llene este Anexo por cada vehículo inspeccionado', ['bold' => true, 'size' => 9], ['alignment' => Jc::CENTER, 'spaceAfter' => 80]);
-        $this->barra($section, 'Vehículo: ' . str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT), self::CREAM, '000000', true);
-        $this->barra($section, 'Apartado C.1 Fecha y hora de la inspección', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(430);
-        $tabla->addCell(5550)->addText('Fecha: ' . ($d['arribo'] ? $d['arribo']->format('d-m-Y') : $this->fechaCorta($d['fecha_hecho'])), [], $this->p0());
-        $tabla->addCell(5550)->addText('Hora: ' . ($d['arribo'] ? $d['arribo']->format('H:i') : substr($d['hora_hecho'], 0, 5)), [], $this->p0());
-        $this->barra($section, 'Apartado C.2 Datos generales del vehículo inspeccionado', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
+        $numeroVehiculo = str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT);
+        $fechaInspeccion = $d['arribo'] ? $d['arribo']->format('Y-m-d') : ($d['fecha_hecho'] ?? null);
+        $fechaPartes = $fechaInspeccion ? $this->fechaPartesIph($fechaInspeccion) : ['dia' => '', 'mes' => '', 'anio' => ''];
+        $horaInspeccion = $d['arribo'] ? $d['arribo']->format('H:i') : substr((string) ($d['hora_hecho'] ?? ''), 0, 5);
+        $horaPartes = preg_match('/^(\d{2}):(\d{2})/', $horaInspeccion, $matches)
+            ? ['hora' => $matches[1], 'minuto' => $matches[2]]
+            : ['hora' => '', 'minuto' => ''];
+        $tipo = $this->tipoInspeccionVehiculo($vehiculo);
+        $procedencia = $this->procedenciaInspeccionVehiculo($vehiculo);
+        $servicio = $this->servicioInspeccionVehiculo($vehiculo);
+        $placas = preg_replace('/\s+/', '', mb_strtoupper($this->clean($vehiculo['placas'] ?? ''), 'UTF-8')) ?: '';
+        $serie = preg_replace('/\s+/', '', mb_strtoupper($this->clean($vehiculo['serie'] ?? ''), 'UTF-8')) ?: '';
+
+        $this->texto($section, 'ANEXO C. INSPECCIÓN DE VEHÍCULO', ['bold' => true, 'size' => 11], ['alignment' => Jc::CENTER, 'spaceAfter' => 20]);
+        $this->texto($section, 'Llene este Anexo por cada vehículo inspeccionado', ['bold' => true, 'size' => 8], ['alignment' => Jc::LEFT, 'spaceAfter' => 45]);
+
+        $tabla = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 45,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+
+        $this->iphVehiculoFilaCompleta($tabla, 'Vehículo:  ' . $this->celdasTextoCompactas($numeroVehiculo, 3) . '     (001, 002, ..., 010, ...)', 330, ['bold' => true, 'size' => 8], ['bgColor' => self::CREAM]);
+        $this->iphVehiculoFilaCompleta($tabla, 'Apartado C.1 Fecha y hora de la inspección', 310, ['bold' => true, 'size' => 8], ['bgColor' => self::CREAM]);
+        $this->iphVehiculoFilaCompleta($tabla, 'Indique la fecha y la hora en que realizó la inspección', 250, ['italic' => true, 'size' => 7]);
+
         $tabla->addRow(620);
-        $tabla->addCell(3700)->addText('Tipo: X Terrestre', [], $this->p0());
-        $tabla->addCell(3700)->addText('Procedencia: X Nacional', [], $this->p0());
-        $tabla->addCell(3700)->addText('Servicio: X Particular', [], $this->p0());
+        $fechaCell = $tabla->addCell(5553, ['gridSpan' => 2, 'valign' => 'center']);
+        $fechaCell->addText('Fecha:   ' . $this->celdasTextoCompactas($fechaPartes['dia'] . $fechaPartes['mes'] . $fechaPartes['anio'], 8), ['bold' => true, 'size' => 8], $this->p0());
+        $fechaCell->addText('             D   D   M   M   A   A   A   A', ['bold' => true, 'size' => 5], $this->p0());
+        $horaCell = $tabla->addCell(5553, ['gridSpan' => 2, 'valign' => 'center']);
+        $horaCell->addText('Hora:    ' . $this->celdasTextoCompactas($horaPartes['hora'], 2) . ' : ' . $this->celdasTextoCompactas($horaPartes['minuto'], 2), ['bold' => true, 'size' => 8], $this->p0());
+        $horaCell->addText('             h   h        m   m', ['bold' => true, 'size' => 5], $this->p0());
+
+        $this->iphVehiculoFilaCompleta($tabla, 'Apartado C.2 Datos generales del vehículo inspeccionado', 310, ['bold' => true, 'size' => 8], ['bgColor' => self::CREAM]);
+
         $tabla->addRow(620);
-        $tabla->addCell(3700)->addText('Marca: ' . mb_strtoupper($this->clean($vehiculo['marca'] ?? ''), 'UTF-8'), [], $this->p0());
-        $tabla->addCell(3700)->addText('Submarca: ' . mb_strtoupper($this->clean($vehiculo['linea'] ?? ''), 'UTF-8'), [], $this->p0());
-        $tabla->addCell(3700)->addText('Modelo: ' . mb_strtoupper($this->clean($vehiculo['modelo'] ?? ''), 'UTF-8'), [], $this->p0());
-        $tabla->addRow(620);
-        $tabla->addCell(3700)->addText('Color: ' . mb_strtoupper($this->clean($vehiculo['color'] ?? ''), 'UTF-8'), [], $this->p0());
-        $tabla->addCell(3700)->addText('Placa/Matrícula: ' . mb_strtoupper($this->clean($vehiculo['placas'] ?? ''), 'UTF-8'), [], $this->p0());
-        $tabla->addCell(3700)->addText('No. de serie: ' . mb_strtoupper($this->clean($vehiculo['serie'] ?? ''), 'UTF-8'), [], $this->p0());
-        $tabla->addRow(700);
-        $tabla->addCell(11100, ['gridSpan' => 3])->addText('Situación: ' . (!empty($vehiculo['antecedente_vehiculo']) ? 'Con reporte de robo X' : 'Sin reporte de robo X'), [], $this->p0());
-        $tabla->addRow(1200);
-        $tabla->addCell(11100, ['gridSpan' => 3])->addText($this->daniosInspeccion($vehiculo, $i), [], ['alignment' => Jc::BOTH, 'spaceAfter' => 0]);
-        $tabla->addRow(1000);
-        $tabla->addCell(11100, ['gridSpan' => 3])->addText($this->destinoVehiculo($vehiculo), [], ['alignment' => Jc::BOTH, 'spaceAfter' => 0]);
-        $this->barra($section, 'Apartado C.3 Objetos encontrados en el vehículo inspeccionado', self::CREAM, '000000', true);
-        $this->texto($section, '¿Encontró objetos relacionados con los hechos? Sí ___    No X', [], ['spaceAfter' => 80]);
-        $this->barra($section, 'Apartado C.4 Datos del primer respondiente que realizó la inspección', self::CREAM, '000000', true);
-        $tabla = $section->addTable('FormTable');
-        $tabla->addRow(900);
-        $tabla->addCell(3700)->addText('Primer apellido', ['size' => 8], $this->p0());
-        $tabla->addCell(3700)->addText('Segundo apellido', ['size' => 8], $this->p0());
-        $tabla->addCell(3700)->addText('Nombre(s)', ['size' => 8], $this->p0());
-        $tabla->addRow(700);
-        $tabla->addCell(3700)->addText('Adscripción:', [], $this->p0());
-        $tabla->addCell(3700)->addText('Cargo/grado:', [], $this->p0());
-        $tabla->addCell(3700)->addText('Firma:', [], $this->p0());
+        $tabla->addCell(5553, ['gridSpan' => 2, 'valign' => 'center'])
+            ->addText('Tipo:   ' . $this->checkIph($tipo['terrestre']) . ' Terrestre      ' . $this->checkIph($tipo['acuatico']) . ' Acuático      ' . $this->checkIph($tipo['aereo']) . ' Aéreo', ['bold' => true, 'size' => 8], $this->p0());
+        $tabla->addCell(5553, ['gridSpan' => 2, 'valign' => 'center'])
+            ->addText('Procedencia:   ' . $this->checkIph($procedencia['nacional']) . ' Nacional      ' . $this->checkIph($procedencia['extranjero']) . ' Extranjero', ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(600);
+        $this->iphVehiculoCampo($tabla->addCell(2776, ['valign' => 'center']), 'Marca', $vehiculo['marca'] ?? '');
+        $this->iphVehiculoCampo($tabla->addCell(2776, ['valign' => 'center']), 'Submarca', $vehiculo['linea'] ?? '');
+        $this->iphVehiculoCampo($tabla->addCell(2776, ['valign' => 'center']), 'Modelo', $vehiculo['modelo'] ?? '');
+        $this->iphVehiculoCampo($tabla->addCell(2778, ['valign' => 'center']), 'Color', $vehiculo['color'] ?? '');
+
+        $tabla->addRow(540);
+        $tabla->addCell(self::CONTENT_W, ['gridSpan' => 4, 'valign' => 'center'])
+            ->addText('Uso:      ' . $this->checkIph($servicio['particular']) . ' Particular            ' . $this->checkIph($servicio['publico']) . ' Transporte público            ' . $this->checkIph($servicio['carga']) . ' Carga', ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(470);
+        $placasCell = $tabla->addCell(self::CONTENT_W, ['gridSpan' => 4, 'valign' => 'center']);
+        $placasCell->addText('Placa/Matrícula:   ' . $this->celdasTextoIph($placas, max(8, mb_strlen($placas, 'UTF-8'))), ['bold' => true, 'size' => 8], $this->p0());
+        $tabla->addRow(470);
+        $serieCell = $tabla->addCell(self::CONTENT_W, ['gridSpan' => 4, 'valign' => 'center']);
+        $serieCell->addText('No. de serie:   ' . $this->celdasTextoIph($serie, max(17, mb_strlen($serie, 'UTF-8'))), ['bold' => true, 'size' => 7], $this->p0());
+
+        $tabla->addRow(500);
+        $tabla->addCell(self::CONTENT_W, ['gridSpan' => 4, 'valign' => 'center'])
+            ->addText('Situación:   ' . $this->checkIph(false) . ' Con reporte de robo          ' . $this->checkIph(false) . ' Sin reporte de robo          ' . $this->checkIph(true) . ' No es posible saberlo', ['bold' => true, 'size' => 8], $this->p0());
+
+        $tabla->addRow(980);
+        $observaciones = $tabla->addCell(self::CONTENT_W, ['gridSpan' => 4, 'valign' => 'top']);
+        $observaciones->addText('Observaciones:', ['bold' => true, 'size' => 7], $this->p0());
+        $observaciones->addText(mb_strtoupper($this->daniosInspeccion($vehiculo, $i), 'UTF-8'), ['bold' => true, 'size' => 8], ['alignment' => Jc::BOTH, 'spaceAfter' => 0]);
+
+        $tabla->addRow(860);
+        $destino = $tabla->addCell(self::CONTENT_W, ['gridSpan' => 4, 'valign' => 'top']);
+        $destino->addText('Destino que se le dio:', ['bold' => true, 'size' => 7], $this->p0());
+        $destino->addText(mb_strtoupper($this->destinoVehiculo($vehiculo), 'UTF-8'), ['bold' => true, 'size' => 8], ['alignment' => Jc::BOTH, 'spaceAfter' => 0]);
+
+        $this->iphVehiculoFilaCompleta($tabla, 'Apartado C.3 Objetos encontrados en el vehículo inspeccionado', 300, ['bold' => true, 'size' => 8], ['bgColor' => self::CREAM]);
+        $this->iphVehiculoFilaCompleta($tabla, '¿Encontró objetos relacionados con los hechos?      Sí ' . $this->checkIph(false) . '    Llene el apartado D             No ' . $this->checkIph(true), 360, ['bold' => true, 'size' => 8]);
+
+        $firmas = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 45,
+            'alignment' => JcTable::CENTER,
+            'layout' => Table::LAYOUT_FIXED,
+            'width' => self::CONTENT_W,
+            'unit' => TblWidth::TWIP,
+        ]);
+        $firmas->addRow(300);
+        $firmas->addCell(self::CONTENT_W, ['gridSpan' => 3, 'bgColor' => self::CREAM, 'valign' => 'center'])
+            ->addText('Apartado C.4 Datos del primer respondiente que realizó la inspección, sólo si es diferente a quien firmó la puesta a disposición', ['bold' => true, 'size' => 7], $this->p0());
+        $firmas->addRow(740);
+        $this->iphVehiculoFirmaNombre($firmas->addCell(3702, ['valign' => 'bottom']), '', 'Primer apellido');
+        $this->iphVehiculoFirmaNombre($firmas->addCell(3702, ['valign' => 'bottom']), '', 'Segundo apellido');
+        $this->iphVehiculoFirmaNombre($firmas->addCell(3702, ['valign' => 'bottom']), '', 'Nombre(s)');
+
+        $firmas->addRow(640);
+        $this->iphVehiculoFirmaMeta($firmas->addCell(3702, ['valign' => 'bottom']), 'Adscripción', '');
+        $this->iphVehiculoFirmaMeta($firmas->addCell(3702, ['valign' => 'bottom']), 'Cargo/grado', '');
+        $this->iphVehiculoFirmaMeta($firmas->addCell(3702, ['valign' => 'bottom']), 'Firma', '');
+    }
+
+    private function iphVehiculoFilaCompleta($tabla, string $text, int $height, array $font = [], array $cellStyle = []): void
+    {
+        $tabla->addRow($height);
+        $tabla->addCell(self::CONTENT_W, array_merge(['gridSpan' => 4, 'valign' => 'center'], $cellStyle))
+            ->addText($text, array_merge(['size' => 8], $font), $this->p0());
+    }
+
+    private function iphVehiculoCampo($cell, string $label, $value): void
+    {
+        $cell->addText($label . ':', ['bold' => true, 'size' => 7], $this->p0());
+        $cell->addText(mb_strtoupper($this->clean($value) ?: '', 'UTF-8'), ['bold' => true, 'size' => 8], $this->p0());
+    }
+
+    private function iphVehiculoFirmaNombre($cell, string $value, string $label): void
+    {
+        $cell->addText(mb_strtoupper($this->clean($value) ?: '', 'UTF-8'), ['bold' => true, 'size' => 8], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $cell->addText('________________________', ['size' => 7], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+        $cell->addText($label, ['bold' => true, 'size' => 6], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+    }
+
+    private function iphVehiculoFirmaMeta($cell, string $label, string $value): void
+    {
+        $run = $cell->addTextRun($this->p0());
+        $run->addText($label . ': ', ['bold' => true, 'size' => 7]);
+        $run->addText(mb_strtoupper($this->clean($value) ?: '____________________', 'UTF-8'), ['bold' => true, 'size' => 7]);
+    }
+
+    private function tipoInspeccionVehiculo(array $vehiculo): array
+    {
+        $tipo = $this->normalizarClaveIph($vehiculo['tipo'] ?? '');
+
+        return [
+            'terrestre' => !str_contains($tipo, 'ACUATIC') && !str_contains($tipo, 'AERE'),
+            'acuatico' => str_contains($tipo, 'ACUATIC'),
+            'aereo' => str_contains($tipo, 'AERE'),
+        ];
+    }
+
+    private function procedenciaInspeccionVehiculo(array $vehiculo): array
+    {
+        $estado = $this->normalizarClaveIph($vehiculo['estado_placas'] ?? '');
+        $extranjero = str_contains($estado, 'EXTRANJ') || str_contains($estado, 'EXTERIOR');
+
+        return [
+            'nacional' => !$extranjero,
+            'extranjero' => $extranjero,
+        ];
+    }
+
+    private function servicioInspeccionVehiculo(array $vehiculo): array
+    {
+        $texto = $this->normalizarClaveIph(($vehiculo['tipo_servicio'] ?? '') . ' ' . ($vehiculo['tipo'] ?? ''));
+        $carga = str_contains($texto, 'CARGA')
+            || str_contains($texto, 'CAMION')
+            || str_contains($texto, 'TRACTO')
+            || str_contains($texto, 'REMOLQUE');
+        $publico = !$carga && (
+            str_contains($texto, 'PUBLIC')
+            || str_contains($texto, 'FEDERAL')
+            || str_contains($texto, 'TAXI')
+            || str_contains($texto, 'URBANO')
+        );
+
+        return [
+            'particular' => !$carga && !$publico,
+            'publico' => $publico,
+            'carga' => $carga,
+        ];
     }
 
     private function cadenaRegistro($section, array $d): void
@@ -1892,24 +2038,160 @@ class IphPuestaDisposicionDocxService
         }
     }
 
+    private function narrativaIphParrafos(array $d): array
+    {
+        $conocimiento = $d['conocimiento'] ?? null;
+        $arribo = $d['arribo'] ?? null;
+        $fechaConocimiento = $conocimiento ? $this->fechaTexto($conocimiento->format('Y-m-d')) : ($d['fecha_texto'] ?? 'fecha no especificada');
+        $horaConocimiento = $conocimiento ? $conocimiento->format('H:i') : substr((string) ($d['hora_hecho'] ?? ''), 0, 5);
+        $horaArribo = $arribo ? $arribo->format('H:i') : substr((string) ($d['hora_hecho'] ?? ''), 0, 5);
+        $folio = trim((string) ($d['folio'] ?? ''));
+        $lugar = $this->valor($d['lugar'] ?? null, 'el lugar de intervención');
+        $tipoHecho = $this->valor($d['tipo_hecho'] ?? null, 'HECHO PROBABLEMENTE DELICTIVO');
+        $unidadArribo = trim((string) ($d['unidad_arribo'] ?? ''));
+
+        $primerParrafo = 'Siendo aproximadamente las ' . ($horaConocimiento !== '' ? $horaConocimiento : 'hora no especificada')
+            . ' horas del día ' . $fechaConocimiento . ', quien suscribe ' . $this->valor($d['nombre_policia'] ?? null, 'el primer respondiente')
+            . ', adscrito a ' . $this->valor($d['adscripcion'] ?? null, 'la unidad correspondiente')
+            . ', tuvo conocimiento ' . ($folio !== '' ? 'por medio del folio C5i ' . $folio : 'por reporte registrado en el sistema')
+            . ' de un hecho registrado como ' . $tipoHecho . ', en ' . $lugar
+            . '. Por tal motivo se trasladó al lugar de intervención'
+            . ($unidadArribo !== '' ? ' a bordo de la unidad ' . $unidadArribo : '')
+            . ', arribando aproximadamente a las ' . ($horaArribo !== '' ? $horaArribo : 'hora no especificada') . ' horas.';
+
+        $parrafos = [$primerParrafo];
+
+        if (!empty($d['condiciones_climatologicas']) || !empty($d['condiciones_iluminacion'])) {
+            $parrafos[] = trim(collect([
+                $d['condiciones_climatologicas'] ?? null,
+                $d['condiciones_iluminacion'] ?? null,
+            ])->filter()->implode(' '));
+        }
+
+        $vehiculos = $d['vehiculos'] ?? [];
+
+        if (!empty($vehiculos)) {
+            $parrafos[] = 'Al arribar al lugar de intervención se ' . (count($vehiculos) === 1 ? 'localizó un vehículo' : 'localizaron ' . count($vehiculos) . ' vehículos') . ' con las características registradas en el sistema.';
+
+            foreach ($vehiculos as $i => $vehiculo) {
+                $parrafos[] = $this->descripcionVehiculo($vehiculo, $i);
+            }
+        } else {
+            $parrafos[] = 'Al arribar al lugar de intervención no se cuenta con vehículos capturados en el sistema para describir dentro de esta narrativa.';
+        }
+
+        foreach ($d['lesionados'] ?? [] as $lesionado) {
+            $parrafos[] = $this->descripcionVictimaParte($lesionado);
+        }
+
+        if (!empty($vehiculos)) {
+            $danios = collect($vehiculos)
+                ->map(fn ($vehiculo, $i) => $this->daniosVehiculo($vehiculo, $i))
+                ->implode(' ');
+
+            if ($danios !== '') {
+                $parrafos[] = 'Respecto de los daños observados, se asentó lo siguiente: ' . $danios;
+            }
+
+            $parrafos[] = $this->observacionesGruas($vehiculos);
+        }
+
+        $parrafos[] = 'Queda pendiente que el elemento actuante complemente de manera cronológica y detallada las circunstancias específicas de cómo recibió el reporte, el traslado, las acciones realizadas en el lugar, entrevistas, aseguramientos y demás datos operativos que no obren capturados en el sistema.';
+
+        return array_values(array_filter($parrafos, fn ($parrafo) => trim((string) $parrafo) !== ''));
+    }
+
     private function descripcionVehiculo(array $vehiculo, int $i): string
     {
-        return 'VEHÍCULO (' . $this->letraIndice($i) . ').- ' . trim(collect([
+        $partes = collect([
             $this->clean($vehiculo['marca'] ?? null) ? 'Marca ' . $this->clean($vehiculo['marca'] ?? null) : null,
+            $this->clean($vehiculo['linea'] ?? null) ? 'Línea ' . $this->clean($vehiculo['linea'] ?? null) : null,
             $this->clean($vehiculo['modelo'] ?? null) ? 'Modelo ' . $this->clean($vehiculo['modelo'] ?? null) : null,
             $this->clean($vehiculo['tipo'] ?? null) ? 'Tipo ' . $this->clean($vehiculo['tipo'] ?? null) : null,
-            $this->clean($vehiculo['linea'] ?? null) ? 'Línea ' . $this->clean($vehiculo['linea'] ?? null) : null,
             $this->clean($vehiculo['color'] ?? null) ? 'Color ' . $this->clean($vehiculo['color'] ?? null) : null,
-            $this->clean($vehiculo['placas'] ?? null) ? 'Placas ' . $this->clean($vehiculo['placas'] ?? null) : null,
-            $this->clean($vehiculo['serie'] ?? null) ? 'Serie ' . $this->clean($vehiculo['serie'] ?? null) : null,
-        ])->filter()->implode(', ')) . '.';
+            $this->clean($vehiculo['capacidad_personas'] ?? null) ? 'Capacidad para ' . $this->clean($vehiculo['capacidad_personas'] ?? null) . ' personas' : null,
+        ])->filter()->values();
+
+        if ($placas = $this->clean($vehiculo['placas'] ?? null)) {
+            $placasTexto = 'Placas ' . $placas;
+
+            if ($servicio = $this->clean($vehiculo['tipo_servicio'] ?? null)) {
+                $placasTexto .= ' del servicio ' . mb_strtolower($servicio, 'UTF-8');
+            }
+
+            if ($estadoPlacas = $this->clean($vehiculo['estado_placas'] ?? null)) {
+                $placasTexto .= ' de ' . $estadoPlacas;
+            }
+
+            $partes->push($placasTexto);
+        }
+
+        if ($serie = $this->clean($vehiculo['serie'] ?? null)) {
+            $partes->push('NIV/Serie ' . $serie);
+        }
+
+        if ($tarjeta = $this->clean($vehiculo['tarjeta_circulacion_nombre'] ?? null)) {
+            $partes->push('tarjeta de circulación a nombre de ' . $tarjeta);
+        }
+
+        $texto = 'VEHÍCULO (' . $this->letraIndice($i) . ').- ' . ($partes->isNotEmpty()
+            ? $partes->implode(', ')
+            : 'Sin características vehiculares completas capturadas en el sistema') . '.';
+
+        $conductores = collect($vehiculo['conductores'] ?? [])
+            ->map(function (array $conductor) {
+                $nombre = $this->clean($conductor['nombre'] ?? null);
+
+                if (!$nombre || mb_strtoupper($nombre, 'UTF-8') === 'SIN CONDUCTOR') {
+                    return null;
+                }
+
+                $frase = 'Conductor registrado: ' . mb_strtoupper($nombre, 'UTF-8');
+
+                if ($edad = $this->clean($conductor['edad'] ?? null)) {
+                    $frase .= ', de ' . $edad . ' años de edad';
+                }
+
+                if ($domicilio = $this->clean($conductor['domicilio'] ?? null)) {
+                    $frase .= ', con domicilio en ' . $domicilio;
+                }
+
+                $licencia = collect([
+                    $this->clean($conductor['tipo_licencia'] ?? null),
+                    $this->clean($conductor['numero_licencia'] ?? null),
+                    $this->clean($conductor['estado_licencia'] ?? null),
+                ])->filter()->implode(' ');
+
+                if ($licencia !== '') {
+                    $frase .= ', licencia ' . $licencia;
+                }
+
+                return $frase . '.';
+            })
+            ->filter()
+            ->values();
+
+        if ($conductores->isNotEmpty()) {
+            $texto .= ' ' . $conductores->implode(' ');
+        }
+
+        return $texto;
     }
 
     private function daniosVehiculo(array $vehiculo, int $i): string
     {
         $partes = $this->clean($vehiculo['partes_danadas'] ?? null);
         $monto = $vehiculo['monto_danos'] ?? null;
-        $texto = 'VEHÍCULO (' . $this->letraIndice($i) . ').- ' . ($partes ? 'Presenta daños en su ' . $this->title($partes) : 'No se cuenta con partes dañadas registradas');
+        $textoDanios = 'No se cuenta con partes dañadas registradas';
+
+        if ($partes) {
+            $partesNormalizadas = $this->normalizarClaveIph($partes);
+            $textoDanios = str_starts_with($partesNormalizadas, 'DANO') || str_starts_with($partesNormalizadas, 'DANOS')
+                ? 'Presenta ' . mb_strtolower($partes, 'UTF-8')
+                : 'Presenta daños en su ' . $this->title($partes);
+        }
+
+        $texto = 'VEHÍCULO (' . $this->letraIndice($i) . ').- ' . $textoDanios;
 
         if (is_numeric($monto) && (float) $monto > 0) {
             $montoNumero = (float) $monto;
@@ -1937,7 +2219,7 @@ class IphPuestaDisposicionDocxService
             return 'Destino que se le dio: pendiente de precisar en el presente anexo.';
         }
 
-        return 'Destino que se le dio: El vehículo fue remitido' . ($nombre ? ' al corralón de Grúas ' . $nombre : '') . ($destino ? ' ubicado en ' . $destino : '') . '.';
+        return 'Destino que se le dio: El vehículo fue remitido' . ($nombre ? ' al corralón de ' . $nombre : '') . ($destino ? ' ubicado en ' . $destino : '') . '.';
     }
 
     private function descripcionCadenaVehiculo(array $vehiculo, int $i): string
@@ -2174,6 +2456,18 @@ class IphPuestaDisposicionDocxService
         }
 
         return in_array(mb_strtoupper($texto, 'UTF-8'), ['0', 'NO', 'SIN GRUA', 'SIN GRÚA', 'SIN CORRALON', 'SIN CORRALÓN'], true) ? null : $texto;
+    }
+
+    private function normalizarClaveIph($valor): string
+    {
+        $texto = mb_strtoupper(trim((string) $valor), 'UTF-8');
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+
+        if ($ascii !== false) {
+            $texto = $ascii;
+        }
+
+        return preg_replace('/[^A-Z0-9]+/', '', $texto) ?: '';
     }
 
     private function letraIndice(int $i): string

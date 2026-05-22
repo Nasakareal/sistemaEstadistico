@@ -1,12 +1,12 @@
 @extends('adminlte::page')
 
-@section('title', 'Comparativa Anual de Choques')
+@section('title', 'Comparativa Anual de Hechos')
 
 @section('content_header')
     <div class="d-flex flex-wrap align-items-center justify-content-between">
         <div>
-            <h1 class="m-0">Comparativa Anual de Choques</h1>
-            <small class="text-muted">Hechos, lesionados y defunciones · Siniestros actuales + peritos legacy</small>
+            <h1 class="m-0">Comparativa Anual de Hechos</h1>
+            <small class="text-muted">Hechos, lesionados y defunciones · Siniestros + Delegaciones</small>
         </div>
         <a href="{{ route('estadisticas.index') }}" class="btn btn-secondary btn-sm mt-2 mt-sm-0">
             <i class="fas fa-arrow-left"></i> Volver
@@ -56,7 +56,7 @@
             <div class="info-box">
                 <span class="info-box-icon bg-primary"><i class="fas fa-car-crash"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Choques</span>
+                    <span class="info-box-text">Hechos</span>
                     <span class="info-box-number">{{ number_format($totales['hechos']) }}</span>
                 </div>
             </div>
@@ -105,7 +105,7 @@
                     <div class="card-body py-3">
                         <div class="projection-grid">
                             <div>
-                                <span class="projection-label">Choques estimados</span>
+                                <span class="projection-label">Hechos estimados</span>
                                 <strong>{{ number_format($proyeccionAnual->proyeccion_hechos) }}</strong>
                             </div>
                             <div>
@@ -124,7 +124,7 @@
                         <div class="projection-note">
                             Método: acumulado {{ $proyeccionAnual->anio }} hasta el último dato capturado + promedio histórico restante
                             ({{ $proyeccionRestanteHistorica['inicio_restante'] }} al 31/12 de {{ implode(', ', $proyeccionRestanteHistorica['anios']) }}).
-                            Promedio restante: {{ number_format($proyeccionRestanteHistorica['hechos']) }} choques,
+                            Promedio restante: {{ number_format($proyeccionRestanteHistorica['hechos']) }} hechos,
                             {{ number_format($proyeccionRestanteHistorica['lesionados']) }} lesionados y
                             {{ number_format($proyeccionRestanteHistorica['defunciones']) }} defunciones.
                         </div>
@@ -155,7 +155,7 @@
                     <div class="card-body">
                         <div class="same-cut-grid">
                             <div class="same-cut-kpi">
-                                <span>Choques al corte</span>
+                                <span>Hechos al corte</span>
                                 <strong>{{ number_format($actualCorte->hechos) }}</strong>
                                 <small>Del 01/01 al {{ \Carbon\Carbon::parse($actualCorte->corte)->format('d/m/Y') }}</small>
                             </div>
@@ -195,7 +195,7 @@
                                             <tr>
                                                 <th>Año</th>
                                                 <th>Corte</th>
-                                                <th>Choques</th>
+                                                <th>Hechos</th>
                                                 <th>Lesionados</th>
                                                 <th>Defunciones</th>
                                             </tr>
@@ -236,7 +236,7 @@
                     <div class="chart-series-controls mb-3">
                         <label class="chart-toggle chart-toggle--choques">
                             <input type="checkbox" class="chart-series-toggle" data-dataset="0" checked>
-                            <span>Choques</span>
+                            <span>Hechos</span>
                         </label>
                         <label class="chart-toggle chart-toggle--lesionados">
                             <input type="checkbox" class="chart-series-toggle" data-dataset="1" checked>
@@ -248,7 +248,7 @@
                         </label>
                         <label class="chart-toggle chart-toggle--proyeccion">
                             <input type="checkbox" class="chart-series-toggle" data-dataset="3" checked>
-                            <span>Proy. choques</span>
+                            <span>Proy. hechos</span>
                         </label>
                     </div>
                     <div class="chart-wrap">
@@ -269,10 +269,10 @@
                             <thead>
                                 <tr>
                                     <th>Año</th>
-                                    <th>Choques</th>
+                                    <th>Hechos</th>
                                     <th>Lesionados</th>
                                     <th>Defunciones</th>
-                                    <th>Proy. Choques</th>
+                                    <th>Proy. Hechos</th>
                                     <th>Proy. Lesionados</th>
                                     <th>Proy. Defunciones</th>
                                 </tr>
@@ -489,7 +489,7 @@
                         datasets: [
                             {
                                 type: 'bar',
-                                label: 'Choques',
+                                label: 'Hechos',
                                 data: hechos,
                                 yAxisID: 'yChoques',
                                 backgroundColor: 'rgba(0, 123, 255, 0.72)',
@@ -522,7 +522,7 @@
                             },
                             {
                                 type: 'line',
-                                label: 'Proyección choques',
+                                label: 'Proyección hechos',
                                 data: proyeccionHechos,
                                 yAxisID: 'yChoques',
                                 borderColor: 'rgba(23, 162, 184, 1)',
@@ -549,7 +549,7 @@
                                 position: 'left',
                                 title: {
                                     display: true,
-                                    text: 'Choques',
+                                    text: 'Hechos',
                                 },
                                 ticks: {
                                     precision: 0,
@@ -614,7 +614,7 @@
                         labels: registrosMismoCorte.map((registro) => registro.anio),
                         datasets: [
                             {
-                                label: 'Choques al mismo corte',
+                                label: 'Hechos al mismo corte',
                                 data: registrosMismoCorte.map((registro) => registro.hechos),
                                 backgroundColor: registrosMismoCorte.map((registro) => registro.es_actual ? 'rgba(40, 167, 69, 0.78)' : 'rgba(0, 123, 255, 0.62)'),
                                 borderColor: registrosMismoCorte.map((registro) => registro.es_actual ? 'rgba(40, 167, 69, 1)' : 'rgba(0, 123, 255, 1)'),

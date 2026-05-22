@@ -153,12 +153,20 @@
     $horaHechoPartes = preg_match('/^(\d{2}):(\d{2})/', $horaHechoIph, $horaHechoMatches)
         ? ['hora' => $horaHechoMatches[1], 'minuto' => $horaHechoMatches[2]]
         : ['hora' => '', 'minuto' => ''];
-    $arriboPartes = ['dia' => $fechaHechoPartes['dia'], 'mes' => $fechaHechoPartes['mes'], 'anio' => $fechaHechoPartes['anio'], 'hora' => '', 'minuto' => ''];
+    $conocimientoPartes = ['dia' => $fechaHechoPartes['dia'], 'mes' => $fechaHechoPartes['mes'], 'anio' => $fechaHechoPartes['anio'], 'hora' => '', 'minuto' => ''];
+    $arriboPartes = ['dia' => $fechaHechoPartes['dia'], 'mes' => $fechaHechoPartes['mes'], 'anio' => $fechaHechoPartes['anio'], 'hora' => $horaHechoPartes['hora'], 'minuto' => $horaHechoPartes['minuto']];
 
     if ($fechaHechoIph !== '' && $horaHechoIph !== '') {
         try {
-            $arriboCarbon = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $fechaHechoIph . ' ' . substr($horaHechoIph, 0, 5), 'America/Mexico_City')
-                ->addMinutes(30);
+            $arriboCarbon = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $fechaHechoIph . ' ' . substr($horaHechoIph, 0, 5), 'America/Mexico_City');
+            $conocimientoCarbon = $arriboCarbon->copy()->subMinutes(35);
+            $conocimientoPartes = [
+                'dia' => $conocimientoCarbon->format('d'),
+                'mes' => $conocimientoCarbon->format('m'),
+                'anio' => $conocimientoCarbon->format('Y'),
+                'hora' => $conocimientoCarbon->format('H'),
+                'minuto' => $conocimientoCarbon->format('i'),
+            ];
             $arriboPartes = [
                 'dia' => $arriboCarbon->format('d'),
                 'mes' => $arriboCarbon->format('m'),
@@ -167,7 +175,8 @@
                 'minuto' => $arriboCarbon->format('i'),
             ];
         } catch (\Throwable $e) {
-            $arriboPartes = ['dia' => $fechaHechoPartes['dia'], 'mes' => $fechaHechoPartes['mes'], 'anio' => $fechaHechoPartes['anio'], 'hora' => '', 'minuto' => ''];
+            $conocimientoPartes = ['dia' => $fechaHechoPartes['dia'], 'mes' => $fechaHechoPartes['mes'], 'anio' => $fechaHechoPartes['anio'], 'hora' => '', 'minuto' => ''];
+            $arriboPartes = ['dia' => $fechaHechoPartes['dia'], 'mes' => $fechaHechoPartes['mes'], 'anio' => $fechaHechoPartes['anio'], 'hora' => $horaHechoPartes['hora'], 'minuto' => $horaHechoPartes['minuto']];
         }
     }
 
@@ -283,7 +292,6 @@
         ? 'Prevalecía luz artificial, emitida por las lámparas de alumbrado público que hay en el lugar.'
         : 'Prevalecía luz natural en el lugar.';
     $narrativaHechoParte = 'Por los datos e informes recabados en el lugar del hecho, mediante la inspección ocular realizada por los suscritos, se hace constar de manera preliminar la intervención correspondiente al hecho de tránsito descrito en el presente informe, quedando la narrativa pormenorizada sujeta a la complementación por el personal actuante conforme a los datos obtenidos en campo.';
-    $narrativaIphGenerica = 'Siendo aproximadamente las ' . $horaHechoParte . ' horas del día ' . $fechaHechoParte . ', quien suscribe ' . $nombreQuienPoneIph . ', adscrito a ' . $adscripcionQuienPoneIph . ', ' . ($unidadArriboIph !== '' ? mb_strtolower($unidadArriboIph, 'UTF-8') . ', ' : '') . 'intervino en el hecho registrado como ' . ($tipoHechoParte !== '' ? $tipoHechoParte : 'hecho probablemente delictivo') . ', en ' . $calleHechoParte . ', colonia ' . $coloniaHechoParte . ', municipio de ' . $municipioIntervencionIph . ', Michoacán' . ($folioC5Iph !== '' ? ', relacionado con el folio C5i ' . $folioC5Iph : '') . '. Al encontrarse en el lugar de la intervención se asentaron los datos generales disponibles y se realizó la inspección correspondiente. PENDIENTE DE COMPLEMENTAR: falta narrar de manera cronológica y detallada cómo se tuvo conocimiento del hecho, el traslado y arribo al lugar, las condiciones observadas, las personas, vehículos u objetos localizados, las acciones realizadas por la autoridad y la forma en que se efectuó la puesta a disposición ante la autoridad competente.';
     $fechaHoraHechoCadena = null;
 
     if ($fechaHechoIph !== '' && $horaHechoIph !== '') {
@@ -938,6 +946,76 @@
 
         return 'VEHÍCULO ' . $letraIndice($index) . ' EL CUAL ES DE LA ' . $descripcion . '.';
     };
+
+    $textoPlanoHtml = function (string $html): string {
+        return trim(html_entity_decode(strip_tags($html), ENT_QUOTES, 'UTF-8'));
+    };
+    $fechaTextoDesdePartes = function (array $partes) use ($fechaHechoParte): string {
+        if (($partes['dia'] ?? '') !== '' && ($partes['mes'] ?? '') !== '' && ($partes['anio'] ?? '') !== '') {
+            try {
+                return \Carbon\Carbon::createFromFormat('Y-m-d', $partes['anio'] . '-' . $partes['mes'] . '-' . $partes['dia'], 'America/Mexico_City')
+                    ->translatedFormat('d \\d\\e F \\d\\e Y');
+            } catch (\Throwable $e) {
+                return $partes['dia'] . '-' . $partes['mes'] . '-' . $partes['anio'];
+            }
+        }
+
+        return $fechaHechoParte !== '' ? $fechaHechoParte : 'fecha no especificada';
+    };
+    $horaTextoDesdePartes = function (array $partes): string {
+        return ($partes['hora'] ?? '') !== '' && ($partes['minuto'] ?? '') !== ''
+            ? $partes['hora'] . ':' . $partes['minuto']
+            : '';
+    };
+    $lugarNarrativa = collect([$calleHechoParte, $coloniaHechoParte, $municipioIntervencionIph])
+        ->map(fn ($dato) => trim((string) $dato))
+        ->filter()
+        ->implode(', ');
+    $lugarNarrativa = $lugarNarrativa !== '' ? $lugarNarrativa : 'el lugar de intervención';
+    $horaConocimientoNarrativa = $horaTextoDesdePartes($conocimientoPartes) ?: ($horaHechoParte !== '' ? substr($horaHechoParte, 0, 5) : 'hora no especificada');
+    $horaArriboNarrativa = $horaTextoDesdePartes($arriboPartes) ?: ($horaHechoParte !== '' ? substr($horaHechoParte, 0, 5) : 'hora no especificada');
+    $narrativaIphGenerica = [];
+    $narrativaIphGenerica[] = 'Siendo aproximadamente las ' . $horaConocimientoNarrativa
+        . ' horas del día ' . $fechaTextoDesdePartes($conocimientoPartes)
+        . ', quien suscribe ' . ($nombreQuienPoneIph !== '' ? $nombreQuienPoneIph : 'el primer respondiente')
+        . ', adscrito a ' . ($adscripcionQuienPoneIph !== '' ? $adscripcionQuienPoneIph : 'la unidad correspondiente')
+        . ', tuvo conocimiento ' . ($folioC5Iph !== '' ? 'por medio del folio C5i ' . $folioC5Iph : 'por reporte registrado en el sistema')
+        . ' de un hecho registrado como ' . ($tipoHechoParte !== '' ? $tipoHechoParte : 'HECHO PROBABLEMENTE DELICTIVO')
+        . ', en ' . $lugarNarrativa
+        . '. Por tal motivo se trasladó al lugar de intervención'
+        . ($unidadEconomicaIph !== '' ? ' a bordo de la unidad ' . $unidadEconomicaIph : '')
+        . ', arribando aproximadamente a las ' . $horaArriboNarrativa . ' horas.';
+    $narrativaIphGenerica[] = trim($condicionesClimatologicas . ' ' . $condicionesIluminacion);
+
+    if (count($vehiculosHecho) > 0) {
+        $narrativaIphGenerica[] = 'Al arribar al lugar de intervención se ' . (count($vehiculosHecho) === 1 ? 'localizó un vehículo' : 'localizaron ' . count($vehiculosHecho) . ' vehículos') . ' con las características registradas en el sistema.';
+
+        foreach ($vehiculosHecho as $index => $vehiculo) {
+            $narrativaIphGenerica[] = $textoPlanoHtml($descripcionVehiculoParte($vehiculo, $index));
+        }
+    } else {
+        $narrativaIphGenerica[] = 'Al arribar al lugar de intervención no se cuenta con vehículos capturados en el sistema para describir dentro de esta narrativa.';
+    }
+
+    foreach ($lesionadosHecho as $lesionado) {
+        $narrativaIphGenerica[] = $textoPlanoHtml($descripcionVictimaParte($lesionado));
+    }
+
+    if (count($vehiculosHecho) > 0) {
+        $daniosNarrativa = collect($vehiculosHecho)
+            ->map(fn ($vehiculo, $index) => $textoPlanoHtml($descripcionDaniosVehiculo($vehiculo, $index)))
+            ->filter()
+            ->implode(' ');
+
+        if ($daniosNarrativa !== '') {
+            $narrativaIphGenerica[] = 'Respecto de los daños observados, se asentó lo siguiente: ' . $daniosNarrativa;
+        }
+
+        $narrativaIphGenerica[] = $textoPlanoHtml($observacionesGruasParte());
+    }
+
+    $narrativaIphGenerica[] = 'Queda pendiente que el elemento actuante complemente de manera cronológica y detallada las circunstancias específicas de cómo recibió el reporte, el traslado, las acciones realizadas en el lugar, entrevistas, aseguramientos y demás datos operativos que no obren capturados en el sistema.';
+    $narrativaIphGenerica = array_values(array_filter($narrativaIphGenerica, fn ($parrafo) => trim((string) $parrafo) !== ''));
 @endphp
 
 <!doctype html>
@@ -3241,16 +3319,16 @@
                         <div class="iph-date-line">
                             <span>Fecha:</span>
                             <span>
-                                {!! $renderIphBoxes($fechaHechoPartes['dia'] . $fechaHechoPartes['mes'] . $fechaHechoPartes['anio'], 8) !!}
+                                {!! $renderIphBoxes($conocimientoPartes['dia'] . $conocimientoPartes['mes'] . $conocimientoPartes['anio'], 8) !!}
                                 <span class="iph-date-caption">DDMMAAAA</span>
                             </span>
                         </div>
                         <div class="iph-time-line">
                             <span>Hora:</span>
                             <span>
-                                {!! $renderIphBoxes($horaHechoPartes['hora'], 2) !!}
+                                {!! $renderIphBoxes($conocimientoPartes['hora'], 2) !!}
                                 <span class="iph-colon">:</span>
-                                {!! $renderIphBoxes($horaHechoPartes['minuto'], 2) !!}
+                                {!! $renderIphBoxes($conocimientoPartes['minuto'], 2) !!}
                                 <span class="iph-date-caption">HH&nbsp;&nbsp;&nbsp;MM (24 horas)</span>
                             </span>
                         </div>
@@ -3389,7 +3467,9 @@
             <h2 class="iph-narrative-heading">Sección 5. Narrativa de los hechos</h2>
             <div class="iph-subbar">Apartado 5.1 Descripción de los hechos y actuación de la autoridad</div>
             <div class="iph-narrative-body">
-                <p>{{ $narrativaIphGenerica }}</p>
+                @foreach($narrativaIphGenerica as $parrafoNarrativa)
+                    <p>{{ $parrafoNarrativa }}</p>
+                @endforeach
             </div>
         </section>
 
@@ -3407,7 +3487,6 @@
                 $colorVehiculo = $textoLimpio($vehiculo['color'] ?? null) ?: '';
                 $placasVehiculo = preg_replace('/\s+/', '', (string) ($vehiculo['placas'] ?? '')) ?: '';
                 $serieVehiculo = preg_replace('/\s+/', '', (string) ($vehiculo['serie'] ?? '')) ?: '';
-                $tieneReporteRobo = (bool) ($vehiculo['antecedente_vehiculo'] ?? false);
                 $daniosVehiculoInspeccion = $daniosInspeccionVehiculo($vehiculo, $loop->index);
                 $destinoVehiculoInspeccion = $destinoInspeccionVehiculo($vehiculo);
             @endphp
@@ -3487,9 +3566,9 @@
 
                         <div class="iph-vehicle-report-row">
                             <strong>Situación</strong>
-                            <span class="iph-check">{{ $tieneReporteRobo ? 'X' : '' }}</span><span>Con reporte de robo</span>
-                            <span class="iph-check">{{ $tieneReporteRobo ? '' : 'X' }}</span><span>Sin reporte de robo</span>
-                            <span class="iph-check"></span><span>No es posible saberlo</span>
+                            <span class="iph-check"></span><span>Con reporte de robo</span>
+                            <span class="iph-check"></span><span>Sin reporte de robo</span>
+                            <span class="iph-check">X</span><span>No es posible saberlo</span>
                         </div>
                     </div>
 

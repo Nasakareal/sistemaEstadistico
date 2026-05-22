@@ -24,6 +24,7 @@ use Symfony\Component\Process\Process;
 class EstadisticasController extends Controller
 {
     private const UNIDAD_SINIESTROS_ID = 1;
+    private const UNIDAD_DELEGACIONES_ID = 2;
 
     public function index()
     {
@@ -152,12 +153,25 @@ class EstadisticasController extends Controller
         }
 
         $comparativa = collect(range($anioInicio, $anioFin))
-            ->map(function (int $anio) use ($anioActual, $registrosActuales, $registrosLegacy) {
+            ->map(function (int $anio) use ($anioActual, $registrosActuales, $registrosLegacy, $legacyImportadoEnHechos) {
                 $actual = $registrosActuales->get($anio);
                 $legacy = $registrosLegacy->get($anio);
-                $hechos = (int) ($actual->hechos ?? 0) + (int) ($legacy->hechos ?? 0);
-                $lesionados = (int) ($actual->lesionados ?? 0) + (int) ($legacy->lesionados ?? 0);
-                $defunciones = (int) ($actual->defunciones ?? 0) + (int) ($legacy->defunciones ?? 0);
+                $actualHechos = (int) ($actual->hechos ?? 0);
+                $actualLesionados = (int) ($actual->lesionados ?? 0);
+                $actualDefunciones = (int) ($actual->defunciones ?? 0);
+                $legacyHechos = (int) ($legacy->hechos ?? 0);
+                $legacyLesionados = (int) ($legacy->lesionados ?? 0);
+                $legacyDefunciones = (int) ($legacy->defunciones ?? 0);
+
+                if (!$legacyImportadoEnHechos && $actualHechos > 0) {
+                    $legacyHechos = 0;
+                    $legacyLesionados = 0;
+                    $legacyDefunciones = 0;
+                }
+
+                $hechos = $actualHechos + $legacyHechos;
+                $lesionados = $actualLesionados + $legacyLesionados;
+                $defunciones = $actualDefunciones + $legacyDefunciones;
                 $esAnioActual = $anio === $anioActual;
 
                 return (object) [
@@ -165,8 +179,8 @@ class EstadisticasController extends Controller
                     'hechos' => $hechos,
                     'lesionados' => $lesionados,
                     'defunciones' => $defunciones,
-                    'hechos_actuales' => (int) ($actual->hechos ?? 0),
-                    'hechos_legacy' => (int) ($legacy->hechos ?? 0),
+                    'hechos_actuales' => $actualHechos,
+                    'hechos_legacy' => $legacyHechos,
                     'es_anio_actual' => $esAnioActual,
                     'proyeccion_hechos' => null,
                     'proyeccion_lesionados' => null,
@@ -547,7 +561,7 @@ class EstadisticasController extends Controller
             ->whereYear('fecha', $anioActual);
 
         if ($legacyImportadoEnHechos) {
-            $this->scopeHechosSiniestros($fechaActual);
+            $this->scopeHechosComparativaGlobal($fechaActual);
         } else {
             $this->scopeHechosActualesNoLegacy($fechaActual);
         }
@@ -558,7 +572,7 @@ class EstadisticasController extends Controller
             $fechas[] = $fechaActual;
         }
 
-        if ($legacyDisponible) {
+        if ($legacyDisponible && empty($fechas)) {
             $fechaLegacy = DB::table('peritos_legacy.accidentest')
                 ->whereRaw('COALESCE(borrado, 0) = 0')
                 ->whereYear('fecha', $anioActual)
@@ -656,13 +670,13 @@ class EstadisticasController extends Controller
     {
         $actual = $this->conteoPeriodoActual($inicio, $fin);
 
-        $legacy = $legacyImportadoEnHechos
-            ? $this->conteoPeriodoLegacyImportado($inicio, $fin)
-            : (
-                $legacyDisponible
-                    ? $this->conteoPeriodoLegacy($inicio, $fin)
-                    : ['hechos' => 0, 'lesionados' => 0, 'defunciones' => 0]
-            );
+        if ($legacyImportadoEnHechos) {
+            $legacy = $this->conteoPeriodoLegacyImportado($inicio, $fin);
+        } elseif ($legacyDisponible && $actual['hechos'] === 0) {
+            $legacy = $this->conteoPeriodoLegacy($inicio, $fin);
+        } else {
+            $legacy = ['hechos' => 0, 'lesionados' => 0, 'defunciones' => 0];
+        }
 
         return [
             'hechos' => $actual['hechos'] + $legacy['hechos'],
@@ -723,21 +737,37 @@ class EstadisticasController extends Controller
         ];
     }
 
-    private function scopeHechosSiniestros($query): void
+    private function scopeHechosComparativaGlobal($query): void
     {
-        $query->where('hechos.unidad_org_id', self::UNIDAD_SINIESTROS_ID);
+        $unidadIds = [
+            self::UNIDAD_SINIESTROS_ID,
+            self::UNIDAD_DELEGACIONES_ID,
+        ];
+
+        $query->where(function ($scope) use ($unidadIds) {
+            $scope->whereIn('hechos.unidad_org_id', $unidadIds)
+                ->orWhere(function ($legacy) use ($unidadIds) {
+                    $legacy->whereNull('hechos.unidad_org_id')
+                        ->whereExists(function ($sub) use ($unidadIds) {
+                            $sub->selectRaw('1')
+                                ->from('users')
+                                ->whereColumn('users.id', 'hechos.created_by')
+                                ->whereIn('users.unidad_id', $unidadIds);
+                        });
+                });
+        });
     }
 
     private function scopeHechosActualesNoLegacy($query): void
     {
-        $this->scopeHechosSiniestros($query);
+        $this->scopeHechosComparativaGlobal($query);
 
         $query->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) <> 'legacy_peritos'");
     }
 
     private function scopeHechosLegacyImportados($query): void
     {
-        $this->scopeHechosSiniestros($query);
+        $this->scopeHechosComparativaGlobal($query);
 
         $query->whereRaw("LOWER(TRIM(COALESCE(hechos.fuente_ubicacion, ''))) = 'legacy_peritos'");
     }

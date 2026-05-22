@@ -59,7 +59,7 @@
                             </tr>
 
                             <tr>
-                                <td><strong>Comparativa Anual de Choques</strong></td>
+                                <td><strong>Comparativa Anual de Hechos</strong></td>
                                 <td>
                                     <a href="{{ route('estadisticas.comparativaAnual') }}" class="btn btn-outline-primary btn-sm">
                                         <i class="fas fa-chart-line"></i> Ver Comparativa

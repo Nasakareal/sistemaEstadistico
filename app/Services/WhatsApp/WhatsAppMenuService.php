@@ -62,7 +62,7 @@ class WhatsAppMenuService
             $rows = $context['solo_propios'] ?? false
                 ? [
                     ['id' => 'action:mis_hechos_hoy', 'title' => 'Mis hechos de hoy', 'description' => 'Solo los tuyos'],
-                    ['id' => 'action:mis_hechos_placas', 'title' => 'Mis hechos por placas', 'description' => 'Buscar por placas'],
+                    ['id' => 'action:mis_hechos_placas', 'title' => 'Buscar mis hechos', 'description' => 'Placa, marca, serie, lugar'],
                     ['id' => 'action:mi_detalle_folio', 'title' => 'Mi detalle por ID', 'description' => 'Buscar por ID'],
                     ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados y tipos'],
                     ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
@@ -73,7 +73,7 @@ class WhatsAppMenuService
                 ]
                 : [
                     ['id' => 'action:hechos_hoy', 'title' => 'Hechos de hoy', 'description' => 'Listado de hoy'],
-                    ['id' => 'action:hechos_placas', 'title' => 'Hechos por placas', 'description' => 'Buscar por placas'],
+                    ['id' => 'action:hechos_placas', 'title' => 'Buscar hechos', 'description' => 'Placa, marca, serie, lugar'],
                     ['id' => 'action:detalle_folio', 'title' => 'Detalle por ID', 'description' => 'Buscar por ID'],
                     ['id' => 'action:estadisticas_rapidas', 'title' => 'Estadísticas rápidas', 'description' => 'Resumen, lesionados y tipos'],
                     ['id' => 'action:personal_armado', 'title' => 'Personal armado', 'description' => 'Relación actual'],
@@ -539,7 +539,7 @@ class WhatsAppMenuService
     public function buildActionPrompt(string $module, string $action, array $context, ?string $message = null): array
     {
         if (in_array($action, ['hechos_placas', 'mis_hechos_placas'], true)) {
-            $text = "Escribe las placas.\n\nEjemplo:\nABC123";
+            $text = "Escribe placa, serie, marca, línea, color, conductor, calle, colonia, municipio o folio.\n\nEjemplos:\nABC123\nNissan rojo\nCamelinas";
         } elseif (in_array($action, ['detalle_folio', 'mi_detalle_folio'], true)) {
             $text = "Escribe el ID del hecho.\n\nEjemplo:\n59564";
         } elseif ($action === 'actividades_rango') {

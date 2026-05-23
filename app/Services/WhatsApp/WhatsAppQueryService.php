@@ -35,6 +35,9 @@ class WhatsAppQueryService
             case 'detalle_hecho':
                 return $this->detalleHechoOpenAI($user, $context, $json);
 
+            case 'buscar_hechos':
+                return $this->buscarHechosOpenAI($user, $context, $json);
+
             case 'lista_hechos':
                 return $this->listaHechos($user, $context, $json);
 
@@ -178,11 +181,11 @@ class WhatsAppQueryService
     public function executeWithParam($user, array $context, string $module, string $action, string $paramType, string $value): array
     {
         if ($action === 'hechos_placas') {
-            return $this->buscarHechosPorPlaca($user, $context, $module, $value, false);
+            return $this->buscarHechosPorTexto($user, $context, $module, $value, false);
         }
 
         if ($action === 'mis_hechos_placas') {
-            return $this->buscarHechosPorPlaca($user, $context, $module, $value, true);
+            return $this->buscarHechosPorTexto($user, $context, $module, $value, true);
         }
 
         if ($action === 'detalle_folio') {
@@ -299,6 +302,7 @@ class WhatsAppQueryService
         $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
         $filtros = $this->filtros($json);
         $rows = $this->hechosBaseQuery($user, $context, $json, $unidadId)
+            ->with(['vehiculos'])
             ->orderByDesc('fecha')
             ->orderByDesc('hora')
             ->limit(20)
@@ -311,11 +315,7 @@ class WhatsAppQueryService
         }
 
         foreach ($rows as $row) {
-            $lineas[] = 'ID ' . $row->id
-                . ' | ' . $this->formatDate($row->fecha)
-                . ' ' . $this->formatTime($row->hora)
-                . ' | ' . ($row->tipo_hecho ?: 'SIN TIPO')
-                . ' | ' . ($row->situacion ?: 'SIN SITUACIÓN');
+            $lineas[] = $this->lineaResumenHecho($row, (string) ($filtros['busqueda'] ?? ''));
         }
 
         return [
@@ -328,12 +328,55 @@ class WhatsAppQueryService
         ];
     }
 
+    protected function buscarHechosOpenAI($user, array $context, array $json): array
+    {
+        $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
+        $filtros = $this->filtros($json);
+        $busqueda = $this->textoBusquedaHechos($filtros);
+
+        if ($busqueda === '') {
+            return [
+                'text' => 'Indica placa, serie, marca, línea, color, conductor, calle, colonia, municipio o folio para buscar hechos.',
+            ];
+        }
+
+        $rows = $this->hechosBaseQuery($user, $context, $json, $unidadId)
+            ->with(['vehiculos'])
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->limit(20)
+            ->get();
+
+        $lineas = [];
+
+        if ($rows->isEmpty()) {
+            $lineas[] = 'No se encontraron hechos con "' . $busqueda . '".';
+        }
+
+        foreach ($rows as $row) {
+            $lineas[] = $this->lineaResumenHecho($row, $busqueda);
+        }
+
+        return [
+            'text' => $this->renderService->renderReporte(
+                $unidadId,
+                'Búsqueda de hechos',
+                $this->periodoTexto($filtros),
+                $lineas
+            ),
+        ];
+    }
+
     protected function detalleHechoOpenAI($user, array $context, array $json): array
     {
         $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
         $hechoId = $json['id'] ?? null;
 
         if (!$hechoId) {
+            if ($this->textoBusquedaHechos($this->filtros($json)) !== '') {
+                return $this->buscarHechosOpenAI($user, $context, $json);
+            }
+
             return [
                 'text' => 'Hecho no encontrado',
             ];
@@ -689,23 +732,24 @@ class WhatsAppQueryService
         ];
     }
 
-    protected function buscarHechosPorPlaca($user, array $context, string $module, string $placa, bool $soloPropios): array
+    protected function buscarHechosPorTexto($user, array $context, string $module, string $texto, bool $soloPropios): array
     {
         $unidadId = $this->resolveUnitIdFromModule($user, $context, $module);
-        $placaNormalizada = $this->normalizarPlaca($placa);
+        $filtros = $this->filtros([
+            'filtros' => [
+                'busqueda' => $texto,
+            ],
+        ]);
 
         $query = Hechos::query()
-            ->with(['vehiculos'])
-            ->whereHas('vehiculos', function ($q) use ($placaNormalizada) {
-                $q->whereRaw(
-                    "REPLACE(REPLACE(REPLACE(UPPER(placas), '-', ''), ' ', ''), '.', '') = ?",
-                    [$placaNormalizada]
-                );
-            })
-            ->orderByDesc('fecha')
-            ->orderByDesc('hora');
+            ->with(['vehiculos']);
 
         $this->applyUnitFilter($query, 'unidad_org_id', $unidadId);
+        $this->aplicarFiltrosBusquedaHechos($query, $filtros);
+
+        $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora');
 
         if ($soloPropios) {
             $query->where('created_by', $user->id);
@@ -716,22 +760,18 @@ class WhatsAppQueryService
 
         if ($hechos->isEmpty()) {
             $lineas[] = $soloPropios
-                ? "No encontré hechos tuyos con las placas {$placa}."
-                : "No encontré hechos con las placas {$placa}.";
+                ? "No encontré hechos tuyos con {$texto}."
+                : "No encontré hechos con {$texto}.";
         }
 
         foreach ($hechos as $hecho) {
-            $lineas[] = 'ID ' . $hecho->id
-                . ' | ' . $this->formatDate($hecho->fecha)
-                . ' ' . $this->formatTime($hecho->hora)
-                . ' | ' . ($hecho->tipo_hecho ?: 'SIN TIPO')
-                . ' | ' . ($hecho->situacion ?: 'SIN ESTATUS');
+            $lineas[] = $this->lineaResumenHecho($hecho, $texto);
         }
 
         return [
             'text' => $this->renderService->renderReporte(
                 $unidadId,
-                'Hechos por placas',
+                'Búsqueda de hechos',
                 'SIN PERIODO ESPECIFICADO',
                 $lineas
             ),
@@ -1008,6 +1048,11 @@ class WhatsAppQueryService
 
         $this->applyUnitFilter($query, 'unidad_org_id', $unidadId);
         $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha', 'hora');
+        $this->aplicarFiltrosBusquedaHechos($query, $filtros);
+
+        if (!empty($context['solo_propios'])) {
+            $query->where('created_by', $user->id);
+        }
 
         $this->aplicarFiltroTipoHecho($query, $filtros);
 
@@ -1024,6 +1069,206 @@ class WhatsAppQueryService
         }
 
         return $query;
+    }
+
+    protected function aplicarFiltrosBusquedaHechos($query, array $filtros): void
+    {
+        $vehiculoFiltros = array_filter([
+            'marca' => $filtros['marca'] ?? null,
+            'linea' => $filtros['linea'] ?? null,
+            'modelo' => $filtros['modelo'] ?? null,
+            'color' => $filtros['color'] ?? null,
+            'placas' => $filtros['placa'] ?? null,
+            'serie' => $filtros['serie'] ?? null,
+        ], fn ($value) => trim((string) $value) !== '');
+
+        if (!empty($vehiculoFiltros)) {
+            $query->whereHas('vehiculos', function ($vehiculos) use ($vehiculoFiltros) {
+                foreach ($vehiculoFiltros as $campo => $valor) {
+                    if (in_array($campo, ['placas', 'serie'], true)) {
+                        $this->whereNormalizado($vehiculos, 'vehiculos.' . $campo, (string) $valor);
+                    } else {
+                        $this->whereUpperLike($vehiculos, 'vehiculos.' . $campo, (string) $valor);
+                    }
+                }
+            });
+        }
+
+        $busqueda = trim((string) ($filtros['busqueda'] ?? ''));
+
+        if ($busqueda === '') {
+            return;
+        }
+
+        $query->where(function ($q) use ($busqueda) {
+            $normalizado = $this->normalizarTextoBusqueda($busqueda);
+            $likeUpper = '%' . $this->upper($busqueda) . '%';
+            $tokens = $this->tokensBusquedaHechos($busqueda);
+            $hechoCampos = [
+                'folio_c5i',
+                'perito',
+                'unidad',
+                'sector',
+                'calle',
+                'colonia',
+                'entre_calles',
+                'municipio',
+                'tipo_hecho',
+                'situacion',
+                'responsable',
+                'ubicacion_formateada',
+            ];
+            $vehiculoCampos = [
+                'marca',
+                'modelo',
+                'tipo',
+                'linea',
+                'color',
+                'placas',
+                'estado_placas',
+                'serie',
+                'tipo_servicio',
+                'tarjeta_circulacion_nombre',
+                'grua',
+                'corralon',
+                'aseguradora',
+            ];
+
+            if ($normalizado !== '' && ctype_digit($normalizado)) {
+                $q->orWhere('id', (int) $normalizado);
+            }
+
+            foreach ($hechoCampos as $campo) {
+                $q->orWhereRaw("UPPER(COALESCE({$campo}, '')) LIKE ?", [$likeUpper]);
+            }
+
+            if (count($tokens) > 1) {
+                $q->orWhere(function ($hechosPorTokens) use ($tokens, $hechoCampos) {
+                    foreach ($tokens as $token) {
+                        $hechosPorTokens->where(function ($tokenScope) use ($token, $hechoCampos) {
+                            $likeToken = '%' . $token . '%';
+
+                            foreach ($hechoCampos as $campo) {
+                                $tokenScope->orWhereRaw("UPPER(COALESCE({$campo}, '')) LIKE ?", [$likeToken]);
+                            }
+                        });
+                    }
+                });
+            }
+
+            $q->orWhereHas('vehiculos', function ($vehiculos) use ($busqueda, $likeUpper, $tokens, $vehiculoCampos) {
+                $vehiculos->where(function ($vehiculosFrase) use ($busqueda, $likeUpper, $vehiculoCampos) {
+                    foreach ($vehiculoCampos as $campo) {
+                        $vehiculosFrase->orWhereRaw("UPPER(COALESCE(vehiculos.{$campo}, '')) LIKE ?", [$likeUpper]);
+                    }
+
+                    $this->orWhereNormalizado($vehiculosFrase, 'vehiculos.placas', $busqueda);
+                    $this->orWhereNormalizado($vehiculosFrase, 'vehiculos.serie', $busqueda);
+                });
+
+                if (count($tokens) > 1) {
+                    $vehiculos->orWhere(function ($vehiculosPorTokens) use ($tokens, $vehiculoCampos) {
+                        foreach ($tokens as $token) {
+                            $vehiculosPorTokens->where(function ($tokenScope) use ($token, $vehiculoCampos) {
+                                $likeToken = '%' . $token . '%';
+
+                                foreach ($vehiculoCampos as $campo) {
+                                    $tokenScope->orWhereRaw("UPPER(COALESCE(vehiculos.{$campo}, '')) LIKE ?", [$likeToken]);
+                                }
+
+                                $this->orWhereNormalizado($tokenScope, 'vehiculos.placas', $token);
+                                $this->orWhereNormalizado($tokenScope, 'vehiculos.serie', $token);
+                            });
+                        }
+                    });
+                }
+            });
+
+            $q->orWhereHas('vehiculos.conductores', function ($conductores) use ($likeUpper) {
+                $conductores->whereRaw("UPPER(COALESCE(nombre, '')) LIKE ?", [$likeUpper]);
+            });
+        });
+    }
+
+    protected function textoBusquedaHechos(array $filtros): string
+    {
+        $partes = [];
+
+        foreach (['busqueda', 'marca', 'linea', 'modelo', 'color', 'placa', 'serie'] as $campo) {
+            $valor = trim((string) ($filtros[$campo] ?? ''));
+
+            if ($valor !== '') {
+                $partes[] = $valor;
+            }
+        }
+
+        return trim(implode(' ', array_unique($partes)));
+    }
+
+    protected function lineaResumenHecho(Hechos $hecho, string $busqueda = ''): string
+    {
+        $linea = 'ID ' . $hecho->id
+            . ' | ' . $this->formatDate($hecho->fecha)
+            . ' ' . $this->formatTime($hecho->hora)
+            . ' | ' . ($hecho->tipo_hecho ?: 'SIN TIPO')
+            . ' | ' . ($hecho->situacion ?: 'SIN SITUACIÓN');
+
+        $lugar = trim(implode(', ', array_filter([
+            $hecho->municipio ?: null,
+            $hecho->calle ?: null,
+            $hecho->colonia ? 'col. ' . $hecho->colonia : null,
+        ])));
+
+        if ($lugar !== '') {
+            $linea .= ' | ' . $lugar;
+        }
+
+        $vehiculos = $this->resumenVehiculosHecho($hecho, $busqueda);
+
+        if ($vehiculos !== '') {
+            $linea .= ' | Vehículos: ' . $vehiculos;
+        }
+
+        return $linea;
+    }
+
+    protected function resumenVehiculosHecho(Hechos $hecho, string $busqueda): string
+    {
+        $hecho->loadMissing('vehiculos');
+        $normalizado = $this->normalizarTextoBusqueda($busqueda);
+
+        return collect($hecho->vehiculos ?? [])
+            ->sortByDesc(function ($vehiculo) use ($normalizado) {
+                if ($normalizado === '') {
+                    return 0;
+                }
+
+                $texto = $this->normalizarTextoBusqueda(implode(' ', array_filter([
+                    $vehiculo->marca ?? null,
+                    $vehiculo->linea ?? null,
+                    $vehiculo->modelo ?? null,
+                    $vehiculo->tipo ?? null,
+                    $vehiculo->color ?? null,
+                    $vehiculo->placas ?? null,
+                    $vehiculo->serie ?? null,
+                    $vehiculo->tarjeta_circulacion_nombre ?? null,
+                ])));
+
+                return str_contains($texto, $normalizado) ? 1 : 0;
+            })
+            ->take(3)
+            ->map(function ($vehiculo) {
+                return trim(implode(' ', array_filter([
+                    $vehiculo->marca ?? null,
+                    $vehiculo->linea ?? null,
+                    $vehiculo->modelo ?? null,
+                    $vehiculo->color ?? null,
+                    !empty($vehiculo->placas) ? 'placas ' . $vehiculo->placas : null,
+                    !empty($vehiculo->serie) ? 'serie ' . $vehiculo->serie : null,
+                ])));
+            })
+            ->filter()
+            ->implode('; ');
     }
 
     protected function normalizarConsultaOpenAI(array $json): array
@@ -1073,6 +1318,13 @@ class WhatsAppQueryService
             'estatus' => null,
             'municipio' => null,
             'delegacion_id' => null,
+            'busqueda' => null,
+            'marca' => null,
+            'linea' => null,
+            'modelo' => null,
+            'color' => null,
+            'placa' => null,
+            'serie' => null,
         ], $filtros);
     }
 
@@ -1348,7 +1600,29 @@ class WhatsAppQueryService
         $puntaje = 0;
         $variantesNombre = $this->variantesNombrePersonal($personal);
         $tokensBusqueda = $this->tokensBusquedaPersonal($busquedaNormalizada);
+        $tokensNombre = $this->tokensNombrePersonal($personal);
         $mejorNombre = 0;
+
+        if (count($tokensBusqueda) >= 2) {
+            $coincidenNombrePaterno = $this->tokensCubrenPersona(
+                $tokensBusqueda,
+                array_filter([$tokensNombre['nombre'] ?? null, $tokensNombre['ap_paterno'] ?? null])
+            );
+            $coincidenPaternoMaterno = $this->tokensCubrenPersona(
+                $tokensBusqueda,
+                array_filter([$tokensNombre['ap_paterno'] ?? null, $tokensNombre['ap_materno'] ?? null])
+            );
+            $coincidenNombreMaterno = $this->tokensCubrenPersona(
+                $tokensBusqueda,
+                array_filter([$tokensNombre['nombre'] ?? null, $tokensNombre['ap_materno'] ?? null])
+            );
+
+            if ($coincidenNombrePaterno) {
+                $mejorNombre = max($mejorNombre, count($tokensBusqueda) >= 3 ? 360 : 335);
+            } elseif ($coincidenPaternoMaterno || $coincidenNombreMaterno) {
+                $mejorNombre = max($mejorNombre, 305);
+            }
+        }
 
         foreach ($variantesNombre as $nombreNormalizado) {
             if ($busquedaNormalizada !== '' && $nombreNormalizado === $busquedaNormalizada) {
@@ -1366,6 +1640,19 @@ class WhatsAppQueryService
             if ($busquedaNormalizada !== '' && str_contains($nombreNormalizado, $busquedaNormalizada)) {
                 $mejorNombre = max($mejorNombre, 130);
             }
+        }
+
+        if (!empty($tokensBusqueda)) {
+            $tokensPersona = array_values(array_filter($tokensNombre));
+            $coincidenciasExactas = 0;
+
+            foreach ($tokensBusqueda as $token) {
+                if (in_array($token, $tokensPersona, true)) {
+                    $coincidenciasExactas++;
+                }
+            }
+
+            $puntaje += $coincidenciasExactas * 18;
         }
 
         $puntaje += $mejorNombre;
@@ -1391,8 +1678,13 @@ class WhatsAppQueryService
 
         $puntajePrimero = $this->puntajeCoincidenciaPersonal($coincidencias[0], $this->normalizarTextoBusqueda($busqueda));
         $puntajeSegundo = $this->puntajeCoincidenciaPersonal($coincidencias[1], $this->normalizarTextoBusqueda($busqueda));
+        $tokensBusqueda = $this->tokensBusquedaPersonal($this->normalizarTextoBusqueda($busqueda));
 
-        return $puntajePrimero <= 220 || ($puntajePrimero - $puntajeSegundo) < 40;
+        if (count($tokensBusqueda) >= 2 && $puntajePrimero >= 320 && ($puntajePrimero - $puntajeSegundo) >= 20) {
+            return false;
+        }
+
+        return $puntajePrimero <= 220 || ($puntajePrimero - $puntajeSegundo) < 25;
     }
 
     protected function variantesNombrePersonal(Personal $personal): array
@@ -1426,6 +1718,41 @@ class WhatsAppQueryService
             ->unique()
             ->values()
             ->all();
+    }
+
+    protected function tokensNombrePersonal(Personal $personal): array
+    {
+        return [
+            'nombre' => $this->normalizarTextoBusqueda((string) $personal->nombre),
+            'ap_paterno' => $this->normalizarTextoBusqueda((string) $personal->ap_paterno),
+            'ap_materno' => $this->normalizarTextoBusqueda((string) $personal->ap_materno),
+        ];
+    }
+
+    protected function tokensCubrenPersona(array $tokensBusqueda, array $tokensPersona): bool
+    {
+        $tokensPersona = array_values(array_filter($tokensPersona));
+
+        if (count($tokensPersona) < 2) {
+            return false;
+        }
+
+        foreach ($tokensPersona as $tokenPersona) {
+            $encontrado = false;
+
+            foreach ($tokensBusqueda as $tokenBusqueda) {
+                if ($tokenBusqueda === $tokenPersona || $this->startsWith($tokenPersona, $tokenBusqueda)) {
+                    $encontrado = true;
+                    break;
+                }
+            }
+
+            if (!$encontrado) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function nombreContieneTodosLosTokens(string $nombreNormalizado, array $tokens): bool
@@ -1640,6 +1967,39 @@ class WhatsAppQueryService
         $query->whereRaw("UPPER(TRIM(COALESCE({$column}, ''))) = ?", [$this->upper($value)]);
     }
 
+    protected function whereUpperLike($query, string $column, string $value): void
+    {
+        $query->whereRaw("UPPER(COALESCE({$column}, '')) LIKE ?", ['%' . $this->upper($value) . '%']);
+    }
+
+    protected function whereNormalizado($query, string $column, string $value): void
+    {
+        $normalizado = $this->normalizarTextoBusqueda($value);
+
+        if ($normalizado === '') {
+            return;
+        }
+
+        $query->whereRaw(
+            "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE({$column}, ''), '-', ''), ' ', ''), '.', ''), '/', '')) LIKE ?",
+            ['%' . $normalizado . '%']
+        );
+    }
+
+    protected function orWhereNormalizado($query, string $column, string $value): void
+    {
+        $normalizado = $this->normalizarTextoBusqueda($value);
+
+        if ($normalizado === '') {
+            return;
+        }
+
+        $query->orWhereRaw(
+            "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE({$column}, ''), '-', ''), ' ', ''), '.', ''), '/', '')) LIKE ?",
+            ['%' . $normalizado . '%']
+        );
+    }
+
     protected function periodoTexto(array $filtros): string
     {
         $periodo = 'SIN PERIODO ESPECIFICADO';
@@ -1791,6 +2151,25 @@ class WhatsAppQueryService
         }
 
         return preg_replace('/[^A-Z0-9]+/', '', $value) ?: '';
+    }
+
+    protected function tokensBusquedaHechos(string $value): array
+    {
+        $value = $this->upper($value);
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+
+        if ($ascii !== false) {
+            $value = $ascii;
+        }
+
+        $value = str_replace(["'", '`', '´'], '', $value);
+
+        return collect(preg_split('/[^A-Z0-9]+/', $value) ?: [])
+            ->map(fn ($token) => trim((string) $token))
+            ->filter(fn ($token) => mb_strlen($token, 'UTF-8') > 1)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function startsWith(string $value, string $prefix): bool

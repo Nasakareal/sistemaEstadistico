@@ -79,6 +79,7 @@ class OpenAIService
         $filtros = $this->filtrosBase();
         $filtros = array_merge($filtros, $this->resolverFechasLocales($texto));
         $unidadId = $this->resolverUnidadLocal($texto);
+        $filtrosBusquedaHechos = $this->resolverFiltrosBusquedaHechosLocal($mensajeOriginal, $texto);
         $id = null;
 
         if (preg_match('/\b(?:hecho|folio|id)\s*(?:numero|num|no\.?)?\s*(\d+)\b/u', $texto, $matches)) {
@@ -131,6 +132,18 @@ class OpenAIService
                 'persona' => $persona,
                 'filtros' => $filtros,
             ]);
+        }
+
+        if ($this->esConsultaBusquedaHechos($texto, $filtrosBusquedaHechos)) {
+            $filtros = array_merge($filtros, $filtrosBusquedaHechos);
+
+            if ($this->esConsultaConteo($texto)) {
+                $accion = 'contar_hechos';
+            } else {
+                $accion = 'buscar_hechos';
+            }
+
+            return $this->respuestaLocal($accion, $unidadId, null, $filtros);
         }
 
         if ($this->esConsultaEstadistica($texto) && $this->contieneAlguno($texto, ['hecho', 'hechos', 'siniestro', 'siniestros', 'accidente', 'accidentes'])) {
@@ -212,6 +225,7 @@ FECHA ACTUAL:
 ACCIONES VÁLIDAS:
 - contar_hechos
 - detalle_hecho
+- buscar_hechos
 - lista_hechos
 - estadistica_hechos
 - resumen_hechos
@@ -250,13 +264,21 @@ ESTRUCTURA OBLIGATORIA:
     "tipo_puesta": null,
     "estatus": null,
     "municipio": null,
-    "delegacion_id": null
+    "delegacion_id": null,
+    "busqueda": null,
+    "marca": null,
+    "linea": null,
+    "modelo": null,
+    "color": null,
+    "placa": null,
+    "serie": null
   }
 }
 
 REGLAS DE ACCIÓN:
 - Si pide cuántos hechos, siniestros, accidentes, choques o colisiones hay, usa contar_hechos.
 - Si pide un hecho específico, usa detalle_hecho e incluye id.
+- Si pide buscar, encontrar, mostrar o listar hechos por una placa, serie/NIV, marca, línea, modelo, color, conductor, calle, colonia, municipio o texto ambiguo, usa buscar_hechos.
 - Si pide lista de hechos, usa lista_hechos.
 - Si pide estadística, resumen o desglose de hechos, usa estadistica_hechos o resumen_hechos.
 - Si pide personal armado, relación de armamento o lista de elementos armados, usa personal_armado.
@@ -303,6 +325,8 @@ REGLAS DE FILTROS:
 - Si menciona estatus de puesta, llena estatus en mayúsculas.
 - Si menciona municipio, llena municipio.
 - Si menciona delegación por id numérico, llena delegacion_id.
+- Para búsquedas ambiguas de hechos, llena busqueda con el texto buscado.
+- Si identifica un dato vehicular explícito, llena marca, linea, modelo, color, placa o serie según corresponda.
 
 SINÓNIMOS DE OPERATIVOS DE CARRETERAS:
 {$sinonimosOperativos}
@@ -403,6 +427,7 @@ PROMPT;
         $accionesValidas = [
             'contar_hechos',
             'detalle_hecho',
+            'buscar_hechos',
             'lista_hechos',
             'estadistica_hechos',
             'resumen_hechos',
@@ -445,6 +470,13 @@ PROMPT;
             'estatus' => null,
             'municipio' => null,
             'delegacion_id' => null,
+            'busqueda' => null,
+            'marca' => null,
+            'linea' => null,
+            'modelo' => null,
+            'color' => null,
+            'placa' => null,
+            'serie' => null,
         ], $filtros);
 
         return [
@@ -487,6 +519,13 @@ PROMPT;
             'estatus' => null,
             'municipio' => null,
             'delegacion_id' => null,
+            'busqueda' => null,
+            'marca' => null,
+            'linea' => null,
+            'modelo' => null,
+            'color' => null,
+            'placa' => null,
+            'serie' => null,
         ];
     }
 
@@ -685,6 +724,56 @@ PROMPT;
         return $this->contieneAlguno($texto, ['lista', 'listado', 'relacion', 'relación', 'dame los', 'dame las', 'muestrame', 'muéstrame']);
     }
 
+    protected function esConsultaBusquedaHechos(string $texto, array $filtrosBusqueda): bool
+    {
+        if (empty(array_filter($filtrosBusqueda, fn ($value) => trim((string) $value) !== ''))) {
+            return false;
+        }
+
+        $mencionaHechos = $this->contieneAlguno($texto, [
+            'hecho',
+            'hechos',
+            'siniestro',
+            'siniestros',
+            'accidente',
+            'accidentes',
+            'choque',
+            'choques',
+            'colision',
+            'colisiones',
+        ]);
+
+        if (!$mencionaHechos) {
+            return false;
+        }
+
+        return $this->contieneAlguno($texto, [
+            'busca',
+            'buscar',
+            'busqueda',
+            'encuentra',
+            'encontrar',
+            'dame',
+            'muestra',
+            'muestrame',
+            'lista',
+            'listado',
+            'consulta',
+            'con',
+            'por',
+            'placa',
+            'placas',
+            'marca',
+            'linea',
+            'modelo',
+            'color',
+            'serie',
+            'niv',
+            'vehiculo',
+            'vehiculos',
+        ]);
+    }
+
     protected function esConsultaEstadistica(string $texto): bool
     {
         return $this->contieneAlguno($texto, [
@@ -692,6 +781,16 @@ PROMPT;
             'estadisticas',
             'resumen',
             'desglose',
+            'cuantos',
+            'cuantas',
+            'conteo',
+            'total',
+        ]);
+    }
+
+    protected function esConsultaConteo(string $texto): bool
+    {
+        return $this->contieneAlguno($texto, [
             'cuantos',
             'cuantas',
             'conteo',
@@ -740,6 +839,14 @@ PROMPT;
         }
 
         if (preg_match(
+            '/(?:expediente|ficha|perfil|detalle|datos|informaci[oó]n|info|foto|patrulla|asignaci[oó]n)\s+(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)?\s*(.+)$/iu',
+            $mensaje,
+            $matches
+        )) {
+            return $this->limpiarBusquedaPersonal($matches[1]);
+        }
+
+        if (preg_match(
             '/\b(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)\s+(.+)$/iu',
             $mensaje,
             $matches
@@ -749,6 +856,120 @@ PROMPT;
 
         if (preg_match('/\b(?:n[uú]mero\s+de\s+empleado|no\.?\s*empleado|empleado|cup|cuip|curp|rfc|id)\s*[:#-]?\s*([A-Za-z0-9-]+)/iu', $mensaje, $matches)) {
             return $this->limpiarBusquedaPersonal($matches[1]);
+        }
+
+        return null;
+    }
+
+    protected function resolverFiltrosBusquedaHechosLocal(string $mensaje, string $texto): array
+    {
+        $filtros = [];
+        $mensaje = trim($mensaje);
+
+        if ($mensaje === '') {
+            return $filtros;
+        }
+
+        $patrones = [
+            'placa' => '/\bplacas?\s*(?:del?|:|#)?\s*([A-Za-z0-9-]{3,15})\b/iu',
+            'serie' => '/\b(?:serie|niv)\s*(?:del?|:|#)?\s*([A-Za-z0-9-]{5,25})\b/iu',
+            'marca' => '/\bmarca\s+(?:del?\s+)?([A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .-]{2,40})/iu',
+            'linea' => '/\b(?:linea|línea|submarca)\s+(?:del?\s+)?([A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .-]{2,40})/iu',
+            'modelo' => '/\bmodelo\s+(?:del?\s+)?([A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .-]{2,40})/iu',
+            'color' => '/\bcolor\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ .-]{3,30})/iu',
+        ];
+
+        foreach ($patrones as $campo => $patron) {
+            if (preg_match($patron, $mensaje, $matches)) {
+                $valor = $this->limpiarBusquedaHecho($matches[1]);
+
+                if ($valor !== null) {
+                    $filtros[$campo] = $valor;
+                }
+            }
+        }
+
+        if (!isset($filtros['color'])) {
+            $color = $this->resolverColorLocal($texto);
+
+            if ($color !== null) {
+                $filtros['color'] = $color;
+            }
+        }
+
+        $busqueda = $this->resolverBusquedaHechoLocal($mensaje);
+
+        if ($busqueda !== null) {
+            $filtros['busqueda'] = $busqueda;
+        }
+
+        return $filtros;
+    }
+
+    protected function resolverBusquedaHechoLocal(string $mensaje): ?string
+    {
+        $valor = trim($mensaje);
+
+        if (preg_match(
+            '/\b(?:busca|buscar|buscame|búscame|encuentra|encontrar|dame|muestra|mu[eé]strame|lista|listado|consulta|quiero|necesito)\b(.+)$/iu',
+            $valor,
+            $matches
+        )) {
+            $valor = trim($matches[1]);
+        }
+
+        $valor = preg_replace(
+            '/\b(?:cu[aá]ntos?|cu[aá]ntas?|conteo|total|hechos?|siniestros?|accidentes?|choques?|colisiones?|veh[ií]culos?|carros?|autos?|camionetas?|motos?|motocicletas?|por|con|en|de|del|donde|que|tengan|tiene|hubo|hay|marca|linea|línea|submarca|modelo|color|placas?|serie|niv|hoy|ayer|antier|este\s+mes|mes\s+pasado|mes\s+anterior|en\s+siniestros|siniestros)\b/iu',
+            ' ',
+            $valor
+        );
+        $valor = preg_replace('/\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/iu', ' ', (string) $valor);
+        $valor = preg_replace('/\b\d{4}-\d{2}-\d{2}\b/u', ' ', (string) $valor);
+        $valor = preg_replace('/\s+/', ' ', (string) $valor);
+        $valor = trim((string) $valor, " \t\n\r\0\x0B:,.?!¿¡");
+
+        if ($valor === '' || mb_strlen($valor, 'UTF-8') < 2) {
+            return null;
+        }
+
+        return $valor;
+    }
+
+    protected function limpiarBusquedaHecho(string $valor): ?string
+    {
+        $valor = preg_replace('/\b(?:hoy|ayer|antier|este\s+mes|mes\s+pasado|mes\s+anterior|marca|linea|línea|submarca|modelo|color|placas?|serie|niv|en|de|del|la|el|los|las|por|con)\b.*$/iu', '', $valor);
+        $valor = trim((string) $valor, " \t\n\r\0\x0B:,.?!¿¡");
+
+        return $valor !== '' ? $valor : null;
+    }
+
+    protected function resolverColorLocal(string $texto): ?string
+    {
+        $colores = [
+            'blanco',
+            'negro',
+            'gris',
+            'plata',
+            'rojo',
+            'azul',
+            'verde',
+            'amarillo',
+            'naranja',
+            'cafe',
+            'café',
+            'marron',
+            'marrón',
+            'dorado',
+            'vino',
+            'guinda',
+            'beige',
+            'crema',
+        ];
+
+        foreach ($colores as $color) {
+            if ($this->contieneAlguno($texto, [$color])) {
+                return $color;
+            }
         }
 
         return null;
@@ -782,6 +1003,7 @@ PROMPT;
             $texto = $ascii;
         }
 
+        $texto = str_replace(["'", '`', '´'], '', $texto);
         $texto = preg_replace('/[^a-z0-9]+/', ' ', $texto);
 
         return trim((string) preg_replace('/\s+/', ' ', (string) $texto));

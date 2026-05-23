@@ -107,6 +107,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver estadisticas globales',
             'ver estadisticas actividades',
             'ver mapa',
+
+            // Modulo de examenes y constancias
+            'ver modulo examenes',
+            'crear modulo examenes',
+            'editar modulo examenes',
+            'eliminar modulo examenes',
         ];
 
         foreach ($permissions as $permission) {
@@ -138,6 +144,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear lesionados',
             'ver actividades',
             'crear actividades',
+            'ver modulo examenes',
+            'crear modulo examenes',
+            'editar modulo examenes',
         ];
 
         $roles = [
@@ -156,12 +165,19 @@ class RolesAndPermissionsSeeder extends Seeder
                 'ver estadisticas carreteras',
                 'ver estadisticas globales',
                 'ver estadisticas actividades',
+                'ver modulo examenes',
+                'crear modulo examenes',
+                'editar modulo examenes',
+                'eliminar modulo examenes',
             ]),
             'Administrativo' => array_merge($operacionHechos, [
                 'ver operativos carreteras',
                 'ver estadisticas carreteras',
                 'ver estadisticas globales',
                 'ver estadisticas actividades',
+                'ver modulo examenes',
+                'crear modulo examenes',
+                'editar modulo examenes',
             ]),
             'Agente Upec' => [
                 'ver operativos carreteras',

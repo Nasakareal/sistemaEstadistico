@@ -10,6 +10,9 @@
 @stop
 
 @section('content')
+@php
+    $moduloUnico = $modulos->count() === 1 ? $modulos->first() : null;
+@endphp
 <div class="constancia-wrapper">
     <div class="constancia-card">
 
@@ -28,17 +31,25 @@
 
                 <div class="form-group">
                     <label>Módulo que imprimirá las constancias</label>
-                    <select name="modulo_id" id="modulo_id" class="form-control select2" required>
-                        <option value="">Seleccione un módulo</option>
-                        @foreach($modulos as $m)
-                            <option value="{{ $m->id }}" {{ old('modulo_id') == $m->id ? 'selected' : '' }}>
-                                {{ $m->nombre }} - {{ $m->tipo }}
-                            </option>
-                        @endforeach
-                    </select>
+                    @if($moduloUnico)
+                        <input type="hidden" name="modulo_id" value="{{ $moduloUnico->id }}">
+                        <input type="text" class="form-control" value="{{ $moduloUnico->nombre }} - {{ $moduloUnico->tipo }}" readonly>
+                    @else
+                        <select name="modulo_id" id="modulo_id" class="form-control select2" required>
+                            <option value="">Seleccione un módulo</option>
+                            @foreach($modulos as $m)
+                                <option value="{{ $m->id }}" {{ old('modulo_id') == $m->id ? 'selected' : '' }}>
+                                    {{ $m->nombre }} - {{ $m->tipo }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @endif
                     @error('modulo_id')
                         <small class="text-danger">{{ $message }}</small>
                     @enderror
+                    @if($modulos->isEmpty())
+                        <small class="text-warning">No hay un módulo activo asignado a tu delegación.</small>
+                    @endif
                 </div>
 
                 <div class="form-group">

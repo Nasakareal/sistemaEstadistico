@@ -7,6 +7,10 @@
 @stop
 
 @section('content')
+    @php
+        $moduloUnico = $modulos->count() === 1 ? $modulos->first() : null;
+    @endphp
+
     <div class="row justify-content-center">
         <div class="col-lg-9">
             <div class="card card-outline card-primary">
@@ -22,17 +26,25 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Módulo evaluador</label>
-                                    <select name="modulo_id" class="form-control @error('modulo_id') is-invalid @enderror" required>
-                                        <option value="">Seleccione</option>
-                                        @foreach($modulos as $modulo)
-                                            <option value="{{ $modulo->id }}" {{ old('modulo_id') == $modulo->id ? 'selected' : '' }}>
-                                                {{ $modulo->nombre }} - {{ $modulo->tipo }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                    @if($moduloUnico)
+                                        <input type="hidden" name="modulo_id" value="{{ $moduloUnico->id }}">
+                                        <input type="text" class="form-control @error('modulo_id') is-invalid @enderror" value="{{ $moduloUnico->nombre }} - {{ $moduloUnico->tipo }}" readonly>
+                                    @else
+                                        <select name="modulo_id" class="form-control @error('modulo_id') is-invalid @enderror" required>
+                                            <option value="">Seleccione</option>
+                                            @foreach($modulos as $modulo)
+                                                <option value="{{ $modulo->id }}" {{ old('modulo_id') == $modulo->id ? 'selected' : '' }}>
+                                                    {{ $modulo->nombre }} - {{ $modulo->tipo }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    @endif
                                     @error('modulo_id')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
+                                    @if($modulos->isEmpty())
+                                        <small class="text-warning">No hay un módulo activo asignado a tu delegación.</small>
+                                    @endif
                                 </div>
                             </div>
 

@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\ChoquesDiariosController;
 use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoController;
 use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiarioController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
+use App\Http\Controllers\Api\SettingsPersonalController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -157,6 +158,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [ApiUserController::class, 'store'])->middleware('can:crear usuarios')->name('api.settings.users.store');
         Route::get('/{user}', [ApiUserController::class, 'show'])->whereNumber('user')->name('api.settings.users.show');
         Route::put('/{user}', [ApiUserController::class, 'update'])->middleware('can:editar usuarios')->whereNumber('user')->name('api.settings.users.update');
+    });
+
+    Route::prefix('settings/personal')->middleware('can:ver personal')->group(function () {
+        Route::get('/', [SettingsPersonalController::class, 'index'])->name('api.settings.personal.index');
+        Route::get('/{personal}', [SettingsPersonalController::class, 'show'])->whereNumber('personal')->name('api.settings.personal.show');
+        Route::post('/{personal}/incidencias', [SettingsPersonalController::class, 'storeIncidencia'])->middleware('can:editar personal')->whereNumber('personal')->name('api.settings.personal.incidencias.store');
     });
 
     Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {

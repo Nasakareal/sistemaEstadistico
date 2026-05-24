@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
 
 class PersonalController extends Controller
 {
@@ -286,7 +288,7 @@ class PersonalController extends Controller
             $personal = Personal::create($validated);
 
             if ($fotoSubida) {
-                $rutaFoto = $fotoSubida->store('personals/fotos');
+                $rutaFoto = $this->guardarFotoPersonalPrivada($fotoSubida);
 
                 $personal->update([
                     'foto' => $rutaFoto,
@@ -305,8 +307,10 @@ class PersonalController extends Controller
             return redirect()
                 ->route('personal.index')
                 ->with('success', 'Personal creado correctamente.');
-        } catch (\Exception $e) {
-            Log::error('Error al crear personal: ' . $e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('Error al crear personal: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
 
             return redirect()
                 ->back()
@@ -469,7 +473,7 @@ class PersonalController extends Controller
             $personal->update($validated);
 
             if ($fotoSubida) {
-                $rutaFoto = $fotoSubida->store('personals/fotos');
+                $rutaFoto = $this->guardarFotoPersonalPrivada($fotoSubida);
 
                 $personal->update([
                     'foto' => $rutaFoto,
@@ -488,8 +492,10 @@ class PersonalController extends Controller
             return redirect()
                 ->route('personal.index')
                 ->with('success', 'Personal actualizado correctamente.');
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar personal: ' . $e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('Error al actualizar personal: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
 
             return redirect()
                 ->back()
@@ -515,5 +521,16 @@ class PersonalController extends Controller
                 ->back()
                 ->withErrors('Hubo un error al eliminar el personal. Inténtelo nuevamente.');
         }
+    }
+
+    private function guardarFotoPersonalPrivada($fotoSubida): string
+    {
+        $ruta = $fotoSubida->store('personals/fotos', 'local');
+
+        if (!is_string($ruta) || trim($ruta) === '') {
+            throw new RuntimeException('No se pudo guardar la foto de personal en almacenamiento privado.');
+        }
+
+        return str_replace('\\', '/', $ruta);
     }
 }

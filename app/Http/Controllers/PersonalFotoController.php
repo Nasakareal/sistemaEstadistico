@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
 
 class PersonalFotoController extends Controller
 {
@@ -73,7 +75,7 @@ class PersonalFotoController extends Controller
             $primeraRuta = null;
 
             foreach ($archivos as $archivo) {
-                $ruta = $archivo->store('personals/fotos');
+                $ruta = $this->guardarFotoPrivada($archivo);
                 if ($primeraRuta === null) {
                     $primeraRuta = $ruta;
                 }
@@ -93,8 +95,11 @@ class PersonalFotoController extends Controller
             return redirect()
                 ->route('personal.show', $personal->id)
                 ->with('success', 'Foto registrada correctamente.');
-        } catch (\Exception $e) {
-            Log::error('Error al registrar foto de personal: ' . $e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('Error al registrar foto de personal: ' . $e->getMessage(), [
+                'personal_id' => $personal->id,
+                'exception' => $e,
+            ]);
 
             return back()
                 ->withErrors('Hubo un error al registrar la foto. Inténtelo nuevamente.')
@@ -178,6 +183,17 @@ class PersonalFotoController extends Controller
         }
 
         abort(404);
+    }
+
+    private function guardarFotoPrivada($archivo): string
+    {
+        $ruta = $archivo->store('personals/fotos', 'local');
+
+        if (!is_string($ruta) || trim($ruta) === '') {
+            throw new RuntimeException('No se pudo guardar la foto de personal en almacenamiento privado.');
+        }
+
+        return str_replace('\\', '/', $ruta);
     }
 
     private function headersArchivo(string $disk, string $ruta, ?string $mimeType = null): array

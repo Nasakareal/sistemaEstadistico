@@ -153,7 +153,6 @@ class EnviarTarjetaHechosWhatsApp extends Command
             ."- ".$this->pad($totales['salida_superficie'])." Salida de la superficie de rodamiento.\n"
             ."- ".$this->pad($totales['subida_camellon'])." Subida a camellón\n"
             ."- ".$this->pad($totales['caida_cuneta'])." Caída a cuneta\n"
-            ."- ".$this->pad($totales['caida_cuneta'])." Caída a cuneta\n"
             ."- ".$this->pad($totales['caida_motocicleta'])." Caída de motocicleta\n"
             ."- ".$this->pad($totales['incidente'])." Incidente\n"
             ."- ".$this->pad($totales['reporte'])." Reporte\n"
@@ -177,7 +176,6 @@ class EnviarTarjetaHechosWhatsApp extends Command
             'volcadura' => 0,
             'salida_superficie' => 0,
             'subida_camellon' => 0,
-            'caida_cuneta' => 0,
             'caida_cuneta' => 0,
             'caida_motocicleta' => 0,
             'incidente' => 0,
@@ -213,7 +211,7 @@ class EnviarTarjetaHechosWhatsApp extends Command
                 $totales['choques']++;
             }
 
-            if ($situacion === 'RESUELTO' || $situacion === 'RESUELTA') {
+            if ($situacion === 'RESUELTO' || $situacion === 'RESUELTA' || $situacion === 'REPORTE') {
                 $totales['resueltos']++;
             } elseif ($situacion === 'TURNADO' || $situacion === 'TURNADA') {
                 $totales['turnados']++;

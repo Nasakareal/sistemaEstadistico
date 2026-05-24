@@ -157,7 +157,7 @@
         @endcan
 
         {{-- ESTADISTICAS --}}
-        @can('ver estadisticas')
+        @role('Superadmin')
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">
                     <div class="sv-card__icon bg-success">
@@ -172,7 +172,7 @@
                     </div>
                 </div>
             </div>
-        @endcan
+        @endrole
 
         {{-- DELEGACIONES --}}
         @can('ver delegaciones')
@@ -359,6 +359,23 @@
                         <div class="sv-card__title">Estadísticas Delegaciones</div>
                         <div class="sv-card__desc">Reportes, exportaciones y análisis de delegaciones.</div>
                         <a href="{{ route('settings.estadisticas_delegaciones.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
+        @can('menu-estadisticas-actividades-fomento')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-success">
+                        <i class="fa-solid fa-school"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Estadísticas Fomento</div>
+                        <div class="sv-card__desc">Estado de fuerza y actividades de Fomento a la Cultura Vial.</div>
+                        <a href="{{ route('settings.estadisticas_fomento.index') }}" class="btn sv-btn">
                             <i class="fas fa-arrow-right"></i> Acceder
                         </a>
                     </div>

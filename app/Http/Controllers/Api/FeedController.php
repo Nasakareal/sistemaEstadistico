@@ -61,6 +61,9 @@ class FeedController extends Controller
                 'user_id' => (int)$row->user_id,
                 'user_name' => $row->user_name,
                 'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
+                'unidad_nombre' => $this->normalizaTextoOpcional($row->unidad_nombre ?? null),
+                'delegacion_id' => isset($row->delegacion_id) ? (int)$row->delegacion_id : null,
+                'delegacion_nombre' => $this->normalizaTextoOpcional($row->delegacion_nombre ?? null),
                 'resumen' => $this->limpiaResumen($row->resumen, $row->type),
                 'categoria_nombre' => isset($row->categoria_nombre) ? $row->categoria_nombre : null,
                 'subcategoria_nombre' => isset($row->subcategoria_nombre) ? $row->subcategoria_nombre : null,
@@ -177,6 +180,9 @@ class FeedController extends Controller
                 'user_id' => (int)$row->user_id,
                 'user_name' => $row->user_name,
                 'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
+                'unidad_nombre' => $this->normalizaTextoOpcional($row->unidad_nombre ?? null),
+                'delegacion_id' => isset($row->delegacion_id) ? (int)$row->delegacion_id : null,
+                'delegacion_nombre' => $this->normalizaTextoOpcional($row->delegacion_nombre ?? null),
                 'resumen' => $this->limpiaResumen($row->resumen, $row->type),
                 'categoria_nombre' => isset($row->categoria_nombre) ? $row->categoria_nombre : null,
                 'subcategoria_nombre' => isset($row->subcategoria_nombre) ? $row->subcategoria_nombre : null,
@@ -394,10 +400,16 @@ class FeedController extends Controller
             return $forUnion ? null : collect();
         }
 
-        $q = DB::table('hechos as h')
-            ->leftJoin('users as u', 'u.id', '=', 'h.created_by');
-
         $unidadSql = Schema::hasColumn('hechos', 'unidad_org_id') ? 'COALESCE(h.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
+        $delegacionIdSql = 'COALESCE(h.delegacion_id, u.delegacion_id)';
+        $delegacionNombreSql = $this->delegacionNombreSql('dh', 'duh');
+
+        $q = DB::table('hechos as h')
+            ->leftJoin('users as u', 'u.id', '=', 'h.created_by')
+            ->leftJoin('delegaciones as dh', 'dh.id', '=', 'h.delegacion_id')
+            ->leftJoin('delegaciones as duh', 'duh.id', '=', 'u.delegacion_id')
+            ->leftJoin('unidades as un', DB::raw($unidadSql), '=', 'un.id');
+
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
         $this->applyDelegacionesScope($q, $usuario, 'h.delegacion_id');
 
@@ -409,6 +421,9 @@ class FeedController extends Controller
                 h.created_by as user_id,
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
+                un.nombre as unidad_nombre,
+                {$delegacionIdSql} as delegacion_id,
+                {$delegacionNombreSql} as delegacion_nombre,
                 CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
                 NULL as categoria_nombre,
                 NULL as subcategoria_nombre,
@@ -423,6 +438,9 @@ class FeedController extends Controller
             h.created_by as user_id,
             u.name as user_name,
             {$unidadSql} as unidad_id,
+            un.nombre as unidad_nombre,
+            {$delegacionIdSql} as delegacion_id,
+            {$delegacionNombreSql} as delegacion_nombre,
             CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
             NULL as categoria_nombre,
             NULL as subcategoria_nombre,
@@ -437,12 +455,18 @@ class FeedController extends Controller
             return $forUnion ? null : collect();
         }
 
+        $unidadSql = Schema::hasColumn('actividades', 'unidad_org_id') ? 'COALESCE(a.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
+        $delegacionIdSql = 'COALESCE(a.delegacion_id, u.delegacion_id)';
+        $delegacionNombreSql = $this->delegacionNombreSql('da', 'dua');
+
         $q = DB::table('actividades as a')
             ->leftJoin('users as u', 'u.id', '=', 'a.created_by')
             ->leftJoin('actividad_categorias as ac', 'ac.id', '=', 'a.actividad_categoria_id')
-            ->leftJoin('actividad_subcategorias as asub', 'asub.id', '=', 'a.actividad_subcategoria_id');
+            ->leftJoin('actividad_subcategorias as asub', 'asub.id', '=', 'a.actividad_subcategoria_id')
+            ->leftJoin('delegaciones as da', 'da.id', '=', 'a.delegacion_id')
+            ->leftJoin('delegaciones as dua', 'dua.id', '=', 'u.delegacion_id')
+            ->leftJoin('unidades as un', DB::raw($unidadSql), '=', 'un.id');
 
-        $unidadSql = Schema::hasColumn('actividades', 'unidad_org_id') ? 'COALESCE(a.unidad_org_id, u.unidad_id)' : 'u.unidad_id';
         $fotoPathSql = $this->actividadFeedFotoPathSql();
         $resumenSql = "COALESCE(
             NULLIF(TRIM(COALESCE(a.motivo,'')), ''),
@@ -462,6 +486,9 @@ class FeedController extends Controller
                 a.created_by as user_id,
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
+                un.nombre as unidad_nombre,
+                {$delegacionIdSql} as delegacion_id,
+                {$delegacionNombreSql} as delegacion_nombre,
                 {$resumenSql} as resumen,
                 ac.nombre as categoria_nombre,
                 asub.nombre as subcategoria_nombre,
@@ -476,6 +503,9 @@ class FeedController extends Controller
             a.created_by as user_id,
             u.name as user_name,
             {$unidadSql} as unidad_id,
+            un.nombre as unidad_nombre,
+            {$delegacionIdSql} as delegacion_id,
+            {$delegacionNombreSql} as delegacion_nombre,
             {$resumenSql} as resumen,
             ac.nombre as categoria_nombre,
             asub.nombre as subcategoria_nombre,
@@ -524,7 +554,10 @@ class FeedController extends Controller
 
         $q = DB::table('operativo_dispositivos as od')
             ->join('users as u', 'u.id', '=', 'od.created_by')
+            ->leftJoin('unidades as un', 'un.id', '=', 'od.unidad_org_id')
+            ->leftJoin('delegaciones as duod', 'duod.id', '=', 'u.delegacion_id')
             ->where('od.unidad_org_id', 4);
+        $delegacionNombreSql = $this->delegacionNombreSql('duod');
 
         $userId = (int) ($usuario->id ?? 0);
         $q->where(function ($w) use ($userId) {
@@ -543,6 +576,9 @@ class FeedController extends Controller
                 od.created_by as user_id,
                 u.name as user_name,
                 od.unidad_org_id as unidad_id,
+                un.nombre as unidad_nombre,
+                u.delegacion_id as delegacion_id,
+                {$delegacionNombreSql} as delegacion_nombre,
                 CONCAT(
                     TRIM(COALESCE(od.asunto,'')),
                     CASE
@@ -567,6 +603,9 @@ class FeedController extends Controller
             od.created_by as user_id,
             u.name as user_name,
             od.unidad_org_id as unidad_id,
+            un.nombre as unidad_nombre,
+            u.delegacion_id as delegacion_id,
+            {$delegacionNombreSql} as delegacion_nombre,
             CONCAT(
                 TRIM(COALESCE(od.asunto,'')),
                 CASE
@@ -607,8 +646,13 @@ class FeedController extends Controller
             return $forUnion ? null : collect();
         }
 
+        $unidadSql = Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id';
+        $delegacionNombreSql = $this->delegacionNombreSql('duvd');
+
         $q = DB::table('vialidad_dispositivos as vd')
-            ->join('users as u', 'u.id', '=', 'vd.created_by');
+            ->join('users as u', 'u.id', '=', 'vd.created_by')
+            ->leftJoin('unidades as un', DB::raw($unidadSql), '=', 'un.id')
+            ->leftJoin('delegaciones as duvd', 'duvd.id', '=', 'u.delegacion_id');
 
         if (Schema::hasColumn('vialidad_dispositivos', 'unidad_id')) {
             $q->where('vd.unidad_id', 5);
@@ -637,7 +681,10 @@ class FeedController extends Controller
                 vd.id as item_id,
                 vd.created_by as user_id,
                 u.name as user_name,
-                " . (Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id') . " as unidad_id,
+                {$unidadSql} as unidad_id,
+                un.nombre as unidad_nombre,
+                u.delegacion_id as delegacion_id,
+                {$delegacionNombreSql} as delegacion_nombre,
                 {$resumenSql} as resumen,
                 NULL as categoria_nombre,
                 NULL as subcategoria_nombre,
@@ -651,7 +698,10 @@ class FeedController extends Controller
             vd.id as item_id,
             vd.created_by as user_id,
             u.name as user_name,
-            " . (Schema::hasColumn('vialidad_dispositivos', 'unidad_id') ? 'vd.unidad_id' : 'u.unidad_id') . " as unidad_id,
+            {$unidadSql} as unidad_id,
+            un.nombre as unidad_nombre,
+            u.delegacion_id as delegacion_id,
+            {$delegacionNombreSql} as delegacion_nombre,
             {$resumenSql} as resumen,
             NULL as categoria_nombre,
             NULL as subcategoria_nombre,
@@ -671,6 +721,33 @@ class FeedController extends Controller
         }
 
         return null;
+    }
+
+    private function delegacionNombreSql(string $principalAlias, ?string $fallbackAlias = null): string
+    {
+        $principal = $this->delegacionNombreCaseSql($principalAlias);
+
+        if ($fallbackAlias === null) {
+            return $principal;
+        }
+
+        return "COALESCE({$principal}, {$this->delegacionNombreCaseSql($fallbackAlias)})";
+    }
+
+    private function delegacionNombreCaseSql(string $alias): string
+    {
+        return "CASE
+            WHEN {$alias}.id IS NOT NULL AND COALESCE(TRIM({$alias}.clave), '') <> '' THEN CONCAT({$alias}.nombre, ' (', {$alias}.clave, ')')
+            WHEN {$alias}.id IS NOT NULL THEN {$alias}.nombre
+            ELSE NULL
+        END";
+    }
+
+    private function normalizaTextoOpcional($valor): ?string
+    {
+        $texto = trim((string)$valor);
+
+        return $texto === '' ? null : $texto;
     }
 
     private function limpiaResumen($resumen, string $type): string

@@ -71,6 +71,7 @@ use App\Http\Controllers\MapaDelegacionesController;
 use App\Http\Controllers\EstadisticasCarreterasSettingsController;
 use App\Http\Controllers\EstadisticasSiniestrosSettingsController;
 use App\Http\Controllers\EstadisticasDelegacionesSettingsController;
+use App\Http\Controllers\EstadisticasFomentoSettingsController;
 
 use App\Http\Controllers\VialidadesUrbanasController;
 use App\Http\Controllers\VialidadesUrbanasDispositivoController;
@@ -691,7 +692,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{armamento}', [ArmamentoController::class, 'destroy'])->middleware('can:eliminar armamentos')->name('armamentos.destroy');
     });
 
-    Route::prefix('estadisticas')->middleware('can:ver estadisticas')->group(function () {
+    Route::prefix('estadisticas')->middleware(['can:ver estadisticas', 'role:Superadmin'])->group(function () {
         Route::get('/',[EstadisticasController::class,'index'])->name('estadisticas.index');
         Route::get('/comparativa-anual',[EstadisticasController::class,'comparativaAnual'])->name('estadisticas.comparativaAnual');
         Route::get('/semaforo-riesgo',[EstadisticasController::class,'semaforoRiesgo'])->name('estadisticas.semaforoRiesgo');
@@ -806,6 +807,13 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
         Route::get('/excel-mensual', [EstadisticasDelegacionesSettingsController::class,'excelMensual'])->name('settings.estadisticas_delegaciones.excel_mensual');
         Route::get('/excel-mensual/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class,'descargarExcelMensual'])->name('settings.estadisticas_delegaciones.excel_mensual.descargar');
+    });
+
+    Route::prefix('estadisticas-fomento')->group(function () {
+        Route::get('/', [EstadisticasFomentoSettingsController::class, 'index'])->name('settings.estadisticas_fomento.index');
+        Route::get('/excel-diario', [EstadisticasFomentoSettingsController::class, 'excelDiario'])->name('settings.estadisticas_fomento.excel_diario');
+        Route::post('/excel-diario/generar', [EstadisticasFomentoSettingsController::class, 'generarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.generar');
+        Route::get('/excel-diario/descargar/{fecha}', [EstadisticasFomentoSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.descargar');
     });
 
     Route::prefix('estadisticas-vialidad')->group(function () {

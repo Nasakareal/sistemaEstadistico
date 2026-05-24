@@ -176,14 +176,12 @@ class PuestaDisposicionController extends Controller
         return $query->firstOrFail();
     }
 
-    private function resolverHechoOrigen(Request $request, $usuario): Hechos
+    private function resolverHechoOrigen(Request $request, $usuario): ?Hechos
     {
         $hechoId = (int)$request->input('hecho_id');
 
         if ($hechoId <= 0) {
-            throw ValidationException::withMessages([
-                'hecho_id' => 'La puesta a disposición debe crearse desde el lado de actividad o desde el lado de hechos.',
-            ]);
+            return null;
         }
 
         return $this->findHechoVisibleParaPuesta($hechoId, $usuario);
@@ -362,17 +360,15 @@ class PuestaDisposicionController extends Controller
     {
         $usuario = auth()->user();
         $hechoId = (int)$request->query('hecho_id');
+        $hechoOrigen = null;
 
-        if ($hechoId <= 0) {
-            return redirect()->route('puestas_disposicion.index')
-                ->with('error', 'La puesta a disposición debe crearse desde el lado de actividad o desde el lado de hechos.');
-        }
+        if ($hechoId > 0) {
+            $hechoOrigen = $this->findHechoVisibleParaPuesta($hechoId, $usuario);
 
-        $hechoOrigen = $this->findHechoVisibleParaPuesta($hechoId, $usuario);
-
-        if ($hechoOrigen->puestaDisposicion) {
-            return redirect()->route('puestas_disposicion.show', $hechoOrigen->puestaDisposicion->id)
-                ->with('success', 'Este hecho ya tiene una puesta a disposición vinculada.');
+            if ($hechoOrigen->puestaDisposicion) {
+                return redirect()->route('puestas_disposicion.show', $hechoOrigen->puestaDisposicion->id)
+                    ->with('success', 'Este hecho ya tiene una puesta a disposición vinculada.');
+            }
         }
 
         $anioActual = now()->year;
@@ -386,16 +382,16 @@ class PuestaDisposicionController extends Controller
         );
 
         $unidadNombre = $this->obtenerNombreUnidad($unidadSeleccionadaId);
-        $tipoPuestaDefault = $this->tipoPuestaDesdeHecho($hechoOrigen);
-        $motivoDefault = 'HECHO DE TRANSITO TURNADO';
-        $lugarPuestaDefault = $this->lugarPuestaDesdeHecho($hechoOrigen);
-        $nombrePoliciaDefault = $hechoOrigen->perito ?: ($usuario->name ?? '');
-        $oficioDefault = $hechoOrigen->folio_c5i;
-        $fechaPuestaDefault = $hechoOrigen->fecha
+        $tipoPuestaDefault = $hechoOrigen ? $this->tipoPuestaDesdeHecho($hechoOrigen) : 'PERSONA';
+        $motivoDefault = $hechoOrigen ? 'HECHO DE TRANSITO TURNADO' : null;
+        $lugarPuestaDefault = $hechoOrigen ? $this->lugarPuestaDesdeHecho($hechoOrigen) : null;
+        $nombrePoliciaDefault = $hechoOrigen ? ($hechoOrigen->perito ?: ($usuario->name ?? '')) : ($usuario->name ?? '');
+        $oficioDefault = $hechoOrigen ? $hechoOrigen->folio_c5i : null;
+        $fechaPuestaDefault = $hechoOrigen && $hechoOrigen->fecha
             ? $hechoOrigen->fecha->format('Y-m-d')
             : now()->toDateString();
-        $horaPuestaDefault = $hechoOrigen->hora ? substr((string)$hechoOrigen->hora, 0, 5) : null;
-        $vehiculosHechoPuesta = $this->vehiculosHechoPayload($hechoOrigen);
+        $horaPuestaDefault = $hechoOrigen && $hechoOrigen->hora ? substr((string)$hechoOrigen->hora, 0, 5) : null;
+        $vehiculosHechoPuesta = $hechoOrigen ? $this->vehiculosHechoPayload($hechoOrigen) : [];
 
         $ultimoRegistro = PuestaDisposicion::query()
             ->where('anio', $anioActual)
@@ -438,7 +434,7 @@ class PuestaDisposicionController extends Controller
     {
         $usuario = auth()->user();
         $hechoOrigen = $this->resolverHechoOrigen($request, $usuario);
-        if (PuestaDisposicion::query()->where('hecho_id', $hechoOrigen->id)->exists()) {
+        if ($hechoOrigen && PuestaDisposicion::query()->where('hecho_id', $hechoOrigen->id)->exists()) {
             throw ValidationException::withMessages([
                 'hecho_id' => 'Este hecho ya tiene una puesta a disposición vinculada.',
             ]);
@@ -448,7 +444,7 @@ class PuestaDisposicionController extends Controller
             ?: $this->resolverUnidadRegistro($request, $usuario);
 
         $request->merge([
-            'hecho_id'              => $hechoOrigen->id,
+            'hecho_id'              => $hechoOrigen ? $hechoOrigen->id : null,
             'unidad_id'             => $unidadRegistroId,
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
             'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
@@ -465,7 +461,7 @@ class PuestaDisposicionController extends Controller
         ]);
 
         $request->validate([
-            'hecho_id'              => 'required|integer|exists:hechos,id',
+            'hecho_id'              => 'nullable|integer|exists:hechos,id',
             'tipo_puesta'           => 'required|string|max:100',
             'motivo'                => 'required|string|max:150',
             'estatus'               => 'nullable|string|max:100',
@@ -543,7 +539,7 @@ class PuestaDisposicionController extends Controller
             $numeroSiguiente = $ultimoRegistro ? ($ultimoRegistro->numero_puesta + 1) : 1;
 
             $puesta = PuestaDisposicion::create([
-                'hecho_id'              => $hechoOrigen->id,
+                'hecho_id'              => $hechoOrigen ? $hechoOrigen->id : null,
                 'numero_puesta'         => $numeroSiguiente,
                 'anio'                  => $anioActual,
                 'tipo_puesta'           => $request->input('tipo_puesta'),
@@ -561,7 +557,7 @@ class PuestaDisposicionController extends Controller
                 'narrativa'             => $request->input('narrativa'),
                 'observaciones'         => $request->input('observaciones'),
                 'unidad_id'             => $unidadRegistroId,
-                'delegacion_id'         => $hechoOrigen->delegacion_id ?: $usuario->delegacion_id,
+                'delegacion_id'         => $hechoOrigen ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id) : $usuario->delegacion_id,
                 'destacamento_id'       => $usuario->destacamento_id,
                 'archivo_puesta'        => $archivoPuesta,
                 'created_by'            => $usuario->id,

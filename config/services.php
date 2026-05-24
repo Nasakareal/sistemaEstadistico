@@ -61,6 +61,7 @@ return [
             'template_body_max_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_BODY_MAX_CHARS', 1024),
             'template_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEMPLATE_CHUNK_CHARS', 850),
             'text_chunk_chars' => (int) env('WHATSAPP_TODAS_UNIDADES_TEXT_CHUNK_CHARS', 3900),
+            'two_part_send_delay_seconds' => (int) env('WHATSAPP_TODAS_UNIDADES_TWO_PART_SEND_DELAY_SECONDS', 2),
         ],
 
         'delegaciones' => [

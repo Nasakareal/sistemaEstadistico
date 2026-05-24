@@ -101,7 +101,7 @@ class PuestaDisposicionController extends Controller
         return $unidadId>0 ? $unidadId : null;
     }
 
-    private function resolverHechoOrigen(Request $request,$usuario): Hechos
+    private function resolverHechoOrigen(Request $request,$usuario): ?Hechos
     {
         $hechoId=(int)$request->input('hecho_id');
         $hechoClientUuid=trim((string)$request->input('hecho_client_uuid',''));
@@ -113,9 +113,7 @@ class PuestaDisposicionController extends Controller
         } elseif ($hechoClientUuid!=='') {
             $query->where('client_uuid',$hechoClientUuid);
         } else {
-            throw ValidationException::withMessages([
-                'hecho_id'=>'La puesta a disposición debe crearse desde el lado de actividad o desde el lado de hechos.',
-            ]);
+            return null;
         }
 
         HechoAccess::applyVisibilityScope($query,$usuario);
@@ -342,7 +340,7 @@ class PuestaDisposicionController extends Controller
     {
         $usuario=Auth::user();
         $hechoOrigen=$this->resolverHechoOrigen($request,$usuario);
-        if (PuestaDisposicion::query()->where('hecho_id',$hechoOrigen->id)->exists()) {
+        if ($hechoOrigen && PuestaDisposicion::query()->where('hecho_id',$hechoOrigen->id)->exists()) {
             throw ValidationException::withMessages([
                 'hecho_id'=>'Este hecho ya tiene una puesta a disposición vinculada.',
             ]);
@@ -350,7 +348,7 @@ class PuestaDisposicionController extends Controller
 
         $unidadRegistroId=$this->unidadIdDesdeHecho($hechoOrigen)
             ?: $this->resolverUnidadRegistro($request,$usuario);
-        $request->merge(['hecho_id'=>$hechoOrigen->id]);
+        $request->merge(['hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null]);
         $this->prepararRequestStore($request,$unidadRegistroId);
         $this->validarStore($request,$usuario);
 
@@ -383,7 +381,7 @@ class PuestaDisposicionController extends Controller
             }
 
             $puesta=PuestaDisposicion::create([
-                'hecho_id'=>$hechoOrigen->id,
+                'hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null,
                 'numero_puesta'=>$numero,
                 'anio'=>$anioActual,
                 'tipo_puesta'=>$request->input('tipo_puesta'),
@@ -402,7 +400,7 @@ class PuestaDisposicionController extends Controller
                 'observaciones'=>$request->input('observaciones'),
                 'archivo_puesta'=>$archivo,
                 'unidad_id'=>$unidadRegistroId,
-                'delegacion_id'=>$hechoOrigen->delegacion_id ?: $usuario->delegacion_id,
+                'delegacion_id'=>$hechoOrigen ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id) : $usuario->delegacion_id,
                 'destacamento_id'=>$usuario->destacamento_id,
                 'created_by'=>$usuario->id,
             ]);

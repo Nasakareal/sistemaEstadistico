@@ -37,6 +37,7 @@ class VerificarResumenTodasUnidadesWhatsApp extends Command
         $templateBodyMaxChars = (int) config('services.whatsapp.todas_unidades.template_body_max_chars', 1024);
         $templateChunkChars = (int) config('services.whatsapp.todas_unidades.template_chunk_chars', 850);
         $textChunkChars = (int) config('services.whatsapp.todas_unidades.text_chunk_chars', 3900);
+        $twoPartSendDelaySeconds = max(0, min(10, (int) config('services.whatsapp.todas_unidades.two_part_send_delay_seconds', 2)));
         $dailyBodyChars = mb_strlen($this->renderDailyTemplateBody($dailyParams), 'UTF-8');
         $twoPartBodies = $this->renderTwoPartTemplateBodies($dailyParams);
         $selectedTemplateLayout = $this->resolveTemplateLayout($templateLayout, $dailyBodyChars, $templateBodyMaxChars);
@@ -98,6 +99,7 @@ class VerificarResumenTodasUnidadesWhatsApp extends Command
                 $this->line('Mensajes a enviar: 2');
                 $this->line('Parte 1/2: ' . mb_strlen($twoPartBodies[0], 'UTF-8') . ' caracteres');
                 $this->line('Parte 2/2: ' . mb_strlen($twoPartBodies[1], 'UTF-8') . ' caracteres');
+                $this->line('Pausa entre parte 1 y 2: ' . $twoPartSendDelaySeconds . ' segundo(s)');
             } elseif ($this->usaTemplateBloque($selectedTemplateLayout)) {
                 $this->line('Cuerpo esperado en Meta:');
                 $this->line('Reporte diario de todas las unidades');

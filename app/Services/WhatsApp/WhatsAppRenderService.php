@@ -364,6 +364,8 @@ class WhatsAppRenderService
                 return 'PROTECCIÓN A CARRETERAS.';
             case 5:
                 return 'PROTECCIÓN A VIALIDADES URBANAS.';
+            case 6:
+                return 'FOMENTO A LA CULTURA VIAL.';
             default:
                 return '';
         }

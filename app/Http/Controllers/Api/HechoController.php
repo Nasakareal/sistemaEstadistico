@@ -1091,7 +1091,7 @@ class HechoController extends Controller
         $archivoField = $request->hasFile('archivo_iph') ? 'archivo_iph' : 'archivo_dictamen';
 
         $validator = Validator::make($request->all(), [
-            $archivoField => 'required|file|mimes:pdf|max:10240',
+            $archivoField => 'required|file|mimes:pdf|max:20480',
             'nombre_policia' => 'sometimes|nullable|string|max:100',
             'nombre_mp' => 'sometimes|nullable|string|max:100',
         ], $this->messages());

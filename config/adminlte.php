@@ -446,6 +446,7 @@ return [
                 [
                     'text' => 'Siniestros',
                     'icon' => 'fa-solid fa-car-burst',
+                    'can'  => 'menu-estadisticas-siniestros',
                     'submenu' => [
                         [
                             'text'    => 'Panel Global',
@@ -465,13 +466,28 @@ return [
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-actividades',
-                            'can'     => 'ver estadisticas actividades',
+                            'can'     => 'menu-estadisticas-actividades-siniestros',
                         ],
                         [
                             'text'    => 'Mapa de Choques por Zona',
                             'route'   => 'hechos.zonas.index',
                             'icon'    => 'fa-solid fa-draw-polygon',
                             'can'     => 'ver mapa',
+                        ],
+                    ],
+                ],
+
+                [
+                    'text' => 'Fomento a la Cultura Vial',
+                    'icon' => 'fa-solid fa-school',
+                    'can'  => 'menu-estadisticas-actividades-fomento',
+                    'submenu' => [
+                        [
+                            'text'    => 'Actividades',
+                            'icon'    => 'fa-solid fa-clipboard-list',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-actividades',
+                            'can'     => 'menu-estadisticas-actividades-fomento',
                         ],
                     ],
                 ],

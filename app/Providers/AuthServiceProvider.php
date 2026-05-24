@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\FomentoCulturaVialDetalleManager;
 use App\Support\HechoAccess;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -191,6 +192,36 @@ class AuthServiceProvider extends ServiceProvider
                 );
         });
 
+        Gate::define('menu-estadisticas-siniestros', function ($user) {
+            return (
+                $user->perteneceAUnidad('siniestros')
+                || (int) $user->unidad_id === 1
+                || (int) $user->unidad_id === 3
+            ) && (
+                $user->can('ver estadisticas globales')
+                || $user->can('ver estadisticas')
+                || $user->can('ver estadisticas actividades')
+                || $user->can('ver mapa')
+            );
+        });
+
+        Gate::define('menu-estadisticas-actividades-siniestros', function ($user) {
+            return $user->can('ver estadisticas actividades')
+                && (
+                    $user->perteneceAUnidad('siniestros')
+                    || (int) $user->unidad_id === 1
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
+        Gate::define('menu-estadisticas-actividades-fomento', function ($user) {
+            return $user->can('ver estadisticas actividades')
+                && (
+                    $this->isFomentoCulturaVialUser($user)
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
         Gate::define('menu-estadisticas-generales', function ($user) {
             return (
                 $user->can('ver estadisticas globales')
@@ -205,6 +236,9 @@ class AuthServiceProvider extends ServiceProvider
                     $user->perteneceAUnidad('carreteras')
                     || (int) $user->unidad_id === 3
                 )
+            ) || (
+                $user->can('menu-estadisticas-actividades-siniestros')
+                || $user->can('menu-estadisticas-actividades-fomento')
             );
         });
 
@@ -289,6 +323,11 @@ class AuthServiceProvider extends ServiceProvider
     private function isSeguridadVialUser($user): bool
     {
         return (int) ($user->unidad_id ?? 0) === 3;
+    }
+
+    private function isFomentoCulturaVialUser($user): bool
+    {
+        return app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($user);
     }
 
     private function isReadAbility($ability): bool

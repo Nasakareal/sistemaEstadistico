@@ -141,16 +141,21 @@ class ActividadController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $gruas = $this->obtenerGruasDisponiblesParaUsuario(Auth::user());
+        $usuario = Auth::user();
+        $gruas = $this->obtenerGruasDisponiblesParaUsuario($usuario);
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+        $usuarioEsFomento = $fomentoManager->usuarioEsFomento($usuario);
         $fomentoCategoriaIds = $fomentoManager->categoriaIds();
-        $categoriaSeleccionada = (int) old('actividad_categoria_id', 0);
-        $mostrarFomentoCulturaVial = $fomentoManager->usuarioEsFomento(Auth::user())
+        $categoriaDefaultId = $usuarioEsFomento
+            ? $this->categoriaCapacitacionesId()
+            : null;
+        $categoriaSeleccionada = (int) old('actividad_categoria_id', $categoriaDefaultId ?: 0);
+        $mostrarFomentoCulturaVial = $usuarioEsFomento
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
-        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora(Auth::user());
+        $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        return view('actividades.create', compact('categorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora'));
+        return view('actividades.create', compact('categorias', 'gruas', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'usuarioEsFomento'));
     }
 
     public function store(Request $request)
@@ -159,6 +164,11 @@ class ActividadController extends Controller
 
         $user = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+
+        if ($fomentoManager->usuarioEsFomento($user)) {
+            $request->merge(['vehiculos' => []]);
+        }
 
         $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
@@ -211,6 +221,7 @@ class ActividadController extends Controller
         ]);
 
         $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
+        $validated = $this->ajustarPayloadParaUsuarioFomento($validated, $user, $fomentoManager);
 
         if ($response = $this->validarGruasPermitidasEnVehiculos($validated['vehiculos'] ?? [], $user)) {
             return $response;
@@ -261,8 +272,6 @@ class ActividadController extends Controller
                 'fotos' => ActividadDuplicateGuard::MESSAGE,
             ])->withInput();
         }
-
-        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
         return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $user, $fomentoManager) {
             $actividad = Actividad::create([
@@ -425,15 +434,16 @@ class ActividadController extends Controller
 
         $gruas = $this->obtenerGruasDisponiblesParaUsuario($usuario);
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+        $usuarioEsFomento = $fomentoManager->usuarioEsFomento($usuario);
         $fomentoCategoriaIds = $fomentoManager->categoriaIds();
         $categoriaSeleccionada = (int) old('actividad_categoria_id', $actividad->actividad_categoria_id);
-        $mostrarFomentoCulturaVial = $fomentoManager->usuarioEsFomento($usuario)
+        $mostrarFomentoCulturaVial = $usuarioEsFomento
             || $fomentoManager->actividadEsFomento($actividad)
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora'));
+        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'usuarioEsFomento'));
     }
 
     public function update(Request $request, Actividad $actividad)
@@ -485,6 +495,8 @@ class ActividadController extends Controller
 
         $validated['nombre'] = mb_strtoupper((string) ($usuario->name ?? ''), 'UTF-8');
         $validated['cantidad'] = 1;
+        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+        $validated = $this->ajustarPayloadParaUsuarioFomento($validated, $usuario, $fomentoManager);
 
         if (!empty($validated['actividad_subcategoria_id'])) {
             $ok = $this->subcategoriaPermitidaParaUsuario(
@@ -514,8 +526,6 @@ class ActividadController extends Controller
         $horaCaptura = $puedeCapturarFechaHora
             ? ($validated['hora'] ?? $actividad->hora ?? $horaRespaldo)
             : ($actividad->hora ?? $horaRespaldo);
-
-        $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
         return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura, $fomentoManager) {
             $actividad->update([
@@ -700,7 +710,103 @@ class ActividadController extends Controller
             });
         }
 
-        return $query->orderBy('nombre')->get();
+        $items = $query->orderBy('nombre')->get();
+
+        if (!$this->debePriorizarSubcategoriasFomento($categoriaId, $usuario)) {
+            return $items;
+        }
+
+        $subcategoriasFomento = array_flip($this->fomentoSubcategoriaIdsConProgramas());
+
+        if (empty($subcategoriasFomento)) {
+            return $items;
+        }
+
+        return $items->sort(function ($a, $b) use ($subcategoriasFomento) {
+            $prioridadA = isset($subcategoriasFomento[(int) $a->id]) ? 0 : 1;
+            $prioridadB = isset($subcategoriasFomento[(int) $b->id]) ? 0 : 1;
+
+            if ($prioridadA !== $prioridadB) {
+                return $prioridadA <=> $prioridadB;
+            }
+
+            return strnatcasecmp((string) $a->nombre, (string) $b->nombre);
+        })->values();
+    }
+
+    private function categoriaCapacitacionesId(): ?int
+    {
+        $categoria = ActividadCategoria::query()
+            ->where('activo', 1)
+            ->where(function ($query) {
+                $query->where('slug', 'capacitaciones')
+                    ->orWhereRaw('UPPER(nombre) = ?', ['CAPACITACIONES']);
+            })
+            ->first(['id']);
+
+        return $categoria ? (int) $categoria->id : null;
+    }
+
+    private function categoriaEsCapacitaciones(int $categoriaId): bool
+    {
+        if ($categoriaId <= 0) {
+            return false;
+        }
+
+        return ActividadCategoria::query()
+            ->whereKey($categoriaId)
+            ->where(function ($query) {
+                $query->where('slug', 'capacitaciones')
+                    ->orWhereRaw('UPPER(nombre) = ?', ['CAPACITACIONES']);
+            })
+            ->exists();
+    }
+
+    private function debePriorizarSubcategoriasFomento(int $categoriaId, $usuario): bool
+    {
+        return app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($usuario)
+            && $this->categoriaEsCapacitaciones($categoriaId);
+    }
+
+    private function fomentoSubcategoriaIdsConProgramas(): array
+    {
+        return FomentoCulturaVialPrograma::query()
+            ->where('activo', 1)
+            ->distinct()
+            ->pluck('actividad_subcategoria_id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->values()
+            ->all();
+    }
+
+    private function ajustarPayloadParaUsuarioFomento(array $validated, $usuario, FomentoCulturaVialDetalleManager $fomentoManager): array
+    {
+        if (!$fomentoManager->usuarioEsFomento($usuario)) {
+            return $validated;
+        }
+
+        $validated['motivo'] = null;
+        $validated['acciones_realizadas'] = null;
+        $validated['vehiculos'] = [];
+        $validated['personas_alcanzadas'] = $this->totalPoblacionFomento($validated);
+
+        return $validated;
+    }
+
+    private function totalPoblacionFomento(array $data): int
+    {
+        $fomento = $data['fomento'] ?? [];
+
+        if (!is_array($fomento)) {
+            return 0;
+        }
+
+        return collect(FomentoCulturaVialDetalleManager::NUMERIC_FIELDS)
+            ->sum(function ($field) use ($fomento) {
+                return max(0, (int) ($fomento[$field] ?? 0));
+            });
     }
 
     private function obtenerProgramasFomentoCaptura()
@@ -1475,6 +1581,10 @@ class ActividadController extends Controller
 
         if (!$q->exists()) {
             abort(404);
+        }
+
+        if (app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($usuario)) {
+            return back()->with('error', 'Fomento a la Cultura Vial no captura vehículos relacionados en actividades.');
         }
 
         $validated = $this->validarVehiculoRequest($request);

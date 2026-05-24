@@ -78,7 +78,10 @@ class ResumenTodasUnidadesWhatsAppService
             'dsv_pasos_peatonales' => $this->actividadCount('DISPOSITIVOS DE SEGURIDAD VIAL', 'PASOS PEATONALES', $inicio, $fin),
             'dsv_patrullajes' => $this->actividadCount('DISPOSITIVOS DE SEGURIDAD VIAL', 'PATRULLAJES', $inicio, $fin),
 
+            'concientizacion_talleres' => $this->actividadCount('CAPACITACIONES', 'TALLER EDUCACION SEGURIDAD VIAL', $inicio, $fin),
             'concientizacion_campanas' => $this->actividadCount('CAPACITACIONES', 'CAMPAÑA EDUCACION SEGURIDAD VIAL', $inicio, $fin),
+            'concientizacion_capacitaciones' => $this->actividadCount('CAPACITACIONES', 'CAPACITACIONES EDUCACION SEGURIDAD VIAL', $inicio, $fin),
+            'concientizacion_modulos' => $this->actividadCount('CAPACITACIONES', 'MODULOS EDUCACION SEGURIDAD VIAL', $inicio, $fin),
             'concientizacion_personas' => $this->actividadPeople('CAPACITACIONES', null, $inicio, $fin),
 
             'campanas_concientizacion' => $this->actividadCount('CAMPAÑAS', 'CONCIENTIZACION Y PREVENCION', $inicio, $fin),
@@ -248,7 +251,10 @@ class ResumenTodasUnidadesWhatsAppService
                 [$t['dsv_patrullajes'], 'patrullaje', 'patrullajes'],
             ]),
             $this->formatItems([
+                [$t['concientizacion_talleres'], 'taller de educación en seguridad vial', 'talleres de educación en seguridad vial'],
                 [$t['concientizacion_campanas'], 'campaña de educación en seguridad vial', 'campañas de educación en seguridad vial'],
+                [$t['concientizacion_capacitaciones'], 'capacitación de educación en seguridad vial', 'capacitaciones de educación en seguridad vial'],
+                [$t['concientizacion_modulos'], 'módulo de educación en seguridad vial', 'módulos de educación en seguridad vial'],
                 [$t['concientizacion_personas'], 'persona sensibilizada', 'personas sensibilizadas'],
             ]),
             $this->formatItems([
@@ -322,6 +328,10 @@ class ResumenTodasUnidadesWhatsAppService
             ->join('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
             ->where('actividad_categorias.slug', $this->slug($categoria));
 
+        if ($this->tablaExiste('fomento_cultura_vial_detalles')) {
+            $query->leftJoin('fomento_cultura_vial_detalles as fomento', 'fomento.actividad_id', '=', 'actividades.id');
+        }
+
         if ($subcategoria !== null && $this->tablaExiste('actividad_subcategorias')) {
             $query->join('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
                 ->where('actividad_subcategorias.slug', $this->slug($subcategoria));
@@ -329,7 +339,11 @@ class ResumenTodasUnidadesWhatsAppService
 
         $this->aplicarRango($query, 'actividades', 'actividades', $inicio, $fin);
 
-        return (int) $query->sum(DB::raw('COALESCE(actividades.personas_alcanzadas, 0)'));
+        $personasExpr = $this->tablaExiste('fomento_cultura_vial_detalles')
+            ? 'COALESCE(NULLIF(fomento.total_poblacion_atendida, 0), actividades.personas_alcanzadas, 0)'
+            : 'COALESCE(actividades.personas_alcanzadas, 0)';
+
+        return (int) $query->sum(DB::raw($personasExpr));
     }
 
     protected function siniestros(Carbon $inicio, Carbon $fin): array

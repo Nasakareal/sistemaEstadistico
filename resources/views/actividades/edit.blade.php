@@ -221,23 +221,25 @@
                         @include('actividades.partials.fomento_cultura_vial_fields', ['detalleFomento' => $actividad->fomentoCulturaVialDetalle])
 
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="motivo">Qué ocasiona / motivo</label>
-                                    <textarea name="motivo"
-                                              id="motivo"
-                                              rows="3"
-                                              class="form-control @error('motivo') is-invalid @enderror"
-                                              placeholder="Ej. CORTE DE CIRCULACIÓN POR MANIFESTACIÓN">{{ old('motivo', $actividad->motivo) }}</textarea>
-                                    @error('motivo')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
+                            @unless($usuarioEsFomento ?? false)
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="motivo">Qué ocasiona / motivo</label>
+                                        <textarea name="motivo"
+                                                  id="motivo"
+                                                  rows="3"
+                                                  class="form-control @error('motivo') is-invalid @enderror"
+                                                  placeholder="Ej. CORTE DE CIRCULACIÓN POR MANIFESTACIÓN">{{ old('motivo', $actividad->motivo) }}</textarea>
+                                        @error('motivo')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
                                 </div>
-                            </div>
+                            @endunless
 
-                            <div class="col-md-6">
+                            <div class="{{ ($usuarioEsFomento ?? false) ? 'col-md-12' : 'col-md-6' }}">
                                 <div class="form-group">
                                     <label for="narrativa">Narrativa</label>
                                     <textarea name="narrativa"
@@ -255,23 +257,25 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="acciones_realizadas">Acciones realizadas</label>
-                                    <textarea name="acciones_realizadas"
-                                              id="acciones_realizadas"
-                                              rows="3"
-                                              class="form-control @error('acciones_realizadas') is-invalid @enderror"
-                                              placeholder="Acciones realizadas por el personal">{{ old('acciones_realizadas', $actividad->acciones_realizadas) }}</textarea>
-                                    @error('acciones_realizadas')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
+                            @unless($usuarioEsFomento ?? false)
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="acciones_realizadas">Acciones realizadas</label>
+                                        <textarea name="acciones_realizadas"
+                                                  id="acciones_realizadas"
+                                                  rows="3"
+                                                  class="form-control @error('acciones_realizadas') is-invalid @enderror"
+                                                  placeholder="Acciones realizadas por el personal">{{ old('acciones_realizadas', $actividad->acciones_realizadas) }}</textarea>
+                                        @error('acciones_realizadas')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
                                 </div>
-                            </div>
+                            @endunless
 
-                            <div class="col-md-6">
+                            <div class="{{ ($usuarioEsFomento ?? false) ? 'col-md-12' : 'col-md-6' }}">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>
                                     <textarea name="observaciones"
@@ -288,25 +292,38 @@
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="personas_alcanzadas">Personas alcanzadas</label>
-                                    <input type="number"
-                                           min="0"
-                                           name="personas_alcanzadas"
-                                           id="personas_alcanzadas"
-                                           class="form-control @error('personas_alcanzadas') is-invalid @enderror"
-                                           value="{{ old('personas_alcanzadas', $actividad->personas_alcanzadas ?? 0) }}">
-                                    @error('personas_alcanzadas')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
+                        @if($usuarioEsFomento ?? false)
+                            <input type="hidden"
+                                   name="personas_alcanzadas"
+                                   id="personas_alcanzadas"
+                                   value="{{ old('personas_alcanzadas', $actividad->personas_alcanzadas ?? 0) }}">
+                        @endif
 
-                            <div class="col-md-4">
+                        @php
+                            $colPersonasActividad = ($usuarioEsFomento ?? false) ? 'col-md-6' : 'col-md-4';
+                        @endphp
+
+                        <div class="row">
+                            @unless($usuarioEsFomento ?? false)
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="personas_alcanzadas">Personas alcanzadas</label>
+                                        <input type="number"
+                                               min="0"
+                                               name="personas_alcanzadas"
+                                               id="personas_alcanzadas"
+                                               class="form-control @error('personas_alcanzadas') is-invalid @enderror"
+                                               value="{{ old('personas_alcanzadas', $actividad->personas_alcanzadas ?? 0) }}">
+                                        @error('personas_alcanzadas')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            @endunless
+
+                            <div class="{{ $colPersonasActividad }}">
                                 <div class="form-group">
                                     <label for="personas_participantes">Personas participantes</label>
                                     <input type="number"
@@ -323,7 +340,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="{{ $colPersonasActividad }}">
                                 <div class="form-group">
                                     <label for="personas_detenidas">Personas detenidas</label>
                                     <input type="number"
@@ -470,7 +487,9 @@
 
                     </form>
 
-                    @include('actividades.partials.vehiculos_edit', ['actividad' => $actividad])
+                    @unless($usuarioEsFomento ?? false)
+                        @include('actividades.partials.vehiculos_edit', ['actividad' => $actividad])
+                    @endunless
                 </div>
             </div>
         </div>
@@ -869,5 +888,7 @@
         @endif
     </script>
 
-    @include('actividades.partials.vehiculos_scripts', ['modo' => 'edit'])
+    @unless($usuarioEsFomento ?? false)
+        @include('actividades.partials.vehiculos_scripts', ['modo' => 'edit'])
+    @endunless
 @stop

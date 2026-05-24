@@ -33,6 +33,7 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
         $templateBodyMaxChars = (int) config('services.whatsapp.todas_unidades.template_body_max_chars', 1024);
         $templateChunkChars = (int) config('services.whatsapp.todas_unidades.template_chunk_chars', 850);
         $textChunkChars = (int) config('services.whatsapp.todas_unidades.text_chunk_chars', 3900);
+        $twoPartSendDelaySeconds = max(0, min(10, (int) config('services.whatsapp.todas_unidades.two_part_send_delay_seconds', 2)));
         $dailyBodyChars = mb_strlen($this->renderDailyTemplateBody($dailyParams), 'UTF-8');
         $twoPartBodies = $this->renderTwoPartTemplateBodies($dailyParams);
         $selectedTemplateLayout = $this->resolveTemplateLayout($templateLayout, $dailyBodyChars, $templateBodyMaxChars);
@@ -59,6 +60,7 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
                     $this->line('Mensajes: 2');
                     $this->line('Parte 1/2: ' . mb_strlen($twoPartBodies[0], 'UTF-8') . ' caracteres');
                     $this->line('Parte 2/2: ' . mb_strlen($twoPartBodies[1], 'UTF-8') . ' caracteres');
+                    $this->line('Pausa entre parte 1 y 2: ' . $twoPartSendDelaySeconds . ' segundo(s)');
                 } elseif ($this->usaTemplateBloque($selectedTemplateLayout)) {
                     $chunks = $resumenService->whatsAppTemplateChunks($mensaje, $templateChunkChars);
                     $this->line('Partes: ' . count($chunks));
@@ -122,7 +124,7 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
         foreach ($recipients as $recipient) {
             try {
                 if ($usarTemplate && $this->usaTemplateDosPartes($selectedTemplateLayout)) {
-                    $responses = $this->sendTwoPartTemplates($whatsApp, $recipient, $twoPartTemplate1, $twoPartTemplate2, $dailyParams, $language);
+                    $responses = $this->sendTwoPartTemplates($whatsApp, $recipient, $twoPartTemplate1, $twoPartTemplate2, $dailyParams, $language, $twoPartSendDelaySeconds);
                 } elseif ($usarTemplate && $this->usaTemplateBloque($selectedTemplateLayout)) {
                     $responses = $this->sendTemplateChunks($whatsApp, $resumenService, $recipient, $mensaje, $blockTemplate, $language, $templateChunkChars);
                 } elseif ($usarTemplate) {
@@ -182,11 +184,15 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
         string $template1,
         string $template2,
         array $params,
-        string $language
+        string $language,
+        int $delaySeconds = 0
     ): array {
         $accepted = [];
 
-        foreach ($this->twoPartTemplatePayloads($template1, $template2, $params) as $payload) {
+        $payloads = $this->twoPartTemplatePayloads($template1, $template2, $params);
+        usort($payloads, fn ($a, $b) => ((int) $a['part']) <=> ((int) $b['part']));
+
+        foreach ($payloads as $payload) {
             $response = $whatsApp->sendTemplate($recipient, $payload['template'], $payload['params'], $language);
 
             $messageId = $this->handleMetaResponse(
@@ -196,6 +202,10 @@ class EnviarResumenTodasUnidadesWhatsApp extends Command
             );
 
             $accepted[] = $messageId;
+
+            if ((int) $payload['part'] === 1 && $delaySeconds > 0) {
+                sleep($delaySeconds);
+            }
         }
 
         return $accepted;

@@ -22,10 +22,14 @@ class UserController extends Controller
     {
         $actor = $request->user();
         $q = trim((string) $request->query('q', ''));
+        $unidadId = (int) $request->query('unidad_id', 0);
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
 
         $users = $this->queryUsuariosVisiblesParaActor($actor)
             ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
+            ->when($this->actorTieneVisibilidadGlobal($actor) && $unidadId > 0, function ($query) use ($unidadId) {
+                $query->where('unidad_id', $unidadId);
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('name', 'like', "%{$q}%")
@@ -422,11 +426,7 @@ class UserController extends Controller
                     return;
                 }
 
-                if ($this->actorEsAdministrador($actor)) {
-                    $query->where('unidad_id', $actor->unidad_id);
-                } else {
-                    $query->where('id', $actor->id);
-                }
+                $query->where('unidad_id', $actor->unidad_id);
             });
     }
 
@@ -443,7 +443,7 @@ class UserController extends Controller
     private function unidadesDisponiblesParaActor(User $actor)
     {
         return Unidad::query()
-            ->when(!$this->actorEsSuperadmin($actor), function ($query) use ($actor) {
+            ->when(!$this->actorTieneVisibilidadGlobal($actor), function ($query) use ($actor) {
                 $query->where('id', $actor->unidad_id);
             })
             ->orderBy('nombre')

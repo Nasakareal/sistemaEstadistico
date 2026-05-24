@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\IncidenciaTipo;
 use App\Models\Personal;
 use App\Models\PersonalIncidencia;
+use App\Models\Unidad;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -26,11 +27,15 @@ class SettingsPersonalController extends Controller
     {
         $actor = $request->user();
         $q = trim((string) $request->query('q', ''));
+        $unidadId = (int) $request->query('unidad_id', 0);
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
 
         $personals = $this->queryPersonalVisibleParaActor($actor)
             ->with(['unidad', 'turno', 'patrulla', 'user'])
             ->withCount('incidencias')
+            ->when($this->actorTieneVisibilidadGlobal($actor) && $unidadId > 0, function ($query) use ($unidadId) {
+                $query->where('unidad_id', $unidadId);
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('nombre', 'like', "%{$q}%")
@@ -58,6 +63,27 @@ class SettingsPersonalController extends Controller
                 'per_page' => $personals->perPage(),
                 'total' => $personals->total(),
             ],
+        ]);
+    }
+
+    public function meta(Request $request)
+    {
+        $actor = $request->user();
+
+        return response()->json([
+            'unidades' => Unidad::query()
+                ->where('activa', 1)
+                ->when(!$this->actorTieneVisibilidadGlobal($actor), function ($query) use ($actor) {
+                    $query->where('id', $actor->unidad_id);
+                })
+                ->orderBy('nombre')
+                ->get()
+                ->map(fn (Unidad $unidad) => [
+                    'id' => $unidad->id,
+                    'nombre' => $unidad->nombre,
+                    'slug' => $unidad->slug,
+                ])
+                ->values(),
         ]);
     }
 

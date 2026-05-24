@@ -17,12 +17,16 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $actor = Auth::user();
+        $unidadId = (int) $request->query('unidad_id', 0);
 
         $users = $this->queryUsuariosVisiblesParaActor($actor)
             ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
+            ->when($this->actorTieneVisibilidadGlobal($actor) && $unidadId > 0, function ($query) use ($unidadId) {
+                $query->where('unidad_id', $unidadId);
+            })
             ->get();
 
         return view('admin.settings.users.index', compact('users'));
@@ -510,7 +514,7 @@ class UserController extends Controller
     private function unidadesDisponiblesParaActor(User $actor)
     {
         return Unidad::query()
-            ->when(!$this->actorEsSuperadmin($actor), function ($q) use ($actor) {
+            ->when(!$this->actorTieneVisibilidadGlobal($actor), function ($q) use ($actor) {
                 $q->where('id', $actor->unidad_id);
             })
             ->orderBy('nombre')
@@ -624,11 +628,7 @@ class UserController extends Controller
                     return;
                 }
 
-                if ($this->actorEsAdministrador($actor)) {
-                    $q->where('unidad_id', $actor->unidad_id);
-                } else {
-                    $q->where('id', $actor->id);
-                }
+                $q->where('unidad_id', $actor->unidad_id);
             });
     }
 }

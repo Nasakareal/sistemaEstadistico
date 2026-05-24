@@ -161,6 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('settings/personal')->middleware('can:ver personal')->group(function () {
+        Route::get('/meta', [SettingsPersonalController::class, 'meta'])->name('api.settings.personal.meta');
         Route::get('/', [SettingsPersonalController::class, 'index'])->name('api.settings.personal.index');
         Route::get('/{personal}', [SettingsPersonalController::class, 'show'])->whereNumber('personal')->name('api.settings.personal.show');
         Route::post('/{personal}/incidencias', [SettingsPersonalController::class, 'storeIncidencia'])->middleware('can:editar personal')->whereNumber('personal')->name('api.settings.personal.incidencias.store');

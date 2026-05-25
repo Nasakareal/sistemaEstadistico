@@ -24,14 +24,22 @@ class WhatsAppLink
 
         $unidadId = (int) $hecho->unidad_org_id;
 
-        $unidadTexto = match ($unidadId) {
-            1 => 'UNIDAD DE ATENCIÓN A SINIESTROS',
-            2 => 'UNIDAD DE DELEGACIONES',
-            4 => 'UNIDAD DE PROTECCIÓN A CARRETERAS',
-            default => DB::table('unidades')
-                ->where('id', $hecho->unidad_org_id)
-                ->value('nombre') ?: 'SIN DATO',
-        };
+        switch ($unidadId) {
+            case 1:
+                $unidadTexto = 'UNIDAD DE ATENCIÓN A SINIESTROS';
+                break;
+            case 2:
+                $unidadTexto = 'UNIDAD DE DELEGACIONES';
+                break;
+            case 4:
+                $unidadTexto = 'UNIDAD DE PROTECCIÓN A CARRETERAS';
+                break;
+            default:
+                $unidadTexto = DB::table('unidades')
+                    ->where('id', $hecho->unidad_org_id)
+                    ->value('nombre') ?: 'SIN DATO';
+                break;
+        }
 
         $lines[] = self::upper($unidadTexto);
         $lines[] = "";
@@ -72,6 +80,8 @@ class WhatsAppLink
         $tema = "TEMA: HECHO DE TRÁNSITO CLASIFICADO COMO " . self::upper($hecho->tipo_hecho);
         $lines[] = $tema;
         $lines[] = "";
+        $lines[] = "ID DEL HECHO: " . ($hecho->id ?: "SIN DATO");
+        $lines[] = "";
 
         $fecha = !empty($hecho->fecha) ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d') : '';
         $hora = !empty($hecho->hora) ? substr((string) $hecho->hora, 0, 5) : '';
@@ -90,7 +100,7 @@ class WhatsAppLink
         $lines[] = "";
         $lines[] = "Lugar donde se encuentran:";
 
-        $vehiculos = $hecho->vehiculos()->with('conductores')->get();
+        $vehiculos = self::vehiculosDelHecho($hecho);
 
         if ($vehiculos->count() > 0) {
             $letter = 'A';
@@ -172,7 +182,7 @@ class WhatsAppLink
         $lines[] = "Hecho " . self::upper($situacion) . ".";
 
         if (method_exists($hecho, 'lesionados')) {
-            $lesionados = $hecho->lesionados()->get();
+            $lesionados = self::lesionadosDelHecho($hecho);
 
             if ($lesionados->count() > 0) {
                 $fallecidos = $lesionados->filter(function ($l) {
@@ -269,6 +279,8 @@ class WhatsAppLink
             }
         }
 
+        self::appendPersonasDetenidas($lines, $hecho);
+
         if (!is_null($hecho->lat) && !is_null($hecho->lng)) {
             $lat = $hecho->lat;
             $lng = $hecho->lng;
@@ -283,6 +295,113 @@ class WhatsAppLink
         }
 
         return implode("\n", $lines);
+    }
+
+    private static function vehiculosDelHecho(Hechos $hecho)
+    {
+        if ($hecho->relationLoaded('vehiculos')) {
+            return $hecho->getRelation('vehiculos') ?: collect();
+        }
+
+        return $hecho->vehiculos()->with('conductores')->get();
+    }
+
+    private static function lesionadosDelHecho(Hechos $hecho)
+    {
+        if ($hecho->relationLoaded('lesionados')) {
+            return $hecho->getRelation('lesionados') ?: collect();
+        }
+
+        return $hecho->lesionados()->get();
+    }
+
+    private static function puestaDisposicionVinculada(Hechos $hecho)
+    {
+        if ($hecho->relationLoaded('puestaDisposicion')) {
+            return $hecho->getRelation('puestaDisposicion');
+        }
+
+        return $hecho->puestaDisposicion()->with('personas')->first();
+    }
+
+    private static function personasPuesta($puesta)
+    {
+        if (!$puesta) {
+            return collect();
+        }
+
+        if ($puesta->relationLoaded('personas')) {
+            return $puesta->getRelation('personas') ?: collect();
+        }
+
+        return $puesta->personas()->get();
+    }
+
+    private static function appendPersonasDetenidas(array &$lines, Hechos $hecho): void
+    {
+        $puesta = self::puestaDisposicionVinculada($hecho);
+        $personas = self::personasPuesta($puesta)
+            ->filter(fn ($persona) => trim((string) ($persona->nombre_completo ?? '')) !== '')
+            ->values();
+
+        if ($personas->count() === 0) {
+            return;
+        }
+
+        $folioPuesta = trim((string) ($puesta->numero_puesta ?? ''));
+        $anioPuesta = trim((string) ($puesta->anio ?? ''));
+
+        if ($folioPuesta !== '' && $anioPuesta !== '') {
+            $folioPuesta .= '/' . $anioPuesta;
+        } elseif ($anioPuesta !== '') {
+            $folioPuesta = $anioPuesta;
+        }
+
+        $lines[] = "";
+        $lines[] = "De este hecho de tránsito resultan personas detenidas:";
+
+        if ($folioPuesta !== '') {
+            $lines[] = "Puesta a disposición: {$folioPuesta}.";
+        }
+
+        foreach ($personas as $persona) {
+            $nombre = trim((string) ($persona->nombre_completo ?: 'SIN DATO'));
+            $edad = $persona->edad ?: 'S/E';
+            $sexo = self::upper($persona->sexo ?: 'SIN DATO');
+            $alias = trim((string) ($persona->alias ?: ''));
+            $calidad = self::upper($persona->calidad ?: 'SIN DATO');
+            $motivo = trim((string) ($persona->delito_o_motivo ?: ''));
+            $mandamiento = trim((string) ($persona->mandamiento_judicial ?: ''));
+            $observaciones = trim((string) ($persona->observaciones ?: ''));
+
+            $texto = "- {$nombre}, de {$edad} años, sexo {$sexo}.";
+
+            if ($alias !== '') {
+                $texto .= " Alias: " . self::upper($alias) . ".";
+            }
+
+            if ($calidad !== 'SIN DATO') {
+                $texto .= " Calidad: {$calidad}.";
+            }
+
+            if ($motivo !== '') {
+                $texto .= " Motivo: " . self::upper($motivo) . ".";
+            }
+
+            if (!empty($persona->orden_aprehension)) {
+                $texto .= " Cuenta con orden de aprehensión.";
+            }
+
+            if ($mandamiento !== '') {
+                $texto .= " Mandamiento judicial: " . self::upper($mandamiento) . ".";
+            }
+
+            if ($observaciones !== '') {
+                $texto .= " Observaciones: {$observaciones}.";
+            }
+
+            $lines[] = $texto;
+        }
     }
 
     private static function upper(?string $s): string

@@ -265,6 +265,16 @@
                             </div>
 
                             <div class="col-md-6">
+                                <label class="help-muted d-block">Nombre (escuela, empresa)</label>
+                                <div class="form-control-like text-wrap-block">{{ $detalleFomento->nombre_institucion ?? '—' }}</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="help-muted d-block">Domicilio</label>
+                                <div class="form-control-like text-wrap-block">{{ $detalleFomento->domicilio ?? '—' }}</div>
+                            </div>
+
+                            <div class="col-md-6">
                                 <label class="help-muted d-block">Nivel educativo</label>
                                 <div class="form-control-like">{{ $detalleFomento->nivel_educativo ?? '—' }}</div>
                             </div>

@@ -17,6 +17,8 @@ class FomentoCulturaVialDetalle extends Model
         'nivel_educativo',
         'sector',
         'programa_nombre',
+        'nombre_institucion',
+        'domicilio',
         'ninas',
         'ninos',
         'adolescentes_mujeres',

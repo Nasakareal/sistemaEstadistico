@@ -394,7 +394,7 @@ Route::prefix('vialidades-urbanas')->middleware(['auth', 'can:ver operativos via
     });
 });
 
-Route::prefix('oficios')->middleware('can:ver oficios')->group(function () {
+Route::prefix('admin/settings/oficios')->middleware(['auth', 'can:ver oficios'])->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');
     Route::get('/create',[OficioController::class,'create'])->middleware('can:crear oficios')->name('oficios.create');
     Route::post('/',[OficioController::class,'store'])->middleware('can:crear oficios')->name('oficios.store');
@@ -814,6 +814,8 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/excel-diario', [EstadisticasFomentoSettingsController::class, 'excelDiario'])->name('settings.estadisticas_fomento.excel_diario');
         Route::post('/excel-diario/generar', [EstadisticasFomentoSettingsController::class, 'generarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.generar');
         Route::get('/excel-diario/descargar/{fecha}', [EstadisticasFomentoSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.descargar');
+        Route::get('/municipios-atendidos', [EstadisticasFomentoSettingsController::class, 'municipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos');
+        Route::get('/municipios-atendidos/exportar', [EstadisticasFomentoSettingsController::class, 'exportarMunicipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos.exportar');
     });
 
     Route::prefix('estadisticas-vialidad')->group(function () {

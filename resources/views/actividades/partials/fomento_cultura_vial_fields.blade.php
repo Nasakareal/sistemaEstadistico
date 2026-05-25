@@ -39,6 +39,40 @@
     </div>
 
     <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="fomento_nombre_institucion">Nombre (escuela, empresa)</label>
+                <input type="text"
+                       name="fomento[nombre_institucion]"
+                       id="fomento_nombre_institucion"
+                       maxlength="255"
+                       class="form-control @error('fomento.nombre_institucion') is-invalid @enderror"
+                       value="{{ $fomentoValue('nombre_institucion', '') }}">
+                @error('fomento.nombre_institucion')
+                    <span class="invalid-feedback" role="alert">
+                        <strong>{{ $message }}</strong>
+                    </span>
+                @enderror
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="fomento_domicilio">Domicilio</label>
+                <input type="text"
+                       name="fomento[domicilio]"
+                       id="fomento_domicilio"
+                       maxlength="255"
+                       class="form-control @error('fomento.domicilio') is-invalid @enderror"
+                       value="{{ $fomentoValue('domicilio', '') }}">
+                @error('fomento.domicilio')
+                    <span class="invalid-feedback" role="alert">
+                        <strong>{{ $message }}</strong>
+                    </span>
+                @enderror
+            </div>
+        </div>
+
         <div class="col-md-12">
             <div class="form-group">
                 <label for="fomento_programa_id">Programa / taller / campaña</label>

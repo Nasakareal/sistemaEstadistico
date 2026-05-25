@@ -41,6 +41,11 @@ class Unidad extends Model
         return $this->hasMany(Actividad::class, 'unidad_org_id');
     }
 
+    public function oficios()
+    {
+        return $this->hasMany(Oficio::class, 'unidad_id');
+    }
+
     public function operativosCatalogo()
     {
         return $this->hasMany(OperativoCatalogo::class, 'unidad_id');

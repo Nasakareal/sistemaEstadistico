@@ -21,6 +21,10 @@ class AuthServiceProvider extends ServiceProvider
                 return true;
             }
 
+            if ($this->isOficiosAbility($ability) && !empty($user->unidad_id)) {
+                return true;
+            }
+
             if ($this->isSeguridadVialUser($user)) {
                 if ($ability === 'crear usuarios') {
                     return true;
@@ -328,6 +332,15 @@ class AuthServiceProvider extends ServiceProvider
     private function isFomentoCulturaVialUser($user): bool
     {
         return app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($user);
+    }
+
+    private function isOficiosAbility($ability): bool
+    {
+        return in_array($this->normalizeAbility($ability), [
+            'ver oficios',
+            'crear oficios',
+            'editar oficios',
+        ], true);
     }
 
     private function isReadAbility($ability): bool

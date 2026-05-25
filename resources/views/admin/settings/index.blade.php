@@ -80,6 +80,24 @@
             </div>
         @endcan
 
+        {{-- OFICIOS --}}
+        @can('ver oficios')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-info">
+                        <i class="fa-solid fa-envelopes-bulk"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Oficios</div>
+                        <div class="sv-card__desc">Entradas, salidas y contestaciones por unidad.</div>
+                        <a href="{{ route('oficios.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- PATRULLAS --}}
         @can('ver patrullas')
             <div class="col-md-3 col-sm-6 col-12">

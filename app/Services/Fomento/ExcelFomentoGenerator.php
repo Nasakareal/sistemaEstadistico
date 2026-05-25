@@ -123,6 +123,8 @@ class ExcelFomentoGenerator
                 'users.name as capturo',
                 'fomento.fomento_cultura_vial_programa_id',
                 'fomento.programa_nombre',
+                'fomento.nombre_institucion',
+                'fomento.domicilio',
                 'fomento.nivel_educativo',
                 'fomento.sector',
                 'fomento.ninas',

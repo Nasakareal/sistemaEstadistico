@@ -412,7 +412,6 @@ return [
                 ],
             ],
         ],
-        /*
         [
             'text'    => 'Oficios',
             'icon'    => 'fas fa-envelope-open-text',
@@ -423,19 +422,18 @@ return [
                     'text'    => 'Listado de Oficios',
                     'icon'    => 'fas fa-envelope-open-text',
                     'classes' => 'text-white',
-                    'url'     => 'oficios',
+                    'url'     => 'admin/settings/oficios',
                     'can'     => 'ver oficios',
                 ],
                 [
                     'text'    => 'Subir Oficio',
                     'icon'    => 'fa-solid fa-plus',
                     'classes' => 'text-white',
-                    'url'     => 'oficios/create',
+                    'url'     => 'admin/settings/oficios/create',
                     'can'     => 'crear oficios',
                 ],
             ],
         ],
-        */
         [
             'text'    => 'Estadísticas Globales',
             'icon'    => 'fa-solid fa-chart-column',
@@ -661,6 +659,13 @@ return [
                     'classes' => 'text-white',
                     'url'     => 'admin/settings/constancias/preguntas',
                     'can'     => 'menu-modulo-examenes',
+                ],
+                [
+                    'text'    => 'Oficios',
+                    'icon'    => 'fas fa-envelope-open-text',
+                    'classes' => 'text-white',
+                    'url'     => 'admin/settings/oficios',
+                    'can'     => 'ver oficios',
                 ],
             ],
         ],

@@ -1364,6 +1364,8 @@ class ActividadController extends Controller
             $texto .= $nombreDestacamento . "\n\n";
         }
 
+        $texto .= "ID DE ACTIVIDAD: {$actividad->id}\n\n";
+
         if ($fecha) {
             $texto .= "FECHA {$fecha}\n";
         }

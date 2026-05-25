@@ -928,6 +928,8 @@ class ActividadController extends Controller
             $texto .= $actividad->destacamento->nombre . "\n\n";
         }
 
+        $texto .= "ID DE ACTIVIDAD: {$actividad->id}\n\n";
+
         if ($fecha) $texto .= "FECHA {$fecha}\n";
         if ($hora) $texto .= "HORA {$hora}\n\n";
 

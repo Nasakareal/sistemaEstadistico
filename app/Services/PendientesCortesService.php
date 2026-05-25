@@ -13,6 +13,7 @@ class PendientesCortesService
 {
     public const UNIDAD_SINIESTROS_ID = 1;
     public const UNIDAD_DELEGACIONES_ID = 2;
+    public const FUENTE_LEGACY_PERITOS = 'legacy_peritos';
 
     public function cortesQuery($usuario, int $unidadId, bool $incluirCortesVacios = false): Builder
     {
@@ -120,6 +121,8 @@ class PendientesCortesService
             return;
         }
 
+        $this->applyExcludeLegacyPeritosScope($query);
+
         $query->where(function (Builder $scope) use ($unidadIds) {
             $scope->whereIn('unidad_org_id', $unidadIds)
                 ->orWhere(function (Builder $legacy) use ($unidadIds) {
@@ -129,6 +132,14 @@ class PendientesCortesService
                         });
                 });
         });
+    }
+
+    public function applyExcludeLegacyPeritosScope(Builder $query): void
+    {
+        $query->whereRaw(
+            "LOWER(TRIM(COALESCE(fuente_ubicacion, ''))) <> ?",
+            [self::FUENTE_LEGACY_PERITOS]
+        );
     }
 
     private function applyHechosUnidadVisibleScope(Builder $query, $usuario, int $unidadId): void

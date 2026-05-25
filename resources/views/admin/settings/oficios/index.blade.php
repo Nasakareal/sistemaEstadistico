@@ -14,11 +14,6 @@
                     <i class="fa-solid fa-plus"></i> Nuevo
                 </a>
             @endcan
-            @can('ver configuraciones')
-                <a href="{{ route('settings.index') }}" class="btn btn-secondary">
-                    <i class="fa-solid fa-gear"></i> Settings
-                </a>
-            @endcan
         </div>
     </div>
 @stop
@@ -107,9 +102,11 @@
                         <th>Tipo</th>
                         <th>Movimiento</th>
                         <th>Fecha</th>
+                        <th>Término</th>
                         @if($puedeFiltrarUnidad)
                             <th>Unidad</th>
                         @endif
+                        <th>Creó</th>
                         <th>Asunto</th>
                         <th>Ruta</th>
                         <th>Respuesta</th>
@@ -119,7 +116,8 @@
                 </thead>
                 <tbody>
                     @foreach($oficios as $oficio)
-                        <tr>
+                        @php($pendienteContestacion = $oficio->pendiente_contestacion)
+                        <tr class="{{ $pendienteContestacion ? 'oficio-row--pendiente-contestacion' : '' }}">
                             <td class="oficio-numero" title="{{ $oficio->numero_oficio }}">
                                 {{ $oficio->numero_corto }}
                             </td>
@@ -133,9 +131,19 @@
                                 </span>
                             </td>
                             <td>{{ optional($oficio->fecha_documento)->format('d-m-Y') ?? optional($oficio->created_at)->format('d-m-Y') }}</td>
+                            <td>
+                                @if($oficio->termino_label)
+                                    <span class="badge {{ $pendienteContestacion ? 'badge-danger' : 'badge-warning' }}">
+                                        {{ $oficio->termino_label }}
+                                    </span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             @if($puedeFiltrarUnidad)
                                 <td>{{ $oficio->unidad->nombre ?? 'Sin unidad' }}</td>
                             @endif
+                            <td>{{ $oficio->creador->name ?? '—' }}</td>
                             <td>{{ $oficio->asunto ?? '—' }}</td>
                             <td>
                                 <div><strong>De:</strong> {{ $oficio->remitente ?? '—' }}</div>
@@ -151,7 +159,11 @@
                                 @endif
 
                                 @if($oficio->contestaciones_count > 0)
-                                    <span class="badge badge-success">{{ $oficio->contestaciones_count }} contest.</span>
+                                    <a href="{{ route('oficios.show', $oficio) }}#contestaciones" class="badge badge-success">
+                                        {{ $oficio->contestaciones_count }} contest.
+                                    </a>
+                                @elseif($pendienteContestacion)
+                                    <span class="badge badge-danger">Falta contestar</span>
                                 @endif
                             </td>
                             <td>

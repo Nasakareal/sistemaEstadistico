@@ -25,7 +25,7 @@ class OficiosUnidadScopeTest extends TestCase
         $model = $this->source('app/Models/Oficio.php');
         $show = $this->source('resources/views/admin/settings/oficios/show.blade.php');
 
-        foreach (['amparo', 'memorandum', 'oficio', 'circular'] as $tipo) {
+        foreach (['amparo', 'memorandum', 'oficio', 'circular', 'administrativo'] as $tipo) {
             $this->assertStringContainsString("'" . $tipo . "'", $model);
         }
 
@@ -34,7 +34,32 @@ class OficiosUnidadScopeTest extends TestCase
         $this->assertStringContainsString('contestaA()', $model);
         $this->assertStringContainsString('contestaciones()', $model);
         $this->assertStringContainsString('Este documento contesta a:', $show);
+        $this->assertStringContainsString('id="contestaciones"', $show);
         $this->assertStringContainsString('Aún no hay documentos registrados como contestación.', $show);
+    }
+
+    public function test_oficios_tienen_termino_alerta_visual_y_whatsapp(): void
+    {
+        $model = $this->source('app/Models/Oficio.php');
+        $controller = $this->source('app/Http/Controllers/OficioController.php');
+        $form = $this->source('resources/views/admin/settings/oficios/_form.blade.php');
+        $index = $this->source('resources/views/admin/settings/oficios/index.blade.php');
+        $config = $this->source('config/services.php');
+
+        foreach ([12, 24, 48, 72] as $horas) {
+            $this->assertStringContainsString($horas . " => '" . $horas . " horas'", $model);
+        }
+
+        $this->assertStringContainsString('termino_horas', $controller);
+        $this->assertStringContainsString('OficioTerminoWhatsAppService', $controller);
+        $this->assertStringContainsString('id="termino_horas"', $form);
+        $this->assertStringContainsString("return \$this->sentido === 'entrada'", $model);
+        $this->assertStringNotContainsString("(int) (\$this->termino_horas ?? 0) > 0", $model);
+        $this->assertStringContainsString('oficio-row--pendiente-contestacion', $index);
+        $this->assertStringContainsString('Falta contestar', $index);
+        $this->assertStringContainsString('#contestaciones', $index);
+        $this->assertStringNotContainsString("route('settings.index')", $index);
+        $this->assertStringContainsString('WHATSAPP_OFICIOS_TERMINOS_TO', $config);
     }
 
     public function test_las_salidas_generan_numero_y_las_entradas_lo_capturan_manual(): void
@@ -55,6 +80,7 @@ class OficiosUnidadScopeTest extends TestCase
         $this->assertStringContainsString("'fomento-cultura-vial' => 'UFCV'", $model);
         $this->assertStringContainsString('Se asignará automáticamente al guardar', $form);
         $this->assertStringContainsString('Para documentos de entrada, escribe el número', $form);
+        $this->assertStringContainsString('El movimiento no puede cambiarse después del registro.', $form);
     }
 
     public function test_gate_no_convierte_eliminar_oficios_en_permiso_implicitamente_global(): void

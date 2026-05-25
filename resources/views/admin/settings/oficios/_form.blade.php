@@ -1,9 +1,13 @@
 @php
     $selectedTipo = old('tipo', $oficio->tipo ?: 'oficio');
-    $selectedSentido = old('sentido', $oficio->sentido ?: 'entrada');
+    $selectedSentido = $oficio->exists
+        ? ($oficio->sentido ?: 'entrada')
+        : old('sentido', $oficio->sentido ?: 'entrada');
+    $selectedTermino = old('termino_horas', $oficio->termino_horas);
     $selectedUnidad = old('unidad_id', $oficio->unidad_id ?: optional(auth()->user())->unidad_id);
     $selectedContesta = old('contesta_a_id', $oficio->contesta_a_id);
     $esSalida = $selectedSentido === 'salida';
+    $bloquearSentido = $oficio->exists;
     $prefijosUnidad = $prefijosUnidad ?? [];
     $anioOriginal = $oficio->exists ? optional($oficio->fecha_documento ?: $oficio->created_at)->format('Y') : null;
 @endphp
@@ -26,6 +30,9 @@
     <div class="col-lg-3 col-md-6">
         <div class="form-group">
             <label for="sentido">Movimiento</label>
+            @if($bloquearSentido)
+                <input type="hidden" name="sentido" value="{{ $oficio->sentido }}">
+            @endif
             <select name="sentido" id="sentido" class="form-control @error('sentido') is-invalid @enderror" required>
                 @foreach($sentidos as $value => $label)
                     <option value="{{ $value }}" {{ $selectedSentido === $value ? 'selected' : '' }}>
@@ -33,6 +40,9 @@
                     </option>
                 @endforeach
             </select>
+            @if($bloquearSentido)
+                <small class="form-text text-muted">El movimiento no puede cambiarse después del registro.</small>
+            @endif
             @error('sentido') <span class="invalid-feedback">{{ $message }}</span> @enderror
         </div>
     </div>
@@ -74,7 +84,7 @@
 </div>
 
 <div class="row">
-    <div class="col-lg-6">
+    <div class="col-lg-4">
         <div class="form-group">
             <label for="numero_oficio">Número</label>
             <input type="text"
@@ -91,6 +101,23 @@
                    placeholder="{{ $esSalida ? 'Se asignará al guardar' : 'Ej. SSV/DAJ/AM/000000000000/2026' }}">
             <small id="numero_help" class="form-text text-muted"></small>
             @error('numero_oficio') <span class="invalid-feedback">{{ $message }}</span> @enderror
+        </div>
+    </div>
+
+    <div class="col-lg-2">
+        <div class="form-group">
+            <label for="termino_horas">Término</label>
+            <select name="termino_horas"
+                    id="termino_horas"
+                    class="form-control @error('termino_horas') is-invalid @enderror">
+                <option value="">Sin término</option>
+                @foreach($terminosHoras as $value => $label)
+                    <option value="{{ $value }}" {{ (string) $selectedTermino === (string) $value ? 'selected' : '' }}>
+                        {{ $label }}
+                    </option>
+                @endforeach
+            </select>
+            @error('termino_horas') <span class="invalid-feedback">{{ $message }}</span> @enderror
         </div>
     </div>
 
@@ -237,9 +264,14 @@
         const numero = document.getElementById('numero_oficio');
         const ayuda = document.getElementById('numero_help');
         const prefijos = @json($prefijosUnidad);
+        const bloquearSentido = @json($bloquearSentido);
 
         if (!sentido || !numero || !ayuda) {
             return;
+        }
+
+        if (bloquearSentido) {
+            sentido.disabled = true;
         }
 
         const updateNumeroState = function () {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Oficio;
 use App\Models\Unidad;
+use App\Services\OficioTerminoWhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class OficioController extends Controller
     public function index(Request $request)
     {
         $query = $this->queryOficiosVisibles()
-            ->with(['unidad', 'contestaA' => function ($q) {
+            ->with(['unidad', 'creador', 'contestaA' => function ($q) {
                 $q->visibleFor($this->actor());
             }])
             ->withCount('contestaciones');
@@ -33,6 +34,7 @@ class OficioController extends Controller
             'oficios' => $oficios,
             'tipos' => Oficio::TIPOS,
             'sentidos' => Oficio::SENTIDOS,
+            'terminosHoras' => Oficio::TERMINOS_HORAS,
             'unidades' => $this->unidadesDisponibles(),
             'puedeFiltrarUnidad' => $this->actorEsSuperadmin(),
             'filtros' => $request->only(['buscar', 'tipo', 'sentido', 'unidad_id']),
@@ -57,12 +59,14 @@ class OficioController extends Controller
                 'sentido' => $contestaA ? 'salida' : 'entrada',
                 'unidad_id' => $unidadId ?: null,
                 'fecha_documento' => now(),
+                'termino_horas' => null,
                 'asunto' => $contestaA ? 'Contestación a ' . $contestaA->numero_oficio : null,
                 'destinatario' => $contestaA ? $contestaA->remitente : null,
                 'contesta_a_id' => $contestaA ? $contestaA->id : null,
             ]),
             'tipos' => Oficio::TIPOS,
             'sentidos' => Oficio::SENTIDOS,
+            'terminosHoras' => Oficio::TERMINOS_HORAS,
             'unidades' => $unidades,
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
             'oficiosParaContestar' => $this->oficiosParaContestar($unidadId ?: null),
@@ -89,6 +93,8 @@ class OficioController extends Controller
 
             return Oficio::create($data);
         });
+
+        $this->notificarTerminoSiAplica($oficio);
 
         return redirect()
             ->route('oficios.show', $oficio)
@@ -118,6 +124,7 @@ class OficioController extends Controller
             'oficio' => $oficio,
             'tipos' => Oficio::TIPOS,
             'sentidos' => Oficio::SENTIDOS,
+            'terminosHoras' => Oficio::TERMINOS_HORAS,
         ]);
     }
 
@@ -131,6 +138,7 @@ class OficioController extends Controller
             'oficio' => $oficio,
             'tipos' => Oficio::TIPOS,
             'sentidos' => Oficio::SENTIDOS,
+            'terminosHoras' => Oficio::TERMINOS_HORAS,
             'unidades' => $unidades,
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
             'oficiosParaContestar' => $this->oficiosParaContestar((int) $oficio->unidad_id, (int) $oficio->id),
@@ -144,10 +152,16 @@ class OficioController extends Controller
 
         $validated = $this->validar($request, $oficio);
         $unidadId = $this->unidadIdParaGuardar($validated);
+        $terminoAnterior = (int) ($oficio->termino_horas ?? 0);
 
         $this->validarContestaA($validated['contesta_a_id'] ?? null, $unidadId, $oficio);
 
         $data = $this->datosParaGuardar($validated, $unidadId);
+
+        if ((int) ($data['termino_horas'] ?? 0) !== $terminoAnterior) {
+            $data['termino_notificado_at'] = null;
+        }
+
         $data['updated_by'] = optional($this->actor())->id;
 
         $this->guardarPdf($request, $data, $oficio);
@@ -157,6 +171,9 @@ class OficioController extends Controller
             $this->asignarNumeroSalida($data, $oficio);
             $oficio->update($data);
         });
+
+        $oficio->refresh();
+        $this->notificarTerminoSiAplica($oficio);
 
         return redirect()
             ->route('oficios.show', $oficio)
@@ -247,6 +264,10 @@ class OficioController extends Controller
 
     private function validar(Request $request, ?Oficio $oficio = null): array
     {
+        if ($oficio) {
+            $request->merge(['sentido' => $oficio->sentido]);
+        }
+
         $unidadId = $this->actorEsSuperadmin()
             ? (int) $request->input('unidad_id')
             : (int) optional($this->actor())->unidad_id;
@@ -270,11 +291,12 @@ class OficioController extends Controller
         return $request->validate([
             'numero_oficio' => $numeroRules,
             'tipo' => ['required', Rule::in(array_keys(Oficio::TIPOS))],
-            'sentido' => ['required', Rule::in(array_keys(Oficio::SENTIDOS))],
+            'sentido' => ['required', Rule::in($oficio ? [$oficio->sentido] : array_keys(Oficio::SENTIDOS))],
             'unidad_id' => $this->actorEsSuperadmin()
                 ? ['required', 'integer', 'exists:unidades,id']
                 : ['nullable'],
             'fecha_documento' => ['nullable', 'date'],
+            'termino_horas' => ['nullable', 'integer', Rule::in(array_keys(Oficio::TERMINOS_HORAS))],
             'remitente' => ['nullable', 'string', 'max:255'],
             'destinatario' => ['nullable', 'string', 'max:255'],
             'asunto' => ['nullable', 'string', 'max:500'],
@@ -310,6 +332,9 @@ class OficioController extends Controller
             'sentido' => $validated['sentido'],
             'unidad_id' => $unidadId,
             'fecha_documento' => $validated['fecha_documento'] ?? null,
+            'termino_horas' => !empty($validated['termino_horas'])
+                ? (int) $validated['termino_horas']
+                : null,
             'remitente' => $this->limpiarTexto($validated['remitente'] ?? null),
             'destinatario' => $this->limpiarTexto($validated['destinatario'] ?? null),
             'asunto' => $this->limpiarTexto($validated['asunto'] ?? null),
@@ -508,5 +533,14 @@ class OficioController extends Controller
         $value = trim((string) $value);
 
         return $value !== '' ? $value : null;
+    }
+
+    private function notificarTerminoSiAplica(Oficio $oficio): void
+    {
+        try {
+            app(OficioTerminoWhatsAppService::class)->notificar($oficio);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

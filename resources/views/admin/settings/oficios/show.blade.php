@@ -54,6 +54,10 @@
                             <div class="oficio-meta__value">{{ optional($oficio->fecha_documento)->format('d-m-Y') ?? 'Sin fecha' }}</div>
                         </div>
                         <div class="oficio-meta__item">
+                            <div class="oficio-meta__label">Término</div>
+                            <div class="oficio-meta__value">{{ $oficio->termino_label ?? 'Sin término' }}</div>
+                        </div>
+                        <div class="oficio-meta__item">
                             <div class="oficio-meta__label">Remitente</div>
                             <div class="oficio-meta__value">{{ $oficio->remitente ?? '—' }}</div>
                         </div>
@@ -73,7 +77,7 @@
                 </div>
             </div>
 
-            <div class="card card-outline card-primary">
+            <div class="card card-outline card-primary" id="contestaciones">
                 <div class="card-header">
                     <h3 class="card-title">
                         <i class="fa-solid fa-reply-all"></i> Contestaciones
@@ -86,6 +90,10 @@
                             <a href="{{ route('oficios.show', $oficio->contestaA) }}">
                                 {{ $oficio->contestaA->tipo_label }} · {{ $oficio->contestaA->numero_oficio }}
                             </a>
+                        </div>
+                    @elseif($oficio->pendiente_contestacion)
+                        <div class="alert alert-danger">
+                            Este documento es una entrada y aún no tiene contestación registrada.
                         </div>
                     @else
                         <div class="alert alert-secondary">

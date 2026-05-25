@@ -15,11 +15,19 @@ class Oficio extends Model
         'memorandum' => 'Memorándum',
         'oficio' => 'Oficio',
         'circular' => 'Circular',
+        'administrativo' => 'Administrativo',
     ];
 
     public const SENTIDOS = [
         'entrada' => 'Entrada',
         'salida' => 'Salida',
+    ];
+
+    public const TERMINOS_HORAS = [
+        12 => '12 horas',
+        24 => '24 horas',
+        48 => '48 horas',
+        72 => '72 horas',
     ];
 
     public const PREFIJOS_UNIDAD = [
@@ -37,6 +45,8 @@ class Oficio extends Model
         'sentido',
         'unidad_id',
         'fecha_documento',
+        'termino_horas',
+        'termino_notificado_at',
         'remitente',
         'destinatario',
         'asunto',
@@ -51,6 +61,8 @@ class Oficio extends Model
     protected $casts = [
         'fotos' => 'array',
         'fecha_documento' => 'date',
+        'termino_horas' => 'integer',
+        'termino_notificado_at' => 'datetime',
         'unidad_id' => 'integer',
         'contesta_a_id' => 'integer',
         'created_by' => 'integer',
@@ -105,11 +117,37 @@ class Oficio extends Model
         return self::SENTIDOS[$this->sentido] ?? ucfirst((string) $this->sentido);
     }
 
+    public function getTerminoLabelAttribute(): ?string
+    {
+        $horas = (int) ($this->termino_horas ?? 0);
+
+        return self::TERMINOS_HORAS[$horas] ?? null;
+    }
+
+    public function getPendienteContestacionAttribute(): bool
+    {
+        return $this->sentido === 'entrada'
+            && !$this->tieneContestacionRegistrada();
+    }
+
     public function getNumeroCortoAttribute(): string
     {
         $numero = (string) $this->numero_oficio;
 
         return strlen($numero) > 42 ? substr($numero, 0, 39) . '...' : $numero;
+    }
+
+    public function tieneContestacionRegistrada(): bool
+    {
+        if (array_key_exists('contestaciones_count', $this->attributes)) {
+            return (int) $this->attributes['contestaciones_count'] > 0;
+        }
+
+        if ($this->relationLoaded('contestaciones')) {
+            return $this->contestaciones->isNotEmpty();
+        }
+
+        return $this->contestaciones()->exists();
     }
 
     public static function prefijoParaUnidad(?Unidad $unidad): string

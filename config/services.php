@@ -50,6 +50,10 @@ return [
             'actividades_template_language' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
+        'oficios' => [
+            'terminos_to' => env('WHATSAPP_OFICIOS_TERMINOS_TO', env('WHATSAPP_SINIESTROS_TO')),
+        ],
+
         'todas_unidades' => [
             'to' => env('WHATSAPP_TODAS_UNIDADES_TO'),
             'template' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE', 'reporte_todas_unidades_diario'),

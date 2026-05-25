@@ -299,6 +299,20 @@ class EstadisticasFomentoSettingsController extends Controller
             ->values()
             ->all();
 
+        if ($this->tablaExiste('fomento_municipios_atendidos_historicos')) {
+            $aniosHistoricos = DB::table('fomento_municipios_atendidos_historicos')
+                ->select('anio')
+                ->groupBy('anio')
+                ->pluck('anio')
+                ->map(fn ($anio) => (int) $anio)
+                ->filter()
+                ->values()
+                ->all();
+
+            $anios = array_values(array_unique(array_merge($anios, $aniosHistoricos)));
+            rsort($anios);
+        }
+
         return $anios ?: [now('America/Mexico_City')->year];
     }
 
@@ -323,7 +337,17 @@ class EstadisticasFomentoSettingsController extends Controller
             return compact('meses', 'rows', 'totales');
         }
 
-        $data = $this->baseMunicipiosAtendidosQuery()
+        $activityMarkersHistoricos = $this->activityMarkersHistoricos($anio);
+        $query = $this->baseMunicipiosAtendidosQuery();
+
+        foreach ($activityMarkersHistoricos as $marker) {
+            $query->where(function ($scope) use ($marker) {
+                $scope->whereNull('actividades.observaciones')
+                    ->orWhere('actividades.observaciones', 'not like', '%' . $marker . '%');
+            });
+        }
+
+        $data = $query
             ->whereYear('actividades.fecha', $anio)
             ->selectRaw("
                 MONTH(actividades.fecha) as mes,
@@ -357,6 +381,39 @@ class EstadisticasFomentoSettingsController extends Controller
 
             $eventos = (int) $item->eventos;
             $poblacion = (int) $item->poblacion;
+
+            $rows[$municipio]['meses'][$mes]['eventos'] += $eventos;
+            $rows[$municipio]['meses'][$mes]['poblacion'] += $poblacion;
+            $rows[$municipio]['total_eventos'] += $eventos;
+            $rows[$municipio]['total_poblacion'] += $poblacion;
+
+            $totales['meses'][$mes]['eventos'] += $eventos;
+            $totales['meses'][$mes]['poblacion'] += $poblacion;
+            $totales['total_eventos'] += $eventos;
+            $totales['total_poblacion'] += $poblacion;
+        }
+
+        foreach ($this->municipiosHistoricosData($anio) as $item) {
+            $municipio = $item->municipio ?: 'NO ESPECIFICADO';
+            $mes = (int) $item->mes;
+            $eventos = (int) $item->eventos;
+            $poblacion = (int) $item->poblacion;
+
+            if (!isset($rows[$municipio])) {
+                $rows[$municipio] = [
+                    'municipio' => $municipio,
+                    'meses' => [],
+                    'total_eventos' => 0,
+                    'total_poblacion' => 0,
+                ];
+
+                foreach ($meses as $mesNumero => $mesData) {
+                    $rows[$municipio]['meses'][$mesNumero] = [
+                        'eventos' => 0,
+                        'poblacion' => 0,
+                    ];
+                }
+            }
 
             $rows[$municipio]['meses'][$mes]['eventos'] += $eventos;
             $rows[$municipio]['meses'][$mes]['poblacion'] += $poblacion;
@@ -403,6 +460,41 @@ class EstadisticasFomentoSettingsController extends Controller
                             ->where('actividad_creadores.unidad_id', self::UNIDAD_FOMENTO_ID);
                     });
             });
+    }
+
+    private function activityMarkersHistoricos(int $anio): array
+    {
+        if (!$this->tablaExiste('fomento_municipios_atendidos_historicos')) {
+            return [];
+        }
+
+        return DB::table('fomento_municipios_atendidos_historicos')
+            ->where('anio', $anio)
+            ->whereNotNull('activity_marker')
+            ->select('activity_marker')
+            ->groupBy('activity_marker')
+            ->pluck('activity_marker')
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function municipiosHistoricosData(int $anio)
+    {
+        if (!$this->tablaExiste('fomento_municipios_atendidos_historicos')) {
+            return collect();
+        }
+
+        return DB::table('fomento_municipios_atendidos_historicos')
+            ->where('anio', $anio)
+            ->selectRaw('
+                mes,
+                municipio,
+                SUM(eventos) as eventos,
+                SUM(poblacion_atendida) as poblacion
+            ')
+            ->groupBy('mes', 'municipio')
+            ->get();
     }
 
     private function mesesReporte(): array

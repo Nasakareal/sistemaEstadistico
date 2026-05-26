@@ -80,6 +80,14 @@ class ActividadController extends Controller
 
         $this->applyActividadesVisibilityScope($query, $usuario);
 
+        if ($request->filled('unidad_id')) {
+            $unidadId = (int) $request->query('unidad_id');
+
+            if ($unidadId > 0) {
+                $this->scopeActividadesUnidad($query, $unidadId);
+            }
+        }
+
         if ($request->filled('actividad_categoria_id')) {
             $query->where('actividad_categoria_id', (int) $request->actividad_categoria_id);
         }

@@ -75,8 +75,10 @@ class OficiosUnidadScopeTest extends TestCase
         $this->assertStringContainsString('public static function prefijoParaUnidad', $model);
         $this->assertStringContainsString("'siniestros' => 'UAS'", $model);
         $this->assertStringContainsString("'delegaciones' => 'UD'", $model);
+        $this->assertStringContainsString("'seguridad-vial' => 'CASV'", $model);
         $this->assertStringContainsString("'carreteras' => 'UPC'", $model);
         $this->assertStringContainsString("'vialidades-urbanas' => 'UPVU'", $model);
+        $this->assertStringContainsString("'cultura-vial' => 'UFCV'", $model);
         $this->assertStringContainsString("'fomento-cultura-vial' => 'UFCV'", $model);
         $this->assertStringContainsString('Se asignará automáticamente al guardar', $form);
         $this->assertStringContainsString('Para documentos de entrada, escribe el número', $form);

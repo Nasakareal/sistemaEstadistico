@@ -38,6 +38,17 @@ class PersonalFotoController extends Controller
         return $this->streamFoto($ruta);
     }
 
+    public function showPrincipalSigned(Personal $personal)
+    {
+        $ruta = $personal->foto ?: optional($personal->fotoPrincipal)->ruta;
+
+        if (!$ruta) {
+            abort(404);
+        }
+
+        return $this->streamFoto($ruta);
+    }
+
     public function showSigned(PersonalFoto $foto)
     {
         return $this->streamFoto($foto->ruta, $foto->mime_type, $foto->nombre_original);

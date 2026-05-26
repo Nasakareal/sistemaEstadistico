@@ -33,9 +33,10 @@ class Oficio extends Model
     public const PREFIJOS_UNIDAD = [
         'siniestros' => 'UAS',
         'delegaciones' => 'UD',
-        'seguridad-vial' => 'SV',
+        'seguridad-vial' => 'CASV',
         'carreteras' => 'UPC',
         'vialidades-urbanas' => 'UPVU',
+        'cultura-vial' => 'UFCV',
         'fomento-cultura-vial' => 'UFCV',
     ];
 

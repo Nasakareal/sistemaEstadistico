@@ -246,6 +246,10 @@ Route::get('/personal-fotos/{foto}/archivo-temporal', [PersonalFotoController::c
     ->middleware('signed')
     ->name('personal.fotos.signed');
 
+Route::get('/personal/{personal}/foto-principal-temporal', [PersonalFotoController::class, 'showPrincipalSigned'])
+    ->middleware('signed')
+    ->name('personal.fotos.principal.signed');
+
 Route::get('/home',[HomeController::class,'index'])->name('home');
 Route::get('/home/feed',[HomeController::class,'feed'])->name('home.feed');
 

@@ -29,6 +29,7 @@ class FomentoCulturaVialDetalleManager
             $prefix . 'programa_id' => 'nullable|integer|exists:fomento_cultura_vial_programas,id',
             $prefix . 'nivel_educativo' => 'nullable|string|max:120',
             $prefix . 'sector' => 'nullable|string|max:120',
+            $prefix . 'escuela' => 'nullable|string|max:255',
             $prefix . 'nombre_institucion' => 'nullable|string|max:255',
             $prefix . 'domicilio' => 'nullable|string|max:255',
             $prefix . 'ninas' => 'nullable|integer|min:0|max:999999',
@@ -156,7 +157,7 @@ class FomentoCulturaVialDetalleManager
         if (!is_array($source) || empty($source)) {
             $source = [];
 
-            foreach (array_merge(['programa_id', 'programa_nombre', 'nivel_educativo', 'sector', 'nombre_institucion', 'domicilio', 'total_poblacion_atendida'], self::NUMERIC_FIELDS) as $field) {
+            foreach (array_merge(['programa_id', 'programa_nombre', 'nivel_educativo', 'sector', 'escuela', 'nombre_institucion', 'domicilio', 'total_poblacion_atendida'], self::NUMERIC_FIELDS) as $field) {
                 if (array_key_exists($field, $data)) {
                     $source[$field] = $data[$field];
                 }
@@ -170,7 +171,7 @@ class FomentoCulturaVialDetalleManager
             'programa_nombre' => $programa ? $programa->nombre : $this->toUpperOrNull($source['programa_nombre'] ?? null),
             'nivel_educativo' => $this->toUpperOrNull($source['nivel_educativo'] ?? null),
             'sector' => $this->toUpperOrNull($source['sector'] ?? null),
-            'nombre_institucion' => $this->toUpperOrNull($source['nombre_institucion'] ?? null),
+            'nombre_institucion' => $this->toUpperOrNull($source['nombre_institucion'] ?? $source['escuela'] ?? null),
             'domicilio' => $this->toUpperOrNull($source['domicilio'] ?? null),
         ];
 

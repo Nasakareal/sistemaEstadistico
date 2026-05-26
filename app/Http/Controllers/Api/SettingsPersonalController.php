@@ -9,6 +9,7 @@ use App\Models\PersonalIncidencia;
 use App\Models\Unidad;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 
 class SettingsPersonalController extends Controller
@@ -31,7 +32,7 @@ class SettingsPersonalController extends Controller
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
 
         $personals = $this->queryPersonalVisibleParaActor($actor)
-            ->with(['unidad', 'turno', 'patrulla', 'user'])
+            ->with(['unidad', 'turno', 'patrulla', 'user', 'fotoPrincipal'])
             ->withCount('incidencias')
             ->when($this->actorTieneVisibilidadGlobal($actor) && $unidadId > 0, function ($query) use ($unidadId) {
                 $query->where('unidad_id', $unidadId);
@@ -44,7 +45,11 @@ class SettingsPersonalController extends Controller
                         ->orWhere('numero_empleado', 'like', "%{$q}%")
                         ->orWhere('curp', 'like', "%{$q}%")
                         ->orWhere('cuip', 'like', "%{$q}%")
-                        ->orWhere('cup', 'like', "%{$q}%");
+                        ->orWhere('cup', 'like', "%{$q}%")
+                        ->orWhereHas('unidad', function ($unidad) use ($q) {
+                            $unidad->where('nombre', 'like', "%{$q}%")
+                                ->orWhere('slug', 'like', "%{$q}%");
+                        });
                 });
             })
             ->orderByRaw("CASE WHEN estatus = 'ACTIVO' THEN 0 ELSE 1 END")
@@ -100,6 +105,7 @@ class SettingsPersonalController extends Controller
             'turno',
             'patrulla',
             'user',
+            'fotoPrincipal',
             'incidencias.tipo',
         ]);
 
@@ -248,6 +254,20 @@ class SettingsPersonalController extends Controller
             'incidencias_count' => (int) ($personal->incidencias_count ?? 0),
         ];
 
+        $foto = $personal->fotoPrincipal;
+        $fotoUrl = $this->fotoUrl($personal, $foto);
+
+        $data['foto'] = $personal->foto;
+        $data['foto_url'] = $fotoUrl;
+        $data['foto_principal'] = $foto ? [
+            'id' => $foto->id,
+            'ruta' => $foto->ruta,
+            'nombre_original' => $foto->nombre_original,
+            'mime_type' => $foto->mime_type,
+            'tamano' => $foto->tamano,
+            'url' => $fotoUrl,
+        ] : null;
+
         if ($withIncidencias) {
             $data['incidencias'] = $personal->incidencias
                 ->map(fn (PersonalIncidencia $incidencia) => $this->serializeIncidencia($incidencia))
@@ -298,5 +318,26 @@ class SettingsPersonalController extends Controller
             $personal->ap_paterno,
             $personal->ap_materno,
         ])));
+    }
+
+    private function fotoUrl(Personal $personal, $foto): ?string
+    {
+        if ($foto && $foto->id && $foto->ruta) {
+            return URL::temporarySignedRoute(
+                'personal.fotos.signed',
+                now()->addMinutes(30),
+                ['foto' => $foto->id]
+            );
+        }
+
+        if ($personal->foto) {
+            return URL::temporarySignedRoute(
+                'personal.fotos.principal.signed',
+                now()->addMinutes(30),
+                ['personal' => $personal->id]
+            );
+        }
+
+        return null;
     }
 }

@@ -62,6 +62,24 @@
             @endrole
         @endcan
 
+        {{-- TUTORIALES --}}
+        @can('ver configuraciones')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-primary">
+                        <i class="fa-solid fa-circle-play"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Tutoriales</div>
+                        <div class="sv-card__desc">Videos de ayuda por categoria para la app movil.</div>
+                        <a href="{{ route('settings.tutoriales.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- PERSONAL --}}
         @can('ver personal')
             <div class="col-md-3 col-sm-6 col-12">

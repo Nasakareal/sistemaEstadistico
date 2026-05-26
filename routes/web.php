@@ -89,6 +89,7 @@ use App\Http\Controllers\LiberacionCorralonController;
 use App\Http\Controllers\ActividadCategoriaController;
 use App\Http\Controllers\ActividadSubcategoriaController;
 use App\Http\Controllers\FomentoCulturaVialProgramaController;
+use App\Http\Controllers\TutorialController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -572,6 +573,13 @@ Route::get('/servicios/grafico',[ServicioController::class,'grafico'])->name('se
 
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
     Route::get('/',[SettingsController::class,'index'])->name('settings.index');
+
+    Route::get('/tutoriales', [TutorialController::class, 'index'])->name('settings.tutoriales.index');
+    Route::get('/tutoriales/create', [TutorialController::class, 'create'])->name('settings.tutoriales.create');
+    Route::post('/tutoriales', [TutorialController::class, 'store'])->name('settings.tutoriales.store');
+    Route::get('/tutoriales/{tutorial}/edit', [TutorialController::class, 'edit'])->name('settings.tutoriales.edit');
+    Route::put('/tutoriales/{tutorial}', [TutorialController::class, 'update'])->name('settings.tutoriales.update');
+    Route::delete('/tutoriales/{tutorial}', [TutorialController::class, 'destroy'])->name('settings.tutoriales.destroy');
 
     Route::prefix('constancias/preguntas')->middleware('can:ver modulo examenes')->group(function () {
         Route::get('/', [ConstanciaPreguntaController::class, 'index'])->name('constancias_manejo.preguntas.index');

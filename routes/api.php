@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoCo
 use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiarioController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\Api\SettingsPersonalController;
+use App\Http\Controllers\Api\TutorialController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -149,6 +150,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/password', [AuthController::class, 'changePassword']);
     Route::get('/permissions', [AuthController::class, 'permissions']);
     Route::get('/feed', [FeedController::class, 'index'])->name('api.feed.index');
+    Route::get('/tutoriales', [TutorialController::class, 'index'])->name('api.tutoriales.index');
     Route::get('/delegaciones/excel-revision', [DelegacionesExcelRevisionController::class, 'show'])
         ->name('api.delegaciones.excel_revision.show');
 

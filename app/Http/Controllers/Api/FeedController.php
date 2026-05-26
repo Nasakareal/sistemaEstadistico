@@ -31,9 +31,10 @@ class FeedController extends Controller
 
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
+        $delegacionIds = $contexto['delegacion_ids'];
 
-        $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds, false, 1, $usuario), $limit);
-        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario), $limit);
+        $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds, false, 1, $usuario, $delegacionIds), $limit);
+        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario, $delegacionIds), $limit);
         $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds, false, 3, $usuario), $limit);
         $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds), $limit);
 
@@ -79,6 +80,8 @@ class FeedController extends Controller
             'puede_filtrar_unidades' => $contexto['puede_filtrar'],
             'unidad_ids_aplicadas' => $unidadIds,
             'unidades_filtrables' => $contexto['unidades_filtrables'],
+            'delegacion_ids_aplicadas' => $delegacionIds,
+            'delegaciones_filtrables' => $contexto['delegaciones_filtrables'],
             'data' => $mapped,
         ]);
     }
@@ -94,10 +97,11 @@ class FeedController extends Controller
         $cursorData = $this->decodeCursor($cursor);
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
+        $delegacionIds = $contexto['delegacion_ids'];
 
         $sources = collect([
-            $this->queryHechos($unidadIds, true, 1, $usuario),
-            $this->queryActividades($unidadIds, true, 2, $usuario),
+            $this->queryHechos($unidadIds, true, 1, $usuario, $delegacionIds),
+            $this->queryActividades($unidadIds, true, 2, $usuario, $delegacionIds),
             $this->queryCarreteras($unidadIds, true, 3, $usuario),
             $this->queryVialidades($unidadIds, true, 4),
         ])->filter();
@@ -122,6 +126,8 @@ class FeedController extends Controller
                 'puede_filtrar_unidades' => $contexto['puede_filtrar'],
                 'unidad_ids_aplicadas' => $unidadIds,
                 'unidades_filtrables' => $contexto['unidades_filtrables'],
+                'delegacion_ids_aplicadas' => $delegacionIds,
+                'delegaciones_filtrables' => $contexto['delegaciones_filtrables'],
                 'data' => [],
             ]);
         }
@@ -217,6 +223,8 @@ class FeedController extends Controller
             'puede_filtrar_unidades' => $contexto['puede_filtrar'],
             'unidad_ids_aplicadas' => $unidadIds,
             'unidades_filtrables' => $contexto['unidades_filtrables'],
+            'delegacion_ids_aplicadas' => $delegacionIds,
+            'delegaciones_filtrables' => $contexto['delegaciones_filtrables'],
             'data' => $mapped,
         ]);
     }
@@ -224,6 +232,8 @@ class FeedController extends Controller
     private function resolverContextoUnidades(Request $request, $usuario): array
     {
         $puedeFiltrar = $this->puedeFiltrarUnidades($usuario);
+        $delegacionIds = $this->parseDelegacionIds($request);
+        $delegacionesFiltrables = $this->obtenerDelegacionesFiltrables($usuario);
 
         if ($puedeFiltrar) {
             $unidadIds = $this->parseUnidadIds($request);
@@ -239,6 +249,8 @@ class FeedController extends Controller
                 'puede_filtrar' => true,
                 'unidad_ids' => array_values(array_unique(array_map('intval', $unidadIds))),
                 'unidades_filtrables' => $unidadesFiltrables->values()->all(),
+                'delegacion_ids' => $delegacionIds,
+                'delegaciones_filtrables' => $delegacionesFiltrables->values()->all(),
             ];
         }
 
@@ -248,6 +260,8 @@ class FeedController extends Controller
             'puede_filtrar' => false,
             'unidad_ids' => $unidadIds,
             'unidades_filtrables' => [],
+            'delegacion_ids' => $delegacionIds,
+            'delegaciones_filtrables' => $delegacionesFiltrables->values()->all(),
         ];
     }
 
@@ -309,6 +323,52 @@ class FeedController extends Controller
             ->all();
     }
 
+    private function parseDelegacionIds(Request $request): array
+    {
+        $raw = $request->query('delegacion_ids', null);
+
+        if ($raw === null || $raw === '' || $raw === []) {
+            $raw = $request->query('delegacion_id', null);
+        }
+
+        if (is_string($raw)) {
+            $raw = explode(',', $raw);
+        }
+
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        $ids = collect($raw)
+            ->map(function ($value) {
+                return (int)$value;
+            })
+            ->filter(function ($value) {
+                return $value > 0;
+            })
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return DB::table('delegaciones')
+            ->where(function ($q) use ($ids) {
+                $q->whereIn('id', $ids)
+                    ->orWhereIn('delegacion_padre_id', $ids);
+            })
+            ->when(Schema::hasColumn('delegaciones', 'activa'), function ($q) {
+                $q->where('activa', 1);
+            })
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int)$id;
+            })
+            ->values()
+            ->all();
+    }
+
     private function obtenerRowsFeed($source, int $limit): Collection
     {
         if ($source instanceof Collection) {
@@ -333,6 +393,47 @@ class FeedController extends Controller
             });
     }
 
+    private function obtenerDelegacionesFiltrables($usuario): Collection
+    {
+        $puedeFiltrarUnidades = $this->puedeFiltrarUnidades($usuario);
+
+        if (!$puedeFiltrarUnidades && (int) ($usuario->unidad_id ?? 0) !== 2) {
+            return collect();
+        }
+
+        $q = DB::table('delegaciones')
+            ->whereNull('delegacion_padre_id')
+            ->orderBy('nombre');
+
+        if (Schema::hasColumn('delegaciones', 'activa')) {
+            $q->where('activa', 1);
+        }
+
+        if (!$puedeFiltrarUnidades) {
+            $visibles = $this->delegacionIdsVisibles($usuario);
+
+            if (empty($visibles)) {
+                return collect();
+            }
+
+            $q->whereIn('id', $visibles);
+        }
+
+        return $q->get(['id', 'clave', 'nombre', 'municipio'])
+            ->map(function ($delegacion) {
+                $nombre = (string) $delegacion->nombre;
+                $clave = trim((string) ($delegacion->clave ?? ''));
+
+                return [
+                    'id' => (int) $delegacion->id,
+                    'clave' => $clave,
+                    'nombre' => $nombre,
+                    'nombre_con_clave' => $clave !== '' ? "{$nombre} ({$clave})" : $nombre,
+                    'municipio' => (string) ($delegacion->municipio ?? ''),
+                ];
+            });
+    }
+
     private function applyDelegacionesScope($query, $usuario, string $column): void
     {
         if (!$usuario || (int) ($usuario->unidad_id ?? 0) !== 2) {
@@ -350,6 +451,17 @@ class FeedController extends Controller
         }
 
         $query->whereIn($column, $ids);
+    }
+
+    private function applyDelegacionFilter($query, string $delegacionSql, array $delegacionIds): void
+    {
+        $delegacionIds = array_values(array_unique(array_map('intval', $delegacionIds)));
+
+        if (empty($delegacionIds)) {
+            return;
+        }
+
+        $query->whereIn(DB::raw($delegacionSql), $delegacionIds);
     }
 
     private function delegacionIdsVisibles($usuario): array
@@ -394,7 +506,7 @@ class FeedController extends Controller
             || $usuario->hasRole('Subdirector');
     }
 
-    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null)
+    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null, array $delegacionIds = [])
     {
         if (empty($unidadIds)) {
             return $forUnion ? null : collect();
@@ -412,6 +524,7 @@ class FeedController extends Controller
 
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
         $this->applyDelegacionesScope($q, $usuario, 'h.delegacion_id');
+        $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -449,7 +562,7 @@ class FeedController extends Controller
         ")->orderByDesc('h.created_at')->orderByDesc('h.id');
     }
 
-    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2, $usuario = null)
+    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2, $usuario = null, array $delegacionIds = [])
     {
         if (empty($unidadIds)) {
             return $forUnion ? null : collect();
@@ -477,6 +590,7 @@ class FeedController extends Controller
         )";
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
         $this->applyDelegacionesScope($q, $usuario, 'a.delegacion_id');
+        $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
 
         if ($forUnion) {
             return $q->selectRaw("

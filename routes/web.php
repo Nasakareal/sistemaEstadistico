@@ -72,6 +72,7 @@ use App\Http\Controllers\EstadisticasCarreterasSettingsController;
 use App\Http\Controllers\EstadisticasSiniestrosSettingsController;
 use App\Http\Controllers\EstadisticasDelegacionesSettingsController;
 use App\Http\Controllers\EstadisticasFomentoSettingsController;
+use App\Http\Controllers\EstadisticasVialidadSettingsController;
 
 use App\Http\Controllers\VialidadesUrbanasController;
 use App\Http\Controllers\VialidadesUrbanasDispositivoController;

@@ -116,6 +116,24 @@
             </div>
         @endcan
 
+        {{-- RED DE APOYO --}}
+        @can('ver directorio red apoyo')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-warning">
+                        <i class="fa-solid fa-handshake-angle"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Red de apoyo</div>
+                        <div class="sv-card__desc">Contactos regionales y enlaces institucionales.</div>
+                        <a href="{{ route('directorio_red_apoyo.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- PATRULLAS --}}
         @can('ver patrullas')
             <div class="col-md-3 col-sm-6 col-12">

@@ -99,6 +99,25 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar oficios',
             'eliminar oficios',
 
+            // Delegaciones
+            'ver delegaciones',
+            'crear delegaciones',
+            'editar delegaciones',
+            'eliminar delegaciones',
+
+            // Destacamentos
+            'ver destacamentos',
+            'crear destacamentos',
+            'editar destacamentos',
+            'eliminar destacamentos',
+            'ver mapa destacamentos',
+
+            // Directorio red de apoyo
+            'ver directorio red apoyo',
+            'crear directorio red apoyo',
+            'editar directorio red apoyo',
+            'eliminar directorio red apoyo',
+
             // Ver Estadisticas
             'ver estadisticas',
             'crear estadisticas',
@@ -161,6 +180,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'ver dictamenes',
                 'crear dictamenes',
                 'editar dictamenes',
+                'ver directorio red apoyo',
                 'ver operativos carreteras',
                 'ver estadisticas carreteras',
                 'ver estadisticas globales',
@@ -171,6 +191,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'eliminar modulo examenes',
             ]),
             'Administrativo' => array_merge($operacionHechos, [
+                'ver directorio red apoyo',
                 'ver operativos carreteras',
                 'ver estadisticas carreteras',
                 'ver estadisticas globales',
@@ -182,18 +203,24 @@ class RolesAndPermissionsSeeder extends Seeder
             'Agente Upec' => [
                 'ver operativos carreteras',
                 'crear operativos carreteras',
+                'ver directorio red apoyo',
             ],
             'RT' => [
                 'ver operativos carreteras',
                 'editar operativos carreteras',
                 'ver estadisticas carreteras',
+                'ver directorio red apoyo',
             ],
             'Encargado de Destacamento' => [
                 'ver operativos carreteras',
                 'editar operativos carreteras',
                 'ver estadisticas carreteras',
+                'ver directorio red apoyo',
             ],
-            'Delegado' => $delegadoPermissions,
+            'Delegado' => array_merge($delegadoPermissions, [
+                'ver delegaciones',
+                'ver directorio red apoyo',
+            ]),
             'Empleado' => $operacionHechos,
             'Observador' => [
                 'ver hechos',

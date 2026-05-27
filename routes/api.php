@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ActividadController;
 use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\DirectorioRedApoyoController;
 use App\Http\Controllers\Api\MapaIncidenciasController;
 use App\Http\Controllers\Api\PendientesCortesController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
@@ -86,6 +87,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('delegaciones-home')->group(function () {
         Route::get('/mapa', [DelegacionesHomeController::class, 'mapa'])->name('api.delegaciones_home.mapa');
         Route::get('/filtros', [DelegacionesHomeController::class, 'filtros'])->name('api.delegaciones_home.filtros');
+    });
+
+    Route::prefix('directorio-red-apoyo')->middleware('can:ver directorio red apoyo')->group(function () {
+        Route::get('/meta', [DirectorioRedApoyoController::class, 'meta'])->name('api.directorio_red_apoyo.meta');
+        Route::get('/', [DirectorioRedApoyoController::class, 'index'])->name('api.directorio_red_apoyo.index');
+        Route::get('/{redApoyo}', [DirectorioRedApoyoController::class, 'show'])->whereNumber('redApoyo')->name('api.directorio_red_apoyo.show');
     });
 
     Route::prefix('constancias-manejo')->middleware('can:ver modulo examenes')->group(function () {

@@ -73,4 +73,9 @@ class Delegacion extends Model
         return $this->belongsToMany(Grua::class, 'delegacion_grua', 'delegacion_id', 'grua_id')
             ->withTimestamps();
     }
+
+    public function redApoyos()
+    {
+        return $this->hasMany(DestacamentoRedApoyo::class, 'delegacion_id');
+    }
 }

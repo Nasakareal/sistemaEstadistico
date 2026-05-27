@@ -667,6 +667,13 @@ return [
                     'url'     => 'admin/settings/oficios',
                     'can'     => 'ver oficios',
                 ],
+                [
+                    'text'    => 'Red de apoyo',
+                    'icon'    => 'fa-solid fa-handshake-angle',
+                    'classes' => 'text-white',
+                    'url'     => 'admin/settings/directorio-red-apoyo',
+                    'can'     => 'ver directorio red apoyo',
+                ],
             ],
         ],
     ],

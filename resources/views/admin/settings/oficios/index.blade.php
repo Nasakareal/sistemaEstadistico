@@ -168,7 +168,7 @@
                             </td>
                             <td>
                                 @if($oficio->pdf_path)
-                                    <a href="{{ asset('storage/' . $oficio->pdf_path) }}" target="_blank" class="btn btn-warning btn-sm">
+                                    <a href="{{ route('oficios.archivo.pdf', $oficio) }}" target="_blank" class="btn btn-warning btn-sm">
                                         <i class="fa-regular fa-file-pdf"></i>
                                     </a>
                                 @else

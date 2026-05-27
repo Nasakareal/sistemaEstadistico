@@ -148,7 +148,7 @@
                 </div>
                 <div class="card-body">
                     @if($oficio->pdf_path)
-                        <a href="{{ asset('storage/' . $oficio->pdf_path) }}" target="_blank" class="btn btn-warning btn-block mb-3">
+                        <a href="{{ route('oficios.archivo.pdf', $oficio) }}" target="_blank" class="btn btn-warning btn-block mb-3">
                             <i class="fa-regular fa-file-pdf"></i> Abrir PDF
                         </a>
                     @else
@@ -158,8 +158,8 @@
                     @if($oficio->fotos)
                         <div class="oficio-fotos">
                             @foreach($oficio->fotos as $foto)
-                                <a href="{{ asset('storage/' . $foto) }}" target="_blank" class="oficio-foto">
-                                    <img src="{{ asset('storage/' . $foto) }}" alt="Foto del oficio">
+                                <a href="{{ route('oficios.archivo.foto', [$oficio, $loop->index]) }}" target="_blank" class="oficio-foto">
+                                    <img src="{{ route('oficios.archivo.foto', [$oficio, $loop->index]) }}" alt="Foto del oficio">
                                 </a>
                             @endforeach
                         </div>

@@ -194,7 +194,7 @@
 
             @if($oficio->exists && $oficio->pdf_path)
                 <div class="mt-2">
-                    <a href="{{ asset('storage/' . $oficio->pdf_path) }}" target="_blank" class="btn btn-outline-info btn-sm">
+                    <a href="{{ route('oficios.archivo.pdf', $oficio) }}" target="_blank" class="btn btn-outline-info btn-sm">
                         <i class="fa-regular fa-file-pdf"></i> Ver PDF actual
                     </a>
                 </div>
@@ -232,7 +232,7 @@
             <div class="oficio-fotos">
                 @foreach($oficio->fotos as $foto)
                     <label class="oficio-foto">
-                        <img src="{{ asset('storage/' . $foto) }}" alt="Foto del oficio">
+                        <img src="{{ route('oficios.archivo.foto', [$oficio, $loop->index]) }}" alt="Foto del oficio">
                         <span>
                             <input type="checkbox" name="eliminar_fotos[]" value="{{ $foto }}">
                             Quitar

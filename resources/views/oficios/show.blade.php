@@ -49,7 +49,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Archivo del Oficio</label>
-                                    <p><a href="{{ asset('storage/' . $oficio->pdf_path) }}" target="_blank">Ver archivo PDF</a></p>
+                                    <p><a href="{{ route('oficios.archivo.pdf', $oficio) }}" target="_blank">Ver archivo PDF</a></p>
                                 </div>
                             </div>
                         </div>
@@ -63,7 +63,7 @@
                                     <div class="d-flex flex-wrap">
                                         @foreach ($oficio->fotos as $foto)
                                             <div class="m-2">
-                                                <img src="{{ asset('storage/' . $foto) }}" alt="Foto del Oficio" class="img-thumbnail" width="150">
+                                                <img src="{{ route('oficios.archivo.foto', [$oficio, $loop->index]) }}" alt="Foto del Oficio" class="img-thumbnail" width="150">
                                             </div>
                                         @endforeach
                                     </div>

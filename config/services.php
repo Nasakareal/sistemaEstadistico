@@ -83,4 +83,14 @@ return [
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
     ],
+
+    'azure_storage' => [
+        'account_name' => env('AZURE_STORAGE_NAME'),
+        'account_key' => env('AZURE_STORAGE_KEY'),
+        'url' => env('AZURE_STORAGE_URL'),
+        'oficios_container' => env('AZURE_STORAGE_OFICIOS_CONTAINER', 'oficios'),
+        'oficios_enabled' => env('AZURE_STORAGE_OFICIOS_ENABLED',
+            env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
+        ),
+    ],
 ];

@@ -403,6 +403,8 @@ Route::prefix('admin/settings/oficios')->middleware(['auth', 'can:ver oficios'])
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');
     Route::get('/create',[OficioController::class,'create'])->middleware('can:crear oficios')->name('oficios.create');
     Route::post('/',[OficioController::class,'store'])->middleware('can:crear oficios')->name('oficios.store');
+    Route::get('/{oficio}/archivo/pdf',[OficioController::class,'archivoPdf'])->middleware('can:ver oficios')->name('oficios.archivo.pdf');
+    Route::get('/{oficio}/archivo/fotos/{indice}',[OficioController::class,'archivoFoto'])->middleware('can:ver oficios')->whereNumber('indice')->name('oficios.archivo.foto');
     Route::get('/{oficio}',[OficioController::class,'show'])->middleware('can:ver oficios')->name('oficios.show');
     Route::get('/{oficio}/edit',[OficioController::class,'edit'])->middleware('can:editar oficios')->name('oficios.edit');
     Route::put('/{oficio}',[OficioController::class,'update'])->middleware('can:editar oficios')->name('oficios.update');

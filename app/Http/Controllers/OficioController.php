@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Oficio;
 use App\Models\Unidad;
+use App\Services\Oficios\OficioArchivoStorage;
 use App\Services\OficioTerminoWhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -190,6 +190,27 @@ class OficioController extends Controller
         return redirect()
             ->route('oficios.index')
             ->with('success', 'Oficio eliminado correctamente.');
+    }
+
+    public function archivoPdf(Oficio $oficio)
+    {
+        $this->asegurarVisible($oficio);
+
+        abort_unless($oficio->pdf_path, 404);
+
+        return $this->archivos()->response($oficio->pdf_path, basename($oficio->pdf_path));
+    }
+
+    public function archivoFoto(Oficio $oficio, int $indice)
+    {
+        $this->asegurarVisible($oficio);
+
+        $fotos = array_values($oficio->fotos ?: []);
+        $path = $fotos[$indice] ?? null;
+
+        abort_unless($path, 404);
+
+        return $this->archivos()->response($path, basename($path));
     }
 
     private function actor()
@@ -479,10 +500,10 @@ class OficioController extends Controller
         }
 
         if ($oficio && $oficio->pdf_path) {
-            Storage::disk('public')->delete($oficio->pdf_path);
+            $this->archivos()->delete($oficio->pdf_path);
         }
 
-        $data['pdf_path'] = $request->file('pdf_path')->store('oficios/pdf', 'public');
+        $data['pdf_path'] = $this->archivos()->putUploadedFile($request->file('pdf_path'), 'oficios/pdf');
     }
 
     private function sincronizarFotos(Request $request, ?Oficio $oficio = null): ?array
@@ -493,7 +514,7 @@ class OficioController extends Controller
         if (!empty($eliminar)) {
             $fotos = array_values(array_filter($fotos, function ($foto) use ($eliminar) {
                 if (in_array($foto, $eliminar, true)) {
-                    Storage::disk('public')->delete($foto);
+                    $this->archivos()->delete($foto);
                     return false;
                 }
 
@@ -511,7 +532,7 @@ class OficioController extends Controller
         }
 
         foreach ($nuevas as $foto) {
-            $fotos[] = $foto->store('oficios/fotos', 'public');
+            $fotos[] = $this->archivos()->putUploadedFile($foto, 'oficios/fotos');
         }
 
         return !empty($fotos) ? $fotos : null;
@@ -520,11 +541,11 @@ class OficioController extends Controller
     private function eliminarArchivos(Oficio $oficio): void
     {
         if ($oficio->pdf_path) {
-            Storage::disk('public')->delete($oficio->pdf_path);
+            $this->archivos()->delete($oficio->pdf_path);
         }
 
         foreach (($oficio->fotos ?: []) as $foto) {
-            Storage::disk('public')->delete($foto);
+            $this->archivos()->delete($foto);
         }
     }
 
@@ -542,5 +563,10 @@ class OficioController extends Controller
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    private function archivos(): OficioArchivoStorage
+    {
+        return app(OficioArchivoStorage::class);
     }
 }

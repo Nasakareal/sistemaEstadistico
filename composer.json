@@ -17,6 +17,7 @@
         "laravel/sanctum": "^2.15",
         "laravel/tinker": "^2.5",
         "laravel/ui": "^3.4",
+        "microsoft/azure-storage-blob": "^1.5",
         "phpoffice/phpspreadsheet": "^1.30",
         "phpoffice/phpword": "^1.4",
         "simplesoftwareio/simple-qrcode": "^4.2",

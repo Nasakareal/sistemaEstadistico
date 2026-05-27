@@ -32,8 +32,9 @@ class FeedController extends Controller
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
         $delegacionIds = $contexto['delegacion_ids'];
+        $hechosUnidadIds = $contexto['hechos_unidad_ids'];
 
-        $hechos = $this->obtenerRowsFeed($this->queryHechos($unidadIds, false, 1, $usuario, $delegacionIds), $limit);
+        $hechos = $this->obtenerRowsFeed($this->queryHechos($hechosUnidadIds, false, 1, $usuario, $delegacionIds), $limit);
         $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario, $delegacionIds), $limit);
         $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds, false, 3, $usuario), $limit);
         $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds), $limit);
@@ -98,9 +99,10 @@ class FeedController extends Controller
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
         $delegacionIds = $contexto['delegacion_ids'];
+        $hechosUnidadIds = $contexto['hechos_unidad_ids'];
 
         $sources = collect([
-            $this->queryHechos($unidadIds, true, 1, $usuario, $delegacionIds),
+            $this->queryHechos($hechosUnidadIds, true, 1, $usuario, $delegacionIds),
             $this->queryActividades($unidadIds, true, 2, $usuario, $delegacionIds),
             $this->queryCarreteras($unidadIds, true, 3, $usuario),
             $this->queryVialidades($unidadIds, true, 4),
@@ -248,6 +250,7 @@ class FeedController extends Controller
             return [
                 'puede_filtrar' => true,
                 'unidad_ids' => array_values(array_unique(array_map('intval', $unidadIds))),
+                'hechos_unidad_ids' => array_values(array_unique(array_map('intval', $unidadIds))),
                 'unidades_filtrables' => $unidadesFiltrables->values()->all(),
                 'delegacion_ids' => $delegacionIds,
                 'delegaciones_filtrables' => $delegacionesFiltrables->values()->all(),
@@ -259,10 +262,23 @@ class FeedController extends Controller
         return [
             'puede_filtrar' => false,
             'unidad_ids' => $unidadIds,
+            'hechos_unidad_ids' => $this->unidadIdsHechosParaFeed($usuario, $unidadIds),
             'unidades_filtrables' => [],
             'delegacion_ids' => $delegacionIds,
             'delegaciones_filtrables' => $delegacionesFiltrables->values()->all(),
         ];
+    }
+
+    private function unidadIdsHechosParaFeed($usuario, array $unidadIds): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $unidadIds)));
+
+        if ($this->esSubdirectorSiniestros($usuario)) {
+            $ids[] = 1;
+            $ids[] = 2;
+        }
+
+        return array_values(array_unique(array_filter($ids, fn ($id) => $id > 0)));
     }
 
     private function puedeFiltrarUnidades($usuario): bool
@@ -504,6 +520,13 @@ class FeedController extends Controller
         return $usuario->hasRole('Administrador')
             || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
+    }
+
+    private function esSubdirectorSiniestros($usuario): bool
+    {
+        return $usuario
+            && (int) ($usuario->unidad_id ?? 0) === 1
+            && $usuario->hasRole('Subdirector');
     }
 
     private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null, array $delegacionIds = [])

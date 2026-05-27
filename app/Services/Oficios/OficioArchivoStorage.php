@@ -91,7 +91,9 @@ class OficioArchivoStorage
 
             $this->client()->createBlockBlob($this->container(), $path, $stream, $options);
         } finally {
-            fclose($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
     }
 

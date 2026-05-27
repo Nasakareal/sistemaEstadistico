@@ -33,11 +33,16 @@ class OficioTerminoWhatsAppService
 
         $oficio->loadMissing(['unidad', 'creador']);
         $mensaje = $this->mensaje($oficio);
+        $template = trim((string) config('services.whatsapp.oficios.terminos_template', ''));
+        $templateLanguage = (string) config('services.whatsapp.oficios.terminos_template_language', 'es_MX');
         $enviado = false;
 
         foreach ($destinatarios as $to) {
             try {
-                $response = $this->whatsApp->sendText($to, $mensaje);
+                $response = $template !== ''
+                    ? $this->whatsApp->sendTemplate($to, $template, $this->templateParams($oficio), $templateLanguage)
+                    : $this->whatsApp->sendText($to, $mensaje);
+
                 $ok = (bool) ($response['ok'] ?? false);
                 $enviado = $enviado || $ok;
 
@@ -46,6 +51,7 @@ class OficioTerminoWhatsAppService
                     'to' => $to,
                     'ok' => $ok,
                     'status' => $response['status'] ?? null,
+                    'template' => $template !== '' ? $template : null,
                 ]);
             } catch (\Throwable $e) {
                 Log::error('Error enviando WhatsApp de oficio con termino', [
@@ -104,6 +110,21 @@ class OficioTerminoWhatsAppService
             'Destinatario: ' . ($oficio->destinatario ?: 'Sin destinatario'),
             'Capturo: ' . (optional($oficio->creador)->name ?: 'Sin dato'),
         ], fn ($line) => $line !== null)));
+    }
+
+    private function templateParams(Oficio $oficio): array
+    {
+        return [
+            $oficio->tipo_label . ' - ' . $oficio->sentido_label,
+            $oficio->termino_label ?: ((int) $oficio->termino_horas . ' horas'),
+            $oficio->numero_oficio ?: 'Sin numero',
+            $this->fecha($oficio->fecha_documento ?? null),
+            optional($oficio->unidad)->nombre ?: 'Sin unidad',
+            $oficio->asunto ?: 'Sin asunto',
+            $oficio->remitente ?: 'Sin remitente',
+            $oficio->destinatario ?: 'Sin destinatario',
+            optional($oficio->creador)->name ?: 'Sin dato',
+        ];
     }
 
     private function fecha($fecha): string

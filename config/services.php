@@ -52,6 +52,8 @@ return [
 
         'oficios' => [
             'terminos_to' => env('WHATSAPP_OFICIOS_TERMINOS_TO', env('WHATSAPP_SINIESTROS_TO')),
+            'terminos_template' => env('WHATSAPP_OFICIOS_TERMINOS_TEMPLATE'),
+            'terminos_template_language' => env('WHATSAPP_OFICIOS_TERMINOS_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
         'todas_unidades' => [

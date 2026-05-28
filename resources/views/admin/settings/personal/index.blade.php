@@ -39,7 +39,7 @@
                                 <tr>
                                     <td style="text-align: center">{{ $index + 1 }}</td>
                                     <td>
-                                        {{ trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? '')) }}
+                                        {{ $personal->nombre_completo }}
                                     </td>
                                     <td>{{ $personal->unidad->nombre ?? 'N/A' }}</td>
                                     <td>{{ $personal->cuip ?? 'N/A' }}</td>

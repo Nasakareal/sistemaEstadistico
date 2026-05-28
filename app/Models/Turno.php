@@ -12,11 +12,18 @@ class Turno extends Model
     protected $fillable = [
         'nombre',
         'slug',
+        'tipo_rol',
+        'ciclo_inicio',
+        'trabajo_horas',
+        'descanso_horas',
         'activo',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
+        'ciclo_inicio' => 'datetime',
+        'trabajo_horas' => 'integer',
+        'descanso_horas' => 'integer',
     ];
 
     /*

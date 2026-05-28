@@ -686,6 +686,8 @@ class WhatsAppWebhookController extends Controller
                 'armamentos.matricula',
                 'armamentos.calibre',
             ])
+            ->orderBy('personals.ap_paterno')
+            ->orderBy('personals.ap_materno')
             ->orderBy('personals.nombre')
             ->get();
 
@@ -697,7 +699,7 @@ class WhatsAppWebhookController extends Controller
         $texto = "RELACIÓN DE PERSONAL ARMADO\n\n";
 
         foreach ($rows as $row) {
-            $nombre = trim($row->nombre . ' ' . $row->ap_paterno . ' ' . $row->ap_materno);
+            $nombre = \App\Models\Personal::formarNombreCompleto($row->nombre, $row->ap_paterno, $row->ap_materno);
             $arma = trim($row->tipo . ' ' . $row->marca . ' ' . $row->modelo);
 
             $texto .= "- {$nombre}\n";
@@ -717,6 +719,8 @@ class WhatsAppWebhookController extends Controller
         $rows = \App\Models\Personal::query()
             ->when($unidadId, fn ($q) => $q->where('unidad_id', $unidadId))
             ->where('estatus', 'ACTIVO')
+            ->orderBy('ap_paterno')
+            ->orderBy('ap_materno')
             ->orderBy('nombre')
             ->get(['nombre', 'ap_paterno', 'ap_materno', 'grado', 'puesto']);
 
@@ -728,7 +732,7 @@ class WhatsAppWebhookController extends Controller
         $texto = "PERSONAL ACTIVO\n\n";
 
         foreach ($rows as $row) {
-            $nombre = trim($row->nombre . ' ' . $row->ap_paterno . ' ' . $row->ap_materno);
+            $nombre = $row->nombre_completo;
             $texto .= "- {$nombre} | {$row->grado} | {$row->puesto}\n";
         }
 

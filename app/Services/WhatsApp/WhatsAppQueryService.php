@@ -848,6 +848,8 @@ class WhatsAppQueryService
                 'armamentos.matricula',
                 'armamentos.calibre',
             ])
+            ->orderBy('personals.ap_paterno')
+            ->orderBy('personals.ap_materno')
             ->orderBy('personals.nombre')
             ->limit(50)
             ->get();
@@ -859,7 +861,7 @@ class WhatsAppQueryService
         }
 
         foreach ($rows as $row) {
-            $nombre = trim($row->nombre . ' ' . $row->ap_paterno . ' ' . $row->ap_materno);
+            $nombre = Personal::formarNombreCompleto($row->nombre, $row->ap_paterno, $row->ap_materno);
             $arma = trim($row->tipo . ' ' . $row->marca . ' ' . $row->modelo);
 
             $lineas[] = $nombre
@@ -886,7 +888,9 @@ class WhatsAppQueryService
 
         $this->applyUnitFilter($query, 'unidad_id', $unidadId);
 
-        $rows = $query->orderBy('nombre')
+        $rows = $query->orderBy('ap_paterno')
+            ->orderBy('ap_materno')
+            ->orderBy('nombre')
             ->limit(80)
             ->get(['nombre', 'ap_paterno', 'ap_materno', 'grado', 'puesto']);
 
@@ -897,7 +901,7 @@ class WhatsAppQueryService
         }
 
         foreach ($rows as $row) {
-            $nombre = trim($row->nombre . ' ' . $row->ap_paterno . ' ' . $row->ap_materno);
+            $nombre = $row->nombre_completo;
             $lineas[] = $nombre . ' | ' . ($row->grado ?? 'S/G') . ' | ' . ($row->puesto ?? 'S/P');
         }
 
@@ -933,11 +937,7 @@ class WhatsAppQueryService
             $lineas = [];
 
             foreach ($coincidencias->take(5) as $row) {
-                $nombre = trim(implode(' ', array_filter([
-                    $row->nombre,
-                    $row->ap_paterno,
-                    $row->ap_materno,
-                ])));
+                $nombre = $row->nombre_completo;
 
                 $lineas[] = implode(' | ', array_filter([
                     $nombre !== '' ? $nombre : 'SIN NOMBRE',
@@ -1696,8 +1696,8 @@ class WhatsAppQueryService
         ];
 
         $variantes = [
-            [$partes['nombre'], $partes['ap_paterno'], $partes['ap_materno']],
             [$partes['ap_paterno'], $partes['ap_materno'], $partes['nombre']],
+            [$partes['nombre'], $partes['ap_paterno'], $partes['ap_materno']],
             [$partes['ap_paterno'], $partes['nombre'], $partes['ap_materno']],
             [$partes['nombre'], $partes['ap_materno'], $partes['ap_paterno']],
         ];

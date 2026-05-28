@@ -52,6 +52,7 @@ class EstadoFuerzaService
 
             $tipoNombre = strtoupper(trim($tipoNombre));
 
+            if ($tipoNombre === 'SERVICIO') return 'EN_SERVICIO';
             if ($tipoNombre === 'COMISION' || $tipoNombre === 'COMISIÓN') return 'COMISIONADOS';
             if ($tipoNombre === 'VACACIONES') return 'VACACIONES';
             if ($tipoNombre === 'INCAPACIDAD') return 'INCAPACIDAD';

@@ -2,6 +2,7 @@
 
 namespace App\Services\Fomento\Hojas;
 
+use App\Models\Personal;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -78,11 +79,11 @@ abstract class BaseFomentoSheetService
 
     protected function nombrePersonal($item): string
     {
-        return trim(implode(' ', array_filter([
+        return Personal::formarNombreCompleto(
             $item->nombre ?? null,
             $item->ap_paterno ?? null,
-            $item->ap_materno ?? null,
-        ])));
+            $item->ap_materno ?? null
+        );
     }
 
     protected function valorTexto($value): string

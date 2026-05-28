@@ -8,6 +8,7 @@ use App\Models\ActividadSubcategoria;
 use App\Models\Delegacion;
 use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
+use App\Models\Personal;
 use App\Models\Unidad;
 use App\Models\Vehiculo;
 use App\Services\ActividadDuplicateGuard;
@@ -1551,14 +1552,14 @@ class ActividadController extends Controller
             ->first();
 
         if ($subdirector) {
-            $nombreSubdirector = trim(
-                collect([
-                    $subdirector->grado ?? null,
+            $nombreSubdirector = trim(collect([
+                $subdirector->grado ?? null,
+                Personal::formarNombreCompleto(
                     $subdirector->nombre ?? null,
                     $subdirector->ap_paterno ?? null,
-                    $subdirector->ap_materno ?? null,
-                ])->filter()->implode(' ')
-            );
+                    $subdirector->ap_materno ?? null
+                ),
+            ])->filter()->implode(' '));
 
             $texto .= "RESPETUOSAMENTE\n";
             $texto .= 'SUBDIRECTOR DE ' . $nombreUnidad . "\n";

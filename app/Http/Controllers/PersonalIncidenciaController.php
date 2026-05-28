@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\IncidenciaTipo;
 use App\Models\Personal;
 use App\Models\PersonalIncidencia;
 use Illuminate\Http\Request;
@@ -9,18 +10,16 @@ use Illuminate\Support\Facades\Log;
 
 class PersonalIncidenciaController extends Controller
 {
-    private function tiposMap(): array
-    {
-        return [
-            'VACACIONES'   => 1,
-            'INCAPACIDAD'  => 2,
-            'PERMISO'      => 3,
-            'FALTA'        => 4,
-            'COMISION'     => 5,
-            'SUSPENSION'   => 6,
-            'OTRO'         => 7,
-        ];
-    }
+    private const TIPOS_INCIDENCIA_FALLBACK = [
+        'VACACIONES' => 1,
+        'INCAPACIDAD' => 2,
+        'PERMISO' => 3,
+        'FALTA' => 4,
+        'COMISION' => 5,
+        'SUSPENSION' => 6,
+        'OTRO' => 7,
+        'SERVICIO' => 8,
+    ];
 
     public function store(Request $request, Personal $personal)
     {
@@ -37,9 +36,9 @@ class PersonalIncidenciaController extends Controller
         ]);
 
         try {
-            $map = $this->tiposMap();
+            $tipo = $this->resolverTipoIncidencia($validated['tipo']);
 
-            if (!array_key_exists($validated['tipo'], $map)) {
+            if (!$tipo) {
                 return redirect()->back()
                     ->withErrors(['tipo' => 'Tipo de incidencia no válido.'])
                     ->withInput();
@@ -70,7 +69,7 @@ class PersonalIncidenciaController extends Controller
 
             PersonalIncidencia::create([
                 'personal_id' => $personal->id,
-                'incidencia_tipo_id' => $map[$validated['tipo']],
+                'incidencia_tipo_id' => $tipo->id,
                 'fecha_inicio' => $validated['fecha_inicio'],
                 'fecha_fin' => $validated['fecha_fin'] ?? null,
                 'hora_inicio' => $validated['hora_inicio'] ?? null,
@@ -113,9 +112,9 @@ class PersonalIncidenciaController extends Controller
         ]);
 
         try {
-            $map = $this->tiposMap();
+            $tipo = $this->resolverTipoIncidencia($validated['tipo']);
 
-            if (!array_key_exists($validated['tipo'], $map)) {
+            if (!$tipo) {
                 return redirect()->back()
                     ->withErrors(['tipo' => 'Tipo de incidencia no válido.'])
                     ->withInput();
@@ -146,7 +145,7 @@ class PersonalIncidenciaController extends Controller
             }
 
             $incidencia->update([
-                'incidencia_tipo_id' => $map[$validated['tipo']],
+                'incidencia_tipo_id' => $tipo->id,
                 'fecha_inicio' => $validated['fecha_inicio'],
                 'fecha_fin' => $validated['fecha_fin'] ?? null,
                 'hora_inicio' => $validated['hora_inicio'] ?? null,
@@ -187,5 +186,24 @@ class PersonalIncidenciaController extends Controller
             return redirect()->back()
                 ->withErrors('Hubo un error al eliminar la incidencia. Inténtelo nuevamente.');
         }
+    }
+
+    private function resolverTipoIncidencia(string $raw): ?IncidenciaTipo
+    {
+        $clave = strtoupper(trim($raw));
+
+        $tipo = IncidenciaTipo::query()
+            ->where('activo', 1)
+            ->where(function ($query) use ($clave) {
+                $query->whereRaw('UPPER(TRIM(clave)) = ?', [$clave])
+                    ->orWhereRaw('UPPER(TRIM(nombre)) = ?', [$clave]);
+            })
+            ->first();
+
+        if (!$tipo && array_key_exists($clave, self::TIPOS_INCIDENCIA_FALLBACK)) {
+            $tipo = IncidenciaTipo::query()->find(self::TIPOS_INCIDENCIA_FALLBACK[$clave]);
+        }
+
+        return $tipo;
     }
 }

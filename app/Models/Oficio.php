@@ -19,8 +19,8 @@ class Oficio extends Model
     ];
 
     public const SENTIDOS = [
-        'entrada' => 'Entrada',
-        'salida' => 'Salida',
+        'entrada' => 'Recibidos',
+        'salida' => 'Enviados',
     ];
 
     public const TERMINOS_HORAS = [

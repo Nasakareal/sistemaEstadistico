@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Personal;
 use App\Services\Fomento\ExcelFomentoGenerator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -120,6 +121,29 @@ class EstadisticasFomentoSettingsController extends Controller
             'anio' => $anio,
             'aniosDisponibles' => $aniosDisponibles,
             'meses' => $reporte['meses'],
+            'rows' => $reporte['rows'],
+            'totales' => $reporte['totales'],
+        ]);
+    }
+
+    public function serviciosPersonal(Request $request)
+    {
+        $this->ensureCanViewFomentoStats($request);
+
+        $data = $request->validate([
+            'fecha_inicio' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_fin' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:fecha_inicio'],
+        ]);
+
+        $tz = 'America/Mexico_City';
+        $hoy = now($tz);
+        $inicio = Carbon::parse($data['fecha_inicio'] ?? $hoy->copy()->startOfYear()->toDateString(), $tz)->startOfDay();
+        $fin = Carbon::parse($data['fecha_fin'] ?? $hoy->toDateString(), $tz)->endOfDay();
+        $reporte = $this->serviciosPersonalData($inicio, $fin);
+
+        return view('admin.settings.estadisticas_fomento.servicios_personal.index', [
+            'fechaInicio' => $inicio->toDateString(),
+            'fechaFin' => $fin->toDateString(),
             'rows' => $reporte['rows'],
             'totales' => $reporte['totales'],
         ]);
@@ -448,6 +472,189 @@ class EstadisticasFomentoSettingsController extends Controller
         return compact('meses', 'rows', 'totales');
     }
 
+    private function serviciosPersonalData(Carbon $inicio, Carbon $fin): array
+    {
+        $personal = $this->basePersonalFomentoQuery()
+            ->leftJoin('turnos', 'turnos.id', '=', 'personals.turno_id')
+            ->select([
+                'personals.id',
+                'personals.numero_empleado',
+                'personals.nombre',
+                'personals.ap_paterno',
+                'personals.ap_materno',
+                'personals.grado',
+                'personals.puesto',
+                'personals.categoria',
+                'personals.estatus',
+                'turnos.nombre as turno_nombre',
+                'turnos.tipo_rol as turno_tipo_rol',
+            ])
+            ->orderByRaw("CASE WHEN UPPER(TRIM(COALESCE(personals.estatus, ''))) = 'ACTIVO' THEN 0 ELSE 1 END")
+            ->orderBy('personals.ap_paterno')
+            ->orderBy('personals.ap_materno')
+            ->orderBy('personals.nombre')
+            ->get();
+
+        $personalIds = $personal->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $tipoIds = $this->servicioIncidenciaTipoIds();
+        $incidenciasPorPersonal = collect();
+
+        if (!empty($personalIds) && !empty($tipoIds)) {
+            $inicioFecha = $inicio->toDateString();
+            $finFecha = $fin->toDateString();
+
+            $incidenciasPorPersonal = DB::table('personal_incidencias')
+                ->whereIn('personal_id', $personalIds)
+                ->whereIn('incidencia_tipo_id', $tipoIds)
+                ->where('activo', 1)
+                ->where(function ($query) use ($inicioFecha, $finFecha) {
+                    $query->where(function ($sinFin) use ($inicioFecha, $finFecha) {
+                        $sinFin->whereNull('fecha_fin')
+                            ->whereBetween('fecha_inicio', [$inicioFecha, $finFecha]);
+                    })->orWhere(function ($conFin) use ($inicioFecha, $finFecha) {
+                        $conFin->whereNotNull('fecha_fin')
+                            ->whereDate('fecha_inicio', '<=', $finFecha)
+                            ->whereDate('fecha_fin', '>=', $inicioFecha);
+                    });
+                })
+                ->select([
+                    'personal_id',
+                    'fecha_inicio',
+                    'fecha_fin',
+                    'hora_inicio',
+                    'hora_fin',
+                    'folio',
+                    'motivo',
+                    'observaciones',
+                ])
+                ->orderBy('fecha_inicio')
+                ->get()
+                ->groupBy('personal_id');
+        }
+
+        $rows = $personal->map(function ($item) use ($incidenciasPorPersonal, $inicio, $fin) {
+            $incidencias = $incidenciasPorPersonal->get($item->id, collect());
+            $diasServicio = 0;
+            $diasFinSemana = 0;
+            $ultimaFecha = null;
+
+            foreach ($incidencias as $incidencia) {
+                [$dias, $finSemana] = $this->diasIncidenciaServicio($incidencia, $inicio, $fin);
+                $diasServicio += $dias;
+                $diasFinSemana += $finSemana;
+
+                $fechaFin = $incidencia->fecha_fin ?: $incidencia->fecha_inicio;
+                if (!$ultimaFecha || $fechaFin > $ultimaFecha) {
+                    $ultimaFecha = $fechaFin;
+                }
+            }
+
+            return [
+                'id' => (int) $item->id,
+                'numero_empleado' => $item->numero_empleado,
+                'nombre_completo' => $this->nombreCompletoPersonal($item),
+                'grado' => $item->grado,
+                'puesto' => $item->puesto,
+                'categoria' => $item->categoria,
+                'estatus' => $item->estatus,
+                'turno' => $item->turno_nombre,
+                'turno_tipo_rol' => $item->turno_tipo_rol,
+                'total_servicios' => $incidencias->count(),
+                'dias_servicio' => $diasServicio,
+                'dias_fin_semana' => $diasFinSemana,
+                'ultimo_servicio' => $ultimaFecha,
+            ];
+        })
+            ->sort(function ($a, $b) {
+                if ($a['total_servicios'] === $b['total_servicios']) {
+                    if ($a['dias_servicio'] === $b['dias_servicio']) {
+                        return strnatcasecmp($a['nombre_completo'], $b['nombre_completo']);
+                    }
+
+                    return $b['dias_servicio'] <=> $a['dias_servicio'];
+                }
+
+                return $b['total_servicios'] <=> $a['total_servicios'];
+            })
+            ->values()
+            ->all();
+
+        $totales = [
+            'personal' => count($rows),
+            'servicios' => collect($rows)->sum('total_servicios'),
+            'dias_servicio' => collect($rows)->sum('dias_servicio'),
+            'dias_fin_semana' => collect($rows)->sum('dias_fin_semana'),
+        ];
+
+        return compact('rows', 'totales');
+    }
+
+    private function basePersonalFomentoQuery()
+    {
+        $query = DB::table('personals')
+            ->where('personals.unidad_id', self::UNIDAD_FOMENTO_ID);
+
+        if ($this->columnaExiste('personals', 'deleted_at')) {
+            $query->whereNull('personals.deleted_at');
+        }
+
+        return $query;
+    }
+
+    private function servicioIncidenciaTipoIds(): array
+    {
+        if (!$this->tablaExiste('incidencia_tipos')) {
+            return [];
+        }
+
+        return DB::table('incidencia_tipos')
+            ->where(function ($query) {
+                $query->whereRaw('UPPER(TRIM(clave)) = ?', ['SERVICIO'])
+                    ->orWhereRaw('UPPER(TRIM(nombre)) = ?', ['SERVICIO']);
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function diasIncidenciaServicio($incidencia, Carbon $inicio, Carbon $fin): array
+    {
+        $incInicio = Carbon::parse($incidencia->fecha_inicio, 'America/Mexico_City')->startOfDay();
+        $incFin = $incidencia->fecha_fin
+            ? Carbon::parse($incidencia->fecha_fin, 'America/Mexico_City')->startOfDay()
+            : $incInicio->copy();
+
+        $inicioDia = $inicio->copy()->startOfDay();
+        $finDia = $fin->copy()->startOfDay();
+        $clipInicio = $incInicio->greaterThan($inicioDia) ? $incInicio : $inicioDia;
+        $clipFin = $incFin->lessThan($finDia) ? $incFin : $finDia;
+
+        if ($clipFin->lessThan($clipInicio)) {
+            return [0, 0];
+        }
+
+        $dias = 0;
+        $finSemana = 0;
+
+        for ($cursor = $clipInicio->copy(); $cursor->lte($clipFin); $cursor->addDay()) {
+            $dias++;
+
+            if (in_array((int) $cursor->dayOfWeekIso, [6, 7], true)) {
+                $finSemana++;
+            }
+        }
+
+        return [$dias, $finSemana];
+    }
+
+    private function nombreCompletoPersonal($personal): string
+    {
+        return trim(collect([
+            $personal->grado,
+            Personal::formarNombreCompleto($personal->nombre, $personal->ap_paterno, $personal->ap_materno),
+        ])->filter()->implode(' '));
+    }
+
     private function baseMunicipiosAtendidosQuery()
     {
         return DB::table('actividades')
@@ -518,5 +725,10 @@ class EstadisticasFomentoSettingsController extends Controller
     private function tablaExiste(string $table): bool
     {
         return DB::getSchemaBuilder()->hasTable($table);
+    }
+
+    private function columnaExiste(string $table, string $column): bool
+    {
+        return DB::getSchemaBuilder()->hasColumn($table, $column);
     }
 }

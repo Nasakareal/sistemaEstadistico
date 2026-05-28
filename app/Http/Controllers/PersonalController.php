@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Personal;
 use App\Models\DocumentoTipo;
+use App\Models\PersonalLicencia;
 use App\Models\Unidad;
 use App\Models\Turno;
 use App\Models\Patrulla;
@@ -189,9 +190,9 @@ class PersonalController extends Controller
         $personals = $this->queryPersonalVisibleParaActor()
             ->with(['unidad', 'turno', 'patrulla', 'user'])
             ->orderByDesc('estatus')
-            ->orderBy('nombre')
             ->orderBy('ap_paterno')
             ->orderBy('ap_materno')
+            ->orderBy('nombre')
             ->get();
 
         return view('admin.settings.personal.index', compact('personals'));
@@ -331,6 +332,7 @@ class PersonalController extends Controller
             'rolesServicio',
             'incidencias.tipo',
             'documentos.documentoTipo',
+            'licencias',
             'asignaciones',
             'contactos',
             'domicilios',
@@ -366,10 +368,12 @@ class PersonalController extends Controller
             ->where('activo', true)
             ->orderBy('nombre')
             ->get();
+        $tiposLicencia = PersonalLicencia::tipos();
 
         return view('admin.settings.personal.show', compact(
             'personal',
             'documentoTipos',
+            'tiposLicencia',
             'armamentosDisponibles',
             'asignacionesArmamentoActivas'
         ));

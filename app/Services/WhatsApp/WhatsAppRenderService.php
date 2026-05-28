@@ -209,11 +209,7 @@ class WhatsAppRenderService
             'asignaciones.armamento',
         ]);
 
-        $nombre = trim(implode(' ', array_filter([
-            $personal->nombre,
-            $personal->ap_paterno,
-            $personal->ap_materno,
-        ])));
+        $nombre = $personal->nombre_completo;
 
         $patrulla = $personal->patrulla ?: optional($personal->user)->patrulla;
         $asignacionActiva = collect($personal->asignaciones ?? [])

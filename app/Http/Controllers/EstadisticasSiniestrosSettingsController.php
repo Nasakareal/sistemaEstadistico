@@ -359,28 +359,28 @@ class EstadisticasSiniestrosSettingsController extends Controller
             $q->where('turno_id', $turnoId);
         }
 
-        return $q->orderBy('nombre')->get()->map(function ($personal) use ($fechaHora) {
-            $estado = $this->estadoFuerzaService->estado($personal, $fechaHora);
+        return $q->orderBy('ap_paterno')
+            ->orderBy('ap_materno')
+            ->orderBy('nombre')
+            ->get()
+            ->map(function ($personal) use ($fechaHora) {
+                $estado = $this->estadoFuerzaService->estado($personal, $fechaHora);
 
-            return [
-                'id' => (int) $personal->id,
-                'nombre' => $personal->nombre,
-                'apellido_paterno' => $personal->apellido_paterno,
-                'apellido_materno' => $personal->apellido_materno,
-                'nombre_completo' => trim(collect([
-                    $personal->nombre,
-                    $personal->apellido_paterno,
-                    $personal->apellido_materno,
-                ])->filter()->implode(' ')),
-                'numero_empleado' => $personal->numero_empleado,
-                'turno_id' => $personal->turno_id,
-                'turno' => optional($personal->turno)->nombre,
-                'tipo_rol' => optional($personal->turno)->tipo_rol,
-                'patrulla_id' => $personal->patrulla_id,
-                'patrulla' => optional($personal->patrulla)->numero_economico,
-                'estado_fuerza' => $estado,
-            ];
-        })->values()->all();
+                return [
+                    'id' => (int) $personal->id,
+                    'nombre' => $personal->nombre,
+                    'apellido_paterno' => $personal->ap_paterno,
+                    'apellido_materno' => $personal->ap_materno,
+                    'nombre_completo' => $personal->nombre_completo,
+                    'numero_empleado' => $personal->numero_empleado,
+                    'turno_id' => $personal->turno_id,
+                    'turno' => optional($personal->turno)->nombre,
+                    'tipo_rol' => optional($personal->turno)->tipo_rol,
+                    'patrulla_id' => $personal->patrulla_id,
+                    'patrulla' => optional($personal->patrulla)->numero_economico,
+                    'estado_fuerza' => $estado,
+                ];
+            })->values()->all();
     }
 
     protected function leerAsignacionSectorizacion(string $fecha): array
@@ -610,11 +610,7 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 $armamento = $asignacion->armamento;
 
                 $rows[] = [
-                    'elemento' => trim(collect([
-                        $personal->nombre ?? '',
-                        $personal->ap_paterno ?? '',
-                        $personal->ap_materno ?? '',
-                    ])->filter()->implode(' ')),
+                    'elemento' => $personal ? $personal->nombre_completo : '',
                     'grado' => $personal->grado ?? '',
                     'unidad' => optional($personal->unidad)->nombre ?? ($personal->area ?? ''),
                     'tipo' => $armamento->tipo ?? '',

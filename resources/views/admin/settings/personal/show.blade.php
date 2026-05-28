@@ -8,7 +8,7 @@
 
 @section('content')
     @php
-        $nombreCompleto = trim(($personal->nombre ?? '') . ' ' . ($personal->ap_paterno ?? '') . ' ' . ($personal->ap_materno ?? ''));
+        $nombreCompleto = $personal->nombre_completo;
         $fotosPersonal = $personal->fotos ?? collect();
         $fotoActualModelo = $personal->foto && $fotosPersonal
             ? $fotosPersonal->firstWhere('ruta', $personal->foto)
@@ -20,7 +20,9 @@
             : ($fotoActual ? route('personal.fotos.principal', $personal->id) : null);
         $asignacionesActivas = $personal->asignaciones ? $personal->asignaciones->whereNull('fecha_fin') : collect();
         $documentosPersonal = $personal->documentos ?? collect();
+        $licenciasPersonal = $personal->licencias ?? collect();
         $documentoTipos = $documentoTipos ?? collect();
+        $tiposLicencia = $tiposLicencia ?? \App\Models\PersonalLicencia::tipos();
     @endphp
 
     <div class="row">
@@ -390,6 +392,172 @@
                         </div>
                     @else
                         <p class="text-muted mb-0">No hay contactos de emergencia registrados.</p>
+                    @endif
+                </div>
+            </div>
+
+            <div class="card card-outline card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title">Licencias de conducir</h3>
+                    <div class="card-tools">
+                        @can('editar personal')
+                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregarLicencia">
+                                <i class="fa-solid fa-plus"></i> Agregar licencia
+                            </button>
+                        @endcan
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if($licenciasPersonal->count())
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Número</th>
+                                        <th>Vigencia</th>
+                                        <th>Estado</th>
+                                        <th>Observaciones</th>
+                                        <th style="width: 140px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($licenciasPersonal as $licencia)
+                                        @php
+                                            $licenciaVencida = $licencia->estaVencida();
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $licencia->tipo_label }}</td>
+                                            <td>{{ $licencia->numero ?? 'N/A' }}</td>
+                                            <td>
+                                                @if($licencia->permanente)
+                                                    <span class="badge badge-info">Permanente</span>
+                                                    <span class="text-muted d-block">{{ optional($licencia->vigencia)->format('d-m-Y') }}</span>
+                                                @else
+                                                    {{ $licencia->vigencia ? $licencia->vigencia->format('d-m-Y') : 'N/A' }}
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if(!$licencia->activo)
+                                                    <span class="badge badge-secondary">Inactiva</span>
+                                                @elseif($licencia->permanente)
+                                                    <span class="badge badge-info">Permanente</span>
+                                                @elseif($licenciaVencida)
+                                                    <span class="badge badge-danger">Vencida</span>
+                                                @else
+                                                    <span class="badge badge-success">Vigente</span>
+                                                @endif
+
+                                                @if($licencia->vencimiento_notificado_at)
+                                                    <small class="text-muted d-block">
+                                                        Alertada: {{ $licencia->vencimiento_notificado_at->format('d-m-Y H:i') }}
+                                                    </small>
+                                                @endif
+                                            </td>
+                                            <td>{{ $licencia->observaciones ?? '' }}</td>
+                                            <td>
+                                                @can('editar personal')
+                                                    <button type="button" class="btn btn-info btn-sm" data-toggle="modal" data-target="#modalEditarLicencia{{ $licencia->id }}">
+                                                        <i class="fa-regular fa-pen-to-square"></i>
+                                                    </button>
+                                                    <form action="{{ route('personal.licencias.destroy', [$personal->id, $licencia->id]) }}" method="POST" class="d-inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta licencia?')">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                @endcan
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @can('editar personal')
+                            @foreach($licenciasPersonal as $licencia)
+                                <div class="modal fade modal-opaque" id="modalEditarLicencia{{ $licencia->id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg" role="document">
+                                        <form method="POST" action="{{ route('personal.licencias.update', [$personal->id, $licencia->id]) }}" class="js-licencia-form">
+                                            @csrf
+                                            @method('PUT')
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Editar licencia</h5>
+                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                                                        <span aria-hidden="true">&times;</span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Tipo</label>
+                                                                <select name="tipo" class="form-control" required>
+                                                                    <option value="">Seleccionar</option>
+                                                                    @foreach($tiposLicencia as $tipoClave => $tipoLabel)
+                                                                        <option value="{{ $tipoClave }}" {{ $licencia->tipo === $tipoClave ? 'selected' : '' }}>
+                                                                            {{ $tipoLabel }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Número</label>
+                                                                <input type="text" name="numero" class="form-control" value="{{ $licencia->numero }}">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Activo</label>
+                                                                <input type="hidden" name="activo" value="0">
+                                                                <div class="custom-control custom-switch mt-2">
+                                                                    <input type="checkbox" name="activo" value="1" class="custom-control-input" id="licenciaActivo{{ $licencia->id }}" {{ $licencia->activo ? 'checked' : '' }}>
+                                                                    <label class="custom-control-label" for="licenciaActivo{{ $licencia->id }}">Sí</label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Vigencia</label>
+                                                                <input type="date" name="vigencia" class="form-control js-licencia-vigencia" value="{{ optional($licencia->vigencia)->format('Y-m-d') }}" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>Permanente</label>
+                                                                <input type="hidden" name="permanente" value="0">
+                                                                <div class="custom-control custom-switch mt-2">
+                                                                    <input type="checkbox" name="permanente" value="1" class="custom-control-input js-licencia-permanente" id="licenciaPermanente{{ $licencia->id }}" {{ $licencia->permanente ? 'checked' : '' }}>
+                                                                    <label class="custom-control-label" for="licenciaPermanente{{ $licencia->id }}">Sí</label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-group mb-0">
+                                                                <label>Observaciones</label>
+                                                                <textarea name="observaciones" class="form-control" rows="2">{{ $licencia->observaciones }}</textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                                                    <button type="submit" class="btn btn-primary">Guardar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endcan
+                    @else
+                        <p class="text-muted mb-0">No hay licencias registradas.</p>
                     @endif
                 </div>
             </div>
@@ -857,6 +1025,83 @@
         </div>
     </div>
 
+    <div class="modal fade modal-opaque" id="modalAgregarLicencia" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <form method="POST" action="{{ route('personal.licencias.store', $personal->id) }}" class="js-licencia-form">
+                @csrf
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Agregar licencia</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Tipo</label>
+                                    <select name="tipo" class="form-control" required>
+                                        <option value="">Seleccionar</option>
+                                        @foreach($tiposLicencia as $tipoClave => $tipoLabel)
+                                            <option value="{{ $tipoClave }}" {{ old('tipo') === $tipoClave ? 'selected' : '' }}>
+                                                {{ $tipoLabel }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Número</label>
+                                    <input type="text" name="numero" class="form-control" value="{{ old('numero') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Activo</label>
+                                    <input type="hidden" name="activo" value="0">
+                                    <div class="custom-control custom-switch mt-2">
+                                        <input type="checkbox" name="activo" value="1" class="custom-control-input" id="licenciaActivoNueva" {{ old('activo', '1') === '1' ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="licenciaActivoNueva">Sí</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Vigencia</label>
+                                    <input type="date" name="vigencia" class="form-control js-licencia-vigencia" value="{{ old('vigencia') }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Permanente</label>
+                                    <input type="hidden" name="permanente" value="0">
+                                    <div class="custom-control custom-switch mt-2">
+                                        <input type="checkbox" name="permanente" value="1" class="custom-control-input js-licencia-permanente" id="licenciaPermanenteNueva" {{ old('permanente') === '1' ? 'checked' : '' }}>
+                                        <label class="custom-control-label" for="licenciaPermanenteNueva">Sí</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-0">
+                                    <label>Observaciones</label>
+                                    <textarea name="observaciones" class="form-control" rows="2">{{ old('observaciones') }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal fade modal-opaque" id="modalAgregarDocumento" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <form method="POST" action="{{ route('personal.documentos.store', $personal->id) }}" enctype="multipart/form-data">
@@ -1136,6 +1381,7 @@
                                 <option value="FALTA">FALTA</option>
                                 <option value="COMISION">COMISION</option>
                                 <option value="SUSPENSION">SUSPENSION</option>
+                                <option value="SERVICIO">SERVICIO</option>
                                 <option value="OTRO">OTRO</option>
                             </select>
                         </div>
@@ -1261,6 +1507,40 @@
 
 @section('js')
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.js-licencia-form').forEach(function (form) {
+        const permanente = form.querySelector('.js-licencia-permanente');
+        const vigencia = form.querySelector('.js-licencia-vigencia');
+
+        if (!permanente || !vigencia) {
+            return;
+        }
+
+        const syncPermanente = function () {
+            if (permanente.checked) {
+                if (vigencia.value && vigencia.value !== '2099-12-31') {
+                    vigencia.dataset.previousValue = vigencia.value;
+                }
+
+                vigencia.value = '2099-12-31';
+                vigencia.readOnly = true;
+                return;
+            }
+
+            vigencia.readOnly = false;
+
+            if (vigencia.value === '2099-12-31') {
+                vigencia.value = vigencia.dataset.previousValue && vigencia.dataset.previousValue !== '2099-12-31'
+                    ? vigencia.dataset.previousValue
+                    : '';
+            }
+        };
+
+        permanente.addEventListener('change', syncPermanente);
+        syncPermanente();
+    });
+});
+
 @if ($errors->any())
 Swal.fire({
     icon: 'error',

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\IncidenciaTipo;
 use App\Models\Personal;
 use App\Models\PersonalIncidencia;
+use App\Models\PersonalLicencia;
 use App\Models\Unidad;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class SettingsPersonalController extends Controller
         'COMISION' => 5,
         'SUSPENSION' => 6,
         'OTRO' => 7,
+        'SERVICIO' => 8,
     ];
 
     public function index(Request $request)
@@ -33,7 +35,7 @@ class SettingsPersonalController extends Controller
 
         $personals = $this->queryPersonalVisibleParaActor($actor)
             ->with(['unidad', 'turno', 'patrulla', 'user', 'fotoPrincipal'])
-            ->withCount('incidencias')
+            ->withCount(['incidencias', 'licencias'])
             ->when($this->actorTieneVisibilidadGlobal($actor) && $unidadId > 0, function ($query) use ($unidadId) {
                 $query->where('unidad_id', $unidadId);
             })
@@ -53,9 +55,9 @@ class SettingsPersonalController extends Controller
                 });
             })
             ->orderByRaw("CASE WHEN estatus = 'ACTIVO' THEN 0 ELSE 1 END")
-            ->orderBy('nombre')
             ->orderBy('ap_paterno')
             ->orderBy('ap_materno')
+            ->orderBy('nombre')
             ->paginate($perPage);
 
         return response()->json([
@@ -107,6 +109,7 @@ class SettingsPersonalController extends Controller
             'user',
             'fotoPrincipal',
             'incidencias.tipo',
+            'licencias',
         ]);
 
         $personal->setRelation(
@@ -204,8 +207,8 @@ class SettingsPersonalController extends Controller
         $tipo = IncidenciaTipo::query()
             ->where('activo', 1)
             ->where(function ($query) use ($clave) {
-                $query->where('clave', $clave)
-                    ->orWhere('nombre', $clave);
+                $query->whereRaw('UPPER(TRIM(clave)) = ?', [$clave])
+                    ->orWhereRaw('UPPER(TRIM(nombre)) = ?', [$clave]);
             })
             ->first();
 
@@ -230,7 +233,7 @@ class SettingsPersonalController extends Controller
             'nombre' => $personal->nombre,
             'ap_paterno' => $personal->ap_paterno,
             'ap_materno' => $personal->ap_materno,
-            'nombre_completo' => $this->nombreCompleto($personal),
+            'nombre_completo' => $personal->nombre_completo,
             'curp' => $personal->curp,
             'rfc' => $personal->rfc,
             'cuip' => $personal->cuip,
@@ -252,6 +255,7 @@ class SettingsPersonalController extends Controller
             'patrulla' => $this->serializeSimple($personal->patrulla, 'numero_economico'),
             'user' => $this->serializeSimple($personal->user, 'name', ['email' => optional($personal->user)->email]),
             'incidencias_count' => (int) ($personal->incidencias_count ?? 0),
+            'licencias_count' => (int) ($personal->licencias_count ?? ($personal->relationLoaded('licencias') ? $personal->licencias->count() : 0)),
         ];
 
         $foto = $personal->fotoPrincipal;
@@ -273,9 +277,31 @@ class SettingsPersonalController extends Controller
                 ->map(fn (PersonalIncidencia $incidencia) => $this->serializeIncidencia($incidencia))
                 ->values();
             $data['incidencias_count'] = $data['incidencias']->count();
+            $data['licencias'] = $personal->licencias
+                ->map(fn (PersonalLicencia $licencia) => $this->serializeLicencia($licencia))
+                ->values();
+            $data['licencias_count'] = $data['licencias']->count();
         }
 
         return $data;
+    }
+
+    private function serializeLicencia(PersonalLicencia $licencia): array
+    {
+        return [
+            'id' => $licencia->id,
+            'tipo' => $licencia->tipo,
+            'tipo_label' => $licencia->tipo_label,
+            'numero' => $licencia->numero,
+            'vigencia' => optional($licencia->vigencia)->toDateString(),
+            'permanente' => (bool) $licencia->permanente,
+            'activo' => (bool) $licencia->activo,
+            'vencida' => $licencia->estaVencida(),
+            'vencimiento_notificado_at' => optional($licencia->vencimiento_notificado_at)->toIso8601String(),
+            'observaciones' => $licencia->observaciones,
+            'created_at' => optional($licencia->created_at)->toIso8601String(),
+            'updated_at' => optional($licencia->updated_at)->toIso8601String(),
+        ];
     }
 
     private function serializeIncidencia(PersonalIncidencia $incidencia): array
@@ -313,11 +339,7 @@ class SettingsPersonalController extends Controller
 
     private function nombreCompleto(Personal $personal): string
     {
-        return trim(implode(' ', array_filter([
-            $personal->nombre,
-            $personal->ap_paterno,
-            $personal->ap_materno,
-        ])));
+        return $personal->nombre_completo;
     }
 
     private function fotoUrl(Personal $personal, $foto): ?string

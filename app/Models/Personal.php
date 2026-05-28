@@ -45,6 +45,37 @@ class Personal extends Model
         'fecha_baja' => 'date',
     ];
 
+    public static function formarNombreCompleto($nombre, $apPaterno, $apMaterno): string
+    {
+        return trim(implode(' ', array_filter([
+            $apPaterno,
+            $apMaterno,
+            $nombre,
+        ], fn ($value) => trim((string) $value) !== '')));
+    }
+
+    public function nombreCompleto(): string
+    {
+        return self::formarNombreCompleto(
+            $this->nombre,
+            $this->ap_paterno,
+            $this->ap_materno
+        );
+    }
+
+    public function nombreCompletoConGrado(): string
+    {
+        return trim(implode(' ', array_filter([
+            $this->grado,
+            $this->nombreCompleto(),
+        ], fn ($value) => trim((string) $value) !== '')));
+    }
+
+    public function getNombreCompletoAttribute(): string
+    {
+        return $this->nombreCompleto();
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -78,6 +109,11 @@ class Personal extends Model
     public function documentos()
     {
         return $this->hasMany(PersonalDocumento::class, 'personal_id');
+    }
+
+    public function licencias()
+    {
+        return $this->hasMany(PersonalLicencia::class, 'personal_id');
     }
 
     public function asignaciones()

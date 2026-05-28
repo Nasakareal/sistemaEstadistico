@@ -51,6 +51,7 @@ use App\Http\Controllers\PersonalAsignacionController;
 use App\Http\Controllers\PersonalIncidenciaController;
 use App\Http\Controllers\PersonalDocumentoController;
 use App\Http\Controllers\PersonalFotoController;
+use App\Http\Controllers\PersonalLicenciaController;
 use App\Http\Controllers\DelegacionController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\BackupsSqlController;
@@ -675,6 +676,10 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::put('/{personal}/documentos/{documento}', [PersonalDocumentoController::class, 'update'])->middleware('can:editar personal')->name('personal.documentos.update');
         Route::delete('/{personal}/documentos/{documento}', [PersonalDocumentoController::class, 'destroy'])->middleware('can:editar personal')->name('personal.documentos.destroy');
 
+        Route::post('/{personal}/licencias', [PersonalLicenciaController::class, 'store'])->middleware('can:editar personal')->name('personal.licencias.store');
+        Route::put('/{personal}/licencias/{licencia}', [PersonalLicenciaController::class, 'update'])->middleware('can:editar personal')->name('personal.licencias.update');
+        Route::delete('/{personal}/licencias/{licencia}', [PersonalLicenciaController::class, 'destroy'])->middleware('can:editar personal')->name('personal.licencias.destroy');
+
         Route::post('/{personal}/fotos', [PersonalFotoController::class, 'store'])->middleware('can:editar personal')->name('personal.fotos.store');
         Route::get('/{personal}/fotos/principal', [PersonalFotoController::class, 'showPrincipal'])->middleware('auth')->name('personal.fotos.principal');
         Route::get('/{personal}/fotos/{foto}/archivo', [PersonalFotoController::class, 'show'])->middleware('auth')->name('personal.fotos.show');
@@ -824,15 +829,6 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/excel-mensual/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class,'descargarExcelMensual'])->name('settings.estadisticas_delegaciones.excel_mensual.descargar');
     });
 
-    Route::prefix('estadisticas-fomento')->group(function () {
-        Route::get('/', [EstadisticasFomentoSettingsController::class, 'index'])->name('settings.estadisticas_fomento.index');
-        Route::get('/excel-diario', [EstadisticasFomentoSettingsController::class, 'excelDiario'])->name('settings.estadisticas_fomento.excel_diario');
-        Route::post('/excel-diario/generar', [EstadisticasFomentoSettingsController::class, 'generarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.generar');
-        Route::get('/excel-diario/descargar/{fecha}', [EstadisticasFomentoSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.descargar');
-        Route::get('/municipios-atendidos', [EstadisticasFomentoSettingsController::class, 'municipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos');
-        Route::get('/municipios-atendidos/exportar', [EstadisticasFomentoSettingsController::class, 'exportarMunicipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos.exportar');
-    });
-
     Route::prefix('estadisticas-vialidad')->group(function () {
         Route::get('/', [EstadisticasVialidadSettingsController::class, 'index'])->name('settings.estadisticas_vialidad.index');
 
@@ -866,6 +862,16 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     });
 
 
+});
+
+Route::prefix('admin/settings/estadisticas-fomento')->middleware(['auth'])->group(function () {
+    Route::get('/', [EstadisticasFomentoSettingsController::class, 'index'])->name('settings.estadisticas_fomento.index');
+    Route::get('/excel-diario', [EstadisticasFomentoSettingsController::class, 'excelDiario'])->name('settings.estadisticas_fomento.excel_diario');
+    Route::post('/excel-diario/generar', [EstadisticasFomentoSettingsController::class, 'generarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.generar');
+    Route::get('/excel-diario/descargar/{fecha}', [EstadisticasFomentoSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_fomento.excel_diario.descargar');
+    Route::get('/municipios-atendidos', [EstadisticasFomentoSettingsController::class, 'municipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos');
+    Route::get('/municipios-atendidos/exportar', [EstadisticasFomentoSettingsController::class, 'exportarMunicipiosAtendidos'])->name('settings.estadisticas_fomento.municipios_atendidos.exportar');
+    Route::get('/servicios-personal', [EstadisticasFomentoSettingsController::class, 'serviciosPersonal'])->name('settings.estadisticas_fomento.servicios_personal');
 });
 
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });

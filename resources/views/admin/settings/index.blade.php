@@ -107,7 +107,7 @@
                     </div>
                     <div class="sv-card__body">
                         <div class="sv-card__title">Oficios</div>
-                        <div class="sv-card__desc">Entradas, salidas y contestaciones por unidad.</div>
+                        <div class="sv-card__desc">Recibidos, enviados y contestaciones por unidad.</div>
                         <a href="{{ route('oficios.index') }}" class="btn sv-btn">
                             <i class="fas fa-arrow-right"></i> Acceder
                         </a>

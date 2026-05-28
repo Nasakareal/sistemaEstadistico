@@ -6,7 +6,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center">
         <div>
             <h1 class="mb-1">Registrar oficio</h1>
-            <p class="text-muted mb-0">Captura de documentos de entrada y salida por unidad.</p>
+            <p class="text-muted mb-0">Captura de documentos recibidos y enviados por unidad.</p>
         </div>
         <a href="{{ route('oficios.index') }}" class="btn btn-secondary">
             <i class="fa-solid fa-arrow-left"></i> Volver

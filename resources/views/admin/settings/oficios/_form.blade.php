@@ -36,7 +36,7 @@
             <select name="sentido" id="sentido" class="form-control @error('sentido') is-invalid @enderror" required>
                 @foreach($sentidos as $value => $label)
                     <option value="{{ $value }}" {{ $selectedSentido === $value ? 'selected' : '' }}>
-                        {{ $label }} {{ $value === 'entrada' ? '(llega)' : '(se va)' }}
+                        {{ $label }} {{ $value === 'entrada' ? '(llegan)' : '(se van)' }}
                     </option>
                 @endforeach
             </select>
@@ -303,7 +303,7 @@
             }
 
             numero.placeholder = 'Captura el número del documento recibido';
-            ayuda.textContent = 'Para documentos de entrada, escribe el número tal como llega de la institución remitente.';
+            ayuda.textContent = 'Para documentos recibidos, escribe el número tal como llega de la institución remitente.';
         };
 
         sentido.addEventListener('change', updateNumeroState);

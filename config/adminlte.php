@@ -481,10 +481,24 @@ return [
                     'can'  => 'menu-estadisticas-actividades-fomento',
                     'submenu' => [
                         [
+                            'text'    => 'Panel Fomento',
+                            'icon'    => 'fa-solid fa-chart-line',
+                            'classes' => 'text-white',
+                            'route'   => 'settings.estadisticas_fomento.index',
+                            'can'     => 'menu-estadisticas-actividades-fomento',
+                        ],
+                        [
                             'text'    => 'Actividades',
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-actividades',
+                            'can'     => 'menu-estadisticas-actividades-fomento',
+                        ],
+                        [
+                            'text'    => 'Servicios por personal',
+                            'icon'    => 'fa-solid fa-ranking-star',
+                            'classes' => 'text-info',
+                            'route'   => 'settings.estadisticas_fomento.servicios_personal',
                             'can'     => 'menu-estadisticas-actividades-fomento',
                         ],
                     ],

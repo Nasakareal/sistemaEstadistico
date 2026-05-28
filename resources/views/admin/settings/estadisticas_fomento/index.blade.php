@@ -52,6 +52,21 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-md-3 col-sm-6 col-12">
+            <div class="sv-card">
+                <div class="sv-card__icon bg-warning">
+                    <i class="fa-solid fa-ranking-star"></i>
+                </div>
+                <div class="sv-card__body">
+                    <div class="sv-card__title">Servicios por personal</div>
+                    <div class="sv-card__desc">Listado de personal con conteo de servicios registrados.</div>
+                    <a href="{{ route('settings.estadisticas_fomento.servicios_personal') }}" class="btn sv-btn">
+                        <i class="fas fa-arrow-right"></i> Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 @stop
 

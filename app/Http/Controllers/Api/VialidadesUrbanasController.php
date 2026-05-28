@@ -369,12 +369,7 @@ class VialidadesUrbanasController extends Controller
         $cargoFirma = 'SUBDIRECTOR DE PROTECCIÓN EN VIALIDADES URBANAS';
 
         $nombreFirma = $subdirector
-            ? trim(collect([
-                $subdirector->grado,
-                $subdirector->nombre,
-                $subdirector->ap_paterno,
-                $subdirector->ap_materno,
-            ])->filter()->implode(' '))
+            ? $subdirector->nombreCompletoConGrado()
             : '';
 
         $lineas = [];

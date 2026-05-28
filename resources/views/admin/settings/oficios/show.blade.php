@@ -93,7 +93,7 @@
                         </div>
                     @elseif($oficio->pendiente_contestacion)
                         <div class="alert alert-danger">
-                            Este documento es una entrada y aún no tiene contestación registrada.
+                            Este documento fue recibido y aún no tiene contestación registrada.
                         </div>
                     @else
                         <div class="alert alert-secondary">

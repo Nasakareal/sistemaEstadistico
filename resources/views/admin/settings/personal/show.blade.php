@@ -22,6 +22,12 @@
         $documentosPersonal = $personal->documentos ?? collect();
         $licenciasPersonal = $personal->licencias ?? collect();
         $documentoTipos = $documentoTipos ?? collect();
+        $documentoTipoSeleccionadoId = old('documento_tipo_id');
+        $documentoTipoSeleccionado = $documentoTipoSeleccionadoId !== null && $documentoTipoSeleccionadoId !== ''
+            ? $documentoTipos->first(fn ($tipo) => (string) $tipo->id === (string) $documentoTipoSeleccionadoId)
+            : null;
+        $mostrarCamposOficioDocumento = $documentoTipos->isEmpty()
+            || optional($documentoTipoSeleccionado)->clave === 'OFICIOS_PERSONAL';
         $tiposLicencia = $tiposLicencia ?? \App\Models\PersonalLicencia::tipos();
     @endphp
 
@@ -1108,7 +1114,7 @@
                 @csrf
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Agregar documento u oficio</h5>
+                        <h5 class="modal-title">Agregar documento</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                             <span aria-hidden="true">&times;</span>
                         </button>
@@ -1118,10 +1124,10 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Tipo de documento</label>
-                                    <select name="documento_tipo_id" class="form-control" {{ $documentoTipos->count() ? 'required' : '' }}>
-                                        <option value="">Seleccionar</option>
+                                    <select name="documento_tipo_id" class="form-control js-documento-tipo" {{ $documentoTipos->count() ? 'required' : '' }}>
+                                        <option value="" data-clave="">Seleccionar</option>
                                         @foreach($documentoTipos as $tipo)
-                                            <option value="{{ $tipo->id }}" {{ (string) old('documento_tipo_id') === (string) $tipo->id ? 'selected' : '' }}>
+                                            <option value="{{ $tipo->id }}" data-clave="{{ $tipo->clave }}" {{ (string) old('documento_tipo_id') === (string) $tipo->id ? 'selected' : '' }}>
                                                 {{ $tipo->nombre }}
                                             </option>
                                         @endforeach
@@ -1165,55 +1171,58 @@
                                 </div>
                             </div>
                         </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Oficio comisión secretario</label>
-                                    <input type="text" name="oficio_comision_secretario" class="form-control" value="{{ old('oficio_comision_secretario') }}">
+                        <div class="js-documento-oficios-fields {{ $mostrarCamposOficioDocumento ? '' : 'd-none' }}">
+                            <hr>
+                            <h6 class="font-weight-bold text-muted mb-3">Datos de oficios</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Oficio comisión secretario</label>
+                                        <input type="text" name="oficio_comision_secretario" class="form-control" value="{{ old('oficio_comision_secretario') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Fecha oficio</label>
+                                        <input type="date" name="fecha_oficio" class="form-control" value="{{ old('fecha_oficio') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Titular firma oficio</label>
+                                        <input type="text" name="titular_firma_oficio" class="form-control" value="{{ old('titular_firma_oficio') }}">
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Fecha oficio</label>
-                                    <input type="date" name="fecha_oficio" class="form-control" value="{{ old('fecha_oficio') }}">
+                            <div class="form-group">
+                                <label>Archivo oficio comisión</label>
+                                <input type="file" name="archivo_oficio_comision" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Oficio asignación</label>
+                                        <input type="text" name="oficio_asignacion" class="form-control" value="{{ old('oficio_asignacion') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Fecha asignación</label>
+                                        <input type="date" name="fecha_asignacion" class="form-control" value="{{ old('fecha_asignacion') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Titular firma asignación</label>
+                                        <input type="text" name="titular_firma_asignacion" class="form-control" value="{{ old('titular_firma_asignacion') }}">
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Titular firma oficio</label>
-                                    <input type="text" name="titular_firma_oficio" class="form-control" value="{{ old('titular_firma_oficio') }}">
-                                </div>
+                            <div class="form-group">
+                                <label>Archivo oficio asignación</label>
+                                <input type="file" name="archivo_oficio_asignacion" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Archivo oficio comisión</label>
-                            <input type="file" name="archivo_oficio_comision" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
-                        </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Oficio asignación</label>
-                                    <input type="text" name="oficio_asignacion" class="form-control" value="{{ old('oficio_asignacion') }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Fecha asignación</label>
-                                    <input type="date" name="fecha_asignacion" class="form-control" value="{{ old('fecha_asignacion') }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Titular firma asignación</label>
-                                    <input type="text" name="titular_firma_asignacion" class="form-control" value="{{ old('titular_firma_asignacion') }}">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Archivo oficio asignación</label>
-                            <input type="file" name="archivo_oficio_asignacion" class="form-control-file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp">
                         </div>
                         <div class="form-group mb-0">
                             <label>Observaciones</label>
@@ -1508,6 +1517,25 @@
 @section('js')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const documentoTipo = document.querySelector('#modalAgregarDocumento .js-documento-tipo');
+    const documentoOficiosFields = document.querySelector('#modalAgregarDocumento .js-documento-oficios-fields');
+
+    if (documentoTipo && documentoOficiosFields) {
+        const oficioInputs = documentoOficiosFields.querySelectorAll('input, select, textarea');
+        const syncDocumentoOficios = function () {
+            const option = documentoTipo.options[documentoTipo.selectedIndex];
+            const mostrarOficios = option && option.dataset.clave === 'OFICIOS_PERSONAL';
+
+            documentoOficiosFields.classList.toggle('d-none', !mostrarOficios);
+            oficioInputs.forEach(function (input) {
+                input.disabled = !mostrarOficios;
+            });
+        };
+
+        documentoTipo.addEventListener('change', syncDocumentoOficios);
+        syncDocumentoOficios();
+    }
+
     document.querySelectorAll('.js-licencia-form').forEach(function (form) {
         const permanente = form.querySelector('.js-licencia-permanente');
         const vigencia = form.querySelector('.js-licencia-vigencia');

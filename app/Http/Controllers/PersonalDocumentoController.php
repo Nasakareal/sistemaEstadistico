@@ -110,34 +110,52 @@ class PersonalDocumentoController extends Controller
 
     private function datosParaGuardar(Request $request, Personal $personal, array $validated, ?PersonalDocumento $documento = null): array
     {
-        $archivoGeneral = $this->guardarArchivo($request, 'archivo', $personal, $documento ? $documento->archivo_path : null);
-        $archivoComision = $this->guardarArchivo($request, 'archivo_oficio_comision', $personal, $documento ? $documento->archivo_oficio_comision : null);
-        $archivoAsignacion = $this->guardarArchivo($request, 'archivo_oficio_asignacion', $personal, $documento ? $documento->archivo_oficio_asignacion : null);
+        $documentoTipoId = $validated['documento_tipo_id']
+            ?? ($documento ? $documento->documento_tipo_id : null)
+            ?? $this->tipoDocumentoOficiosId();
+        $usaCamposOficio = $this->documentoTipoUsaCamposOficio((int) $documentoTipoId);
 
-        $archivoParaMetadatos = $archivoGeneral ?? $archivoComision ?? $archivoAsignacion;
+        $archivoGeneral = $this->guardarArchivo($request, 'archivo', $personal, $documento ? $documento->archivo_path : null);
+        $archivoComision = $usaCamposOficio
+            ? $this->guardarArchivo($request, 'archivo_oficio_comision', $personal, $documento ? $documento->archivo_oficio_comision : null)
+            : null;
+        $archivoAsignacion = $usaCamposOficio
+            ? $this->guardarArchivo($request, 'archivo_oficio_asignacion', $personal, $documento ? $documento->archivo_oficio_asignacion : null)
+            : null;
+
+        if (!$usaCamposOficio && $documento) {
+            $this->eliminarArchivo($documento->archivo_oficio_comision);
+            $this->eliminarArchivo($documento->archivo_oficio_asignacion);
+        }
+
+        $numeroOficio = $usaCamposOficio
+            ? ($validated['oficio_asignacion'] ?? $validated['oficio_comision_secretario'] ?? null)
+            : null;
+        $fechaOficio = $usaCamposOficio
+            ? ($validated['fecha_oficio'] ?? $validated['fecha_asignacion'] ?? null)
+            : null;
+        $archivoParaMetadatos = $archivoGeneral ?? ($usaCamposOficio ? ($archivoComision ?? $archivoAsignacion) : null);
 
         $data = [
             'personal_id' => $personal->id,
-            'documento_tipo_id' => $validated['documento_tipo_id'] ?? ($documento ? $documento->documento_tipo_id : null) ?? $this->tipoDocumentoOficiosId(),
+            'documento_tipo_id' => $documentoTipoId,
             'numero' => $validated['numero']
-                ?? $validated['oficio_asignacion']
-                ?? $validated['oficio_comision_secretario']
+                ?? $numeroOficio
                 ?? ($documento ? $documento->numero : null),
             'fecha_emision' => $validated['fecha_emision']
-                ?? $validated['fecha_oficio']
-                ?? $validated['fecha_asignacion']
+                ?? $fechaOficio
                 ?? ($documento ? $documento->fecha_emision : null),
             'fecha_vencimiento' => $validated['fecha_vencimiento'] ?? ($documento ? $documento->fecha_vencimiento : null),
             'activo' => (bool) ($validated['activo'] ?? ($documento ? $documento->activo : null) ?? true),
             'observaciones' => $validated['observaciones'] ?? ($documento ? $documento->observaciones : null),
-            'oficio_comision_secretario' => $validated['oficio_comision_secretario'] ?? ($documento ? $documento->oficio_comision_secretario : null),
-            'fecha_oficio' => $validated['fecha_oficio'] ?? ($documento ? $documento->fecha_oficio : null),
-            'titular_firma_oficio' => $validated['titular_firma_oficio'] ?? ($documento ? $documento->titular_firma_oficio : null),
-            'oficio_asignacion' => $validated['oficio_asignacion'] ?? ($documento ? $documento->oficio_asignacion : null),
-            'fecha_asignacion' => $validated['fecha_asignacion'] ?? ($documento ? $documento->fecha_asignacion : null),
-            'titular_firma_asignacion' => $validated['titular_firma_asignacion'] ?? ($documento ? $documento->titular_firma_asignacion : null),
-            'archivo_oficio_comision' => $archivoComision['path'] ?? ($documento ? $documento->archivo_oficio_comision : null),
-            'archivo_oficio_asignacion' => $archivoAsignacion['path'] ?? ($documento ? $documento->archivo_oficio_asignacion : null),
+            'oficio_comision_secretario' => $usaCamposOficio ? ($validated['oficio_comision_secretario'] ?? ($documento ? $documento->oficio_comision_secretario : null)) : null,
+            'fecha_oficio' => $usaCamposOficio ? ($validated['fecha_oficio'] ?? ($documento ? $documento->fecha_oficio : null)) : null,
+            'titular_firma_oficio' => $usaCamposOficio ? ($validated['titular_firma_oficio'] ?? ($documento ? $documento->titular_firma_oficio : null)) : null,
+            'oficio_asignacion' => $usaCamposOficio ? ($validated['oficio_asignacion'] ?? ($documento ? $documento->oficio_asignacion : null)) : null,
+            'fecha_asignacion' => $usaCamposOficio ? ($validated['fecha_asignacion'] ?? ($documento ? $documento->fecha_asignacion : null)) : null,
+            'titular_firma_asignacion' => $usaCamposOficio ? ($validated['titular_firma_asignacion'] ?? ($documento ? $documento->titular_firma_asignacion : null)) : null,
+            'archivo_oficio_comision' => $usaCamposOficio ? ($archivoComision['path'] ?? ($documento ? $documento->archivo_oficio_comision : null)) : null,
+            'archivo_oficio_asignacion' => $usaCamposOficio ? ($archivoAsignacion['path'] ?? ($documento ? $documento->archivo_oficio_asignacion : null)) : null,
         ];
 
         if ($archivoParaMetadatos) {
@@ -155,6 +173,14 @@ class PersonalDocumentoController extends Controller
         }
 
         return $data;
+    }
+
+    private function documentoTipoUsaCamposOficio(int $tipoId): bool
+    {
+        return DocumentoTipo::query()
+            ->whereKey($tipoId)
+            ->where('clave', 'OFICIOS_PERSONAL')
+            ->exists();
     }
 
     private function guardarArchivo(Request $request, string $campo, Personal $personal, ?string $rutaAnterior = null): ?array

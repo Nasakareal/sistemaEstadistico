@@ -131,7 +131,7 @@ class SiniestrosReportScopeTest extends TestCase
         $this->assertStringContainsString('WHATSAPP_SINIESTROS_RESUMEN_TO', $commandSource);
 
         $this->assertStringContainsString('whatsapp:actividades-siniestros --regenerar', $kernelSource);
-        $this->assertStringContainsString("->dailyAt('18:05')", $kernelSource);
+        $this->assertStringContainsString("->dailyAt('18:15')", $kernelSource);
         $this->assertStringContainsString('WHATSAPP_SINIESTROS_ACTIVIDADES_TO', $configSource);
     }
 

@@ -30,6 +30,9 @@
 
                             $fotoLugarUrl = $fotoLugarPath ? Storage::url($fotoLugarPath) : null;
                             $fotoSituacionUrl = $fotoSituacionPath ? Storage::url($fotoSituacionPath) : null;
+                            $coordenadasManualValue = old('coordenadas_manual', (is_numeric($hecho->lat) && is_numeric($hecho->lng))
+                                ? number_format((float) $hecho->lat, 7, '.', '') . ', ' . number_format((float) $hecho->lng, 7, '.', '')
+                                : '');
                         @endphp
 
                         <div class="row">
@@ -211,6 +214,23 @@
                                     <small class="help-muted">
                                         Se guardan lat/lng para reportes y mapa.
                                     </small>
+
+                                    @if($puedeEditarCoordenadasManual ?? false)
+                                        <div class="mt-3" style="max-width: 420px;">
+                                            <label for="coordenadas_manual" class="mb-1">Coordenadas</label>
+                                            <input type="text"
+                                                   name="coordenadas_manual"
+                                                   id="coordenadas_manual"
+                                                   class="form-control @error('coordenadas_manual') is-invalid @enderror"
+                                                   value="{{ $coordenadasManualValue }}"
+                                                   placeholder="19.6808588, -101.2339535"
+                                                   autocomplete="off">
+                                            <small class="help-muted">Formato: latitud, longitud.</small>
+                                            <span id="coordenadas_manual_feedback" class="invalid-feedback d-block">
+                                                @error('coordenadas_manual'){{ $message }}@enderror
+                                            </span>
+                                        </div>
+                                    @endif
 
                                     @error('lat')
                                         <div class="text-danger small"><strong>{{ $message }}</strong></div>
@@ -747,6 +767,9 @@
             const btnGeo      = document.getElementById('btn_geo');
             const btnGeoClear = document.getElementById('btn_geo_clear');
             const geoStatus   = document.getElementById('geo_status');
+            const coordenadasManualInput = document.getElementById('coordenadas_manual');
+            const coordenadasManualFeedback = document.getElementById('coordenadas_manual_feedback');
+            const formHecho = document.getElementById('form_hecho');
 
             const latInput       = document.getElementById('lat');
             const lngInput       = document.getElementById('lng');
@@ -774,6 +797,74 @@
                 if (window.Swal) {
                     Swal.fire({ icon: 'success', title: 'Ubicación', text: msg, timer: 1600, showConfirmButton: false });
                 }
+            }
+
+            function parseCoordenadasManual(value) {
+                const texto = String(value || '').trim();
+                if (!texto) return null;
+
+                const partes = texto.split(/\s*,\s*|\s+/).filter(Boolean);
+                if (partes.length !== 2) return null;
+
+                const lat = Number(partes[0]);
+                const lng = Number(partes[1]);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+                if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+
+                return { lat, lng };
+            }
+
+            function setCoordenadasManualError(message) {
+                if (!coordenadasManualInput) return;
+
+                coordenadasManualInput.classList.toggle('is-invalid', Boolean(message));
+
+                if (coordenadasManualFeedback) {
+                    coordenadasManualFeedback.textContent = message || '';
+                }
+            }
+
+            function syncCoordenadasManualFromHidden() {
+                if (!coordenadasManualInput || !latInput || !lngInput) return;
+
+                coordenadasManualInput.value = latInput.value && lngInput.value
+                    ? `${latInput.value}, ${lngInput.value}`
+                    : '';
+                setCoordenadasManualError('');
+            }
+
+            function aplicarCoordenadasManual() {
+                if (!coordenadasManualInput || !latInput || !lngInput) return true;
+
+                const texto = coordenadasManualInput.value.trim();
+
+                if (!texto) {
+                    latInput.value = '';
+                    lngInput.value = '';
+                    if (precisionInput) precisionInput.value = '';
+                    if (fuenteInput) fuenteInput.value = '';
+                    setCoordenadasManualError('');
+                    setGeoUI();
+                    return true;
+                }
+
+                const coordenadas = parseCoordenadasManual(texto);
+
+                if (!coordenadas) {
+                    setCoordenadasManualError('Captura las coordenadas en formato latitud, longitud.');
+                    if (geoStatus) geoStatus.textContent = 'Formato de coordenadas inválido';
+                    return false;
+                }
+
+                latInput.value = coordenadas.lat.toFixed(7);
+                lngInput.value = coordenadas.lng.toFixed(7);
+                if (precisionInput) precisionInput.value = '';
+                if (fuenteInput) fuenteInput.value = 'MANUAL_WEB';
+                setCoordenadasManualError('');
+                setGeoUI();
+
+                return true;
             }
 
             function fillOficioFromDictamen() {
@@ -960,6 +1051,7 @@
                             if (precisionInput) precisionInput.value = (typeof acc === 'number') ? Math.round(acc) : '';
                             if (fuenteInput) fuenteInput.value = 'GPS_WEB';
 
+                            syncCoordenadasManualFromHidden();
                             setGeoUI();
                             toastOk('Coordenadas capturadas.');
                         },
@@ -986,7 +1078,21 @@
                     if (lngInput) lngInput.value = '';
                     if (precisionInput) precisionInput.value = '';
                     if (fuenteInput) fuenteInput.value = '';
+                    syncCoordenadasManualFromHidden();
                     setGeoUI();
+                });
+            }
+
+            if (coordenadasManualInput) {
+                coordenadasManualInput.addEventListener('input', aplicarCoordenadasManual);
+            }
+
+            if (formHecho && coordenadasManualInput) {
+                formHecho.addEventListener('submit', function (event) {
+                    if (!aplicarCoordenadasManual()) {
+                        event.preventDefault();
+                        toastError('Revisa el formato de las coordenadas.');
+                    }
                 });
             }
 

@@ -9,7 +9,13 @@
     $esSalida = $selectedSentido === 'salida';
     $bloquearSentido = $oficio->exists;
     $prefijosUnidad = $prefijosUnidad ?? [];
+    $numeroPreviewSalida = $numeroPreviewSalida ?? null;
     $anioOriginal = $oficio->exists ? optional($oficio->fecha_documento ?: $oficio->created_at)->format('Y') : null;
+    $numeroValue = old('numero_oficio', $oficio->numero_oficio);
+
+    if (!$oficio->exists && $esSalida && blank($numeroValue)) {
+        $numeroValue = $numeroPreviewSalida;
+    }
 @endphp
 
 <div class="row">
@@ -91,7 +97,7 @@
                    name="numero_oficio"
                    id="numero_oficio"
                    class="form-control oficio-numero @error('numero_oficio') is-invalid @enderror"
-                   value="{{ old('numero_oficio', $oficio->numero_oficio) }}"
+                   value="{{ $numeroValue }}"
                    maxlength="500"
                    {{ $esSalida ? 'readonly' : 'required' }}
                    data-original-numero="{{ $oficio->numero_oficio }}"
@@ -265,6 +271,9 @@
         const ayuda = document.getElementById('numero_help');
         const prefijos = @json($prefijosUnidad);
         const bloquearSentido = @json($bloquearSentido);
+        const oficioExiste = @json($oficio->exists);
+        const previewUrl = @json(route('oficios.preview-numero'));
+        let previewRequestId = 0;
 
         if (!sentido || !numero || !ayuda) {
             return;
@@ -273,6 +282,58 @@
         if (bloquearSentido) {
             sentido.disabled = true;
         }
+
+        const fetchNumeroPreview = function (unidadId) {
+            const requestId = ++previewRequestId;
+
+            if (!previewUrl || !unidadId) {
+                numero.value = '';
+                ayuda.textContent = 'Selecciona la unidad para calcular el número de salida.';
+                return;
+            }
+
+            const url = new URL(previewUrl, window.location.origin);
+            url.searchParams.set('sentido', 'salida');
+            url.searchParams.set('unidad_id', unidadId);
+
+            if (fecha && fecha.value) {
+                url.searchParams.set('fecha_documento', fecha.value);
+            }
+
+            ayuda.textContent = 'Calculando número de oficio...';
+
+            fetch(url.toString(), {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('No se pudo calcular el número.');
+                    }
+
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (requestId !== previewRequestId || sentido.value !== 'salida') {
+                        return;
+                    }
+
+                    const preview = data.numero_oficio || '';
+                    numero.value = preview;
+                    ayuda.textContent = preview
+                        ? 'Número de oficio previsto. Se confirmará al guardar.'
+                        : 'Se asignará automáticamente al guardar.';
+                })
+                .catch(function () {
+                    if (requestId !== previewRequestId || sentido.value !== 'salida') {
+                        return;
+                    }
+
+                    numero.value = '';
+                    ayuda.textContent = 'No se pudo calcular la vista previa. Se asignará al guardar.';
+                });
+        };
 
         const updateNumeroState = function () {
             const esSalida = sentido.value === 'salida';
@@ -299,9 +360,15 @@
                 ayuda.textContent = numero.value
                     ? 'Número interno ya asignado. Se conserva mientras no cambies la unidad o el año.'
                     : `Se asignará automáticamente al guardar. Vista previa: ${ejemplo}.`;
+
+                if (!oficioExiste) {
+                    fetchNumeroPreview(unidadId);
+                }
+
                 return;
             }
 
+            previewRequestId++;
             numero.placeholder = 'Captura el número del documento recibido';
             ayuda.textContent = 'Para documentos recibidos, escribe el número tal como llega de la institución remitente.';
         };

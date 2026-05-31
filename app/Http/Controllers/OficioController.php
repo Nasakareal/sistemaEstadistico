@@ -52,18 +52,19 @@ class OficioController extends Controller
             : (int) optional($this->actor())->unidad_id;
 
         $unidades = $this->unidadesDisponibles();
+        $oficio = new Oficio([
+            'tipo' => 'oficio',
+            'sentido' => $contestaA ? 'salida' : 'entrada',
+            'unidad_id' => $unidadId ?: null,
+            'fecha_documento' => now(),
+            'termino_horas' => null,
+            'asunto' => $contestaA ? 'Contestación a ' . $contestaA->numero_oficio : null,
+            'destinatario' => $contestaA ? $contestaA->remitente : null,
+            'contesta_a_id' => $contestaA ? $contestaA->id : null,
+        ]);
 
         return view('admin.settings.oficios.create', [
-            'oficio' => new Oficio([
-                'tipo' => 'oficio',
-                'sentido' => $contestaA ? 'salida' : 'entrada',
-                'unidad_id' => $unidadId ?: null,
-                'fecha_documento' => now(),
-                'termino_horas' => null,
-                'asunto' => $contestaA ? 'Contestación a ' . $contestaA->numero_oficio : null,
-                'destinatario' => $contestaA ? $contestaA->remitente : null,
-                'contesta_a_id' => $contestaA ? $contestaA->id : null,
-            ]),
+            'oficio' => $oficio,
             'tipos' => Oficio::TIPOS,
             'sentidos' => Oficio::SENTIDOS,
             'terminosHoras' => Oficio::TERMINOS_HORAS,
@@ -71,6 +72,46 @@ class OficioController extends Controller
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
             'oficiosParaContestar' => $this->oficiosParaContestar($unidadId ?: null),
             'puedeElegirUnidad' => $this->actorEsSuperadmin(),
+            'numeroPreviewSalida' => $oficio->sentido === 'salida'
+                ? $this->previsualizarNumeroSalida((int) $oficio->unidad_id, $oficio->fecha_documento)
+                : null,
+        ]);
+    }
+
+    public function previewNumero(Request $request)
+    {
+        if ((string) $request->query('sentido', 'salida') !== 'salida') {
+            return response()->json(['numero_oficio' => null]);
+        }
+
+        $unidadId = $this->actorEsSuperadmin()
+            ? (int) $request->query('unidad_id')
+            : (int) optional($this->actor())->unidad_id;
+
+        if ($unidadId <= 0) {
+            return response()->json([
+                'message' => 'Selecciona la unidad para calcular el número.',
+            ], 422);
+        }
+
+        $unidad = $this->unidadesDisponibles()->firstWhere('id', $unidadId);
+
+        abort_unless($unidad, 403);
+
+        try {
+            $anio = $this->anioDocumento([
+                'fecha_documento' => $request->query('fecha_documento'),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'La fecha del documento no es válida.',
+            ], 422);
+        }
+
+        $numero = $this->siguienteNumeroSalida(Oficio::prefijoParaUnidad($unidad), $unidadId, $anio);
+
+        return response()->json([
+            'numero_oficio' => $numero,
         ]);
     }
 
@@ -409,6 +450,23 @@ class OficioController extends Controller
         return $unidades
             ->mapWithKeys(fn (Unidad $unidad) => [(string) $unidad->id => Oficio::prefijoParaUnidad($unidad)])
             ->all();
+    }
+
+    private function previsualizarNumeroSalida(int $unidadId, $fechaDocumento = null): ?string
+    {
+        if ($unidadId <= 0) {
+            return null;
+        }
+
+        $unidad = $this->unidadesDisponibles()->firstWhere('id', $unidadId);
+
+        if (!$unidad) {
+            return null;
+        }
+
+        $anio = $this->anioDocumento(['fecha_documento' => $fechaDocumento]);
+
+        return $this->siguienteNumeroSalida(Oficio::prefijoParaUnidad($unidad), $unidadId, $anio);
     }
 
     private function asignarNumeroSalida(array &$data, ?Oficio $oficio = null): void

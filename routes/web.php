@@ -404,6 +404,7 @@ Route::prefix('vialidades-urbanas')->middleware(['auth', 'can:ver operativos via
 Route::prefix('admin/settings/oficios')->middleware(['auth', 'can:ver oficios'])->group(function () {
     Route::get('/',[OficioController::class,'index'])->name('oficios.index');
     Route::get('/create',[OficioController::class,'create'])->middleware('can:crear oficios')->name('oficios.create');
+    Route::get('/preview-numero',[OficioController::class,'previewNumero'])->middleware('can:crear oficios')->name('oficios.preview-numero');
     Route::post('/',[OficioController::class,'store'])->middleware('can:crear oficios')->name('oficios.store');
     Route::get('/{oficio}/archivo/pdf',[OficioController::class,'archivoPdf'])->middleware('can:ver oficios')->name('oficios.archivo.pdf');
     Route::get('/{oficio}/archivo/fotos/{indice}',[OficioController::class,'archivoFoto'])->middleware('can:ver oficios')->whereNumber('indice')->name('oficios.archivo.foto');

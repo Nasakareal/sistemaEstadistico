@@ -432,8 +432,9 @@ class HechosController extends Controller
 
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeEditarCoordenadasManual = $this->userCanEditCoordenadasManual($usuario);
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -463,6 +464,11 @@ class HechosController extends Controller
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
+        $puedeEditarCoordenadasManual = $this->userCanEditCoordenadasManual($usuario);
+
+        if ($puedeEditarCoordenadasManual && $request->has('coordenadas_manual')) {
+            $this->normalizarCoordenadasManualRequest($request, $hecho);
+        }
 
         $reglaFolio = [
             'nullable',
@@ -871,6 +877,97 @@ class HechosController extends Controller
                 }
             },
         ];
+    }
+
+    private function normalizarCoordenadasManualRequest(Request $request, ?Hechos $hecho = null): void
+    {
+        $request->validate([
+            'coordenadas_manual' => [
+                'nullable',
+                'string',
+                'max:100',
+                function ($attribute, $value, $fail) {
+                    $texto = trim((string) $value);
+
+                    if ($texto !== '' && !$this->parsearCoordenadasManual($texto)) {
+                        $fail('Captura las coordenadas en formato latitud, longitud.');
+                    }
+                },
+            ],
+        ]);
+
+        $texto = trim((string) $request->input('coordenadas_manual', ''));
+
+        if ($texto === '') {
+            $request->merge([
+                'lat' => null,
+                'lng' => null,
+                'calidad_geo' => null,
+                'fuente_ubicacion' => null,
+            ]);
+            return;
+        }
+
+        $coordenadas = $this->parsearCoordenadasManual($texto);
+
+        if (!$coordenadas) {
+            return;
+        }
+
+        $lat = number_format($coordenadas['lat'], 7, '.', '');
+        $lng = number_format($coordenadas['lng'], 7, '.', '');
+        $latActual = $hecho && is_numeric($hecho->lat) ? number_format((float) $hecho->lat, 7, '.', '') : null;
+        $lngActual = $hecho && is_numeric($hecho->lng) ? number_format((float) $hecho->lng, 7, '.', '') : null;
+
+        if ($hecho && $latActual === $lat && $lngActual === $lng) {
+            $request->merge([
+                'lat' => $lat,
+                'lng' => $lng,
+                'calidad_geo' => $hecho->calidad_geo,
+                'fuente_ubicacion' => $hecho->fuente_ubicacion,
+            ]);
+            return;
+        }
+
+        $fuenteSolicitada = strtoupper(trim((string) $request->input('fuente_ubicacion', '')));
+
+        $request->merge([
+            'lat' => $lat,
+            'lng' => $lng,
+            'calidad_geo' => $fuenteSolicitada === 'GPS_WEB' ? $request->input('calidad_geo') : null,
+            'fuente_ubicacion' => $fuenteSolicitada === 'GPS_WEB' ? 'GPS_WEB' : 'MANUAL_WEB',
+        ]);
+    }
+
+    private function parsearCoordenadasManual(string $texto): ?array
+    {
+        $texto = trim($texto);
+
+        if ($texto === '') {
+            return null;
+        }
+
+        $partes = preg_split('/\s*,\s*|\s+/', $texto);
+
+        if (!$partes || count($partes) !== 2) {
+            return null;
+        }
+
+        $lat = str_replace(',', '.', trim((string) $partes[0]));
+        $lng = str_replace(',', '.', trim((string) $partes[1]));
+
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            return null;
+        }
+
+        $lat = (float) $lat;
+        $lng = (float) $lng;
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return null;
+        }
+
+        return ['lat' => $lat, 'lng' => $lng];
     }
 
     private function applyHechosVisibilityScope($query, $usuario): void
@@ -1374,6 +1471,15 @@ class HechosController extends Controller
             : HechoAccess::effectiveUnidadId($usuario);
 
         return $unidadId === 1;
+    }
+
+    private function userCanEditCoordenadasManual($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return !$usuario->hasAnyRole(['Delegado', 'Perito', 'Policia', 'Policía']);
     }
 
     private function usaReglasFlexiblesHechos($usuario, ?Hechos $hecho = null): bool

@@ -53,6 +53,7 @@ class GenerarExcelDelegacionesMensual extends Command
         try {
             File::copy($tempPath, $rutaDestino);
             @chmod($rutaDestino, 0664);
+            File::delete($tempPath);
         } catch (\Throwable $e) {
             $this->error('No se pudo copiar el Excel al destino: ' . $rutaDestino);
             $this->line($e->getMessage());

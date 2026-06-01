@@ -116,7 +116,7 @@
   if (!$croquisPreviewUrl && $croquisPreview) {
     $croquisPreviewUrl = \Illuminate\Support\Str::startsWith($croquisPreview, ['data:image', 'http://', 'https://'])
       ? $croquisPreview
-      : asset($croquisPreview);
+      : (!empty($hecho->id) ? route('croquis.preview', $hecho->id) : asset($croquisPreview));
   }
 @endphp
   <div class="header">

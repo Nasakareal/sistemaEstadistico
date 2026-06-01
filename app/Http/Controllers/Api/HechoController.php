@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppLink;
+use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
@@ -1022,6 +1023,8 @@ class HechoController extends Controller
                 $hecho->lesionados()->delete();
 
                 if ($hecho->croquis) {
+                    app(CroquisArchivoStorage::class)->delete($hecho->croquis->imagen_preview);
+                    app(CroquisArchivoStorage::class)->delete($hecho->croquis->pdf_path);
                     $hecho->croquis->delete();
                 }
 

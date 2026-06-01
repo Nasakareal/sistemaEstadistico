@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Hechos;
+use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\CroquisPreviewService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
@@ -11,10 +12,12 @@ use Illuminate\Support\Str;
 class DocumentoHechoController extends Controller
 {
     private $croquisPreviewService;
+    private $croquisStorage;
 
-    public function __construct(CroquisPreviewService $croquisPreviewService)
+    public function __construct(CroquisPreviewService $croquisPreviewService, CroquisArchivoStorage $croquisStorage)
     {
         $this->croquisPreviewService = $croquisPreviewService;
+        $this->croquisStorage = $croquisStorage;
     }
 
     public function descargarDocx($id)
@@ -51,6 +54,12 @@ class DocumentoHechoController extends Controller
 
         if (Str::startsWith($path, ['data:image', 'http://', 'https://'])) {
             return $path;
+        }
+
+        $blobSource = $this->croquisStorage->dataUri($path);
+
+        if ($blobSource) {
+            return $blobSource;
         }
 
         return $this->imageSource(public_path(ltrim($path, '/')));

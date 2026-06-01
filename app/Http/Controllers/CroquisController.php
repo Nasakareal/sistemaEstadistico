@@ -4,16 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Croquis;
 use App\Models\Hechos;
+use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\CroquisPreviewService;
 use Illuminate\Http\Request;
 
 class CroquisController extends Controller
 {
     private $previewService;
+    private $archivoStorage;
 
-    public function __construct(CroquisPreviewService $previewService)
+    public function __construct(CroquisPreviewService $previewService, CroquisArchivoStorage $archivoStorage)
     {
         $this->previewService = $previewService;
+        $this->archivoStorage = $archivoStorage;
     }
 
     public function show(Hechos $hecho)
@@ -105,12 +108,28 @@ class CroquisController extends Controller
         $croquis = Croquis::where('hecho_id', $hecho->id)->first();
 
         if ($croquis) {
+            $this->archivoStorage->delete($croquis->imagen_preview);
+            $this->archivoStorage->delete($croquis->pdf_path);
             $croquis->delete();
         }
 
         return redirect()
             ->route('croquis.show', $hecho->id)
             ->with('success', 'Croquis eliminado correctamente.');
+    }
+
+    public function preview(Hechos $hecho)
+    {
+        $croquis = Croquis::where('hecho_id', $hecho->id)
+            ->latest('id')
+            ->first();
+
+        abort_unless($croquis && $croquis->imagen_preview, 404);
+
+        return $this->archivoStorage->response(
+            $croquis->imagen_preview,
+            'hecho_' . $hecho->id . '_croquis.png'
+        );
     }
 
     private function guardarPreview(?string $preview, Hechos $hecho, ?string $actual = null): ?string
@@ -129,18 +148,13 @@ class CroquisController extends Controller
             return $actual;
         }
 
-        $directorioRelativo = 'img/croquis/previews';
-        $directorio = public_path($directorioRelativo);
+        $path = 'previews/hecho_' . $hecho->id . '_croquis.png';
+        $this->archivoStorage->putContent($contenido, $path, 'image/png');
 
-        if (!is_dir($directorio)) {
-            mkdir($directorio, 0775, true);
+        if ($actual && $this->archivoStorage->normalizePath($actual) !== $path) {
+            $this->archivoStorage->delete($actual);
         }
 
-        $nombreArchivo = 'hecho_' . $hecho->id . '_croquis.png';
-        $ruta = $directorio . DIRECTORY_SEPARATOR . $nombreArchivo;
-
-        file_put_contents($ruta, $contenido);
-
-        return $directorioRelativo . '/' . $nombreArchivo;
+        return $path;
     }
 }

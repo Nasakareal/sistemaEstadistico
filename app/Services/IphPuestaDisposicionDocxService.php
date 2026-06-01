@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Hechos;
+use App\Services\Croquis\CroquisArchivoStorage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -1965,6 +1966,18 @@ class IphPuestaDisposicionDocxService
 
         if (is_file($src)) {
             return $src;
+        }
+
+        if (preg_match('#(^|/)previews/|croquis#i', $src)) {
+            $croquisPath = app(CroquisArchivoStorage::class)->temporaryLocalPath($src);
+
+            if ($croquisPath && is_file($croquisPath)) {
+                if (Str::startsWith(str_replace('\\', '/', $croquisPath), str_replace('\\', '/', storage_path('app/temp/')))) {
+                    $this->tempFiles[] = $croquisPath;
+                }
+
+                return $croquisPath;
+            }
         }
 
         $path = parse_url($src, PHP_URL_PATH) ?: $src;

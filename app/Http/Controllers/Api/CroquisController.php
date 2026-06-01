@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Croquis;
 use App\Models\Hechos;
+use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\CroquisPreviewService;
 use App\Support\HechoAccess;
 use Illuminate\Http\Request;
@@ -12,10 +13,12 @@ use Illuminate\Http\Request;
 class CroquisController extends Controller
 {
     private $previewService;
+    private $archivoStorage;
 
-    public function __construct(CroquisPreviewService $previewService)
+    public function __construct(CroquisPreviewService $previewService, CroquisArchivoStorage $archivoStorage)
     {
         $this->previewService = $previewService;
+        $this->archivoStorage = $archivoStorage;
     }
 
     public function show(Hechos $hecho)
@@ -161,12 +164,35 @@ class CroquisController extends Controller
             ], 404);
         }
 
+        $this->archivoStorage->delete($croquis->imagen_preview);
+        $this->archivoStorage->delete($croquis->pdf_path);
         $croquis->delete();
 
         return response()->json([
             'ok' => true,
             'message' => 'Croquis eliminado correctamente.',
         ], 200);
+    }
+
+    public function preview(Request $request, Hechos $hecho)
+    {
+        if (!HechoAccess::canView($request->user(), $hecho)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No tienes permiso para consultar este hecho.',
+            ], 403);
+        }
+
+        $croquis = Croquis::where('hecho_id', $hecho->id)
+            ->latest('id')
+            ->first();
+
+        abort_unless($croquis && $croquis->imagen_preview, 404);
+
+        return $this->archivoStorage->response(
+            $croquis->imagen_preview,
+            'hecho_' . $hecho->id . '_croquis.png'
+        );
     }
 
     private function guardarPreview(?string $preview, Hechos $hecho, ?string $actual = null): ?string
@@ -185,19 +211,14 @@ class CroquisController extends Controller
             return $actual;
         }
 
-        $directorioRelativo = 'img/croquis/previews';
-        $directorio = public_path($directorioRelativo);
+        $path = 'previews/hecho_' . $hecho->id . '_croquis.png';
+        $this->archivoStorage->putContent($contenido, $path, 'image/png');
 
-        if (!is_dir($directorio)) {
-            mkdir($directorio, 0775, true);
+        if ($actual && $this->archivoStorage->normalizePath($actual) !== $path) {
+            $this->archivoStorage->delete($actual);
         }
 
-        $nombreArchivo = 'hecho_' . $hecho->id . '_croquis.png';
-        $ruta = $directorio . DIRECTORY_SEPARATOR . $nombreArchivo;
-
-        file_put_contents($ruta, $contenido);
-
-        return $directorioRelativo . '/' . $nombreArchivo;
+        return $path;
     }
 
     private function transformCroquis(Croquis $croquis, Hechos $hecho): array
@@ -211,7 +232,7 @@ class CroquisController extends Controller
             'escala' => $croquis->escala,
             'json_dibujo' => $croquis->json_dibujo,
             'imagen_preview' => $croquis->imagen_preview,
-            'imagen_preview_url' => $croquis->imagen_preview ? asset($croquis->imagen_preview) : null,
+            'imagen_preview_url' => $croquis->imagen_preview ? route('api.croquis.preview', $hecho->id) : null,
             'pdf_path' => $croquis->pdf_path,
             'pdf_url' => $croquis->pdf_path ? asset($croquis->pdf_path) : null,
             'created_by' => $croquis->created_by,

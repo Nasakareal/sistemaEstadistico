@@ -4,12 +4,20 @@ namespace App\Services;
 
 use App\Models\Croquis;
 use App\Models\Hechos;
+use App\Services\Croquis\CroquisArchivoStorage;
 
 class CroquisPreviewService
 {
     private const WIDTH = 1200;
     private const HEIGHT = 700;
-    private const PREVIEW_DIR = 'img/croquis/previews';
+    private const PREVIEW_DIR = 'previews';
+
+    private $storage;
+
+    public function __construct(CroquisArchivoStorage $storage)
+    {
+        $this->storage = $storage;
+    }
 
     public function ensure(Croquis $croquis, ?Hechos $hecho = null): ?string
     {
@@ -44,24 +52,33 @@ class CroquisPreviewService
             $this->drawElement($canvas, $elemento);
         }
 
-        $directorio = public_path(self::PREVIEW_DIR);
-
-        if (!is_dir($directorio)) {
-            mkdir($directorio, 0775, true);
-        }
-
         $hechoId = $hecho ? $hecho->id : $croquis->hecho_id;
         $nombreArchivo = 'hecho_' . $hechoId . '_croquis.png';
-        $ruta = $directorio . DIRECTORY_SEPARATOR . $nombreArchivo;
-
-        imagepng($canvas, $ruta);
-        imagedestroy($canvas);
-
         $path = self::PREVIEW_DIR . '/' . $nombreArchivo;
 
-        if ($croquis->imagen_preview !== $path) {
+        ob_start();
+        imagepng($canvas);
+        $contenido = ob_get_clean();
+        imagedestroy($canvas);
+
+        if ($contenido === false || $contenido === '') {
+            return $croquis->imagen_preview;
+        }
+
+        $anterior = $croquis->imagen_preview;
+        $this->storage->putContent($contenido, $path, 'image/png');
+
+        if ($anterior !== $path) {
             $croquis->imagen_preview = $path;
             $croquis->save();
+
+            if ($anterior) {
+                if ($this->storage->normalizePath($anterior) === $path) {
+                    $this->storage->deleteLocal($anterior);
+                } else {
+                    $this->storage->delete($anterior);
+                }
+            }
         }
 
         return $path;
@@ -79,7 +96,7 @@ class CroquisPreviewService
             return true;
         }
 
-        return is_file(public_path(ltrim($path, '/\\')));
+        return $this->storage->exists($path);
     }
 
     private function decodeElements($raw): array

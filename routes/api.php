@@ -296,6 +296,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/hechos/{hecho}/lesionados/{lesionado}', [LesionadoController::class, 'destroy'])->middleware('can:eliminar lesionados');
 
     Route::get('/hechos/{hecho}/croquis', [CroquisController::class, 'show'])->middleware('can:ver hechos');
+    Route::get('/hechos/{hecho}/croquis/preview', [CroquisController::class, 'preview'])->middleware('can:ver hechos')->name('api.croquis.preview');
     Route::post('/hechos/{hecho}/croquis', [CroquisController::class, 'store']);
     Route::put('/hechos/{hecho}/croquis', [CroquisController::class, 'update']);
     Route::delete('/hechos/{hecho}/croquis', [CroquisController::class, 'destroy']);

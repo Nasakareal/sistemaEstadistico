@@ -13,6 +13,7 @@ use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\IphPuestaDisposicionService;
+use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\WhatsApp\C5IReport;
@@ -767,6 +768,8 @@ class HechosController extends Controller
             $hecho->lesionados()->delete();
 
             if ($hecho->croquis) {
+                app(CroquisArchivoStorage::class)->delete($hecho->croquis->imagen_preview);
+                app(CroquisArchivoStorage::class)->delete($hecho->croquis->pdf_path);
                 $hecho->croquis->delete();
             }
 

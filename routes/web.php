@@ -501,6 +501,7 @@ Route::prefix('hechos')->middleware('can:ver hechos')->group(function () {
 
     Route::prefix('/{hecho}/croquis')->group(function () {
         Route::get('/', [\App\Http\Controllers\CroquisController::class, 'show'])->name('croquis.show');
+        Route::get('/preview', [\App\Http\Controllers\CroquisController::class, 'preview'])->name('croquis.preview');
         Route::post('/', [\App\Http\Controllers\CroquisController::class, 'store'])->name('croquis.store');
         Route::put('/', [\App\Http\Controllers\CroquisController::class, 'update'])->name('croquis.update');
         Route::delete('/', [\App\Http\Controllers\CroquisController::class, 'destroy'])->name('croquis.destroy');

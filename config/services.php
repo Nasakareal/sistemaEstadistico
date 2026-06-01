@@ -100,5 +100,9 @@ return [
                 env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
             )
         ),
+        'croquis_container' => env('AZURE_STORAGE_CROQUIS_CONTAINER', 'croquis'),
+        'croquis_enabled' => env('AZURE_STORAGE_CROQUIS_ENABLED',
+            env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
+        ),
     ],
 ];

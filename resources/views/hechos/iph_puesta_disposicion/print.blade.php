@@ -54,7 +54,7 @@
     if ($croquisPreview !== '') {
         $croquisPreviewUrl = preg_match('/^(data:image|https?:\/\/)/i', $croquisPreview)
             ? $croquisPreview
-            : asset(ltrim($croquisPreview, '/'));
+            : (!empty($hechoIph['id']) ? route('croquis.preview', $hechoIph['id']) : asset(ltrim($croquisPreview, '/')));
     }
 
     $imageUrl = function ($path): ?string {

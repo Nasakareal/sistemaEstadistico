@@ -21,7 +21,7 @@ class GenerarExcelDelegacionesMensual extends Command
         if ($fecha) {
             $fechaCorte = Carbon::parse($fecha, $tz)->format('Y-m');
         } else {
-            $fechaCorte = Carbon::now($tz)->format('Y-m');
+            $fechaCorte = Carbon::now($tz)->subMonthNoOverflow()->format('Y-m');
         }
 
         $generator = app(ExcelDelegacionesMensualGenerator::class);

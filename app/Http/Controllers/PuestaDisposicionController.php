@@ -10,11 +10,11 @@ use App\Models\Unidad;
 use App\Models\Delegacion;
 use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class PuestaDisposicionController extends Controller
@@ -524,7 +524,7 @@ class PuestaDisposicionController extends Controller
             $archivoPuesta = null;
 
             if ($request->hasFile('archivo_puesta')) {
-                $archivoPuesta = $request->file('archivo_puesta')->store('puestas_disposicion', 'public');
+                $archivoPuesta = $this->documentos()->putUploadedFile($request->file('archivo_puesta'), 'puestas_disposicion');
             }
 
             $anioActual = now()->year;
@@ -664,6 +664,19 @@ class PuestaDisposicionController extends Controller
         return view('puestas_disposicion.show', compact('puestaDisposicion'));
     }
 
+    public function archivo(PuestaDisposicion $puestaDisposicion)
+    {
+        $usuario = auth()->user();
+
+        $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
+
+        abort_unless($puestaDisposicion->archivo_puesta, 404);
+
+        $nombre = 'puesta_disposicion_' . $puestaDisposicion->numero_puesta . '_' . $puestaDisposicion->anio . '.pdf';
+
+        return $this->documentos()->response($puestaDisposicion->archivo_puesta, $nombre);
+    }
+
     public function edit(PuestaDisposicion $puestaDisposicion)
     {
         $usuario = auth()->user();
@@ -774,13 +787,10 @@ class PuestaDisposicionController extends Controller
 
         try {
             $archivoPuesta = $puestaDisposicion->archivo_puesta;
+            $archivoPuestaAnterior = $archivoPuesta;
 
             if ($request->hasFile('archivo_puesta')) {
-                if ($archivoPuesta && Storage::disk('public')->exists($archivoPuesta)) {
-                    Storage::disk('public')->delete($archivoPuesta);
-                }
-
-                $archivoPuesta = $request->file('archivo_puesta')->store('puestas_disposicion', 'public');
+                $archivoPuesta = $this->documentos()->putUploadedFile($request->file('archivo_puesta'), 'puestas_disposicion');
             }
 
             $dataUpdate = [
@@ -815,6 +825,12 @@ class PuestaDisposicionController extends Controller
             }
 
             $puestaDisposicion->update($dataUpdate);
+
+            if ($request->hasFile('archivo_puesta')
+                && $archivoPuestaAnterior
+                && $archivoPuestaAnterior !== $archivoPuesta) {
+                $this->documentos()->delete($archivoPuestaAnterior);
+            }
 
             $puestaDisposicion->personas()->delete();
             $puestaDisposicion->vehiculos()->delete();
@@ -923,14 +939,16 @@ class PuestaDisposicionController extends Controller
         DB::beginTransaction();
 
         try {
-            if ($puestaDisposicion->archivo_puesta && Storage::disk('public')->exists($puestaDisposicion->archivo_puesta)) {
-                Storage::disk('public')->delete($puestaDisposicion->archivo_puesta);
-            }
+            $archivo = $puestaDisposicion->archivo_puesta;
 
             $puestaDisposicion->personas()->delete();
             $puestaDisposicion->vehiculos()->delete();
             $puestaDisposicion->objetos()->delete();
             $puestaDisposicion->delete();
+
+            if ($archivo) {
+                $this->documentos()->delete($archivo);
+            }
 
             DB::commit();
 
@@ -942,5 +960,10 @@ class PuestaDisposicionController extends Controller
             return redirect()->route('puestas_disposicion.index')
                 ->with('error', 'No se pudo eliminar la puesta a disposición: ' . $e->getMessage());
         }
+    }
+
+    private function documentos(): DocumentoArchivoStorage
+    {
+        return app(DocumentoArchivoStorage::class);
     }
 }

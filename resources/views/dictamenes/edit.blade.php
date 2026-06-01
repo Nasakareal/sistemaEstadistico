@@ -86,7 +86,7 @@
                 @if($dictamen->archivo_dictamen)
                     <div class="mb-2">
                         <a
-                            href="{{ asset('storage/'.$dictamen->archivo_dictamen) }}"
+                            href="{{ route('dictamenes.archivo', $dictamen->id) }}"
                             target="_blank"
                             class="btn btn-sm btn-outline-danger"
                         >

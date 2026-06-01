@@ -71,7 +71,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Archivo del Dictamen</label>
-                                    <p><a href="{{ asset('storage/' . $dictamen->archivo_dictamen) }}" target="_blank">Ver archivo</a></p>
+                                    <p><a href="{{ route('dictamenes.archivo', $dictamen->id) }}" target="_blank">Ver archivo</a></p>
                                 </div>
                             </div>
                         </div>

@@ -89,7 +89,7 @@
                                     @if($p->archivo_puesta)
                                         <a class="btn btn-sm btn-outline-danger"
                                            target="_blank"
-                                           href="{{ asset('storage/'.$p->archivo_puesta) }}">
+                                           href="{{ route('puestas_disposicion.archivo', $p->id) }}">
                                             <i class="fas fa-file-pdf"></i> Ver PDF
                                         </a>
                                     @else

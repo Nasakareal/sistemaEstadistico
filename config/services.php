@@ -94,5 +94,11 @@ return [
         'oficios_enabled' => env('AZURE_STORAGE_OFICIOS_ENABLED',
             env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
         ),
+        'documentos_container' => env('AZURE_STORAGE_DOCUMENTOS_CONTAINER', 'documentos'),
+        'documentos_enabled' => env('AZURE_STORAGE_DOCUMENTOS_ENABLED',
+            env('AZURE_STORAGE_OFICIOS_ENABLED',
+                env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
+            )
+        ),
     ],
 ];

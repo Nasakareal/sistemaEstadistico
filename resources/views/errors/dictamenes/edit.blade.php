@@ -112,7 +112,7 @@
                                         </span>
                                     @enderror
                                     @if($dictamen->archivo_dictamen)
-                                        <p class="mt-2">Archivo actual: <a href="{{ asset('storage/' . $dictamen->archivo_dictamen) }}" target="_blank">Ver Escaneado</a></p>
+                                        <p class="mt-2">Archivo actual: <a href="{{ route('dictamenes.archivo', $dictamen->id) }}" target="_blank">Ver Escaneado</a></p>
                                     @endif
                                 </div>
                             </div>

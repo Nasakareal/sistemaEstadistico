@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Dictamen;
 use App\Models\Unidad;
+use App\Services\Documentos\DocumentoArchivoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -143,7 +144,7 @@ class DictamenController extends Controller
 
         $archivoDictamen = null;
         if ($request->hasFile('archivo_dictamen')) {
-            $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
+            $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
         }
 
         $anioActual = now()->year;
@@ -243,7 +244,12 @@ class DictamenController extends Controller
 
         $archivoDictamen = $dictamen->archivo_dictamen;
         if ($request->hasFile('archivo_dictamen')) {
-            $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
+            $archivoAnterior = $archivoDictamen;
+            $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
+
+            if ($archivoAnterior && $archivoAnterior !== $archivoDictamen) {
+                $this->documentos()->delete($archivoAnterior);
+            }
         }
 
         $dictamen->update([
@@ -265,6 +271,15 @@ class DictamenController extends Controller
         return view('dictamenes.show', compact('dictamen'));
     }
 
+    public function archivo(Dictamen $dictamen)
+    {
+        abort_unless($dictamen->archivo_dictamen, 404);
+
+        $nombre = 'dictamen_' . $dictamen->numero_dictamen . '_' . $dictamen->anio . '.pdf';
+
+        return $this->documentos()->response($dictamen->archivo_dictamen, $nombre);
+    }
+
     public function destroy(Dictamen $dictamen)
     {
         $usuario = auth()->user();
@@ -279,7 +294,12 @@ class DictamenController extends Controller
                 ->with('error', 'No tienes permiso para eliminar este dictamen.');
         }
 
+        $archivo = $dictamen->archivo_dictamen;
         $dictamen->delete();
+
+        if ($archivo) {
+            $this->documentos()->delete($archivo);
+        }
 
         return redirect()->route('dictamenes.index')
             ->with('success', 'Dictamen eliminado exitosamente.');
@@ -290,5 +310,10 @@ class DictamenController extends Controller
         return $usuario
             && (int) ($usuario->unidad_id ?? 0) === 3
             && !$usuario->hasRole('Superadmin');
+    }
+
+    private function documentos(): DocumentoArchivoStorage
+    {
+        return app(DocumentoArchivoStorage::class);
     }
 }

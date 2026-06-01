@@ -10,12 +10,12 @@ use App\Models\PuestaDisposicionObjeto;
 use App\Models\Unidad;
 use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class PuestaDisposicionController extends Controller
@@ -377,7 +377,7 @@ class PuestaDisposicionController extends Controller
 
             $archivo=null;
             if ($request->hasFile('archivo_puesta')) {
-                $archivo=$request->file('archivo_puesta')->store('puestas_disposicion','public');
+                $archivo=$this->documentos()->putUploadedFile($request->file('archivo_puesta'),'puestas_disposicion');
             }
 
             $puesta=PuestaDisposicion::create([
@@ -433,6 +433,18 @@ class PuestaDisposicionController extends Controller
         return response()->json($data);
     }
 
+    public function archivo(PuestaDisposicion $puestaDisposicion)
+    {
+        $usuario=Auth::user();
+        $puesta=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
+
+        abort_unless($puesta->archivo_puesta, 404);
+
+        $nombre='puesta_disposicion_' . $puesta->numero_puesta . '_' . $puesta->anio . '.pdf';
+
+        return $this->documentos()->response($puesta->archivo_puesta,$nombre);
+    }
+
     public function update(Request $request,PuestaDisposicion $puestaDisposicion)
     {
         $usuario=Auth::user();
@@ -452,8 +464,18 @@ class PuestaDisposicionController extends Controller
         $usuario=Auth::user();
         $puesta=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
 
+        $archivo=$puesta->archivo_puesta;
         $puesta->delete();
 
+        if ($archivo) {
+            $this->documentos()->delete($archivo);
+        }
+
         return response()->json(['ok'=>true]);
+    }
+
+    private function documentos(): DocumentoArchivoStorage
+    {
+        return app(DocumentoArchivoStorage::class);
     }
 }

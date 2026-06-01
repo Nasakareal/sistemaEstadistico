@@ -211,6 +211,9 @@
                                 }
 
                                 $puestaPdfPath = optional($hecho->puestaDisposicion)->archivo_puesta;
+                                $puestaPdfUrl = $puestaPdfPath && $hecho->puestaDisposicion
+                                    ? route('puestas_disposicion.archivo', $hecho->puestaDisposicion->id)
+                                    : null;
                             @endphp
 
                             <tr>
@@ -281,9 +284,9 @@
                                         <i class="fas fa-download"></i>
                                     </a>
 
-                                    @if($puestaPdfPath)
+                                    @if($puestaPdfUrl)
                                         <a
-                                            href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                            href="{{ $puestaPdfUrl }}"
                                             class="btn btn-outline-danger btn-sm"
                                             target="_blank"
                                             rel="noopener"

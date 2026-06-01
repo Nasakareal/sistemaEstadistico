@@ -86,7 +86,7 @@
                                 <td>
                                     @if($d->archivo_dictamen)
                                         <a class="btn btn-sm btn-outline-danger" target="_blank"
-                                           href="{{ asset('storage/'.$d->archivo_dictamen) }}">
+                                           href="{{ route('dictamenes.archivo', $d->id) }}">
                                             <i class="fas fa-file-pdf"></i> Ver PDF
                                         </a>
                                     @else

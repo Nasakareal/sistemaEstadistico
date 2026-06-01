@@ -438,6 +438,7 @@ Route::prefix('dictamenes')->middleware(['auth', 'can:ver dictamenes', 'unidad:s
     Route::get('/', [DictamenController::class, 'index'])->name('dictamenes.index');
     Route::get('/create', [DictamenController::class, 'create'])->middleware('can:crear dictamenes')->name('dictamenes.create');
     Route::post('/', [DictamenController::class, 'store'])->middleware('can:crear dictamenes')->name('dictamenes.store');
+    Route::get('/{dictamen}/archivo', [DictamenController::class, 'archivo'])->middleware('can:ver dictamenes')->name('dictamenes.archivo');
     Route::get('/{dictamen}', [DictamenController::class, 'show'])->middleware('can:ver dictamenes')->name('dictamenes.show');
     Route::get('/{dictamen}/edit', [DictamenController::class, 'edit'])->middleware('can:editar dictamenes')->name('dictamenes.edit');
     Route::put('/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes')->name('dictamenes.update');
@@ -448,6 +449,7 @@ Route::prefix('puestas-disposicion')->middleware(['auth'])->group(function () {
     Route::get('/', [PuestaDisposicionController::class, 'index'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.index');
     Route::get('/create', [PuestaDisposicionController::class, 'create'])->middleware('can:crear puestas a disposicion')->name('puestas_disposicion.create');
     Route::post('/', [PuestaDisposicionController::class, 'store'])->middleware('can:crear puestas a disposicion')->name('puestas_disposicion.store');
+    Route::get('/{puestaDisposicion}/archivo', [PuestaDisposicionController::class, 'archivo'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.archivo');
     Route::get('/{puestaDisposicion}', [PuestaDisposicionController::class, 'show'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.show');
     Route::get('/{puestaDisposicion}/edit', [PuestaDisposicionController::class, 'edit'])->middleware('can:editar puestas a disposicion')->name('puestas_disposicion.edit');
     Route::put('/{puestaDisposicion}', [PuestaDisposicionController::class, 'update'])->middleware('can:editar puestas a disposicion')->name('puestas_disposicion.update');

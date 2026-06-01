@@ -14,7 +14,7 @@
                 <h3 class="card-title">Actualizar Datos de Liberación</h3>
             </div>
 
-            <div class="card-body">
+            <div class="card-body liberacion-form">
 
                 {{-- Mensaje informativo --}}
                 <div class="alert alert-info">
@@ -93,33 +93,42 @@
                             <div class="form-group">
                                 <label for="motivo_liberacion">Motivo de Liberación</label>
                                 <select name="motivo_liberacion" id="motivo_liberacion"
-                                    class="form-control @error('motivo_liberacion') is-invalid @enderror" required>
+                                    class="form-control @error('motivo_liberacion') is-invalid @enderror"
+                                    data-motivo-liberacion="motivo_liberacion_otro_wrap"
+                                    required>
 
                                     @php
-                                        $motivoSel = old('motivo_liberacion', $liberacion->motivo_liberacion);
+                                        $motivosCatalogo = array_keys($motivosLiberacion ?? []);
+                                        $motivoGuardado = trim((string) ($liberacion->motivo_liberacion ?? ''));
+                                        $motivoGuardadoEsOtro = $motivoGuardado !== '' && !in_array($motivoGuardado, $motivosCatalogo, true);
+                                        $motivoSel = old('motivo_liberacion', $motivoGuardadoEsOtro ? 'Otro' : $motivoGuardado);
+                                        $motivoOtro = old('motivo_liberacion_otro', $motivoGuardadoEsOtro ? $motivoGuardado : '');
                                     @endphp
 
                                     <option value="">Seleccione una opción</option>
-                                    <option value="Convenio entre particulares" {{ $motivoSel == 'Convenio entre particulares' ? 'selected' : '' }}>
-                                        Convenio, entregó documentación
-                                    </option>
-                                    <option value="Error de detención" {{ $motivoSel == 'Error de detención' ? 'selected' : '' }}>
-                                        Error de detención
-                                    </option>
-                                    <option value="Acreditó propiedad" {{ $motivoSel == 'Acreditó propiedad' ? 'selected' : '' }}>
-                                        Acreditó propiedad
-                                    </option>
-                                    <option value="Orden del Ministerio Público" {{ $motivoSel == 'Orden del Ministerio Público' ? 'selected' : '' }}>
-                                        Orden del Ministerio Público
-                                    </option>
-                                    <option value="Otro" {{ $motivoSel == 'Otro' ? 'selected' : '' }}>
-                                        Otro
-                                    </option>
+                                    @foreach(($motivosLiberacion ?? []) as $motivoValue => $motivoLabel)
+                                        <option value="{{ $motivoValue }}" {{ $motivoSel == $motivoValue ? 'selected' : '' }}>
+                                            {{ $motivoLabel }}
+                                        </option>
+                                    @endforeach
                                 </select>
 
                                 @error('motivo_liberacion')
                                     <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                 @enderror
+
+                                <div id="motivo_liberacion_otro_wrap" class="liberacion-otro-wrap {{ $motivoSel === 'Otro' ? '' : 'd-none' }}">
+                                    <label for="motivo_liberacion_otro">Especificar motivo</label>
+                                    <input type="text" name="motivo_liberacion_otro" id="motivo_liberacion_otro"
+                                           class="form-control @error('motivo_liberacion_otro') is-invalid @enderror"
+                                           value="{{ $motivoOtro }}"
+                                           placeholder="Escribe el motivo de liberación"
+                                           data-motivo-otro-input>
+                                    <div class="liberacion-help">Este texto se guardará como motivo de liberación.</div>
+                                    @error('motivo_liberacion_otro')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
                             </div>
                         </div>
 
@@ -193,72 +202,12 @@
 @stop
 
 @section('css')
-<style>
-    select.form-control {
-        background-color: #1f2937 !important;
-        color: #ffffff !important;
-        border: 1px solid #4b5563 !important;
-        font-weight: 600;
-    }
-
-    select.form-control option {
-        background-color: #111827 !important;
-        color: #ffffff !important;
-        font-weight: 500;
-    }
-
-    select.form-control option:checked {
-        background-color: #2563eb !important;
-        color: white !important;
-    }
-
-    select.form-control option:hover {
-        background-color: #374151 !important;
-        color: white !important;
-    }
-
-
-    input.form-control,
-    textarea.form-control {
-        background-color: #1f2937 !important;
-        color: #ffffff !important;
-        border: 1px solid #4b5563 !important;
-    }
-
-    input.form-control::placeholder,
-    textarea.form-control::placeholder {
-        color: #9ca3af !important;
-    }
-
-    .btn-warning {
-        background-color: #facc15 !important;
-        border: none !important;
-        color: #000 !important;
-        font-weight: bold;
-    }
-
-    .btn-warning:hover {
-        background-color: #eab308 !important;
-        transform: scale(1.03);
-    }
-
-    .btn-secondary {
-        font-weight: bold;
-    }
-
-    .btn-danger {
-        font-weight: bold;
-    }
-
-    label {
-        color: #ffffff !important;
-        font-weight: bold;
-    }
-
-</style>
+    @include('liberaciones.partials.form_styles')
 @stop
 
 @section('js')
+@include('liberaciones.partials.motivo_otro_script')
+
 <script>
     @if ($errors->any())
         Swal.fire({

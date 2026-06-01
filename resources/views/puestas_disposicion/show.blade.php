@@ -122,7 +122,7 @@ readonly>
 <hr>
 <div class="row">
 <div class="col-md-12">
-<a href="{{ asset('storage/'.$puestaDisposicion->archivo_puesta) }}"
+<a href="{{ route('puestas_disposicion.archivo', $puestaDisposicion->id) }}"
 class="btn btn-outline-primary"
 target="_blank">
 <i class="fa-solid fa-file-pdf"></i> Ver Archivo PDF

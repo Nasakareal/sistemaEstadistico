@@ -10,6 +10,7 @@
     $puedeGenerarIphPuesta = $usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 2;
     $puestaHecho = $hecho->puestaDisposicion ?? null;
     $puestaPdfPath = $puestaHecho ? $puestaHecho->archivo_puesta : null;
+    $puestaPdfUrl = $puestaPdfPath && $puestaHecho ? route('puestas_disposicion.archivo', $puestaHecho->id) : null;
     $urlAnterior = url()->previous();
     $volverHechoUrl = $urlAnterior && $urlAnterior !== url()->current()
         ? $urlAnterior
@@ -60,8 +61,8 @@
                 <i class="fas fa-download"></i>
             </a>
 
-            @if($puestaPdfPath)
-                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+            @if($puestaPdfUrl)
+                <a href="{{ $puestaPdfUrl }}"
                    class="btn btn-outline-danger btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
                    style="width:36px;height:36px;padding:0;"
                    target="_blank"
@@ -206,8 +207,8 @@
                                     </a>
                                 @endif
 
-                                @if($puestaPdfPath)
-                                    <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                @if($puestaPdfUrl)
+                                    <a href="{{ $puestaPdfUrl }}"
                                        class="btn btn-outline-danger btn-sm sv-status-action"
                                        target="_blank"
                                        rel="noopener"
@@ -282,8 +283,8 @@
                                                 </a>
                                             @endif
 
-                                            @if($puestaPdfPath)
-                                                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                            @if($puestaPdfUrl)
+                                                <a href="{{ $puestaPdfUrl }}"
                                                    class="btn btn-outline-danger btn-sm sv-status-action"
                                                    target="_blank"
                                                    rel="noopener"
@@ -489,8 +490,8 @@
                                                 <i class="fas fa-download"></i> Descargar informe
                                             </a>
 
-                                            @if($puestaPdfPath)
-                                                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                            @if($puestaPdfUrl)
+                                                <a href="{{ $puestaPdfUrl }}"
                                                    class="btn btn-outline-danger btn-sm"
                                                    target="_blank"
                                                    rel="noopener">

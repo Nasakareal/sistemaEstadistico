@@ -259,7 +259,7 @@
 
                                 @if($puestaDisposicion->archivo_puesta)
                                     <div class="mb-3">
-                                        <a href="{{ asset('storage/' . $puestaDisposicion->archivo_puesta) }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <a href="{{ route('puestas_disposicion.archivo', $puestaDisposicion->id) }}" target="_blank" class="btn btn-outline-primary btn-sm">
                                             <i class="fa-solid fa-file-pdf"></i> Ver archivo actual
                                         </a>
                                     </div>

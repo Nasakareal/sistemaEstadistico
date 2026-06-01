@@ -1155,7 +1155,7 @@ class HechoController extends Controller
         $data['dictamen_id'] = $hecho->dictamen ? $hecho->dictamen->id : null;
         $data['dictamen_archivo'] = $hecho->dictamen ? $hecho->dictamen->archivo_dictamen : null;
         $data['dictamen_archivo_url'] = $hecho->dictamen
-            ? $this->publicStoragePath($hecho->dictamen->archivo_dictamen)
+            ? route('api.dictamenes.archivo', $hecho->dictamen->id)
             : null;
         $data['puede_editar'] = HechoAccess::canEdit(request()->user(), $hecho);
         $data['puede_gestionar_totales_esperados'] = HechoAccess::canManageTotalesEsperados(request()->user(), $hecho);

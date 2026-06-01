@@ -22,6 +22,14 @@ class LiberacionController extends Controller
         'OFICIAL FERNANDO RUBALCAVA RIVERA',
     ];
 
+    private const MOTIVOS_LIBERACION = [
+        'Convenio entre particulares' => 'Convenio, entregó documentación',
+        'Error de detención' => 'Error de detención',
+        'Acreditó propiedad' => 'Acreditó propiedad',
+        'Orden del Ministerio Público' => 'Orden del Ministerio Público',
+        'Otro' => 'Otro',
+    ];
+
     public function publica(Vehiculo $vehiculo)
     {
         $liberacion = Liberacion::where('vehiculo_id', $vehiculo->id)->first();
@@ -119,8 +127,9 @@ class LiberacionController extends Controller
         $hecho = $this->hechoDelVehiculo($vehiculo);
         $autorizaOptions = $this->autorizaOptions($hecho);
         $autorizaPlaceholder = $this->autorizaPlaceholder($hecho, $autorizaOptions);
+        $motivosLiberacion = self::MOTIVOS_LIBERACION;
 
-        return view('liberaciones.create', compact('vehiculo', 'fechaActual', 'autorizaOptions', 'autorizaPlaceholder'));
+        return view('liberaciones.create', compact('vehiculo', 'fechaActual', 'autorizaOptions', 'autorizaPlaceholder', 'motivosLiberacion'));
     }
 
     public function store(Request $request, Vehiculo $vehiculo)
@@ -161,8 +170,9 @@ class LiberacionController extends Controller
         $hecho = $liberacion->hecho ?: $this->hechoDelVehiculo($vehiculo);
         $autorizaOptions = $this->autorizaOptions($hecho);
         $autorizaPlaceholder = $this->autorizaPlaceholder($hecho, $autorizaOptions);
+        $motivosLiberacion = self::MOTIVOS_LIBERACION;
 
-        return view('liberaciones.edit', compact('vehiculo', 'liberacion', 'autorizaOptions', 'autorizaPlaceholder'));
+        return view('liberaciones.edit', compact('vehiculo', 'liberacion', 'autorizaOptions', 'autorizaPlaceholder', 'motivosLiberacion'));
     }
 
     public function update(Request $request, Vehiculo $vehiculo)
@@ -232,15 +242,29 @@ class LiberacionController extends Controller
     private function validarLiberacion(Request $request, ?Hechos $hecho): array
     {
         $autorizaOptions = $this->autorizaOptions($hecho);
+        $request->merge([
+            'motivo_liberacion_otro' => trim((string) $request->input('motivo_liberacion_otro', '')),
+        ]);
 
-        return $request->validate([
+        $validated = $request->validate([
             'fecha_liberacion' => 'required|date',
             'personas_autorizadas' => 'required|string',
             'autoriza' => ['required', 'string', Rule::in($autorizaOptions)],
-            'motivo_liberacion' => 'required|string',
+            'motivo_liberacion' => ['required', 'string', Rule::in(array_keys(self::MOTIVOS_LIBERACION))],
+            'motivo_liberacion_otro' => 'required_if:motivo_liberacion,Otro|nullable|string|max:255',
         ], [
             'autoriza.in' => $this->autorizaValidationMessage($hecho, $autorizaOptions),
+            'motivo_liberacion.in' => 'Selecciona un motivo de liberación válido.',
+            'motivo_liberacion_otro.required_if' => 'Escribe el motivo de liberación cuando selecciones Otro.',
         ]);
+
+        if ($validated['motivo_liberacion'] === 'Otro') {
+            $validated['motivo_liberacion'] = $validated['motivo_liberacion_otro'];
+        }
+
+        unset($validated['motivo_liberacion_otro']);
+
+        return $validated;
     }
 
     private function autorizaOptions(?Hechos $hecho): array

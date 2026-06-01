@@ -144,6 +144,9 @@
 
                                         $esHistoricoPeritos = (string) $hecho->fuente_ubicacion === 'legacy_peritos';
                                         $puestaPdfPath = optional($hecho->puestaDisposicion)->archivo_puesta;
+                                        $puestaPdfUrl = $puestaPdfPath && $hecho->puestaDisposicion
+                                            ? route('puestas_disposicion.archivo', $hecho->puestaDisposicion->id)
+                                            : null;
                                     @endphp
 
                                     <tr class="{{ $esIncompletoDelegaciones ? 'table-danger' : '' }}">
@@ -230,8 +233,8 @@
                                                 <i class="fas fa-download"></i>
                                             </a>
 
-                                            @if($puestaPdfPath)
-                                                <a href="{{ asset('storage/' . ltrim($puestaPdfPath, '/')) }}"
+                                            @if($puestaPdfUrl)
+                                                <a href="{{ $puestaPdfUrl }}"
                                                    class="btn btn-outline-danger btn-sm"
                                                    target="_blank"
                                                    rel="noopener"

@@ -237,16 +237,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/alerts/{alert}/read', [AlertController::class, 'markRead']);
     Route::post('/alerts/read-all', [AlertController::class, 'markReadAll']);
 
-    Route::get('/dictamenes/buscar', [DictamenController::class, 'buscar'])->middleware('can:ver dictamenes');
-    Route::get('/dictamenes', [DictamenController::class, 'index'])->middleware('can:ver dictamenes');
-    Route::post('/dictamenes', [DictamenController::class, 'store'])->middleware('can:crear dictamenes');
-    Route::get('/dictamenes/{dictamen}', [DictamenController::class, 'show'])->middleware('can:ver dictamenes');
-    Route::put('/dictamenes/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes');
-    Route::delete('/dictamenes/{dictamen}', [DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes');
+    Route::get('/dictamenes/buscar', [DictamenController::class, 'buscar'])->middleware('can:ver dictamenes')->name('api.dictamenes.buscar');
+    Route::get('/dictamenes', [DictamenController::class, 'index'])->middleware('can:ver dictamenes')->name('api.dictamenes.index');
+    Route::post('/dictamenes', [DictamenController::class, 'store'])->middleware('can:crear dictamenes')->name('api.dictamenes.store');
+    Route::get('/dictamenes/{dictamen}/archivo', [DictamenController::class, 'archivo'])->middleware('can:ver dictamenes')->name('api.dictamenes.archivo');
+    Route::get('/dictamenes/{dictamen}', [DictamenController::class, 'show'])->middleware('can:ver dictamenes')->name('api.dictamenes.show');
+    Route::put('/dictamenes/{dictamen}', [DictamenController::class, 'update'])->middleware('can:editar dictamenes')->name('api.dictamenes.update');
+    Route::delete('/dictamenes/{dictamen}', [DictamenController::class, 'destroy'])->middleware('can:eliminar dictamenes')->name('api.dictamenes.destroy');
 
     Route::prefix('puestas-disposicion')->group(function () {
         Route::get('/', [PuestaDisposicionController::class, 'index'])->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.index');
         Route::post('/', [PuestaDisposicionController::class, 'store'])->middleware('can:crear puestas a disposicion')->name('api.puestas_disposicion.store');
+        Route::get('/{puestaDisposicion}/archivo', [PuestaDisposicionController::class, 'archivo'])->whereNumber('puestaDisposicion')->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.archivo');
         Route::get('/{puestaDisposicion}', [PuestaDisposicionController::class, 'show'])->whereNumber('puestaDisposicion')->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.show');
         Route::put('/{puestaDisposicion}', [PuestaDisposicionController::class, 'update'])->whereNumber('puestaDisposicion')->middleware('can:editar puestas a disposicion')->name('api.puestas_disposicion.update');
         Route::delete('/{puestaDisposicion}', [PuestaDisposicionController::class, 'destroy'])->whereNumber('puestaDisposicion')->middleware('can:eliminar puestas a disposicion')->name('api.puestas_disposicion.destroy');

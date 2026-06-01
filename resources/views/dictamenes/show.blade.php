@@ -97,7 +97,7 @@
                 <div class="mt-2">
                     @if($dictamen->archivo_dictamen)
                         <a
-                            href="{{ asset('storage/'.$dictamen->archivo_dictamen) }}"
+                            href="{{ route('dictamenes.archivo', $dictamen->id) }}"
                             target="_blank"
                             class="btn btn-outline-danger"
                         >

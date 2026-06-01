@@ -11,8 +11,9 @@ use ZipArchive;
 class ActividadFotoRetentionService
 {
     public const UNIDAD_SINIESTROS_ID = 1;
-    public const DIAS_BORRAR_SINIESTROS = 15;
+    public const DIAS_BORRAR_SINIESTROS = 10;
     public const DIAS_ARCHIVAR_OTRAS_UNIDADES = 7;
+    public const DIAS_BORRAR_ZIPS_ARCHIVADOS = 30;
     private const THUMB_MAX_WIDTH = 360;
     private const THUMB_JPEG_QUALITY = 35;
 
@@ -24,6 +25,7 @@ class ActividadFotoRetentionService
         $unidadSiniestrosId = (int) ($opciones['unidad_siniestros_id'] ?? self::UNIDAD_SINIESTROS_ID);
         $diasBorrar = (int) ($opciones['dias_borrar'] ?? self::DIAS_BORRAR_SINIESTROS);
         $diasArchivar = (int) ($opciones['dias_archivar'] ?? self::DIAS_ARCHIVAR_OTRAS_UNIDADES);
+        $diasBorrarZips = (int) ($opciones['dias_borrar_zips'] ?? self::DIAS_BORRAR_ZIPS_ARCHIVADOS);
         $marcarFaltantes = (bool) ($opciones['marcar_faltantes'] ?? false);
         $tz = (string) ($opciones['timezone'] ?? config('app.timezone', 'America/Mexico_City'));
         $ahora = Carbon::now($tz);
@@ -32,14 +34,19 @@ class ActividadFotoRetentionService
             'dry_run' => $dryRun,
             'corte_borrar' => $ahora->copy()->subDays($diasBorrar)->toDateString(),
             'corte_archivar' => $ahora->copy()->subDays($diasArchivar)->toDateString(),
+            'corte_borrar_zips' => $ahora->copy()->subDays($diasBorrarZips)->toDateString(),
             'fotos_para_borrar' => 0,
             'fotos_borradas' => 0,
             'fotos_faltantes' => 0,
             'fotos_para_archivar' => 0,
             'fotos_archivadas' => 0,
             'zips_creados' => 0,
+            'zips_para_borrar' => 0,
+            'zips_borrados' => 0,
+            'zips_faltantes' => 0,
             'bytes_originales_archivados' => 0,
             'bytes_zip_creados' => 0,
+            'bytes_zips_borrados' => 0,
             'thumbnails_creados' => 0,
             'thumbnails_fallidos' => 0,
             'bytes_thumbnails_creados' => 0,
@@ -61,6 +68,13 @@ class ActividadFotoRetentionService
             $ahora,
             $dryRun,
             $marcarFaltantes,
+            $stats
+        );
+
+        $this->borrarZipsArchivados(
+            $ahora->copy()->subDays($diasBorrarZips),
+            $ahora,
+            $dryRun,
             $stats
         );
 
@@ -169,6 +183,86 @@ class ActividadFotoRetentionService
             $stats['bytes_originales_archivados'] += (int) $resultado['bytes_originales'];
             $stats['bytes_zip_creados'] += (int) $resultado['bytes_zip'];
         }
+    }
+
+    private function borrarZipsArchivados(Carbon $corte, Carbon $ahora, bool $dryRun, array &$stats): void
+    {
+        $disk = Storage::disk('public');
+        $zipPaths = $this->zipPathsParaBorrar($corte);
+
+        $stats['zips_para_borrar'] = count($zipPaths);
+
+        foreach ($zipPaths as $zipPath) {
+            if (!$disk->exists($zipPath)) {
+                $stats['zips_faltantes']++;
+
+                if (!$dryRun) {
+                    $this->limpiarReferenciaZip($zipPath, $ahora);
+                }
+
+                continue;
+            }
+
+            if ($dryRun) {
+                continue;
+            }
+
+            $bytes = (int) $disk->size($zipPath);
+
+            if ($disk->delete($zipPath)) {
+                $stats['zips_borrados']++;
+                $stats['bytes_zips_borrados'] += $bytes;
+                $this->limpiarReferenciaZip($zipPath, $ahora);
+            } else {
+                $stats['errores'][] = 'No se pudo borrar ZIP archivado ' . $zipPath;
+            }
+        }
+    }
+
+    private function zipPathsParaBorrar(Carbon $corte): array
+    {
+        $paths = [];
+        $agregar = function (?string $path) use (&$paths): void {
+            $path = trim(str_replace('\\', '/', (string) $path), '/');
+
+            if ($this->esZipArchivado($path)) {
+                $paths[$path] = true;
+            }
+        };
+
+        ActividadFoto::query()
+            ->whereNotNull('foto_archivo_zip_path')
+            ->whereNotNull('foto_archivada_at')
+            ->where('foto_archivada_at', '<=', $corte)
+            ->select('foto_archivo_zip_path')
+            ->distinct()
+            ->orderBy('foto_archivo_zip_path')
+            ->chunk(500, function ($fotos) use ($agregar) {
+                foreach ($fotos as $foto) {
+                    $agregar($foto->foto_archivo_zip_path);
+                }
+            });
+
+        Actividad::query()
+            ->whereNotNull('foto_archivo_zip_path')
+            ->whereNotNull('foto_archivada_at')
+            ->where('foto_archivada_at', '<=', $corte)
+            ->select('foto_archivo_zip_path')
+            ->distinct()
+            ->orderBy('foto_archivo_zip_path')
+            ->chunk(500, function ($actividades) use ($agregar) {
+                foreach ($actividades as $actividad) {
+                    $agregar($actividad->foto_archivo_zip_path);
+                }
+            });
+
+        return array_keys($paths);
+    }
+
+    private function esZipArchivado(string $path): bool
+    {
+        return strpos($path, 'actividades_archivadas/') === 0
+            && strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'zip';
     }
 
     private function candidatas(int $unidadSiniestrosId, Carbon $corte, bool $soloSiniestros): array
@@ -580,6 +674,23 @@ class ActividadFotoRetentionService
                 'foto_thumbnail_path' => $thumbnailPath,
                 'foto_archivo_zip_path' => $zipPath,
                 'foto_archivada_at' => $ahora,
+                'updated_at' => $ahora,
+            ]);
+    }
+
+    private function limpiarReferenciaZip(string $zipPath, Carbon $ahora): void
+    {
+        ActividadFoto::query()
+            ->where('foto_archivo_zip_path', $zipPath)
+            ->update([
+                'foto_archivo_zip_path' => null,
+                'updated_at' => $ahora,
+            ]);
+
+        Actividad::query()
+            ->where('foto_archivo_zip_path', $zipPath)
+            ->update([
+                'foto_archivo_zip_path' => null,
                 'updated_at' => $ahora,
             ]);
     }

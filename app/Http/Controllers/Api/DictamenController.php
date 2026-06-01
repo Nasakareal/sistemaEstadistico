@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Dictamen;
 use App\Models\Unidad;
+use App\Services\Documentos\DocumentoArchivoStorage;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class DictamenController extends Controller
@@ -72,6 +72,15 @@ class DictamenController extends Controller
         ]);
     }
 
+    public function archivo(Dictamen $dictamen)
+    {
+        abort_unless($dictamen->archivo_dictamen, 404);
+
+        $nombre = 'dictamen_' . $dictamen->numero_dictamen . '_' . $dictamen->anio . '.pdf';
+
+        return $this->documentos()->response($dictamen->archivo_dictamen, $nombre);
+    }
+
     public function store(Request $request)
     {
         $usuario = $request->user();
@@ -97,7 +106,7 @@ class DictamenController extends Controller
 
         $archivoDictamen = null;
         if ($request->hasFile('archivo_dictamen')) {
-            $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
+            $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
         }
 
         $anioActual = now()->year;
@@ -161,11 +170,12 @@ class DictamenController extends Controller
 
         if ($request->hasFile('archivo_dictamen')) {
 
-            if ($archivoDictamen && Storage::disk('public')->exists($archivoDictamen)) {
-                Storage::disk('public')->delete($archivoDictamen);
-            }
+            $archivoAnterior = $archivoDictamen;
+            $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
 
-            $archivoDictamen = $request->file('archivo_dictamen')->store('dictamenes', 'public');
+            if ($archivoAnterior && $archivoAnterior !== $archivoDictamen) {
+                $this->documentos()->delete($archivoAnterior);
+            }
         }
 
         $dictamen->update([
@@ -202,11 +212,13 @@ class DictamenController extends Controller
             ], 403);
         }
 
-        if ($dictamen->archivo_dictamen && Storage::disk('public')->exists($dictamen->archivo_dictamen)) {
-            Storage::disk('public')->delete($dictamen->archivo_dictamen);
-        }
+        $archivo = $dictamen->archivo_dictamen;
 
         $dictamen->delete();
+
+        if ($archivo) {
+            $this->documentos()->delete($archivo);
+        }
 
         return response()->json([
             'message' => 'Dictamen eliminado exitosamente.',
@@ -251,5 +263,10 @@ class DictamenController extends Controller
         return $usuario
             && (int) ($usuario->unidad_id ?? 0) === 3
             && !$usuario->hasRole('Superadmin');
+    }
+
+    private function documentos(): DocumentoArchivoStorage
+    {
+        return app(DocumentoArchivoStorage::class);
     }
 }

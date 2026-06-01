@@ -14,7 +14,7 @@
                 <h3 class="card-title">Datos de Liberación</h3>
             </div>
             <div class="card-body">
-                <form action="{{ route('liberacion.store', $vehiculo->id) }}" method="POST">
+                <form action="{{ route('liberacion.store', $vehiculo->id) }}" method="POST" class="liberacion-form">
                     @csrf
 
                     <div class="row">
@@ -47,18 +47,38 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="motivo_liberacion">Motivo de Liberación</label>
+                                @php
+                                    $motivoSel = old('motivo_liberacion');
+                                    $motivoOtro = old('motivo_liberacion_otro');
+                                @endphp
+
                                 <select name="motivo_liberacion" id="motivo_liberacion"
-                                    class="form-control @error('motivo_liberacion') is-invalid @enderror" required>
+                                    class="form-control @error('motivo_liberacion') is-invalid @enderror"
+                                    data-motivo-liberacion="motivo_liberacion_otro_wrap"
+                                    required>
                                     <option value="">Seleccione una opción</option>
-                                    <option value="Convenio entre particulares" {{ old('motivo_liberacion') == 'Convenio entre particulares' ? 'selected' : '' }}>Convenio, entregó documentación</option>
-                                    <option value="Error de detención" {{ old('motivo_liberacion') == 'Error de detención' ? 'selected' : '' }}>Error de detención</option>
-                                    <option value="Acreditó propiedad" {{ old('motivo_liberacion') == 'Acreditó propiedad' ? 'selected' : '' }}>Acreditó propiedad</option>
-                                    <option value="Orden del Ministerio Público" {{ old('motivo_liberacion') == 'Orden del Ministerio Público' ? 'selected' : '' }}>Orden del Ministerio Público</option>
-                                    <option value="Otro" {{ old('motivo_liberacion') == 'Otro' ? 'selected' : '' }}>Otro</option>
+                                    @foreach(($motivosLiberacion ?? []) as $motivoValue => $motivoLabel)
+                                        <option value="{{ $motivoValue }}" {{ $motivoSel == $motivoValue ? 'selected' : '' }}>
+                                            {{ $motivoLabel }}
+                                        </option>
+                                    @endforeach
                                 </select>
                                 @error('motivo_liberacion')
                                     <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                 @enderror
+
+                                <div id="motivo_liberacion_otro_wrap" class="liberacion-otro-wrap {{ $motivoSel === 'Otro' ? '' : 'd-none' }}">
+                                    <label for="motivo_liberacion_otro">Especificar motivo</label>
+                                    <input type="text" name="motivo_liberacion_otro" id="motivo_liberacion_otro"
+                                        class="form-control @error('motivo_liberacion_otro') is-invalid @enderror"
+                                        value="{{ $motivoOtro }}"
+                                        placeholder="Escribe el motivo de liberación"
+                                        data-motivo-otro-input>
+                                    <div class="liberacion-help">Este texto se guardará como motivo de liberación.</div>
+                                    @error('motivo_liberacion_otro')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
                             </div>
                         </div>
 
@@ -104,14 +124,12 @@
 @stop
 
 @section('css')
-    <style>
-        .form-group label {
-            font-weight: bold;
-        }
-    </style>
+    @include('liberaciones.partials.form_styles')
 @stop
 
 @section('js')
+    @include('liberaciones.partials.motivo_otro_script')
+
     <script>
         @if ($errors->any())
             Swal.fire({

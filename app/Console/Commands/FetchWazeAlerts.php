@@ -329,13 +329,18 @@ class FetchWazeAlerts extends Command
 
         $tokensAdmin = $this->getTokensByUserId(1);
 
-        $tokensGeneral = $this->getGeneralTokensExceptUnidad([1, 4], [1]);
+        $tokensGeneral = $this->getGeneralTokensExceptUnidad([1, 4, 5], [1]);
 
         $tokensCarreteras = $this->getTokensByUnidadId(4, [1]);
 
         $tokensSiniestros = [];
         if ($isAccident && $this->isInsideMorelia($wazeAlert)) {
             $tokensSiniestros = $this->getTokensByUnidadId(1, [1]);
+        }
+
+        $tokensVialidadesUrbanas = [];
+        if ($this->isInsideMorelia($wazeAlert)) {
+            $tokensVialidadesUrbanas = $this->getTokensByUnidadId(5, [1]);
         }
 
         $tokensNearby = $this->getNearbyTokens($wazeAlert);
@@ -345,6 +350,7 @@ class FetchWazeAlerts extends Command
             $tokensGeneral,
             $tokensCarreteras,
             $tokensSiniestros,
+            $tokensVialidadesUrbanas,
             $tokensNearby
         ))
             ->filter()
@@ -366,6 +372,7 @@ class FetchWazeAlerts extends Command
             'general_tokens' => count($tokensGeneral),
             'carreteras_tokens' => count($tokensCarreteras),
             'siniestros_tokens' => count($tokensSiniestros),
+            'vialidades_urbanas_tokens' => count($tokensVialidadesUrbanas),
             'nearby_tokens' => count($tokensNearby),
             'tokens_total' => count($tokens),
         ]);

@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\PeritoHomeController;
 use App\Http\Controllers\Api\GuardianesCaminoController as ApiGuardianesCaminoController;
 use App\Http\Controllers\Api\GuardianesCaminoDispositivoController as ApiGuardianesCaminoDispositivoController;
 use App\Http\Controllers\Api\AgenteUpecHomeController;
+use App\Http\Controllers\Api\AgenteVialHomeController;
 use App\Http\Controllers\Api\PuestaDisposicionController;
 use App\Http\Controllers\Api\CroquisController;
 use App\Http\Controllers\Api\CulturaVialController;
@@ -82,6 +83,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/mapa', [AgenteUpecHomeController::class, 'mapa'])->name('api.agente_upec_home.mapa');
         Route::get('/filtros', [AgenteUpecHomeController::class, 'filtros'])->name('api.agente_upec_home.filtros');
         Route::get('/alertas/{id}', [AgenteUpecHomeController::class, 'show'])->name('api.agente_upec_home.alertas.show');
+    });
+
+    Route::prefix('agente-vial-home')->middleware(['role:Agente Vial', 'unidad:vialidades-urbanas'])->group(function () {
+        Route::get('/mapa', [AgenteVialHomeController::class, 'mapa'])->name('api.agente_vial_home.mapa');
+        Route::get('/filtros', [AgenteVialHomeController::class, 'filtros'])->name('api.agente_vial_home.filtros');
+        Route::get('/alertas/{id}', [AgenteVialHomeController::class, 'show'])->name('api.agente_vial_home.alertas.show');
     });
 
     Route::prefix('delegaciones-home')->group(function () {

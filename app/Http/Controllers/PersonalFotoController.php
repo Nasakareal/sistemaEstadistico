@@ -4,16 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Personal;
 use App\Models\PersonalFoto;
+use App\Services\Fotos\PersonalFotoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 use Throwable;
 
 class PersonalFotoController extends Controller
 {
+    private $fotoStorage;
+
+    public function __construct(PersonalFotoStorage $fotoStorage)
+    {
+        $this->fotoStorage = $fotoStorage;
+    }
+
     public function show(Personal $personal, PersonalFoto $foto)
     {
         $this->abortUnlessCanView($personal);
@@ -127,15 +133,8 @@ class PersonalFotoController extends Controller
         }
 
         try {
-            if ($foto->ruta && Storage::disk('local')->exists($foto->ruta)) {
-                Storage::disk('local')->delete($foto->ruta);
-            }
-
-            if ($foto->ruta && Storage::disk('public')->exists($foto->ruta)) {
-                Storage::disk('public')->delete($foto->ruta);
-            }
-
             $rutaEliminada = $foto->ruta;
+            $this->fotoStorage->delete($rutaEliminada);
             $foto->delete();
 
             if ($personal->foto === $rutaEliminada) {
@@ -179,40 +178,17 @@ class PersonalFotoController extends Controller
 
     private function streamFoto(?string $ruta, ?string $mimeType = null, ?string $nombre = null)
     {
-        $ruta = ltrim(str_replace('\\', '/', (string) $ruta), '/');
+        $ruta = $this->fotoStorage->normalizePath($ruta);
 
-        if ($ruta === '' || strpos($ruta, '..') !== false || !str_starts_with($ruta, 'personals/fotos/')) {
+        if ($ruta === '' || strpos($ruta, '..') !== false || !str_starts_with($ruta, 'personal/')) {
             abort(404);
         }
 
-        if (Storage::disk('local')->exists($ruta)) {
-            return Storage::disk('local')->response($ruta, $nombre ?: basename($ruta), $this->headersArchivo('local', $ruta, $mimeType), 'inline');
-        }
-
-        if (Storage::disk('public')->exists($ruta)) {
-            return Storage::disk('public')->response($ruta, $nombre ?: basename($ruta), $this->headersArchivo('public', $ruta, $mimeType), 'inline');
-        }
-
-        abort(404);
+        return $this->fotoStorage->response($ruta, $mimeType, $nombre ?: basename($ruta));
     }
 
     private function guardarFotoPrivada($archivo): string
     {
-        $ruta = $archivo->store('personals/fotos', 'local');
-
-        if (!is_string($ruta) || trim($ruta) === '') {
-            throw new RuntimeException('No se pudo guardar la foto de personal en almacenamiento privado.');
-        }
-
-        return str_replace('\\', '/', $ruta);
-    }
-
-    private function headersArchivo(string $disk, string $ruta, ?string $mimeType = null): array
-    {
-        return [
-            'Content-Type' => $mimeType ?: (Storage::disk($disk)->mimeType($ruta) ?: 'application/octet-stream'),
-            'Cache-Control' => 'private, no-store, max-age=0',
-            'X-Content-Type-Options' => 'nosniff',
-        ];
+        return $this->fotoStorage->putUploadedFile($archivo);
     }
 }

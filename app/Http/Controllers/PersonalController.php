@@ -11,11 +11,11 @@ use App\Models\Patrulla;
 use App\Models\Armamento;
 use App\Models\PersonalAsignacion;
 use App\Models\User;
+use App\Services\Fotos\PersonalFotoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 use Throwable;
 
 class PersonalController extends Controller
@@ -529,12 +529,6 @@ class PersonalController extends Controller
 
     private function guardarFotoPersonalPrivada($fotoSubida): string
     {
-        $ruta = $fotoSubida->store('personals/fotos', 'local');
-
-        if (!is_string($ruta) || trim($ruta) === '') {
-            throw new RuntimeException('No se pudo guardar la foto de personal en almacenamiento privado.');
-        }
-
-        return str_replace('\\', '/', $ruta);
+        return app(PersonalFotoStorage::class)->putUploadedFile($fotoSubida);
     }
 }

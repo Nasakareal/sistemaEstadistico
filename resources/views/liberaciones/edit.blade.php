@@ -9,7 +9,7 @@
 @section('content')
 <div class="row">
     <div class="col-md-12">
-        <div class="card card-outline card-warning">
+        <div class="card card-outline card-warning liberacion-card">
             <div class="card-header">
                 <h3 class="card-title">Actualizar Datos de Liberación</h3>
             </div>

@@ -44,10 +44,13 @@ return [
             'resumen_to' => env('WHATSAPP_SINIESTROS_RESUMEN_TO'),
             'tarjeta_hechos_to' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TO'),
             'actividades_to' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TO'),
+            'vialidades_urbanas_alertas_to' => env('WHATSAPP_SINIESTROS_VIALIDADES_URBANAS_ALERTAS_TO'),
             'resumen_template' => env('WHATSAPP_SINIESTROS_RESUMEN_TEMPLATE'),
             'tarjeta_hechos_template' => env('WHATSAPP_SINIESTROS_TARJETA_HECHOS_TEMPLATE'),
             'actividades_template' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TEMPLATE'),
             'actividades_template_language' => env('WHATSAPP_SINIESTROS_ACTIVIDADES_TEMPLATE_LANGUAGE', 'es_MX'),
+            'vialidades_urbanas_alertas_template' => env('WHATSAPP_SINIESTROS_VIALIDADES_URBANAS_ALERTAS_TEMPLATE', 'alerta_vialidades_urbanas_siniestros'),
+            'vialidades_urbanas_alertas_template_language' => env('WHATSAPP_SINIESTROS_VIALIDADES_URBANAS_ALERTAS_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
         'oficios' => [

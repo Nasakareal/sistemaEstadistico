@@ -16,6 +16,7 @@ use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\ImageThumbnailService;
+use App\Services\VialidadesUrbanasSiniestrosAlertService;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -433,6 +434,10 @@ class ActividadController extends Controller
                     app(DelegacionesWhatsAppAlertService::class)->notificarActividadConDetenidos($actividad);
                 });
             }
+
+            DB::afterCommit(function () use ($actividad) {
+                app(VialidadesUrbanasSiniestrosAlertService::class)->notificarActividad($actividad);
+            });
 
             $actividad->load([
                 'categoria',

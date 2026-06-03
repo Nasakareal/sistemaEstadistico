@@ -16,6 +16,8 @@
         $periodoActual = strtoupper($periodo ?? 'SEMANA');
         $situacionActual = strtoupper($situacion ?? 'PENDIENTE');
         $unidadActual = (string) ($unidadFiltro ?? '');
+        $folioBusqueda = trim((string) ($folioBusqueda ?? ''));
+        $hayBusquedaFolio = $folioBusqueda !== '';
         $puedeFiltrarUnidad = $puedeFiltrarUnidad ?? false;
         $puedeMostrarTodasSituaciones = $puedeMostrarTodasSituaciones ?? false;
         $unidadesFiltro = $unidadesFiltro ?? [
@@ -57,6 +59,9 @@
         $unidadTexto = $unidadActual !== ''
             ? ($unidadesFiltro[$unidadActual] ?? 'Unidad seleccionada')
             : 'Todas las unidades visibles';
+        $descripcionSeguimiento = $hayBusquedaFolio
+            ? 'Folio ' . $folioBusqueda . ' · sin filtros de tablero'
+            : (($labelsSituacion[$situacionActual] ?? $situacionActual) . ' · ' . ($labelsPeriodo[$periodoActual] ?? $periodoActual) . ' · ' . $unidadTexto);
 
         $paramsUnidad = $unidadActual !== '' ? ['unidad_filtro' => $unidadActual] : [];
         $conteosPeriodo = $conteos[strtolower($periodoActual)] ?? [];
@@ -70,7 +75,7 @@
             <div>
                 <h3 class="card-title mb-0">Panel de seguimiento</h3>
                 <div class="seguimiento-card__sub">
-                    {{ $labelsSituacion[$situacionActual] ?? $situacionActual }} · {{ $labelsPeriodo[$periodoActual] ?? $periodoActual }} · {{ $unidadTexto }}
+                    {{ $descripcionSeguimiento }}
                 </div>
             </div>
 
@@ -104,6 +109,19 @@
                             <option value="RESUELTO" {{ $situacionActual === 'RESUELTO' ? 'selected' : '' }}>Resueltos</option>
                             <option value="FALTA_COMPLETAR" {{ $situacionActual === 'FALTA_COMPLETAR' ? 'selected' : '' }}>Falta completar</option>
                         </select>
+                    </div>
+
+                    <div>
+                        <label for="folio">Folio C5i</label>
+                        <input
+                            type="text"
+                            name="folio"
+                            id="folio"
+                            class="form-control sv-input"
+                            value="{{ $folioBusqueda }}"
+                            maxlength="60"
+                            placeholder="Buscar folio"
+                        >
                     </div>
 
                     @if ($puedeFiltrarUnidad)
@@ -169,6 +187,7 @@
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Folio</th>
                             <th>Fecha y hora</th>
                             <th>Unidad</th>
                             <th>Ubicación</th>
@@ -218,6 +237,7 @@
 
                             <tr>
                                 <td class="font-weight-bold">#{{ $hecho->id }}</td>
+                                <td class="sv-folio-cell">{{ $hecho->folio_c5i ?: 'Sin folio' }}</td>
                                 <td>{{ trim($fechaMostrar . ' ' . $horaMostrar) }}</td>
                                 <td class="sv-unit-cell">
                                     <span class="sv-unit-pill">{{ $unidadNombre }}</span>
@@ -585,6 +605,13 @@
             min-width: 138px;
         }
 
+        .sv-folio-cell {
+            min-width: 110px;
+            color: #e0f2fe !important;
+            font-weight: 800;
+            word-break: break-word;
+        }
+
         .sv-unit-pill,
         .sv-status,
         .captura-faltantes__badge,
@@ -830,7 +857,7 @@
             $('#seguimiento_hechos').DataTable({
                 paging: false,
                 info: false,
-                order: [[1, 'desc']],
+                order: [[2, 'desc']],
                 responsive: true,
                 lengthChange: false,
                 autoWidth: false,
@@ -839,8 +866,11 @@
                     emptyTable: 'No hay información disponible',
                     loadingRecords: 'Cargando...',
                     processing: 'Procesando...',
-                    search: 'Buscar:',
+                    search: 'Filtrar página:',
                     zeroRecords: 'No se encontraron resultados'
+                },
+                initComplete: function () {
+                    $('#seguimiento_hechos_filter input').attr('placeholder', 'Solo registros visibles');
                 }
             });
         });

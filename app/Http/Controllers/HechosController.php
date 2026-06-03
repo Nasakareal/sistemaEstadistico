@@ -1011,6 +1011,8 @@ class HechosController extends Controller
         $periodo = strtoupper($request->get('periodo', $periodoDefault));
         $situacion = strtoupper($request->get('situacion', $situacionDefault));
         $unidadFiltro = (string) $request->get('unidad_filtro', '');
+        $folioBusqueda = trim((string) $request->get('folio', ''));
+        $folioBusqueda = mb_substr($folioBusqueda, 0, 60, 'UTF-8');
         $puedeFiltrarUnidad = $usuario
             && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3);
         $unidadesFiltro = [
@@ -1122,28 +1124,42 @@ class HechosController extends Controller
             ->with(['creator', 'unidadOrganizacional', 'delegacion', 'puestaDisposicion'])
             ->withCount(['vehiculosEnCorralon as vehiculos_corralon_count']);
 
-        if ($periodo === 'SEMANA') {
-            $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
-        } elseif ($periodo === 'MES') {
-            $query->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()]);
+        if ($folioBusqueda !== '') {
+            $idBusqueda = trim($folioBusqueda, "# \t\n\r\0\x0B");
+
+            $query->where(function ($folioQuery) use ($folioBusqueda, $idBusqueda) {
+                $folioQuery->where('folio_c5i', 'like', '%' . $folioBusqueda . '%');
+
+                if (ctype_digit($idBusqueda)) {
+                    $folioQuery->orWhere('id', (int) $idBusqueda);
+                }
+            });
+
+            $this->applyHechosVisibilityScope($query, $usuario);
         } else {
-            $query->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()]);
-        }
-
-        $this->applyHechosVisibilityScope($query, $usuario);
-
-        if ($situacion === 'FALTA_COMPLETAR') {
-            if ($puedeFiltrarUnidad && $unidadFiltro !== '' && $unidadFiltro !== '2') {
-                $query->whereRaw('1=0');
+            if ($periodo === 'SEMANA') {
+                $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
+            } elseif ($periodo === 'MES') {
+                $query->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()]);
             } else {
-                $this->scopeHechosUnidad($query, 2);
-                $this->aplicarFiltroCapturaIncompletaDelegaciones($query);
+                $query->whereBetween('fecha', [$inicioAnio->toDateString(), $finAnio->toDateString()]);
             }
-        } elseif ($situacion === 'TODOS') {
-            $aplicarFiltroUnidad($query);
-        } else {
-            $query->where('situacion', $situacion);
-            $aplicarFiltroUnidad($query);
+
+            $this->applyHechosVisibilityScope($query, $usuario);
+
+            if ($situacion === 'FALTA_COMPLETAR') {
+                if ($puedeFiltrarUnidad && $unidadFiltro !== '' && $unidadFiltro !== '2') {
+                    $query->whereRaw('1=0');
+                } else {
+                    $this->scopeHechosUnidad($query, 2);
+                    $this->aplicarFiltroCapturaIncompletaDelegaciones($query);
+                }
+            } elseif ($situacion === 'TODOS') {
+                $aplicarFiltroUnidad($query);
+            } else {
+                $query->where('situacion', $situacion);
+                $aplicarFiltroUnidad($query);
+            }
         }
 
         $hechos = $query
@@ -1174,6 +1190,7 @@ class HechosController extends Controller
             'periodo',
             'situacion',
             'unidadFiltro',
+            'folioBusqueda',
             'puedeFiltrarUnidad',
             'unidadesFiltro',
             'puedeMostrarTodasSituaciones'

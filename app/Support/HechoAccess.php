@@ -273,8 +273,12 @@ class HechoAccess
             }
 
             if ($usuario->hasRole('Administrativo')) {
-                return (int) ($usuario->delegacion_id ?? 0) > 0
-                    && (int) ($hecho->delegacion_id ?? 0) === (int) ($usuario->delegacion_id ?? 0);
+                $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+                $hechoDelegacionId = (int) ($hecho->delegacion_id ?? 0);
+
+                return $delegacionId > 0
+                    && $hechoDelegacionId > 0
+                    && in_array($hechoDelegacionId, self::delegacionIdsVisibles($usuario, $delegacionId), true);
             }
 
             return (int) $usuario->id === (int) ($hecho->created_by ?? 0);
@@ -355,7 +359,7 @@ class HechoAccess
 
     private static function puedeVerDelegacionesHijas($usuario): bool
     {
-        return $usuario->hasRole('Delegado');
+        return $usuario->hasAnyRole(['Delegado', 'Administrativo']);
     }
 
     private static function esRolAdministrativoUnidad($usuario): bool
@@ -400,8 +404,10 @@ class HechoAccess
             return [$delegacionId];
         }
 
+        $regionalId = self::delegacionRegionalEfectivaId($delegacionId);
+
         $esRegional = Delegacion::query()
-            ->where('id', $delegacionId)
+            ->where('id', $regionalId)
             ->whereNull('delegacion_padre_id')
             ->exists();
 
@@ -409,14 +415,74 @@ class HechoAccess
             return [$delegacionId];
         }
 
-        return Delegacion::query()
-            ->where('id', $delegacionId)
-            ->orWhere('delegacion_padre_id', $delegacionId)
+        $ids = Delegacion::query()
+            ->where('id', $regionalId)
+            ->orWhere('delegacion_padre_id', $regionalId)
             ->pluck('id')
             ->map(function ($id) {
                 return (int) $id;
             })
             ->toArray();
+
+        if ($regionalId !== $delegacionId) {
+            $ids = array_merge($ids, Delegacion::query()
+                ->where('id', $delegacionId)
+                ->orWhere('delegacion_padre_id', $delegacionId)
+                ->pluck('id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->toArray());
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private static function delegacionRegionalEfectivaId(int $delegacionId): int
+    {
+        $delegacion = Delegacion::query()
+            ->select(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
+            ->find($delegacionId);
+
+        if (!$delegacion || !self::esExcepcionRegionalMorelia($delegacion)) {
+            return $delegacionId;
+        }
+
+        $patzcuaroId = self::delegacionRegionalPatzcuaroId();
+
+        return $patzcuaroId && $patzcuaroId !== $delegacionId
+            ? $patzcuaroId
+            : $delegacionId;
+    }
+
+    private static function esExcepcionRegionalMorelia(Delegacion $delegacion): bool
+    {
+        $texto = self::textoNormalizadoDelegacion($delegacion);
+
+        return str_contains($texto, 'MORELIA')
+            && !str_contains($texto, 'PATZCUARO')
+            && (str_contains($texto, 'REGIONAL') || empty($delegacion->delegacion_padre_id));
+    }
+
+    private static function delegacionRegionalPatzcuaroId(): ?int
+    {
+        $delegacion = Delegacion::query()
+            ->whereNull('delegacion_padre_id')
+            ->get(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
+            ->first(function ($delegacion) {
+                return str_contains(self::textoNormalizadoDelegacion($delegacion), 'PATZCUARO');
+            });
+
+        return $delegacion ? (int) $delegacion->id : null;
+    }
+
+    private static function textoNormalizadoDelegacion(Delegacion $delegacion): string
+    {
+        return strtoupper(self::removeAccents(trim(implode(' ', array_filter([
+            $delegacion->clave ?? null,
+            $delegacion->nombre ?? null,
+            $delegacion->municipio ?? null,
+        ])))));
     }
 
     private static function removeAccents(string $string): string

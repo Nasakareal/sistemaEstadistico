@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Support\HechoAccess;
 
 class FeedController extends Controller
 {
@@ -487,38 +488,17 @@ class FeedController extends Controller
             return [];
         }
 
-        if (!$this->puedeVerDelegacionesHijas($usuario)) {
-            return [$delegacionId];
-        }
-
-        $esRegional = Delegacion::query()
-            ->whereKey($delegacionId)
-            ->whereNull('delegacion_padre_id')
-            ->exists();
-
-        if (!$esRegional) {
-            return [$delegacionId];
-        }
-
-        return Delegacion::query()
-            ->where('id', $delegacionId)
-            ->orWhere('delegacion_padre_id', $delegacionId)
-            ->pluck('id')
-            ->map(function ($id) {
-                return (int) $id;
-            })
-            ->all();
+        return HechoAccess::delegacionIdsVisiblesParaUsuario($usuario);
     }
 
     private function puedeVerDelegacionesHijas($usuario): bool
     {
-        return $usuario->hasRole('Delegado');
+        return $usuario->hasAnyRole(['Delegado', 'Administrativo']);
     }
 
     private function esRolAdministrativoUnidad($usuario): bool
     {
         return $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
     }
 

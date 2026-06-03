@@ -14,6 +14,7 @@ use App\Models\Vehiculo;
 use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
+use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -956,27 +957,14 @@ class ActividadController extends Controller
                 return;
             }
 
-            $esRegional = Delegacion::query()
-                ->where('id', $delegacionId)
-                ->whereNull('delegacion_padre_id')
-                ->exists();
+            $ids = HechoAccess::delegacionIdsVisiblesParaUsuario($usuario);
 
-            if ($this->puedeVerDelegacionesHijas($usuario)) {
-                if ($esRegional) {
-                    $ids = Delegacion::query()
-                        ->where('id', $delegacionId)
-                        ->orWhere('delegacion_padre_id', $delegacionId)
-                        ->pluck('id')
-                        ->toArray();
-
-                    $query->whereIn('delegacion_id', $ids);
-                } else {
-                    $query->where('delegacion_id', $delegacionId);
-                }
-            } else {
-                $query->where('delegacion_id', $delegacionId);
+            if (empty($ids)) {
+                $query->whereRaw('1=0');
+                return;
             }
 
+            $query->whereIn('delegacion_id', $ids);
             return;
         }
 
@@ -1142,13 +1130,12 @@ class ActividadController extends Controller
 
     private function puedeVerDelegacionesHijas($usuario): bool
     {
-        return $usuario->hasRole('Delegado');
+        return $usuario->hasAnyRole(['Delegado', 'Administrativo']);
     }
 
     private function esRolAdministrativoUnidad($usuario): bool
     {
         return $usuario->hasRole('Administrador')
-            || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
     }
 
@@ -1263,25 +1250,7 @@ class ActividadController extends Controller
             return [];
         }
 
-        if (!$this->puedeVerDelegacionesHijas($usuario)) {
-            return [$delegacionId];
-        }
-
-        $esRegional = Delegacion::query()
-            ->where('id', $delegacionId)
-            ->whereNull('delegacion_padre_id')
-            ->exists();
-
-        if (!$esRegional) {
-            return [$delegacionId];
-        }
-
-        return Delegacion::query()
-            ->where('id', $delegacionId)
-            ->orWhere('delegacion_padre_id', $delegacionId)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->toArray();
+        return HechoAccess::delegacionIdsVisiblesParaUsuario($usuario);
     }
 
     private function unidadTieneColumnaActiva(): bool

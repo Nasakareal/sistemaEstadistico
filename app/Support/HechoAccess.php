@@ -404,10 +404,14 @@ class HechoAccess
             return [$delegacionId];
         }
 
-        $regionalId = self::delegacionRegionalEfectivaId($delegacionId);
+        $idsEspeciales = self::delegacionIdsMoreliaAdministradaPorPatzcuaro($delegacionId);
+
+        if (!empty($idsEspeciales)) {
+            return $idsEspeciales;
+        }
 
         $esRegional = Delegacion::query()
-            ->where('id', $regionalId)
+            ->where('id', $delegacionId)
             ->whereNull('delegacion_padre_id')
             ->exists();
 
@@ -415,65 +419,60 @@ class HechoAccess
             return [$delegacionId];
         }
 
-        $ids = Delegacion::query()
-            ->where('id', $regionalId)
-            ->orWhere('delegacion_padre_id', $regionalId)
+        return Delegacion::query()
+            ->where('id', $delegacionId)
+            ->orWhere('delegacion_padre_id', $delegacionId)
             ->pluck('id')
             ->map(function ($id) {
                 return (int) $id;
             })
             ->toArray();
-
-        if ($regionalId !== $delegacionId) {
-            $ids = array_merge($ids, Delegacion::query()
-                ->where('id', $delegacionId)
-                ->orWhere('delegacion_padre_id', $delegacionId)
-                ->pluck('id')
-                ->map(function ($id) {
-                    return (int) $id;
-                })
-                ->toArray());
-        }
-
-        return array_values(array_unique($ids));
     }
 
-    private static function delegacionRegionalEfectivaId(int $delegacionId): int
+    public static function delegacionIdsVisiblesParaUsuario($usuario): array
+    {
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+        if ($delegacionId <= 0) {
+            return [];
+        }
+
+        return self::delegacionIdsVisibles($usuario, $delegacionId);
+    }
+
+    private static function delegacionIdsMoreliaAdministradaPorPatzcuaro(int $delegacionId): array
     {
         $delegacion = Delegacion::query()
             ->select(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
             ->find($delegacionId);
 
-        if (!$delegacion || !self::esExcepcionRegionalMorelia($delegacion)) {
-            return $delegacionId;
+        if (!$delegacion || !str_contains(self::textoNormalizadoDelegacion($delegacion), 'PATZCUARO')) {
+            return [];
         }
 
-        $patzcuaroId = self::delegacionRegionalPatzcuaroId();
+        $morelia = self::delegacionRegionalMorelia();
 
-        return $patzcuaroId && $patzcuaroId !== $delegacionId
-            ? $patzcuaroId
-            : $delegacionId;
+        if (!$morelia) {
+            return [];
+        }
+
+        if ((int) ($delegacion->delegacion_padre_id ?? 0) !== (int) $morelia->id) {
+            return [];
+        }
+
+        return array_values(array_unique([(int) $morelia->id, (int) $delegacion->id]));
     }
 
-    private static function esExcepcionRegionalMorelia(Delegacion $delegacion): bool
+    private static function delegacionRegionalMorelia(): ?Delegacion
     {
-        $texto = self::textoNormalizadoDelegacion($delegacion);
-
-        return str_contains($texto, 'MORELIA')
-            && !str_contains($texto, 'PATZCUARO')
-            && (str_contains($texto, 'REGIONAL') || empty($delegacion->delegacion_padre_id));
-    }
-
-    private static function delegacionRegionalPatzcuaroId(): ?int
-    {
-        $delegacion = Delegacion::query()
+        return Delegacion::query()
             ->whereNull('delegacion_padre_id')
             ->get(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
             ->first(function ($delegacion) {
-                return str_contains(self::textoNormalizadoDelegacion($delegacion), 'PATZCUARO');
-            });
+                $texto = self::textoNormalizadoDelegacion($delegacion);
 
-        return $delegacion ? (int) $delegacion->id : null;
+                return str_contains($texto, 'MORELIA') && !str_contains($texto, 'PATZCUARO');
+            });
     }
 
     private static function textoNormalizadoDelegacion(Delegacion $delegacion): string

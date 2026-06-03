@@ -260,6 +260,14 @@ class FeedController extends Controller
 
         $unidadIds = $usuario && $usuario->unidad_id ? [(int)$usuario->unidad_id] : [];
 
+        if ($usuario && (int) ($usuario->unidad_id ?? 0) === 2) {
+            $visibles = $this->delegacionIdsVisibles($usuario);
+
+            $delegacionIds = empty($delegacionIds)
+                ? $visibles
+                : array_values(array_intersect($delegacionIds, $visibles));
+        }
+
         return [
             'puede_filtrar' => false,
             'unidad_ids' => $unidadIds,
@@ -467,7 +475,7 @@ class FeedController extends Controller
             return;
         }
 
-        $query->whereIn($column, $ids);
+        $query->whereIn(DB::raw($column), $ids);
     }
 
     private function applyDelegacionFilter($query, string $delegacionSql, array $delegacionIds): void
@@ -526,7 +534,7 @@ class FeedController extends Controller
             ->leftJoin('unidades as un', DB::raw($unidadSql), '=', 'un.id');
 
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
-        $this->applyDelegacionesScope($q, $usuario, 'h.delegacion_id');
+        $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
         $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
 
         if ($forUnion) {
@@ -592,7 +600,7 @@ class FeedController extends Controller
             'Actividad registrada'
         )";
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
-        $this->applyDelegacionesScope($q, $usuario, 'a.delegacion_id');
+        $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
         $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
 
         if ($forUnion) {

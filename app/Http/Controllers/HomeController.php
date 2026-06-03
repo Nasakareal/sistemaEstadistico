@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,8 @@ class HomeController extends Controller
     {
         $usuario = Auth::user();
         $unidadFiltro = $this->resolverUnidadFiltroDirecto($unidadFiltro, $usuario);
+        $hechoDelegacionSql = 'COALESCE(h.delegacion_id, u.delegacion_id)';
+        $actividadDelegacionSql = 'COALESCE(a.delegacion_id, u.delegacion_id)';
 
         $hechosQ = DB::table('hechos as h')
             ->join('users as u', 'u.id', '=', 'h.created_by')
@@ -77,7 +80,7 @@ class HomeController extends Controller
                 h.id as item_id,
                 h.created_by as user_id,
                 u.name as user_name,
-                COALESCE(h.delegacion_id, u.delegacion_id) as delegacion_id,
+                {$hechoDelegacionSql} as delegacion_id,
                 COALESCE(
                     CASE
                         WHEN dh.id IS NOT NULL AND COALESCE(TRIM(dh.clave), '') <> '' THEN CONCAT(dh.nombre, ' (', dh.clave, ')')
@@ -104,7 +107,7 @@ class HomeController extends Controller
                 a.id as item_id,
                 a.created_by as user_id,
                 u.name as user_name,
-                COALESCE(a.delegacion_id, u.delegacion_id) as delegacion_id,
+                {$actividadDelegacionSql} as delegacion_id,
                 COALESCE(
                     CASE
                         WHEN da.id IS NOT NULL AND COALESCE(TRIM(da.clave), '') <> '' THEN CONCAT(da.nombre, ' (', da.clave, ')')
@@ -138,6 +141,9 @@ class HomeController extends Controller
                 $actividadesQ->whereRaw('1=0');
             }
         }
+
+        $this->applyDelegacionesScope($hechosQ, $usuario, $hechoDelegacionSql);
+        $this->applyDelegacionesScope($actividadesQ, $usuario, $actividadDelegacionSql);
 
         if ($cursorCreatedAt && $cursorId) {
             $hechosQ->where(function ($q) use ($cursorCreatedAt, $cursorId) {
@@ -303,5 +309,29 @@ class HomeController extends Controller
         }
 
         return (int) ($usuario->unidad_id ?? 0) === 3;
+    }
+
+    private function applyDelegacionesScope($query, $usuario, string $delegacionSql): void
+    {
+        if (!$usuario || (int) ($usuario->unidad_id ?? 0) !== 2) {
+            return;
+        }
+
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Subdirector')
+        ) {
+            return;
+        }
+
+        $ids = HechoAccess::delegacionIdsVisiblesParaUsuario($usuario);
+
+        if (empty($ids)) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $query->whereIn(DB::raw($delegacionSql), $ids);
     }
 }

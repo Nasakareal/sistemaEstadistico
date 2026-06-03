@@ -460,7 +460,14 @@ class HechoAccess
             return [];
         }
 
-        return array_values(array_unique([(int) $morelia->id, (int) $delegacion->id]));
+        return Delegacion::query()
+            ->where('id', $morelia->id)
+            ->orWhere('delegacion_padre_id', $morelia->id)
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->toArray();
     }
 
     private static function delegacionRegionalMorelia(): ?Delegacion

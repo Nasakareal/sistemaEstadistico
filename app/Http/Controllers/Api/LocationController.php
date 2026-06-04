@@ -5,20 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserLocation;
+use App\Services\LocationTrackingEligibilityService;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
-    public function store(Request $request)
+    public function store(Request $request, LocationTrackingEligibilityService $trackingEligibility)
     {
         $user = $request->user();
 
-        // Si está apagado por administración/jefe -> NO guardes y avisa con 403
-        if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
+        $trackingStatus = $trackingEligibility->statusForUser($user);
+
+        // Si está apagado por administración/jefe, o si su turno descansa, no se guarda.
+        if (!$trackingStatus['allowed']) {
             return response()->json([
-                'message' => 'Ubicación desactivada (compartir_ubicacion=0). No se guardó.',
+                'message' => $trackingStatus['reason'] === 'turno_descanso'
+                    ? 'Ubicación desactivada: tu turno está en descanso.'
+                    : ($trackingStatus['reason'] === 'rol_no_autorizado_vialidades'
+                        ? 'Ubicación desactivada: rol no autorizado para Vialidades Urbanas.'
+                        : 'Ubicación desactivada (compartir_ubicacion=0). No se guardó.'),
                 'user_id' => $user->id,
                 'compartir_ubicacion' => (int)($user->compartir_ubicacion ?? 0),
+                'location_tracking' => $trackingStatus,
             ], 403);
         }
 
@@ -53,6 +61,7 @@ class LocationController extends Controller
         return response()->json([
             'message' => 'Ubicación guardada',
             'data'    => $location,
+            'location_tracking' => $trackingStatus,
         ], 200);
     }
 

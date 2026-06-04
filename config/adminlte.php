@@ -410,6 +410,13 @@ return [
                     'url'     => 'vialidades-urbanas/1/resumen',
                     'can'     => 'menu-vialidades-urbanas',
                 ],
+                [
+                    'text'    => 'Estadísticas Vialidades',
+                    'icon'    => 'fa-solid fa-file-excel',
+                    'classes' => 'text-info',
+                    'route'   => 'settings.estadisticas_vialidad.index',
+                    'can'     => 'menu-vialidades-urbanas',
+                ],
             ],
         ],
         [

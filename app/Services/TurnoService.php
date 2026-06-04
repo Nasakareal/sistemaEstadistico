@@ -7,6 +7,69 @@ use Illuminate\Support\Facades\DB;
 
 class TurnoService
 {
+    public function turnoTrabajaEn($turno, Carbon $fechaHora): bool
+    {
+        if (!$turno) {
+            return true;
+        }
+
+        $fechaHora = $fechaHora->copy()->timezone('America/Mexico_City');
+
+        $tipoRol = strtoupper(trim((string) ($turno->tipo_rol ?? '')));
+        $nombreTurno = strtoupper(trim((string) ($turno->nombre ?? '')));
+        $slugTurno = strtoupper(trim((string) ($turno->slug ?? '')));
+
+        if (
+            $tipoRol === 'SUBDIRECTOR' ||
+            str_contains($nombreTurno, 'SUBDIRECTOR') ||
+            str_contains($slugTurno, 'SUBDIRECTOR') ||
+            $tipoRol === 'SIEMPRE'
+        ) {
+            return true;
+        }
+
+        if ($tipoRol === 'LUN_VIE') {
+            $dow = (int) $fechaHora->dayOfWeekIso;
+            return $dow >= 1 && $dow <= 5;
+        }
+
+        if ($tipoRol === 'SAB_DOM') {
+            $dow = (int) $fechaHora->dayOfWeekIso;
+            return $dow === 6 || $dow === 7;
+        }
+
+        if ($tipoRol !== '24X24') {
+            return true;
+        }
+
+        if (!$turno->ciclo_inicio || !$turno->trabajo_horas || $turno->descanso_horas === null) {
+            return true;
+        }
+
+        $inicio = Carbon::parse($turno->ciclo_inicio, 'America/Mexico_City');
+
+        $diffHoras = $inicio->diffInHours($fechaHora, false);
+        if ($diffHoras < 0) {
+            return false;
+        }
+
+        $trabajo = (int) $turno->trabajo_horas;
+        $descanso = (int) $turno->descanso_horas;
+
+        if ($trabajo <= 0 || $descanso < 0) {
+            return true;
+        }
+
+        $ciclo = $trabajo + $descanso;
+        if ($ciclo <= 0) {
+            return true;
+        }
+
+        $pos = $diffHoras % $ciclo;
+
+        return $pos < $trabajo;
+    }
+
     public function turnoActivoEn(Carbon $fechaHora)
     {
         $fechaHora = $fechaHora->copy()->timezone('America/Mexico_City');
@@ -21,25 +84,11 @@ class TurnoService
             ->get();
 
         foreach ($turnos as $turno) {
-            $inicio = Carbon::parse($turno->ciclo_inicio, 'America/Mexico_City');
-
-            $trabajo = (int) $turno->trabajo_horas;
-            $descanso = (int) $turno->descanso_horas;
-
-            if ($trabajo <= 0 || $descanso < 0) {
+            if ((int) $turno->trabajo_horas <= 0 || (int) $turno->descanso_horas < 0) {
                 continue;
             }
 
-            $ciclo = $trabajo + $descanso;
-
-            $diffHoras = $inicio->diffInHours($fechaHora, false);
-            if ($diffHoras < 0) {
-                continue;
-            }
-
-            $pos = $diffHoras % $ciclo;
-
-            if ($pos >= 0 && $pos < $trabajo) {
+            if ($this->turnoTrabajaEn($turno, $fechaHora)) {
                 return $turno;
             }
         }

@@ -844,13 +844,6 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/excel-mensual/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class,'descargarExcelMensual'])->name('settings.estadisticas_delegaciones.excel_mensual.descargar');
     });
 
-    Route::prefix('estadisticas-vialidad')->group(function () {
-        Route::get('/', [EstadisticasVialidadSettingsController::class, 'index'])->name('settings.estadisticas_vialidad.index');
-
-        Route::get('/informe-gestion', [EstadisticasVialidadSettingsController::class, 'informeGestion'])->name('settings.estadisticas_vialidad.informe_gestion');
-        Route::get('/informe-gestion/descargar/{fecha}', [EstadisticasVialidadSettingsController::class, 'descargarInformeGestion'])->name('settings.estadisticas_vialidad.informe_gestion.descargar');
-    });
-
     Route::prefix('estadisticas-carreteras')->group(function () {
         Route::get('/', [EstadisticasCarreterasSettingsController::class, 'index'])->name('settings.estadisticas_carreteras.index');
         Route::get('/excel-novedades', [EstadisticasCarreterasSettingsController::class, 'excelNovedades'])->name('settings.estadisticas_carreteras.excel_novedades');
@@ -877,6 +870,15 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     });
 
 
+});
+
+Route::prefix('admin/settings/estadisticas-vialidad')->middleware(['auth'])->group(function () {
+    Route::get('/', [EstadisticasVialidadSettingsController::class, 'index'])->name('settings.estadisticas_vialidad.index');
+    Route::get('/excel-diario', [EstadisticasVialidadSettingsController::class, 'excelDiario'])->name('settings.estadisticas_vialidad.excel_diario');
+    Route::post('/excel-diario/generar', [EstadisticasVialidadSettingsController::class, 'generarExcelDiario'])->name('settings.estadisticas_vialidad.excel_diario.generar');
+    Route::get('/excel-diario/descargar/{fecha}', [EstadisticasVialidadSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_vialidad.excel_diario.descargar');
+    Route::get('/informe-gestion', [EstadisticasVialidadSettingsController::class, 'informeGestion'])->name('settings.estadisticas_vialidad.informe_gestion');
+    Route::get('/informe-gestion/descargar/{fecha}', [EstadisticasVialidadSettingsController::class, 'descargarInformeGestion'])->name('settings.estadisticas_vialidad.informe_gestion.descargar');
 });
 
 Route::prefix('admin/settings/estadisticas-fomento')->middleware(['auth'])->group(function () {

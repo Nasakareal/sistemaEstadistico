@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\LocationTrackingEligibilityService;
 use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -135,11 +136,15 @@ class AuthController extends Controller
 
         $isSubdirector = $this->userHasRole($user, 'Subdirector');
         $isJefeGrupo = $this->userHasRole($user, 'Jefe de Grupo');
+        $locationTracking = app(LocationTrackingEligibilityService::class)
+            ->statusForUser($user);
 
         $legacyUser = $user->toArray();
         $legacyUser['role'] = $primaryRole ? $primaryRole->name : null;
         $legacyUser['role_id'] = $primaryRole ? $primaryRole->id : null;
         $legacyUser['permissions'] = $permissions->all();
+        $legacyUser['location_tracking'] = $locationTracking;
+        $legacyUser['location_tracking_allowed'] = (bool)($locationTracking['allowed'] ?? false);
 
         $response = [
             // Duplicate the most-used identity keys at the root for older clients.
@@ -155,6 +160,8 @@ class AuthController extends Controller
             'turno_id' => $user->turno_id,
             'patrulla_id' => $user->patrulla_id,
             'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
+            'location_tracking' => $locationTracking,
+            'location_tracking_allowed' => (bool)($locationTracking['allowed'] ?? false),
             // Keep the legacy string shape so existing clients don't hide modules.
             'role' => $primaryRole ? $primaryRole->name : null,
             'role_id' => $primaryRole ? $primaryRole->id : null,
@@ -189,6 +196,8 @@ class AuthController extends Controller
                 'turno_id' => $user->turno_id,
                 'patrulla_id' => $user->patrulla_id,
                 'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
+                'location_tracking' => $locationTracking,
+                'location_tracking_allowed' => (bool)($locationTracking['allowed'] ?? false),
                 'role' => $primaryRole ? $primaryRole->name : null,
                 'role_id' => $primaryRole ? $primaryRole->id : null,
                 'role_meta' => $primaryRole ? [

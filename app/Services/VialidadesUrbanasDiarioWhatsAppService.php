@@ -78,6 +78,39 @@ class VialidadesUrbanasDiarioWhatsAppService
         ];
     }
 
+    public function generarDemo(?Carbon $corte = null): array
+    {
+        [$inicio, $fin] = $this->rango($corte);
+        $totales = [
+            ['nombre' => 'INSTITUCIONES', 'total' => 6, 'subcategorias' => ['ESCUELAS']],
+            ['nombre' => 'REPORTES C5i', 'total' => 2, 'subcategorias' => ['ACTOS DELICTIVOS', 'Otros (quema pastizal)']],
+            ['nombre' => 'ABANDERAMIENTOS', 'total' => 5, 'subcategorias' => ['CORTES DE CIRCULACIÓN', 'ACCIDENTES', 'OBRAS PÚBLICAS']],
+            ['nombre' => 'MONITOREOS', 'total' => 36, 'subcategorias' => ['VÍAS FÉRREAS', 'PERIFÉRICOS', 'AVENIDAS', 'TIENDAS DEPARTAMENTALES', 'BANCOS', 'OFICINAS GUBERNAMENTALES']],
+            ['nombre' => 'AUXILIO VIAL A CONDUCTORES', 'total' => 4, 'subcategorias' => ['FALLAS MECÁNICAS']],
+            ['nombre' => 'DISPOSITIVOS DE SEGURIDAD VIAL', 'total' => 86, 'subcategorias' => ['APOYO A LA VIALIDAD', 'PASO LIBRE DE FUNCIONARIOS', 'ZONAS DE MAYOR PASE DE TRANSEÚNTES', 'PATRULLAJES']],
+            ['nombre' => 'CAMPAÑAS', 'total' => 1, 'subcategorias' => ['CONCIENTIZACIÓN Y PREVENCIÓN']],
+            ['nombre' => 'PROXIMIDAD SOCIAL', 'total' => 45, 'subcategorias' => ['RECORRIDOS DE PROXIMIDAD', 'APOYO A PERSONAS DE LA TERCERA EDAD', 'APOYO A TURISTAS']],
+        ];
+        $novedades = [
+            'Atención a reporte de C5i quema de pastizal, se apoya a H. Ayuntamiento abanderando el lugar para agilizar la vialidad y evitar algún siniestro.',
+            'Se realizan recomendaciones a operadores del transporte público para una movilidad segura y accesible.',
+            'Apoyo a guardia de seguridad privada en Soriana Híper con ciudadano que se negaba a pagar artículos que consumió. Se checan antecedentes, sin novedad; accede a pagar.',
+            'Auxilios viales en diferentes puntos de la Ciudad a conductores que presentaron fallas mecánicas en sus vehículos.',
+            'Recorridos de prevención y vigilancia en diferentes puntos de la ciudad, detectando riesgos y protegiendo a la ciudadanía mediante la vigilancia constante.',
+            'Dispositivo de seguridad Escuela Segura para el cruce de calles y avenidas de gran afluencia vehicular, cuidando a las infancias, padres de familia y docentes.',
+            'Dispositivos de vialidad en Avenidas y Periférico con el objetivo de agilizar la vialidad y proteger la seguridad de los sujetos activos de la movilidad.',
+        ];
+        $mensaje = $this->mensaje($inicio, $fin, $totales, $novedades, 'MTRO. LUGO ORDORICA LUIS EDUARDO.');
+
+        return [
+            'inicio' => $inicio,
+            'fin' => $fin,
+            'totales' => $totales,
+            'novedades' => $novedades,
+            'mensaje' => $mensaje,
+        ];
+    }
+
     public function rango(?Carbon $corte = null): array
     {
         $base = $corte ? $corte->copy()->timezone(self::TZ) : Carbon::now(self::TZ);
@@ -128,7 +161,7 @@ class VialidadesUrbanasDiarioWhatsAppService
         }, $chunks, array_keys($chunks));
     }
 
-    protected function mensaje(Carbon $inicio, Carbon $fin, array $totales, array $novedades): string
+    protected function mensaje(Carbon $inicio, Carbon $fin, array $totales, array $novedades, ?string $firmaNombreOverride = null): string
     {
         $lineas = [];
         $lineas[] = 'GUARDIA CIVIL';
@@ -181,7 +214,7 @@ class VialidadesUrbanasDiarioWhatsAppService
             'SUBDIRECTOR DE PROTECCIÓN EN VIALIDADES URBANAS'
         );
 
-        $firmaNombre = $this->firmaNombre();
+        $firmaNombre = $firmaNombreOverride ?? $this->firmaNombre();
 
         if ($firmaNombre !== '') {
             $lineas[] = mb_strtoupper($firmaNombre, 'UTF-8');
@@ -213,8 +246,14 @@ class VialidadesUrbanasDiarioWhatsAppService
             ->join('actividad_subcategorias as s', 's.id', '=', 'a.actividad_subcategoria_id')
             ->where('a.unidad_org_id', self::UNIDAD_VIALIDADES_URBANAS_ID)
             ->whereNotNull('a.actividad_subcategoria_id')
-            ->select('c.id as categoria_id', 's.nombre')
-            ->groupBy('c.id', 's.id', 's.nombre')
+            ->select([
+                'c.id as categoria_id',
+                's.nombre',
+                'a.motivo',
+                'a.observaciones',
+                'a.acciones_realizadas',
+                'a.narrativa',
+            ])
             ->orderBy('c.id')
             ->orderBy('s.id');
 
@@ -223,12 +262,22 @@ class VialidadesUrbanasDiarioWhatsAppService
         $subcategorias = $subcategoriasQuery->get()
             ->groupBy('categoria_id')
             ->map(function (Collection $items) {
-                return $items
-                    ->pluck('nombre')
-                    ->map(fn ($nombre) => trim((string) $nombre))
-                    ->filter()
-                    ->values()
-                    ->all();
+                $seen = [];
+                $labels = [];
+
+                foreach ($items as $item) {
+                    $label = $this->subcategoriaResumenLabel($item);
+                    $key = $this->norm($label);
+
+                    if ($label === '' || isset($seen[$key])) {
+                        continue;
+                    }
+
+                    $seen[$key] = true;
+                    $labels[] = $label;
+                }
+
+                return $labels;
             });
 
         return $categorias
@@ -242,6 +291,62 @@ class VialidadesUrbanasDiarioWhatsAppService
             ->sortBy(fn (array $categoria) => $this->categorySort($categoria['nombre']))
             ->values()
             ->all();
+    }
+
+    protected function subcategoriaResumenLabel($item): string
+    {
+        $raw = trim((string) ($item->nombre ?? ''));
+        $label = $this->subcategoryLabel($raw);
+
+        if (!$this->esSubcategoriaOtros($raw)) {
+            return $label;
+        }
+
+        $detalle = $this->detalleOtros($item);
+
+        return $detalle !== '' ? 'Otros (' . $detalle . ')' : 'Otros';
+    }
+
+    protected function detalleOtros($item): string
+    {
+        foreach (['motivo', 'observaciones', 'acciones_realizadas', 'narrativa'] as $field) {
+            $text = $this->limpiarTexto($item->{$field} ?? null);
+
+            if ($text === '') {
+                continue;
+            }
+
+            $text = preg_replace('/^\s*otros?\s*[:\-]?\s*/i', '', $text) ?? $text;
+            $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+            $text = trim($text, " \t\n\r\0\x0B.:;-");
+
+            if ($text === '') {
+                continue;
+            }
+
+            if (mb_strlen($text, 'UTF-8') > 45) {
+                $text = mb_substr($text, 0, 42, 'UTF-8') . '...';
+            }
+
+            return mb_strtolower($text, 'UTF-8');
+        }
+
+        return '';
+    }
+
+    protected function esSubcategoriaOtros(string $value): bool
+    {
+        return str_contains($this->norm($value), 'OTRO');
+    }
+
+    protected function legacySubcategorias(Collection $items): array
+    {
+                return $items
+                    ->pluck('nombre')
+                    ->map(fn ($nombre) => trim((string) $nombre))
+                    ->filter()
+                    ->values()
+                    ->all();
     }
 
     protected function novedades(Carbon $inicio, Carbon $fin): array
@@ -480,6 +585,10 @@ class VialidadesUrbanasDiarioWhatsAppService
 
     protected function subcategoryLabel(string $value): string
     {
+        if (preg_match('/^otros?\s*\(/iu', trim($value))) {
+            return trim($value);
+        }
+
         $key = $this->norm($value);
 
         return self::SUBCATEGORY_LABELS[$key] ?? $this->displayText($value);

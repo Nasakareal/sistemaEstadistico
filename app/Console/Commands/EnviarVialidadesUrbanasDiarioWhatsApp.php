@@ -16,6 +16,7 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
         {--corte= : Fecha/hora de corte para simular o reenviar}
         {--sin-template : Envia texto libre; solo sirve con ventana de 24 horas abierta}
         {--dry-run : Muestra el texto y no envia}
+        {--demo : Usa datos de ejemplo para revisar formato; requiere --dry-run}
         {--force : Reenvia aunque ya exista guardia de envio}';
 
     protected $description = 'Envia el concentrado diario de Vialidades Urbanas por WhatsApp con corte de 18:00 a 18:00';
@@ -30,7 +31,14 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
             ? Carbon::parse((string) $this->option('corte'), $timezone)
             : null;
 
-        $resumen = $service->generar($corte);
+        if ($this->option('demo') && !$this->option('dry-run')) {
+            $this->error('La opcion --demo solo se permite con --dry-run para evitar envios de datos de ejemplo.');
+            return self::FAILURE;
+        }
+
+        $resumen = $this->option('demo')
+            ? $service->generarDemo($corte)
+            : $service->generar($corte);
         $mensaje = (string) $resumen['mensaje'];
         $usarTemplate = !$this->option('sin-template');
 

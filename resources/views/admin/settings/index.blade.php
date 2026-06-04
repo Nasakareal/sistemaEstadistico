@@ -420,6 +420,23 @@
             </div>
         @endcan
 
+        @can('menu-vialidades-urbanas')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-success">
+                        <i class="fa-solid fa-traffic-light"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Estadísticas Vialidades Urbanas</div>
+                        <div class="sv-card__desc">Excel diario y reportes de Vialidades Urbanas.</div>
+                        <a href="{{ route('settings.estadisticas_vialidad.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         @can('menu-estadisticas-actividades-fomento')
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">

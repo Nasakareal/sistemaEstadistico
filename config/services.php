@@ -53,6 +53,16 @@ return [
             'vialidades_urbanas_alertas_template_language' => env('WHATSAPP_SINIESTROS_VIALIDADES_URBANAS_ALERTAS_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
+        'vialidades_urbanas' => [
+            'to' => env('WHATSAPP_VIALIDADES_URBANAS_TO'),
+            'template' => env('WHATSAPP_VIALIDADES_URBANAS_TEMPLATE', 'reporte_vialidades_urbanas_bloque'),
+            'template_language' => env('WHATSAPP_VIALIDADES_URBANAS_TEMPLATE_LANGUAGE', 'es_MX'),
+            'template_chunk_chars' => (int) env('WHATSAPP_VIALIDADES_URBANAS_TEMPLATE_CHUNK_CHARS', 850),
+            'text_chunk_chars' => (int) env('WHATSAPP_VIALIDADES_URBANAS_TEXT_CHUNK_CHARS', 3900),
+            'firma_cargo' => env('WHATSAPP_VIALIDADES_URBANAS_FIRMA_CARGO', 'SUBDIRECTOR DE PROTECCIÓN EN VIALIDADES URBANAS'),
+            'firma_nombre' => env('WHATSAPP_VIALIDADES_URBANAS_FIRMA_NOMBRE'),
+        ],
+
         'oficios' => [
             'terminos_to' => env('WHATSAPP_OFICIOS_TERMINOS_TO', env('WHATSAPP_SINIESTROS_TO')),
             'terminos_template' => env('WHATSAPP_OFICIOS_TERMINOS_TEMPLATE'),

@@ -91,6 +91,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('18:15')
             ->timezone('America/Mexico_City');
 
+        $schedule->command('whatsapp:vialidades-urbanas-diario')
+            ->dailyAt('18:10')
+            ->timezone('America/Mexico_City')
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-todas-unidades')
             ->dailyAt('19:00')
             ->timezone('America/Mexico_City')

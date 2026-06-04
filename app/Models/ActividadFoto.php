@@ -14,9 +14,12 @@ class ActividadFoto extends Model
     protected $fillable = [
         'actividad_id',
         'foto_path',
+        'foto_blob_path',
         'foto_nombre_original',
         'foto_hash',
         'foto_thumbnail_path',
+        'foto_thumbnail_blob_path',
+        'foto_blob_copiada_at',
         'foto_archivo_zip_path',
         'foto_archivada_at',
         'foto_eliminada_at',
@@ -26,6 +29,7 @@ class ActividadFoto extends Model
     ];
 
     protected $casts = [
+        'foto_blob_copiada_at' => 'datetime',
         'foto_archivada_at' => 'datetime',
         'foto_eliminada_at' => 'datetime',
     ];

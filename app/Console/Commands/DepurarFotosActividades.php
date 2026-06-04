@@ -13,12 +13,21 @@ class DepurarFotosActividades extends Command
         {--dias-borrar=10 : Dias de retencion para la unidad de siniestros}
         {--dias-archivar=7 : Dias antes de comprimir fotos de las demas unidades}
         {--dias-borrar-zips=30 : Dias de retencion de los ZIPs archivados}
-        {--marcar-faltantes : Marca en base de datos los paths viejos cuyo archivo fisico ya no exista}';
+        {--marcar-faltantes : Marca en base de datos los paths viejos cuyo archivo fisico ya no exista}
+        {--permitir-borrado-y-zip : Ejecuta la depuracion anterior que borra originales y crea ZIPs}';
 
-    protected $description = 'Depura fotos antiguas de actividades: borra las de unidad 1 y archiva las demas en ZIP.';
+    protected $description = 'Depuracion antigua de fotos de actividades; requiere confirmacion para borrar o crear ZIPs.';
 
     public function handle(ActividadFotoRetentionService $service)
     {
+        if (!(bool) $this->option('permitir-borrado-y-zip')) {
+            $this->warn('Depuracion antigua desactivada: no se borraron fotos ni se crearon ZIPs.');
+            $this->line('Usa actividades:fotos-migrar-blob para copiar fotos al contenedor fotos/actividades.');
+            $this->line('Si realmente necesitas la depuracion antigua, agrega --permitir-borrado-y-zip.');
+
+            return 0;
+        }
+
         $stats = $service->procesar([
             'dry_run' => (bool) $this->option('dry-run'),
             'unidad_siniestros_id' => (int) $this->option('unidad-siniestros'),

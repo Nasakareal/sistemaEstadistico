@@ -403,7 +403,9 @@
                                     (object) [
                                         'id' => 'legacy',
                                         'foto_path' => $actividad->foto_path,
+                                        'foto_blob_path' => $actividad->foto_blob_path,
                                         'foto_thumbnail_path' => $actividad->foto_thumbnail_path,
+                                        'foto_thumbnail_blob_path' => $actividad->foto_thumbnail_blob_path,
                                         'foto_nombre_original' => $actividad->foto_nombre_original,
                                         'orden' => 0,
                                     ]
@@ -419,12 +421,17 @@
                                     <div class="preview-grid" style="{{ $fotosActuales->count() ? '' : 'display:none;' }}">
                                         @foreach ($fotosActuales as $foto)
                                             @php
-                                                $fotoPath = ($foto->foto_thumbnail_path ?? null) ?: $foto->foto_path;
-                                                $fotoUrl = asset('storage/' . ltrim($fotoPath, '/'));
+                                                $fotoId = is_numeric($foto->id ?? null) ? $foto->id : null;
+                                                $fotoUrl = $fotoId
+                                                    ? route('actividades.fotos.archivo', [$fotoId, 'thumbnail'])
+                                                    : route('actividades.fotos.principal_archivo', [$actividad->id, 'thumbnail']);
+                                                $fotoOriginalUrl = $fotoId
+                                                    ? route('actividades.fotos.archivo', [$fotoId, 'original'])
+                                                    : route('actividades.fotos.principal_archivo', [$actividad->id, 'original']);
                                                 $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
                                             @endphp
                                             <div class="preview-item">
-                                                <a href="{{ $fotoUrl }}" target="_blank" rel="noopener">
+                                                <a href="{{ $fotoOriginalUrl }}" target="_blank" rel="noopener">
                                                     <img src="{{ $fotoUrl }}" class="foto-thumb" alt="{{ $fotoNombre }}">
                                                 </a>
                                                 <div class="preview-label">{{ $fotoNombre }}</div>

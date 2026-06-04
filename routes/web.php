@@ -30,6 +30,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehiculosController;
 use App\Http\Controllers\LesionadoController;
 use App\Http\Controllers\ActividadController;
+use App\Http\Controllers\ActividadFotoArchivoController;
 use App\Http\Controllers\DictamenController;
 use App\Http\Controllers\PendientesCortesController;
 use App\Http\Controllers\OperativoController;
@@ -252,6 +253,16 @@ Route::get('/personal-fotos/{foto}/archivo-temporal', [PersonalFotoController::c
 Route::get('/personal/{personal}/foto-principal-temporal', [PersonalFotoController::class, 'showPrincipalSigned'])
     ->middleware('signed')
     ->name('personal.fotos.principal.signed');
+
+Route::get('/actividad-fotos/{foto}/{tipo?}', [ActividadFotoArchivoController::class, 'show'])
+    ->whereNumber('foto')
+    ->where('tipo', 'original|thumbnail')
+    ->name('actividades.fotos.archivo');
+
+Route::get('/actividad-fotos-principal/{actividad}/{tipo?}', [ActividadFotoArchivoController::class, 'principal'])
+    ->whereNumber('actividad')
+    ->where('tipo', 'original|thumbnail')
+    ->name('actividades.fotos.principal_archivo');
 
 Route::get('/home',[HomeController::class,'index'])->name('home');
 Route::get('/home/feed',[HomeController::class,'feed'])->name('home.feed');

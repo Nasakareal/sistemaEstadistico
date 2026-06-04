@@ -7,6 +7,7 @@ use App\Models\ActividadFoto;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ActividadFotoBlobStorage
 {
@@ -35,6 +36,41 @@ class ActividadFotoBlobStorage
         }
 
         return false;
+    }
+
+    public function response(?string $blobPath, ?string $localPath, ?string $downloadName = null)
+    {
+        $blobPath = $this->normalizeBlobPath($blobPath);
+        $localPath = $this->normalizeLocalPath($localPath);
+
+        if ($this->usesAzure() && $blobPath !== '') {
+            try {
+                return $this->azureResponse($blobPath, $downloadName ?: basename($blobPath));
+            } catch (\Throwable $e) {
+                if (!$this->isNotFound($e)) {
+                    throw $e;
+                }
+            }
+        }
+
+        if ($localPath !== '') {
+            $disk = Storage::disk('public');
+
+            if ($disk->exists($localPath)) {
+                return $disk->response(
+                    $localPath,
+                    $downloadName ?: basename($localPath),
+                    [
+                        'Content-Type' => $this->mimeTypeForPath($localPath),
+                        'Cache-Control' => 'public, max-age=86400',
+                        'X-Content-Type-Options' => 'nosniff',
+                    ],
+                    'inline'
+                );
+            }
+        }
+
+        abort(404);
     }
 
     public function putPublicFile(string $sourcePath, string $targetPath): void
@@ -80,6 +116,34 @@ class ActividadFotoBlobStorage
         $options->setContentType($contentType ?: 'application/octet-stream');
 
         $this->client()->createBlockBlob($this->container(), $targetPath, $stream, $options);
+    }
+
+    private function azureResponse(string $path, string $downloadName): StreamedResponse
+    {
+        $blob = $this->client()->getBlob($this->container(), $path);
+        $properties = $blob->getProperties();
+        $stream = $blob->getContentStream();
+
+        $headers = [
+            'Content-Type' => $properties && $properties->getContentType()
+                ? $properties->getContentType()
+                : $this->mimeTypeForPath($path),
+            'Content-Disposition' => 'inline; filename="' . $this->safeDownloadName($downloadName) . '"',
+            'Cache-Control' => 'public, max-age=86400',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        if ($properties && $properties->getContentLength()) {
+            $headers['Content-Length'] = $properties->getContentLength();
+        }
+
+        return response()->stream(function () use ($stream) {
+            fpassthru($stream);
+
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }, 200, $headers);
     }
 
     public function makeBlobPath(Actividad $actividad, ?ActividadFoto $foto, string $sourcePath, string $kind): string
@@ -194,6 +258,13 @@ class ActividadFotoBlobStorage
         $name = trim((string) $name, "._-\t\n\r\0\x0B");
 
         return $name !== '' ? substr($name, 0, 140) : 'foto.jpg';
+    }
+
+    private function safeDownloadName(string $name): string
+    {
+        $name = str_replace(['"', '\\'], '', $name);
+
+        return $name !== '' ? $name : 'foto.jpg';
     }
 
     private function isNotFound(\Throwable $e): bool

@@ -196,8 +196,8 @@
 
                                     <td>
                                         @php
-                                            $foto = $a->foto_thumbnail_path ?: $a->foto_path;
-                                            $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
+                                            $foto = $a->foto_thumbnail_path ?: $a->foto_path ?: $a->foto_thumbnail_blob_path ?: $a->foto_blob_path;
+                                            $urlFoto = $foto ? route('actividades.fotos.principal_archivo', [$a->id, 'thumbnail']) : null;
                                         @endphp
 
                                         @if ($urlFoto)

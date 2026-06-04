@@ -506,16 +506,22 @@
                             @foreach ($fotosActividad as $foto)
                                 @php
                                     $fotoArchivada = !empty($foto->foto_archivo_zip_path) || !empty($foto->foto_archivada_at);
-                                    $fotoPath = !$fotoArchivada && !empty($foto->foto_path)
+                                    $fotoPath = !$fotoArchivada && (!empty($foto->foto_path) || !empty($foto->foto_blob_path))
                                         ? $foto->foto_path
                                         : (($foto->foto_thumbnail_path ?? null) ?: $foto->foto_path);
-                                    $fotoUrl = asset('storage/' . ltrim($fotoPath, '/'));
+                                    $fotoId = is_numeric($foto->id ?? null) ? $foto->id : null;
+                                    $fotoUrl = $fotoId
+                                        ? route('actividades.fotos.archivo', [$fotoId, 'original'])
+                                        : route('actividades.fotos.principal_archivo', [$actividad->id, 'original']);
+                                    $fotoPreviewUrl = $fotoId
+                                        ? route('actividades.fotos.archivo', [$fotoId, 'thumbnail'])
+                                        : route('actividades.fotos.principal_archivo', [$actividad->id, 'thumbnail']);
                                     $fotoNombre = $foto->foto_nombre_original ?: ('Foto ' . ($loop->iteration));
                                 @endphp
 
                                 <div class="foto-card">
                                     <a href="{{ $fotoUrl }}" target="_blank" rel="noopener">
-                                        <img src="{{ $fotoUrl }}" alt="{{ $fotoNombre }}" class="foto-big">
+                                        <img src="{{ $fotoPreviewUrl }}" alt="{{ $fotoNombre }}" class="foto-big">
                                     </a>
 
                                     <div class="row mt-3" style="row-gap:18px;">

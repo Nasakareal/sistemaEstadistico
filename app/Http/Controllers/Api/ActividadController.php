@@ -971,17 +971,17 @@ class ActividadController extends Controller
         $fotos = $actividad->fotos
             ->sortBy([['orden','asc'],['id','asc']])
             ->map(function ($f) {
-                $path = $f->foto_thumbnail_path ?: $f->foto_path;
+                $path = $f->foto_thumbnail_path ?: $f->foto_path ?: $f->foto_thumbnail_blob_path ?: $f->foto_blob_path;
 
-                return $path ? asset('storage/' . ltrim($path, '/')) : null;
+                return $path ? route('actividades.fotos.archivo', [$f->id, 'thumbnail']) : null;
             })
             ->filter()
             ->values();
 
-        $fotoActividad = $actividad->foto_thumbnail_path ?: $actividad->foto_path;
+        $fotoActividad = $actividad->foto_thumbnail_path ?: $actividad->foto_path ?: $actividad->foto_thumbnail_blob_path ?: $actividad->foto_blob_path;
 
         if ($fotos->isEmpty() && $fotoActividad) {
-            $fotos = collect([asset('storage/' . ltrim($fotoActividad, '/'))]);
+            $fotos = collect([route('actividades.fotos.principal_archivo', [$actividad->id, 'thumbnail'])]);
         }
 
         return response()->json([
@@ -1117,26 +1117,30 @@ class ActividadController extends Controller
     {
         $data = $actividad->toArray();
         $actividadArchivada = !empty($actividad->foto_archivo_zip_path) || !empty($actividad->foto_archivada_at);
-        $fotoDisplayPath = !$actividadArchivada && !empty($actividad->foto_path)
-            ? $actividad->foto_path
-            : ($actividad->foto_thumbnail_path ?: $actividad->foto_path);
+        $fotoDisplayPath = !$actividadArchivada && (!empty($actividad->foto_path) || !empty($actividad->foto_blob_path))
+            ? ($actividad->foto_path ?: $actividad->foto_blob_path)
+            : ($actividad->foto_thumbnail_path ?: $actividad->foto_path ?: $actividad->foto_thumbnail_blob_path ?: $actividad->foto_blob_path);
 
-        $data['foto_thumbnail_url'] = $this->publicStoragePath($actividad->foto_thumbnail_path);
-        $data['foto_url'] = $this->publicStoragePath($fotoDisplayPath);
-        $data['foto_preview_url'] = $this->publicStoragePath($actividad->foto_thumbnail_path ?: $actividad->foto_path);
+        $data['foto_thumbnail_url'] = $this->actividadPrincipalFotoUrl($actividad, 'thumbnail');
+        $data['foto_url'] = $fotoDisplayPath ? $this->actividadPrincipalFotoUrl($actividad, 'original') : null;
+        $data['foto_preview_url'] = $this->actividadPrincipalFotoUrl($actividad, 'thumbnail');
 
         if (!empty($data['fotos']) && is_array($data['fotos'])) {
             $data['fotos'] = array_map(function ($foto) {
                 $thumbnailPath = $foto['foto_thumbnail_path'] ?? null;
                 $fotoPath = $foto['foto_path'] ?? null;
+                $thumbnailBlobPath = $foto['foto_thumbnail_blob_path'] ?? null;
+                $fotoBlobPath = $foto['foto_blob_path'] ?? null;
                 $fotoArchivada = !empty($foto['foto_archivo_zip_path']) || !empty($foto['foto_archivada_at']);
                 $displayPath = $fotoArchivada
-                    ? ($thumbnailPath ?: $fotoPath)
-                    : ($fotoPath ?: $thumbnailPath);
+                    ? ($thumbnailPath ?: $fotoPath ?: $thumbnailBlobPath ?: $fotoBlobPath)
+                    : ($fotoPath ?: $thumbnailPath ?: $fotoBlobPath ?: $thumbnailBlobPath);
 
-                $foto['foto_thumbnail_url'] = $this->publicStoragePath($thumbnailPath);
-                $foto['foto_preview_url'] = $this->publicStoragePath($thumbnailPath ?: $displayPath);
-                $foto['foto_url'] = $this->publicStoragePath($displayPath);
+                $foto['foto_thumbnail_url'] = $this->actividadFotoUrl($foto, 'thumbnail');
+                $foto['foto_preview_url'] = ($thumbnailPath ?: $thumbnailBlobPath ?: $displayPath)
+                    ? $this->actividadFotoUrl($foto, 'thumbnail')
+                    : null;
+                $foto['foto_url'] = $displayPath ? $this->actividadFotoUrl($foto, 'original') : null;
                 return $foto;
             }, $data['fotos']);
         }
@@ -1172,13 +1176,28 @@ class ActividadController extends Controller
         }
     }
 
-    private function publicStoragePath(?string $storedPath): ?string
+    private function actividadFotoUrl(array $foto, string $tipo): ?string
     {
-        if (empty($storedPath)) {
+        $id = $foto['id'] ?? null;
+
+        if (!$id) {
             return null;
         }
 
-        return asset('storage/' . ltrim($storedPath, '/'));
+        return route('actividades.fotos.archivo', [$id, $tipo === 'thumbnail' ? 'thumbnail' : 'original']);
+    }
+
+    private function actividadPrincipalFotoUrl(Actividad $actividad, string $tipo): ?string
+    {
+        $hasPath = $tipo === 'thumbnail'
+            ? ($actividad->foto_thumbnail_path || $actividad->foto_thumbnail_blob_path || $actividad->foto_path || $actividad->foto_blob_path)
+            : ($actividad->foto_path || $actividad->foto_blob_path || $actividad->foto_thumbnail_path || $actividad->foto_thumbnail_blob_path);
+
+        if (!$hasPath) {
+            return null;
+        }
+
+        return route('actividades.fotos.principal_archivo', [$actividad->id, $tipo === 'thumbnail' ? 'thumbnail' : 'original']);
     }
 
     private function puedeVerDelegacionesHijas($usuario): bool

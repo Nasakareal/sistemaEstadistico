@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoCo
 use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiarioController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\Api\SettingsPersonalController;
+use App\Http\Controllers\Api\SettingsStatisticsFilesController;
 use App\Http\Controllers\Api\TutorialController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
@@ -181,6 +182,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [SettingsPersonalController::class, 'index'])->name('api.settings.personal.index');
         Route::get('/{personal}', [SettingsPersonalController::class, 'show'])->whereNumber('personal')->name('api.settings.personal.show');
         Route::post('/{personal}/incidencias', [SettingsPersonalController::class, 'storeIncidencia'])->middleware('can:editar personal')->whereNumber('personal')->name('api.settings.personal.incidencias.store');
+    });
+
+    Route::prefix('settings/statistics-files')->group(function () {
+        Route::get('/', [SettingsStatisticsFilesController::class, 'index'])->name('api.settings.statistics_files.index');
+        Route::get('/{module}/{report}/{date}/download', [SettingsStatisticsFilesController::class, 'download'])
+            ->where('module', 'siniestros|delegaciones|vialidades|fomento')
+            ->where('report', '[A-Za-z0-9_-]+')
+            ->where('date', '\d{4}-\d{2}(?:-\d{2})?')
+            ->name('api.settings.statistics_files.download');
     });
 
     Route::prefix('cultura-vial')->middleware(['unidad:cultura-vial'])->group(function () {

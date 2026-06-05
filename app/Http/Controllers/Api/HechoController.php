@@ -974,6 +974,8 @@ class HechoController extends Controller
             ], 404);
         }
 
+        $this->resolverCodigoPostalFaltante($hecho);
+
         $hecho->load(['vehiculos.conductores', 'lesionados']);
 
         return response()->json([
@@ -1153,6 +1155,28 @@ class HechoController extends Controller
             'message' => 'IPH de Delegaciones subido correctamente.',
             'data' => $this->withFotoUrls($hecho),
         ], 200);
+    }
+
+    private function resolverCodigoPostalFaltante(Hechos $hecho): void
+    {
+        if (!empty($hecho->codigo_postal) || !is_numeric($hecho->lat) || !is_numeric($hecho->lng)) {
+            return;
+        }
+
+        $codigoPostal = app(CodigoPostalGeoService::class)->resolver($hecho->lat, $hecho->lng);
+
+        if (empty($codigoPostal)) {
+            return;
+        }
+
+        $timestamps = $hecho->timestamps;
+        $hecho->timestamps = false;
+
+        try {
+            $hecho->forceFill(['codigo_postal' => $codigoPostal])->save();
+        } finally {
+            $hecho->timestamps = $timestamps;
+        }
     }
 
     private function withFotoUrls(Hechos $hecho): array

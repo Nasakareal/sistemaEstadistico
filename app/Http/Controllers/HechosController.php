@@ -331,6 +331,8 @@ class HechosController extends Controller
             abort(404);
         }
 
+        $this->resolverCodigoPostalFaltante($hecho);
+
         $hecho->load([
             'creator',
             'vehiculos',
@@ -347,6 +349,28 @@ class HechosController extends Controller
         $croquisData = $this->croquisData($hecho->croquis);
 
         return view('hechos.show', compact('hecho', 'puedeEditar', 'croquisData'));
+    }
+
+    private function resolverCodigoPostalFaltante(Hechos $hecho): void
+    {
+        if (!empty($hecho->codigo_postal) || !is_numeric($hecho->lat) || !is_numeric($hecho->lng)) {
+            return;
+        }
+
+        $codigoPostal = app(CodigoPostalGeoService::class)->resolver($hecho->lat, $hecho->lng);
+
+        if (empty($codigoPostal)) {
+            return;
+        }
+
+        $timestamps = $hecho->timestamps;
+        $hecho->timestamps = false;
+
+        try {
+            $hecho->forceFill(['codigo_postal' => $codigoPostal])->save();
+        } finally {
+            $hecho->timestamps = $timestamps;
+        }
     }
 
     public function descargarIphPuestaDisposicion(

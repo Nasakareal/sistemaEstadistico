@@ -705,7 +705,7 @@
                                                     <strong>{{ $lesionado->nombre ?? 'Sin nombre' }}</strong>
                                                     <div>{{ $lesionado->edad ?? 'Sin edad' }}</div>
                                                     <div class="sv-hint mt-2">
-                                                        Víctima: {{ $lesionado->tipo_victima ?? 'Sin capturar' }}
+                                                        Tipo de lesionado: {{ $lesionado->tipo_victima ?? 'Sin capturar' }}
                                                     </div>
                                                     <div class="sv-hint">
                                                         Lesión: {{ $lesionado->tipo_lesion ?? 'Sin dato' }}

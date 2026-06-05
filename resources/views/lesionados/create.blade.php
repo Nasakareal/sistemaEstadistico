@@ -85,10 +85,10 @@
                                 </div>
                             </div>
 
-                            <!-- Tipo de Víctima -->
+                            <!-- Tipo de Lesionado -->
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="tipo_victima">Tipo de Víctima</label>
+                                    <label for="tipo_victima">Tipo de Lesionado</label>
                                     <select name="tipo_victima" id="tipo_victima" class="form-control @error('tipo_victima') is-invalid @enderror" required>
                                         <option value="" disabled selected>Seleccione</option>
                                         @foreach(\App\Models\Lesionado::TIPOS_VICTIMA as $tipoVictima)

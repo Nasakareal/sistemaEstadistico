@@ -67,7 +67,7 @@
 
                         <div class="row">
                             <!-- Tipo de Lesión -->
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="tipo_lesion">Tipo de Lesión</label>
                                     <select name="tipo_lesion" id="tipo_lesion" class="form-control @error('tipo_lesion') is-invalid @enderror" required>
@@ -85,8 +85,28 @@
                                 </div>
                             </div>
 
+                            <!-- Tipo de Víctima -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="tipo_victima">Tipo de Víctima</label>
+                                    <select name="tipo_victima" id="tipo_victima" class="form-control @error('tipo_victima') is-invalid @enderror" required>
+                                        <option value="" disabled selected>Seleccione</option>
+                                        @foreach(\App\Models\Lesionado::TIPOS_VICTIMA as $tipoVictima)
+                                            <option value="{{ $tipoVictima }}" {{ old('tipo_victima') == $tipoVictima ? 'selected' : '' }}>
+                                                {{ $tipoVictima }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('tipo_victima')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                </div>
+                            </div>
+
                             <!-- Hospitalizado -->
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="hospitalizado">¿Hospitalizado?</label>
                                     <select name="hospitalizado" id="hospitalizado" class="form-control @error('hospitalizado') is-invalid @enderror" required>
@@ -102,7 +122,7 @@
                             </div>
 
                             <!-- Hospital -->
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="hospital">Nombre del Hospital (si aplica)</label>
                                     <input type="text" name="hospital" id="hospital" class="form-control @error('hospital') is-invalid @enderror" 

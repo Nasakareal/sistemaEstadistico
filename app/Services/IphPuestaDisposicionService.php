@@ -163,6 +163,7 @@ class IphPuestaDisposicionService
                 'edad' => $lesionado->edad,
                 'sexo' => $lesionado->sexo,
                 'tipo_lesion' => $lesionado->tipo_lesion,
+                'tipo_victima' => $lesionado->tipo_victima,
                 'hospitalizado' => (bool) $lesionado->hospitalizado,
                 'hospital' => $lesionado->hospital,
                 'atencion_en_sitio' => (bool) $lesionado->atencion_en_sitio,

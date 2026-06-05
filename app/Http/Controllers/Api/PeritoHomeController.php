@@ -327,6 +327,7 @@ class PeritoHomeController extends Controller
                 'edad',
                 'sexo',
                 'tipo_lesion',
+                'tipo_victima',
                 DB::raw('tipo_lesion as estado_salud'),
             ])
             ->get();

@@ -201,11 +201,12 @@ class WhatsAppLink
                         $nombreL = trim((string) ($l->nombre ?: 'SIN DATO'));
                         $edadL = $l->edad ?: 'S/E';
                         $sexoL = self::upper($l->sexo ?: 'SIN DATO');
+                        $tipoVictimaL = self::upper($l->tipo_victima ?: 'SIN DATO');
                         $paramedicoL = trim((string) ($l->paramedico ?: 'SIN DATO'));
                         $ambulanciaL = trim((string) ($l->ambulancia ?: 'SIN DATO'));
                         $observacionesL = trim((string) ($l->observaciones ?: ''));
 
-                        $texto = "- {$nombreL}, de {$edadL} años, sexo {$sexoL}, el cual falleció en el lugar.";
+                        $texto = "- {$nombreL}, de {$edadL} años, sexo {$sexoL}, tipo de víctima {$tipoVictimaL}, el cual falleció en el lugar.";
 
                         if ($paramedicoL !== 'SIN DATO') {
                             $texto .= " Confirma el deceso el paramédico {$paramedicoL}";
@@ -234,6 +235,7 @@ class WhatsAppLink
                         $edadL = $l->edad ?: 'S/E';
                         $sexoL = self::upper($l->sexo ?: 'SIN DATO');
                         $tipoLesionL = self::upper($l->tipo_lesion ?: 'SIN DATO');
+                        $tipoVictimaL = self::upper($l->tipo_victima ?: 'SIN DATO');
                         $hospitalL = trim((string) ($l->hospital ?: ''));
                         $ambulanciaL = trim((string) ($l->ambulancia ?: ''));
                         $paramedicoL = trim((string) ($l->paramedico ?: ''));
@@ -241,7 +243,7 @@ class WhatsAppLink
                         $hospitalizadoL = (int) ($l->hospitalizado ?? 0);
                         $observacionesL = trim((string) ($l->observaciones ?: ''));
 
-                        $texto = "- {$nombreL}, de {$edadL} años, sexo {$sexoL}, presenta lesión {$tipoLesionL}.";
+                        $texto = "- {$nombreL}, de {$edadL} años, sexo {$sexoL}, tipo de víctima {$tipoVictimaL}, presenta lesión {$tipoLesionL}.";
 
                         if ($atencionSitioL === 1) {
                             $texto .= " Recibió atención en el sitio.";

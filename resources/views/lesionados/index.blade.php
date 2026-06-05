@@ -30,6 +30,7 @@
                                     <th><center>Edad</center></th>
                                     <th><center>Sexo</center></th>
                                     <th><center>Tipo de Lesión</center></th>
+                                    <th><center>Tipo de Víctima</center></th>
                                     <th><center>Hospitalizado</center></th>
                                     <th><center>Ambulancia</center></th>
                                     <th><center>Acciones</center></th>
@@ -42,6 +43,7 @@
                                         <td>{{ $lesionado->edad ?? 'N/A' }}</td>
                                         <td>{{ $lesionado->sexo }}</td>
                                         <td>{{ $lesionado->tipo_lesion }}</td>
+                                        <td>{{ $lesionado->tipo_victima ?? 'Sin capturar' }}</td>
                                         <td>
                                             @if($lesionado->hospitalizado)
                                                 Sí ({{ $lesionado->hospital ?? 'No especificado' }})

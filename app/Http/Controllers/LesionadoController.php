@@ -7,6 +7,7 @@ use App\Models\Lesionado;
 use App\Services\DelegacionesWhatsAppAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class LesionadoController extends Controller
 {
@@ -28,6 +29,7 @@ class LesionadoController extends Controller
             'edad' => 'nullable|integer|min:0',
             'sexo' => 'nullable|string|in:Masculino,Femenino,Otro',
             'tipo_lesion' => 'required|string|in:Leve,Moderada,Grave,Fallecido',
+            'tipo_victima' => ['required', 'string', Rule::in(Lesionado::TIPOS_VICTIMA)],
             'hospitalizado' => 'required|boolean',
             'hospital' => 'nullable|string|max:255',
             'atencion_en_sitio' => 'required|boolean',
@@ -72,6 +74,7 @@ class LesionadoController extends Controller
             'edad' => 'nullable|integer|min:0',
             'sexo' => 'nullable|string|in:Masculino,Femenino,Otro',
             'tipo_lesion' => 'required|string|in:Leve,Moderada,Grave,Fallecido',
+            'tipo_victima' => ['required', 'string', Rule::in(Lesionado::TIPOS_VICTIMA)],
             'hospitalizado' => 'required|boolean',
             'hospital' => 'nullable|string|max:255',
             'atencion_en_sitio' => 'required|boolean',

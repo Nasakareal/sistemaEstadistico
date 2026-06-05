@@ -10,6 +10,14 @@ class Lesionado extends Model
 {
     use HasFactory;
 
+    public const TIPOS_VICTIMA = [
+        'Conductor',
+        'Pasajero',
+        'Peatón',
+        'Motociclista',
+        'Ciclista',
+    ];
+
     protected $fillable = [
         'client_uuid',
         'hecho_id',
@@ -17,6 +25,7 @@ class Lesionado extends Model
         'edad',
         'sexo',
         'tipo_lesion',
+        'tipo_victima',
         'hospitalizado',
         'hospital',
         'atencion_en_sitio',

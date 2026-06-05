@@ -65,7 +65,7 @@ class ExcelVialidadesUrbanasGenerator
 
     public function rangoCorte(string $fecha): array
     {
-        $horaCorte = config('cortes.hora_corte_vialidades_urbanas', '18:00:00');
+        $horaCorte = config('cortes.hora_corte_vialidades_urbanas', '17:00:00');
         $fin = Carbon::parse($fecha . ' ' . $horaCorte, 'America/Mexico_City');
 
         return [$fin->copy()->subDay(), $fin];

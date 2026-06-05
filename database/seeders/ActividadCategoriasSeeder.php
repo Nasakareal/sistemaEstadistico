@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class ActividadCategoriasSeeder extends Seeder
 {
+    private const UNIDAD_VIALIDADES_URBANAS_ID = 5;
+
     public function run(): void
     {
         $data = [
@@ -40,6 +42,11 @@ class ActividadCategoriasSeeder extends Seeder
                 'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)',
             ],
             'OPERATIVOS' => [
+                ['nombre' => 'ESCUELA SEGURA', 'unidad_id' => self::UNIDAD_VIALIDADES_URBANAS_ID],
+                ['nombre' => 'CONEXIÓN INSTITUCIONAL', 'unidad_id' => self::UNIDAD_VIALIDADES_URBANAS_ID],
+                ['nombre' => 'RESPUESTA VIAL INMEDIATA', 'unidad_id' => self::UNIDAD_VIALIDADES_URBANAS_ID],
+                ['nombre' => 'ABANDERAMIENTO ACTIVO', 'unidad_id' => self::UNIDAD_VIALIDADES_URBANAS_ID],
+                ['nombre' => 'PASO CONTINUO', 'unidad_id' => self::UNIDAD_VIALIDADES_URBANAS_ID],
                 'RELÁMPAGO',
                 'CARRUSEL',
                 'BLINDAJE',
@@ -137,20 +144,26 @@ class ActividadCategoriasSeeder extends Seeder
                     continue;
                 }
 
-                foreach ($subcategorias as $subNombre) {
+                foreach ($subcategorias as $subcategoria) {
+                    $subNombre = is_array($subcategoria) ? $subcategoria['nombre'] : $subcategoria;
                     $subSlug = Str::slug($subNombre);
+                    $payload = [
+                        'nombre'     => $subNombre,
+                        'activo'     => true,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ];
+
+                    if (is_array($subcategoria) && array_key_exists('unidad_id', $subcategoria)) {
+                        $payload['unidad_id'] = $subcategoria['unidad_id'];
+                    }
 
                     DB::table('actividad_subcategorias')->updateOrInsert(
                         [
                             'actividad_categoria_id' => $categoria->id,
                             'slug' => $subSlug,
                         ],
-                        [
-                            'nombre'     => $subNombre,
-                            'activo'     => true,
-                            'updated_at' => now(),
-                            'created_at' => now(),
-                        ]
+                        $payload
                     );
                 }
             }

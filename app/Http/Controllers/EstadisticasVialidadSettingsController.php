@@ -26,7 +26,8 @@ class EstadisticasVialidadSettingsController extends Controller
         $tz = 'America/Mexico_City';
         $fechaSugerida = now($tz)->toDateString();
         [$inicioSugerido, $finSugerido] = app(ExcelVialidadesUrbanasGenerator::class)->rangoCorte($fechaSugerida);
-        $horaCorte = config('cortes.hora_corte_vialidades_urbanas', '18:00:00');
+        $horaCorte = config('cortes.hora_corte_vialidades_urbanas', '17:00:00');
+        $horaCorteDisplay = substr($horaCorte, 0, 5);
 
         if (!$disk->exists($directorio)) {
             $disk->makeDirectory($directorio);
@@ -57,7 +58,8 @@ class EstadisticasVialidadSettingsController extends Controller
             'fechaSugerida',
             'inicioSugerido',
             'finSugerido',
-            'horaCorte'
+            'horaCorte',
+            'horaCorteDisplay'
         ));
     }
 

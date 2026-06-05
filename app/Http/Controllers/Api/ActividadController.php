@@ -284,17 +284,16 @@ class ActividadController extends Controller
         $cantidad = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
-            $ok = ActividadSubcategoria::query()
-                ->where('id', $validated['actividad_subcategoria_id'])
-                ->where('actividad_categoria_id', $validated['actividad_categoria_id'])
-                ->exists();
-
-            if (!$ok) {
+            if (!$this->subcategoriaPermitidaParaUsuario(
+                (int) $validated['actividad_categoria_id'],
+                (int) $validated['actividad_subcategoria_id'],
+                $user
+            )) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'La subcategoría no pertenece a la categoría seleccionada.',
+                    'message' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
                     'errors' => [
-                        'actividad_subcategoria_id' => ['La subcategoría no pertenece a la categoría seleccionada.'],
+                        'actividad_subcategoria_id' => ['La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.'],
                     ],
                 ], 422);
             }
@@ -567,17 +566,16 @@ class ActividadController extends Controller
         }
 
         if (!empty($validated['actividad_subcategoria_id'])) {
-            $ok = ActividadSubcategoria::query()
-                ->where('id', $validated['actividad_subcategoria_id'])
-                ->where('actividad_categoria_id', $validated['actividad_categoria_id'])
-                ->exists();
-
-            if (!$ok) {
+            if (!$this->subcategoriaPermitidaParaUsuario(
+                (int) $validated['actividad_categoria_id'],
+                (int) $validated['actividad_subcategoria_id'],
+                $user
+            )) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'La subcategoría no pertenece a la categoría seleccionada.',
+                    'message' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
                     'errors' => [
-                        'actividad_subcategoria_id' => ['La subcategoría no pertenece a la categoría seleccionada.'],
+                        'actividad_subcategoria_id' => ['La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.'],
                     ],
                 ], 422);
             }
@@ -873,6 +871,8 @@ class ActividadController extends Controller
 
     public function subcategorias(ActividadCategoria $categoria)
     {
+        $usuario = Auth::user();
+
         $programas = FomentoCulturaVialPrograma::query()
             ->where('activo', 1)
             ->orderBy('orden')
@@ -880,11 +880,7 @@ class ActividadController extends Controller
             ->get(['id', 'actividad_subcategoria_id', 'nombre'])
             ->groupBy('actividad_subcategoria_id');
 
-        $items = ActividadSubcategoria::query()
-            ->where('actividad_categoria_id', $categoria->id)
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre'])
+        $items = $this->obtenerSubcategoriasDisponibles((int) $categoria->id, $usuario)
             ->map(function ($subcategoria) use ($programas) {
                 return [
                     'id' => (int) $subcategoria->id,
@@ -904,6 +900,47 @@ class ActividadController extends Controller
             'ok' => true,
             'data' => $items,
         ]);
+    }
+
+    private function obtenerSubcategoriasDisponibles(int $categoriaId, $usuario)
+    {
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $query = ActividadSubcategoria::query()
+            ->where('actividad_categoria_id', $categoriaId)
+            ->where('activo', 1);
+
+        if ($categoriaId === 10 && $unidadId === 2) {
+            $query->where('unidad_id', 2);
+        } else {
+            $query->where(function ($q) use ($unidadId) {
+                $q->whereNull('unidad_id')
+                  ->orWhere('unidad_id', $unidadId);
+            });
+        }
+
+        return $query->orderBy('nombre')->get(['id', 'nombre', 'unidad_id']);
+    }
+
+    private function subcategoriaPermitidaParaUsuario(int $categoriaId, int $subcategoriaId, $usuario): bool
+    {
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+
+        $query = ActividadSubcategoria::query()
+            ->where('id', $subcategoriaId)
+            ->where('actividad_categoria_id', $categoriaId)
+            ->where('activo', 1);
+
+        if ($categoriaId === 10 && $unidadId === 2) {
+            $query->where('unidad_id', 2);
+        } else {
+            $query->where(function ($q) use ($unidadId) {
+                $q->whereNull('unidad_id')
+                  ->orWhere('unidad_id', $unidadId);
+            });
+        }
+
+        return $query->exists();
     }
 
     public function compartir(Actividad $actividad)

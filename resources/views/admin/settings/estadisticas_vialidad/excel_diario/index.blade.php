@@ -41,7 +41,7 @@
                     <div>
                         <div class="sv-panel__heading">Generar corte diario</div>
                         <div class="sv-panel__desc">
-                            Corte {{ $horaCorte ?? '18:00:00' }} ·
+                            Corte {{ $horaCorteDisplay ?? '17:00' }} ·
                             {{ isset($inicioSugerido) ? $inicioSugerido->format('d/m/Y H:i') : '' }}
                             a
                             {{ isset($finSugerido) ? $finSugerido->format('d/m/Y H:i') : '' }}
@@ -70,7 +70,7 @@
                 <div class="sv-panel__body sv-panel__body--header">
                     <div>
                         <div class="sv-panel__heading">Archivos generados</div>
-                        <div class="sv-panel__desc">El corte se genera diariamente a las 18:00 horas.</div>
+                        <div class="sv-panel__desc">El corte se genera diariamente a las {{ $horaCorteDisplay ?? '17:00' }} horas.</div>
                     </div>
 
                     <a href="{{ route('settings.estadisticas_vialidad.index') }}" class="btn sv-btn">

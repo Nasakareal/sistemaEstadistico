@@ -71,7 +71,7 @@ class Kernel extends ConsoleKernel
 
         $schedule->command('vialidades-urbanas:generar-excel-diario')
             ->timezone('America/Mexico_City')
-            ->dailyAt(substr(config('cortes.hora_corte_vialidades_urbanas', '18:00:00'), 0, 5))
+            ->dailyAt(substr(config('cortes.hora_corte_vialidades_urbanas', '17:00:00'), 0, 5))
             ->withoutOverlapping();
 
         $schedule->command('delegaciones:notificar-hechos-incompletos')

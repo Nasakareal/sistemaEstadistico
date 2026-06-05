@@ -12,8 +12,7 @@ class MapaPatrullasController extends Controller
     {
         $actor = request()->user();
 
-        $usersQuery = User::query()
-            ->where('compartir_ubicacion', 1);
+        $usersQuery = User::query();
 
         if ($actor->hasRole('Superadmin')) {
             // Superadmin keeps the global view; every other role is scoped to its unit.
@@ -54,6 +53,7 @@ class MapaPatrullasController extends Controller
 
                     'unidad_id'       => optional($user)->unidad_id,
                     'turno_id'        => optional($user)->turno_id,
+                    'compartir_ubicacion' => (int) (optional($user)->compartir_ubicacion ?? 0),
 
                     'connection_status' => optional($user)->connection_status,
                     'last_seen_at'       => optional($user)->last_seen_at

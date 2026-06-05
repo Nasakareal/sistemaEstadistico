@@ -36,6 +36,7 @@ class Hechos extends Model
         'colonia',
         'entre_calles',
         'municipio',
+        'codigo_postal',
         'tipo_hecho',
         'superficie_via',
         'tiempo',

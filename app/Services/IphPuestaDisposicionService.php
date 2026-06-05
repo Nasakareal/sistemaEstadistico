@@ -102,6 +102,7 @@ class IphPuestaDisposicionService
                 'colonia' => $hecho->colonia,
                 'entre_calles' => $hecho->entre_calles,
                 'municipio' => $hecho->municipio,
+                'codigo_postal' => $hecho->codigo_postal,
                 'lat' => $hecho->lat,
                 'lng' => $hecho->lng,
                 'ubicacion_formateada' => $hecho->ubicacion_formateada,

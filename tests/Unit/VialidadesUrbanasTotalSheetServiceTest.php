@@ -240,11 +240,83 @@ class VialidadesUrbanasTotalSheetServiceTest extends TestCase
         $this->assertSame('000000', $sheet->getStyle('A78')->getFont()->getColor()->getRGB());
     }
 
+    public function test_renderiza_control_vehicular_despues_de_fila_blanca(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $control = $this->controlVehicularVacio();
+        $control['REVISION_ANTECEDENTES']['vehiculos'] = 2;
+        $control['REVISION_ANTECEDENTES']['motocicletas'] = 1;
+        $control['CORRALON_TRANSITO']['camiones'] = 1;
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $control);
+
+        $this->assertNull($sheet->getCell('B79')->getValue());
+        $this->assertSame('No.', $sheet->getCell('B80')->getValue());
+        $this->assertSame('CONTROL VEHÍCULAR', $sheet->getCell('C80')->getValue());
+        $this->assertSame('VEHÍCULOS', $sheet->getCell('D80')->getValue());
+        $this->assertSame('REVISIÓN DE ANTECEDENTES', $sheet->getCell('C81')->getValue());
+        $this->assertSame(2, $sheet->getCell('D81')->getValue());
+        $this->assertSame(1, $sheet->getCell('E81')->getValue());
+        $this->assertSame('ASEGURADOS POR OTROS MOTIVOS', $sheet->getCell('C93')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('B94')->getValue());
+        $this->assertSame('B94:C94', $sheet->getCell('B94')->getMergeRange());
+        $this->assertSame(2, $sheet->getCell('D94')->getValue());
+        $this->assertSame(1, $sheet->getCell('E94')->getValue());
+        $this->assertSame(1, $sheet->getCell('F94')->getValue());
+        $this->assertSame(0, $sheet->getCell('G94')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('B94')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_clasifica_control_vehicular_por_texto_y_tipo(): void
+    {
+        $service = new TotalSheetService();
+        $keysMethod = new ReflectionMethod(TotalSheetService::class, 'clavesControlVehicular');
+        $keysMethod->setAccessible(true);
+        $bucketMethod = new ReflectionMethod(TotalSheetService::class, 'bucketControlVehicular');
+        $bucketMethod->setAccessible(true);
+
+        $actividad = (object) [
+            'categoria' => (object) ['nombre' => 'OPERATIVOS'],
+            'subcategoria' => (object) ['nombre' => 'CONTROL'],
+            'nombre' => 'CONTROL',
+            'motivo' => 'RECUPERADOS CON REPORTE DE ROBO',
+            'narrativa' => null,
+            'acciones_realizadas' => null,
+            'observaciones' => null,
+        ];
+        $vehiculo = (object) [
+            'tipo' => 'Motocicleta',
+            'antecedente_vehiculo' => 1,
+            'corralon' => null,
+        ];
+
+        $keys = $keysMethod->invoke($service, $actividad, $vehiculo);
+
+        $this->assertContains('REVISION_ANTECEDENTES', $keys);
+        $this->assertContains('REC_ROBO', $keys);
+        $this->assertSame('motocicletas', $bucketMethod->invoke($service, 'Motocicleta'));
+        $this->assertSame('camiones', $bucketMethod->invoke($service, 'Camión'));
+        $this->assertSame('vehiculos', $bucketMethod->invoke($service, 'Camioneta SUV'));
+    }
+
     private function construirFilas(Collection $actividades): array
     {
         $method = new ReflectionMethod(TotalSheetService::class, 'construirFilas');
         $method->setAccessible(true);
 
         return $method->invoke(new TotalSheetService(), $actividades, collect());
+    }
+
+    private function controlVehicularVacio(): array
+    {
+        $method = new ReflectionMethod(TotalSheetService::class, 'controlesVehicularesVacios');
+        $method->setAccessible(true);
+
+        return $method->invoke(new TotalSheetService());
     }
 }

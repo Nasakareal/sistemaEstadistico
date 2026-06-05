@@ -70,14 +70,6 @@ class PersonalController extends Controller
             $user->compartir_ubicacion = $enabled ? 1 : 0;
             $user->save();
 
-            $deleted = 0;
-
-            if (!$enabled) {
-                $deleted = DB::table('user_locations')
-                    ->where('user_id', $user->id)
-                    ->delete();
-            }
-
             DB::commit();
 
             return response()->json([
@@ -85,7 +77,7 @@ class PersonalController extends Controller
                 'data' => [
                     'user_id' => $user->id,
                     'compartir_ubicacion' => (int)$user->compartir_ubicacion,
-                    'deleted_locations' => (int)$deleted,
+                    'deleted_locations' => 0,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -118,18 +110,11 @@ class PersonalController extends Controller
         DB::beginTransaction();
         try {
             $updated = 0;
-            $deleted = 0;
 
             if (!empty($ids)) {
                 $updated = User::query()->whereIn('id', $ids)->update([
                     'compartir_ubicacion' => $enabled ? 1 : 0,
                 ]);
-
-                if (!$enabled) {
-                    $deleted = DB::table('user_locations')
-                        ->whereIn('user_id', $ids)
-                        ->delete();
-                }
             }
 
             DB::commit();
@@ -139,7 +124,7 @@ class PersonalController extends Controller
                 'data' => [
                     'updated' => (int)$updated,
                     'enabled' => $enabled,
-                    'deleted_locations' => (int)$deleted,
+                    'deleted_locations' => 0,
                 ],
             ]);
         } catch (\Throwable $e) {

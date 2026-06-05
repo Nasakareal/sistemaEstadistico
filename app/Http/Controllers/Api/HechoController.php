@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\Croquis\CroquisArchivoStorage;
+use App\Services\CodigoPostalGeoService;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
@@ -83,6 +84,7 @@ class HechoController extends Controller
                 'hechos.calle',
                 'hechos.colonia',
                 'hechos.municipio',
+                'hechos.codigo_postal',
                 'hechos.situacion',
                 'hechos.foto_lugar',
                 'hechos.foto_situacion',
@@ -514,6 +516,8 @@ class HechoController extends Controller
         }
 
         $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
+        $validated['codigo_postal'] = app(CodigoPostalGeoService::class)
+            ->resolver($validated['lat'] ?? null, $validated['lng'] ?? null);
         $validated['delegacion_id'] = $user->delegacion_id ?? null;
         $validated['created_by'] = $user->id;
         $validated['unidad_org_id'] = HechoAccess::effectiveUnidadId($user);
@@ -800,6 +804,14 @@ class HechoController extends Controller
 
         if ($request->has('lng') && !$request->filled('lng')) {
             $validated['lng'] = null;
+        }
+
+        if ($request->has('lat') || $request->has('lng')) {
+            $latCodigoPostal = array_key_exists('lat', $validated) ? $validated['lat'] : $hecho->lat;
+            $lngCodigoPostal = array_key_exists('lng', $validated) ? $validated['lng'] : $hecho->lng;
+
+            $validated['codigo_postal'] = app(CodigoPostalGeoService::class)
+                ->resolver($latCodigoPostal, $lngCodigoPostal);
         }
 
         if ($request->has('monto_danos_patrimoniales') && !$request->filled('monto_danos_patrimoniales')) {

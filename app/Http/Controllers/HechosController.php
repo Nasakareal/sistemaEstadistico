@@ -14,6 +14,7 @@ use App\Services\HechoRevisionNotificationService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\IphPuestaDisposicionService;
 use App\Services\Croquis\CroquisArchivoStorage;
+use App\Services\CodigoPostalGeoService;
 use App\Services\WhatsApp\WhatsAppBot;
 use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\WhatsApp\C5IReport;
@@ -267,6 +268,9 @@ class HechosController extends Controller
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_WEB';
         }
+
+        $validated['codigo_postal'] = app(CodigoPostalGeoService::class)
+            ->resolver($validated['lat'] ?? null, $validated['lng'] ?? null);
 
         $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
         unset($validated['dictamen_id']);
@@ -618,6 +622,9 @@ class HechosController extends Controller
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_WEB';
         }
+
+        $validated['codigo_postal'] = app(CodigoPostalGeoService::class)
+            ->resolver($validated['lat'] ?? null, $validated['lng'] ?? null);
 
         if ($quitarFotoLugar) {
             if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {

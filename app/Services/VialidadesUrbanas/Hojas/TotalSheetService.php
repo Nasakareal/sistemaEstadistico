@@ -23,10 +23,10 @@ class TotalSheetService
             $this->dispositivosVialidadesUrbanas($inicio, $fin)
         );
 
-        $this->render($sheet, $fecha, $rows);
+        $this->render($sheet, $fecha, $rows, $this->controlesVehiculares($inicio, $fin));
     }
 
-    private function render(Worksheet $sheet, string $fecha, array $rows): void
+    private function render(Worksheet $sheet, string $fecha, array $rows, ?array $controlVehicular = null): void
     {
         $blue = '0070C0';
         $green = '00B050';
@@ -175,7 +175,118 @@ class TotalSheetService
         ]);
         $sheet->getStyle("C{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
+        $this->renderControlVehicular($sheet, 80, $controlVehicular ?? $this->controlesVehicularesVacios());
+
         $sheet->freezePane('A4');
+    }
+
+    private function renderControlVehicular(Worksheet $sheet, int $startRow, array $counts): void
+    {
+        $blue = '0070C0';
+        $cyan = '00B0F0';
+        $thinBorder = [
+            'borderStyle' => Border::BORDER_THIN,
+            'color' => ['rgb' => '000000'],
+        ];
+
+        $columns = [
+            'B' => 'No.',
+            'C' => 'CONTROL VEHÍCULAR',
+            'D' => 'VEHÍCULOS',
+            'E' => 'MOTOCICLETAS',
+            'F' => 'CAMIONES',
+            'G' => 'OTROS',
+        ];
+
+        foreach ($columns as $column => $label) {
+            $sheet->setCellValue("{$column}{$startRow}", $label);
+        }
+
+        $sheet->getRowDimension($startRow)->setRowHeight(20);
+        $sheet->getStyle("B{$startRow}:G{$startRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => $blue],
+            ],
+            'borders' => [
+                'allBorders' => $thinBorder,
+            ],
+        ]);
+
+        $row = $startRow + 1;
+        $totals = [
+            'vehiculos' => 0,
+            'motocicletas' => 0,
+            'camiones' => 0,
+            'otros' => 0,
+        ];
+
+        foreach ($this->templateControlVehicular() as $item) {
+            $key = $item['key'];
+            $values = $counts[$key] ?? ['vehiculos' => 0, 'motocicletas' => 0, 'camiones' => 0, 'otros' => 0];
+
+            $sheet->setCellValue("B{$row}", $item['no']);
+            $sheet->setCellValue("C{$row}", $item['label']);
+            $sheet->setCellValue("D{$row}", $this->valorVisible($values['vehiculos'] ?? 0));
+            $sheet->setCellValue("E{$row}", $this->valorVisible($values['motocicletas'] ?? 0));
+            $sheet->setCellValue("F{$row}", $this->valorVisible($values['camiones'] ?? 0));
+            $sheet->setCellValue("G{$row}", $this->valorVisible($values['otros'] ?? 0));
+
+            $sheet->getRowDimension($row)->setRowHeight(18);
+            $sheet->getStyle("B{$row}:G{$row}")->applyFromArray([
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                    'wrapText' => true,
+                ],
+                'borders' => [
+                    'allBorders' => $thinBorder,
+                ],
+            ]);
+            $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$row}:G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            foreach ($totals as $bucket => $_) {
+                $totals[$bucket] += (int) ($values[$bucket] ?? 0);
+            }
+
+            $row++;
+        }
+
+        $sheet->mergeCells("B{$row}:C{$row}");
+        $sheet->setCellValue("B{$row}", 'TOTAL');
+        $sheet->setCellValue("D{$row}", $totals['vehiculos']);
+        $sheet->setCellValue("E{$row}", $totals['motocicletas']);
+        $sheet->setCellValue("F{$row}", $totals['camiones']);
+        $sheet->setCellValue("G{$row}", $totals['otros']);
+
+        $sheet->getRowDimension($row)->setRowHeight(20);
+        $sheet->getStyle("B{$row}:G{$row}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => '000000'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => $cyan],
+            ],
+            'borders' => [
+                'allBorders' => $thinBorder,
+            ],
+        ]);
     }
 
     private function construirFilas(Collection $actividades, ?Collection $dispositivos = null): array
@@ -255,6 +366,215 @@ class TotalSheetService
                 [$inicio->toDateTimeString(), $fin->toDateTimeString()]
             )
             ->get();
+    }
+
+    private function controlesVehiculares(Carbon $inicio, Carbon $fin): array
+    {
+        $counts = $this->controlesVehicularesVacios();
+
+        $actividades = Actividad::query()
+            ->with(['categoria', 'subcategoria', 'vehiculos'])
+            ->whereIn('unidad_org_id', $this->unidadVialidadesUrbanasIds())
+            ->whereRaw(
+                "TIMESTAMP(DATE(fecha), COALESCE(hora, '00:00:00')) >= ? AND TIMESTAMP(DATE(fecha), COALESCE(hora, '00:00:00')) < ?",
+                [$inicio->toDateTimeString(), $fin->toDateTimeString()]
+            )
+            ->whereHas('vehiculos')
+            ->get();
+
+        foreach ($actividades as $actividad) {
+            foreach ($actividad->vehiculos as $vehiculo) {
+                $bucket = $this->bucketControlVehicular($vehiculo->tipo ?? '');
+
+                foreach ($this->clavesControlVehicular($actividad, $vehiculo) as $key) {
+                    $counts[$key][$bucket]++;
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+    private function controlesVehicularesVacios(): array
+    {
+        $counts = [];
+
+        foreach ($this->templateControlVehicular() as $item) {
+            $counts[$item['key']] = [
+                'vehiculos' => 0,
+                'motocicletas' => 0,
+                'camiones' => 0,
+                'otros' => 0,
+            ];
+        }
+
+        return $counts;
+    }
+
+    private function templateControlVehicular(): array
+    {
+        return [
+            ['no' => 1, 'label' => 'REVISIÓN DE ANTECEDENTES', 'key' => 'REVISION_ANTECEDENTES'],
+            ['no' => 2, 'label' => 'VEHÍCULOS REVISADOS DE PROCEDENCIA EXTRANJERA', 'key' => 'PROC_EXTRANJERA'],
+            ['no' => 3, 'label' => 'DESPOLARIZADO', 'key' => 'DESPOLARIZADO'],
+            ['no' => 4, 'label' => 'CORRALON POR FALTAS ADMINISTRATIVAS', 'key' => 'CORRALON_ADMIN'],
+            ['no' => 5, 'label' => 'CORRALÓN POR HECHOS DE TRANSITO', 'key' => 'CORRALON_TRANSITO'],
+            ['no' => 6, 'label' => 'PUESTOS A DISPOSICIÓN DEL MP POR HECHO DE TRÁNSITO', 'key' => 'MP_TRANSITO'],
+            ['no' => 7, 'label' => 'PRESENTADOS AL MP', 'key' => 'PRESENTADOS_MP'],
+            ['no' => 8, 'label' => 'RESGUARDADOS POR ABANDONO', 'key' => 'ABANDONO'],
+            ['no' => 9, 'label' => 'ASEGURADOS POR HECHOS DELICTIVOS', 'key' => 'DELICTIVOS'],
+            ['no' => 10, 'label' => 'RECUPERADOS CON ALTERACIONES EN SUS MEDIOS DE IDENTIFICACIÓN', 'key' => 'ALTERACIONES_ID'],
+            ['no' => 11, 'label' => 'RECUPERADOS CON REPORTE DE ROBO', 'key' => 'REC_ROBO'],
+            ['no' => 12, 'label' => 'CONOCIMIENTO DE REPORTE DE ROBO', 'key' => 'CONOCIMIENTO_ROBO'],
+            ['no' => 13, 'label' => 'ASEGURADOS POR OTROS MOTIVOS', 'key' => 'OTROS_MOTIVOS'],
+        ];
+    }
+
+    private function clavesControlVehicular($actividad, $vehiculo): array
+    {
+        $texto = $this->textoControlVehicular($actividad);
+        $keys = [];
+
+        if ((int) ($vehiculo->antecedente_vehiculo ?? 0) === 1 || $this->contiene($texto, ['REVISION DE ANTECEDENTES', 'REVISIÓN DE ANTECEDENTES', 'ANTECEDENTE'])) {
+            $keys[] = 'REVISION_ANTECEDENTES';
+        }
+
+        if ($this->contiene($texto, ['PROCEDENCIA EXTRANJERA', 'EXTRANJERA'])) {
+            $keys[] = 'PROC_EXTRANJERA';
+        }
+
+        if ($this->contiene($texto, ['DESPOLARIZADO'])) {
+            $keys[] = 'DESPOLARIZADO';
+        }
+
+        if ($this->vehiculoEnCorralon($vehiculo) && $this->contiene($texto, ['FALTA ADMINISTRATIVA', 'FALTAS ADMINISTRATIVAS'])) {
+            $keys[] = 'CORRALON_ADMIN';
+        }
+
+        if ($this->vehiculoEnCorralon($vehiculo) && !$this->contiene($texto, ['FALTA ADMINISTRATIVA', 'FALTAS ADMINISTRATIVAS'])) {
+            $keys[] = 'CORRALON_TRANSITO';
+        }
+
+        if ($this->contiene($texto, ['MP POR HECHO DE TRANSITO', 'MP POR HECHO DE TRÁNSITO', 'PUESTOS A DISPOSICION DEL MP', 'PUESTOS A DISPOSICIÓN DEL MP'])) {
+            $keys[] = 'MP_TRANSITO';
+        }
+
+        if ($this->contiene($texto, ['PRESENTADOS AL MP', 'PRESENTADO AL MP'])) {
+            $keys[] = 'PRESENTADOS_MP';
+        }
+
+        if ($this->contiene($texto, ['ABANDONO', 'RESGUARDADOS POR ABANDONO'])) {
+            $keys[] = 'ABANDONO';
+        }
+
+        if ($this->contiene($texto, ['HECHO DELICTIVO', 'HECHOS DELICTIVOS', 'DELICTIVO'])) {
+            $keys[] = 'DELICTIVOS';
+        }
+
+        if ($this->contiene($texto, ['ALTERACIONES EN SUS MEDIOS DE IDENTIFICACION', 'ALTERACIONES EN SUS MEDIOS DE IDENTIFICACIÓN', 'ALTERACION', 'ALTERACIÓN'])) {
+            $keys[] = 'ALTERACIONES_ID';
+        }
+
+        if ($this->contiene($texto, ['RECUPERADOS CON REPORTE DE ROBO', 'RECUPERADO CON REPORTE DE ROBO'])) {
+            $keys[] = 'REC_ROBO';
+        }
+
+        if ($this->contiene($texto, ['CONOCIMIENTO DE REPORTE DE ROBO'])) {
+            $keys[] = 'CONOCIMIENTO_ROBO';
+        }
+
+        if ($this->contiene($texto, ['ASEGURADOS POR OTROS MOTIVOS', 'ASEGURADO POR OTRO MOTIVO', 'OTROS MOTIVOS'])) {
+            $keys[] = 'OTROS_MOTIVOS';
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    private function textoControlVehicular($actividad): string
+    {
+        return $this->normalizar(implode(' ', array_filter([
+            optional($actividad->categoria)->nombre,
+            optional($actividad->subcategoria)->nombre,
+            $actividad->nombre ?? null,
+            $actividad->motivo ?? null,
+            $actividad->narrativa ?? null,
+            $actividad->acciones_realizadas ?? null,
+            $actividad->observaciones ?? null,
+        ])));
+    }
+
+    private function bucketControlVehicular($tipo): string
+    {
+        $general = $this->tipoGeneralVehiculo($tipo);
+
+        if (in_array($general, ['automovil', 'camioneta'], true)) {
+            return 'vehiculos';
+        }
+
+        if ($general === 'motocicleta') {
+            return 'motocicletas';
+        }
+
+        if (in_array($general, ['camion', 'remolque'], true)) {
+            return 'camiones';
+        }
+
+        return 'otros';
+    }
+
+    private function tipoGeneralVehiculo($tipo): string
+    {
+        $tipo = $this->normalizar($tipo);
+
+        if ($tipo === '') {
+            return 'otros';
+        }
+
+        if ($this->contiene($tipo, ['MOTO', 'SCOOTER', 'MOTONETA', 'ENDURO', 'NAKED', 'PISTA', 'DOBLE PROPOSITO', 'CRUISER', 'CHOPPER', 'CUATRIMOTO'])) {
+            return 'motocicleta';
+        }
+
+        if ($this->contiene($tipo, ['PICK', 'CAMIONETA', 'SUV', 'VAN', 'MINIVAN', 'PANEL', 'URVAN', 'FURGON', 'VAGONETA'])) {
+            return 'camioneta';
+        }
+
+        if ($this->contiene($tipo, ['CAMION', 'TRACTO', 'TRAILER', 'VOLTEO', 'PIPA', 'TORTON', 'RABON'])) {
+            return 'camion';
+        }
+
+        if ($this->contiene($tipo, ['REMOLQUE', 'SEMIRREM', 'SEMIRREMOLQUE', 'PLATAFORMA', 'DOLLY'])) {
+            return 'remolque';
+        }
+
+        if ($this->contiene($tipo, ['AUTO', 'SEDAN', 'HATCH', 'COUPE', 'CONVERTIBLE', 'VOCHO', 'TSURU'])) {
+            return 'automovil';
+        }
+
+        return 'otros';
+    }
+
+    private function vehiculoEnCorralon($vehiculo): bool
+    {
+        $corralon = trim((string) ($vehiculo->corralon ?? ''));
+
+        if ($corralon === '') {
+            return false;
+        }
+
+        return !in_array($this->normalizar($corralon), [
+            'N/A',
+            'NA',
+            'NO',
+            'NO APLICA',
+            'NO APLICA.',
+            'NINGUNO',
+            'NULL',
+            'SIN CORRALON',
+            'SIN CORRALÓN',
+            'NO TIENE CORRALON',
+            'NO TIENE CORRALÓN',
+            '-',
+        ], true);
     }
 
     private function unidadVialidadesUrbanasIds(): array
@@ -460,6 +780,17 @@ class TotalSheetService
         }
 
         return round($numero, 2);
+    }
+
+    private function contiene(string $texto, array $palabras): bool
+    {
+        foreach ($palabras as $palabra) {
+            if (str_contains($texto, $this->normalizar($palabra))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizar($texto): string

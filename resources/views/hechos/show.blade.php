@@ -131,6 +131,7 @@
         'colonia' => 'Colonia',
         'entre_calles' => 'Entre calles',
         'municipio' => 'Municipio',
+        'codigo_postal' => 'Código postal',
         'tipo_hecho' => 'Tipo de hecho',
         'superficie_via' => 'Superficie de vía',
         'condiciones' => 'Condiciones',

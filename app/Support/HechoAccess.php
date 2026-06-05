@@ -198,16 +198,6 @@ class HechoAccess
             return;
         }
 
-        if (self::isSiniestrosSubdirector($usuario)) {
-            $query->where(function ($scope) {
-                self::applyUnidadScope($scope, self::UNIDAD_SINIESTROS_ID);
-                $scope->orWhere(function ($delegaciones) {
-                    self::applyUnidadScope($delegaciones, self::UNIDAD_DELEGACIONES_ID);
-                });
-            });
-            return;
-        }
-
         $delegacionId = (int) ($usuario->delegacion_id ?? 0);
 
         if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {

@@ -282,11 +282,6 @@ class FeedController extends Controller
     {
         $ids = array_values(array_unique(array_map('intval', $unidadIds)));
 
-        if ($this->esSubdirectorSiniestros($usuario)) {
-            $ids[] = 1;
-            $ids[] = 2;
-        }
-
         return array_values(array_unique(array_filter($ids, fn ($id) => $id > 0)));
     }
 
@@ -508,13 +503,6 @@ class FeedController extends Controller
     {
         return $usuario->hasRole('Administrador')
             || $usuario->hasRole('Subdirector');
-    }
-
-    private function esSubdirectorSiniestros($usuario): bool
-    {
-        return $usuario
-            && (int) ($usuario->unidad_id ?? 0) === 1
-            && $usuario->hasRole('Subdirector');
     }
 
     private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null, array $delegacionIds = [])

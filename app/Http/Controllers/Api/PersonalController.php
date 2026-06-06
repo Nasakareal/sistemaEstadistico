@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -14,14 +15,18 @@ class PersonalController extends Controller
         $actor = $request->user();
         $q = trim((string)$request->query('q'));
 
-        $personal = User::query()
+        $personalQuery = User::query()
             ->whereKeyNot($actor->id)
             ->when($actor->unidad_id, function ($query) use ($actor) {
                 $query->where('unidad_id', $actor->unidad_id);
             })
             ->when(!$actor->hasRole('Subdirector') && $actor->turno_id, function ($query) use ($actor) {
                 $query->where('turno_id', $actor->turno_id);
-            })
+            });
+
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($personalQuery, $actor);
+
+        $personal = $personalQuery
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('name', 'like', '%' . $q . '%')
@@ -105,6 +110,8 @@ class PersonalController extends Controller
                 $q->where('turno_id', $actor->turno_id);
             });
 
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($query, $actor);
+
         $ids = $query->pluck('id')->toArray();
 
         DB::beginTransaction();
@@ -171,6 +178,8 @@ class PersonalController extends Controller
                 $qq->where('turno_id', $actor->turno_id);
             });
 
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($q, $actor);
+
         $ids = $q->pluck('id')->toArray();
 
         $deleted = 0;
@@ -191,6 +200,10 @@ class PersonalController extends Controller
     private function canManageUser(User $actor, User $target): bool
     {
         if ($actor->unidad_id && (int)$target->unidad_id !== (int)$actor->unidad_id) {
+            return false;
+        }
+
+        if (!MapaPatrullasAccess::canManageScopedUser($actor, $target)) {
             return false;
         }
 

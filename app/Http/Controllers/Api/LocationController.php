@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserLocation;
 use App\Services\LocationTrackingEligibilityService;
+use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
@@ -125,6 +126,8 @@ class LocationController extends Controller
             }
         }
 
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($usersQuery, $actor);
+
         $userIds = $usersQuery->pluck('id');
 
         $latest = UserLocation::query()
@@ -167,7 +170,7 @@ class LocationController extends Controller
             ]);
 
         $isSubdirector = $actor->hasRole('Subdirector');
-        $isJefeGrupo = $actor->hasRole('Jefe de Grupo');
+        $isJefeGrupo = MapaPatrullasAccess::isSiniestrosGroupLead($actor);
 
         return response()->json([
             'data' => $data,
@@ -175,7 +178,7 @@ class LocationController extends Controller
                 'flags' => [
                     'is_subdirector' => $isSubdirector,
                     'is_jefe_grupo' => $isJefeGrupo,
-                    'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
+                    'can_receive_disconnected_alerts' => false,
                 ],
             ],
         ], 200);
@@ -184,6 +187,10 @@ class LocationController extends Controller
     private function canManageUser(User $actor, User $target): bool
     {
         if ($actor->unidad_id && (int)$target->unidad_id !== (int)$actor->unidad_id) {
+            return false;
+        }
+
+        if (!MapaPatrullasAccess::canManageScopedUser($actor, $target)) {
             return false;
         }
 

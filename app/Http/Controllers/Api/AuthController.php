@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\LocationTrackingEligibilityService;
 use App\Support\HechoAccess;
+use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -135,7 +136,7 @@ class AuthController extends Controller
         ] : null;
 
         $isSubdirector = $this->userHasRole($user, 'Subdirector');
-        $isJefeGrupo = $this->userHasRole($user, 'Jefe de Grupo');
+        $isJefeGrupo = MapaPatrullasAccess::isSiniestrosGroupLead($user);
         $locationTracking = app(LocationTrackingEligibilityService::class)
             ->statusForUser($user);
 
@@ -180,7 +181,7 @@ class AuthController extends Controller
             'flags' => [
                 'is_subdirector' => $isSubdirector,
                 'is_jefe_grupo' => $isJefeGrupo,
-                'can_receive_disconnected_alerts' => $isJefeGrupo && !$isSubdirector,
+                'can_receive_disconnected_alerts' => false,
             ],
             'user' => $legacyUser,
             'user_meta' => [

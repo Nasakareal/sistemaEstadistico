@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Support\HechoAccess;
+use App\Support\MapaPatrullasAccess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +50,7 @@ class DashboardController extends Controller
             'role_id' => $user->roles->first()->id ?? null,
             'permissions' => $permissions->all(),
             'flags' => [
-                'is_jefe_grupo' => $user->roles->contains(fn ($role) => $role->name === 'Jefe de Grupo'),
+                'is_jefe_grupo' => MapaPatrullasAccess::isSiniestrosGroupLead($user),
                 'is_subdirector' => $user->roles->contains(fn ($role) => $role->name === 'Subdirector'),
             ],
             'modules' => [

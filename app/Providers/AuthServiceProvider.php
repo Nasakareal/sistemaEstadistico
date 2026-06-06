@@ -104,6 +104,39 @@ class AuthServiceProvider extends ServiceProvider
                 }
             }
 
+            $vialidadesAbilities = [
+                'ver operativos vialidades',
+                'crear operativos vialidades',
+                'editar operativos vialidades',
+                'eliminar operativos vialidades',
+            ];
+
+            if (in_array($ability, $vialidadesAbilities, true)) {
+                $unidadId = (int) ($user->unidad_id ?? 0);
+                $unidadOk = $user->perteneceAUnidad('vialidades-urbanas')
+                    || in_array($unidadId, [3, 5], true);
+
+                if (!$unidadOk) {
+                    return false;
+                }
+
+                if ($ability === 'ver operativos vialidades') {
+                    return true;
+                }
+
+                if ($ability === 'crear operativos vialidades') {
+                    return $user->hasAnyRole(['Agente Vial', 'Responsable de Turno', 'Administrador', 'Subdirector', 'Administrativo']);
+                }
+
+                if ($ability === 'editar operativos vialidades') {
+                    return $user->hasAnyRole(['Responsable de Turno', 'Administrador', 'Subdirector', 'Administrativo']);
+                }
+
+                if ($ability === 'eliminar operativos vialidades') {
+                    return $user->hasAnyRole(['Administrador']);
+                }
+            }
+
             if (
                 in_array($ability, ['ver puestas a disposicion', 'crear puestas a disposicion'], true)
                 && !empty($user->unidad_id)

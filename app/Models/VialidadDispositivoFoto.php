@@ -13,6 +13,7 @@ class VialidadDispositivoFoto extends Model
 
     protected $fillable = [
         'vialidad_dispositivo_id',
+        'created_by',
         'ruta',
         'nombre_original',
         'orden',
@@ -33,5 +34,10 @@ class VialidadDispositivoFoto extends Model
     public function dispositivo()
     {
         return $this->belongsTo(VialidadDispositivo::class, 'vialidad_dispositivo_id');
+    }
+
+    public function creador()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

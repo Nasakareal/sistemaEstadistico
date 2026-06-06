@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\UserLocation;
+use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 
 class MapaPatrullasController extends Controller
@@ -24,6 +25,8 @@ class MapaPatrullasController extends Controller
 
         if ($actor->unidad_id) $query->where('users.unidad_id',$actor->unidad_id);
         else $query->whereRaw('1=0');
+
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($query, $actor);
 
         return $query;
     }
@@ -115,10 +118,10 @@ class MapaPatrullasController extends Controller
     public function toggleUbicacionUsuario(Request $request, User $user)
     {
         $actor = $request->user();
-        abort_unless($this->roleIs($actor,'Jefe de Grupo'),403);
+        abort_unless(MapaPatrullasAccess::isSiniestrosGroupLead($actor),403);
 
         if ($actor->unidad_id && $user->unidad_id != $actor->unidad_id) abort(403);
-        if ($actor->turno_id && $user->turno_id != $actor->turno_id) abort(403);
+        if (!MapaPatrullasAccess::canManageScopedUser($actor, $user)) abort(403);
 
         $user->compartir_ubicacion = $request->boolean('enabled') ? 1 : 0;
         $user->save();
@@ -129,13 +132,15 @@ class MapaPatrullasController extends Controller
     public function toggleUbicacionTodos(Request $request)
     {
         $actor = $request->user();
-        abort_unless($this->roleIs($actor,'Jefe de Grupo'),403);
+        abort_unless(MapaPatrullasAccess::isSiniestrosGroupLead($actor),403);
 
         $enabled = $request->boolean('enabled');
 
         $q = User::query();
         if ($actor->unidad_id) $q->where('unidad_id',$actor->unidad_id);
         if ($actor->turno_id) $q->where('turno_id',$actor->turno_id);
+
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($q, $actor);
 
         $q->update(['compartir_ubicacion'=>$enabled?1:0]);
 

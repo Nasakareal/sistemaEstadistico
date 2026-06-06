@@ -7,6 +7,7 @@ use App\Models\VialidadDispositivo;
 use App\Models\VialidadDispositivoDetalle;
 use App\Models\VialidadDispositivoFoto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class VialidadesUrbanasDispositivoController extends Controller
@@ -21,7 +22,9 @@ class VialidadesUrbanasDispositivoController extends Controller
                 'creador',
                 'actualizador',
                 'detalles',
+                'detalles.creador',
                 'fotos',
+                'fotos.creador',
                 'fotoPortada',
             ])
             ->where('unidad_id', 5)
@@ -41,6 +44,7 @@ class VialidadesUrbanasDispositivoController extends Controller
             ->findOrFail($dispositivoId);
 
         $this->authorizeDispositivo($dispositivo);
+        $this->authorizeDetalleCreate($dispositivo);
 
         $validated = $request->validate([
             'detalles' => 'required|array|min:1',
@@ -53,8 +57,8 @@ class VialidadesUrbanasDispositivoController extends Controller
             'fotos.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        $this->storeDetalles($dispositivo, $validated['detalles'] ?? []);
-        $this->storeFotos($dispositivo, $request->file('fotos', []));
+        $this->storeDetalles($dispositivo, $validated['detalles'] ?? [], auth()->id());
+        $this->storeFotos($dispositivo, $request->file('fotos', []), auth()->id());
 
         $dispositivo->load([
             'catalogo',
@@ -63,7 +67,9 @@ class VialidadesUrbanasDispositivoController extends Controller
             'creador',
             'actualizador',
             'detalles',
+            'detalles.creador',
             'fotos',
+            'fotos.creador',
             'fotoPortada',
         ]);
 
@@ -84,7 +90,9 @@ class VialidadesUrbanasDispositivoController extends Controller
                 'actualizador',
                 'revisor',
                 'detalles',
+                'detalles.creador',
                 'fotos',
+                'fotos.creador',
                 'fotoPortada',
             ])
             ->where('unidad_id', 5)
@@ -105,6 +113,7 @@ class VialidadesUrbanasDispositivoController extends Controller
             ->findOrFail($dispositivoId);
 
         $this->authorizeDispositivo($dispositivo);
+        $this->authorizeDetalleUpdate($dispositivo);
 
         $validated = $request->validate([
             'detalles' => 'required|array|min:1',
@@ -120,9 +129,9 @@ class VialidadesUrbanasDispositivoController extends Controller
             'foto_portada_id' => 'nullable|integer',
         ]);
 
-        $this->syncDetalles($dispositivo, $validated['detalles'] ?? []);
+        $this->syncDetalles($dispositivo, $validated['detalles'] ?? [], auth()->id());
         $this->deleteFotos($dispositivo, $request->input('eliminar_fotos', []));
-        $this->storeFotos($dispositivo, $request->file('fotos', []));
+        $this->storeFotos($dispositivo, $request->file('fotos', []), auth()->id());
         $this->syncFotoPortada($dispositivo, $request->input('foto_portada_id'));
 
         $dispositivo->load([
@@ -133,7 +142,9 @@ class VialidadesUrbanasDispositivoController extends Controller
             'actualizador',
             'revisor',
             'detalles',
+            'detalles.creador',
             'fotos',
+            'fotos.creador',
             'fotoPortada',
         ]);
 
@@ -155,6 +166,8 @@ class VialidadesUrbanasDispositivoController extends Controller
             ->where('vialidad_dispositivo_id', $dispositivo->id)
             ->findOrFail($detalleId);
 
+        $this->authorizeDetalleDelete($detalle);
+
         $detalle->delete();
 
         $dispositivo->load([
@@ -164,7 +177,9 @@ class VialidadesUrbanasDispositivoController extends Controller
             'creador',
             'actualizador',
             'detalles',
+            'detalles.creador',
             'fotos',
+            'fotos.creador',
             'fotoPortada',
         ]);
 
@@ -264,7 +279,7 @@ class VialidadesUrbanasDispositivoController extends Controller
         ]);
     }
 
-    private function storeDetalles(VialidadDispositivo $dispositivo, array $detalles): void
+    private function storeDetalles(VialidadDispositivo $dispositivo, array $detalles, ?int $createdBy): void
     {
         $ordenBase = ((int) $dispositivo->detalles()->max('orden')) + 1;
 
@@ -275,7 +290,7 @@ class VialidadesUrbanasDispositivoController extends Controller
                 continue;
             }
 
-            VialidadDispositivoDetalle::create([
+            VialidadDispositivoDetalle::create($this->withDetalleOwner([
                 'vialidad_dispositivo_id' => $dispositivo->id,
                 'orden' => $ordenBase + $index,
                 'tipo' => !empty($detalle['tipo']) ? trim((string) $detalle['tipo']) : 'texto',
@@ -283,11 +298,11 @@ class VialidadesUrbanasDispositivoController extends Controller
                 'contenido' => $this->normalizeText($contenido),
                 'ubicacion' => $this->normalizeText($detalle['ubicacion'] ?? null),
                 'hora' => !empty($detalle['hora']) ? $detalle['hora'] : null,
-            ]);
+            ], $createdBy));
         }
     }
 
-    private function syncDetalles(VialidadDispositivo $dispositivo, array $detalles): void
+    private function syncDetalles(VialidadDispositivo $dispositivo, array $detalles, ?int $createdBy): void
     {
         $dispositivo->detalles()->delete();
 
@@ -300,7 +315,7 @@ class VialidadesUrbanasDispositivoController extends Controller
                 continue;
             }
 
-            VialidadDispositivoDetalle::create([
+            VialidadDispositivoDetalle::create($this->withDetalleOwner([
                 'vialidad_dispositivo_id' => $dispositivo->id,
                 'orden' => $orden,
                 'tipo' => !empty($detalle['tipo']) ? trim((string) $detalle['tipo']) : 'texto',
@@ -308,13 +323,13 @@ class VialidadesUrbanasDispositivoController extends Controller
                 'contenido' => $this->normalizeText($contenido),
                 'ubicacion' => $this->normalizeText($detalle['ubicacion'] ?? null),
                 'hora' => !empty($detalle['hora']) ? $detalle['hora'] : null,
-            ]);
+            ], $createdBy));
 
             $orden++;
         }
     }
 
-    private function storeFotos(VialidadDispositivo $dispositivo, array $fotos): void
+    private function storeFotos(VialidadDispositivo $dispositivo, array $fotos, ?int $createdBy): void
     {
         if (empty($fotos)) {
             return;
@@ -329,7 +344,7 @@ class VialidadesUrbanasDispositivoController extends Controller
 
             $ruta = $archivo->store('vialidades_urbanas/' . $dispositivo->id, 'public');
 
-            VialidadDispositivoFoto::create([
+            VialidadDispositivoFoto::create($this->withFotoOwner([
                 'vialidad_dispositivo_id' => $dispositivo->id,
                 'ruta' => $ruta,
                 'nombre_original' => $archivo->getClientOriginalName(),
@@ -338,7 +353,7 @@ class VialidadesUrbanasDispositivoController extends Controller
                 'included_in_share' => true,
                 'lat' => null,
                 'lng' => null,
-            ]);
+            ], $createdBy));
         }
 
         if (!$dispositivo->fotos()->where('portada', true)->exists()) {
@@ -389,6 +404,24 @@ class VialidadesUrbanasDispositivoController extends Controller
         $foto->update(['portada' => true]);
     }
 
+    private function withDetalleOwner(array $payload, ?int $createdBy): array
+    {
+        if ($createdBy && Schema::hasColumn('vialidad_dispositivo_detalles', 'created_by')) {
+            $payload['created_by'] = $createdBy;
+        }
+
+        return $payload;
+    }
+
+    private function withFotoOwner(array $payload, ?int $createdBy): array
+    {
+        if ($createdBy && Schema::hasColumn('vialidad_dispositivo_fotos', 'created_by')) {
+            $payload['created_by'] = $createdBy;
+        }
+
+        return $payload;
+    }
+
     private function authorizeDispositivo(VialidadDispositivo $dispositivo): void
     {
         $usuario = auth()->user();
@@ -403,6 +436,90 @@ class VialidadesUrbanasDispositivoController extends Controller
         if (!$query->exists()) {
             abort(404);
         }
+    }
+
+    private function authorizeDetalleCreate(VialidadDispositivo $dispositivo): void
+    {
+        $usuario = auth()->user();
+
+        if ($this->canManageDetalles($usuario) || $this->isAgenteVial($usuario)) {
+            return;
+        }
+
+        abort(403, 'No tienes permiso para capturar detalles en este dispositivo.');
+    }
+
+    private function authorizeDetalleUpdate(VialidadDispositivo $dispositivo): void
+    {
+        $usuario = auth()->user();
+
+        if ($this->canManageDetalles($usuario)) {
+            return;
+        }
+
+        if ($this->isAgenteVial($usuario) && $this->dispositivoPerteneceAlUsuario($dispositivo, $usuario->id ?? null)) {
+            return;
+        }
+
+        abort(403, 'Solo puedes editar detalles capturados por ti.');
+    }
+
+    private function authorizeDetalleDelete(VialidadDispositivoDetalle $detalle): void
+    {
+        $usuario = auth()->user();
+
+        if ($this->canManageDetalles($usuario)) {
+            return;
+        }
+
+        if ($this->isAgenteVial($usuario) && (int) ($detalle->created_by ?? 0) === (int) ($usuario->id ?? 0)) {
+            return;
+        }
+
+        abort(403, 'Solo puedes eliminar detalles capturados por ti.');
+    }
+
+    private function canManageDetalles($usuario): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        return $usuario->hasRole('Superadmin')
+            || in_array((int) ($usuario->unidad_id ?? 0), [3], true)
+            || $usuario->hasAnyRole(['Responsable de Turno', 'Administrador', 'Subdirector', 'Administrativo'])
+            || $usuario->can('editar operativos vialidades');
+    }
+
+    private function isAgenteVial($usuario): bool
+    {
+        return $usuario
+            && (int) ($usuario->unidad_id ?? 0) === 5
+            && $usuario->hasRole('Agente Vial');
+    }
+
+    private function dispositivoPerteneceAlUsuario(VialidadDispositivo $dispositivo, $userId): bool
+    {
+        $userId = (int) ($userId ?? 0);
+        if ($userId <= 0) {
+            return false;
+        }
+
+        $rawOwners = $dispositivo->detalles
+            ->pluck('created_by')
+            ->merge($dispositivo->fotos->pluck('created_by'));
+
+        if ($rawOwners->isEmpty() || $rawOwners->contains(fn ($id) => empty($id))) {
+            return false;
+        }
+
+        $owners = $rawOwners
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        return $owners->count() === 1
+            && (int) $owners->first() === $userId;
     }
 
     private function applyVisibilityScope($query, $usuario): void

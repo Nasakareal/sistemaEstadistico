@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserLocation;
+use App\Support\MapaPatrullasAccess;
 
 class MapaPatrullasController extends Controller
 {
@@ -21,6 +22,8 @@ class MapaPatrullasController extends Controller
         } else {
             $usersQuery->whereRaw('1=0');
         }
+
+        MapaPatrullasAccess::applySiniestrosGroupLeadScope($usersQuery, $actor);
 
         $userIds = $usersQuery->pluck('id');
 

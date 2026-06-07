@@ -40,6 +40,46 @@ class VialidadesUrbanasTotalSheetServiceTest extends TestCase
         $this->assertSame(20, $escuelas['recomendaciones']);
     }
 
+    public function test_suma_unidades_participantes_sin_sumar_numero_economico_literal(): void
+    {
+        $rows = $this->construirFilas(collect([
+            (object) [
+                'categoria' => (object) ['nombre' => 'INSTITUCIONES'],
+                'subcategoria' => (object) ['nombre' => 'ESCUELAS'],
+                'nombre' => 'ESCUELAS',
+                'cantidad' => 1,
+                'elementos_participantes_texto' => null,
+                'patrullas_participantes_texto' => '2637',
+                'km_recorridos' => 0,
+                'personas_alcanzadas' => 0,
+                'fomentoCulturaVialDetalle' => null,
+                'motivo' => null,
+                'narrativa' => null,
+                'acciones_realizadas' => null,
+                'observaciones' => null,
+            ],
+            (object) [
+                'categoria' => (object) ['nombre' => 'INSTITUCIONES'],
+                'subcategoria' => (object) ['nombre' => 'ESCUELAS'],
+                'nombre' => 'ESCUELAS',
+                'cantidad' => 1,
+                'elementos_participantes_texto' => null,
+                'patrullas_participantes_texto' => '2',
+                'km_recorridos' => 0,
+                'personas_alcanzadas' => 0,
+                'fomentoCulturaVialDetalle' => null,
+                'motivo' => null,
+                'narrativa' => null,
+                'acciones_realizadas' => null,
+                'observaciones' => null,
+            ],
+        ]));
+
+        $escuelas = collect($rows)->firstWhere('actividad', 'ESCUELAS');
+
+        $this->assertSame(3, $escuelas['unidades']);
+    }
+
     public function test_renderiza_inicio_de_hoja_total(): void
     {
         $rows = $this->construirFilas(collect());
@@ -272,6 +312,357 @@ class VialidadesUrbanasTotalSheetServiceTest extends TestCase
         $this->assertSame('00B0F0', $sheet->getStyle('B94')->getFill()->getStartColor()->getRGB());
     }
 
+    public function test_renderiza_control_de_aseguramientos_despues_de_fila_blanca(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $controlVehicular = $this->controlVehicularVacio();
+        $controlAseguramientos = $this->controlAseguramientosVacio();
+        $controlAseguramientos['personas']['ALCOHOLEMIA'] = 2;
+        $controlAseguramientos['armas']['CORTAS'] = 1;
+        $controlAseguramientos['drogas']['MARIHUANA_GRS'] = 15;
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $controlVehicular, $controlAseguramientos);
+
+        $this->assertNull($sheet->getCell('B95')->getValue());
+        $this->assertSame('CONTROL DE ASEGURAMIENTOS', $sheet->getCell('B96')->getValue());
+        $this->assertSame('B96:H96', $sheet->getCell('B96')->getMergeRange());
+        $this->assertSame('PERSONAS ASEGURADAS', $sheet->getCell('C97')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('D97')->getValue());
+        $this->assertSame('ARMAS', $sheet->getCell('E97')->getValue());
+        $this->assertSame('DROGA', $sheet->getCell('G97')->getValue());
+        $this->assertSame('POR ALCOHOLEMIA', $sheet->getCell('C100')->getValue());
+        $this->assertSame(2, $sheet->getCell('D100')->getValue());
+        $this->assertSame('CORTAS', $sheet->getCell('E99')->getValue());
+        $this->assertSame(1, $sheet->getCell('F99')->getValue());
+        $this->assertSame('MARIHUANA GRS', $sheet->getCell('G99')->getValue());
+        $this->assertSame(15, $sheet->getCell('H99')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('B110')->getValue());
+        $this->assertSame('B110:C110', $sheet->getCell('B110')->getMergeRange());
+        $this->assertSame(2, $sheet->getCell('D110')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('E106')->getValue());
+        $this->assertSame(1, $sheet->getCell('F106')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('G106')->getValue());
+        $this->assertSame(15, $sheet->getCell('H106')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('B110')->getFill()->getStartColor()->getRGB());
+        $this->assertSame('00B0F0', $sheet->getStyle('E106')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_renderiza_otros_aseguramientos_despues_de_fila_blanca(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $controlVehicular = $this->controlVehicularVacio();
+        $controlAseguramientos = $this->controlAseguramientosVacio();
+        $controlAseguramientos['otros']['AGUACATE'] = 5;
+        $controlAseguramientos['otros']['MADERA'] = 3;
+        $controlAseguramientos['otros']['DINERO'] = 100;
+        $controlAseguramientos['otros']['OTROS'] = 2;
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $controlVehicular, $controlAseguramientos);
+
+        $this->assertNull($sheet->getCell('B111')->getValue());
+        $this->assertSame('No.', $sheet->getCell('B112')->getValue());
+        $this->assertSame('OTROS ASEGURAMIENTOS', $sheet->getCell('C112')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('D112')->getValue());
+        $this->assertSame(1, $sheet->getCell('B113')->getValue());
+        $this->assertSame('AGUACATE', $sheet->getCell('C113')->getValue());
+        $this->assertSame(5, $sheet->getCell('D113')->getValue());
+        $this->assertSame('MADERA', $sheet->getCell('C114')->getValue());
+        $this->assertSame(3, $sheet->getCell('D114')->getValue());
+        $this->assertSame('DINERO', $sheet->getCell('C115')->getValue());
+        $this->assertSame(100, $sheet->getCell('D115')->getValue());
+        $this->assertSame('OTROS ASEGURAMIENTOS (AGREGARLOS)', $sheet->getCell('C116')->getValue());
+        $this->assertSame(2, $sheet->getCell('D116')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('B117')->getValue());
+        $this->assertSame('B117:C117', $sheet->getCell('B117')->getMergeRange());
+        $this->assertSame(110, $sheet->getCell('D117')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('B117')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_renderiza_hechos_de_transito_despues_de_fila_blanca(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $controlVehicular = $this->controlVehicularVacio();
+        $controlAseguramientos = $this->controlAseguramientosVacio();
+        $hechosTransito = $this->hechosTransitoVacio();
+        $hechosTransito['resumen']['RESUELTOS'] = 4;
+        $hechosTransito['resumen']['PENDIENTES'] = 1;
+        $hechosTransito['resumen']['TURNADOS'] = 2;
+        $hechosTransito['involucrados']['hombres'] = 3;
+        $hechosTransito['involucrados']['mujeres'] = 2;
+        $hechosTransito['involucrados']['menores'] = 1;
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $controlVehicular, $controlAseguramientos, $hechosTransito);
+
+        $this->assertNull($sheet->getCell('B118')->getValue());
+        $this->assertSame('No.', $sheet->getCell('B119')->getValue());
+        $this->assertSame('HECHOS DE TRÁNSITO', $sheet->getCell('C119')->getValue());
+        $this->assertSame('CANTIDAD', $sheet->getCell('D119')->getValue());
+        $this->assertSame('RESUELTOS', $sheet->getCell('C120')->getValue());
+        $this->assertSame(4, $sheet->getCell('D120')->getValue());
+        $this->assertSame('PENDIENTES', $sheet->getCell('C121')->getValue());
+        $this->assertSame(1, $sheet->getCell('D121')->getValue());
+        $this->assertSame('TURNADOS', $sheet->getCell('C122')->getValue());
+        $this->assertSame(2, $sheet->getCell('D122')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('B123')->getValue());
+        $this->assertSame('B123:C123', $sheet->getCell('B123')->getMergeRange());
+        $this->assertSame(7, $sheet->getCell('D123')->getValue());
+
+        $this->assertSame('No.', $sheet->getCell('F119')->getValue());
+        $this->assertSame('HECHOS DE TRÁNSITO', $sheet->getCell('G119')->getValue());
+        $this->assertSame('CANTIDAD', $sheet->getCell('H119')->getValue());
+        $this->assertSame('HOMBRES INVOLUCRADOS', $sheet->getCell('G120')->getValue());
+        $this->assertSame(3, $sheet->getCell('H120')->getValue());
+        $this->assertSame('MUJERES INVOLUCRADAS', $sheet->getCell('G121')->getValue());
+        $this->assertSame(2, $sheet->getCell('H121')->getValue());
+        $this->assertSame('MENORES INVOLUCRADOS', $sheet->getCell('G122')->getValue());
+        $this->assertSame(1, $sheet->getCell('H122')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('F123')->getValue());
+        $this->assertSame('F123:G123', $sheet->getCell('F123')->getMergeRange());
+        $this->assertSame(6, $sheet->getCell('H123')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('B123')->getFill()->getStartColor()->getRGB());
+        $this->assertSame('00B0F0', $sheet->getStyle('F123')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_renderiza_tipos_de_hechos_de_transito_despues_de_fila_blanca(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $controlVehicular = $this->controlVehicularVacio();
+        $controlAseguramientos = $this->controlAseguramientosVacio();
+        $hechosTransito = $this->hechosTransitoVacio();
+        $tipos = $this->tiposHechosTransitoVacio();
+        $tipos['VOLCADURA'] = [
+            'cantidad' => 2,
+            'lesionados' => 3,
+            'heridos' => 1,
+            'defunciones' => 1,
+            'fuero_comun' => 0,
+        ];
+        $tipos['COLISION_PEATON'] = [
+            'cantidad' => 1,
+            'lesionados' => 1,
+            'heridos' => 0,
+            'defunciones' => 0,
+            'fuero_comun' => 1,
+        ];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $controlVehicular, $controlAseguramientos, $hechosTransito, $tipos);
+
+        $this->assertNull($sheet->getCell('B124')->getValue());
+        $this->assertSame('No.', $sheet->getCell('B125')->getValue());
+        $this->assertSame('HECHOS DE TRÁNSITO', $sheet->getCell('C125')->getValue());
+        $this->assertSame('CANTIDAD', $sheet->getCell('D125')->getValue());
+        $this->assertSame('LESIONADOS', $sheet->getCell('E125')->getValue());
+        $this->assertSame('HERIDOS', $sheet->getCell('F125')->getValue());
+        $this->assertSame('DEFUNCIONES', $sheet->getCell('G125')->getValue());
+        $this->assertSame('FUERO COMÚN', $sheet->getCell('H125')->getValue());
+        $this->assertSame('EXPLOSIÓN', $sheet->getCell('C126')->getValue());
+        $this->assertSame('VOLCADURA', $sheet->getCell('C129')->getValue());
+        $this->assertSame(2, $sheet->getCell('D129')->getValue());
+        $this->assertSame(3, $sheet->getCell('E129')->getValue());
+        $this->assertSame(1, $sheet->getCell('F129')->getValue());
+        $this->assertSame(1, $sheet->getCell('G129')->getValue());
+        $this->assertSame('COLISIÓN CON PEATÓN', $sheet->getCell('C142')->getValue());
+        $this->assertSame(1, $sheet->getCell('D142')->getValue());
+        $this->assertSame(1, $sheet->getCell('E142')->getValue());
+        $this->assertSame(1, $sheet->getCell('H142')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('B143')->getValue());
+        $this->assertSame('B143:C143', $sheet->getCell('B143')->getMergeRange());
+        $this->assertSame(3, $sheet->getCell('D143')->getValue());
+        $this->assertSame(4, $sheet->getCell('E143')->getValue());
+        $this->assertSame(1, $sheet->getCell('F143')->getValue());
+        $this->assertSame(1, $sheet->getCell('G143')->getValue());
+        $this->assertSame(1, $sheet->getCell('H143')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('B143')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_renderiza_choques_y_danios_despues_de_fila_blanca(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $controlVehicular = $this->controlVehicularVacio();
+        $controlAseguramientos = $this->controlAseguramientosVacio();
+        $hechosTransito = $this->hechosTransitoVacio();
+        $tipos = $this->tiposHechosTransitoVacio();
+        $choques = $this->choquesDaniosVacio();
+        $choques['tipos']['CAMION_MOTO'] = 2;
+        $choques['tipos']['VEHICULO_UNICO'] = 1;
+        $choques['danios']['materiales'] = 1500.0;
+        $choques['danios']['vehiculos'] = 1000.0;
+        $choques['danios']['otros'] = 500.0;
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $controlVehicular, $controlAseguramientos, $hechosTransito, $tipos, $choques);
+
+        $this->assertNull($sheet->getCell('B144')->getValue());
+        $this->assertSame('No.', $sheet->getCell('B145')->getValue());
+        $this->assertSame('HECHOS DE TRÁNSITO', $sheet->getCell('C145')->getValue());
+        $this->assertSame('CANTIDAD', $sheet->getCell('D145')->getValue());
+        $this->assertSame('CHOQUE ENTRE CAMIÓN Y MOTOCICLETA', $sheet->getCell('C146')->getValue());
+        $this->assertSame(2, $sheet->getCell('D146')->getValue());
+        $this->assertSame('CHOQUE DE VEHÍCULO UNICO', $sheet->getCell('C152')->getValue());
+        $this->assertSame(1, $sheet->getCell('D152')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('B153')->getValue());
+        $this->assertSame('B153:C153', $sheet->getCell('B153')->getMergeRange());
+        $this->assertSame(3, $sheet->getCell('D153')->getValue());
+
+        $this->assertSame('No.', $sheet->getCell('F145')->getValue());
+        $this->assertSame('HECHOS DE TRÁNSITO', $sheet->getCell('G145')->getValue());
+        $this->assertSame('CANTIDAD', $sheet->getCell('H145')->getValue());
+        $this->assertSame('MONTO DAÑOS MATERIALES ($)', $sheet->getCell('G146')->getValue());
+        $this->assertSame(1500.0, $sheet->getCell('H146')->getValue());
+        $this->assertSame('MONTO VEHÍCULOS', $sheet->getCell('G147')->getValue());
+        $this->assertSame(1000.0, $sheet->getCell('H147')->getValue());
+        $this->assertSame('MONTO OTROS', $sheet->getCell('G148')->getValue());
+        $this->assertSame(500.0, $sheet->getCell('H148')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('F149')->getValue());
+        $this->assertSame('F149:G149', $sheet->getCell('F149')->getMergeRange());
+        $this->assertSame(1500, $sheet->getCell('H149')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('B153')->getFill()->getStartColor()->getRGB());
+        $this->assertSame('00B0F0', $sheet->getStyle('F149')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_renderiza_clasificacion_vehiculos_liberaciones_y_areas_finales(): void
+    {
+        $rows = $this->construirFilas(collect());
+        $controlVehicular = $this->controlVehicularVacio();
+        $controlAseguramientos = $this->controlAseguramientosVacio();
+        $hechosTransito = $this->hechosTransitoVacio();
+        $tipos = $this->tiposHechosTransitoVacio();
+        $choques = $this->choquesDaniosVacio();
+        $clasificacion = $this->clasificacionVehiculosVacio();
+        $clasificacion['clasificacion']['AUTOMOVIL'] = 2;
+        $clasificacion['clasificacion']['MOTOCICLETA'] = 1;
+        $clasificacion['resumen']['particulares'] = 2;
+        $clasificacion['resumen']['publicos'] = 1;
+        $clasificacion['resumen']['motos'] = 1;
+        $clasificacion['resumen']['oficiales'] = 1;
+        $clasificacion['liberaciones']['motos'] = 1;
+        $clasificacion['liberaciones']['vehiculos'] = 2;
+        $clasificacion['liberaciones']['camiones'] = 3;
+        $clasificacion['liberaciones']['remolques'] = 4;
+        $clasificacion['areas_auxiliares']['examen_teorico'] = 4;
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $method = new ReflectionMethod(TotalSheetService::class, 'render');
+        $method->setAccessible(true);
+        $method->invoke(new TotalSheetService(), $sheet, '2026-06-02', $rows, $controlVehicular, $controlAseguramientos, $hechosTransito, $tipos, $choques, $clasificacion);
+
+        $this->assertNull($sheet->getCell('B154')->getValue());
+        $this->assertSame('No.', $sheet->getCell('B155')->getValue());
+        $this->assertSame('HECHOS DE TRÁNSITO', $sheet->getCell('C155')->getValue());
+        $this->assertSame('CANTIDAD', $sheet->getCell('D155')->getValue());
+        $this->assertSame('SERVICIO PÚBLICO FED', $sheet->getCell('C156')->getValue());
+        $this->assertSame('AUTOMÓVIL', $sheet->getCell('C158')->getValue());
+        $this->assertSame(2, $sheet->getCell('D158')->getValue());
+        $this->assertSame('MOTOCICLETA', $sheet->getCell('C167')->getValue());
+        $this->assertSame(1, $sheet->getCell('D167')->getValue());
+        $this->assertSame('SEMOVIENTE', $sheet->getCell('C170')->getValue());
+
+        $this->assertSame('No.', $sheet->getCell('F155')->getValue());
+        $this->assertSame('VEHÍCULOS PARTICULARES INVOL.', $sheet->getCell('G156')->getValue());
+        $this->assertSame(2, $sheet->getCell('H156')->getValue());
+        $this->assertSame('VEHÍCULOS SERV. PÚBLIC. INVOL.', $sheet->getCell('G157')->getValue());
+        $this->assertSame(1, $sheet->getCell('H157')->getValue());
+        $this->assertSame('MOTOS INVOLUCRADAS', $sheet->getCell('G158')->getValue());
+        $this->assertSame(1, $sheet->getCell('H158')->getValue());
+        $this->assertSame('VEHÍCULOS OFICIALES INVOL', $sheet->getCell('G159')->getValue());
+        $this->assertSame(1, $sheet->getCell('H159')->getValue());
+
+        $this->assertSame('LIBERACIONES', $sheet->getCell('G161')->getValue());
+        $this->assertSame('LIBERACIÓN MOTOCICLETAS', $sheet->getCell('G162')->getValue());
+        $this->assertSame(1, $sheet->getCell('H162')->getValue());
+        $this->assertSame('LIBERACIÓN REMOLQUES', $sheet->getCell('G165')->getValue());
+        $this->assertSame(4, $sheet->getCell('H165')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('F166')->getValue());
+        $this->assertSame('F166:G166', $sheet->getCell('F166')->getMergeRange());
+        $this->assertSame(10, $sheet->getCell('H166')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('F161')->getFill()->getStartColor()->getRGB());
+
+        $this->assertSame('ÁREAS AUXILIARES', $sheet->getCell('G168')->getValue());
+        $this->assertSame('EXÁMEN TEÓRICO', $sheet->getCell('G169')->getValue());
+        $this->assertSame(4, $sheet->getCell('H169')->getValue());
+        $this->assertSame('00B0F0', $sheet->getStyle('F168')->getFill()->getStartColor()->getRGB());
+    }
+
+    public function test_suma_control_de_aseguramientos_desde_detenidos_y_texto(): void
+    {
+        $service = new TotalSheetService();
+        $method = new ReflectionMethod(TotalSheetService::class, 'controlAseguramientos');
+        $method->setAccessible(true);
+
+        $counts = $method->invoke($service, collect([
+            (object) [
+                'categoria' => (object) ['nombre' => 'OPERATIVOS'],
+                'subcategoria' => (object) ['nombre' => 'CONTROL'],
+                'nombre' => 'CONTROL',
+                'lugar' => null,
+                'tramo' => null,
+                'motivo' => 'PERSONAS PRESENTADAS AL MP POR DROGA',
+                'narrativa' => 'Se aseguran 2 personas con 30 gramos de marihuana.',
+                'acciones_realizadas' => null,
+                'observaciones' => null,
+                'personas_detenidas' => 2,
+            ],
+            (object) [
+                'categoria' => (object) ['nombre' => 'OPERATIVOS'],
+                'subcategoria' => (object) ['nombre' => 'CONTROL'],
+                'nombre' => 'CONTROL',
+                'lugar' => null,
+                'tramo' => null,
+                'motivo' => 'PERSONAS AL MP POR PORTACION DE ARMAS',
+                'narrativa' => '1 detenido con 1 arma corta y 3 cartuchos.',
+                'acciones_realizadas' => null,
+                'observaciones' => null,
+                'personas_detenidas' => 1,
+            ],
+            (object) [
+                'categoria' => (object) ['nombre' => 'OPERATIVOS'],
+                'subcategoria' => (object) ['nombre' => 'CONTROL'],
+                'nombre' => 'CONTROL',
+                'lugar' => null,
+                'tramo' => null,
+                'motivo' => 'ASEGURAMIENTO DE OBJETOS',
+                'narrativa' => 'Se aseguran 4 piezas de madera y 500 pesos en efectivo.',
+                'acciones_realizadas' => null,
+                'observaciones' => null,
+                'personas_detenidas' => 0,
+            ],
+        ]), collect());
+
+        $this->assertSame(2, $counts['personas']['MP_DROGA']);
+        $this->assertSame(1, $counts['personas']['MP_PORTACION_ARMAS']);
+        $this->assertSame(30.0, $counts['drogas']['MARIHUANA_GRS']);
+        $this->assertSame(1.0, $counts['armas']['CORTAS']);
+        $this->assertSame(3.0, $counts['armas']['CARTUCHOS']);
+        $this->assertSame(4.0, $counts['otros']['MADERA']);
+        $this->assertSame(500.0, $counts['otros']['DINERO']);
+    }
+
     public function test_clasifica_control_vehicular_por_texto_y_tipo(): void
     {
         $service = new TotalSheetService();
@@ -304,6 +695,23 @@ class VialidadesUrbanasTotalSheetServiceTest extends TestCase
         $this->assertSame('vehiculos', $bucketMethod->invoke($service, 'Camioneta SUV'));
     }
 
+    public function test_mapea_clasificacion_vehicular_del_excel_y_liberaciones(): void
+    {
+        $service = new TotalSheetService();
+        $clasificacionMethod = new ReflectionMethod(TotalSheetService::class, 'claveClasificacionVehiculo');
+        $clasificacionMethod->setAccessible(true);
+        $liberacionMethod = new ReflectionMethod(TotalSheetService::class, 'claveLiberacionVehiculo');
+        $liberacionMethod->setAccessible(true);
+
+        $this->assertSame('AUTOMOVIL', $clasificacionMethod->invoke($service, 'Automóvil sedán'));
+        $this->assertSame('TRANSPORTE_PUBLICO', $clasificacionMethod->invoke($service, 'Taxi'));
+        $this->assertSame('CAMIONETA_CARGA', $clasificacionMethod->invoke($service, 'Camioneta de carga'));
+        $this->assertSame('CAMION_CARGA', $clasificacionMethod->invoke($service, 'Camión de carga'));
+        $this->assertSame('motos', $liberacionMethod->invoke($service, 'Bicicleta'));
+        $this->assertSame('camiones', $liberacionMethod->invoke($service, 'Torton'));
+        $this->assertSame('remolques', $liberacionMethod->invoke($service, 'Remolque'));
+    }
+
     private function construirFilas(Collection $actividades): array
     {
         $method = new ReflectionMethod(TotalSheetService::class, 'construirFilas');
@@ -315,6 +723,46 @@ class VialidadesUrbanasTotalSheetServiceTest extends TestCase
     private function controlVehicularVacio(): array
     {
         $method = new ReflectionMethod(TotalSheetService::class, 'controlesVehicularesVacios');
+        $method->setAccessible(true);
+
+        return $method->invoke(new TotalSheetService());
+    }
+
+    private function controlAseguramientosVacio(): array
+    {
+        $method = new ReflectionMethod(TotalSheetService::class, 'controlAseguramientosVacios');
+        $method->setAccessible(true);
+
+        return $method->invoke(new TotalSheetService());
+    }
+
+    private function hechosTransitoVacio(): array
+    {
+        $method = new ReflectionMethod(TotalSheetService::class, 'hechosTransitoVacios');
+        $method->setAccessible(true);
+
+        return $method->invoke(new TotalSheetService());
+    }
+
+    private function tiposHechosTransitoVacio(): array
+    {
+        $method = new ReflectionMethod(TotalSheetService::class, 'tiposHechosTransitoVacios');
+        $method->setAccessible(true);
+
+        return $method->invoke(new TotalSheetService());
+    }
+
+    private function choquesDaniosVacio(): array
+    {
+        $method = new ReflectionMethod(TotalSheetService::class, 'choquesDaniosVacios');
+        $method->setAccessible(true);
+
+        return $method->invoke(new TotalSheetService());
+    }
+
+    private function clasificacionVehiculosVacio(): array
+    {
+        $method = new ReflectionMethod(TotalSheetService::class, 'clasificacionVehiculosVacios');
         $method->setAccessible(true);
 
         return $method->invoke(new TotalSheetService());

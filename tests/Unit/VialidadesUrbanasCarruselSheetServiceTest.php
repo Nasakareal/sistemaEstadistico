@@ -12,6 +12,8 @@ class VialidadesUrbanasCarruselSheetServiceTest extends TestCase
     public function test_cuenta_unidades_participantes_sin_sumar_numeros_economicos(): void
     {
         $this->assertSame(4, $this->invokeInt('contarUnidadesTexto', '4'));
+        $this->assertSame(1, $this->invokeInt('contarUnidadesTexto', '2637'));
+        $this->assertSame(1, $this->invokeInt('contarUnidadesTexto', '3343'));
         $this->assertSame(3, $this->invokeInt('contarUnidadesTexto', '3214, 3178, 04-174'));
         $this->assertSame(2, $this->invokeInt('contarUnidadesTexto', "MOTO 1\nMOTO 2"));
     }

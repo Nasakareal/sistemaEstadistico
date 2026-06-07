@@ -423,7 +423,13 @@ class CarruselSheetService
         }
 
         if (preg_match('/^\d+$/', $texto)) {
-            return (int) $texto;
+            $numero = (int) $texto;
+
+            if ($numero === 0) {
+                return 0;
+            }
+
+            return $numero <= 100 ? $numero : 1;
         }
 
         $partes = array_filter(array_map('trim', preg_split('/[\n,;|]+/', $texto) ?: []));

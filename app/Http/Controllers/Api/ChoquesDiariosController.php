@@ -93,7 +93,7 @@ class ChoquesDiariosController extends Controller
         ]);
     }
 
-    private function respuestaPorFecha($fecha)
+    protected function respuestaPorFecha($fecha)
     {
         $hechos = $this->queryHechos()
             ->whereDate('h.fecha', $fecha)
@@ -108,7 +108,7 @@ class ChoquesDiariosController extends Controller
         ]);
     }
 
-    private function queryHechos()
+    protected function queryHechos()
     {
         $query = DB::table('hechos as h')
             ->leftJoin('users as creator', 'creator.id', '=', 'h.created_by')
@@ -148,6 +148,7 @@ class ChoquesDiariosController extends Controller
                 'h.colonia',
                 'h.entre_calles',
                 'h.municipio',
+                'h.codigo_postal',
                 'h.lat',
                 'h.lng',
                 'h.tipo_hecho',
@@ -156,7 +157,10 @@ class ChoquesDiariosController extends Controller
                 'h.clima',
                 'h.condiciones',
                 'h.causas',
-                'h.oficio_mp'
+                'h.oficio_mp',
+                'h.danos_patrimoniales',
+                'h.propiedades_afectadas',
+                'h.monto_danos_patrimoniales'
         ];
 
         if ($this->legacyAccidentestDisponible()) {
@@ -172,7 +176,7 @@ class ChoquesDiariosController extends Controller
         return $query->select($selects);
     }
 
-    private function formatearHecho($hecho)
+    protected function formatearHecho($hecho)
     {
         $vehiculos = $this->vehiculosDelHecho($hecho->id);
         $conductores = $this->conductoresDelHecho($hecho->id);
@@ -224,16 +228,16 @@ class ChoquesDiariosController extends Controller
         ];
     }
 
-    private function vehiculosDelHecho($hechoId)
+    protected function vehiculosDelHecho($hechoId)
     {
         return DB::table('hecho_vehiculo as hv')
             ->join('vehiculos as v', 'v.id', '=', 'hv.vehiculo_id')
             ->where('hv.hecho_id', $hechoId)
-            ->select('v.marca', 'v.tipo', 'v.color')
+            ->select('v.marca', 'v.tipo', 'v.color', 'v.monto_danos')
             ->get();
     }
 
-    private function conductoresDelHecho($hechoId)
+    protected function conductoresDelHecho($hechoId)
     {
         return DB::table('hecho_vehiculo as hv')
             ->join('vehiculo_conductor as vc', 'vc.vehiculo_id', '=', 'hv.vehiculo_id')
@@ -243,15 +247,15 @@ class ChoquesDiariosController extends Controller
             ->get();
     }
 
-    private function lesionadosDelHecho($hechoId)
+    protected function lesionadosDelHecho($hechoId)
     {
         return DB::table('lesionados')
             ->where('hecho_id', $hechoId)
-            ->select('edad', 'sexo', 'tipo_lesion', 'hospital')
+            ->select('edad', 'sexo', 'tipo_lesion', 'tipo_victima', 'hospital')
             ->get();
     }
 
-    private function lugar($hecho)
+    protected function lugar($hecho)
     {
         $entre = $this->valorLimpio($hecho->entre_calles);
 
@@ -261,7 +265,7 @@ class ChoquesDiariosController extends Controller
         ])->filter()->implode(', ');
     }
 
-    private function valorLimpio($valor)
+    protected function valorLimpio($valor)
     {
         $valor = trim((string)$valor);
 
@@ -272,7 +276,7 @@ class ChoquesDiariosController extends Controller
         return $valor;
     }
 
-    private function toxicologia($c)
+    protected function toxicologia($c)
     {
         if (!$c) return null;
 
@@ -282,7 +286,7 @@ class ChoquesDiariosController extends Controller
         return 'SIN DATOS';
     }
 
-    private function coordenadasGeograficas($hecho): array
+    protected function coordenadasGeograficas($hecho): array
     {
         $coordenadas = $this->normalizarParCoordenadas($hecho->lat ?? null, $hecho->lng ?? null);
 
@@ -305,7 +309,7 @@ class ChoquesDiariosController extends Controller
         return ['lat' => null, 'lng' => null];
     }
 
-    private function parsearCoordenadasLegacy($valor): ?array
+    protected function parsearCoordenadasLegacy($valor): ?array
     {
         $valor = trim((string) $valor);
 
@@ -320,7 +324,7 @@ class ChoquesDiariosController extends Controller
         return $this->normalizarParCoordenadas($matches[1], $matches[2]);
     }
 
-    private function normalizarParCoordenadas($lat, $lng): ?array
+    protected function normalizarParCoordenadas($lat, $lng): ?array
     {
         if (!is_numeric($lat) || !is_numeric($lng)) {
             return null;
@@ -344,17 +348,17 @@ class ChoquesDiariosController extends Controller
         return null;
     }
 
-    private function latitudValida(float $valor): bool
+    protected function latitudValida(float $valor): bool
     {
         return $valor >= -90 && $valor <= 90;
     }
 
-    private function longitudValida(float $valor): bool
+    protected function longitudValida(float $valor): bool
     {
         return $valor >= -180 && $valor <= 180;
     }
 
-    private function legacyAccidentestDisponible(): bool
+    protected function legacyAccidentestDisponible(): bool
     {
         static $disponible = null;
 
@@ -365,7 +369,7 @@ class ChoquesDiariosController extends Controller
         return $disponible = $this->tablaDisponible(self::LEGACY_PERITOS_DATABASE, 'accidentest');
     }
 
-    private function legacyMapDisponible(): bool
+    protected function legacyMapDisponible(): bool
     {
         static $disponible = null;
 
@@ -376,7 +380,7 @@ class ChoquesDiariosController extends Controller
         return $disponible = $this->tablaDisponible(DB::getDatabaseName(), 'legacy_peritos_import_hechos');
     }
 
-    private function tablaDisponible(string $database, string $tabla): bool
+    protected function tablaDisponible(string $database, string $tabla): bool
     {
         $resultado = DB::selectOne(
             'SELECT 1 AS existe FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? LIMIT 1',

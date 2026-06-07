@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\PuestaDisposicionController;
 use App\Http\Controllers\Api\CroquisController;
 use App\Http\Controllers\Api\CulturaVialController;
 use App\Http\Controllers\Api\ChoquesDiariosController;
+use App\Http\Controllers\Api\ChoquesDiariosInegiController;
 use App\Http\Controllers\Api\ConstanciaManejoController as ApiConstanciaManejoController;
 use App\Http\Controllers\Api\ModuloExamenDiarioController as ApiModuloExamenDiarioController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
@@ -64,6 +65,16 @@ Route::prefix('choques-diarios')->group(function () {
     Route::get('/{hecho}', [ChoquesDiariosController::class, 'show'])->whereNumber('hecho')->name('api.choques_diarios.show');
     Route::get('/eliminados/fecha/{fecha}', [ChoquesDiariosController::class, 'eliminadosPorFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios.eliminados.fecha');
     Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
+});
+
+Route::prefix('choques-diarios-inegi')->group(function () {
+    Route::get('/', [ChoquesDiariosInegiController::class, 'index'])->name('api.choques_diarios_inegi.index');
+    Route::get('/fecha/{fecha}', [ChoquesDiariosInegiController::class, 'porFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios_inegi.fecha');
+    Route::get('/hoy', [ChoquesDiariosInegiController::class, 'hoy'])->name('api.choques_diarios_inegi.hoy');
+    Route::get('/rango', [ChoquesDiariosInegiController::class, 'rango'])->name('api.choques_diarios_inegi.rango');
+    Route::get('/{hecho}', [ChoquesDiariosInegiController::class, 'show'])->whereNumber('hecho')->name('api.choques_diarios_inegi.show');
+    Route::get('/eliminados/fecha/{fecha}', [ChoquesDiariosInegiController::class, 'eliminadosPorFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios_inegi.eliminados.fecha');
+    Route::get('/eliminados/rango', [ChoquesDiariosInegiController::class, 'eliminadosRango'])->name('api.choques_diarios_inegi.eliminados.rango');
 });
 
 Route::prefix('cultura-vial/public')->group(function () {

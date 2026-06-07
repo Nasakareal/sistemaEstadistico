@@ -25,6 +25,13 @@ class AuthServiceProvider extends ServiceProvider
                 return true;
             }
 
+            if (
+                in_array($this->normalizeAbility($ability), ['ver actividades', 'crear actividades'], true)
+                && $this->isMotociclistaVialidadesUser($user)
+            ) {
+                return true;
+            }
+
             if ($this->isSeguridadVialUser($user)) {
                 if ($ability === 'crear usuarios') {
                     return true;
@@ -365,6 +372,12 @@ class AuthServiceProvider extends ServiceProvider
     private function isFomentoCulturaVialUser($user): bool
     {
         return app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($user);
+    }
+
+    private function isMotociclistaVialidadesUser($user): bool
+    {
+        return (int) ($user->unidad_id ?? 0) === 5
+            && $user->hasRole('Motociclista');
     }
 
     private function isOficiosAbility($ability): bool

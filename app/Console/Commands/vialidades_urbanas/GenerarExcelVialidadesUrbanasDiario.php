@@ -14,7 +14,7 @@ class GenerarExcelVialidadesUrbanasDiario extends Command
 
     public function handle(): int
     {
-        $tz = 'America/Mexico_City';
+        $tz = (string) config('app.schedule_timezone', config('app.timezone', 'America/Mexico_City'));
         $fecha = $this->option('fecha');
 
         $fechaCorte = $fecha

@@ -186,7 +186,7 @@ class VialidadesUrbanasSiniestrosAlertService
         foreach ($parts ?: [] as $part) {
             $number = preg_replace('/\D+/', '', (string) $part);
 
-            if ($number !== '') {
+            if ($number !== '' && strlen($number) >= 10 && strlen($number) <= 15) {
                 $numbers[] = $number;
             }
         }

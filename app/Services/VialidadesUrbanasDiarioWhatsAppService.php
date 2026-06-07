@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Schema;
 
 class VialidadesUrbanasDiarioWhatsAppService
 {
-    private const TZ = 'America/Mexico_City';
     private const UNIDAD_VIALIDADES_URBANAS_ID = 5;
     private const CATEGORY_ORDER = [
         'INSTITUCIONES',
@@ -113,8 +112,10 @@ class VialidadesUrbanasDiarioWhatsAppService
 
     public function rango(?Carbon $corte = null): array
     {
-        $base = $corte ? $corte->copy()->timezone(self::TZ) : Carbon::now(self::TZ);
-        $corteHoy = $base->copy()->setTime(18, 0, 0);
+        $timezone = $this->timezone();
+        $base = $corte ? $corte->copy()->timezone($timezone) : Carbon::now($timezone);
+        [$hora, $minuto, $segundo] = $this->horaCorte();
+        $corteHoy = $base->copy()->setTime($hora, $minuto, $segundo);
 
         $fin = $base->greaterThanOrEqualTo($corteHoy)
             ? $corteHoy
@@ -168,9 +169,10 @@ class VialidadesUrbanasDiarioWhatsAppService
         $lineas[] = 'COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL';
         $lineas[] = 'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS';
         $lineas[] = mb_strtoupper($fin->copy()->locale('es')->translatedFormat('l d F Y'), 'UTF-8');
-        $lineas[] = 'ACTIVIDADES RELEVANTES DE LAS 18:00 HORAS DEL '
+        $horaCorte = $this->horaCorteTexto();
+        $lineas[] = 'ACTIVIDADES RELEVANTES DE LAS ' . $horaCorte . ' HORAS DEL '
             . $inicio->format('d/m/Y')
-            . ' A LAS 18:00 HORAS DEL '
+            . ' A LAS ' . $horaCorte . ' HORAS DEL '
             . $fin->format('d/m/Y');
         $lineas[] = '';
 
@@ -649,5 +651,36 @@ class VialidadesUrbanasDiarioWhatsAppService
     protected function pad(int $value): string
     {
         return str_pad((string) $value, 2, '0', STR_PAD_LEFT);
+    }
+
+    protected function horaCorte(): array
+    {
+        $configured = (string) config('cortes.hora_corte_vialidades_urbanas', '17:00:00');
+
+        if (!preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/', trim($configured), $matches)) {
+            return [17, 0, 0];
+        }
+
+        $hora = (int) $matches[1];
+        $minuto = (int) $matches[2];
+        $segundo = isset($matches[3]) ? (int) $matches[3] : 0;
+
+        if ($hora < 0 || $hora > 23 || $minuto < 0 || $minuto > 59 || $segundo < 0 || $segundo > 59) {
+            return [17, 0, 0];
+        }
+
+        return [$hora, $minuto, $segundo];
+    }
+
+    protected function horaCorteTexto(): string
+    {
+        [$hora, $minuto] = $this->horaCorte();
+
+        return sprintf('%02d:%02d', $hora, $minuto);
+    }
+
+    protected function timezone(): string
+    {
+        return (string) config('app.schedule_timezone', config('app.timezone', 'America/Mexico_City'));
     }
 }

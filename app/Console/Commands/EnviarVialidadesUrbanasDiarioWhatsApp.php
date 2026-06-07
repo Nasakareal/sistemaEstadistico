@@ -19,14 +19,14 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
         {--demo : Usa datos de ejemplo para revisar formato; requiere --dry-run}
         {--force : Reenvia aunque ya exista guardia de envio}';
 
-    protected $description = 'Envia el concentrado diario de Vialidades Urbanas por WhatsApp con corte de 18:00 a 18:00';
+    protected $description = 'Envia el concentrado diario de Vialidades Urbanas por WhatsApp con el corte configurado';
 
     public function handle(
         WhatsAppCloudService $whatsApp,
         WhatsAppSendGuard $sendGuard,
         VialidadesUrbanasDiarioWhatsAppService $service
     ): int {
-        $timezone = 'America/Mexico_City';
+        $timezone = (string) config('app.schedule_timezone', config('app.timezone', 'America/Mexico_City'));
         $corte = $this->option('corte')
             ? Carbon::parse((string) $this->option('corte'), $timezone)
             : null;
@@ -63,7 +63,7 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
 
         if ($this->option('dry-run')) {
             $this->line('--- RANGO ---');
-            $this->line($resumen['inicio']->format('Y-m-d H:i:s') . ' a ' . $resumen['fin']->format('Y-m-d H:i:s') . ' America/Mexico_City');
+            $this->line($resumen['inicio']->format('Y-m-d H:i:s') . ' a ' . $resumen['fin']->format('Y-m-d H:i:s') . ' ' . $timezone);
             $this->line('--- DESTINATARIOS ---');
             $this->line(empty($recipients) ? 'SIN CONFIGURAR' : implode(', ', $recipients));
             $this->line('--- PLANTILLA ---');
@@ -136,7 +136,7 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
         }
 
         $this->line('--- RANGO ---');
-        $this->line($resumen['inicio']->format('Y-m-d H:i:s') . ' a ' . $resumen['fin']->format('Y-m-d H:i:s') . ' America/Mexico_City');
+        $this->line($resumen['inicio']->format('Y-m-d H:i:s') . ' a ' . $resumen['fin']->format('Y-m-d H:i:s') . ' ' . $timezone);
         $this->line('--- MENSAJE ARMADO ---');
         $this->line($mensaje);
 
@@ -231,7 +231,7 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
         foreach ($parts ?: [] as $part) {
             $number = preg_replace('/\D+/', '', (string) $part);
 
-            if ($number !== '') {
+            if ($number !== '' && strlen($number) >= 10 && strlen($number) <= 15) {
                 $numbers[] = $number;
             }
         }

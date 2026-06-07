@@ -35,6 +35,7 @@ class Role extends SpatieRole
         ],
         self::UNIDAD_VIALIDADES_URBANAS_ID => [
             'Agente Vial',
+            'Motociclista',
             'Responsable de Turno',
         ],
     ];

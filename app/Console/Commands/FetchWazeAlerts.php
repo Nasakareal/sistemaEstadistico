@@ -8,6 +8,7 @@ use App\Models\WazeAlert;
 use App\Services\PushService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -210,12 +211,15 @@ class FetchWazeAlerts extends Command
 
     private function getTokensByUnidadId(int $unidadId, array $excludeUserIds = []): array
     {
-        return DeviceToken::query()
+        $query = DeviceToken::query()
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->whereNotNull('device_tokens.token')
             ->where('device_tokens.token', '!=', '')
-            ->where('users.unidad_id', $unidadId)
-            ->when(!empty($excludeUserIds), function ($q) use ($excludeUserIds) {
+            ->where('users.unidad_id', $unidadId);
+
+        $this->excludeMotociclistaUsers($query);
+
+        return $query->when(!empty($excludeUserIds), function ($q) use ($excludeUserIds) {
                 $q->whereNotIn('users.id', $excludeUserIds);
             })
             ->pluck('device_tokens.token')
@@ -226,11 +230,14 @@ class FetchWazeAlerts extends Command
 
     private function getGeneralTokensExceptUnidad(array $excludeUnidadIds = [], array $excludeUserIds = []): array
     {
-        return DeviceToken::query()
+        $query = DeviceToken::query()
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '')
-            ->when(!empty($excludeUnidadIds), function ($q) use ($excludeUnidadIds) {
+            ->where('device_tokens.token', '!=', '');
+
+        $this->excludeMotociclistaUsers($query);
+
+        return $query->when(!empty($excludeUnidadIds), function ($q) use ($excludeUnidadIds) {
                 $q->where(function ($sub) use ($excludeUnidadIds) {
                     $sub->whereNull('users.unidad_id')
                         ->orWhereNotIn('users.unidad_id', $excludeUnidadIds);
@@ -262,12 +269,15 @@ class FetchWazeAlerts extends Command
             . 'POWER(SIN(RADIANS(user_locations.lng - ?) / 2), 2)'
             . '))))';
 
-        return DeviceToken::query()
+        $query = DeviceToken::query()
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->join('user_locations', 'user_locations.user_id', '=', 'users.id')
             ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '')
-            ->where('users.compartir_ubicacion', 1)
+            ->where('device_tokens.token', '!=', '');
+
+        $this->excludeMotociclistaUsers($query);
+
+        return $query->where('users.compartir_ubicacion', 1)
             ->whereNotNull('user_locations.lat')
             ->whereNotNull('user_locations.lng')
             ->where('user_locations.captured_at', '>=', Carbon::now('America/Mexico_City')->subMinutes($maxAgeMinutes))
@@ -280,6 +290,17 @@ class FetchWazeAlerts extends Command
             ->unique()
             ->values()
             ->toArray();
+    }
+
+    private function excludeMotociclistaUsers($query): void
+    {
+        $query->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('model_has_roles as mhr')
+                ->join('roles', 'roles.id', '=', 'mhr.role_id')
+                ->whereColumn('mhr.model_id', 'users.id')
+                ->whereRaw('UPPER(roles.name) = ?', ['MOTOCICLISTA']);
+        });
     }
 
     private function wazeNotifyRadiusKm(): float

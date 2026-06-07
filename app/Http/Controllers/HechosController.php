@@ -1496,8 +1496,7 @@ class HechosController extends Controller
             return true;
         }
 
-        return (int) ($usuario->unidad_id ?? 0) === 2
-            && $usuario->hasRole('Administrativo');
+        return false;
     }
 
     private function userCanCaptureFechaHora($usuario): bool

@@ -69,6 +69,8 @@ return [
 
     'timezone' => 'America/Mexico_City',
 
+    'schedule_timezone' => env('APP_SCHEDULE_TIMEZONE', 'Etc/GMT+6'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -81,6 +81,10 @@ class HechoAccess
             return true;
         }
 
+        if ($target === 'crear hechos' && self::isDelegacionesAdministrativeCreator($usuario)) {
+            return true;
+        }
+
         $usuario->loadMissing(['roles.permissions', 'permissions']);
 
         if ($usuario->permissions->contains(fn ($permiso) => self::normalizePermissionName($permiso->name ?? null) === $target)) {
@@ -175,6 +179,12 @@ class HechoAccess
             && in_array($permission, self::PERMISOS_SINIESTROS_CAPTURA_PROPIA, true);
     }
 
+    private static function isDelegacionesAdministrativeCreator($usuario): bool
+    {
+        return self::effectiveUnidadId($usuario) === self::UNIDAD_DELEGACIONES_ID
+            && $usuario->hasRole('Administrativo');
+    }
+
     private static function isSiniestrosOperationalUser($usuario): bool
     {
         if (!$usuario) {
@@ -262,7 +272,7 @@ class HechoAccess
                 return true;
             }
 
-            if ($usuario->hasRole('Administrativo')) {
+            if ($usuario->hasRole('Administrativo') || $usuario->hasRole('Delegado')) {
                 $delegacionId = (int) ($usuario->delegacion_id ?? 0);
                 $hechoDelegacionId = (int) ($hecho->delegacion_id ?? 0);
 

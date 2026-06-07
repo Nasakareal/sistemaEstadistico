@@ -31,6 +31,16 @@ class DeviceTokenController extends Controller
         $platform = (string) $request->input('platform');
         $now = Carbon::now('America/Mexico_City');
 
+        if ($this->isMotociclistaVialidadesUser($user)) {
+            DeviceToken::query()
+                ->where('user_id', (int) $user->id)
+                ->delete();
+
+            return response()->json([
+                'message' => 'Token no registrado para este rol.',
+            ]);
+        }
+
         DB::transaction(function () use ($user, $token, $platform, $now) {
             DeviceToken::query()
                 ->where('user_id', (int) $user->id)
@@ -55,5 +65,11 @@ class DeviceTokenController extends Controller
         return response()->json([
             'message' => 'Token registrado.',
         ]);
+    }
+
+    private function isMotociclistaVialidadesUser($user): bool
+    {
+        return (int) ($user->unidad_id ?? 0) === 5
+            && $user->hasRole('Motociclista');
     }
 }

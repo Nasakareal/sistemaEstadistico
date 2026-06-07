@@ -1181,7 +1181,7 @@ class HechoController extends Controller
 
     private function withFotoUrls(Hechos $hecho): array
     {
-        $hecho->loadMissing('dictamen');
+        $hecho->loadMissing(['dictamen', 'puestaDisposicion']);
 
         $data = $hecho->toArray();
 
@@ -1196,6 +1196,31 @@ class HechoController extends Controller
         $data['dictamen_archivo_url'] = $hecho->dictamen
             ? route('api.dictamenes.archivo', $hecho->dictamen->id)
             : null;
+
+        $puesta = $hecho->puestaDisposicion;
+        $data['puesta_disposicion_id'] = $puesta ? $puesta->id : null;
+        $data['puesta_disposicion'] = $puesta ? [
+            'id' => $puesta->id,
+            'numero_puesta' => $puesta->numero_puesta,
+            'anio' => $puesta->anio,
+            'tipo_puesta' => $puesta->tipo_puesta,
+            'motivo' => $puesta->motivo,
+            'estatus' => $puesta->estatus,
+            'fecha_puesta' => $puesta->fecha_puesta
+                ? $puesta->fecha_puesta->format('Y-m-d')
+                : null,
+            'hora_puesta' => $puesta->hora_puesta
+                ? $puesta->hora_puesta->format('H:i')
+                : null,
+            'archivo_puesta' => $puesta->archivo_puesta,
+            'archivo_puesta_url' => $puesta->archivo_puesta
+                ? route('api.puestas_disposicion.archivo', $puesta->id)
+                : null,
+        ] : null;
+        $data['puestas_disposicion'] = $data['puesta_disposicion']
+            ? [$data['puesta_disposicion']]
+            : [];
+
         $data['puede_editar'] = HechoAccess::canEdit(request()->user(), $hecho);
         $data['puede_gestionar_totales_esperados'] = HechoAccess::canManageTotalesEsperados(request()->user(), $hecho);
 
@@ -1598,8 +1623,7 @@ class HechoController extends Controller
             return true;
         }
 
-        return (int) ($user->unidad_id ?? 0) === 2
-            && $user->hasRole('Administrativo');
+        return false;
     }
 
     private function userCanCaptureFechaHora($user): bool

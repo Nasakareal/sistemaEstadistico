@@ -309,7 +309,7 @@ class PuestaDisposicionController extends Controller
     private function hechosTurnadosDisponiblesPayload($usuario): array
     {
         $query = Hechos::query()
-            ->with(['creator:id,name,unidad_id', 'delegacion:id,nombre,nombre_con_clave,municipio'])
+            ->with(['creator:id,name,unidad_id', 'delegacion:id,clave,nombre,municipio'])
             ->where('situacion', 'TURNADO')
             ->whereDoesntHave('puestaDisposicion');
 

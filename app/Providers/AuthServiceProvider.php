@@ -116,6 +116,7 @@ class AuthServiceProvider extends ServiceProvider
                 'crear operativos vialidades',
                 'editar operativos vialidades',
                 'eliminar operativos vialidades',
+                'ver estadisticas actividades',
             ];
 
             if (in_array($ability, $vialidadesAbilities, true)) {
@@ -127,7 +128,7 @@ class AuthServiceProvider extends ServiceProvider
                     return false;
                 }
 
-                if ($ability === 'ver operativos vialidades') {
+                if (in_array($ability, ['ver operativos vialidades', 'ver estadisticas actividades'], true)) {
                     return true;
                 }
 
@@ -266,6 +267,15 @@ class AuthServiceProvider extends ServiceProvider
                 );
         });
 
+        Gate::define('menu-estadisticas-actividades-vialidades', function ($user) {
+            return $user->can('ver estadisticas actividades')
+                && (
+                    $user->perteneceAUnidad('vialidades-urbanas')
+                    || (int) $user->unidad_id === 5
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
         Gate::define('menu-estadisticas-generales', function ($user) {
             return (
                 $user->can('ver estadisticas globales')
@@ -283,6 +293,7 @@ class AuthServiceProvider extends ServiceProvider
             ) || (
                 $user->can('menu-estadisticas-actividades-siniestros')
                 || $user->can('menu-estadisticas-actividades-fomento')
+                || $user->can('menu-estadisticas-actividades-vialidades')
             );
         });
 

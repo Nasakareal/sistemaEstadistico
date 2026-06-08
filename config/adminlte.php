@@ -512,6 +512,21 @@ return [
                 ],
 
                 [
+                    'text' => 'Vialidades Urbanas',
+                    'icon' => 'fa-solid fa-traffic-light',
+                    'can'  => 'menu-estadisticas-actividades-vialidades',
+                    'submenu' => [
+                        [
+                            'text'    => 'Actividades',
+                            'icon'    => 'fa-solid fa-clipboard-list',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-actividades',
+                            'can'     => 'menu-estadisticas-actividades-vialidades',
+                        ],
+                    ],
+                ],
+
+                [
                     'text' => 'Delegaciones',
                     'icon' => 'fa-solid fa-building-shield',
                     'submenu' => [

@@ -28,7 +28,7 @@
         <form method="GET" action="{{ route('settings.tutoriales.index') }}">
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="q">Buscar</label>
                         <input type="text"
                                id="q"
@@ -48,13 +48,24 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="plataforma">Plataforma</label>
                         <select id="plataforma" name="plataforma" class="form-control">
                             <option value="">Todas</option>
                             @foreach($plataformas as $value => $label)
                                 <option value="{{ $value }}" {{ ($filtros['plataforma'] ?? '') === $value ? 'selected' : '' }}>
                                     {{ $label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="unidad_id">Unidad</label>
+                        <select id="unidad_id" name="unidad_id" class="form-control">
+                            <option value="">Todas</option>
+                            @foreach($unidades as $unidad)
+                                <option value="{{ $unidad->id }}" {{ (string)($filtros['unidad_id'] ?? '') === (string)$unidad->id ? 'selected' : '' }}>
+                                    {{ $unidad->nombre }}
                                 </option>
                             @endforeach
                         </select>
@@ -89,12 +100,13 @@
                 <thead>
                     <tr>
                         <th width="5%">#</th>
-                        <th width="18%">Categoria</th>
+                        <th width="14%">Categoria</th>
                         <th width="24%">Tutorial</th>
-                        <th width="16%">Plataforma</th>
-                        <th width="12%">Estado</th>
-                        <th width="10%">Orden</th>
-                        <th width="15%">Acciones</th>
+                        <th width="16%">Unidad</th>
+                        <th width="12%">Plataforma</th>
+                        <th width="10%">Estado</th>
+                        <th width="8%">Orden</th>
+                        <th width="10%">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,6 +122,13 @@
                                 <a href="{{ $tutorial->youtube_url }}" target="_blank" rel="noopener" class="small">
                                     Ver YouTube
                                 </a>
+                            </td>
+                            <td>
+                                @if($tutorial->unidad)
+                                    <span class="badge badge-info">{{ $tutorial->unidad->nombre }}</span>
+                                @else
+                                    <span class="badge badge-light">Todas las unidades</span>
+                                @endif
                             </td>
                             <td>
                                 <span class="badge badge-secondary">
@@ -146,7 +165,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted">
+                            <td colspan="8" class="text-center text-muted">
                                 Sin tutoriales registrados.
                             </td>
                         </tr>

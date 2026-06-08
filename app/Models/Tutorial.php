@@ -17,6 +17,7 @@ class Tutorial extends Model
 
     protected $fillable = [
         'tutorial_categoria_id',
+        'unidad_id',
         'titulo',
         'descripcion',
         'youtube_url',
@@ -27,6 +28,7 @@ class Tutorial extends Model
     ];
 
     protected $casts = [
+        'unidad_id' => 'integer',
         'orden' => 'integer',
         'activo' => 'boolean',
     ];
@@ -36,11 +38,27 @@ class Tutorial extends Model
         return $this->belongsTo(TutorialCategoria::class, 'tutorial_categoria_id');
     }
 
+    public function unidad()
+    {
+        return $this->belongsTo(Unidad::class, 'unidad_id');
+    }
+
     public function scopeParaAppMovil($query)
     {
         return $query
             ->where('activo', true)
             ->whereIn('plataforma', [self::PLATAFORMA_APP_MOVIL, self::PLATAFORMA_AMBAS]);
+    }
+
+    public function scopeVisiblesParaUnidad($query, ?int $unidadId)
+    {
+        return $query->where(function ($inner) use ($unidadId) {
+            $inner->whereNull('unidad_id');
+
+            if ($unidadId) {
+                $inner->orWhere('unidad_id', $unidadId);
+            }
+        });
     }
 
     public function getYoutubeEmbedUrlAttribute(): ?string

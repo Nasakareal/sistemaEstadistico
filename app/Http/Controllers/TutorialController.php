@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tutorial;
 use App\Models\TutorialCategoria;
+use App\Models\Unidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,7 @@ class TutorialController extends Controller
     public function index(Request $request)
     {
         $tutoriales = Tutorial::query()
-            ->with('categoria')
+            ->with(['categoria', 'unidad'])
             ->when($request->filled('q'), function ($query) use ($request) {
                 $q = trim((string) $request->input('q'));
                 $query->where(function ($inner) use ($q) {
@@ -35,9 +36,13 @@ class TutorialController extends Controller
             ->when($request->filled('plataforma'), function ($query) use ($request) {
                 $query->where('plataforma', $request->input('plataforma'));
             })
+            ->when($request->filled('unidad_id'), function ($query) use ($request) {
+                $query->where('unidad_id', (int) $request->input('unidad_id'));
+            })
             ->when($request->filled('estado'), function ($query) use ($request) {
                 $query->where('activo', $request->input('estado') === 'activo');
             })
+            ->orderByRaw('COALESCE(unidad_id, 0)')
             ->orderByRaw('COALESCE(tutorial_categoria_id, 0)')
             ->orderBy('orden')
             ->orderBy('titulo')
@@ -47,8 +52,9 @@ class TutorialController extends Controller
         return view('admin.settings.tutoriales.index', [
             'tutoriales' => $tutoriales,
             'categorias' => $this->categorias(),
+            'unidades' => $this->unidades(),
             'plataformas' => self::PLATAFORMAS,
-            'filtros' => $request->only(['q', 'categoria_id', 'plataforma', 'estado']),
+            'filtros' => $request->only(['q', 'categoria_id', 'plataforma', 'unidad_id', 'estado']),
         ]);
     }
 
@@ -61,6 +67,7 @@ class TutorialController extends Controller
                 'orden' => 0,
             ]),
             'categorias' => $this->categorias(),
+            'unidades' => $this->unidades(),
             'plataformas' => self::PLATAFORMAS,
         ]);
     }
@@ -81,8 +88,9 @@ class TutorialController extends Controller
     public function edit(Tutorial $tutorial)
     {
         return view('admin.settings.tutoriales.edit', [
-            'tutorial' => $tutorial->load('categoria'),
+            'tutorial' => $tutorial->load(['categoria', 'unidad']),
             'categorias' => $this->categorias(),
+            'unidades' => $this->unidades(),
             'plataformas' => self::PLATAFORMAS,
         ]);
     }
@@ -118,6 +126,7 @@ class TutorialController extends Controller
         $validated = $request->validate([
             'categoria_id' => ['nullable', 'integer', 'exists:tutorial_categorias,id'],
             'categoria_nueva' => ['nullable', 'string', 'max:150'],
+            'unidad_id' => ['nullable', 'integer', 'exists:unidades,id'],
             'titulo' => ['required', 'string', 'max:180'],
             'descripcion' => ['nullable', 'string', 'max:1200'],
             'youtube_url' => ['required', 'url', 'max:500'],
@@ -128,6 +137,7 @@ class TutorialController extends Controller
 
         return [
             'titulo' => $validated['titulo'],
+            'unidad_id' => $validated['unidad_id'] ?? null,
             'descripcion' => $validated['descripcion'] ?? null,
             'youtube_url' => $validated['youtube_url'],
             'plataforma' => $validated['plataforma'],
@@ -140,6 +150,14 @@ class TutorialController extends Controller
     {
         return TutorialCategoria::query()
             ->orderBy('orden')
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function unidades()
+    {
+        return Unidad::query()
+            ->where('activa', true)
             ->orderBy('nombre')
             ->get();
     }

@@ -53,7 +53,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="form-group">
             <label for="categoria_id">Categoria existente</label>
             <select id="categoria_id"
@@ -69,7 +69,7 @@
         </div>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="form-group">
             <label for="categoria_nueva">Nueva categoria</label>
             <input type="text"
@@ -80,6 +80,23 @@
                    maxlength="150"
                    placeholder="Ej. Hechos, Actividades, Feed">
             <small class="form-text text-muted">Si escribes una nueva, se usara en lugar de la categoria existente.</small>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="form-group">
+            <label for="unidad_id">Unidad</label>
+            <select id="unidad_id"
+                    name="unidad_id"
+                    class="form-control @error('unidad_id') is-invalid @enderror">
+                <option value="">Todas las unidades</option>
+                @foreach($unidades as $unidad)
+                    <option value="{{ $unidad->id }}" {{ (string) old('unidad_id', $tutorial->unidad_id) === (string) $unidad->id ? 'selected' : '' }}>
+                        {{ $unidad->nombre }}
+                    </option>
+                @endforeach
+            </select>
+            <small class="form-text text-muted">Si eliges una unidad, solo sus usuarios veran este tutorial.</small>
         </div>
     </div>
 </div>

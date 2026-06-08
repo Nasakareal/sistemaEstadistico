@@ -50,6 +50,7 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
             'services.whatsapp.vialidades_urbanas.template_language',
             'es_MX'
         )) ?: 'es_MX';
+        $templateLayout = trim((string) config('services.whatsapp.vialidades_urbanas.template_layout', 'bloque')) ?: 'bloque';
         $templateChunkChars = (int) config('services.whatsapp.vialidades_urbanas.template_chunk_chars', 850);
         $textChunkChars = (int) config('services.whatsapp.vialidades_urbanas.text_chunk_chars', 3900);
 
@@ -67,20 +68,33 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
             $this->line('--- DESTINATARIOS ---');
             $this->line(empty($recipients) ? 'SIN CONFIGURAR' : implode(', ', $recipients));
             $this->line('--- PLANTILLA ---');
-            $this->line($usarTemplate ? ($template . ' (' . $language . ')') : 'SIN TEMPLATE / TEXTO LIBRE');
+            $this->line($usarTemplate ? ($template . ' (' . $language . ', layout ' . $templateLayout . ')') : 'SIN TEMPLATE / TEXTO LIBRE');
+
+            $chunks = $this->previewChunks($service, $resumen, $mensaje, $usarTemplate, $templateLayout, $templateChunkChars, $textChunkChars);
+
             $this->line('--- MENSAJE ARMADO ---');
-            $this->line($mensaje);
+            if ($usarTemplate && $this->usaTemplateDiario($templateLayout)) {
+                foreach ($chunks as $index => $chunk) {
+                    if ($index > 0) {
+                        $this->line('');
+                    }
+
+                    $this->line($chunk['body'] ?? implode("\n", $chunk['lines'] ?? []));
+                }
+            } else {
+                $this->line($mensaje);
+            }
+
             $this->line('--- PARTES ---');
 
-            $chunks = $usarTemplate
-                ? $service->templateChunks($mensaje, $templateChunkChars)
-                : $service->textChunks($mensaje, $textChunkChars);
-
             foreach ($chunks as $index => $chunk) {
-                $body = is_array($chunk) ? $chunk['body'] : $chunk;
+                $body = is_array($chunk)
+                    ? ($chunk['body'] ?? implode("\n", $chunk['lines'] ?? []))
+                    : $chunk;
                 $part = is_array($chunk) ? $chunk['part'] : ($index + 1);
                 $total = is_array($chunk) ? $chunk['total'] : count($chunks);
-                $this->line('Parte ' . $part . '/' . $total . ': ' . mb_strlen((string) $body, 'UTF-8') . ' caracteres');
+                $params = is_array($chunk) ? count($chunk['parameters'] ?? []) : 0;
+                $this->line('Parte ' . $part . '/' . $total . ': ' . mb_strlen((string) $body, 'UTF-8') . ' caracteres' . ($params ? ', ' . $params . ' parametros' : ''));
             }
 
             return self::SUCCESS;
@@ -110,7 +124,7 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
 
             try {
                 $messageIds = $usarTemplate
-                    ? $this->sendTemplateChunks($whatsApp, $service, $recipient, $mensaje, $template, $language, $templateChunkChars)
+                    ? $this->sendTemplate($whatsApp, $service, $recipient, $resumen, $mensaje, $template, $language, $templateLayout, $templateChunkChars)
                     : $this->sendTextChunks($whatsApp, $service, $recipient, $mensaje, $textChunkChars);
 
                 $sendGuard->markSent(
@@ -138,7 +152,17 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
         $this->line('--- RANGO ---');
         $this->line($resumen['inicio']->format('Y-m-d H:i:s') . ' a ' . $resumen['fin']->format('Y-m-d H:i:s') . ' ' . $timezone);
         $this->line('--- MENSAJE ARMADO ---');
-        $this->line($mensaje);
+        if ($usarTemplate && $this->usaTemplateDiario($templateLayout)) {
+            foreach ($this->previewChunks($service, $resumen, $mensaje, $usarTemplate, $templateLayout, $templateChunkChars, $textChunkChars) as $index => $chunk) {
+                if ($index > 0) {
+                    $this->line('');
+                }
+
+                $this->line($chunk['body'] ?? implode("\n", $chunk['lines'] ?? []));
+            }
+        } else {
+            $this->line($mensaje);
+        }
 
         if ($failures > 0) {
             $this->error("Concentrado procesado con {$sentRecipients} destinatario(s), {$sentMessages} mensaje(s), {$skipped} omitido(s) y {$failures} error(es).");
@@ -147,6 +171,67 @@ class EnviarVialidadesUrbanasDiarioWhatsApp extends Command
 
         $this->info("Concentrado enviado a {$sentRecipients} destinatario(s) en {$sentMessages} mensaje(s). Omitidos por duplicado: {$skipped}.");
         return self::SUCCESS;
+    }
+
+    protected function previewChunks(
+        VialidadesUrbanasDiarioWhatsAppService $service,
+        array $resumen,
+        string $mensaje,
+        bool $usarTemplate,
+        string $templateLayout,
+        int $templateChunkChars,
+        int $textChunkChars
+    ): array {
+        if (!$usarTemplate) {
+            return $service->textChunks($mensaje, $textChunkChars);
+        }
+
+        if ($this->usaTemplateDiario($templateLayout)) {
+            return $service->dailyTemplateMessages($resumen);
+        }
+
+        return $service->templateChunks($mensaje, $templateChunkChars);
+    }
+
+    protected function sendTemplate(
+        WhatsAppCloudService $whatsApp,
+        VialidadesUrbanasDiarioWhatsAppService $service,
+        string $recipient,
+        array $resumen,
+        string $mensaje,
+        string $template,
+        string $language,
+        string $templateLayout,
+        int $templateChunkChars
+    ): array {
+        if ($this->usaTemplateDiario($templateLayout)) {
+            return $this->sendDailyTemplate($whatsApp, $service, $recipient, $resumen, $template, $language);
+        }
+
+        return $this->sendTemplateChunks($whatsApp, $service, $recipient, $mensaje, $template, $language, $templateChunkChars);
+    }
+
+    protected function sendDailyTemplate(
+        WhatsAppCloudService $whatsApp,
+        VialidadesUrbanasDiarioWhatsAppService $service,
+        string $recipient,
+        array $resumen,
+        string $template,
+        string $language
+    ): array {
+        $message = $service->dailyTemplateMessages($resumen)[0];
+        $response = $whatsApp->sendTemplate($recipient, $template, $message['parameters'], $language);
+
+        return [$this->handleMetaResponse(
+            $response,
+            $recipient,
+            'template ' . $template . ' diario con ' . count($message['parameters']) . ' variables'
+        )];
+    }
+
+    protected function usaTemplateDiario(string $templateLayout): bool
+    {
+        return mb_strtolower(trim($templateLayout), 'UTF-8') === 'diario';
     }
 
     protected function sendTemplateChunks(

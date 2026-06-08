@@ -18,7 +18,7 @@ class VialidadesUrbanasDiarioWhatsAppService
         'MONITOREOS',
         'AUXILIO VIAL A CONDUCTORES',
         'DISPOSITIVOS DE SEGURIDAD VIAL',
-        'CAMPAÑAS',
+        'CAMPANAS',
         'PROXIMIDAD SOCIAL',
         'OPERATIVOS',
         'PROGRAMAS',
@@ -32,7 +32,7 @@ class VialidadesUrbanasDiarioWhatsAppService
         'MONITOREOS' => 'Monitoreos',
         'AUXILIO VIAL A CONDUCTORES' => 'Auxilio vial a Conductores',
         'DISPOSITIVOS DE SEGURIDAD VIAL' => 'Dispositivos de Vialidad',
-        'CAMPAÑAS' => 'Campañas',
+        'CAMPANAS' => 'Campañas',
         'PROXIMIDAD SOCIAL' => 'Proximidad social',
     ];
 
@@ -65,8 +65,9 @@ class VialidadesUrbanasDiarioWhatsAppService
     {
         [$inicio, $fin] = $this->rango($corte);
         $totales = $this->totales($inicio, $fin);
-        $novedades = $this->novedades($inicio, $fin);
-        $mensaje = $this->mensaje($inicio, $fin, $totales, $novedades);
+        $novedades = $this->incluirNovedades() ? $this->novedades($inicio, $fin) : [];
+        $firmaNombre = $this->firmaNombre();
+        $mensaje = $this->mensaje($inicio, $fin, $totales, $novedades, $firmaNombre);
 
         return [
             'inicio' => $inicio,
@@ -74,6 +75,7 @@ class VialidadesUrbanasDiarioWhatsAppService
             'totales' => $totales,
             'novedades' => $novedades,
             'mensaje' => $mensaje,
+            'firma_nombre' => $firmaNombre,
         ];
     }
 
@@ -99,7 +101,13 @@ class VialidadesUrbanasDiarioWhatsAppService
             'Dispositivo de seguridad Escuela Segura para el cruce de calles y avenidas de gran afluencia vehicular, cuidando a las infancias, padres de familia y docentes.',
             'Dispositivos de vialidad en Avenidas y Periférico con el objetivo de agilizar la vialidad y proteger la seguridad de los sujetos activos de la movilidad.',
         ];
-        $mensaje = $this->mensaje($inicio, $fin, $totales, $novedades, 'MTRO. LUGO ORDORICA LUIS EDUARDO.');
+        $mensaje = $this->mensaje(
+            $inicio,
+            $fin,
+            $totales,
+            $this->incluirNovedades() ? $novedades : [],
+            'MTRO. LUGO ORDORICA LUIS EDUARDO.'
+        );
 
         return [
             'inicio' => $inicio,
@@ -107,6 +115,7 @@ class VialidadesUrbanasDiarioWhatsAppService
             'totales' => $totales,
             'novedades' => $novedades,
             'mensaje' => $mensaje,
+            'firma_nombre' => 'MTRO. LUGO ORDORICA LUIS EDUARDO.',
         ];
     }
 
@@ -140,12 +149,75 @@ class VialidadesUrbanasDiarioWhatsAppService
                 'parameters' => [
                     (string) $part,
                     (string) $total,
-                    $chunk,
+                    $this->templateParameterText($chunk),
                 ],
             ];
         }
 
         return $out;
+    }
+
+    public function dailyTemplateMessages(array $resumen): array
+    {
+        $params = $this->dailyTemplateParams($resumen);
+        $firmaNombre = trim((string) ($resumen['firma_nombre'] ?? $this->firmaNombre()));
+
+        return [[
+            'part' => 1,
+            'total' => 1,
+            'body' => $this->dailyTemplateBody($params, $firmaNombre),
+            'parameters' => $params,
+        ]];
+    }
+
+    public function dailyTemplateParams(array $resumen): array
+    {
+        $inicio = $resumen['inicio'];
+        $fin = $resumen['fin'];
+        $totales = $this->totalesPorCategoria($resumen['totales'] ?? []);
+
+        return [
+            mb_strtoupper($fin->copy()->locale('es')->translatedFormat('l d F Y'), 'UTF-8'),
+            $this->periodoTexto($inicio, $fin),
+            $this->categoriaResumenSimple($totales, 'INSTITUCIONES'),
+            $this->categoriaResumenSimple($totales, 'REPORTES C5I'),
+            $this->categoriaResumenSimple($totales, 'ABANDERAMIENTOS'),
+            $this->categoriaResumenSimple($totales, 'MONITOREOS'),
+            $this->categoriaResumenSimple($totales, 'AUXILIO VIAL A CONDUCTORES'),
+            $this->categoriaResumenSimple($totales, 'DISPOSITIVOS DE SEGURIDAD VIAL'),
+            $this->categoriaResumenSimple($totales, 'CAMPAÑAS'),
+            $this->categoriaResumenSimple($totales, 'PROXIMIDAD SOCIAL'),
+        ];
+    }
+
+    protected function dailyTemplateBody(array $params, string $firmaNombre = ''): string
+    {
+        $p = array_values(array_map('strval', $params));
+
+        for ($i = count($p); $i < 10; $i++) {
+            $p[] = '';
+        }
+
+        $firmaCargo = trim((string) config(
+            'services.whatsapp.vialidades_urbanas.firma_cargo',
+            'SUBDIRECTOR DE PROTECCIÓN EN VIALIDADES URBANAS'
+        ));
+        $firmaNombre = trim($firmaNombre);
+
+        return "UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS\n"
+            . "{$p[0]}\n"
+            . "ACTIVIDADES RELEVANTES DE LAS {$p[1]}\n\n"
+            . "- Apoyo a instituciones:\n{$p[2]}\n\n"
+            . "- Atención a reportes de C5i:\n{$p[3]}\n\n"
+            . "- Abanderamientos:\n{$p[4]}\n\n"
+            . "- Monitoreos:\n{$p[5]}\n\n"
+            . "- Auxilio vial a Conductores:\n{$p[6]}\n\n"
+            . "- Dispositivos de Vialidad:\n{$p[7]}\n\n"
+            . "- Campañas:\n{$p[8]}\n\n"
+            . "- Proximidad social:\n{$p[9]}\n\n"
+            . "RESPETUOSAMENTE\n"
+            . mb_strtoupper($firmaCargo, 'UTF-8')
+            . ($firmaNombre !== '' ? "\n" . mb_strtoupper($firmaNombre, 'UTF-8') : '');
     }
 
     public function textChunks(string $mensaje, int $maxBodyChars = 3900): array
@@ -169,10 +241,13 @@ class VialidadesUrbanasDiarioWhatsAppService
         $lineas[] = 'COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL';
         $lineas[] = 'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS';
         $lineas[] = mb_strtoupper($fin->copy()->locale('es')->translatedFormat('l d F Y'), 'UTF-8');
-        $horaCorte = $this->horaCorteTexto();
-        $lineas[] = 'ACTIVIDADES RELEVANTES DE LAS ' . $horaCorte . ' HORAS DEL '
+        $lineas[] = 'ACTIVIDADES RELEVANTES DE LAS '
+            . $this->horaTexto($inicio)
+            . ' HORAS DEL '
             . $inicio->format('d/m/Y')
-            . ' A LAS ' . $horaCorte . ' HORAS DEL '
+            . ' A LAS '
+            . $this->horaTexto($fin)
+            . ' HORAS DEL '
             . $fin->format('d/m/Y');
         $lineas[] = '';
 
@@ -180,35 +255,19 @@ class VialidadesUrbanasDiarioWhatsAppService
             $lineas[] = '- Sin actividades capturadas: 00';
             $lineas[] = '';
         } else {
-            foreach ($totales as $categoria) {
-                $lineas[] = '- ' . $this->categoryLabel((string) $categoria['nombre']) . ': ' . $this->pad((int) $categoria['total']);
-                $printedSubcategories = [];
-
-                foreach ($categoria['subcategorias'] as $subcategoria) {
-                    $label = $this->subcategoryLabel((string) $subcategoria);
-                    $key = $this->norm($label);
-
-                    if (isset($printedSubcategories[$key])) {
-                        continue;
-                    }
-
-                    $printedSubcategories[$key] = true;
-                    $lineas[] = '-' . $label;
-                }
-
-                $lineas[] = '';
+            foreach ($this->lineasReporte($totales) as $lineaReporte) {
+                $lineas[] = $lineaReporte;
             }
         }
 
-        if (empty($novedades)) {
-            $lineas[] = '1. Sin novedades relevantes capturadas.';
-        } else {
+        if (!empty($novedades)) {
             foreach ($novedades as $index => $novedad) {
                 $lineas[] = ($index + 1) . '. ' . $novedad;
             }
+
+            $lineas[] = '';
         }
 
-        $lineas[] = '';
         $lineas[] = '';
         $lineas[] = 'RESPETUOSAMENTE';
         $lineas[] = (string) config(
@@ -223,6 +282,126 @@ class VialidadesUrbanasDiarioWhatsAppService
         }
 
         return trim(implode("\n", $lineas));
+    }
+
+    protected function lineasReporte(array $totales): array
+    {
+        $lineas = [];
+
+        foreach ($totales as $categoria) {
+            if (!isset(self::CATEGORY_LABELS[$this->norm((string) $categoria['nombre'])])) {
+                continue;
+            }
+
+            $lineas[] = '- ' . $this->categoryLabel((string) $categoria['nombre']) . ': ' . $this->pad((int) $categoria['total']);
+            $printedSubcategories = [];
+
+            foreach ($categoria['subcategorias'] as $subcategoria) {
+                $label = $this->subcategoryLabel((string) $subcategoria);
+                $key = $this->norm($label);
+
+                if (isset($printedSubcategories[$key])) {
+                    continue;
+                }
+
+                $printedSubcategories[$key] = true;
+                $lineas[] = '-' . $label;
+            }
+
+            $lineas[] = ' ';
+        }
+
+        while (!empty($lineas) && trim((string) end($lineas)) === '') {
+            array_pop($lineas);
+        }
+
+        return $lineas;
+    }
+
+    protected function totalesPorCategoria(array $totales): array
+    {
+        $out = [];
+
+        foreach ($totales as $categoria) {
+            $key = $this->norm((string) ($categoria['nombre'] ?? ''));
+
+            if (!isset(self::CATEGORY_LABELS[$key])) {
+                continue;
+            }
+
+            $out[$key] = $categoria;
+        }
+
+        return $out;
+    }
+
+    protected function categoriaResumenSimple(array $totales, string $categoriaKey): string
+    {
+        $key = $this->norm($categoriaKey);
+        $categoria = $totales[$key] ?? null;
+
+        if (!$categoria) {
+            return '00 - sin actividades.';
+        }
+
+        $total = (int) ($categoria['total'] ?? 0);
+        $labels = [];
+        $seen = [];
+
+        foreach (($categoria['subcategorias'] ?? []) as $subcategoria) {
+            $label = $this->subcategoryLabel((string) $subcategoria);
+            $labelKey = $this->norm($label);
+
+            if ($label === '' || isset($seen[$labelKey])) {
+                continue;
+            }
+
+            $seen[$labelKey] = true;
+            $labels[] = $label;
+        }
+
+        if ($total <= 0) {
+            return '00 - sin actividades.';
+        }
+
+        if (empty($labels)) {
+            return $this->pad($total) . ' - actividades registradas.';
+        }
+
+        return $this->pad($total) . ' - ' . $this->joinLabels($labels) . '.';
+    }
+
+    protected function joinLabels(array $labels): string
+    {
+        $labels = array_values(array_filter(array_map(fn ($label) => $this->cleanLabelForSentence((string) $label), $labels)));
+
+        if (empty($labels)) {
+            return '';
+        }
+
+        if (count($labels) === 1) {
+            return $labels[0];
+        }
+
+        $last = array_pop($labels);
+
+        return implode(', ', $labels) . ' y ' . $last;
+    }
+
+    protected function cleanLabelForSentence(string $label): string
+    {
+        return trim($label, " \t\n\r\0\x0B.");
+    }
+
+    protected function periodoTexto(Carbon $inicio, Carbon $fin): string
+    {
+        return $this->horaTexto($inicio)
+            . ' HORAS DEL '
+            . $inicio->format('d/m/Y')
+            . ' A LAS '
+            . $this->horaTexto($fin)
+            . ' HORAS DEL '
+            . $fin->format('d/m/Y');
     }
 
     protected function totales(Carbon $inicio, Carbon $fin): array
@@ -507,6 +686,14 @@ class VialidadesUrbanasDiarioWhatsAppService
         return $pieces;
     }
 
+    protected function templateParameterText(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $text);
+        $text = preg_replace('/ {2,}/', ' ', $text) ?? $text;
+
+        return trim($text);
+    }
+
     protected function splitLine(string $line, int $maxBodyChars): array
     {
         if (mb_strlen($line, 'UTF-8') <= $maxBodyChars) {
@@ -672,11 +859,14 @@ class VialidadesUrbanasDiarioWhatsAppService
         return [$hora, $minuto, $segundo];
     }
 
-    protected function horaCorteTexto(): string
+    protected function horaTexto(Carbon $value): string
     {
-        [$hora, $minuto] = $this->horaCorte();
+        return $value->format('H:i');
+    }
 
-        return sprintf('%02d:%02d', $hora, $minuto);
+    protected function incluirNovedades(): bool
+    {
+        return (bool) config('services.whatsapp.vialidades_urbanas.incluir_novedades', false);
     }
 
     protected function timezone(): string

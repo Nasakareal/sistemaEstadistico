@@ -7,6 +7,17 @@
 @stop
 
 @section('content')
+    @php
+        $motivosPuestaOptions = $motivosPuestaOptions ?? [];
+        $motivoSeleccionado = old('motivo', $puestaDisposicion->motivo);
+        $motivoOtroSeleccionado = old('motivo_otro');
+        $motivoUsaOtro = $motivoSeleccionado && !in_array($motivoSeleccionado, $motivosPuestaOptions, true);
+        if ($motivoUsaOtro) {
+            $motivoOtroSeleccionado = old('motivo_otro', $motivoSeleccionado);
+            $motivoSeleccionado = 'OTRO';
+        }
+    @endphp
+
     <div class="row">
         <div class="col-md-12">
             <div class="card card-outline card-primary">
@@ -63,11 +74,24 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="motivo">Motivo</label>
-                                    <input type="text" name="motivo" id="motivo"
-                                           class="form-control @error('motivo') is-invalid @enderror"
-                                           value="{{ old('motivo', $puestaDisposicion->motivo) }}" required>
+                                    <select name="motivo" id="motivo"
+                                            class="form-control @error('motivo') is-invalid @enderror" required>
+                                        <option value="" disabled {{ $motivoSeleccionado ? '' : 'selected' }}>Seleccione una opción</option>
+                                        @foreach($motivosPuestaOptions as $motivoOption)
+                                            <option value="{{ $motivoOption }}" {{ $motivoSeleccionado === $motivoOption ? 'selected' : '' }}>
+                                                {{ $motivoOption === 'OTRO' ? 'OTRO (ESPECIFICAR)' : $motivoOption }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <input type="text" name="motivo_otro" id="motivo_otro"
+                                           class="form-control mt-2 d-none @error('motivo_otro') is-invalid @enderror"
+                                           value="{{ $motivoOtroSeleccionado }}"
+                                           placeholder="Especifique el motivo">
                                     @error('motivo')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    @error('motivo_otro')
+                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
@@ -386,6 +410,48 @@
             padding: 24px !important;
         }
 
+        /* ===== SELECTS PRINCIPALES ===== */
+        #tipo_puesta,
+        #motivo {
+            background-color: #12263c !important;
+            color: #f8fafc !important;
+            border: 1px solid rgba(125, 178, 225, .45) !important;
+            border-radius: 14px !important;
+            min-height: 48px !important;
+            box-shadow: none !important;
+            -webkit-text-fill-color: #f8fafc !important;
+            appearance: auto !important;
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+        }
+
+        #tipo_puesta:focus,
+        #motivo:focus {
+            background-color: #12263c !important;
+            color: #ffffff !important;
+            border-color: #64b5f6 !important;
+            box-shadow: 0 0 0 .2rem rgba(100, 181, 246, .18) !important;
+            outline: none !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+
+        #tipo_puesta option,
+        #motivo option {
+            background-color: #12263c !important;
+            color: #f8fafc !important;
+        }
+
+        #tipo_puesta option:checked,
+        #motivo option:checked {
+            background-color: #2563d8 !important;
+            color: #ffffff !important;
+        }
+
+        #tipo_puesta option:disabled,
+        #motivo option:disabled {
+            color: #94a3b8 !important;
+        }
+
         .bloque-dinamico {
             background: #ffffff !important;
             border: 1px solid #d9dee7 !important;
@@ -630,6 +696,8 @@
             const contenedorPersonas = document.getElementById('contenedorPersonas');
             const contenedorVehiculos = document.getElementById('contenedorVehiculos');
             const contenedorObjetos = document.getElementById('contenedorObjetos');
+            const motivoInput = document.getElementById('motivo');
+            const motivoOtroInput = document.getElementById('motivo_otro');
 
             function valor(v) {
                 return v ?? '';
@@ -637,6 +705,16 @@
 
             function checked(v) {
                 return v ? 'checked' : '';
+            }
+
+            function actualizarMotivoOtro() {
+                const usaOtro = motivoInput?.value === 'OTRO';
+
+                motivoOtroInput?.classList.toggle('d-none', !usaOtro);
+
+                if (motivoOtroInput) {
+                    motivoOtroInput.required = usaOtro;
+                }
             }
 
             function agregarPersona(data = {}) {
@@ -935,8 +1013,11 @@
                 agregarObjeto();
             });
 
+            motivoInput?.addEventListener('change', actualizarMotivoOtro);
+
             document.addEventListener('DOMContentLoaded', function () {
                 inicializarBloques();
+                actualizarMotivoOtro();
             });
         })();
 

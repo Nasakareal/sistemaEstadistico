@@ -233,6 +233,11 @@
                                 $puestaPdfUrl = $puestaPdfPath && $hecho->puestaDisposicion
                                     ? route('puestas_disposicion.archivo', $hecho->puestaDisposicion->id)
                                     : null;
+                                $puedeCrearPuestaTurnado = $unidadReal === 2
+                                    && strtoupper(trim((string) $hecho->situacion)) === 'TURNADO'
+                                    && !$hecho->puestaDisposicion
+                                    && $usuario
+                                    && $usuario->can('crear puestas a disposicion');
                             @endphp
 
                             <tr>
@@ -313,6 +318,24 @@
                                             title="Ver PDF de puesta a disposición"
                                         >
                                             <i class="fa-solid fa-file-pdf"></i>
+                                        </a>
+                                    @endif
+
+                                    @if($hecho->puestaDisposicion)
+                                        <a
+                                            href="{{ route('puestas_disposicion.show', $hecho->puestaDisposicion->id) }}"
+                                            class="btn btn-outline-info btn-sm"
+                                            title="Ver puesta vinculada"
+                                        >
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    @elseif($puedeCrearPuestaTurnado)
+                                        <a
+                                            href="{{ route('puestas_disposicion.create', ['hecho_id' => $hecho->id]) }}"
+                                            class="btn btn-outline-info btn-sm"
+                                            title="Crear puesta vinculada"
+                                        >
+                                            <i class="fa-solid fa-plus"></i>
                                         </a>
                                     @endif
 

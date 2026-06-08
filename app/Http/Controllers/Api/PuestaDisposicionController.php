@@ -12,6 +12,7 @@ use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Support\HechoAccess;
+use App\Support\PuestaDisposicionRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,11 @@ class PuestaDisposicionController extends Controller
     private function normalizarTextoRequerido($valor): string
     {
         return strtoupper(trim((string)$valor));
+    }
+
+    private function mensajePuestaDebeSerVinculada(): string
+    {
+        return 'Para hechos de tránsito de Delegaciones, crea primero el hecho turnado y después registra la puesta vinculada desde el hecho.';
     }
 
     private function obtenerNombreUnidad(?int $unidadId): string
@@ -350,6 +356,17 @@ class PuestaDisposicionController extends Controller
             ?: $this->resolverUnidadRegistro($request,$usuario);
         $request->merge(['hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null]);
         $this->prepararRequestStore($request,$unidadRegistroId);
+
+        if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
+            $unidadRegistroId,
+            $request->input('motivo'),
+            $hechoOrigen !== null
+        )) {
+            throw ValidationException::withMessages([
+                'hecho_id'=>$this->mensajePuestaDebeSerVinculada(),
+            ]);
+        }
+
         $this->validarStore($request,$usuario);
 
         Log::info('Puesta a disposicion API: solicitud recibida', [
@@ -449,10 +466,21 @@ class PuestaDisposicionController extends Controller
     {
         $usuario=Auth::user();
         $puesta=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
+        $motivo=$this->normalizarTextoRequerido($request->motivo);
+
+        if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
+            (int)$puesta->unidad_id,
+            $motivo,
+            !empty($puesta->hecho_id)
+        )) {
+            throw ValidationException::withMessages([
+                'hecho_id'=>$this->mensajePuestaDebeSerVinculada(),
+            ]);
+        }
 
         $puesta->update([
             'tipo_puesta'=>$this->normalizarTextoRequerido($request->tipo_puesta),
-            'motivo'=>$this->normalizarTextoRequerido($request->motivo),
+            'motivo'=>$motivo,
             'nombre_policia'=>$this->normalizarTextoRequerido($request->nombre_policia),
         ]);
 

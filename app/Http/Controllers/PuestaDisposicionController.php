@@ -12,6 +12,7 @@ use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Support\HechoAccess;
+use App\Support\PuestaDisposicionRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +48,20 @@ class PuestaDisposicionController extends Controller
     private function puedeSeleccionarUnidadRegistro($usuario): bool
     {
         return $this->esSuperadmin($usuario) || empty($usuario->unidad_id);
+    }
+
+    private function mensajePuestaDebeSerVinculada(): string
+    {
+        return 'Selecciona el hecho turnado de Delegaciones para crear esta puesta vinculada.';
+    }
+
+    private function backConErrorHechoVinculadoRequerido()
+    {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors([
+                'hecho_id' => $this->mensajePuestaDebeSerVinculada(),
+            ]);
     }
 
     private function queryVisibleByUser($usuario)
@@ -131,6 +146,17 @@ class PuestaDisposicionController extends Controller
     private function normalizarTextoRequerido($valor): string
     {
         return strtoupper(trim((string)$valor));
+    }
+
+    private function normalizarMotivoRequest(Request $request): string
+    {
+        $motivo = $request->input('motivo');
+
+        if ($this->normalizarTextoRequerido($motivo) === PuestaDisposicionRules::MOTIVO_OTRO) {
+            $motivo = $request->input('motivo_otro');
+        }
+
+        return $this->normalizarTextoRequerido($motivo);
     }
 
     private function obtenerNombreUnidad(?int $unidadId): string
@@ -280,6 +306,55 @@ class PuestaDisposicionController extends Controller
         })->all();
     }
 
+    private function hechosTurnadosDisponiblesPayload($usuario): array
+    {
+        $query = Hechos::query()
+            ->with(['creator:id,name,unidad_id', 'delegacion:id,nombre,nombre_con_clave,municipio'])
+            ->where('situacion', 'TURNADO')
+            ->whereDoesntHave('puestaDisposicion');
+
+        HechoAccess::applyVisibilityScope($query, $usuario);
+        HechoAccess::applyUnidadScope($query, PuestaDisposicionRules::UNIDAD_DELEGACIONES_ID);
+
+        return $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('id')
+            ->limit(500)
+            ->get()
+            ->map(function (Hechos $hecho) use ($usuario) {
+                $fecha = $hecho->fecha ? $hecho->fecha->format('Y-m-d') : '';
+                $hora = $hecho->hora ? substr((string)$hecho->hora, 0, 5) : '';
+                $delegacion = optional($hecho->delegacion)->nombre_con_clave
+                    ?: optional($hecho->delegacion)->nombre
+                    ?: optional($hecho->delegacion)->municipio;
+
+                $partesLabel = [
+                    '#' . $hecho->id,
+                    $fecha,
+                    $hora,
+                    $hecho->folio_c5i ? 'Folio ' . $hecho->folio_c5i : null,
+                    $delegacion,
+                    $hecho->tipo_hecho,
+                ];
+
+                return [
+                    'id' => (int)$hecho->id,
+                    'label' => collect($partesLabel)
+                        ->map(fn ($parte) => trim((string)$parte))
+                        ->filter()
+                        ->implode(' · '),
+                    'tipo_puesta' => $this->tipoPuestaDesdeHecho($hecho),
+                    'fecha_puesta' => $fecha,
+                    'hora_puesta' => $hora,
+                    'lugar_puesta' => $this->lugarPuestaDesdeHecho($hecho),
+                    'nombre_policia' => $hecho->perito ?: ($usuario->name ?? ''),
+                    'oficio' => $hecho->folio_c5i,
+                ];
+            })
+            ->all();
+    }
+
     private function resolverVehiculoRelacionadoId(?Hechos $hecho, array $vehiculo): ?int
     {
         if (!$hecho) {
@@ -392,6 +467,9 @@ class PuestaDisposicionController extends Controller
             : now()->toDateString();
         $horaPuestaDefault = $hechoOrigen && $hechoOrigen->hora ? substr((string)$hechoOrigen->hora, 0, 5) : null;
         $vehiculosHechoPuesta = $hechoOrigen ? $this->vehiculosHechoPayload($hechoOrigen) : [];
+        $motivosPuestaOptions = PuestaDisposicionRules::motivosCatalogo();
+        $hechosTurnadosDisponibles = $hechoOrigen ? [] : $this->hechosTurnadosDisponiblesPayload($usuario);
+        $unidadDelegacionesId = PuestaDisposicionRules::UNIDAD_DELEGACIONES_ID;
 
         $ultimoRegistro = PuestaDisposicion::query()
             ->where('anio', $anioActual)
@@ -426,7 +504,10 @@ class PuestaDisposicionController extends Controller
             'oficioDefault',
             'fechaPuestaDefault',
             'horaPuestaDefault',
-            'vehiculosHechoPuesta'
+            'vehiculosHechoPuesta',
+            'motivosPuestaOptions',
+            'hechosTurnadosDisponibles',
+            'unidadDelegacionesId'
         ));
     }
 
@@ -447,7 +528,7 @@ class PuestaDisposicionController extends Controller
             'hecho_id'              => $hechoOrigen ? $hechoOrigen->id : null,
             'unidad_id'             => $unidadRegistroId,
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
-            'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
+            'motivo'                => $this->normalizarMotivoRequest($request),
             'estatus'               => 'ACTIVA',
             'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
             'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
@@ -459,6 +540,14 @@ class PuestaDisposicionController extends Controller
             'narrativa'             => $request->filled('narrativa') ? strtoupper(trim((string)$request->input('narrativa'))) : null,
             'observaciones'         => $request->filled('observaciones') ? strtoupper(trim((string)$request->input('observaciones'))) : null,
         ]);
+
+        if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
+            $unidadRegistroId,
+            $request->input('motivo'),
+            $hechoOrigen !== null
+        )) {
+            return $this->backConErrorHechoVinculadoRequerido();
+        }
 
         $request->validate([
             'hecho_id'              => 'nullable|integer|exists:hechos,id',
@@ -644,7 +733,11 @@ class PuestaDisposicionController extends Controller
 
             app(DelegacionesWhatsAppAlertService::class)->notificarPuestaDisposicion($puesta);
 
-            return redirect()->route('hechos.show', $hechoOrigen->id)
+            $redirect = $hechoOrigen
+                ? redirect()->route('hechos.show', $hechoOrigen->id)
+                : redirect()->route('puestas_disposicion.index');
+
+            return $redirect
                 ->with('success', 'Puesta a disposición creada exitosamente.');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -682,8 +775,9 @@ class PuestaDisposicionController extends Controller
         $usuario = auth()->user();
 
         $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
+        $motivosPuestaOptions = PuestaDisposicionRules::motivosCatalogo();
 
-        return view('puestas_disposicion.edit', compact('puestaDisposicion'));
+        return view('puestas_disposicion.edit', compact('puestaDisposicion', 'motivosPuestaOptions'));
     }
 
     public function update(Request $request, PuestaDisposicion $puestaDisposicion)
@@ -697,7 +791,7 @@ class PuestaDisposicionController extends Controller
 
         $request->merge([
             'tipo_puesta'           => $this->normalizarTextoRequerido($request->input('tipo_puesta')),
-            'motivo'                => $this->normalizarTextoRequerido($request->input('motivo')),
+            'motivo'                => $this->normalizarMotivoRequest($request),
             'estatus'               => 'ACTIVA',
             'nombre_policia'        => $this->normalizarTextoRequerido($request->input('nombre_policia')),
             'nombre_mp'             => $this->normalizarTextoNullable($request->input('nombre_mp')),
@@ -767,6 +861,18 @@ class PuestaDisposicionController extends Controller
             'objetos.*.cadena_custodia'         => 'nullable|string|max:255',
             'objetos.*.observaciones'           => 'nullable|string',
         ]);
+
+        $unidadActualizadaId = $this->esSuperadmin($usuario)
+            ? (int)$request->input('unidad_id', $puestaDisposicion->unidad_id)
+            : (int)$puestaDisposicion->unidad_id;
+
+        if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
+            $unidadActualizadaId,
+            $request->input('motivo'),
+            $hechoOrigen !== null
+        )) {
+            return $this->backConErrorHechoVinculadoRequerido();
+        }
 
         $existeDuplicado = PuestaDisposicion::query()
             ->where('id', '!=', $puestaDisposicion->id)

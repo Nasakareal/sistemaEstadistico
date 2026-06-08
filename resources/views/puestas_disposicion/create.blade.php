@@ -17,6 +17,16 @@
         $oficioSeleccionado = old('oficio', $oficioDefault ?? null);
         $hechoOrigen = $hechoOrigen ?? null;
         $vehiculosHechoPuesta = $vehiculosHechoPuesta ?? [];
+        $motivosPuestaOptions = $motivosPuestaOptions ?? [];
+        $hechosTurnadosDisponibles = $hechosTurnadosDisponibles ?? [];
+        $hechoTurnadoSeleccionadoId = (int) old('hecho_id');
+        $motivoOtroSeleccionado = old('motivo_otro');
+        $motivoUsaOtro = $motivoSeleccionado && !in_array($motivoSeleccionado, $motivosPuestaOptions, true);
+        if ($motivoUsaOtro) {
+            $motivoOtroSeleccionado = old('motivo_otro', $motivoSeleccionado);
+            $motivoSeleccionado = 'OTRO';
+        }
+        $unidadDelegacionesId = $unidadDelegacionesId ?? 2;
     @endphp
 
     <div class="row">
@@ -26,7 +36,7 @@
                     <h3 class="card-title">Llene los Datos</h3>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('puestas_disposicion.store') }}" method="POST" enctype="multipart/form-data">
+                    <form id="puestaDisposicionForm" action="{{ route('puestas_disposicion.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @if($hechoOrigen)
                             <input type="hidden" name="hecho_id" value="{{ $hechoOrigen->id }}">
@@ -72,11 +82,24 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="motivo">Motivo</label>
-                                    <input type="text" name="motivo" id="motivo"
-                                           class="form-control @error('motivo') is-invalid @enderror"
-                                           value="{{ $motivoSeleccionado }}" required>
+                                    <select name="motivo" id="motivo"
+                                            class="form-control @error('motivo') is-invalid @enderror" required>
+                                        <option value="" disabled {{ $motivoSeleccionado ? '' : 'selected' }}>Seleccione una opción</option>
+                                        @foreach($motivosPuestaOptions as $motivoOption)
+                                            <option value="{{ $motivoOption }}" {{ $motivoSeleccionado === $motivoOption ? 'selected' : '' }}>
+                                                {{ $motivoOption === 'OTRO' ? 'OTRO (ESPECIFICAR)' : $motivoOption }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <input type="text" name="motivo_otro" id="motivo_otro"
+                                           class="form-control mt-2 d-none @error('motivo_otro') is-invalid @enderror"
+                                           value="{{ $motivoOtroSeleccionado }}"
+                                           placeholder="Especifique el motivo">
                                     @error('motivo')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    @error('motivo_otro')
+                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
@@ -89,6 +112,50 @@
                                 </div>
                             </div>
                         </div>
+
+                        @unless($hechoOrigen)
+                            <div id="sv-hecho-transito-warning" class="alert alert-warning d-none">
+                                <strong>Vincula el hecho turnado.</strong>
+                                Para registrar una puesta por hecho de tránsito, selecciona el ID del hecho que ya está TURNADO y no tiene puesta vinculada.
+                            </div>
+
+                            <div id="hecho_turnado_group" class="row d-none">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="hecho_id">Hecho turnado a vincular</label>
+                                        <select name="hecho_id" id="hecho_id"
+                                                class="form-control @error('hecho_id') is-invalid @enderror"
+                                                disabled>
+                                            <option value="">Seleccione el hecho turnado</option>
+                                            @foreach($hechosTurnadosDisponibles as $hechoTurnado)
+                                                <option value="{{ $hechoTurnado['id'] }}"
+                                                        data-tipo-puesta="{{ $hechoTurnado['tipo_puesta'] }}"
+                                                        data-fecha-puesta="{{ $hechoTurnado['fecha_puesta'] }}"
+                                                        data-hora-puesta="{{ $hechoTurnado['hora_puesta'] }}"
+                                                        data-lugar-puesta="{{ $hechoTurnado['lugar_puesta'] }}"
+                                                        data-nombre-policia="{{ $hechoTurnado['nombre_policia'] }}"
+                                                        data-oficio="{{ $hechoTurnado['oficio'] }}"
+                                                        {{ $hechoTurnadoSeleccionadoId === (int)$hechoTurnado['id'] ? 'selected' : '' }}>
+                                                    {{ $hechoTurnado['label'] }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @if(empty($hechosTurnadosDisponibles))
+                                            <small class="form-text text-warning">
+                                                No hay hechos TURNADO visibles sin puesta vinculada.
+                                            </small>
+                                        @else
+                                            <small class="form-text text-muted">
+                                                Solo aparecen hechos TURNADO de Delegaciones que todavía no tienen puesta.
+                                            </small>
+                                        @endif
+                                        @error('hecho_id')
+                                            <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        @endunless
 
                         <hr>
 
@@ -469,39 +536,56 @@
             color: #ffffff !important;
         }
 
-        /* ===== FIX DEL SELECT PRINCIPAL ===== */
-        #tipo_puesta {
-            background: #13263b !important;
-            color: #ffffff !important;
-            border: 1px solid #2b6cb0 !important;
+        /* ===== SELECTS PRINCIPALES ===== */
+        #tipo_puesta,
+        #motivo,
+        #unidad_id,
+        #hecho_id {
+            background-color: #12263c !important;
+            color: #f8fafc !important;
+            border: 1px solid rgba(125, 178, 225, .45) !important;
             border-radius: 14px !important;
             min-height: 48px !important;
             box-shadow: none !important;
-            -webkit-text-fill-color: #ffffff !important;
+            -webkit-text-fill-color: #f8fafc !important;
             appearance: auto !important;
             -webkit-appearance: menulist !important;
             -moz-appearance: menulist !important;
         }
 
-        #tipo_puesta:focus {
-            background: #13263b !important;
+        #tipo_puesta:focus,
+        #motivo:focus,
+        #unidad_id:focus,
+        #hecho_id:focus {
+            background-color: #12263c !important;
             color: #ffffff !important;
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.18) !important;
+            border-color: #64b5f6 !important;
+            box-shadow: 0 0 0 .2rem rgba(100, 181, 246, .18) !important;
             outline: none !important;
             -webkit-text-fill-color: #ffffff !important;
         }
 
-        /* opciones del desplegable */
-        #tipo_puesta option {
-            background-color: #ffffff !important;
-            color: #111827 !important;
+        #tipo_puesta option,
+        #motivo option,
+        #unidad_id option,
+        #hecho_id option {
+            background-color: #12263c !important;
+            color: #f8fafc !important;
         }
 
-        /* si quieres que la opción seleccionada se vea azul */
-        #tipo_puesta option:checked {
-            background: #2563eb !important;
+        #tipo_puesta option:checked,
+        #motivo option:checked,
+        #unidad_id option:checked,
+        #hecho_id option:checked {
+            background-color: #2563d8 !important;
             color: #ffffff !important;
+        }
+
+        #tipo_puesta option:disabled,
+        #motivo option:disabled,
+        #unidad_id option:disabled,
+        #hecho_id option:disabled {
+            color: #94a3b8 !important;
         }
 
         /* ===== BLOQUES DINAMICOS ===== */
@@ -699,6 +783,21 @@
             const unidadSelect = document.getElementById('unidad_id');
             const numeroPreview = document.getElementById('numero_puesta_preview');
             const anioPuesta = @json(now()->year);
+            const formPuesta = document.getElementById('puestaDisposicionForm');
+            const motivoInput = document.getElementById('motivo');
+            const motivoOtroInput = document.getElementById('motivo_otro');
+            const avisoHechoTransito = document.getElementById('sv-hecho-transito-warning');
+            const hechoTurnadoGroup = document.getElementById('hecho_turnado_group');
+            const hechoTurnadoSelect = document.getElementById('hecho_id');
+            const fechaPuestaInput = document.getElementById('fecha_puesta');
+            const horaPuestaInput = document.getElementById('hora_puesta');
+            const lugarPuestaInput = document.getElementById('lugar_puesta');
+            const nombrePoliciaInput = document.getElementById('nombre_policia');
+            const oficioInput = document.getElementById('oficio');
+            const tipoPuestaInput = document.getElementById('tipo_puesta');
+            const unidadFijaId = @json((int)($unidadSeleccionadaId ?? 0));
+            const unidadDelegacionesId = @json((int)$unidadDelegacionesId);
+            const tieneHechoVinculado = @json((bool)$hechoOrigen);
 
             function valor(v) {
                 return String(v ?? '')
@@ -711,6 +810,86 @@
 
             function checked(v) {
                 return v ? 'checked' : '';
+            }
+
+            function normalizarMotivo(v) {
+                return String(v ?? '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .toUpperCase();
+            }
+
+            function motivoActual() {
+                return motivoInput?.value === 'OTRO'
+                    ? motivoOtroInput?.value
+                    : motivoInput?.value;
+            }
+
+            function actualizarMotivoOtro() {
+                const usaOtro = motivoInput?.value === 'OTRO';
+
+                motivoOtroInput?.classList.toggle('d-none', !usaOtro);
+
+                if (motivoOtroInput) {
+                    motivoOtroInput.required = usaOtro;
+                }
+            }
+
+            function unidadSeleccionadaEsDelegaciones() {
+                if (tieneHechoVinculado) {
+                    return false;
+                }
+
+                const unidadId = unidadSelect
+                    ? Number(unidadSelect.value || 0)
+                    : Number(unidadFijaId || 0);
+
+                return unidadId === Number(unidadDelegacionesId);
+            }
+
+            function debeUsarPuestaVinculada() {
+                return unidadSeleccionadaEsDelegaciones()
+                    && normalizarMotivo(motivoActual()).includes('HECHO DE TRANSITO');
+            }
+
+            function actualizarAvisoHechoTransito() {
+                const debeVincular = debeUsarPuestaVinculada();
+
+                avisoHechoTransito?.classList.toggle('d-none', !debeVincular);
+                hechoTurnadoGroup?.classList.toggle('d-none', !debeVincular);
+
+                if (hechoTurnadoSelect) {
+                    hechoTurnadoSelect.disabled = !debeVincular;
+                    hechoTurnadoSelect.required = debeVincular;
+
+                    if (!debeVincular) {
+                        hechoTurnadoSelect.value = '';
+                    }
+                }
+            }
+
+            function rellenarSiVacio(input, value) {
+                if (input && String(input.value || '').trim() === '' && String(value || '').trim() !== '') {
+                    input.value = value;
+                }
+            }
+
+            function aplicarDatosHechoTurnado() {
+                const selected = hechoTurnadoSelect?.options[hechoTurnadoSelect.selectedIndex];
+
+                if (!selected || !selected.value) {
+                    return;
+                }
+
+                if (tipoPuestaInput && selected.dataset.tipoPuesta) {
+                    tipoPuestaInput.value = selected.dataset.tipoPuesta;
+                }
+
+                rellenarSiVacio(fechaPuestaInput, selected.dataset.fechaPuesta);
+                rellenarSiVacio(horaPuestaInput, selected.dataset.horaPuesta);
+                rellenarSiVacio(lugarPuestaInput, selected.dataset.lugarPuesta);
+                rellenarSiVacio(nombrePoliciaInput, selected.dataset.nombrePolicia);
+                rellenarSiVacio(oficioInput, selected.dataset.oficio);
             }
 
             function sourceAttrs(kind, key) {
@@ -1087,9 +1266,44 @@
                 }
             });
 
+            motivoInput?.addEventListener('change', function () {
+                actualizarMotivoOtro();
+                actualizarAvisoHechoTransito();
+            });
+            motivoOtroInput?.addEventListener('input', actualizarAvisoHechoTransito);
+            unidadSelect?.addEventListener('change', actualizarAvisoHechoTransito);
+            hechoTurnadoSelect?.addEventListener('change', aplicarDatosHechoTurnado);
+
+            formPuesta?.addEventListener('submit', function (e) {
+                if (!debeUsarPuestaVinculada() || hechoTurnadoSelect?.value) {
+                    return;
+                }
+
+                e.preventDefault();
+
+                if (typeof Swal === 'undefined') {
+                    hechoTurnadoSelect?.focus();
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Selecciona el hecho turnado',
+                    text: 'Para HECHO DE TRANSITO, elige el ID del hecho TURNADO que quedará vinculado a esta puesta.',
+                    confirmButtonText: 'Aceptar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        hechoTurnadoSelect?.focus();
+                    }
+                });
+            });
+
             document.addEventListener('DOMContentLoaded', function () {
                 inicializarBloques();
                 syncSourceCheckboxesFromBlocks();
+                actualizarMotivoOtro();
+                actualizarAvisoHechoTransito();
+                aplicarDatosHechoTurnado();
             });
         })();
 

@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class OficioController extends Controller
 {
+    private const NUMERO_SALIDA_MANUAL = true;
+
     public function index(Request $request)
     {
         $query = $this->queryOficiosVisibles()
@@ -72,6 +74,7 @@ class OficioController extends Controller
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
             'oficiosParaContestar' => $this->oficiosParaContestar($unidadId ?: null),
             'puedeElegirUnidad' => $this->actorEsSuperadmin(),
+            'numeroSalidaManual' => self::NUMERO_SALIDA_MANUAL,
             'numeroPreviewSalida' => $oficio->sentido === 'salida'
                 ? $this->previsualizarNumeroSalida((int) $oficio->unidad_id, $oficio->fecha_documento)
                 : null,
@@ -184,6 +187,7 @@ class OficioController extends Controller
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
             'oficiosParaContestar' => $this->oficiosParaContestar((int) $oficio->unidad_id, (int) $oficio->id),
             'puedeElegirUnidad' => $this->actorEsSuperadmin(),
+            'numeroSalidaManual' => self::NUMERO_SALIDA_MANUAL,
         ]);
     }
 
@@ -339,7 +343,7 @@ class OficioController extends Controller
         $sentido = (string) $request->input('sentido', 'entrada');
         $numeroRules = ['nullable', 'string', 'max:500'];
 
-        if ($sentido !== 'salida') {
+        if ($sentido !== 'salida' || self::NUMERO_SALIDA_MANUAL) {
             $numeroUnico = Rule::unique('oficios', 'numero_oficio')
                 ->where(fn ($q) => $q->where('unidad_id', $unidadId));
 
@@ -387,7 +391,7 @@ class OficioController extends Controller
     private function datosParaGuardar(array $validated, int $unidadId): array
     {
         return [
-            'numero_oficio' => $validated['sentido'] === 'salida'
+            'numero_oficio' => $validated['sentido'] === 'salida' && !self::NUMERO_SALIDA_MANUAL
                 ? null
                 : trim((string) ($validated['numero_oficio'] ?? '')),
             'tipo' => $validated['tipo'],
@@ -472,6 +476,10 @@ class OficioController extends Controller
     private function asignarNumeroSalida(array &$data, ?Oficio $oficio = null): void
     {
         if (($data['sentido'] ?? null) !== 'salida') {
+            return;
+        }
+
+        if (self::NUMERO_SALIDA_MANUAL) {
             return;
         }
 

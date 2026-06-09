@@ -62,16 +62,21 @@ class OficiosUnidadScopeTest extends TestCase
         $this->assertStringContainsString('WHATSAPP_OFICIOS_TERMINOS_TO', $config);
     }
 
-    public function test_las_salidas_generan_numero_y_las_entradas_lo_capturan_manual(): void
+    public function test_las_salidas_sugieren_numero_automatico_editable_temporalmente(): void
     {
         $controller = $this->source('app/Http/Controllers/OficioController.php');
         $model = $this->source('app/Models/Oficio.php');
         $form = $this->source('resources/views/admin/settings/oficios/_form.blade.php');
 
+        $this->assertStringContainsString('private const NUMERO_SALIDA_MANUAL = true;', $controller);
+        $this->assertStringContainsString("\$oficio->sentido === 'salida'", $controller);
+        $this->assertStringContainsString('previsualizarNumeroSalida', $controller);
         $this->assertStringContainsString('private function asignarNumeroSalida', $controller);
         $this->assertStringContainsString('private function siguienteNumeroSalida', $controller);
         $this->assertStringContainsString("sprintf('%s/%03d/%d'", $controller);
-        $this->assertStringContainsString("if (\$sentido !== 'salida')", $controller);
+        $this->assertStringContainsString("if (\$sentido !== 'salida' || self::NUMERO_SALIDA_MANUAL)", $controller);
+        $this->assertStringContainsString("\$validated['sentido'] === 'salida' && !self::NUMERO_SALIDA_MANUAL", $controller);
+        $this->assertStringContainsString('if (self::NUMERO_SALIDA_MANUAL)', $controller);
         $this->assertStringContainsString('public static function prefijoParaUnidad', $model);
         $this->assertStringContainsString("'siniestros' => 'UAS'", $model);
         $this->assertStringContainsString("'delegaciones' => 'UD'", $model);
@@ -80,8 +85,14 @@ class OficiosUnidadScopeTest extends TestCase
         $this->assertStringContainsString("'vialidades-urbanas' => 'UPVU'", $model);
         $this->assertStringContainsString("'cultura-vial' => 'UFCV'", $model);
         $this->assertStringContainsString("'fomento-cultura-vial' => 'UFCV'", $model);
-        $this->assertStringContainsString('Se asignará automáticamente al guardar', $form);
-        $this->assertStringContainsString('Para documentos de entrada, escribe el número', $form);
+        $this->assertStringContainsString('const numeroSalidaManual', $form);
+        $this->assertStringContainsString('data-preview-numero', $form);
+        $this->assertStringContainsString('sugerenciaNumeroSalida', $form);
+        $this->assertStringContainsString('salidaEditable', $form);
+        $this->assertStringContainsString('Captura el número del documento enviado', $form);
+        $this->assertStringContainsString('Número sugerido automáticamente; puedes ajustarlo si hace falta.', $form);
+        $this->assertStringContainsString('Número de salida editable; conserva el formato de la unidad.', $form);
+        $this->assertStringContainsString('Para documentos recibidos, escribe el número', $form);
         $this->assertStringContainsString('El movimiento no puede cambiarse después del registro.', $form);
     }
 

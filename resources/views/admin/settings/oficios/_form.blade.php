@@ -10,6 +10,7 @@
     $bloquearSentido = $oficio->exists;
     $prefijosUnidad = $prefijosUnidad ?? [];
     $numeroPreviewSalida = $numeroPreviewSalida ?? null;
+    $numeroSalidaManual = $numeroSalidaManual ?? false;
     $anioOriginal = $oficio->exists ? optional($oficio->fecha_documento ?: $oficio->created_at)->format('Y') : null;
     $numeroValue = old('numero_oficio', $oficio->numero_oficio);
 
@@ -99,12 +100,13 @@
                    class="form-control oficio-numero @error('numero_oficio') is-invalid @enderror"
                    value="{{ $numeroValue }}"
                    maxlength="500"
-                   {{ $esSalida ? 'readonly' : 'required' }}
+                   {{ $esSalida && !$numeroSalidaManual ? 'readonly' : 'required' }}
                    data-original-numero="{{ $oficio->numero_oficio }}"
                    data-original-salida="{{ $oficio->exists && $oficio->sentido === 'salida' ? '1' : '0' }}"
                    data-original-unidad="{{ $oficio->unidad_id }}"
                    data-original-anio="{{ $anioOriginal }}"
-                   placeholder="{{ $esSalida ? 'Se asignará al guardar' : 'Ej. SSV/DAJ/AM/000000000000/2026' }}">
+                   data-preview-numero="{{ $numeroPreviewSalida }}"
+                   placeholder="{{ $esSalida && !$numeroSalidaManual ? 'Se asignará al guardar' : 'Ej. SSV/DAJ/AM/000000000000/2026' }}">
             <small id="numero_help" class="form-text text-muted"></small>
             @error('numero_oficio') <span class="invalid-feedback">{{ $message }}</span> @enderror
         </div>
@@ -272,6 +274,7 @@
         const prefijos = @json($prefijosUnidad);
         const bloquearSentido = @json($bloquearSentido);
         const oficioExiste = @json($oficio->exists);
+        const numeroSalidaManual = @json($numeroSalidaManual);
         const previewUrl = @json(route('oficios.preview-numero'));
         let previewRequestId = 0;
 
@@ -279,15 +282,24 @@
             return;
         }
 
+        let sugerenciaNumeroSalida = numero.dataset.previewNumero || '';
+        let numeroEditadoManualmente = numeroSalidaManual
+            && sentido.value === 'salida'
+            && numero.value.trim() !== ''
+            && numero.value.trim() !== sugerenciaNumeroSalida;
+
         if (bloquearSentido) {
             sentido.disabled = true;
         }
 
-        const fetchNumeroPreview = function (unidadId) {
+        const fetchNumeroPreview = function (unidadId, options = {}) {
             const requestId = ++previewRequestId;
+            const salidaEditable = !!options.salidaEditable;
 
             if (!previewUrl || !unidadId) {
-                numero.value = '';
+                if (!salidaEditable || !numeroEditadoManualmente) {
+                    numero.value = '';
+                }
                 ayuda.textContent = 'Selecciona la unidad para calcular el número de salida.';
                 return;
             }
@@ -320,6 +332,20 @@
                     }
 
                     const preview = data.numero_oficio || '';
+                    sugerenciaNumeroSalida = preview;
+
+                    if (salidaEditable) {
+                        if (preview && (!numeroEditadoManualmente || numero.value.trim() === '')) {
+                            numero.value = preview;
+                            numeroEditadoManualmente = false;
+                        }
+
+                        ayuda.textContent = preview
+                            ? 'Número sugerido automáticamente; puedes ajustarlo si hace falta.'
+                            : 'Captura el número del documento enviado.';
+                        return;
+                    }
+
                     numero.value = preview;
                     ayuda.textContent = preview
                         ? 'Número de oficio previsto. Se confirmará al guardar.'
@@ -330,22 +356,28 @@
                         return;
                     }
 
-                    numero.value = '';
-                    ayuda.textContent = 'No se pudo calcular la vista previa. Se asignará al guardar.';
+                    if (!salidaEditable) {
+                        numero.value = '';
+                    }
+
+                    ayuda.textContent = salidaEditable
+                        ? 'No se pudo calcular la sugerencia; captura el número manualmente.'
+                        : 'No se pudo calcular la vista previa. Se asignará al guardar.';
                 });
         };
 
         const updateNumeroState = function () {
             const esSalida = sentido.value === 'salida';
+            const numeroAutomaticoSalida = esSalida && !numeroSalidaManual;
             const anio = fecha && fecha.value ? fecha.value.substring(0, 4) : String(new Date().getFullYear());
             const unidadId = unidad ? unidad.value : '';
             const prefijo = prefijos[unidadId] || 'OF';
             const ejemplo = `${prefijo}/001/${anio}`;
 
-            numero.readOnly = esSalida;
-            numero.required = !esSalida;
+            numero.readOnly = numeroAutomaticoSalida;
+            numero.required = !numeroAutomaticoSalida;
 
-            if (esSalida) {
+            if (numeroAutomaticoSalida) {
                 const conservaOriginal = numero.dataset.originalSalida === '1'
                     && String(unidadId) === String(numero.dataset.originalUnidad || '')
                     && String(anio) === String(numero.dataset.originalAnio || '');
@@ -369,9 +401,29 @@
             }
 
             previewRequestId++;
-            numero.placeholder = 'Captura el número del documento recibido';
-            ayuda.textContent = 'Para documentos recibidos, escribe el número tal como llega de la institución remitente.';
+            numero.placeholder = esSalida
+                ? 'Captura el número del documento enviado'
+                : 'Captura el número del documento recibido';
+
+            if (esSalida && !oficioExiste) {
+                ayuda.textContent = 'Calculando número sugerido...';
+                fetchNumeroPreview(unidadId, { salidaEditable: true });
+                return;
+            }
+
+            ayuda.textContent = esSalida
+                ? 'Número de salida editable; conserva el formato de la unidad.'
+                : 'Para documentos recibidos, escribe el número tal como llega de la institución remitente.';
         };
+
+        numero.addEventListener('input', function () {
+            if (sentido.value !== 'salida' || !numeroSalidaManual) {
+                return;
+            }
+
+            numeroEditadoManualmente = numero.value.trim() !== ''
+                && numero.value.trim() !== sugerenciaNumeroSalida;
+        });
 
         sentido.addEventListener('change', updateNumeroState);
 

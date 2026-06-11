@@ -26,19 +26,22 @@ class FeedController extends Controller
         }
 
         $usuario = Auth::user();
+        $userIdFilter = $this->parseUserIdFilter($request, $usuario);
+        $dateRange = $this->parseDateRange($request);
         $limit = (int)$request->query('limit', 50);
         if ($limit < 1) $limit = 1;
-        if ($limit > 50) $limit = 50;
+        $maxLimit = $userIdFilter ? 200 : 50;
+        if ($limit > $maxLimit) $limit = $maxLimit;
 
         $contexto = $this->resolverContextoUnidades($request, $usuario);
         $unidadIds = $contexto['unidad_ids'];
         $delegacionIds = $contexto['delegacion_ids'];
         $hechosUnidadIds = $contexto['hechos_unidad_ids'];
 
-        $hechos = $this->obtenerRowsFeed($this->queryHechos($hechosUnidadIds, false, 1, $usuario, $delegacionIds), $limit);
-        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario, $delegacionIds), $limit);
-        $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds, false, 3, $usuario), $limit);
-        $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds), $limit);
+        $hechos = $this->obtenerRowsFeed($this->queryHechos($hechosUnidadIds, false, 1, $usuario, $delegacionIds, $userIdFilter, $dateRange), $limit);
+        $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario, $delegacionIds, $userIdFilter, $dateRange), $limit);
+        $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds, false, 3, $usuario, $userIdFilter, $dateRange), $limit);
+        $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds, false, 4, $userIdFilter, $dateRange), $limit);
 
         $items = $hechos->concat($actividades)->concat($carreteras)->concat($vialidades)
             ->sortByDesc('created_at')
@@ -91,9 +94,12 @@ class FeedController extends Controller
     private function indexV2(Request $request)
     {
         $usuario = Auth::user();
+        $userIdFilter = $this->parseUserIdFilter($request, $usuario);
+        $dateRange = $this->parseDateRange($request);
         $limit = (int)$request->query('limit', 20);
         if ($limit < 1) $limit = 1;
-        if ($limit > 50) $limit = 50;
+        $maxLimit = $userIdFilter ? 200 : 50;
+        if ($limit > $maxLimit) $limit = $maxLimit;
 
         $cursor = (string)$request->query('cursor', '');
         $cursorData = $this->decodeCursor($cursor);
@@ -103,10 +109,10 @@ class FeedController extends Controller
         $hechosUnidadIds = $contexto['hechos_unidad_ids'];
 
         $sources = collect([
-            $this->queryHechos($hechosUnidadIds, true, 1, $usuario, $delegacionIds),
-            $this->queryActividades($unidadIds, true, 2, $usuario, $delegacionIds),
-            $this->queryCarreteras($unidadIds, true, 3, $usuario),
-            $this->queryVialidades($unidadIds, true, 4),
+            $this->queryHechos($hechosUnidadIds, true, 1, $usuario, $delegacionIds, $userIdFilter, $dateRange),
+            $this->queryActividades($unidadIds, true, 2, $usuario, $delegacionIds, $userIdFilter, $dateRange),
+            $this->queryCarreteras($unidadIds, true, 3, $usuario, $userIdFilter, $dateRange),
+            $this->queryVialidades($unidadIds, true, 4, $userIdFilter, $dateRange),
         ])->filter();
 
         $union = null;
@@ -389,6 +395,110 @@ class FeedController extends Controller
             ->all();
     }
 
+    private function parseUserIdFilter(Request $request, $usuario): ?int
+    {
+        $raw = $request->query('user_id', null);
+
+        if ($raw === null || $raw === '' || $raw === []) {
+            $raw = $request->query('created_by', null);
+        }
+
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+
+        $requestedId = (int)$raw;
+        $currentUserId = (int)($usuario->id ?? 0);
+
+        if ($requestedId <= 0 || $currentUserId <= 0) {
+            return null;
+        }
+
+        return $currentUserId;
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        $date = $this->parseDateOnly($request->query('date', null));
+
+        if ($date === null) {
+            $date = $this->parseDateOnly($request->query('fecha', null));
+        }
+
+        if ($date !== null) {
+            return ['desde' => $date, 'hasta' => $date];
+        }
+
+        $desde = $this->parseDateOnly(
+            $request->query('desde', null)
+                ?? $request->query('from', null)
+                ?? $request->query('start_date', null)
+        );
+        $hasta = $this->parseDateOnly(
+            $request->query('hasta', null)
+                ?? $request->query('to', null)
+                ?? $request->query('end_date', null)
+        );
+
+        if ($desde !== null && $hasta === null) {
+            $hasta = $desde;
+        }
+
+        if ($desde === null && $hasta !== null) {
+            $desde = $hasta;
+        }
+
+        if ($desde !== null && $hasta !== null && strcmp($desde, $hasta) > 0) {
+            [$desde, $hasta] = [$hasta, $desde];
+        }
+
+        return ['desde' => $desde, 'hasta' => $hasta];
+    }
+
+    private function parseDateOnly($value): ?string
+    {
+        $text = trim((string)$value);
+
+        if ($text === '') {
+            return null;
+        }
+
+        $text = substr($text, 0, 10);
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $text)) {
+            return null;
+        }
+
+        try {
+            return (new \DateTimeImmutable($text))->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function applyUserFilter($query, string $column, ?int $userId): void
+    {
+        if ($userId === null || $userId <= 0) {
+            return;
+        }
+
+        $query->where($column, $userId);
+    }
+
+    private function applyDateRange($query, string $column, array $dateRange): void
+    {
+        $desde = $dateRange['desde'] ?? null;
+        $hasta = $dateRange['hasta'] ?? null;
+
+        if ($desde !== null) {
+            $query->whereDate($column, '>=', $desde);
+        }
+
+        if ($hasta !== null) {
+            $query->whereDate($column, '<=', $hasta);
+        }
+    }
+
     private function obtenerRowsFeed($source, int $limit): Collection
     {
         if ($source instanceof Collection) {
@@ -505,7 +615,7 @@ class FeedController extends Controller
             || $usuario->hasRole('Subdirector');
     }
 
-    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null, array $delegacionIds = [])
+    private function queryHechos(array $unidadIds, bool $forUnion = false, int $typeOrder = 1, $usuario = null, array $delegacionIds = [], ?int $userIdFilter = null, array $dateRange = [])
     {
         if (empty($unidadIds)) {
             return $forUnion ? null : collect();
@@ -524,6 +634,8 @@ class FeedController extends Controller
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
         $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
         $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
+        $this->applyUserFilter($q, 'h.created_by', $userIdFilter);
+        $this->applyDateRange($q, 'h.created_at', $dateRange);
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -561,7 +673,7 @@ class FeedController extends Controller
         ")->orderByDesc('h.created_at')->orderByDesc('h.id');
     }
 
-    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2, $usuario = null, array $delegacionIds = [])
+    private function queryActividades(array $unidadIds, bool $forUnion = false, int $typeOrder = 2, $usuario = null, array $delegacionIds = [], ?int $userIdFilter = null, array $dateRange = [])
     {
         if (empty($unidadIds)) {
             return $forUnion ? null : collect();
@@ -590,6 +702,8 @@ class FeedController extends Controller
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
         $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
         $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
+        $this->applyUserFilter($q, 'a.created_by', $userIdFilter);
+        $this->applyDateRange($q, 'a.created_at', $dateRange);
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -657,7 +771,7 @@ class FeedController extends Controller
         )";
     }
 
-    private function queryCarreteras(array $unidadIds, bool $forUnion = false, int $typeOrder = 3, $usuario = null)
+    private function queryCarreteras(array $unidadIds, bool $forUnion = false, int $typeOrder = 3, $usuario = null, ?int $userIdFilter = null, array $dateRange = [])
     {
         if (!Schema::hasTable('operativo_dispositivos') || !in_array(4, $unidadIds, true)) {
             return $forUnion ? null : collect();
@@ -680,6 +794,8 @@ class FeedController extends Controller
                 $w->orWhere('od.user_id', $userId);
             }
         });
+        $this->applyUserFilter($q, 'od.created_by', $userIdFilter);
+        $this->applyDateRange($q, 'od.created_at', $dateRange);
 
         if ($forUnion) {
             return $q->selectRaw("
@@ -753,7 +869,7 @@ class FeedController extends Controller
         )";
     }
 
-    private function queryVialidades(array $unidadIds, bool $forUnion = false, int $typeOrder = 4)
+    private function queryVialidades(array $unidadIds, bool $forUnion = false, int $typeOrder = 4, ?int $userIdFilter = null, array $dateRange = [])
     {
         if (!Schema::hasTable('vialidad_dispositivos') || !Schema::hasTable('vialidad_dispositivo_detalles') || !in_array(5, $unidadIds, true)) {
             return $forUnion ? null : collect();
@@ -772,6 +888,8 @@ class FeedController extends Controller
         } elseif (Schema::hasColumn('users', 'unidad_id')) {
             $q->where('u.unidad_id', 5);
         }
+        $this->applyUserFilter($q, 'vd.created_by', $userIdFilter);
+        $this->applyDateRange($q, 'vd.created_at', $dateRange);
 
         $resumenSql = "COALESCE((
             SELECT CONCAT(

@@ -217,7 +217,7 @@ class FetchWazeAlerts extends Command
             ->where('device_tokens.token', '!=', '')
             ->where('users.unidad_id', $unidadId);
 
-        $this->excludeMotociclistaUsers($query);
+        $this->excludeVialidadesUrbanasNoWazeUsers($query);
 
         return $query->when(!empty($excludeUserIds), function ($q) use ($excludeUserIds) {
                 $q->whereNotIn('users.id', $excludeUserIds);
@@ -235,7 +235,7 @@ class FetchWazeAlerts extends Command
             ->whereNotNull('device_tokens.token')
             ->where('device_tokens.token', '!=', '');
 
-        $this->excludeMotociclistaUsers($query);
+        $this->excludeVialidadesUrbanasNoWazeUsers($query);
 
         return $query->when(!empty($excludeUnidadIds), function ($q) use ($excludeUnidadIds) {
                 $q->where(function ($sub) use ($excludeUnidadIds) {
@@ -275,7 +275,7 @@ class FetchWazeAlerts extends Command
             ->whereNotNull('device_tokens.token')
             ->where('device_tokens.token', '!=', '');
 
-        $this->excludeMotociclistaUsers($query);
+        $this->excludeVialidadesUrbanasNoWazeUsers($query);
 
         return $query->where('users.compartir_ubicacion', 1)
             ->whereNotNull('user_locations.lat')
@@ -292,14 +292,20 @@ class FetchWazeAlerts extends Command
             ->toArray();
     }
 
-    private function excludeMotociclistaUsers($query): void
+    private function excludeVialidadesUrbanasNoWazeUsers($query): void
     {
         $query->whereNotExists(function ($sub) {
             $sub->select(DB::raw(1))
                 ->from('model_has_roles as mhr')
                 ->join('roles', 'roles.id', '=', 'mhr.role_id')
                 ->whereColumn('mhr.model_id', 'users.id')
-                ->whereRaw('UPPER(roles.name) = ?', ['MOTOCICLISTA']);
+                ->where('users.unidad_id', 5)
+                ->whereIn(DB::raw('UPPER(roles.name)'), [
+                    'MOTOCICLISTA',
+                    'AGENTE VIAL',
+                    'FENIX',
+                    'FÉNIX',
+                ]);
         });
     }
 

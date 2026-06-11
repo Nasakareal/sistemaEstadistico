@@ -38,6 +38,13 @@ return [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN', 'seguridadvial_token'),
         'default_to' => env('WHATSAPP_DEFAULT_TO'),
 
+        'equinos_bridge' => [
+            'enabled' => filter_var(env('WHATSAPP_EQUINOS_BRIDGE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'url' => env('WHATSAPP_EQUINOS_BRIDGE_URL', 'https://equinosycaninos.com/api/whatsapp/webhook'),
+            'phones' => array_values(array_filter(array_map('trim', explode(',', env('WHATSAPP_EQUINOS_BRIDGE_PHONES', ''))))),
+            'timeout' => (int) env('WHATSAPP_EQUINOS_BRIDGE_TIMEOUT', 60),
+        ],
+
         'siniestros' => [
             'to' => env('WHATSAPP_SINIESTROS_TO'),
             'firma' => env('WHATSAPP_SINIESTROS_FIRMA', 'SUBDIRECTOR DE LA UNIDAD DE ATENCIÓN A SINIESTROS LIC. JULIO ERNESTO BAUTISTA JIMÉNEZ'),

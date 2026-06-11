@@ -31,7 +31,7 @@ class DeviceTokenController extends Controller
         $platform = (string) $request->input('platform');
         $now = Carbon::now('America/Mexico_City');
 
-        if ($this->isMotociclistaVialidadesUser($user)) {
+        if ($this->isVialidadesUrbanasNoWazeUser($user)) {
             DeviceToken::query()
                 ->where('user_id', (int) $user->id)
                 ->delete();
@@ -67,9 +67,17 @@ class DeviceTokenController extends Controller
         ]);
     }
 
-    private function isMotociclistaVialidadesUser($user): bool
+    private function isVialidadesUrbanasNoWazeUser($user): bool
     {
-        return (int) ($user->unidad_id ?? 0) === 5
-            && $user->hasRole('Motociclista');
+        if ((int) ($user->unidad_id ?? 0) !== 5) {
+            return false;
+        }
+
+        return $user->hasAnyRole([
+            'Motociclista',
+            'Agente Vial',
+            'Fenix',
+            'Fénix',
+        ]);
     }
 }

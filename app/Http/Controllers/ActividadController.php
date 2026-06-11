@@ -1394,18 +1394,18 @@ class ActividadController extends Controller
         $fotos = $actividad->fotos
             ->sortBy([['orden', 'asc'], ['id', 'asc']])
             ->map(function ($foto) {
-                $path = $foto->foto_thumbnail_path ?: $foto->foto_path ?: $foto->foto_thumbnail_blob_path ?: $foto->foto_blob_path;
+                $path = $foto->foto_path ?: $foto->foto_blob_path ?: $foto->foto_thumbnail_path ?: $foto->foto_thumbnail_blob_path;
 
-                return $path ? route('actividades.fotos.archivo', [$foto->id, 'thumbnail']) : null;
+                return $path ? route('actividades.fotos.archivo', [$foto->id, 'original']) : null;
             })
             ->filter()
             ->values();
 
-        $fotoActividad = $actividad->foto_thumbnail_path ?: $actividad->foto_path ?: $actividad->foto_thumbnail_blob_path ?: $actividad->foto_blob_path;
+        $fotoActividad = $actividad->foto_path ?: $actividad->foto_blob_path ?: $actividad->foto_thumbnail_path ?: $actividad->foto_thumbnail_blob_path;
 
         if ($fotos->isEmpty() && $fotoActividad) {
             $fotos = collect([
-                route('actividades.fotos.principal_archivo', [$actividad->id, 'thumbnail']),
+                route('actividades.fotos.principal_archivo', [$actividad->id, 'original']),
             ]);
         }
 

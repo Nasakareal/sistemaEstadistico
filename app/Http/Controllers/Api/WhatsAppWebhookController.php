@@ -71,6 +71,13 @@ class WhatsAppWebhookController extends Controller
 
         foreach ($messages as $message) {
             try {
+                $from = $this->normalizePhone((string) ($message['from'] ?? ''));
+
+                if ($from !== '' && $this->shouldForwardToEquinosBridge($from)) {
+                    $this->forwardToEquinosWebhook($payload, $message, $from);
+                    continue;
+                }
+
                 $this->processIncomingMessage($message);
             } catch (\Throwable $e) {
                 Log::error('WA error procesando mensaje', [
@@ -1018,6 +1025,87 @@ class WhatsAppWebhookController extends Controller
     protected function normalizePhone(string $value): string
     {
         return preg_replace('/\D+/', '', $value);
+    }
+
+    protected function shouldForwardToEquinosBridge(string $from): bool
+    {
+        if (!filter_var(config('services.whatsapp.equinos_bridge.enabled', false), FILTER_VALIDATE_BOOLEAN)) {
+            return false;
+        }
+
+        $phones = $this->normalizeEquinosBridgePhones((array) config('services.whatsapp.equinos_bridge.phones', []));
+
+        return in_array($from, $phones, true);
+    }
+
+    protected function normalizeEquinosBridgePhones(array $phones): array
+    {
+        $normalized = [];
+
+        foreach ($phones as $phone) {
+            $value = $this->normalizePhone((string) $phone);
+
+            if ($value === '') {
+                continue;
+            }
+
+            $normalized[] = $value;
+
+            foreach ($this->mexicoPhoneVariants($value) as $variant) {
+                $normalized[] = $variant;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    protected function mexicoPhoneVariants(string $phone): array
+    {
+        if (preg_match('/^521(\d{10})$/', $phone, $matches)) {
+            return ['52' . $matches[1]];
+        }
+
+        if (preg_match('/^52(\d{10})$/', $phone, $matches)) {
+            return ['521' . $matches[1]];
+        }
+
+        return [];
+    }
+
+    protected function forwardToEquinosWebhook(array $payload, array $message, string $from): bool
+    {
+        $url = trim((string) config('services.whatsapp.equinos_bridge.url', ''));
+
+        if ($url === '') {
+            Log::warning('WA Equinos bridge sin URL configurada', [
+                'from' => $from,
+            ]);
+
+            return false;
+        }
+
+        try {
+            $response = Http::timeout((int) config('services.whatsapp.equinos_bridge.timeout', 60))
+                ->acceptJson()
+                ->asJson()
+                ->post($url, $payload);
+
+            Log::info('WA Equinos bridge response', [
+                'from' => $from,
+                'status' => $response->status(),
+                'ok' => $response->successful(),
+                'body' => $response->json(),
+            ]);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::error('WA Equinos bridge error', [
+                'from' => $from,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     protected function isResetCommand(string $value): bool

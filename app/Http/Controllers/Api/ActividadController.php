@@ -965,6 +965,7 @@ class ActividadController extends Controller
 
         $fecha = $actividad->fecha ? Carbon::parse($actividad->fecha)->format('d/m/Y') : '';
         $hora = $actividad->hora ? substr((string)$actividad->hora, 0, 5) : '';
+        [$lat, $lng, $coordenadas] = $this->coordenadasActividad($actividad);
 
         $texto = "GUARDIA CIVIL\n\n";
         $texto .= "COORDINACIÓN DEL AGRUPAMIENTO DE SEGURIDAD VIAL\n\n";
@@ -981,8 +982,25 @@ class ActividadController extends Controller
 
         $texto .= "ID DE ACTIVIDAD: {$actividad->id}\n\n";
 
-        if ($fecha) $texto .= "FECHA {$fecha}\n";
-        if ($hora) $texto .= "HORA {$hora}\n\n";
+        if ($fecha) {
+            $texto .= "FECHA {$fecha}\n";
+        }
+
+        if ($hora) {
+            $texto .= "HORA {$hora}\n";
+        }
+
+        if ($coordenadas !== '') {
+            $texto .= "COORDENADAS: {$coordenadas}\n";
+
+            if ($lat !== null && $lng !== null) {
+                $texto .= "GOOGLE MAPS: https://www.google.com/maps?q={$lat},{$lng}\n";
+            }
+        }
+
+        if ($hora || $coordenadas !== '') {
+            $texto .= "\n";
+        }
 
         if ($actividad->motivo) {
             $texto .= "ASUNTO: " . mb_strtoupper($actividad->motivo, 'UTF-8') . "\n\n";
@@ -1065,6 +1083,33 @@ class ActividadController extends Controller
             'texto'=>trim($texto),
             'fotos'=>[]
         ]);
+    }
+
+    private function coordenadasActividad(Actividad $actividad): array
+    {
+        $lat = $this->formatearCoordenadaActividad($actividad->lat ?? null);
+        $lng = $this->formatearCoordenadaActividad($actividad->lng ?? null);
+
+        if ($lat !== null && $lng !== null) {
+            return [$lat, $lng, "{$lat}, {$lng}"];
+        }
+
+        $coordenadasTexto = trim((string) ($actividad->coordenadas_texto ?? ''));
+
+        return [null, null, $coordenadasTexto];
+    }
+
+    private function formatearCoordenadaActividad($coordenada): ?string
+    {
+        if ($coordenada === null || $coordenada === '') {
+            return null;
+        }
+
+        if (!is_numeric($coordenada)) {
+            return null;
+        }
+
+        return number_format((float) $coordenada, 7, '.', '');
     }
 
     private function applyActividadesVisibilityScope($query, $usuario): void

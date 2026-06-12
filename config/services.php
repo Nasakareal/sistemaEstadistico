@@ -18,6 +18,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'inegi_choques' => [
+        'mail_to' => env('INEGI_CHOQUES_MAIL_TO', ''),
+        'mail_cc' => env('INEGI_CHOQUES_MAIL_CC', ''),
+        'mail_bcc' => env('INEGI_CHOQUES_MAIL_BCC', ''),
+        'schedule_time' => env('INEGI_CHOQUES_SCHEDULE_TIME', '02:00'),
+        'template_path' => env('INEGI_CHOQUES_TEMPLATE_PATH', ''),
+    ],
+
     'waze' => [
         'feed_url' => env('WAZE_FEED_URL'),
         'morelia_user_ids' => array_values(array_filter(array_map('intval', explode(',', env('WAZE_MORELIA_USER_IDS', ''))))),

@@ -36,6 +36,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('18:00')
             ->withoutOverlapping();
 
+        $schedule->command('inegi:enviar-choques')
+            ->timezone($timezone)
+            ->dailyAt((string) config('services.inegi_choques.schedule_time', '02:00'))
+            ->withoutOverlapping();
+
         $schedule->command('siniestros:generar-parte-novedades-diario')
             ->timezone($timezone)
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))

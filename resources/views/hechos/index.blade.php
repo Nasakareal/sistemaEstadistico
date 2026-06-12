@@ -41,7 +41,7 @@
                                 type="date"
                                 id="fecha_filtro"
                                 name="fecha"
-                                class="form-control"
+                                class="form-control hechos-date-picker"
                                 value="{{ $fechaFiltro }}"
                             >
                             <div class="form-check mt-2">
@@ -79,7 +79,7 @@
                         @endif
 
                         <div class="{{ $puedeFiltrarUnidad ? 'col-md-3' : 'col-md-6' }} d-flex align-items-end flex-wrap">
-                            <button type="submit" class="btn btn-primary mr-2">
+                            <button type="submit" class="btn hechos-date-filter-btn mr-2">
                                 <i class="fa-solid fa-filter"></i> Filtrar
                             </button>
 
@@ -334,6 +334,46 @@
             filter: invert(1);
             opacity: 0.9;
             cursor: pointer;
+        }
+
+        .hechos-date-picker.form-control {
+            min-height: 48px;
+            padding: .68rem 1rem;
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: #053942 !important;
+            background: linear-gradient(180deg, #5ff4ff 0%, #18c8d8 100%) !important;
+            border: 1px solid #90f8ff !important;
+            box-shadow: 0 6px 16px rgba(24, 200, 216, .28);
+        }
+
+        .hechos-date-picker.form-control:focus {
+            color: #053942 !important;
+            background: linear-gradient(180deg, #7af7ff 0%, #20d4e4 100%) !important;
+            border-color: #b8fbff !important;
+            box-shadow: 0 0 0 .2rem rgba(24, 200, 216, .32), 0 8px 18px rgba(24, 200, 216, .30) !important;
+        }
+
+        .hechos-date-picker.form-control::-webkit-calendar-picker-indicator {
+            filter: none;
+        }
+
+        .hechos-date-filter-btn {
+            min-height: 48px;
+            padding: .7rem 1.25rem;
+            font-size: 1.02rem;
+            font-weight: 700;
+            color: #053942;
+            background: #21d4e4;
+            border-color: #6ff3ff;
+            box-shadow: 0 6px 16px rgba(33, 212, 228, .26);
+        }
+
+        .hechos-date-filter-btn:hover,
+        .hechos-date-filter-btn:focus {
+            color: #032d34;
+            background: #5ff4ff;
+            border-color: #b8fbff;
         }
 
         .foto-thumb {

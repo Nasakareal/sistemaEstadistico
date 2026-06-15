@@ -77,6 +77,15 @@
                             </tr>
 
                             <tr>
+                                <td><strong>Mapa Regional Michoacán</strong></td>
+                                <td>
+                                    <a href="{{ route('estadisticas.mapaRegiones') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-map-marked-alt"></i> Ver Mapa
+                                    </a>
+                                </td>
+                            </tr>
+
+                            <tr>
                                 <td><strong>Presentación COEPRA: Sistema de Puntos en Licencias</strong></td>
                                 <td>
                                     <a href="{{ route('estadisticas.coepraPuntosLicencias.powerpoint') }}" class="btn btn-outline-primary btn-sm">

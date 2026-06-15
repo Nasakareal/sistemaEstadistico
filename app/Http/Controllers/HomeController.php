@@ -144,6 +144,8 @@ class HomeController extends Controller
 
         $this->applyDelegacionesScope($hechosQ, $usuario, $hechoDelegacionSql);
         $this->applyDelegacionesScope($actividadesQ, $usuario, $actividadDelegacionSql);
+        $this->applyActiveDelegacionFeedFilter($hechosQ, 'dh', 'duh');
+        $this->applyActiveDelegacionFeedFilter($actividadesQ, 'da', 'dua');
 
         if ($cursorCreatedAt && $cursorId) {
             $hechosQ->where(function ($q) use ($cursorCreatedAt, $cursorId) {
@@ -333,5 +335,21 @@ class HomeController extends Controller
         }
 
         $query->whereIn(DB::raw($delegacionSql), $ids);
+    }
+
+    private function applyActiveDelegacionFeedFilter($query, string $principalAlias, string $fallbackAlias): void
+    {
+        $query->where(function ($where) use ($principalAlias, $fallbackAlias) {
+            $where->where(function ($directa) use ($principalAlias) {
+                $directa->whereNotNull("{$principalAlias}.id")
+                    ->where("{$principalAlias}.activa", 1);
+            })->orWhere(function ($fallback) use ($principalAlias, $fallbackAlias) {
+                $fallback->whereNull("{$principalAlias}.id")
+                    ->where(function ($fallbackActiva) use ($fallbackAlias) {
+                        $fallbackActiva->whereNull("{$fallbackAlias}.id")
+                            ->orWhere("{$fallbackAlias}.activa", 1);
+                    });
+            });
+        });
     }
 }

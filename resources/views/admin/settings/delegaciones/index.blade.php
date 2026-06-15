@@ -14,6 +14,15 @@
                     <h3 class="card-title">Delegaciones Registradas</h3>
 
                     <div class="card-tools">
+                            <a href="{{ route('delegaciones.index') }}" class="btn btn-sm {{ (string)($activa ?? '1') === '1' ? 'btn-primary' : 'btn-outline-primary' }} mr-1">
+                                Activas
+                            </a>
+                            <a href="{{ route('delegaciones.index', ['activa' => 0]) }}" class="btn btn-sm {{ (string)($activa ?? '') === '0' ? 'btn-secondary' : 'btn-outline-secondary' }} mr-1">
+                                Inactivas
+                            </a>
+                            <a href="{{ route('delegaciones.index', ['activa' => 'todas']) }}" class="btn btn-sm {{ (string)($activa ?? '') === 'todas' ? 'btn-dark' : 'btn-outline-dark' }} mr-2">
+                                Todas
+                            </a>
                             <a href="{{ route('mapa.delegaciones.index') }}" class="btn btn-dark mr-2">
                                 <i class="fa-solid fa-map"></i> Ver mapa
                             </a>
@@ -91,14 +100,16 @@
                                             @endcan
 
                                             @can('eliminar delegaciones')
+                                                @if ($delegacion->activa)
                                                 <form action="{{ route('delegaciones.destroy', $delegacion) }}"
                                                       method="POST" style="display:inline-block;">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="button" class="btn btn-danger btn-sm delete-btn">
-                                                        <i class="fa-regular fa-trash-can"></i>
+                                                    <button type="button" class="btn btn-warning btn-sm deactivate-btn">
+                                                        <i class="fa-solid fa-ban"></i>
                                                     </button>
                                                 </form>
+                                                @endif
                                             @endcan
 
                                         </div>
@@ -185,19 +196,19 @@
             });
         @endif
 
-        $(document).on('click', '.delete-btn', function (e) {
+        $(document).on('click', '.deactivate-btn', function (e) {
             e.preventDefault();
 
             let form = $(this).closest('form');
 
             Swal.fire({
-                title: '¿Estás seguro de eliminar esta delegación?',
-                text: "¡No podrás revertir esta acción!",
+                title: '¿Desactivar esta delegación?',
+                text: 'No se borrarán registros históricos; dejará de salir en listados, feed, usuarios y mapa.',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#d33',
+                confirmButtonColor: '#f0ad4e',
                 cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Sí, eliminar',
+                confirmButtonText: 'Sí, desactivar',
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {

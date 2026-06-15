@@ -38,7 +38,7 @@ class Kernel extends ConsoleKernel
 
         $schedule->command('inegi:enviar-choques')
             ->timezone($timezone)
-            ->dailyAt((string) config('services.inegi_choques.schedule_time', '02:00'))
+            ->monthlyOn(1, (string) config('services.inegi_choques.schedule_time', '04:30'))
             ->withoutOverlapping();
 
         $schedule->command('siniestros:generar-parte-novedades-diario')

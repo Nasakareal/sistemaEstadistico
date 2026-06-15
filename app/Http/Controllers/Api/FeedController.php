@@ -594,6 +594,31 @@ class FeedController extends Controller
         $query->whereIn(DB::raw($delegacionSql), $delegacionIds);
     }
 
+    private function applyActiveDelegacionFeedFilter($query, string $principalAlias, ?string $fallbackAlias = null): void
+    {
+        if ($fallbackAlias === null) {
+            $query->where(function ($where) use ($principalAlias) {
+                $where->whereNull("{$principalAlias}.id")
+                    ->orWhere("{$principalAlias}.activa", 1);
+            });
+
+            return;
+        }
+
+        $query->where(function ($where) use ($principalAlias, $fallbackAlias) {
+            $where->where(function ($directa) use ($principalAlias) {
+                $directa->whereNotNull("{$principalAlias}.id")
+                    ->where("{$principalAlias}.activa", 1);
+            })->orWhere(function ($fallback) use ($principalAlias, $fallbackAlias) {
+                $fallback->whereNull("{$principalAlias}.id")
+                    ->where(function ($fallbackActiva) use ($fallbackAlias) {
+                        $fallbackActiva->whereNull("{$fallbackAlias}.id")
+                            ->orWhere("{$fallbackAlias}.activa", 1);
+                    });
+            });
+        });
+    }
+
     private function delegacionIdsVisibles($usuario): array
     {
         $delegacionId = (int) ($usuario->delegacion_id ?? 0);
@@ -632,6 +657,7 @@ class FeedController extends Controller
             ->leftJoin('unidades as un', DB::raw($unidadSql), '=', 'un.id');
 
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
+        $this->applyActiveDelegacionFeedFilter($q, 'dh', 'duh');
         $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
         $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
         $this->applyUserFilter($q, 'h.created_by', $userIdFilter);
@@ -700,6 +726,7 @@ class FeedController extends Controller
             'Actividad registrada'
         )";
         $q->whereIn(DB::raw($unidadSql), $unidadIds);
+        $this->applyActiveDelegacionFeedFilter($q, 'da', 'dua');
         $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
         $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
         $this->applyUserFilter($q, 'a.created_by', $userIdFilter);
@@ -794,6 +821,7 @@ class FeedController extends Controller
                 $w->orWhere('od.user_id', $userId);
             }
         });
+        $this->applyActiveDelegacionFeedFilter($q, 'duod');
         $this->applyUserFilter($q, 'od.created_by', $userIdFilter);
         $this->applyDateRange($q, 'od.created_at', $dateRange);
 
@@ -888,6 +916,7 @@ class FeedController extends Controller
         } elseif (Schema::hasColumn('users', 'unidad_id')) {
             $q->where('u.unidad_id', 5);
         }
+        $this->applyActiveDelegacionFeedFilter($q, 'duvd');
         $this->applyUserFilter($q, 'vd.created_by', $userIdFilter);
         $this->applyDateRange($q, 'vd.created_at', $dateRange);
 

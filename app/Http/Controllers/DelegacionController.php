@@ -12,10 +12,13 @@ class DelegacionController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
-        $activa = $request->query('activa', null);
+        $activa = $request->query('activa', '1');
 
         $delegaciones = Delegacion::query()
-            ->with(['padre', 'hijas'])
+            ->with(['padre'])
+            ->withCount(['hijas as hijas_count' => function ($query) {
+                $query->where('activa', 1);
+            }])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('nombre', 'like', "%{$q}%")
@@ -23,7 +26,7 @@ class DelegacionController extends Controller
                       ->orWhere('clave', 'like', "%{$q}%");
                 });
             })
-            ->when($activa !== null && $activa !== '', function ($query) use ($activa) {
+            ->when($activa !== null && $activa !== '' && $activa !== 'todas', function ($query) use ($activa) {
                 $query->where('activa', (int) $activa ? 1 : 0);
             })
             ->orderBy('nombre')
@@ -36,6 +39,7 @@ class DelegacionController extends Controller
     {
         $delegacionesPadre = Delegacion::query()
             ->whereNull('delegacion_padre_id')
+            ->where('activa', 1)
             ->orderBy('nombre')
             ->get();
 
@@ -52,7 +56,13 @@ class DelegacionController extends Controller
             'lng' => ['nullable', 'numeric'],
             'activa' => ['nullable', 'boolean'],
 
-            'delegacion_padre_id' => ['nullable', 'integer', 'exists:delegaciones,id'],
+            'delegacion_padre_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('delegaciones', 'id')->where(fn ($query) => $query
+                    ->where('activa', 1)
+                    ->whereNull('delegacion_padre_id')),
+            ],
 
             'hijas' => ['nullable', 'array'],
             'hijas.*.clave' => ['nullable', 'string', 'max:50'],
@@ -96,18 +106,31 @@ class DelegacionController extends Controller
 
     public function show(Delegacion $delegacion)
     {
-        $delegacion->load(['padre', 'hijas']);
+        $delegacion->load([
+            'padre',
+            'hijas' => fn ($query) => $query->where('activa', 1)->orderBy('nombre'),
+        ]);
 
         return view('admin.settings.delegaciones.show', compact('delegacion'));
     }
 
     public function edit(Delegacion $delegacion)
     {
-        $delegacion->load(['hijas', 'padre']);
+        $delegacion->load([
+            'padre',
+            'hijas' => fn ($query) => $query->where('activa', 1)->orderBy('nombre'),
+        ]);
 
         $delegacionesPadre = Delegacion::query()
             ->whereNull('delegacion_padre_id')
             ->where('id', '!=', $delegacion->id)
+            ->where(function ($query) use ($delegacion) {
+                $query->where('activa', 1);
+
+                if (!empty($delegacion->delegacion_padre_id)) {
+                    $query->orWhere('id', $delegacion->delegacion_padre_id);
+                }
+            })
             ->orderBy('nombre')
             ->get();
 
@@ -127,7 +150,9 @@ class DelegacionController extends Controller
             'delegacion_padre_id' => [
                 'nullable',
                 'integer',
-                'exists:delegaciones,id',
+                Rule::exists('delegaciones', 'id')->where(fn ($query) => $query
+                    ->where('activa', 1)
+                    ->whereNull('delegacion_padre_id')),
                 Rule::notIn([$delegacion->id]),
             ],
 
@@ -172,7 +197,7 @@ class DelegacionController extends Controller
                 Delegacion::query()
                     ->where('delegacion_padre_id', $delegacion->id)
                     ->whereIn('id', $toDelete)
-                    ->delete();
+                    ->update(['activa' => 0]);
             }
 
             $hijas = $data['hijas'] ?? [];
@@ -221,25 +246,22 @@ class DelegacionController extends Controller
 
             Delegacion::query()
                 ->where('delegacion_padre_id', $delegacion->id)
-                ->delete();
+                ->update(['activa' => 0]);
 
-            DB::table('delegacion_user')
-                ->where('delegacion_id', $delegacion->id)
-                ->delete();
-
-            DB::table('users')
-                ->where('delegacion_id', $delegacion->id)
-                ->update(['delegacion_id' => null]);
-
-            $delegacion->delete();
+            $delegacion->update(['activa' => 0]);
         });
 
-        return redirect()->route('delegaciones.index')->with('success', 'Delegación eliminada correctamente.');
+        return redirect()->route('delegaciones.index')->with('success', 'Delegación desactivada correctamente.');
     }
 
     public function hijas(Delegacion $delegacion)
     {
+        if (!$delegacion->activa) {
+            return response()->json(['ok' => true, 'data' => []]);
+        }
+
         $hijas = $delegacion->hijas()
+            ->where('activa', 1)
             ->orderBy('nombre')
             ->get(['id', 'delegacion_padre_id', 'clave', 'nombre', 'municipio', 'lat', 'lng', 'activa']);
 

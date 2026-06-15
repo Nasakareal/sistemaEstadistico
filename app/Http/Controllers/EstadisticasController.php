@@ -31,6 +31,11 @@ class EstadisticasController extends Controller
         return view('admin.settings.estadisticas.index');
     }
 
+    public function mapaRegiones()
+    {
+        return view('admin.settings.estadisticas.mapa-regiones');
+    }
+
     public function dataCoepraPuntosLicencias(CoepraPuntosLicenciasReportService $reporte)
     {
         return response()->json($reporte->generar());

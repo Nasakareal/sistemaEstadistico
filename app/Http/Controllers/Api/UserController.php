@@ -284,6 +284,10 @@ class UserController extends Controller
 
         if (!$this->isUnidadDelegaciones($unidadId)) {
             $validated['delegacion_id'] = null;
+        } elseif (!$this->delegacionEstaActiva($validated['delegacion_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'delegacion_id' => ['La delegación seleccionada no está activa.'],
+            ]);
         }
 
         if (!$this->isUnidadCarreteras($unidadId)) {
@@ -372,6 +376,18 @@ class UserController extends Controller
         return Patrulla::query()
             ->where('id', $patrullaId)
             ->where('unidad_id', $unidadId)
+            ->exists();
+    }
+
+    private function delegacionEstaActiva(?int $delegacionId): bool
+    {
+        if (empty($delegacionId)) {
+            return true;
+        }
+
+        return Delegacion::query()
+            ->whereKey($delegacionId)
+            ->where('activa', 1)
             ->exists();
     }
 

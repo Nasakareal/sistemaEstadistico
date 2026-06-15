@@ -17,20 +17,31 @@ class InegiChoquesExcelGenerator
 
     public function generarAdjunto(Carbon $fecha): array
     {
-        $fecha = Carbon::parse($fecha->toDateString(), $this->timezone())->startOfDay();
+        return $this->generarAdjuntoRango($fecha, $fecha);
+    }
+
+    public function generarAdjuntoRango(Carbon $desde, Carbon $hasta): array
+    {
+        $desde = Carbon::parse($desde->toDateString(), $this->timezone())->startOfDay();
+        $hasta = Carbon::parse($hasta->toDateString(), $this->timezone())->startOfDay();
+
+        if ($hasta->lessThan($desde)) {
+            throw new \InvalidArgumentException('La fecha final del rango no puede ser anterior a la fecha inicial.');
+        }
+
         $plantilla = $this->rutaPlantilla();
 
         if (!is_file($plantilla)) {
             throw new \RuntimeException('No existe la plantilla FORMATO INEGI.xlsx.');
         }
 
-        $nombreArchivo = 'FORMATO_INEGI_CHOQUES_' . $fecha->format('Y-m-d') . '.xlsx';
+        $nombreArchivo = $this->nombreArchivo($desde, $hasta);
 
         $spreadsheet = IOFactory::load($plantilla);
         $sheet = $spreadsheet->getSheet(0);
         $columns = $this->columnasPorEncabezado($sheet);
 
-        $hechos = $this->hechosPorFecha($fecha);
+        $hechos = $this->hechosPorRango($desde, $hasta);
         $this->ultimoTotal = $hechos->count();
 
         $this->prepararFilasDatos($sheet, $hechos->count());
@@ -41,9 +52,11 @@ class InegiChoquesExcelGenerator
 
         $row = 2;
         foreach ($hechos as $hecho) {
+            $fechaHecho = Carbon::parse((string) $hecho->fecha, $this->timezone())->startOfDay();
+
             $data = $this->filaInegi(
                 $hecho,
-                $fecha,
+                $fechaHecho,
                 $vehiculos->get($hecho->id, collect()),
                 $conductores->get($hecho->id, collect()),
                 $lesionados->get($hecho->id, collect())
@@ -75,6 +88,19 @@ class InegiChoquesExcelGenerator
     public function ultimoTotal(): int
     {
         return $this->ultimoTotal;
+    }
+
+    private function nombreArchivo(Carbon $desde, Carbon $hasta): string
+    {
+        if ($desde->isSameDay($hasta)) {
+            return 'FORMATO_INEGI_CHOQUES_' . $desde->format('Y-m-d') . '.xlsx';
+        }
+
+        if ($desde->isSameMonth($hasta) && $desde->isSameDay($desde->copy()->startOfMonth()) && $hasta->isSameDay($hasta->copy()->endOfMonth())) {
+            return 'FORMATO_INEGI_CHOQUES_' . $desde->format('Y-m') . '.xlsx';
+        }
+
+        return 'FORMATO_INEGI_CHOQUES_' . $desde->format('Y-m-d') . '_a_' . $hasta->format('Y-m-d') . '.xlsx';
     }
 
     private function filaInegi($hecho, Carbon $fecha, Collection $vehiculos, Collection $conductores, Collection $lesionados): array
@@ -225,8 +251,15 @@ class InegiChoquesExcelGenerator
 
     private function hechosPorFecha(Carbon $fecha): Collection
     {
+        return $this->hechosPorRango($fecha, $fecha);
+    }
+
+    private function hechosPorRango(Carbon $desde, Carbon $hasta): Collection
+    {
         return $this->queryHechos()
-            ->whereDate('h.fecha', $fecha->toDateString())
+            ->whereDate('h.fecha', '>=', $desde->toDateString())
+            ->whereDate('h.fecha', '<=', $hasta->toDateString())
+            ->orderBy('h.fecha')
             ->orderBy('h.hora')
             ->orderBy('h.id')
             ->get();

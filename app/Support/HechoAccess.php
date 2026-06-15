@@ -400,6 +400,15 @@ class HechoAccess
 
     private static function delegacionIdsVisibles($usuario, int $delegacionId): array
     {
+        $delegacionBase = Delegacion::query()
+            ->where('id', $delegacionId)
+            ->where('activa', 1)
+            ->first(['id', 'delegacion_padre_id']);
+
+        if (!$delegacionBase) {
+            return [];
+        }
+
         if (!self::puedeVerDelegacionesHijas($usuario)) {
             return [$delegacionId];
         }
@@ -410,18 +419,16 @@ class HechoAccess
             return $idsEspeciales;
         }
 
-        $esRegional = Delegacion::query()
-            ->where('id', $delegacionId)
-            ->whereNull('delegacion_padre_id')
-            ->exists();
-
-        if (!$esRegional) {
+        if (!is_null($delegacionBase->delegacion_padre_id)) {
             return [$delegacionId];
         }
 
         return Delegacion::query()
-            ->where('id', $delegacionId)
-            ->orWhere('delegacion_padre_id', $delegacionId)
+            ->where('activa', 1)
+            ->where(function ($query) use ($delegacionId) {
+                $query->where('id', $delegacionId)
+                    ->orWhere('delegacion_padre_id', $delegacionId);
+            })
             ->pluck('id')
             ->map(function ($id) {
                 return (int) $id;
@@ -444,6 +451,7 @@ class HechoAccess
     {
         $delegacion = Delegacion::query()
             ->select(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
+            ->where('activa', 1)
             ->find($delegacionId);
 
         if (!$delegacion || !str_contains(self::textoNormalizadoDelegacion($delegacion), 'PATZCUARO')) {
@@ -461,8 +469,11 @@ class HechoAccess
         }
 
         return Delegacion::query()
-            ->where('id', $morelia->id)
-            ->orWhere('delegacion_padre_id', $morelia->id)
+            ->where('activa', 1)
+            ->where(function ($query) use ($morelia) {
+                $query->where('id', $morelia->id)
+                    ->orWhere('delegacion_padre_id', $morelia->id);
+            })
             ->pluck('id')
             ->map(function ($id) {
                 return (int) $id;
@@ -474,6 +485,7 @@ class HechoAccess
     {
         return Delegacion::query()
             ->whereNull('delegacion_padre_id')
+            ->where('activa', 1)
             ->get(['id', 'clave', 'nombre', 'municipio', 'delegacion_padre_id'])
             ->first(function ($delegacion) {
                 $texto = self::textoNormalizadoDelegacion($delegacion);

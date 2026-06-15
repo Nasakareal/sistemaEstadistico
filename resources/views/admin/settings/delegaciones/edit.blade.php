@@ -167,7 +167,7 @@
                                         <th style="width: 14%">Latitud</th>
                                         <th style="width: 14%">Longitud</th>
                                         <th style="width: 7%; text-align:center">Activa</th>
-                                        <th style="width: 7%; text-align:center">Eliminar</th>
+                                        <th style="width: 7%; text-align:center">Desactivar</th>
                                         <th style="width: 6%; text-align:center">Quitar fila</th>
                                     </tr>
                                 </thead>
@@ -263,7 +263,7 @@
                                                                data-hija-id="{{ $rowId }}"
                                                                {{ $isDeleted ? 'checked' : '' }}>
                                                         <label class="custom-control-label" for="del_{{ $rowId }}">
-                                                            Eliminar
+                                                            Desactivar
                                                         </label>
                                                     </div>
                                                 @else
@@ -285,7 +285,7 @@
                             <div id="hijas_delete_container"></div>
 
                             <small class="text-muted">
-                                Puedes editar hijas, agregar nuevas, o marcar hijas existentes para eliminar.
+                                Puedes editar hijas, agregar nuevas, o marcar hijas existentes para desactivar.
                             </small>
                         </div>
 

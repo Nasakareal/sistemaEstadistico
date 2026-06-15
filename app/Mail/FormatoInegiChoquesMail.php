@@ -12,13 +12,17 @@ class FormatoInegiChoquesMail extends Mailable
     use Queueable, SerializesModels;
 
     public Carbon $fecha;
+    public Carbon $desde;
+    public Carbon $hasta;
     public string $archivoNombre;
     public string $archivoContenido;
     public int $totalChoques;
 
-    public function __construct(Carbon $fecha, string $archivoNombre, string $archivoContenido, int $totalChoques)
+    public function __construct(Carbon $desde, string $archivoNombre, string $archivoContenido, int $totalChoques, ?Carbon $hasta = null)
     {
-        $this->fecha = $fecha;
+        $this->fecha = $desde;
+        $this->desde = $desde;
+        $this->hasta = $hasta ?: $desde;
         $this->archivoNombre = $archivoNombre;
         $this->archivoContenido = $archivoContenido;
         $this->totalChoques = $totalChoques;
@@ -26,7 +30,9 @@ class FormatoInegiChoquesMail extends Mailable
 
     public function build()
     {
-        $fechaTexto = $this->fecha->format('Y-m-d');
+        $fechaTexto = $this->desde->isSameDay($this->hasta)
+            ? $this->desde->format('Y-m-d')
+            : $this->desde->format('Y-m-d') . ' a ' . $this->hasta->format('Y-m-d');
 
         $mail = $this->subject("Formato INEGI Choques - {$fechaTexto}")
             ->view('emails.formato_inegi_choques');

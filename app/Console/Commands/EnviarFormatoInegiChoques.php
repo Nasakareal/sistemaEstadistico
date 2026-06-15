@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\Mail;
 class EnviarFormatoInegiChoques extends Command
 {
     protected $signature = 'inegi:enviar-choques
-        {--fecha= : Fecha del dia de choques a enviar (YYYY-MM-DD). Por default, dos dias antes.}
+        {--fecha= : Fecha del dia de choques a enviar (YYYY-MM-DD).}
         {--desde= : Fecha inicial del rango de choques a enviar (YYYY-MM-DD).}
         {--hasta= : Fecha final del rango de choques a enviar (YYYY-MM-DD).}
-        {--mes-actual : Envia del dia 1 del mes actual hasta hoy menos dos dias.}';
-    protected $description = 'Genera el formato INEGI de choques y lo envia por correo.';
+        {--mes-actual : Envia del dia 1 del mes actual hasta hoy menos dos dias.}
+        {--mes-anterior : Envia todo el mes calendario anterior. Es el comportamiento por default.}';
+    protected $description = 'Genera el formato INEGI de choques y lo envia por correo en un solo adjunto.';
 
     public function handle(InegiChoquesExcelGenerator $generator): int
     {
@@ -30,32 +31,26 @@ class EnviarFormatoInegiChoques extends Command
             return self::FAILURE;
         }
 
-        $fechas = $this->fechasAEnviar($tz);
-        if (empty($fechas)) {
-            $this->warn('No hay fechas para enviar con las opciones indicadas.');
+        [$desde, $hasta] = $this->rangoAEnviar($tz);
+
+        if ($hasta->lessThan($desde)) {
+            $this->warn('No hay rango para enviar con las opciones indicadas.');
             return self::SUCCESS;
         }
 
-        foreach ($fechas as $fecha) {
-            $this->enviarFecha($generator, $fecha, $to, $cc, $bcc);
-        }
+        $this->enviarRango($generator, $desde, $hasta, $to, $cc, $bcc);
 
-        $this->info('Envios INEGI completados: ' . count($fechas));
+        $this->info('Envio INEGI completado.');
 
         return self::SUCCESS;
     }
 
-    protected function fechasAEnviar(string $tz): array
+    protected function rangoAEnviar(string $tz): array
     {
-        if ($this->option('mes-actual')) {
-            $desde = now($tz)->startOfMonth();
-            $hasta = now($tz)->subDays(2)->startOfDay();
+        if ($this->option('fecha')) {
+            $fecha = Carbon::parse((string) $this->option('fecha'), $tz)->startOfDay();
 
-            if ($hasta->lessThan($desde)) {
-                return [];
-            }
-
-            return $this->rangoFechas($desde, $hasta);
+            return [$fecha, $fecha->copy()];
         }
 
         if ($this->option('desde') || $this->option('hasta')) {
@@ -63,51 +58,47 @@ class EnviarFormatoInegiChoques extends Command
                 throw new \InvalidArgumentException('Para enviar por rango debes indicar --desde y --hasta.');
             }
 
-            return $this->rangoFechas(
-                Carbon::parse((string) $this->option('desde'), $tz)->startOfDay(),
-                Carbon::parse((string) $this->option('hasta'), $tz)->startOfDay()
-            );
+            $desde = Carbon::parse((string) $this->option('desde'), $tz)->startOfDay();
+            $hasta = Carbon::parse((string) $this->option('hasta'), $tz)->startOfDay();
+
+            if ($hasta->lessThan($desde)) {
+                throw new \InvalidArgumentException('La fecha --hasta no puede ser anterior a --desde.');
+            }
+
+            return [$desde, $hasta];
         }
 
+        if ($this->option('mes-actual')) {
+            $desde = now($tz)->startOfMonth();
+            $hasta = now($tz)->subDays(2)->startOfDay();
+
+            return [$desde, $hasta];
+        }
+
+        $mesAnterior = now($tz)->subMonthNoOverflow();
+
         return [
-            $this->option('fecha')
-                ? Carbon::parse((string) $this->option('fecha'), $tz)->startOfDay()
-                : now($tz)->subDays(2)->startOfDay(),
+            $mesAnterior->copy()->startOfMonth(),
+            $mesAnterior->copy()->endOfMonth()->startOfDay(),
         ];
     }
 
-    protected function rangoFechas(Carbon $desde, Carbon $hasta): array
+    protected function enviarRango(InegiChoquesExcelGenerator $generator, Carbon $desde, Carbon $hasta, array $to, array $cc, array $bcc): void
     {
-        if ($hasta->lessThan($desde)) {
-            throw new \InvalidArgumentException('La fecha --hasta no puede ser anterior a --desde.');
-        }
-
-        $fechas = [];
-        $cursor = $desde->copy();
-
-        while ($cursor->lessThanOrEqualTo($hasta)) {
-            $fechas[] = $cursor->copy();
-            $cursor->addDay();
-        }
-
-        return $fechas;
-    }
-
-    protected function enviarFecha(InegiChoquesExcelGenerator $generator, Carbon $fecha, array $to, array $cc, array $bcc): void
-    {
-        $adjunto = $generator->generarAdjunto($fecha);
+        $adjunto = $generator->generarAdjuntoRango($desde, $hasta);
 
         Mail::to($to)
             ->cc($cc)
             ->bcc($bcc)
             ->send(new FormatoInegiChoquesMail(
-                $fecha,
+                $desde,
                 $adjunto['name'],
                 $adjunto['contents'],
-                (int) $adjunto['total']
+                (int) $adjunto['total'],
+                $hasta
             ));
 
-        $this->info('Fecha reportada: ' . $fecha->toDateString());
+        $this->info('Periodo reportado: ' . $desde->toDateString() . ' a ' . $hasta->toDateString());
         $this->info('Choques incluidos: ' . (int) $adjunto['total']);
         $this->info('Adjunto generado en memoria; no se guardo en disco.');
     }

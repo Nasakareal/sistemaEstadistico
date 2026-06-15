@@ -729,6 +729,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
     Route::prefix('estadisticas')->middleware(['can:ver estadisticas', 'role:Superadmin'])->group(function () {
         Route::get('/',[EstadisticasController::class,'index'])->name('estadisticas.index');
+        Route::get('/mapa-regiones',[EstadisticasController::class,'mapaRegiones'])->name('estadisticas.mapaRegiones');
         Route::get('/comparativa-anual',[EstadisticasController::class,'comparativaAnual'])->name('estadisticas.comparativaAnual');
         Route::get('/semaforo-riesgo',[EstadisticasController::class,'semaforoRiesgo'])->name('estadisticas.semaforoRiesgo');
         Route::get('/data/coepra-puntos-licencias',[EstadisticasController::class,'dataCoepraPuntosLicencias'])->name('estadisticas.coepraPuntosLicencias.data');

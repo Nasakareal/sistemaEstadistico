@@ -8,8 +8,10 @@
     <p>Buen dia.</p>
 
     <p>
-        Se adjunta el formato INEGI con los choques registrados el
-        <strong>{{ $fecha->format('d/m/Y') }}</strong>.
+        Se adjunta el formato INEGI con los choques registrados del
+        <strong>{{ $desde->format('d/m/Y') }}</strong>
+        al
+        <strong>{{ $hasta->format('d/m/Y') }}</strong>.
     </p>
 
     <p>Total de choques incluidos: <strong>{{ $totalChoques }}</strong>.</p>

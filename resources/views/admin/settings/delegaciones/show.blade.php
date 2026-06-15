@@ -31,13 +31,15 @@
                         @endcan
 
                         @can('eliminar delegaciones')
+                            @if ($delegacion->activa)
                             <form action="{{ route('delegaciones.destroy', $delegacion) }}" method="POST" class="d-inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="button" class="btn btn-danger btn-sm delete-btn">
-                                    <i class="fa-regular fa-trash-can"></i> Eliminar
+                                <button type="button" class="btn btn-warning btn-sm deactivate-btn">
+                                    <i class="fa-solid fa-ban"></i> Desactivar
                                 </button>
                             </form>
+                            @endif
                         @endcan
                     </div>
                 </div>
@@ -175,7 +177,7 @@
                         </div>
                     @else
                         <div class="alert alert-info mb-0">
-                            No hay delegaciones hijas registradas.
+                            No hay delegaciones hijas activas.
                         </div>
                     @endif
 
@@ -263,19 +265,19 @@
             });
         @endif
 
-        $(document).on('click', '.delete-btn', function (e) {
+        $(document).on('click', '.deactivate-btn', function (e) {
             e.preventDefault();
 
             let form = $(this).closest('form');
 
             Swal.fire({
-                title: '¿Estás seguro de eliminar esta delegación?',
-                text: "¡No podrás revertir esta acción!",
+                title: '¿Desactivar esta delegación?',
+                text: 'No se borrarán registros históricos; dejará de salir en listados, feed, usuarios y mapa.',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#d33',
+                confirmButtonColor: '#f0ad4e',
                 cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Sí, eliminar',
+                confirmButtonText: 'Sí, desactivar',
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {

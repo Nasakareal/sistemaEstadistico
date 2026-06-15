@@ -22,7 +22,7 @@ return [
         'mail_to' => env('INEGI_CHOQUES_MAIL_TO', ''),
         'mail_cc' => env('INEGI_CHOQUES_MAIL_CC', ''),
         'mail_bcc' => env('INEGI_CHOQUES_MAIL_BCC', ''),
-        'schedule_time' => env('INEGI_CHOQUES_SCHEDULE_TIME', '02:00'),
+        'schedule_time' => env('INEGI_CHOQUES_SCHEDULE_TIME', '04:30'),
         'template_path' => env('INEGI_CHOQUES_TEMPLATE_PATH', ''),
     ],
 

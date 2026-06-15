@@ -15,6 +15,10 @@ class MapaDelegacionesController extends Controller
     {
         $delegaciones = Delegacion::query()
             ->where('activa', 1)
+            ->where(function ($query) {
+                $query->whereNull('delegacion_padre_id')
+                    ->orWhereHas('padre', fn ($padre) => $padre->where('activa', 1));
+            })
             ->orderBy('delegacion_padre_id')
             ->orderBy('clave')
             ->get();

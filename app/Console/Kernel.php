@@ -91,6 +91,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('08:00')
             ->withoutOverlapping();
 
+        $schedule->command('licencias-puntos:recuperar')
+            ->timezone($timezone)
+            ->dailyAt('02:30')
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-siniestros')
             ->dailyAt('18:03')
             ->timezone($timezone);

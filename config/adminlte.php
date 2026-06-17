@@ -611,6 +611,28 @@ return [
         ],
 
         [
+            'text'    => 'Puntos de Licencia',
+            'icon'    => 'fa-solid fa-id-card-clip',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver puntos licencias',
+            'submenu' => [
+                [
+                    'text'    => 'Panel de puntos',
+                    'icon'    => 'fa-solid fa-gauge-high',
+                    'classes' => 'text-white',
+                    'route'   => 'licencias_puntos.index',
+                    'can'     => 'ver puntos licencias',
+                ],
+                [
+                    'text'    => 'Consulta ciudadana',
+                    'icon'    => 'fa-solid fa-magnifying-glass',
+                    'classes' => 'text-white',
+                    'route'   => 'licencias_puntos.consulta',
+                ],
+            ],
+        ],
+
+        [
             'text'    => 'Módulos de Exámenes',
             'icon'    => 'fa-solid fa-id-card',
             'classes' => 'bg-blue text-white',

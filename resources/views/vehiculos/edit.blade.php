@@ -419,6 +419,28 @@
                                     @enderror
                                 </div>
                             </div>
+
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label class="d-block">&nbsp;</label>
+                                    @if(auth()->user() && auth()->user()->hasRole('Superadmin'))
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-warning btn-block js-licencia-puntos-prueba"
+                                            data-url="{{ route('licencias_puntos.index') }}"
+                                            data-conductor-id="{{ $conductor ? $conductor->id : '' }}"
+                                            data-hecho-id="{{ $hecho->id }}"
+                                            data-referencia="{{ $hecho->folio_c5i }}"
+                                        >
+                                            <i class="fa-solid fa-triangle-exclamation"></i> Añadir multa (en prueba)
+                                        </button>
+                                    @else
+                                        <button type="button" class="btn btn-outline-secondary btn-block" disabled title="Disponible solo para Superadmin">
+                                            <i class="fa-solid fa-lock"></i> Añadir multa (en prueba)
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Partes Dañadas, Monto de los Daños, Grúa, Corralón -->
@@ -902,6 +924,41 @@ document.addEventListener('DOMContentLoaded', function () {
         if (gruaSelect.value && !corralonSelect.value) {
             sincronizarCorralonConGrua();
         }
+    }
+
+    const multaPruebaBtn = document.querySelector('.js-licencia-puntos-prueba');
+    if (multaPruebaBtn) {
+        multaPruebaBtn.addEventListener('click', function () {
+            const licencia = (document.getElementById('numero_licencia')?.value || '').trim();
+
+            if (!licencia) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Captura el numero de licencia',
+                    text: 'La multa de prueba necesita un numero de licencia para aplicar el descuento.',
+                });
+                return;
+            }
+
+            const url = new URL(this.dataset.url, window.location.origin);
+            const params = {
+                conductor_id: this.dataset.conductorId || '',
+                numero_licencia: licencia,
+                titular_nombre: (document.getElementById('conductor_nombre')?.value || '').trim(),
+                tipo_licencia: (document.getElementById('tipo_licencia')?.value || '').trim(),
+                telefono: (document.getElementById('telefono')?.value || '').trim(),
+                hecho_id: this.dataset.hechoId || '',
+                referencia: this.dataset.referencia || '',
+            };
+
+            Object.entries(params).forEach(function ([key, value]) {
+                if (value) {
+                    url.searchParams.set(key, value);
+                }
+            });
+
+            window.open(url.toString(), '_blank', 'noopener');
+        });
     }
 });
 </script>

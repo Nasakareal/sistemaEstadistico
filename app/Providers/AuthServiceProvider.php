@@ -418,6 +418,7 @@ class AuthServiceProvider extends ServiceProvider
             'borrar ',
             'subir ',
             'gestionar ',
+            'registrar ',
             'asignar ',
             'quitar ',
             'mover ',

@@ -24,7 +24,9 @@ class Conductor extends Model
         'estado_licencia',
         'vigencia_licencia',
         'numero_licencia',
+        'permanente',
         'ocupacion',
+        'telefono',
         'sexo',
         'tipo_licencia'
     ];
@@ -33,5 +35,15 @@ class Conductor extends Model
     {
         return $this->belongsToMany(Vehiculo::class, 'vehiculo_conductor', 'conductor_id', 'vehiculo_id')
                     ->withTimestamps();
+    }
+
+    public function licenciaPuntoCuentas()
+    {
+        return $this->hasMany(LicenciaPuntoCuenta::class, 'conductor_id');
+    }
+
+    public function licenciaPuntoCuentaActiva()
+    {
+        return $this->hasOne(LicenciaPuntoCuenta::class, 'conductor_id')->latestOfMany();
     }
 }

@@ -17,6 +17,7 @@ use App\Http\Controllers\HechosController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiberacionController;
 use App\Http\Controllers\LicenciaController;
+use App\Http\Controllers\LicenciaPuntosController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\MapaPatrullasController;
 use App\Http\Controllers\MapaIncidenciasController;
@@ -242,6 +243,18 @@ Route::prefix('licencias')->group(function () {
     Route::get('/requisitos',[LicenciaController::class,'requisitos'])->name('licencias.requisitos');
     Route::get('/costos',[LicenciaController::class,'costos'])->name('licencias.costos');
     Route::get('/ubicaciones',[LicenciaController::class,'ubicaciones'])->name('licencias.ubicaciones');
+});
+
+Route::match(['get', 'post'], '/consulta-puntos-licencia', [LicenciaPuntosController::class, 'consulta'])
+    ->name('licencias_puntos.consulta');
+
+Route::prefix('licencias-puntos')->middleware(['auth', 'can:ver puntos licencias'])->group(function () {
+    Route::get('/', [LicenciaPuntosController::class, 'index'])->name('licencias_puntos.index');
+    Route::post('/', [LicenciaPuntosController::class, 'store'])->middleware('can:registrar infracciones puntos licencias')->name('licencias_puntos.store');
+    Route::get('/{cuenta}', [LicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('licencias_puntos.show');
+    Route::post('/{cuenta}/infracciones', [LicenciaPuntosController::class, 'registrarInfraccion'])->whereNumber('cuenta')->name('licencias_puntos.infracciones.store');
+    Route::post('/{cuenta}/capacitacion', [LicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('licencias_puntos.capacitacion.store');
+    Route::post('/{cuenta}/recuperar-tiempo', [LicenciaPuntosController::class, 'recuperarPorTiempo'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('licencias_puntos.recuperar_tiempo');
 });
 
 Auth::routes();

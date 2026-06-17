@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\Api\SettingsPersonalController;
 use App\Http\Controllers\Api\SettingsStatisticsFilesController;
 use App\Http\Controllers\Api\TutorialController;
+use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -141,6 +142,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{registro}', [ApiModuloExamenDiarioController::class, 'show'])->whereNumber('registro')->name('api.modulo_examenes_diarios.show');
         Route::put('/{registro}', [ApiModuloExamenDiarioController::class, 'update'])->whereNumber('registro')->middleware('can:editar modulo examenes')->name('api.modulo_examenes_diarios.update');
         Route::delete('/{registro}', [ApiModuloExamenDiarioController::class, 'destroy'])->whereNumber('registro')->middleware('can:eliminar modulo examenes')->name('api.modulo_examenes_diarios.destroy');
+    });
+
+    Route::prefix('licencias-puntos')->middleware('can:ver puntos licencias')->group(function () {
+        Route::get('/', [ApiLicenciaPuntosController::class, 'index'])->name('api.licencias_puntos.index');
+        Route::get('/catalogo-infracciones', [ApiLicenciaPuntosController::class, 'catalogoInfracciones'])->name('api.licencias_puntos.infracciones.catalogo');
+        Route::post('/', [ApiLicenciaPuntosController::class, 'store'])->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.store');
+        Route::post('/infracciones', [ApiLicenciaPuntosController::class, 'registrarInfraccion'])->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.infracciones.store');
+        Route::get('/numero/{numeroLicencia}', [ApiLicenciaPuntosController::class, 'showByNumero'])->name('api.licencias_puntos.numero.show');
+        Route::get('/{cuenta}', [ApiLicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('api.licencias_puntos.show');
+        Route::post('/{cuenta}/capacitacion', [ApiLicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('api.licencias_puntos.capacitacion.store');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

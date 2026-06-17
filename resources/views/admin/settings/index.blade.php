@@ -265,6 +265,23 @@
             </div>
         @endcan
 
+        @can('ver catalogo infracciones puntos licencias')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-danger">
+                        <i class="fa-solid fa-id-card-clip"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Infracciones de Puntos</div>
+                        <div class="sv-card__desc">Catalogo de infracciones y puntos a descontar.</div>
+                        <a href="{{ route('settings.licencias_puntos.infracciones.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         @php $user = auth()->user(); @endphp
 
         @if($user && ($user->hasRole('Superadmin') || in_array((int)($user->unidad_id ?? 0), [2, 3], true)))

@@ -65,7 +65,7 @@
     </div>
 </div>
 
-@if(auth()->user() && auth()->user()->hasRole('Superadmin'))
+@can('registrar infracciones puntos licencias')
 <div class="card card-outline card-primary">
     <div class="card-header">
         <h3 class="card-title">Registrar infraccion (en prueba)</h3>
@@ -174,7 +174,7 @@
         </div>
     </form>
 </div>
-@endif
+@endcan
 
 <div class="card card-outline card-secondary">
     <div class="card-header">

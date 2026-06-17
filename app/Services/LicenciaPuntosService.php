@@ -17,6 +17,9 @@ use Illuminate\Validation\ValidationException;
 
 class LicenciaPuntosService
 {
+    /** @var LicenciaPuntosWhatsAppNotificationService */
+    private $notificadorWhatsApp;
+
     private const ALERTAS = [
         4 => [
             'tipo' => 'advertencia_4',
@@ -34,6 +37,11 @@ class LicenciaPuntosService
             'mensaje' => 'La licencia llego a 0 puntos. Iniciar procedimiento administrativo.',
         ],
     ];
+
+    public function __construct(LicenciaPuntosWhatsAppNotificationService $notificadorWhatsApp)
+    {
+        $this->notificadorWhatsApp = $notificadorWhatsApp;
+    }
 
     public function registrarInfraccionDesdeCaptura(
         array $data,
@@ -101,8 +109,6 @@ class LicenciaPuntosService
                 $cuenta->fecha_agotamiento = $fecha;
                 $cuenta->expediente_folio = $this->folio('EXP-PTS', $cuenta, $reincidencias);
                 $cuenta->oficio_folio = $this->folio('OF-PTS', $cuenta, $reincidencias);
-                $cuenta->finanzas_notificado_at = $fecha;
-                $cuenta->titular_notificado_at = $fecha;
             }
 
             $cuenta->save();
@@ -129,6 +135,10 @@ class LicenciaPuntosService
 
             if ($llegoACero) {
                 $this->registrarProcedimiento($cuenta, $fecha, $actor);
+            }
+
+            if ($puntosAplicados > 0) {
+                $this->programarNotificacionesWhatsApp($cuenta, $movimiento, $infraccion, $fecha, $llegoACero);
             }
 
             return $cuenta->fresh(['movimientos.infraccion', 'alertas', 'conductor']);
@@ -318,15 +328,43 @@ class LicenciaPuntosService
             'saldo_nuevo' => 0,
             'fecha_movimiento' => $fecha,
             'referencia' => $cuenta->expediente_folio,
-            'descripcion' => 'Saldo agotado: expediente y oficio generados; Finanzas y titular notificados.',
+            'descripcion' => 'Saldo agotado: expediente y oficio generados; notificacion al titular programada.',
             'metadata' => [
                 'expediente_folio' => $cuenta->expediente_folio,
                 'oficio_folio' => $cuenta->oficio_folio,
-                'finanzas_notificado_at' => optional($cuenta->finanzas_notificado_at)->toDateTimeString(),
-                'titular_notificado_at' => optional($cuenta->titular_notificado_at)->toDateTimeString(),
                 'reincidencias_cero' => (int) $cuenta->reincidencias_cero,
             ],
         ]);
+    }
+
+    private function programarNotificacionesWhatsApp(
+        LicenciaPuntoCuenta $cuenta,
+        LicenciaPuntoMovimiento $movimiento,
+        LicenciaPuntoInfraccion $infraccion,
+        Carbon $fecha,
+        bool $llegoACero
+    ): void {
+        $cuentaId = $cuenta->id;
+        $movimientoId = $movimiento->id;
+        $infraccionId = $infraccion->id;
+        $fechaMovimiento = $fecha->copy();
+
+        DB::afterCommit(function () use ($cuentaId, $movimientoId, $infraccionId, $fechaMovimiento, $llegoACero) {
+            $cuenta = LicenciaPuntoCuenta::find($cuentaId);
+            $movimiento = LicenciaPuntoMovimiento::find($movimientoId);
+            $infraccion = LicenciaPuntoInfraccion::find($infraccionId);
+
+            if (!$cuenta || !$movimiento || !$infraccion) {
+                return;
+            }
+
+            $this->notificadorWhatsApp->notificarDescuento($cuenta, $movimiento, $infraccion, $fechaMovimiento);
+
+            if ($llegoACero) {
+                $cuenta->refresh();
+                $this->notificadorWhatsApp->notificarAgotamiento($cuenta, $movimiento, $infraccion, $fechaMovimiento);
+            }
+        });
     }
 
     private function crearOficioAgotamiento(LicenciaPuntoCuenta $cuenta, Carbon $fecha, ?User $actor): void

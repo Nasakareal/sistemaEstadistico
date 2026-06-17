@@ -5,11 +5,34 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\LicenciaPuntoCuenta;
 use App\Models\LicenciaPuntoInfraccion;
+use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\LicenciaPuntosService;
 use Illuminate\Http\Request;
 
 class LicenciaPuntosController extends Controller
 {
+    public function meta(Request $request)
+    {
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'saldo_inicial' => LicenciaPuntoCuenta::SALDO_INICIAL,
+                'saldo_maximo' => LicenciaPuntoCuenta::SALDO_MAXIMO,
+                'meses_recuperacion_tiempo' => LicenciaPuntoCuenta::MESES_RECUPERACION_TIEMPO,
+                'estados' => [
+                    LicenciaPuntoCuenta::ESTADO_VIGENTE => 'Vigente',
+                    LicenciaPuntoCuenta::ESTADO_PROCEDIMIENTO => 'Procedimiento administrativo',
+                    LicenciaPuntoCuenta::ESTADO_SUSPENDIDA => 'Suspendida',
+                    LicenciaPuntoCuenta::ESTADO_CANCELADA => 'Cancelada',
+                ],
+                'abilities' => $this->abilitiesPayload($request),
+                'infracciones' => LicenciaPuntoInfraccion::activas()
+                    ->orderBy('nombre')
+                    ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion']),
+            ],
+        ]);
+    }
+
     public function index(Request $request)
     {
         $query = LicenciaPuntoCuenta::with('conductor')->orderByDesc('id');
@@ -32,6 +55,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
+            'abilities' => $this->abilitiesPayload($request),
             'data' => $page->getCollection()->map(fn ($cuenta) => $this->cuentaPayload($cuenta))->values(),
             'pagination' => [
                 'current_page' => $page->currentPage(),
@@ -54,7 +78,7 @@ class LicenciaPuntosController extends Controller
 
     public function store(Request $request, LicenciaPuntosService $service)
     {
-        $this->autorizarPruebaSuperadmin($request);
+        $this->autorizarRestarPuntos($request);
 
         $validated = $request->validate([
             'conductor_id' => ['nullable', 'integer', 'exists:conductores,id'],
@@ -87,6 +111,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
+            'abilities' => $this->abilitiesPayload(request()),
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
@@ -99,6 +124,7 @@ class LicenciaPuntosController extends Controller
         if (!$cuenta) {
             return response()->json([
                 'ok' => true,
+                'abilities' => $this->abilitiesPayload(request()),
                 'data' => [
                     'id' => null,
                     'numero_licencia' => $numero,
@@ -132,13 +158,14 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
+            'abilities' => $this->abilitiesPayload(request()),
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
 
     public function registrarInfraccion(Request $request, LicenciaPuntosService $service)
     {
-        $this->autorizarPruebaSuperadmin($request);
+        $this->autorizarRestarPuntos($request);
 
         $validated = $request->validate([
             'cuenta_id' => ['nullable', 'integer', 'exists:licencia_punto_cuentas,id'],
@@ -178,9 +205,31 @@ class LicenciaPuntosController extends Controller
         ]);
     }
 
+    public function registrarInfraccionCuenta(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
+    {
+        $this->autorizarRestarPuntos($request);
+
+        $validated = $request->validate([
+            'infraccion_id' => ['required', 'integer', 'exists:licencia_punto_infracciones,id'],
+            'fecha_movimiento' => ['nullable', 'date'],
+            'referencia' => ['nullable', 'string', 'max:120'],
+            'hecho_id' => ['nullable', 'integer', 'exists:hechos,id'],
+            'descripcion' => ['nullable', 'string'],
+        ]);
+
+        $infraccion = LicenciaPuntoInfraccion::findOrFail($validated['infraccion_id']);
+        $cuenta = $service->registrarInfraccion($cuenta, $infraccion, $validated, $request->user());
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Infraccion registrada y puntos actualizados.',
+            'data' => $this->cuentaPayload($cuenta, true),
+        ]);
+    }
+
     public function acreditarCapacitacion(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
     {
-        $this->autorizarPruebaSuperadmin($request);
+        $this->autorizarSumarPuntos($request);
 
         $validated = $request->validate([
             'puntos' => ['required', 'integer', 'min:1', 'max:8'],
@@ -194,6 +243,26 @@ class LicenciaPuntosController extends Controller
         return response()->json([
             'ok' => true,
             'message' => 'Capacitacion validada y puntos acreditados.',
+            'data' => $this->cuentaPayload($cuenta, true),
+        ]);
+    }
+
+    public function recuperarPorTiempo(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
+    {
+        abort_unless($request->user() && $request->user()->can('editar puntos licencias'), 403);
+
+        $cuenta = $service->recuperarPorTiempo($cuenta, null, $request->user());
+
+        if (!$cuenta) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La licencia aun no cumple 18 meses sin infracciones.',
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Puntos recuperados por tiempo sin infracciones.',
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
@@ -265,8 +334,30 @@ class LicenciaPuntosController extends Controller
         return $payload;
     }
 
-    private function autorizarPruebaSuperadmin(Request $request): void
+    private function abilitiesPayload(Request $request): array
     {
-        abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
+        $user = $request->user();
+        $esFomento = $user
+            ? app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($user)
+            : false;
+
+        return [
+            'is_superadmin' => $user ? $user->hasRole('Superadmin') : false,
+            'is_fomento_cultura_vial' => $esFomento,
+            'can_restar_puntos' => $user ? $user->can('registrar infracciones puntos licencias') : false,
+            'can_sumar_puntos' => $user ? $user->can('acreditar capacitacion puntos licencias') : false,
+            'can_recuperar_por_tiempo' => $user ? $user->can('editar puntos licencias') : false,
+            'can_ver_catalogo_infracciones' => $user ? $user->can('ver puntos licencias') : false,
+        ];
+    }
+
+    private function autorizarRestarPuntos(Request $request): void
+    {
+        abort_unless($request->user() && $request->user()->can('registrar infracciones puntos licencias'), 403);
+    }
+
+    private function autorizarSumarPuntos(Request $request): void
+    {
+        abort_unless($request->user() && $request->user()->can('acreditar capacitacion puntos licencias'), 403);
     }
 }

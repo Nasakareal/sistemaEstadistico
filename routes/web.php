@@ -17,6 +17,7 @@ use App\Http\Controllers\HechosController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiberacionController;
 use App\Http\Controllers\LicenciaController;
+use App\Http\Controllers\LicenciaPuntoInfraccionCatalogoController;
 use App\Http\Controllers\LicenciaPuntosController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\MapaPatrullasController;
@@ -252,10 +253,23 @@ Route::prefix('licencias-puntos')->middleware(['auth', 'can:ver puntos licencias
     Route::get('/', [LicenciaPuntosController::class, 'index'])->name('licencias_puntos.index');
     Route::post('/', [LicenciaPuntosController::class, 'store'])->middleware('can:registrar infracciones puntos licencias')->name('licencias_puntos.store');
     Route::get('/{cuenta}', [LicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('licencias_puntos.show');
-    Route::post('/{cuenta}/infracciones', [LicenciaPuntosController::class, 'registrarInfraccion'])->whereNumber('cuenta')->name('licencias_puntos.infracciones.store');
+    Route::post('/{cuenta}/infracciones', [LicenciaPuntosController::class, 'registrarInfraccion'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('licencias_puntos.infracciones.store');
     Route::post('/{cuenta}/capacitacion', [LicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.capacitacion.store');
     Route::post('/{cuenta}/recuperar-tiempo', [LicenciaPuntosController::class, 'recuperarPorTiempo'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('licencias_puntos.recuperar_tiempo');
 });
+
+Route::prefix('admin/settings/licencias-puntos/infracciones')
+    ->middleware(['auth', 'can:ver configuraciones', 'can:ver catalogo infracciones puntos licencias'])
+    ->group(function () {
+        Route::get('/', [LicenciaPuntoInfraccionCatalogoController::class, 'index'])
+            ->name('settings.licencias_puntos.infracciones.index');
+        Route::post('/', [LicenciaPuntoInfraccionCatalogoController::class, 'store'])
+            ->middleware('can:crear catalogo infracciones puntos licencias')
+            ->name('settings.licencias_puntos.infracciones.store');
+        Route::put('/{infraccion}', [LicenciaPuntoInfraccionCatalogoController::class, 'update'])
+            ->middleware('can:editar catalogo infracciones puntos licencias')
+            ->name('settings.licencias_puntos.infracciones.update');
+    });
 
 Auth::routes();
 

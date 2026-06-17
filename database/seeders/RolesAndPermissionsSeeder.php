@@ -139,6 +139,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar puntos licencias',
             'registrar infracciones puntos licencias',
             'acreditar capacitacion puntos licencias',
+            'ver catalogo infracciones puntos licencias',
+            'crear catalogo infracciones puntos licencias',
+            'editar catalogo infracciones puntos licencias',
         ];
 
         foreach ($permissions as $permission) {
@@ -181,6 +184,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar puntos licencias',
             'registrar infracciones puntos licencias',
             'acreditar capacitacion puntos licencias',
+            'crear catalogo infracciones puntos licencias',
+            'editar catalogo infracciones puntos licencias',
         ]));
 
         $roles = [

@@ -53,7 +53,7 @@ class LicenciaPuntosController extends Controller
 
     public function store(Request $request, LicenciaPuntosService $service)
     {
-        $this->autorizarPruebaSuperadmin($request);
+        $this->autorizarRestarPuntos($request);
 
         $validated = $request->validate([
             'conductor_id' => ['nullable', 'integer', 'exists:conductores,id'],
@@ -93,19 +93,21 @@ class LicenciaPuntosController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $notificacionesWhatsapp = $cuenta->movimientos()
+            ->where('tipo', 'notificacion_whatsapp')
+            ->orderByDesc('fecha_movimiento')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
         $infracciones = LicenciaPuntoInfraccion::activas()->orderBy('nombre')->get();
 
-        return view('licencias_puntos.show', compact('cuenta', 'movimientos', 'alertas', 'infracciones'));
+        return view('licencias_puntos.show', compact('cuenta', 'movimientos', 'alertas', 'infracciones', 'notificacionesWhatsapp'));
     }
 
     public function registrarInfraccion(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
     {
-        $this->autorizarPruebaSuperadmin($request);
-
-        abort_unless(
-            $request->user()->can('registrar infracciones puntos licencias') || $request->user()->can('editar puntos licencias'),
-            403
-        );
+        $this->autorizarRestarPuntos($request);
 
         $validated = $request->validate([
             'infraccion_id' => ['required', 'integer', 'exists:licencia_punto_infracciones,id'],
@@ -125,9 +127,7 @@ class LicenciaPuntosController extends Controller
 
     public function acreditarCapacitacion(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
     {
-        $this->autorizarPruebaSuperadmin($request);
-
-        abort_unless($request->user()->can('acreditar capacitacion puntos licencias'), 403);
+        $this->autorizarSumarPuntos($request);
 
         $validated = $request->validate([
             'puntos' => ['required', 'integer', 'min:1', 'max:8'],
@@ -188,8 +188,13 @@ class LicenciaPuntosController extends Controller
         return view('licencias_puntos.consulta', compact('cuenta', 'movimientos', 'saldoAsumido', 'numeroConsultado'));
     }
 
-    private function autorizarPruebaSuperadmin(Request $request): void
+    private function autorizarRestarPuntos(Request $request): void
     {
-        abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
+        abort_unless($request->user() && $request->user()->can('registrar infracciones puntos licencias'), 403);
+    }
+
+    private function autorizarSumarPuntos(Request $request): void
+    {
+        abort_unless($request->user() && $request->user()->can('acreditar capacitacion puntos licencias'), 403);
     }
 }

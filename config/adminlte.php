@@ -624,6 +624,13 @@ return [
                     'can'     => 'ver puntos licencias',
                 ],
                 [
+                    'text'    => 'Infracciones',
+                    'icon'    => 'fa-solid fa-list-check',
+                    'classes' => 'text-white',
+                    'route'   => 'settings.licencias_puntos.infracciones.index',
+                    'can'     => 'ver catalogo infracciones puntos licencias',
+                ],
+                [
                     'text'    => 'Consulta ciudadana',
                     'icon'    => 'fa-solid fa-magnifying-glass',
                     'classes' => 'text-white',
@@ -724,6 +731,13 @@ return [
                     'classes' => 'text-white',
                     'url'     => 'admin/settings/oficios',
                     'can'     => 'ver oficios',
+                ],
+                [
+                    'text'    => 'Infracciones de puntos',
+                    'icon'    => 'fa-solid fa-id-card-clip',
+                    'classes' => 'text-white',
+                    'route'   => 'settings.licencias_puntos.infracciones.index',
+                    'can'     => 'ver catalogo infracciones puntos licencias',
                 ],
                 [
                     'text'    => 'Red de apoyo',

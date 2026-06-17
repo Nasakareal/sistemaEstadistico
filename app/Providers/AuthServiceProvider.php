@@ -21,6 +21,10 @@ class AuthServiceProvider extends ServiceProvider
                 return true;
             }
 
+            if ($this->isLicenciaPuntosAbility($ability)) {
+                return $this->resolveLicenciaPuntosAbility($user, $ability);
+            }
+
             if ($this->isOficiosAbility($ability) && !empty($user->unidad_id)) {
                 return true;
             }
@@ -398,6 +402,44 @@ class AuthServiceProvider extends ServiceProvider
             'crear oficios',
             'editar oficios',
         ], true);
+    }
+
+    private function isLicenciaPuntosAbility($ability): bool
+    {
+        return in_array($this->normalizeAbility($ability), [
+            'ver puntos licencias',
+            'crear puntos licencias',
+            'editar puntos licencias',
+            'registrar infracciones puntos licencias',
+            'acreditar capacitacion puntos licencias',
+            'ver catalogo infracciones puntos licencias',
+            'crear catalogo infracciones puntos licencias',
+            'editar catalogo infracciones puntos licencias',
+        ], true);
+    }
+
+    private function resolveLicenciaPuntosAbility($user, $ability): bool
+    {
+        $ability = $this->normalizeAbility($ability);
+        $tieneUnidad = !empty($user->unidad_id);
+        $esFomento = $this->isFomentoCulturaVialUser($user);
+
+        if ($ability === 'ver puntos licencias') {
+            return $tieneUnidad;
+        }
+
+        if (in_array($ability, [
+            'crear puntos licencias',
+            'registrar infracciones puntos licencias',
+        ], true)) {
+            return $tieneUnidad && !$esFomento;
+        }
+
+        if ($ability === 'acreditar capacitacion puntos licencias') {
+            return $tieneUnidad && $esFomento;
+        }
+
+        return false;
     }
 
     private function isReadAbility($ability): bool

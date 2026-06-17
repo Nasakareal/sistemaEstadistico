@@ -86,6 +86,15 @@ return [
             'terminos_template_language' => env('WHATSAPP_OFICIOS_TERMINOS_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
+        'licencias_puntos' => [
+            'enabled' => filter_var(env('WHATSAPP_LICENCIAS_PUNTOS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'notify_deduccion' => filter_var(env('WHATSAPP_LICENCIAS_PUNTOS_NOTIFY_DEDUCCION', true), FILTER_VALIDATE_BOOLEAN),
+            'notify_agotamiento' => filter_var(env('WHATSAPP_LICENCIAS_PUNTOS_NOTIFY_AGOTAMIENTO', true), FILTER_VALIDATE_BOOLEAN),
+            'deduccion_template' => env('WHATSAPP_LICENCIAS_PUNTOS_DEDUCCION_TEMPLATE', 'licencia_puntos_descuento'),
+            'agotamiento_template' => env('WHATSAPP_LICENCIAS_PUNTOS_AGOTAMIENTO_TEMPLATE', 'licencia_puntos_agotamiento'),
+            'template_language' => env('WHATSAPP_LICENCIAS_PUNTOS_TEMPLATE_LANGUAGE', 'es_MX'),
+        ],
+
         'todas_unidades' => [
             'to' => env('WHATSAPP_TODAS_UNIDADES_TO'),
             'template' => env('WHATSAPP_TODAS_UNIDADES_TEMPLATE', 'reporte_todas_unidades_diario'),

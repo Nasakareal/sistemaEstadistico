@@ -79,10 +79,57 @@
                 </dl>
             </div>
         </div>
+
+        <div class="card card-outline card-success">
+            <div class="card-header">
+                <h3 class="card-title">Notificaciones WhatsApp</h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($notificacionesWhatsapp as $notificacion)
+                            @php
+                                $metadata = $notificacion->metadata ?: [];
+                                $ok = (bool)($metadata['ok'] ?? false);
+                                $skipped = (bool)($metadata['skipped'] ?? false);
+                                $badge = $ok ? 'success' : ($skipped ? 'secondary' : 'danger');
+                                $estado = $ok ? 'Enviada' : ($skipped ? 'Omitida' : 'Fallida');
+                            @endphp
+                            <tr>
+                                <td>{{ $notificacion->fecha_movimiento ? $notificacion->fecha_movimiento->format('d/m/Y H:i') : 'N/A' }}</td>
+                                <td>{{ str_replace('_', ' ', $metadata['tipo_notificacion'] ?? $notificacion->referencia) }}</td>
+                                <td>
+                                    <span class="badge badge-{{ $badge }}">{{ $estado }}</span>
+                                    @if(!empty($metadata['reason']))
+                                        <small class="d-block text-muted">{{ $metadata['reason'] }}</small>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">Sin notificaciones registradas.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if($cuenta->titular_notificado_at)
+                <div class="card-footer text-muted">
+                    Agotamiento notificado al titular: {{ $cuenta->titular_notificado_at->format('d/m/Y H:i') }}
+                </div>
+            @endif
+        </div>
     </div>
 
     <div class="col-lg-8">
-        @if(auth()->user() && auth()->user()->hasRole('Superadmin'))
+        @can('registrar infracciones puntos licencias')
         <div class="card card-outline card-danger">
             <div class="card-header">
                 <h3 class="card-title">Registrar infraccion (en prueba)</h3>
@@ -137,11 +184,17 @@
                 </div>
             </form>
         </div>
-        @endif
+        @endcan
 
-        @if(auth()->user() && auth()->user()->hasRole('Superadmin'))
+        @php
+            $puedeSumarPuntos = auth()->user() && auth()->user()->can('acreditar capacitacion puntos licencias');
+            $puedeRecuperarPorTiempo = auth()->user() && auth()->user()->can('editar puntos licencias');
+        @endphp
+
+        @if($puedeSumarPuntos || $puedeRecuperarPorTiempo)
         <div class="row">
-            <div class="col-md-7">
+            @can('acreditar capacitacion puntos licencias')
+            <div class="{{ $puedeRecuperarPorTiempo ? 'col-md-7' : 'col-12' }}">
                 <div class="card card-outline card-success">
                     <div class="card-header">
                         <h3 class="card-title">Acreditar capacitacion</h3>
@@ -176,7 +229,9 @@
                     </form>
                 </div>
             </div>
-            <div class="col-md-5">
+            @endcan
+            @can('editar puntos licencias')
+            <div class="{{ $puedeSumarPuntos ? 'col-md-5' : 'col-12' }}">
                 <div class="card card-outline card-warning">
                     <div class="card-header">
                         <h3 class="card-title">Recuperacion por tiempo</h3>
@@ -195,6 +250,7 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
         @endif
     </div>

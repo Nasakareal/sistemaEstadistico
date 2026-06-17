@@ -145,13 +145,16 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('licencias-puntos')->middleware('can:ver puntos licencias')->group(function () {
+        Route::get('/meta', [ApiLicenciaPuntosController::class, 'meta'])->name('api.licencias_puntos.meta');
         Route::get('/', [ApiLicenciaPuntosController::class, 'index'])->name('api.licencias_puntos.index');
         Route::get('/catalogo-infracciones', [ApiLicenciaPuntosController::class, 'catalogoInfracciones'])->name('api.licencias_puntos.infracciones.catalogo');
         Route::post('/', [ApiLicenciaPuntosController::class, 'store'])->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.store');
         Route::post('/infracciones', [ApiLicenciaPuntosController::class, 'registrarInfraccion'])->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.infracciones.store');
         Route::get('/numero/{numeroLicencia}', [ApiLicenciaPuntosController::class, 'showByNumero'])->name('api.licencias_puntos.numero.show');
         Route::get('/{cuenta}', [ApiLicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('api.licencias_puntos.show');
+        Route::post('/{cuenta}/infracciones', [ApiLicenciaPuntosController::class, 'registrarInfraccionCuenta'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.cuenta.infracciones.store');
         Route::post('/{cuenta}/capacitacion', [ApiLicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('api.licencias_puntos.capacitacion.store');
+        Route::post('/{cuenta}/recuperar-tiempo', [ApiLicenciaPuntosController::class, 'recuperarPorTiempo'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('api.licencias_puntos.recuperar_tiempo');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

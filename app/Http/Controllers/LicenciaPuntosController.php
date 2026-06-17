@@ -127,7 +127,7 @@ class LicenciaPuntosController extends Controller
     {
         $this->autorizarPruebaSuperadmin($request);
 
-        abort_unless($request->user()->can('editar puntos licencias'), 403);
+        abort_unless($request->user()->can('acreditar capacitacion puntos licencias'), 403);
 
         $validated = $request->validate([
             'puntos' => ['required', 'integer', 'min:1', 'max:8'],

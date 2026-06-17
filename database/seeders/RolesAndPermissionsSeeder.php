@@ -138,6 +138,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'crear puntos licencias',
             'editar puntos licencias',
             'registrar infracciones puntos licencias',
+            'acreditar capacitacion puntos licencias',
         ];
 
         foreach ($permissions as $permission) {
@@ -174,17 +175,19 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar modulo examenes',
         ];
 
-        $permissionsSinMutacionPuntosPrueba = array_values(array_diff($permissions, [
+        $permissionsSinPuntosPrueba = array_values(array_diff($permissions, [
+            'ver puntos licencias',
             'crear puntos licencias',
             'editar puntos licencias',
             'registrar infracciones puntos licencias',
+            'acreditar capacitacion puntos licencias',
         ]));
 
         $roles = [
             // Superadmin: SIEMPRE TODO
             'Superadmin' => $permissions,
 
-            'Administrador' => $permissionsSinMutacionPuntosPrueba,
+            'Administrador' => $permissionsSinPuntosPrueba,
 
             'Subdirector' => array_merge($operacionHechos, [
                 'ver configuraciones',
@@ -201,7 +204,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'crear modulo examenes',
                 'editar modulo examenes',
                 'eliminar modulo examenes',
-                'ver puntos licencias',
             ]),
             'Administrativo' => array_merge($operacionHechos, [
                 'ver directorio red apoyo',
@@ -212,7 +214,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'ver modulo examenes',
                 'crear modulo examenes',
                 'editar modulo examenes',
-                'ver puntos licencias',
             ]),
             'Agente Upec' => [
                 'ver operativos carreteras',
@@ -234,7 +235,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'Delegado' => array_merge($delegadoPermissions, [
                 'ver delegaciones',
                 'ver directorio red apoyo',
-                'ver puntos licencias',
             ]),
             'Empleado' => $operacionHechos,
             'Observador' => [
@@ -246,12 +246,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'Agente Vial' => [
                 'ver operativos vialidades',
                 'crear operativos vialidades',
-                'ver puntos licencias',
             ],
             'Responsable de Turno' => [
                 'ver operativos vialidades',
                 'editar operativos vialidades',
-                'ver puntos licencias',
             ],
         ];
 

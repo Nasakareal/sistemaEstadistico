@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -45,8 +46,13 @@ class OficioController extends Controller
 
     public function create(Request $request)
     {
-        $contestaA = $request->filled('contesta_a_id')
-            ? $this->queryOficiosVisibles()->find($request->query('contesta_a_id'))
+        $oldContestaId = $request->old('contesta_a_id', '__missing__');
+        $selectedContestaId = $oldContestaId !== '__missing__'
+            ? (int) $oldContestaId
+            : (int) $request->query('contesta_a_id');
+
+        $contestaA = $selectedContestaId > 0
+            ? $this->queryOficiosVisibles()->with('unidad')->find($selectedContestaId)
             : null;
 
         $unidadId = $contestaA
@@ -72,12 +78,72 @@ class OficioController extends Controller
             'terminosHoras' => Oficio::TERMINOS_HORAS,
             'unidades' => $unidades,
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
-            'oficiosParaContestar' => $this->oficiosParaContestar($unidadId ?: null),
+            'oficiosParaContestar' => $this->oficiosParaContestar($unidadId ?: null, null, $contestaA ? (int) $contestaA->id : $selectedContestaId),
             'puedeElegirUnidad' => $this->actorEsSuperadmin(),
             'numeroSalidaManual' => self::NUMERO_SALIDA_MANUAL,
             'numeroPreviewSalida' => $oficio->sentido === 'salida'
                 ? $this->previsualizarNumeroSalida((int) $oficio->unidad_id, $oficio->fecha_documento)
                 : null,
+        ]);
+    }
+
+    public function buscarContestables(Request $request)
+    {
+        $unidadId = $this->actorEsSuperadmin()
+            ? (int) $request->query('unidad_id')
+            : (int) optional($this->actor())->unidad_id;
+
+        if ($unidadId <= 0 || !$this->unidadesDisponibles()->contains('id', $unidadId)) {
+            return response()->json([
+                'results' => [],
+                'pagination' => ['more' => false],
+            ]);
+        }
+
+        $termino = trim((string) $request->query('q', ''));
+        $pagina = max(1, (int) $request->query('page', 1));
+        $porPagina = 20;
+        $exceptoId = (int) $request->query('excepto_id');
+
+        $query = $this->queryOficiosVisibles()
+            ->with('unidad')
+            ->where('unidad_id', $unidadId)
+            ->when($exceptoId > 0, fn ($q) => $q->where('id', '!=', $exceptoId))
+            ->when($termino !== '', function ($q) use ($termino) {
+                $q->where(function ($search) use ($termino) {
+                    $like = '%' . $termino . '%';
+
+                    $search->where('numero_oficio', 'like', $like)
+                        ->orWhere('asunto', 'like', $like)
+                        ->orWhere('remitente', 'like', $like)
+                        ->orWhere('destinatario', 'like', $like);
+
+                    if (ctype_digit($termino)) {
+                        $search->orWhereKey((int) $termino);
+                    }
+                });
+            })
+            ->orderByDesc('fecha_documento')
+            ->orderByDesc('created_at');
+
+        $oficios = $query
+            ->skip(($pagina - 1) * $porPagina)
+            ->take($porPagina + 1)
+            ->get();
+
+        $hayMas = $oficios->count() > $porPagina;
+
+        return response()->json([
+            'results' => $oficios
+                ->take($porPagina)
+                ->map(fn (Oficio $oficio) => [
+                    'id' => (string) $oficio->id,
+                    'text' => $this->textoOficioSelect($oficio),
+                ])
+                ->values(),
+            'pagination' => [
+                'more' => $hayMas,
+            ],
         ]);
     }
 
@@ -172,11 +238,15 @@ class OficioController extends Controller
         ]);
     }
 
-    public function edit(Oficio $oficio)
+    public function edit(Request $request, Oficio $oficio)
     {
         $this->asegurarVisible($oficio);
 
         $unidades = $this->unidadesDisponibles();
+        $oldContestaId = $request->old('contesta_a_id', '__missing__');
+        $selectedContestaId = $oldContestaId !== '__missing__'
+            ? (int) $oldContestaId
+            : (int) $oficio->contesta_a_id;
 
         return view('admin.settings.oficios.edit', [
             'oficio' => $oficio,
@@ -185,7 +255,7 @@ class OficioController extends Controller
             'terminosHoras' => Oficio::TERMINOS_HORAS,
             'unidades' => $unidades,
             'prefijosUnidad' => $this->prefijosUnidad($unidades),
-            'oficiosParaContestar' => $this->oficiosParaContestar((int) $oficio->unidad_id, (int) $oficio->id),
+            'oficiosParaContestar' => $this->oficiosParaContestar((int) $oficio->unidad_id, (int) $oficio->id, $selectedContestaId),
             'puedeElegirUnidad' => $this->actorEsSuperadmin(),
             'numeroSalidaManual' => self::NUMERO_SALIDA_MANUAL,
         ]);
@@ -433,20 +503,48 @@ class OficioController extends Controller
         }
     }
 
-    private function oficiosParaContestar(?int $unidadId = null, ?int $exceptoId = null)
+    private function oficiosParaContestar(?int $unidadId = null, ?int $exceptoId = null, ?int $selectedId = null)
     {
-        return $this->queryOficiosVisibles()
+        $query = $this->queryOficiosVisibles()
             ->when($unidadId, function ($q) use ($unidadId) {
                 $q->where('unidad_id', $unidadId);
             })
             ->when($exceptoId, function ($q) use ($exceptoId) {
                 $q->where('id', '!=', $exceptoId);
-            })
+            });
+
+        $oficios = (clone $query)
             ->with('unidad')
             ->orderByDesc('fecha_documento')
             ->orderByDesc('created_at')
-            ->limit(250)
+            ->limit(30)
             ->get();
+
+        if ($selectedId && !$oficios->contains('id', $selectedId)) {
+            $seleccionado = (clone $query)
+                ->with('unidad')
+                ->whereKey($selectedId)
+                ->first();
+
+            if ($seleccionado) {
+                $oficios->prepend($seleccionado);
+            }
+        }
+
+        return $oficios->unique('id')->values();
+    }
+
+    private function textoOficioSelect(Oficio $oficio): string
+    {
+        $fecha = optional($oficio->fecha_documento ?: $oficio->created_at)->format('d-m-Y');
+        $asunto = $oficio->asunto ? Str::limit($oficio->asunto, 90) : null;
+
+        return collect([
+            $oficio->numero_oficio ?: 'Sin número',
+            $fecha,
+            optional($oficio->unidad)->nombre,
+            $asunto,
+        ])->filter()->implode(' · ');
     }
 
     private function prefijosUnidad($unidades): array

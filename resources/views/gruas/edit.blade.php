@@ -178,37 +178,8 @@
 @stop
 
 @section('css')
-    <style>
-        .form-group label {
-            font-weight: bold;
-        }
-
-        .select2-container {
-            width: 100% !important;
-        }
-
-        .select2-container--default .select2-selection--multiple {
-            min-height: 38px;
-            border: 1px solid #ced4da;
-            border-radius: .25rem;
-            padding: 2px 6px;
-        }
-
-        .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            background-color: #007bff;
-            border: 1px solid #007bff;
-            color: #fff;
-            border-radius: 4px;
-            padding: 2px 8px;
-            margin-top: 4px;
-        }
-
-        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
-            color: #fff;
-            margin-right: 6px;
-        }
-    </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
+    @include('gruas._styles')
 @stop
 
 @section('js')

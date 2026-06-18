@@ -175,7 +175,12 @@
     <div class="col-lg-6">
         <div class="form-group">
             <label for="contesta_a_id">Contesta a</label>
-            <select name="contesta_a_id" id="contesta_a_id" class="form-control @error('contesta_a_id') is-invalid @enderror">
+            <select name="contesta_a_id"
+                    id="contesta_a_id"
+                    class="form-control oficio-contesta-select @error('contesta_a_id') is-invalid @enderror"
+                    data-placeholder="No es contestación"
+                    data-search-url="{{ route('oficios.buscar-contestables') }}"
+                    data-excepto-id="{{ $oficio->exists ? $oficio->id : '' }}">
                 <option value="">No es contestación</option>
                 @foreach($oficiosParaContestar as $opcion)
                     <option value="{{ $opcion->id }}" {{ (int) $selectedContesta === (int) $opcion->id ? 'selected' : '' }}>
@@ -436,5 +441,56 @@
         }
 
         updateNumeroState();
+
+        const contesta = document.getElementById('contesta_a_id');
+
+        if (contesta && window.jQuery && jQuery.fn.select2) {
+            const $contesta = jQuery(contesta);
+            const placeholder = contesta.dataset.placeholder || 'No es contestación';
+
+            $contesta.select2({
+                placeholder: placeholder,
+                allowClear: true,
+                width: '100%',
+                ajax: {
+                    url: contesta.dataset.searchUrl,
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return {
+                            q: params.term || '',
+                            page: params.page || 1,
+                            unidad_id: unidad ? unidad.value : '',
+                            excepto_id: contesta.dataset.exceptoId || ''
+                        };
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: data.results || [],
+                            pagination: {
+                                more: !!(data.pagination && data.pagination.more)
+                            }
+                        };
+                    }
+                },
+                language: {
+                    searching: function () {
+                        return 'Buscando oficios...';
+                    },
+                    noResults: function () {
+                        return 'Sin oficios encontrados';
+                    },
+                    loadingMore: function () {
+                        return 'Cargando más resultados...';
+                    }
+                }
+            });
+
+            if (unidad) {
+                unidad.addEventListener('change', function () {
+                    $contesta.val(null).trigger('change');
+                });
+            }
+        }
     });
 </script>

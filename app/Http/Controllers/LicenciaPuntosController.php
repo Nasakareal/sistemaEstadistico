@@ -190,11 +190,20 @@ class LicenciaPuntosController extends Controller
 
     private function autorizarRestarPuntos(Request $request): void
     {
+        $this->autorizarPruebaSuperadmin($request);
+
         abort_unless($request->user() && $request->user()->can('registrar infracciones puntos licencias'), 403);
     }
 
     private function autorizarSumarPuntos(Request $request): void
     {
+        $this->autorizarPruebaSuperadmin($request);
+
         abort_unless($request->user() && $request->user()->can('acreditar capacitacion puntos licencias'), 403);
+    }
+
+    private function autorizarPruebaSuperadmin(Request $request): void
+    {
+        abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
     }
 }

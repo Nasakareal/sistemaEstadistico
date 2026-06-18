@@ -264,8 +264,8 @@
     <main class="public-shell">
         <div class="public-wrap">
             <div class="public-brand">
-                <img src="{{ asset('vialidad.png') }}" alt="Seguridad Vial">
-                <span>Seguridad Vial</span>
+                <img src="{{ asset('guardiacivil.png') }}" alt="Seguridad Vial">
+                <span>Coordinación del Agrupamiento de Seguridad Vial</span>
             </div>
 
             <section class="hero" aria-labelledby="consulta-title">

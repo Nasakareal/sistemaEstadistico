@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Support\HechoAccess;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
@@ -428,18 +429,71 @@ class AuthServiceProvider extends ServiceProvider
             return $tieneUnidad;
         }
 
+        if ($this->licenciaPuntosSoloSuperadminEnPrueba()) {
+            return false;
+        }
+
         if (in_array($ability, [
             'crear puntos licencias',
             'registrar infracciones puntos licencias',
         ], true)) {
-            return $tieneUnidad && !$esFomento;
+            return $tieneUnidad
+                && !$esFomento
+                && $this->hasAssignedPermission($user, $ability);
         }
 
         if ($ability === 'acreditar capacitacion puntos licencias') {
-            return $tieneUnidad && $esFomento;
+            return $tieneUnidad
+                && $esFomento
+                && $this->isFomentoInstructor($user)
+                && $this->hasAssignedPermission($user, $ability);
+        }
+
+        if (in_array($ability, [
+            'editar puntos licencias',
+            'ver catalogo infracciones puntos licencias',
+            'crear catalogo infracciones puntos licencias',
+            'editar catalogo infracciones puntos licencias',
+        ], true)) {
+            return $tieneUnidad && $this->hasAssignedPermission($user, $ability);
         }
 
         return false;
+    }
+
+    private function licenciaPuntosSoloSuperadminEnPrueba(): bool
+    {
+        return true;
+    }
+
+    private function isFomentoInstructor($user): bool
+    {
+        if ($user->hasAnyRole([
+            'Instructor',
+            'Instructor Fomento',
+            'Instructor de Fomento',
+        ])) {
+            return true;
+        }
+
+        $personal = $user->personal;
+
+        if (!$personal) {
+            return false;
+        }
+
+        return DB::table('personal_rols as personal_rol')
+            ->join('rol_servicios as rol_servicio', 'rol_servicio.id', '=', 'personal_rol.rol_servicio_id')
+            ->where('personal_rol.personal_id', $personal->id)
+            ->where('personal_rol.activo', true)
+            ->where('rol_servicio.nombre', 'like', '%Instructor%')
+            ->exists();
+    }
+
+    private function hasAssignedPermission($user, string $ability): bool
+    {
+        return method_exists($user, 'hasPermissionTo')
+            && $user->hasPermissionTo($ability, $user->guard_name ?? 'web');
     }
 
     private function isReadAbility($ability): bool

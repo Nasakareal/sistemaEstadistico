@@ -249,6 +249,8 @@ class LicenciaPuntosController extends Controller
 
     public function recuperarPorTiempo(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
     {
+        $this->autorizarPruebaSuperadmin($request);
+
         abort_unless($request->user() && $request->user()->can('editar puntos licencias'), 403);
 
         $cuenta = $service->recuperarPorTiempo($cuenta, null, $request->user());
@@ -344,6 +346,7 @@ class LicenciaPuntosController extends Controller
         return [
             'is_superadmin' => $user ? $user->hasRole('Superadmin') : false,
             'is_fomento_cultura_vial' => $esFomento,
+            'module_writes_locked' => $user ? !$user->hasRole('Superadmin') : true,
             'can_restar_puntos' => $user ? $user->can('registrar infracciones puntos licencias') : false,
             'can_sumar_puntos' => $user ? $user->can('acreditar capacitacion puntos licencias') : false,
             'can_recuperar_por_tiempo' => $user ? $user->can('editar puntos licencias') : false,
@@ -353,11 +356,20 @@ class LicenciaPuntosController extends Controller
 
     private function autorizarRestarPuntos(Request $request): void
     {
+        $this->autorizarPruebaSuperadmin($request);
+
         abort_unless($request->user() && $request->user()->can('registrar infracciones puntos licencias'), 403);
     }
 
     private function autorizarSumarPuntos(Request $request): void
     {
+        $this->autorizarPruebaSuperadmin($request);
+
         abort_unless($request->user() && $request->user()->can('acreditar capacitacion puntos licencias'), 403);
+    }
+
+    private function autorizarPruebaSuperadmin(Request $request): void
+    {
+        abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
     }
 }

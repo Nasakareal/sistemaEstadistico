@@ -26,6 +26,14 @@
     </div>
 @endif
 
+@unless(auth()->user() && auth()->user()->hasRole('Superadmin'))
+    <div class="alert alert-warning">
+        <strong>Herramienta en desarrollo.</strong>
+        Puedes consultar el sistema de puntos, pero por ahora los movimientos estan bloqueados.
+        Solo el rol Superadmin puede aplicar descuentos o recuperaciones durante la prueba.
+    </div>
+@endunless
+
 <div class="row">
     <div class="col-md-3 col-sm-6">
         <div class="info-box bg-info">

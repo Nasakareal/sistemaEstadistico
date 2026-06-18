@@ -130,7 +130,7 @@ class LicenciaPuntosController extends Controller
         $this->autorizarSumarPuntos($request);
 
         $validated = $request->validate([
-            'puntos' => ['required', 'integer', 'min:1', 'max:8'],
+            'puntos' => ['required', 'integer', 'min:1', 'max:' . LicenciaPuntoCuenta::SALDO_MAXIMO],
             'fecha_movimiento' => ['nullable', 'date'],
             'referencia' => ['nullable', 'string', 'max:120'],
             'descripcion' => ['nullable', 'string'],

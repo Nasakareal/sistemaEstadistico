@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class LicenciaPuntoCuenta extends Model
 {
-    public const SALDO_INICIAL = 8;
-    public const SALDO_MAXIMO = 8;
+    public const SALDO_INICIAL = 12;
+    public const SALDO_MAXIMO = 12;
     public const MESES_RECUPERACION_TIEMPO = 18;
 
     public const ESTADO_VIGENTE = 'vigente';

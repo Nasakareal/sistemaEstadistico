@@ -32,7 +32,7 @@ return new class extends Migration
                 $table->string('telefono', 20)->nullable();
                 $table->date('fecha_emision')->nullable();
                 $table->date('fecha_vencimiento')->nullable();
-                $table->unsignedTinyInteger('saldo_actual')->default(8)->index();
+                $table->unsignedTinyInteger('saldo_actual')->default(12)->index();
                 $table->string('estado', 50)->default('vigente')->index();
                 $table->dateTime('fecha_ultima_infraccion')->nullable()->index();
                 $table->dateTime('fecha_agotamiento')->nullable();

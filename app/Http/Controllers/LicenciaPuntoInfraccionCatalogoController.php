@@ -61,7 +61,7 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
                 Rule::unique('licencia_punto_infracciones', 'codigo')->ignore(optional($infraccion)->id),
             ],
             'nombre' => ['required', 'string', 'max:150'],
-            'puntos' => ['required', 'integer', 'min:1', 'max:8'],
+            'puntos' => ['required', 'integer', 'min:1', 'max:' . \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO],
             'descripcion' => ['nullable', 'string'],
             'activa' => ['nullable', 'boolean'],
         ]);

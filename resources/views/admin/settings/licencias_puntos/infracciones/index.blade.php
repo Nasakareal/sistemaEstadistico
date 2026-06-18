@@ -48,7 +48,7 @@
                         </div>
                         <div class="form-group">
                             <label>Puntos a descontar</label>
-                            <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 1) }}" min="1" max="8" required>
+                            <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 1) }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                         </div>
                         <div class="form-group">
                             <label>Descripcion</label>
@@ -158,7 +158,7 @@
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Puntos</label>
-                                        <input type="number" name="puntos" class="form-control" value="{{ old('puntos', $infraccion->puntos) }}" min="1" max="8" required>
+                                        <input type="number" name="puntos" class="form-control" value="{{ old('puntos', $infraccion->puntos) }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                                     </div>
                                 </div>
                                 <div class="col-12">

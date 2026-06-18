@@ -213,7 +213,7 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <label>Puntos</label>
-                                    <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 8) }}" min="1" max="8" required>
+                                    <input type="number" name="puntos" class="form-control" value="{{ old('puntos') }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                                 </div>
                                 <div class="col-md-4">
                                     <label>Fecha</label>

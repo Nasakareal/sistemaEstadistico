@@ -96,6 +96,8 @@ class LicenciaPuntosService
             $saldoNuevo = max(0, $saldoAnterior - $puntosNorma);
             $llegoACero = $saldoAnterior > 0 && $saldoNuevo === 0;
 
+            $this->completarCuentaDesdeCaptura($cuenta, $data, $actor);
+
             $cuenta->fill([
                 'saldo_actual' => $saldoNuevo,
                 'fecha_ultima_infraccion' => $fecha,
@@ -466,7 +468,7 @@ class LicenciaPuntosService
 
         $telefono = $this->soloDigitosONull($data['telefono'] ?? null)
             ?: $this->soloDigitosONull($conductor ? $conductor->telefono : null);
-        if (!$cuenta->telefono && $telefono) {
+        if ($telefono && $this->soloDigitosONull($cuenta->telefono) !== $telefono) {
             $updates['telefono'] = $telefono;
         }
 
@@ -526,6 +528,18 @@ class LicenciaPuntosService
     {
         $digits = preg_replace('/\D/', '', (string) $value);
 
-        return $digits !== '' ? $digits : null;
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) === 13 && str_starts_with($digits, '521')) {
+            return substr($digits, 3);
+        }
+
+        if (strlen($digits) === 12 && str_starts_with($digits, '52')) {
+            return substr($digits, 2);
+        }
+
+        return $digits;
     }
 }

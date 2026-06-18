@@ -183,7 +183,17 @@ class LicenciaPuntosWhatsAppNotificationService
 
     private function telefono(LicenciaPuntoCuenta $cuenta): string
     {
-        return preg_replace('/\D+/', '', (string) $cuenta->telefono) ?: '';
+        $digits = preg_replace('/\D+/', '', (string) $cuenta->telefono) ?: '';
+
+        if (strlen($digits) === 10) {
+            return '521' . $digits;
+        }
+
+        if (strlen($digits) === 12 && str_starts_with($digits, '52')) {
+            return '521' . substr($digits, 2);
+        }
+
+        return $digits;
     }
 
     private function consultaUrl(LicenciaPuntoCuenta $cuenta): string

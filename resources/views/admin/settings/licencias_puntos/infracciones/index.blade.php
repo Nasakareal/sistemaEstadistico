@@ -1,12 +1,12 @@
 @extends('adminlte::page')
 
-@section('title', 'Infracciones de puntos')
+@section('title', 'Penalizaciones de puntos')
 
 @section('content_header')
     <div class="d-flex flex-wrap align-items-center justify-content-between">
         <div>
-            <h1 class="mb-1">Infracciones de puntos</h1>
-            <p class="text-muted mb-0">Catalogo de infracciones y puntos que se descuentan a la licencia.</p>
+            <h1 class="mb-1">Penalizaciones de puntos</h1>
+            <p class="text-muted mb-0">Catálogo de penalizaciones, puntos y fundamento legal que se notifican al titular.</p>
         </div>
         <a href="{{ route('settings.index') }}" class="btn btn-secondary">
             <i class="fa-solid fa-arrow-left"></i> Configuraciones
@@ -33,13 +33,13 @@
         <div class="col-lg-4">
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Agregar infraccion</h3>
+                    <h3 class="card-title">Agregar penalización</h3>
                 </div>
                 <form method="POST" action="{{ route('settings.licencias_puntos.infracciones.store') }}">
                     @csrf
                     <div class="card-body">
                         <div class="form-group">
-                            <label>Nombre</label>
+                            <label>Penalización visible para operativo</label>
                             <input type="text" name="nombre" class="form-control" value="{{ old('nombre') }}" maxlength="150" required>
                         </div>
                         <div class="form-group">
@@ -51,8 +51,9 @@
                             <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 1) }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                         </div>
                         <div class="form-group">
-                            <label>Descripcion</label>
-                            <textarea name="descripcion" class="form-control" rows="4">{{ old('descripcion') }}</textarea>
+                            <label>Fundamento legal para WhatsApp</label>
+                            <textarea name="fundamento_legal" class="form-control" rows="4" required>{{ old('fundamento_legal', 'Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.') }}</textarea>
+                            <small class="form-text text-muted">Ejemplo: Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.</small>
                         </div>
                         <div class="icheck-primary">
                             <input type="checkbox" name="activa" value="1" id="activa_nueva" {{ old('activa', '1') ? 'checked' : '' }}>
@@ -78,7 +79,7 @@
                 <table class="table table-striped table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Infraccion</th>
+                            <th>Penalización</th>
                             <th>Codigo</th>
                             <th>Puntos</th>
                             <th>Estado</th>
@@ -91,8 +92,8 @@
                             <tr>
                                 <td>
                                     <strong>{{ $infraccion->nombre }}</strong>
-                                    @if($infraccion->descripcion)
-                                        <small class="d-block text-muted">{{ $infraccion->descripcion }}</small>
+                                    @if($infraccion->fundamento_legal)
+                                        <small class="d-block text-muted">{{ $infraccion->fundamento_legal }}</small>
                                     @endif
                                 </td>
                                 <td><code>{{ $infraccion->codigo }}</code></td>
@@ -117,7 +118,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No hay infracciones registradas.</td>
+                                <td colspan="6" class="text-center text-muted py-4">No hay penalizaciones registradas.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -136,7 +137,7 @@
                         @csrf
                         @method('PUT')
                         <div class="modal-header">
-                            <h5 class="modal-title">Editar infraccion</h5>
+                            <h5 class="modal-title">Editar penalización</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                                 <span aria-hidden="true">&times;</span>
                             </button>
@@ -145,7 +146,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Nombre</label>
+                                        <label>Penalización visible para operativo</label>
                                         <input type="text" name="nombre" class="form-control" value="{{ old('nombre', $infraccion->nombre) }}" maxlength="150" required>
                                     </div>
                                 </div>
@@ -163,8 +164,9 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group">
-                                        <label>Descripcion</label>
-                                        <textarea name="descripcion" class="form-control" rows="4">{{ old('descripcion', $infraccion->descripcion) }}</textarea>
+                                        <label>Fundamento legal para WhatsApp</label>
+                                        <textarea name="fundamento_legal" class="form-control" rows="4" required>{{ old('fundamento_legal', $infraccion->fundamento_legal) }}</textarea>
+                                        <small class="form-text text-muted">Este texto se envia como variable independiente en la plantilla de WhatsApp.</small>
                                     </div>
                                 </div>
                                 <div class="col-12">

@@ -410,7 +410,6 @@ class AuthServiceProvider extends ServiceProvider
         return in_array($this->normalizeAbility($ability), [
             'ver puntos licencias',
             'crear puntos licencias',
-            'editar puntos licencias',
             'registrar infracciones puntos licencias',
             'acreditar capacitacion puntos licencias',
             'ver catalogo infracciones puntos licencias',
@@ -450,7 +449,6 @@ class AuthServiceProvider extends ServiceProvider
         }
 
         if (in_array($ability, [
-            'editar puntos licencias',
             'ver catalogo infracciones puntos licencias',
             'crear catalogo infracciones puntos licencias',
             'editar catalogo infracciones puntos licencias',

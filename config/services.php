@@ -111,6 +111,10 @@ return [
 
         'delegaciones' => [
             'alertas_to' => env('WHATSAPP_DELEGACIONES_ALERTAS_TO'),
+            'cortes_to' => env('WHATSAPP_DELEGACIONES_CORTES_TO', env('WHATSAPP_DELEGACIONES_ALERTAS_TO')),
+            'cortes_template' => env('WHATSAPP_DELEGACIONES_CORTES_TEMPLATE', 'delegaciones_corte_aseguramientos_v1'),
+            'cortes_template_language' => env('WHATSAPP_DELEGACIONES_CORTES_TEMPLATE_LANGUAGE', 'es_MX'),
+            'cortes_schedule_times' => array_values(array_filter(array_map('trim', explode(',', env('WHATSAPP_DELEGACIONES_CORTES_SCHEDULE_TIMES', '15:00,20:00,22:00'))))),
             'incompletos_template' => env('WHATSAPP_DELEGACIONES_INCOMPLETOS_TEMPLATE', 'alerta_hecho_incompleto_delegaciones'),
             'incompletos_min_hours' => (int) env('WHATSAPP_DELEGACIONES_INCOMPLETOS_MIN_HOURS', 3),
             'incompletos_lookback_days' => (int) env('WHATSAPP_DELEGACIONES_INCOMPLETOS_LOOKBACK_DAYS', 3),

@@ -7,12 +7,18 @@ use App\Models\LicenciaPuntoCuenta;
 use App\Models\LicenciaPuntoInfraccion;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\LicenciaPuntosService;
+use App\Services\LicenciaPuntosTurnoAccessService;
+use App\Support\LicenciaTipoCatalog;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LicenciaPuntosController extends Controller
 {
     public function meta(Request $request)
     {
+        $this->autorizarTurnoModulo($request);
+
         return response()->json([
             'ok' => true,
             'data' => [
@@ -26,15 +32,18 @@ class LicenciaPuntosController extends Controller
                     LicenciaPuntoCuenta::ESTADO_CANCELADA => 'Cancelada',
                 ],
                 'abilities' => $this->abilitiesPayload($request),
+                'tipos_licencia' => LicenciaTipoCatalog::all(),
                 'infracciones' => LicenciaPuntoInfraccion::activas()
                     ->orderBy('nombre')
-                    ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion']),
+                    ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion', 'fundamento_legal']),
             ],
         ]);
     }
 
     public function index(Request $request)
     {
+        $this->autorizarTurnoModulo($request);
+
         $query = LicenciaPuntoCuenta::with('conductor')->orderByDesc('id');
 
         if ($request->filled('buscar')) {
@@ -66,24 +75,29 @@ class LicenciaPuntosController extends Controller
         ]);
     }
 
-    public function catalogoInfracciones()
+    public function catalogoInfracciones(Request $request)
     {
+        $this->autorizarTurnoModulo($request);
+
         return response()->json([
             'ok' => true,
             'data' => LicenciaPuntoInfraccion::activas()
                 ->orderBy('nombre')
-                ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion']),
+                ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion', 'fundamento_legal']),
         ]);
     }
 
     public function store(Request $request, LicenciaPuntosService $service)
     {
         $this->autorizarRestarPuntos($request);
+        $request->merge([
+            'tipo_licencia' => LicenciaTipoCatalog::requestValue($request->input('tipo_licencia')),
+        ]);
 
         $validated = $request->validate([
             'conductor_id' => ['nullable', 'integer', 'exists:conductores,id'],
             'numero_licencia' => ['required', 'string', 'max:80'],
-            'tipo_licencia' => ['nullable', 'string', 'max:60'],
+            'tipo_licencia' => ['nullable', Rule::in(LicenciaTipoCatalog::keys())],
             'titular_nombre' => ['nullable', 'string', 'max:255'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
@@ -100,13 +114,15 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Infraccion registrada y puntos actualizados.',
+            'message' => 'Penalización registrada y puntos actualizados.',
             'data' => $this->cuentaPayload($cuenta, true),
         ], 201);
     }
 
-    public function show(LicenciaPuntoCuenta $cuenta)
+    public function show(Request $request, LicenciaPuntoCuenta $cuenta)
     {
+        $this->autorizarTurnoModulo($request);
+
         $cuenta->load(['conductor', 'alertas', 'movimientos.infraccion', 'movimientos.usuario']);
 
         return response()->json([
@@ -116,8 +132,10 @@ class LicenciaPuntosController extends Controller
         ]);
     }
 
-    public function showByNumero(string $numeroLicencia, LicenciaPuntosService $service)
+    public function showByNumero(Request $request, string $numeroLicencia, LicenciaPuntosService $service)
     {
+        $this->autorizarTurnoModulo($request);
+
         $numero = $service->normalizarLicencia($numeroLicencia);
         $cuenta = LicenciaPuntoCuenta::where('numero_licencia', $numero)->first();
 
@@ -129,6 +147,7 @@ class LicenciaPuntosController extends Controller
                     'id' => null,
                     'numero_licencia' => $numero,
                     'tipo_licencia' => null,
+                    'tipo_licencia_label' => null,
                     'titular_nombre' => null,
                     'curp' => null,
                     'telefono' => null,
@@ -166,12 +185,15 @@ class LicenciaPuntosController extends Controller
     public function registrarInfraccion(Request $request, LicenciaPuntosService $service)
     {
         $this->autorizarRestarPuntos($request);
+        $request->merge([
+            'tipo_licencia' => LicenciaTipoCatalog::requestValue($request->input('tipo_licencia')),
+        ]);
 
         $validated = $request->validate([
             'cuenta_id' => ['nullable', 'integer', 'exists:licencia_punto_cuentas,id'],
             'numero_licencia' => ['nullable', 'string', 'max:80'],
             'conductor_id' => ['nullable', 'integer', 'exists:conductores,id'],
-            'tipo_licencia' => ['nullable', 'string', 'max:60'],
+            'tipo_licencia' => ['nullable', Rule::in(LicenciaTipoCatalog::keys())],
             'titular_nombre' => ['nullable', 'string', 'max:255'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
@@ -200,7 +222,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Infraccion registrada y puntos actualizados.',
+            'message' => 'Penalización registrada y puntos actualizados.',
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
@@ -222,7 +244,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Infraccion registrada y puntos actualizados.',
+            'message' => 'Penalización registrada y puntos actualizados.',
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
@@ -247,28 +269,6 @@ class LicenciaPuntosController extends Controller
         ]);
     }
 
-    public function recuperarPorTiempo(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
-    {
-        $this->autorizarPruebaSuperadmin($request);
-
-        abort_unless($request->user() && $request->user()->can('editar puntos licencias'), 403);
-
-        $cuenta = $service->recuperarPorTiempo($cuenta, null, $request->user());
-
-        if (!$cuenta) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'La licencia aun no cumple 18 meses sin infracciones.',
-            ], 422);
-        }
-
-        return response()->json([
-            'ok' => true,
-            'message' => 'Puntos recuperados por tiempo sin infracciones.',
-            'data' => $this->cuentaPayload($cuenta, true),
-        ]);
-    }
-
     private function cuentaPayload(LicenciaPuntoCuenta $cuenta, bool $includeHistory = false): array
     {
         $cuenta->loadMissing('conductor');
@@ -277,6 +277,7 @@ class LicenciaPuntosController extends Controller
             'id' => $cuenta->id,
             'numero_licencia' => $cuenta->numero_licencia,
             'tipo_licencia' => $cuenta->tipo_licencia,
+            'tipo_licencia_label' => LicenciaTipoCatalog::label($cuenta->tipo_licencia),
             'titular_nombre' => $cuenta->titular_nombre,
             'curp' => $cuenta->curp,
             'telefono' => $cuenta->telefono,
@@ -317,6 +318,7 @@ class LicenciaPuntosController extends Controller
                         'codigo' => $movimiento->infraccion->codigo,
                         'nombre' => $movimiento->infraccion->nombre,
                         'puntos' => (int) $movimiento->infraccion->puntos,
+                        'fundamento_legal' => $movimiento->infraccion->fundamento_legal,
                     ] : null,
                 ]);
 
@@ -342,20 +344,35 @@ class LicenciaPuntosController extends Controller
         $esFomento = $user
             ? app(FomentoCulturaVialDetalleManager::class)->usuarioEsFomento($user)
             : false;
+        $turnoAccess = $user
+            ? app(LicenciaPuntosTurnoAccessService::class)->statusForUser($user)
+            : [
+                'allowed' => false,
+                'applies' => false,
+                'reason' => 'guest',
+                'message' => 'Sesion requerida.',
+            ];
+        $turnoAllowed = (bool)($turnoAccess['allowed'] ?? false);
+        $isSuperadmin = $user ? $user->hasRole('Superadmin') : false;
+        $canRestar = $user ? $user->can('registrar infracciones puntos licencias') : false;
+        $canSumar = $user ? $user->can('acreditar capacitacion puntos licencias') : false;
 
         return [
-            'is_superadmin' => $user ? $user->hasRole('Superadmin') : false,
+            'is_superadmin' => $isSuperadmin,
             'is_fomento_cultura_vial' => $esFomento,
-            'module_writes_locked' => $user ? !$user->hasRole('Superadmin') : true,
-            'can_restar_puntos' => $user ? $user->can('registrar infracciones puntos licencias') : false,
-            'can_sumar_puntos' => $user ? $user->can('acreditar capacitacion puntos licencias') : false,
-            'can_recuperar_por_tiempo' => $user ? $user->can('editar puntos licencias') : false,
+            'module_writes_locked' => !$isSuperadmin || !$turnoAllowed || (!$canRestar && !$canSumar),
+            'can_restar_puntos' => $isSuperadmin && $turnoAllowed && $canRestar,
+            'can_sumar_puntos' => $isSuperadmin && $turnoAllowed && $canSumar,
+            'can_recuperar_por_tiempo' => false,
             'can_ver_catalogo_infracciones' => $user ? $user->can('ver puntos licencias') : false,
+            'licencias_puntos_turno' => $turnoAccess,
+            'licencias_puntos_turno_permitido' => $turnoAllowed,
         ];
     }
 
     private function autorizarRestarPuntos(Request $request): void
     {
+        $this->autorizarTurnoModulo($request);
         $this->autorizarPruebaSuperadmin($request);
 
         abort_unless($request->user() && $request->user()->can('registrar infracciones puntos licencias'), 403);
@@ -363,6 +380,7 @@ class LicenciaPuntosController extends Controller
 
     private function autorizarSumarPuntos(Request $request): void
     {
+        $this->autorizarTurnoModulo($request);
         $this->autorizarPruebaSuperadmin($request);
 
         abort_unless($request->user() && $request->user()->can('acreditar capacitacion puntos licencias'), 403);
@@ -371,5 +389,23 @@ class LicenciaPuntosController extends Controller
     private function autorizarPruebaSuperadmin(Request $request): void
     {
         abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
+    }
+
+    private function autorizarTurnoModulo(Request $request): void
+    {
+        abort_unless($request->user(), 403);
+
+        $status = app(LicenciaPuntosTurnoAccessService::class)
+            ->statusForUser($request->user());
+
+        if ((bool)($status['allowed'] ?? false)) {
+            return;
+        }
+
+        throw new HttpResponseException(response()->json([
+            'ok' => false,
+            'message' => $status['message'] ?? 'Acceso bloqueado por turno.',
+            'licencias_puntos_turno' => $status,
+        ], 403));
     }
 }

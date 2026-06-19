@@ -624,7 +624,7 @@ return [
                     'can'     => 'ver puntos licencias',
                 ],
                 [
-                    'text'    => 'Infracciones',
+                    'text'    => 'Penalizaciones',
                     'icon'    => 'fa-solid fa-list-check',
                     'classes' => 'text-white',
                     'route'   => 'settings.licencias_puntos.infracciones.index',
@@ -733,7 +733,7 @@ return [
                     'can'     => 'ver oficios',
                 ],
                 [
-                    'text'    => 'Infracciones de puntos',
+                    'text'    => 'Penalizaciones de puntos',
                     'icon'    => 'fa-solid fa-id-card-clip',
                     'classes' => 'text-white',
                     'route'   => 'settings.licencias_puntos.infracciones.index',

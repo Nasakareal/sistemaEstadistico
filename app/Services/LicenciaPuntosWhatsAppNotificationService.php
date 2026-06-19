@@ -39,6 +39,7 @@ class LicenciaPuntosWhatsAppNotificationService
                 $cuenta->titular_nombre,
                 $cuenta->numero_licencia,
                 $infraccion->nombre,
+                $this->fundamentoLegal($infraccion),
                 abs((int) $movimiento->puntos),
                 (int) $movimiento->saldo_nuevo,
                 $fecha->format('d/m/Y H:i'),
@@ -199,6 +200,13 @@ class LicenciaPuntosWhatsAppNotificationService
     private function consultaUrl(LicenciaPuntoCuenta $cuenta): string
     {
         return route('licencias_puntos.consulta', ['numero_licencia' => $cuenta->numero_licencia]);
+    }
+
+    private function fundamentoLegal(LicenciaPuntoInfraccion $infraccion): string
+    {
+        $fundamento = trim((string) $infraccion->fundamento_legal);
+
+        return $fundamento !== '' ? $fundamento : 'Fundamento legal no especificado.';
     }
 
     private function enabled(): bool

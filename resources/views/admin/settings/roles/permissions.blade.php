@@ -18,41 +18,95 @@
             'borrar' => ['borrar', 'eliminar', 'quitar'],
         ];
 
+        $hiddenPermissions = [
+            'editar puntos licencias',
+        ];
+
+        $permissionOverrides = [
+            'ver puntos licencias' => [
+                'module' => 'Puntos de licencia',
+                'action' => 'ver',
+                'label' => 'Ver cuentas, saldos e historial',
+            ],
+            'crear puntos licencias' => [
+                'module' => 'Puntos de licencia',
+                'action' => null,
+                'label' => 'Alta inicial de cuenta (compatibilidad)',
+            ],
+            'registrar infracciones puntos licencias' => [
+                'module' => 'Puntos de licencia',
+                'action' => null,
+                'label' => 'Quitar puntos por penalización',
+            ],
+            'acreditar capacitacion puntos licencias' => [
+                'module' => 'Puntos de licencia',
+                'action' => null,
+                'label' => 'Dar puntos por capacitacion',
+            ],
+            'ver catalogo infracciones puntos licencias' => [
+                'module' => 'Catálogo de penalizaciones para puntos',
+                'action' => 'ver',
+                'label' => 'Ver catálogo de penalizaciones',
+            ],
+            'crear catalogo infracciones puntos licencias' => [
+                'module' => 'Catálogo de penalizaciones para puntos',
+                'action' => 'crear',
+                'label' => 'Crear penalizaciones',
+            ],
+            'editar catalogo infracciones puntos licencias' => [
+                'module' => 'Catálogo de penalizaciones para puntos',
+                'action' => 'editar',
+                'label' => 'Editar puntos o fundamento legal',
+            ],
+        ];
+
         $rows = [];
 
         foreach ($permissions as $perm) {
             $name = trim((string) $perm->name);
             $lower = mb_strtolower($name);
 
-            $action = null;
-            $match = null;
-
-            foreach ($synonyms as $canonical => $words) {
-                foreach ($words as $w) {
-                    $prefix1 = $w . ' ';
-                    $prefix2 = $w . '_';
-                    $prefix3 = $w . '-';
-
-                    if (mb_strpos($lower, $prefix1) === 0 || mb_strpos($lower, $prefix2) === 0 || mb_strpos($lower, $prefix3) === 0) {
-                        $action = $canonical;
-                        $match = $w;
-                        break 2;
-                    }
-
-                    if ($lower === $w) {
-                        $action = $canonical;
-                        $match = $w;
-                        break 2;
-                    }
-                }
+            if (in_array($lower, $hiddenPermissions, true)) {
+                continue;
             }
 
-            if ($action) {
-                $module = trim(mb_substr($name, mb_strlen($match)));
-                $module = ltrim($module, " _-");
-                $module = trim($module);
+            $action = null;
+            $match = null;
+            $customLabel = null;
+
+            if (isset($permissionOverrides[$lower])) {
+                $override = $permissionOverrides[$lower];
+                $module = $override['module'];
+                $action = $override['action'];
+                $customLabel = $override['label'];
             } else {
-                $module = $name;
+                foreach ($synonyms as $canonical => $words) {
+                    foreach ($words as $w) {
+                        $prefix1 = $w . ' ';
+                        $prefix2 = $w . '_';
+                        $prefix3 = $w . '-';
+
+                        if (mb_strpos($lower, $prefix1) === 0 || mb_strpos($lower, $prefix2) === 0 || mb_strpos($lower, $prefix3) === 0) {
+                            $action = $canonical;
+                            $match = $w;
+                            break 2;
+                        }
+
+                        if ($lower === $w) {
+                            $action = $canonical;
+                            $match = $w;
+                            break 2;
+                        }
+                    }
+                }
+
+                if ($action) {
+                    $module = trim(mb_substr($name, mb_strlen($match)));
+                    $module = ltrim($module, " _-");
+                    $module = trim($module);
+                } else {
+                    $module = $name;
+                }
             }
 
             if ($module === '') $module = $name;
@@ -67,7 +121,12 @@
                         'borrar' => null,
                     ],
                     'otros' => [],
+                    'labels' => [],
                 ];
+            }
+
+            if ($customLabel) {
+                $rows[$module]['labels'][$perm->id] = $customLabel;
             }
 
             if ($action && array_key_exists($action, $rows[$module]['perms']) && !$rows[$module]['perms'][$action]) {
@@ -96,20 +155,13 @@
                     </div>
                 </div>
 
-                <div class="mb-3 d-flex flex-wrap" style="gap:10px;">
+                <div class="mb-3 d-flex flex-wrap roles-permissions-toolbar">
+                    <button type="button" class="btn btn-outline-success btn-sm" id="btnSelectVisible">Marcar visibles</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearVisible">Limpiar visibles</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" data-mass="ver">Marcar Ver</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" data-mass="crear">Marcar Crear</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" data-mass="editar">Marcar Editar</button>
-                    <button type="button" class="btn btn-outline-primary btn-sm" data-mass="borrar">Marcar Borrar</button>
-
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mass="unver">Desmarcar Ver</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mass="uncrear">Desmarcar Crear</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mass="uneditar">Desmarcar Editar</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mass="unborrar">Desmarcar Borrar</button>
-
-                    <button type="button" class="btn btn-outline-dark btn-sm" id="btnToggleAll">
-                        Seleccionar / Deseleccionar todo
-                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-mass="borrar">Marcar Borrar</button>
                 </div>
 
                 <div class="row" id="cardsWrap">
@@ -124,6 +176,16 @@
                             $pborrar = $group['perms']['borrar'];
                             $otros = $group['otros'] ?? [];
                             $hayOtros = count($otros) > 0;
+                            $crudPerms = [];
+
+                            foreach ($actionsOrder as $act) {
+                                if ($group['perms'][$act]) {
+                                    $crudPerms[$act] = $group['perms'][$act];
+                                }
+                            }
+
+                            $hayCrud = count($crudPerms) > 0;
+                            $totalAvailable = count($crudPerms) + count($otros);
 
                             $checkedCount = 0;
                             foreach (['ver' => $pver, 'crear' => $pcrear, 'editar' => $peditar, 'borrar' => $pborrar] as $k => $p) {
@@ -135,9 +197,9 @@
 
                             $searchText = $module;
                             foreach (['ver' => $pver, 'crear' => $pcrear, 'editar' => $peditar, 'borrar' => $pborrar] as $p) {
-                                if ($p) $searchText .= ' ' . $p->name;
+                                if ($p) $searchText .= ' ' . $p->name . ' ' . ($group['labels'][$p->id] ?? '');
                             }
-                            foreach ($otros as $p) $searchText .= ' ' . $p->name;
+                            foreach ($otros as $p) $searchText .= ' ' . $p->name . ' ' . ($group['labels'][$p->id] ?? '');
                         @endphp
 
                         <div class="col-md-6 col-lg-4 perm-card" data-search="{{ mb_strtolower($searchText) }}">
@@ -147,85 +209,77 @@
                                         <h3 class="card-title text-truncate" title="{{ $module }}">
                                             {{ $module }}
                                         </h3>
-                                        <span class="badge badge-info">
-                                            {{ $checkedCount }} seleccionados
+                                        <span class="badge badge-info perm-count">
+                                            {{ $checkedCount }} de {{ $totalAvailable }}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div class="card-body">
 
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-bordered mb-0">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width:70%;">Acción</th>
-                                                    <th style="width:30%; text-align:center;">Permitir</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach ($actionsOrder as $act)
-                                                    @php $p = $group['perms'][$act]; @endphp
-                                                    <tr>
-                                                        <td>{{ $labels[$act] }}</td>
-                                                        <td style="text-align:center;">
-                                                            @if ($p)
-                                                                <input
-                                                                    type="checkbox"
-                                                                    class="perm-check perm-{{ $act }}"
-                                                                    name="permissions[]"
-                                                                    value="{{ $p->id }}"
-                                                                    {{ in_array($p->id, $rolePermissions) ? 'checked' : '' }}
-                                                                >
-                                                            @else
-                                                                <span class="text-muted">—</span>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    @if ($hayCrud)
+                                        <div class="perm-section-label">Acciones disponibles</div>
+                                        <div class="perm-pill-grid">
+                                            @foreach ($actionsOrder as $act)
+                                                @php $p = $group['perms'][$act]; @endphp
+                                                @continue(!$p)
+                                                <label class="perm-pill">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="perm-check perm-{{ $act }}"
+                                                        name="permissions[]"
+                                                        value="{{ $p->id }}"
+                                                        {{ in_array($p->id, $rolePermissions) ? 'checked' : '' }}
+                                                    >
+                                                    <span>{{ $group['labels'][$p->id] ?? $labels[$act] }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @endif
 
                                     @if ($hayOtros)
-                                        <hr>
-                                        <div class="small text-muted mb-2">Otros permisos</div>
+                                        <div class="{{ $hayCrud ? 'mt-3' : '' }}">
+                                            @if ($hayCrud || count($otros) > 1)
+                                                <div class="perm-section-label">Permisos especiales</div>
+                                            @endif
 
-                                        <div class="table-responsive">
-                                            <table class="table table-sm table-bordered mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Permiso</th>
-                                                        <th style="width:30%; text-align:center;">Permitir</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach ($otros as $p)
-                                                        <tr>
-                                                            <td>{{ $p->name }}</td>
-                                                            <td style="text-align:center;">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    class="perm-check perm-otros"
-                                                                    name="permissions[]"
-                                                                    value="{{ $p->id }}"
-                                                                    {{ in_array($p->id, $rolePermissions) ? 'checked' : '' }}
-                                                                >
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
+                                            <div class="perm-pill-grid">
+                                                @foreach ($otros as $p)
+                                                    @php
+                                                        $otroLabel = (!$hayCrud && count($otros) === 1 && mb_strtolower($p->name) === mb_strtolower($module))
+                                                            ? 'Permitir'
+                                                            : ($group['labels'][$p->id] ?? $p->name);
+                                                    @endphp
+                                                    <label class="perm-pill perm-pill--wide" title="{{ $p->name }}">
+                                                        <span>{{ $otroLabel }}</span>
+                                                        <input
+                                                            type="checkbox"
+                                                            class="perm-check perm-otros"
+                                                            name="permissions[]"
+                                                            value="{{ $p->id }}"
+                                                            {{ in_array($p->id, $rolePermissions) ? 'checked' : '' }}
+                                                        >
+                                                    </label>
+                                                @endforeach
+                                            </div>
                                         </div>
+                                    @endif
+
+                                    @if (!$hayCrud && !$hayOtros)
+                                        <span class="text-muted">Sin permisos configurables.</span>
                                     @endif
 
                                 </div>
 
-                                <div class="card-footer d-flex flex-wrap" style="gap:8px;">
-                                    <button type="button" class="btn btn-outline-success btn-sm btnCardAll">Todo</button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm btnCardNone">Nada</button>
-                                    <button type="button" class="btn btn-outline-primary btn-sm btnCardCrud">Ver/Crear/Editar/Borrar</button>
-                                </div>
+                                @if ($totalAvailable > 1)
+                                    <div class="card-footer d-flex flex-wrap" style="gap:8px;">
+                                        <button type="button" class="btn btn-outline-success btn-sm btnCardAll">Todo</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm btnCardNone">Nada</button>
+                                        @if ($hayCrud)
+                                            <button type="button" class="btn btn-outline-primary btn-sm btnCardCrud">Acciones</button>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -248,10 +302,55 @@
 @section('css')
 <style>
     #permSearch{ max-width: 520px; }
+    .roles-permissions-toolbar{ gap: 10px; }
     .perm-card .card-title{ max-width: 75%; }
     .perm-card .card{ border-radius: 12px; }
     .perm-card .card-body{ padding: 1rem; }
     .perm-card .table td, .perm-card .table th{ vertical-align: middle; }
+    .perm-section-label{
+        color: rgba(234,240,255,.72);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .02em;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+    .perm-pill-grid{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 8px;
+    }
+    .perm-pill{
+        align-items: center;
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 10px;
+        color: rgba(234,240,255,.94);
+        cursor: pointer;
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin: 0;
+        min-height: 38px;
+        padding: 8px 10px;
+    }
+    .perm-pill:hover{
+        background: rgba(45,168,255,.10);
+        border-color: rgba(45,168,255,.28);
+    }
+    .perm-pill input{
+        flex: 0 0 auto;
+        margin: 0;
+    }
+    .perm-pill span{
+        font-weight: 800;
+        overflow-wrap: anywhere;
+    }
+    .perm-pill--wide{
+        grid-column: 1 / -1;
+        justify-content: space-between;
+        text-align: left;
+    }
 </style>
 @stop
 
@@ -262,19 +361,37 @@
         container.querySelectorAll('input.perm-check').forEach(function (el) {
             el.checked = checked;
         });
+        refreshCard(container.closest('.perm-card') || container);
     }
 
     function setChecksByClass(className, checked) {
         document.querySelectorAll('input.' + className).forEach(function (el) {
             if (el.offsetParent !== null) el.checked = checked;
         });
+        refreshAllCards();
     }
 
-    function toggleAllVisible() {
+    function setAllVisible(checked) {
         const visibles = Array.from(document.querySelectorAll('.perm-card')).filter(c => c.offsetParent !== null);
-        const checks = visibles.flatMap(c => Array.from(c.querySelectorAll('input.perm-check')));
-        const allChecked = checks.length ? checks.every(x => x.checked) : false;
-        checks.forEach(x => x.checked = !allChecked);
+        visibles.forEach(function (card) {
+            setChecks(card, checked);
+        });
+    }
+
+    function refreshCard(card) {
+        if (!card) return;
+
+        const checks = Array.from(card.querySelectorAll('input.perm-check'));
+        const badge = card.querySelector('.perm-count');
+
+        if (!badge) return;
+
+        const checked = checks.filter(function (el) { return el.checked; }).length;
+        badge.textContent = checked + ' de ' + checks.length;
+    }
+
+    function refreshAllCards() {
+        document.querySelectorAll('.perm-card').forEach(refreshCard);
     }
 
     function wireCardButtons(card) {
@@ -288,6 +405,7 @@
             ['perm-ver','perm-crear','perm-editar','perm-borrar'].forEach(function (cls) {
                 card.querySelectorAll('input.' + cls).forEach(function (el) { el.checked = true; });
             });
+            refreshCard(card);
         });
     }
 
@@ -325,16 +443,22 @@
                 if (key === 'crear') setChecksByClass('perm-crear', true);
                 if (key === 'editar') setChecksByClass('perm-editar', true);
                 if (key === 'borrar') setChecksByClass('perm-borrar', true);
-
-                if (key === 'unver') setChecksByClass('perm-ver', false);
-                if (key === 'uncrear') setChecksByClass('perm-crear', false);
-                if (key === 'uneditar') setChecksByClass('perm-editar', false);
-                if (key === 'unborrar') setChecksByClass('perm-borrar', false);
             });
         });
 
-        const btnToggleAll = document.getElementById('btnToggleAll');
-        if (btnToggleAll) btnToggleAll.addEventListener('click', toggleAllVisible);
+        document.querySelectorAll('input.perm-check').forEach(function (check) {
+            check.addEventListener('change', function () {
+                refreshCard(check.closest('.perm-card'));
+            });
+        });
+
+        const btnSelectVisible = document.getElementById('btnSelectVisible');
+        if (btnSelectVisible) btnSelectVisible.addEventListener('click', function () { setAllVisible(true); });
+
+        const btnClearVisible = document.getElementById('btnClearVisible');
+        if (btnClearVisible) btnClearVisible.addEventListener('click', function () { setAllVisible(false); });
+
+        refreshAllCards();
     });
 
     @if (session('success'))

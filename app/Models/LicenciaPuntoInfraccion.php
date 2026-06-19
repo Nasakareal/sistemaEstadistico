@@ -14,6 +14,7 @@ class LicenciaPuntoInfraccion extends Model
         'nombre',
         'puntos',
         'descripcion',
+        'fundamento_legal',
         'activa',
     ];
 

@@ -16,6 +16,7 @@ return new class extends Migration
                 $table->string('nombre', 150);
                 $table->unsignedTinyInteger('puntos');
                 $table->text('descripcion')->nullable();
+                $table->text('fundamento_legal')->nullable();
                 $table->boolean('activa')->default(true)->index();
                 $table->timestamps();
             });
@@ -111,18 +112,21 @@ return new class extends Migration
                 'nombre' => 'Exceso de velocidad',
                 'puntos' => 2,
                 'descripcion' => 'Conducir por encima del limite permitido.',
+                'fundamento_legal' => 'Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.',
             ],
             [
                 'codigo' => 'CELULAR_CONDUCIR',
                 'nombre' => 'Celular al conducir',
                 'puntos' => 1,
                 'descripcion' => 'Usar telefono o dispositivo movil mientras conduce.',
+                'fundamento_legal' => 'Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.',
             ],
             [
                 'codigo' => 'SEMAFORO_ROJO',
                 'nombre' => 'Semaforo rojo',
                 'puntos' => 3,
                 'descripcion' => 'No respetar luz roja o indicacion de alto.',
+                'fundamento_legal' => 'Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.',
             ],
         ];
 

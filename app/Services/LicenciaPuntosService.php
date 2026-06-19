@@ -9,6 +9,7 @@ use App\Models\LicenciaPuntoMovimiento;
 use App\Models\Conductor;
 use App\Models\Oficio;
 use App\Models\User;
+use App\Support\LicenciaTipoCatalog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -85,7 +86,7 @@ class LicenciaPuntosService
 
             if (!$infraccion->activa) {
                 throw ValidationException::withMessages([
-                    'infraccion_id' => 'La infraccion seleccionada no esta activa.',
+                    'infraccion_id' => 'La penalización seleccionada no esta activa.',
                 ]);
             }
 
@@ -128,6 +129,7 @@ class LicenciaPuntosService
                 'descripcion' => $data['descripcion'] ?? $infraccion->nombre,
                 'metadata' => [
                     'codigo_infraccion' => $infraccion->codigo,
+                    'fundamento_legal' => $infraccion->fundamento_legal,
                     'puntos_norma' => $puntosNorma,
                     'puntos_aplicados' => $puntosAplicados,
                 ],
@@ -226,7 +228,7 @@ class LicenciaPuntosService
                 'saldo_nuevo' => $saldoNuevo,
                 'fecha_movimiento' => $fecha,
                 'referencia' => '18_MESES_SIN_INFRACCION',
-                'descripcion' => 'Recuperacion automatica por 18 meses sin infracciones.',
+                'descripcion' => 'Recuperacion automatica por 18 meses sin penalizaciones.',
                 'metadata' => [
                     'fecha_ultima_infraccion' => optional($cuenta->fecha_ultima_infraccion)->toDateTimeString(),
                     'meses_sin_infraccion' => LicenciaPuntoCuenta::MESES_RECUPERACION_TIEMPO,
@@ -433,8 +435,8 @@ class LicenciaPuntosService
         return LicenciaPuntoCuenta::create([
             'conductor_id' => $conductor ? $conductor->id : null,
             'numero_licencia' => $numeroLicencia,
-            'tipo_licencia' => $this->normalizarTexto($data['tipo_licencia'] ?? null)
-                ?: $this->normalizarTexto($conductor ? $conductor->tipo_licencia : null),
+            'tipo_licencia' => LicenciaTipoCatalog::normalize($data['tipo_licencia'] ?? null)
+                ?: LicenciaTipoCatalog::normalize($conductor ? $conductor->tipo_licencia : null),
             'titular_nombre' => $titular,
             'curp' => $this->normalizarTexto($data['curp'] ?? null),
             'telefono' => $this->soloDigitosONull($data['telefono'] ?? null)
@@ -442,7 +444,7 @@ class LicenciaPuntosService
             'saldo_actual' => LicenciaPuntoCuenta::SALDO_INICIAL,
             'estado' => LicenciaPuntoCuenta::ESTADO_VIGENTE,
             'token_consulta' => Str::random(48),
-            'observaciones' => $data['observaciones'] ?? 'Cuenta creada automaticamente al registrar la primera infraccion.',
+            'observaciones' => $data['observaciones'] ?? 'Cuenta creada automaticamente al registrar la primera penalización.',
             'created_by' => $actorId,
             'updated_by' => $actorId,
         ]);
@@ -459,8 +461,10 @@ class LicenciaPuntosService
         }
 
         foreach (['tipo_licencia', 'titular_nombre', 'curp'] as $field) {
-            $value = $this->normalizarTexto($data[$field] ?? null)
-                ?: $this->valorConductorParaCampo($conductor, $field);
+            $value = $field === 'tipo_licencia'
+                ? LicenciaTipoCatalog::normalize($data[$field] ?? null)
+                : $this->normalizarTexto($data[$field] ?? null);
+            $value = $value ?: $this->valorConductorParaCampo($conductor, $field);
             if (!$cuenta->{$field} && $value) {
                 $updates[$field] = $value;
             }
@@ -498,7 +502,7 @@ class LicenciaPuntosService
         }
 
         if ($field === 'tipo_licencia') {
-            return $this->normalizarTexto($conductor->tipo_licencia);
+            return LicenciaTipoCatalog::normalize($conductor->tipo_licencia);
         }
 
         return null;

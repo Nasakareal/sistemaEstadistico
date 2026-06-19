@@ -86,6 +86,19 @@ class Kernel extends ConsoleKernel
             ->hourly()
             ->withoutOverlapping();
 
+        foreach ((array) config('services.whatsapp.delegaciones.cortes_schedule_times', ['15:00', '20:00', '22:00']) as $corteDelegaciones) {
+            $corteDelegaciones = trim((string) $corteDelegaciones);
+
+            if (!preg_match('/^\d{1,2}:\d{2}$/', $corteDelegaciones)) {
+                continue;
+            }
+
+            $schedule->command('whatsapp:delegaciones-corte-aseguramientos')
+                ->timezone($timezone)
+                ->dailyAt($corteDelegaciones)
+                ->withoutOverlapping();
+        }
+
         $schedule->command('personal:licencias-vencidas-whatsapp')
             ->timezone($timezone)
             ->dailyAt('08:00')

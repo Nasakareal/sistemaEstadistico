@@ -21,7 +21,7 @@ class LicenciaPuntoCuentaTest extends TestCase
     public function test_saldo_completo_no_tiene_fecha_de_recuperacion(): void
     {
         $cuenta = new LicenciaPuntoCuenta([
-            'saldo_actual' => 8,
+            'saldo_actual' => LicenciaPuntoCuenta::SALDO_MAXIMO,
             'fecha_ultima_infraccion' => Carbon::parse('2026-01-15 10:30:00'),
         ]);
 

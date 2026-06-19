@@ -272,8 +272,8 @@
                         <i class="fa-solid fa-id-card-clip"></i>
                     </div>
                     <div class="sv-card__body">
-                        <div class="sv-card__title">Infracciones de Puntos</div>
-                        <div class="sv-card__desc">Catalogo de infracciones y puntos a descontar.</div>
+                        <div class="sv-card__title">Penalizaciones de Puntos</div>
+                        <div class="sv-card__desc">Catálogo de penalizaciones, puntos y fundamento legal.</div>
                         <a href="{{ route('settings.licencias_puntos.infracciones.index') }}" class="btn sv-btn">
                             <i class="fas fa-arrow-right"></i> Acceder
                         </a>

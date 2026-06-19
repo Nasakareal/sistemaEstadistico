@@ -154,7 +154,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{cuenta}', [ApiLicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('api.licencias_puntos.show');
         Route::post('/{cuenta}/infracciones', [ApiLicenciaPuntosController::class, 'registrarInfraccionCuenta'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.cuenta.infracciones.store');
         Route::post('/{cuenta}/capacitacion', [ApiLicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('api.licencias_puntos.capacitacion.store');
-        Route::post('/{cuenta}/recuperar-tiempo', [ApiLicenciaPuntosController::class, 'recuperarPorTiempo'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('api.licencias_puntos.recuperar_tiempo');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

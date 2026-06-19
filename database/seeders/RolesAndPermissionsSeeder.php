@@ -136,7 +136,6 @@ class RolesAndPermissionsSeeder extends Seeder
             // Sistema de puntos de licencia
             'ver puntos licencias',
             'crear puntos licencias',
-            'editar puntos licencias',
             'registrar infracciones puntos licencias',
             'acreditar capacitacion puntos licencias',
             'ver catalogo infracciones puntos licencias',
@@ -181,7 +180,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $permissionsSinPuntosPrueba = array_values(array_diff($permissions, [
             'ver puntos licencias',
             'crear puntos licencias',
-            'editar puntos licencias',
             'registrar infracciones puntos licencias',
             'acreditar capacitacion puntos licencias',
             'crear catalogo infracciones puntos licencias',

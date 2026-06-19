@@ -6,7 +6,9 @@ use App\Models\Conductor;
 use App\Models\LicenciaPuntoCuenta;
 use App\Models\LicenciaPuntoInfraccion;
 use App\Services\LicenciaPuntosService;
+use App\Support\LicenciaTipoCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LicenciaPuntosController extends Controller
 {
@@ -48,17 +50,22 @@ class LicenciaPuntosController extends Controller
             'agotadas' => LicenciaPuntoCuenta::where('saldo_actual', 0)->count(),
         ];
 
-        return view('licencias_puntos.index', compact('cuentas', 'infracciones', 'conductores', 'stats'));
+        $tiposLicencia = LicenciaTipoCatalog::all();
+
+        return view('licencias_puntos.index', compact('cuentas', 'infracciones', 'conductores', 'stats', 'tiposLicencia'));
     }
 
     public function store(Request $request, LicenciaPuntosService $service)
     {
         $this->autorizarRestarPuntos($request);
+        $request->merge([
+            'tipo_licencia' => LicenciaTipoCatalog::requestValue($request->input('tipo_licencia')),
+        ]);
 
         $validated = $request->validate([
             'conductor_id' => ['nullable', 'integer', 'exists:conductores,id'],
             'numero_licencia' => ['required', 'string', 'max:80'],
-            'tipo_licencia' => ['nullable', 'string', 'max:60'],
+            'tipo_licencia' => ['nullable', Rule::in(LicenciaTipoCatalog::keys())],
             'titular_nombre' => ['nullable', 'string', 'max:255'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
@@ -75,7 +82,7 @@ class LicenciaPuntosController extends Controller
 
         return redirect()
             ->route('licencias_puntos.show', $cuenta)
-            ->with('success', 'Infraccion registrada y puntos actualizados.');
+            ->with('success', 'Penalización registrada y puntos actualizados.');
     }
 
     public function show(LicenciaPuntoCuenta $cuenta)
@@ -122,7 +129,7 @@ class LicenciaPuntosController extends Controller
 
         return redirect()
             ->route('licencias_puntos.show', $cuenta)
-            ->with('success', 'Infraccion registrada y puntos actualizados.');
+            ->with('success', 'Penalización registrada y puntos actualizados.');
     }
 
     public function acreditarCapacitacion(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
@@ -141,25 +148,6 @@ class LicenciaPuntosController extends Controller
         return redirect()
             ->route('licencias_puntos.show', $cuenta)
             ->with('success', 'Capacitacion validada y puntos acreditados.');
-    }
-
-    public function recuperarPorTiempo(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
-    {
-        $this->autorizarPruebaSuperadmin($request);
-
-        abort_unless($request->user()->can('editar puntos licencias'), 403);
-
-        $recuperada = $service->recuperarPorTiempo($cuenta, null, $request->user());
-
-        if (!$recuperada) {
-            return redirect()
-                ->route('licencias_puntos.show', $cuenta)
-                ->with('error', 'La licencia aun no cumple 18 meses sin infracciones.');
-        }
-
-        return redirect()
-            ->route('licencias_puntos.show', $cuenta)
-            ->with('success', 'Puntos recuperados por tiempo sin infracciones.');
     }
 
     public function consulta(Request $request, LicenciaPuntosService $service)

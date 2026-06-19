@@ -6,7 +6,7 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between">
         <div>
             <h1 class="mb-1">Sistema de puntos de licencia</h1>
-            <p class="text-muted mb-0">Resta de puntos, alertas y recuperacion.</p>
+            <p class="text-muted mb-0">Penalizaciones, alertas y recuperacion.</p>
         </div>
         <a href="{{ route('licencias_puntos.consulta') }}" class="btn btn-outline-info" target="_blank">
             <i class="fa-solid fa-magnifying-glass"></i> Consulta ciudadana
@@ -30,7 +30,7 @@
     <div class="alert alert-warning">
         <strong>Herramienta en desarrollo.</strong>
         Puedes consultar el sistema de puntos, pero por ahora los movimientos estan bloqueados.
-        Solo el rol Superadmin puede aplicar descuentos o recuperaciones durante la prueba.
+        Solo el rol Superadmin puede aplicar penalizaciones durante la prueba.
     </div>
 @endunless
 
@@ -76,7 +76,7 @@
 @can('registrar infracciones puntos licencias')
 <div class="card card-outline card-primary">
     <div class="card-header">
-        <h3 class="card-title">Registrar infraccion (en prueba)</h3>
+        <h3 class="card-title">Registrar penalización (en prueba)</h3>
     </div>
     <form action="{{ route('licencias_puntos.store') }}" method="POST">
         @csrf
@@ -91,7 +91,7 @@
                                 <option value="{{ $conductor->id }}"
                                     data-nombre="{{ $conductor->nombre }}"
                                     data-licencia="{{ $conductor->numero_licencia }}"
-                                    data-tipo="{{ $conductor->tipo_licencia }}"
+                                    data-tipo="{{ \App\Support\LicenciaTipoCatalog::normalize($conductor->tipo_licencia) }}"
                                     data-telefono="{{ $conductor->telefono }}"
                                     {{ old('conductor_id', request('conductor_id')) == $conductor->id ? 'selected' : '' }}>
                                     {{ $conductor->nombre }} - {{ $conductor->numero_licencia }}
@@ -115,12 +115,18 @@
                 <div class="col-md-3">
                     <div class="form-group">
                         <label>Tipo</label>
-                        <input type="text" name="tipo_licencia" id="tipo_licencia" class="form-control" value="{{ old('tipo_licencia', request('tipo_licencia')) }}" placeholder="Automovilista, chofer...">
+                        @php $tipoSeleccionado = \App\Support\LicenciaTipoCatalog::normalize(old('tipo_licencia', request('tipo_licencia'))); @endphp
+                        <select name="tipo_licencia" id="tipo_licencia" class="form-control custom-select">
+                            <option value="">Seleccionar</option>
+                            @foreach($tiposLicencia as $value => $label)
+                                <option value="{{ $value }}" {{ $tipoSeleccionado === $value ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label>Infraccion</label>
+                        <label>Penalización</label>
                         <select name="infraccion_id" class="form-control custom-select" required>
                             <option value="">Seleccionar</option>
                             @foreach($infracciones as $infraccion)
@@ -133,14 +139,14 @@
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label>Fecha de infraccion</label>
+                        <label>Fecha de penalización</label>
                         <input type="datetime-local" name="fecha_movimiento" class="form-control" value="{{ old('fecha_movimiento') }}">
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
                         <label>Referencia</label>
-                        <input type="text" name="referencia" class="form-control" value="{{ old('referencia', request('referencia')) }}" placeholder="Folio de infraccion">
+                        <input type="text" name="referencia" class="form-control" value="{{ old('referencia', request('referencia')) }}" placeholder="Folio de penalización">
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -163,7 +169,7 @@
                 </div>
                 <div class="col-md-6">
                     <div class="form-group mb-0">
-                        <label>Descripcion</label>
+                        <label>Descripcion breve</label>
                         <input type="text" name="descripcion" class="form-control" value="{{ old('descripcion') }}">
                     </div>
                 </div>
@@ -225,7 +231,7 @@
                     <tr>
                         <td>
                             <strong>{{ $cuenta->numero_licencia }}</strong>
-                            <small class="d-block text-muted">{{ $cuenta->tipo_licencia ?: 'Sin tipo' }}</small>
+                            <small class="d-block text-muted">{{ \App\Support\LicenciaTipoCatalog::label($cuenta->tipo_licencia) ?: 'Sin tipo' }}</small>
                         </td>
                         <td>
                             {{ $cuenta->titular_nombre }}
@@ -237,7 +243,9 @@
                             @php
                                 $badge = ['normal' => 'success', 'advertencia' => 'warning', 'critico' => 'danger', 'agotado' => 'dark'][$cuenta->nivel_saldo] ?? 'secondary';
                             @endphp
-                            <span class="badge badge-{{ $badge }} badge-lg">{{ $cuenta->saldo_actual }} / 8</span>
+                            <span class="badge badge-{{ $badge }} badge-lg">
+                                {{ $cuenta->saldo_actual }} / {{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}
+                            </span>
                         </td>
                         <td>{{ $cuenta->estado_label }}</td>
                         <td>{{ $cuenta->fecha_recuperacion ? $cuenta->fecha_recuperacion->format('d/m/Y') : 'Saldo completo' }}</td>

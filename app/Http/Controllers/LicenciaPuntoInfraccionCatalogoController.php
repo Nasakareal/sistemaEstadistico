@@ -28,7 +28,7 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
 
         return redirect()
             ->route('settings.licencias_puntos.infracciones.index')
-            ->with('success', 'Infraccion agregada correctamente.');
+            ->with('success', 'Penalización agregada correctamente.');
     }
 
     public function update(Request $request, LicenciaPuntoInfraccion $infraccion)
@@ -39,7 +39,7 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
 
         return redirect()
             ->route('settings.licencias_puntos.infracciones.index')
-            ->with('success', 'Infraccion actualizada correctamente.');
+            ->with('success', 'Penalización actualizada correctamente.');
     }
 
     private function validateData(Request $request, ?LicenciaPuntoInfraccion $infraccion = null): array
@@ -63,6 +63,7 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
             'nombre' => ['required', 'string', 'max:150'],
             'puntos' => ['required', 'integer', 'min:1', 'max:' . \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO],
             'descripcion' => ['nullable', 'string'],
+            'fundamento_legal' => ['required', 'string'],
             'activa' => ['nullable', 'boolean'],
         ]);
 
@@ -70,6 +71,7 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
         $validated['descripcion'] = isset($validated['descripcion']) && trim((string) $validated['descripcion']) !== ''
             ? trim((string) $validated['descripcion'])
             : null;
+        $validated['fundamento_legal'] = trim((string) $validated['fundamento_legal']);
         $validated['activa'] = $request->boolean('activa');
 
         return $validated;
@@ -80,6 +82,6 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
         $codigo = Str::slug($value, '_');
         $codigo = mb_strtoupper($codigo, 'UTF-8');
 
-        return $codigo !== '' ? $codigo : 'INFRACCION';
+        return $codigo !== '' ? $codigo : 'PENALIZACION';
     }
 }

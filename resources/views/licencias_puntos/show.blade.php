@@ -30,7 +30,7 @@
     <div class="alert alert-warning">
         <strong>Herramienta en desarrollo.</strong>
         Puedes consultar esta cuenta, pero por ahora los movimientos estan bloqueados.
-        Solo el rol Superadmin puede aplicar descuentos o recuperaciones durante la prueba.
+        Solo el rol Superadmin puede aplicar penalizaciones durante la prueba.
     </div>
 @endunless
 
@@ -44,7 +44,9 @@
                 @php
                     $badge = ['normal' => 'success', 'advertencia' => 'warning', 'critico' => 'danger', 'agotado' => 'dark'][$cuenta->nivel_saldo] ?? 'secondary';
                 @endphp
-                <div class="display-4 font-weight-bold text-{{ $badge }}">{{ $cuenta->saldo_actual }} / 8</div>
+                <div class="display-4 font-weight-bold text-{{ $badge }}">
+                    {{ $cuenta->saldo_actual }} / {{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}
+                </div>
                 <span class="badge badge-{{ $badge }} mt-2">{{ strtoupper($cuenta->nivel_saldo) }}</span>
                 <hr>
                 <dl class="row text-left mb-0">
@@ -69,7 +71,7 @@
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-5">Tipo</dt>
-                    <dd class="col-sm-7">{{ $cuenta->tipo_licencia ?: 'N/A' }}</dd>
+                    <dd class="col-sm-7">{{ \App\Support\LicenciaTipoCatalog::label($cuenta->tipo_licencia) ?: 'N/A' }}</dd>
                     <dt class="col-sm-5">CURP</dt>
                     <dd class="col-sm-7">{{ $cuenta->curp ?: 'N/A' }}</dd>
                     <dt class="col-sm-5">Telefono</dt>
@@ -140,7 +142,7 @@
         @can('registrar infracciones puntos licencias')
         <div class="card card-outline card-danger">
             <div class="card-header">
-                <h3 class="card-title">Registrar infraccion (en prueba)</h3>
+                <h3 class="card-title">Registrar penalización (en prueba)</h3>
             </div>
             <form action="{{ route('licencias_puntos.infracciones.store', $cuenta) }}" method="POST">
                 @csrf
@@ -148,7 +150,7 @@
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Infraccion</label>
+                                <label>Penalización</label>
                                 <select name="infraccion_id" class="form-control custom-select" required>
                                     <option value="">Seleccionar</option>
                                     @foreach($infracciones as $infraccion)
@@ -168,7 +170,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Referencia</label>
-                                <input type="text" name="referencia" class="form-control" value="{{ old('referencia') }}" placeholder="Folio de infraccion">
+                                <input type="text" name="referencia" class="form-control" value="{{ old('referencia') }}" placeholder="Folio de penalización">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -179,7 +181,7 @@
                         </div>
                         <div class="col-md-8">
                             <div class="form-group mb-0">
-                                <label>Descripcion</label>
+                                <label>Descripcion breve</label>
                                 <input type="text" name="descripcion" class="form-control" value="{{ old('descripcion') }}">
                             </div>
                         </div>
@@ -196,13 +198,12 @@
 
         @php
             $puedeSumarPuntos = auth()->user() && auth()->user()->can('acreditar capacitacion puntos licencias');
-            $puedeRecuperarPorTiempo = auth()->user() && auth()->user()->can('editar puntos licencias');
         @endphp
 
-        @if($puedeSumarPuntos || $puedeRecuperarPorTiempo)
+        @if($puedeSumarPuntos)
         <div class="row">
             @can('acreditar capacitacion puntos licencias')
-            <div class="{{ $puedeRecuperarPorTiempo ? 'col-md-7' : 'col-12' }}">
+            <div class="col-12">
                 <div class="card card-outline card-success">
                     <div class="card-header">
                         <h3 class="card-title">Acreditar capacitacion</h3>
@@ -235,27 +236,6 @@
                             </button>
                         </div>
                     </form>
-                </div>
-            </div>
-            @endcan
-            @can('editar puntos licencias')
-            <div class="{{ $puedeSumarPuntos ? 'col-md-5' : 'col-12' }}">
-                <div class="card card-outline card-warning">
-                    <div class="card-header">
-                        <h3 class="card-title">Recuperacion por tiempo</h3>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-2">Aplica cuando la licencia cumple 18 meses sin infracciones.</p>
-                        <p class="mb-0 text-muted">Fecha calculada: {{ $cuenta->fecha_recuperacion ? $cuenta->fecha_recuperacion->format('d/m/Y') : 'N/A' }}</p>
-                    </div>
-                    <div class="card-footer text-right">
-                        <form action="{{ route('licencias_puntos.recuperar_tiempo', $cuenta) }}" method="POST">
-                            @csrf
-                            <button class="btn btn-warning">
-                                <i class="fa-solid fa-rotate-right"></i> Recuperar
-                            </button>
-                        </form>
-                    </div>
                 </div>
             </div>
             @endcan
@@ -326,6 +306,9 @@
                                 <td>{{ str_replace('_', ' ', ucfirst($movimiento->tipo)) }}</td>
                                 <td>
                                     <strong>{{ optional($movimiento->infraccion)->nombre ?: $movimiento->referencia }}</strong>
+                                    @if(optional($movimiento->infraccion)->fundamento_legal)
+                                        <small class="d-block text-info">{{ $movimiento->infraccion->fundamento_legal }}</small>
+                                    @endif
                                     <small class="d-block text-muted">{{ $movimiento->descripcion }}</small>
                                 </td>
                                 <td>

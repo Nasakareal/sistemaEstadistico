@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\LocationTrackingEligibilityService;
+use App\Services\LicenciaPuntosTurnoAccessService;
 use App\Support\HechoAccess;
 use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
@@ -139,6 +140,8 @@ class AuthController extends Controller
         $isJefeGrupo = MapaPatrullasAccess::isSiniestrosGroupLead($user);
         $locationTracking = app(LocationTrackingEligibilityService::class)
             ->statusForUser($user);
+        $licenciasPuntosTurno = app(LicenciaPuntosTurnoAccessService::class)
+            ->statusForUser($user);
 
         $legacyUser = $user->toArray();
         $legacyUser['role'] = $primaryRole ? $primaryRole->name : null;
@@ -146,6 +149,9 @@ class AuthController extends Controller
         $legacyUser['permissions'] = $permissions->all();
         $legacyUser['location_tracking'] = $locationTracking;
         $legacyUser['location_tracking_allowed'] = (bool)($locationTracking['allowed'] ?? false);
+        $legacyUser['licencias_puntos_turno'] = $licenciasPuntosTurno;
+        $legacyUser['licencias_puntos_turno_permitido'] = (bool)($licenciasPuntosTurno['allowed'] ?? false);
+        $legacyUser['turno_en_servicio'] = $licenciasPuntosTurno['turno_en_servicio'] ?? null;
 
         $response = [
             // Duplicate the most-used identity keys at the root for older clients.
@@ -163,6 +169,8 @@ class AuthController extends Controller
             'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
             'location_tracking' => $locationTracking,
             'location_tracking_allowed' => (bool)($locationTracking['allowed'] ?? false),
+            'licencias_puntos_turno' => $licenciasPuntosTurno,
+            'licencias_puntos_turno_permitido' => (bool)($licenciasPuntosTurno['allowed'] ?? false),
             // Keep the legacy string shape so existing clients don't hide modules.
             'role' => $primaryRole ? $primaryRole->name : null,
             'role_id' => $primaryRole ? $primaryRole->id : null,
@@ -199,6 +207,9 @@ class AuthController extends Controller
                 'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
                 'location_tracking' => $locationTracking,
                 'location_tracking_allowed' => (bool)($locationTracking['allowed'] ?? false),
+                'licencias_puntos_turno' => $licenciasPuntosTurno,
+                'licencias_puntos_turno_permitido' => (bool)($licenciasPuntosTurno['allowed'] ?? false),
+                'turno_en_servicio' => $licenciasPuntosTurno['turno_en_servicio'] ?? null,
                 'role' => $primaryRole ? $primaryRole->name : null,
                 'role_id' => $primaryRole ? $primaryRole->id : null,
                 'role_meta' => $primaryRole ? [

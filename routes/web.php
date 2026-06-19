@@ -255,7 +255,6 @@ Route::prefix('licencias-puntos')->middleware(['auth', 'can:ver puntos licencias
     Route::get('/{cuenta}', [LicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('licencias_puntos.show');
     Route::post('/{cuenta}/infracciones', [LicenciaPuntosController::class, 'registrarInfraccion'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('licencias_puntos.infracciones.store');
     Route::post('/{cuenta}/capacitacion', [LicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.capacitacion.store');
-    Route::post('/{cuenta}/recuperar-tiempo', [LicenciaPuntosController::class, 'recuperarPorTiempo'])->whereNumber('cuenta')->middleware('can:editar puntos licencias')->name('licencias_puntos.recuperar_tiempo');
 });
 
 Route::prefix('admin/settings/licencias-puntos/infracciones')

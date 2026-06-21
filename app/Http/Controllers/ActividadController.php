@@ -495,8 +495,6 @@ class ActividadController extends Controller
 
         $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
 
-        $validated['nombre'] = mb_strtoupper((string) ($usuario->name ?? ''), 'UTF-8');
-        $validated['cantidad'] = 1;
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
         $validated = $this->ajustarPayloadParaUsuarioFomento($validated, $usuario, $fomentoManager);
 
@@ -534,7 +532,6 @@ class ActividadController extends Controller
                 'sync_status'                   => $actividad->sync_status ?: 'local',
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre'                        => $validated['nombre'],
                 'cantidad'                      => 1,
                 'updated_by'                    => $usuario->id,
                 'unidad_org_id'                 => $actividad->unidad_org_id ?? $usuario->unidad_id,
@@ -1136,6 +1133,7 @@ class ActividadController extends Controller
     private function esRolAdministrativoUnidad($usuario): bool
     {
         return $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
     }
 

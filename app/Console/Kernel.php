@@ -126,6 +126,11 @@ class Kernel extends ConsoleKernel
             ->timezone($timezone)
             ->withoutOverlapping();
 
+        $schedule->command('whatsapp:carreteras-guardianes-diario')
+            ->dailyAt(substr(config('cortes.hora_corte_carreteras', '17:00:00'), 0, 5))
+            ->timezone($timezone)
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-todas-unidades')
             ->dailyAt('19:00')
             ->timezone($timezone)

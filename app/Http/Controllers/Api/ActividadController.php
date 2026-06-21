@@ -549,9 +549,6 @@ class ActividadController extends Controller
         $user = $usuario;
         $tz = config('app.timezone', 'America/Mexico_City');
 
-        $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
-        $cantidad = 1;
-
         $hasCoords = $request->filled('lat') && $request->filled('lng');
         if ($hasCoords && empty($validated['fuente_ubicacion'])) {
             $validated['fuente_ubicacion'] = 'GPS_APP';
@@ -585,7 +582,7 @@ class ActividadController extends Controller
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $nombre, $cantidad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager) {
             $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
                 ->map(function ($id) {
                     return (int) $id;
@@ -684,8 +681,7 @@ class ActividadController extends Controller
             $actividad->update([
                 'actividad_categoria_id' => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
-                'nombre' => $nombre,
-                'cantidad' => $cantidad,
+                'cantidad' => 1,
                 'updated_by' => $user->id,
                 'fecha' => $fechaCaptura,
                 'hora' => $horaCaptura,
@@ -1290,6 +1286,7 @@ class ActividadController extends Controller
     private function esRolAdministrativoUnidad($usuario): bool
     {
         return $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
     }
 

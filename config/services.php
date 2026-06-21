@@ -80,6 +80,22 @@ return [
             'firma_nombre' => env('WHATSAPP_VIALIDADES_URBANAS_FIRMA_NOMBRE'),
         ],
 
+        'carreteras_guardianes' => [
+            'to' => env('WHATSAPP_CARRETERAS_GUARDIANES_TO'),
+            'template_layout' => env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE_LAYOUT', 'tres_partes'),
+            'template_part_1' => env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE_PARTE_1', 'carreteras_guardianes_consolidado_p1'),
+            'template_part_2' => env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE_PARTE_2', 'carreteras_guardianes_consolidado_p2'),
+            'template_part_3' => env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE_PARTE_3', 'carreteras_guardianes_consolidado_p3'),
+            'block_template' => env('WHATSAPP_CARRETERAS_GUARDIANES_BLOCK_TEMPLATE', env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE', 'carreteras_guardianes_consolidado_bloque')),
+            'template_language' => env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE_LANGUAGE', 'es_MX'),
+            'template_chunk_chars' => (int) env('WHATSAPP_CARRETERAS_GUARDIANES_TEMPLATE_CHUNK_CHARS', 850),
+            'text_chunk_chars' => (int) env('WHATSAPP_CARRETERAS_GUARDIANES_TEXT_CHUNK_CHARS', 3900),
+            'unidad_id' => (int) env('WHATSAPP_CARRETERAS_GUARDIANES_UNIDAD_ID', 4),
+            'rango_campo' => env('WHATSAPP_CARRETERAS_GUARDIANES_RANGO_CAMPO', 'created_at'),
+            'destacamento' => env('WHATSAPP_CARRETERAS_GUARDIANES_DESTACAMENTO', 'MORELIA'),
+            'descripcion_general' => env('WHATSAPP_CARRETERAS_GUARDIANES_DESCRIPCION_GENERAL', 'EN TRAMOS CARRETEROS DE LOS MUNICIPIOS: (Aeropuerto, Zinapécuaro, Queréndaro, Indaparapeo, Charo y Morelia La Cinta Texticuitzeo).'),
+        ],
+
         'oficios' => [
             'terminos_to' => env('WHATSAPP_OFICIOS_TERMINOS_TO', env('WHATSAPP_SINIESTROS_TO')),
             'terminos_template' => env('WHATSAPP_OFICIOS_TERMINOS_TEMPLATE'),

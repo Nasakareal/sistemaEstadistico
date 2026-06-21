@@ -31,8 +31,9 @@ class DelegacionesCorteAseguramientosWhatsAppService
             $resumen['siniestros'][] = $this->lineaSiniestro($hecho);
         }
 
-        $resumen['params'] = $this->templateParams($resumen);
-        $resumen['mensaje'] = $this->templateBody($resumen['params']);
+        $params = $this->templateParams($resumen);
+        $resumen['params'] = $this->templateSafeParams($params);
+        $resumen['mensaje'] = $this->templateBody($params);
 
         return $resumen;
     }
@@ -57,8 +58,9 @@ class DelegacionesCorteAseguramientosWhatsAppService
         $resumen['dinero']['total'] = 1200;
         $resumen['otros'][] = '01 telefono celular';
         $resumen['siniestros'][] = 'Hecho #123, choque con tren, 3 lesionados, Morelia.';
-        $resumen['params'] = $this->templateParams($resumen);
-        $resumen['mensaje'] = $this->templateBody($resumen['params']);
+        $params = $this->templateParams($resumen);
+        $resumen['params'] = $this->templateSafeParams($params);
+        $resumen['mensaje'] = $this->templateBody($params);
 
         return $resumen;
     }
@@ -147,6 +149,21 @@ class DelegacionesCorteAseguramientosWhatsAppService
             . "Siniestros de tránsito relevantes:\n{$p[9]}\n\n"
             . "Criterio vial: solo se informa si hay fallecidos, 3 o más lesionados, o intervención del tren."
         );
+    }
+
+    private function templateSafeParams(array $params): array
+    {
+        return array_map(function ($value) {
+            return $this->templateParameterText((string) $value);
+        }, $params);
+    }
+
+    private function templateParameterText(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $text);
+        $text = preg_replace('/ {2,}/', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     private function resumenVacio(Carbon $inicio, Carbon $fin): array

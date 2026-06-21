@@ -82,6 +82,20 @@ class DelegacionesCorteAseguramientosWhatsAppServiceTest extends TestCase
         $this->assertTrue($this->service()->debeIncluirSiniestroRelevante($hecho));
     }
 
+    public function test_params_de_template_no_llevan_saltos_tabs_ni_espacios_largos(): void
+    {
+        $resumen = $this->service()->generarDemo(Carbon::parse('2026-06-19 20:01', 'America/Mexico_City'));
+
+        $this->assertStringContainsString("Personas:\nA justicia cívica: 02\nAl Ministerio Público: 01", $resumen['mensaje']);
+
+        foreach ($resumen['params'] as $param) {
+            $this->assertDoesNotMatchRegularExpression('/[\r\n\t]/', $param);
+            $this->assertDoesNotMatchRegularExpression('/ {5,}/', $param);
+        }
+
+        $this->assertStringContainsString('A justicia cívica: 02 Al Ministerio Público: 01', $resumen['params'][3]);
+    }
+
     private function hecho(string $tipo, array $lesionados): Hechos
     {
         $hecho = new Hechos([

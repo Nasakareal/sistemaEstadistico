@@ -10,6 +10,7 @@ use App\Http\Controllers\DocumentoHechoController;
 use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\EstadisticasGlobalesController;
 use App\Http\Controllers\EstadisticasActividadesController;
+use App\Http\Controllers\EstadisticasAseguramientosController;
 
 use App\Http\Controllers\FormatoController;
 use App\Http\Controllers\GruaController;
@@ -366,6 +367,12 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
     Route::get('/export/mensual',[EstadisticasActividadesController::class,'exportMensual'])->name('estadisticas_actividades.export.mensual');
     Route::get('/export/fomento-cultura-vial',[EstadisticasActividadesController::class,'exportFomentoCulturaVial'])->name('estadisticas_actividades.export.fomento_cultura_vial');
     Route::get('/export/puestas-disposicion',[EstadisticasActividadesController::class,'exportPuestasDisposicion'])->name('estadisticas_actividades.export.puestas_disposicion');
+});
+
+Route::prefix('estadisticas-aseguramientos')->middleware(['auth'])->group(function () {
+    Route::get('/', [EstadisticasAseguramientosController::class, 'index'])->name('estadisticas_aseguramientos.index');
+    Route::get('/resumen', [EstadisticasAseguramientosController::class, 'resumen'])->name('estadisticas_aseguramientos.resumen');
+    Route::get('/catalogos', [EstadisticasAseguramientosController::class, 'catalogos'])->name('estadisticas_aseguramientos.catalogos');
 });
 
 Route::prefix('estadisticas-carreteras')->middleware(['auth', 'can:ver estadisticas carreteras', 'unidad:carreteras'])->group(function () {

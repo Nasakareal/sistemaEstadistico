@@ -474,6 +474,13 @@ return [
                             'can'     => 'menu-estadisticas-actividades-siniestros',
                         ],
                         [
+                            'text'    => 'Aseguramientos',
+                            'icon'    => 'fa-solid fa-boxes-stacked',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-aseguramientos?unidad_slug=siniestros',
+                            'can'     => 'menu-estadisticas-siniestros',
+                        ],
+                        [
                             'text'    => 'Mapa de Choques por Zona',
                             'route'   => 'hechos.zonas.index',
                             'icon'    => 'fa-solid fa-draw-polygon',
@@ -502,6 +509,13 @@ return [
                             'can'     => 'menu-estadisticas-actividades-fomento',
                         ],
                         [
+                            'text'    => 'Aseguramientos',
+                            'icon'    => 'fa-solid fa-boxes-stacked',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-aseguramientos?unidad_slug=fomento-cultura-vial',
+                            'can'     => 'menu-estadisticas-actividades-fomento',
+                        ],
+                        [
                             'text'    => 'Servicios por personal',
                             'icon'    => 'fa-solid fa-ranking-star',
                             'classes' => 'text-info',
@@ -523,6 +537,13 @@ return [
                             'url'     => 'estadisticas-actividades',
                             'can'     => 'menu-estadisticas-actividades-vialidades',
                         ],
+                        [
+                            'text'    => 'Aseguramientos',
+                            'icon'    => 'fa-solid fa-boxes-stacked',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-aseguramientos?unidad_slug=vialidades-urbanas',
+                            'can'     => 'menu-estadisticas-actividades-vialidades',
+                        ],
                     ],
                 ],
 
@@ -537,6 +558,13 @@ return [
                             'url'     => 'estadisticas-globales',
                             'can'     => 'menu-estadisticas-globales',
                         ],
+                        [
+                            'text'    => 'Aseguramientos',
+                            'icon'    => 'fa-solid fa-boxes-stacked',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-aseguramientos?unidad_slug=delegaciones',
+                            'can'     => 'menu-estadisticas-delegaciones',
+                        ],
                     ],
                 ],
 
@@ -549,6 +577,13 @@ return [
                             'icon'    => 'fa-solid fa-chart-line',
                             'classes' => 'text-white',
                             'url'     => 'estadisticas-carreteras',
+                            'can'     => 'menu-estadisticas-carreteras',
+                        ],
+                        [
+                            'text'    => 'Aseguramientos',
+                            'icon'    => 'fa-solid fa-boxes-stacked',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-aseguramientos?unidad_slug=carreteras',
                             'can'     => 'menu-estadisticas-carreteras',
                         ],
                     ],

@@ -27,7 +27,7 @@ class WhatsAppCloudService
         foreach ($bodyParameters as $value) {
             $parameters[] = [
                 'type' => 'text',
-                'text' => (string) $value,
+                'text' => $this->templateTextParameter((string) $value),
             ];
         }
 
@@ -120,7 +120,7 @@ class WhatsAppCloudService
             foreach ($bodyParameters as $value) {
                 $parameters[] = [
                     'type' => 'text',
-                    'text' => (string) $value,
+                    'text' => $this->templateTextParameter((string) $value),
                 ];
             }
 
@@ -305,6 +305,14 @@ class WhatsAppCloudService
     protected function normalizeTo(string $to): string
     {
         return preg_replace('/\D+/', '', $to ?? '');
+    }
+
+    protected function templateTextParameter(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $text);
+        $text = preg_replace('/ {2,}/', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     protected function credentials(): array

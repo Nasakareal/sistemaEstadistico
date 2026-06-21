@@ -9,6 +9,7 @@ use App\Models\PuestaDisposicion;
 use App\Models\Unidad;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class AseguramientosResumenService
@@ -82,26 +83,71 @@ class AseguramientosResumenService
             ->get();
 
         $destacamentos = collect();
+        $destacamentosTienenDelegacion = false;
 
         if ($this->hasTable('destacamentos')) {
-            $destacamentos = Destacamento::query()
-                ->select('id', 'nombre', 'clave', 'unidad_id', 'delegacion_id')
-                ->when($this->hasColumn('destacamentos', 'activo'), fn ($q) => $q->where('activo', 1))
-                ->when(!$puedeVerTodo && $usuario && $usuario->unidad_id, fn ($q) => $q->where('unidad_id', (int) $usuario->unidad_id))
-                ->when(!$puedeVerTodo && $usuario && !is_null($usuario->delegacion_id), function ($q) use ($usuario) {
-                    $ids = $this->delegacionIdsVisibles($usuario);
-                    $q->whereIn('delegacion_id', empty($ids) ? [-1] : $ids);
-                })
-                ->when(!$puedeVerTodo && $usuario && !is_null($usuario->destacamento_id), fn ($q) => $q->where('id', (int) $usuario->destacamento_id))
-                ->orderBy('clave')
-                ->orderBy('nombre')
-                ->get();
+            $destacamentosTienenUnidad = $this->hasColumn('destacamentos', 'unidad_id');
+            $destacamentosTienenDelegacion = $this->hasColumn('destacamentos', 'delegacion_id');
+            $destacamentosTienenClave = $this->hasColumn('destacamentos', 'clave');
+            $destacamentosTienenNombre = $this->hasColumn('destacamentos', 'nombre');
+
+            $select = ['id'];
+
+            foreach (['nombre', 'clave', 'unidad_id', 'delegacion_id'] as $column) {
+                if ($this->hasColumn('destacamentos', $column)) {
+                    $select[] = $column;
+                }
+            }
+
+            $query = Destacamento::query()->select($select);
+
+            if (!$destacamentosTienenNombre) {
+                $query->addSelect(DB::raw("'' as nombre"));
+            }
+
+            if (!$destacamentosTienenClave) {
+                $query->addSelect(DB::raw("'' as clave"));
+            }
+
+            if (!$destacamentosTienenUnidad) {
+                $query->addSelect(DB::raw('NULL as unidad_id'));
+            }
+
+            if (!$destacamentosTienenDelegacion) {
+                $query->addSelect(DB::raw('NULL as delegacion_id'));
+            }
+
+            $query->when($this->hasColumn('destacamentos', 'activo'), fn ($q) => $q->where('activo', 1));
+
+            if ($destacamentosTienenUnidad && !$puedeVerTodo && $usuario && $usuario->unidad_id) {
+                $query->where('unidad_id', (int) $usuario->unidad_id);
+            }
+
+            if ($destacamentosTienenDelegacion && !$puedeVerTodo && $usuario && !is_null($usuario->delegacion_id)) {
+                $ids = $this->delegacionIdsVisibles($usuario);
+                $query->whereIn('delegacion_id', empty($ids) ? [-1] : $ids);
+            }
+
+            if (!$puedeVerTodo && $usuario && !is_null($usuario->destacamento_id)) {
+                $query->where('id', (int) $usuario->destacamento_id);
+            }
+
+            if ($destacamentosTienenClave) {
+                $query->orderBy('clave');
+            }
+
+            if ($destacamentosTienenNombre) {
+                $query->orderBy('nombre');
+            }
+
+            $destacamentos = $query->get();
         }
 
         return [
             'unidades' => $unidades,
             'delegaciones' => $delegaciones,
             'destacamentos' => $destacamentos,
+            'destacamentos_tienen_delegacion' => $destacamentosTienenDelegacion,
             'puede_ver_todas_las_unidades' => $puedeVerTodo,
         ];
     }

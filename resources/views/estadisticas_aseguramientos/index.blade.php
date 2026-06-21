@@ -430,7 +430,7 @@
             rows = rows.filter(row => String(row.unidad_id ?? '') === unidadId);
         }
 
-        if (delegacionId) {
+        if (delegacionId && catalogos.destacamentos_tienen_delegacion) {
             rows = rows.filter(row => String(row.delegacion_id ?? '') === delegacionId);
         }
 

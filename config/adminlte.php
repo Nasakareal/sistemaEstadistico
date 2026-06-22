@@ -659,6 +659,13 @@ return [
                     'can'     => 'ver puntos licencias',
                 ],
                 [
+                    'text'    => 'Cursos de recuperacion',
+                    'icon'    => 'fa-solid fa-chalkboard-user',
+                    'classes' => 'text-white',
+                    'route'   => 'licencias_puntos.cursos.index',
+                    'can'     => 'ver cursos puntos licencias',
+                ],
+                [
                     'text'    => 'Penalizaciones',
                     'icon'    => 'fa-solid fa-list-check',
                     'classes' => 'text-white',

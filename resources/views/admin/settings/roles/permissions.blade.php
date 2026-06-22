@@ -41,7 +41,7 @@
             'acreditar capacitacion puntos licencias' => [
                 'module' => 'Puntos de licencia',
                 'action' => null,
-                'label' => 'Dar puntos por capacitacion',
+                'label' => 'Gestionar cursos y acreditar capacitacion',
             ],
             'ver catalogo infracciones puntos licencias' => [
                 'module' => 'Catálogo de penalizaciones para puntos',

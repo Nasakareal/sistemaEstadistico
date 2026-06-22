@@ -254,6 +254,10 @@ class RolesAndPermissionsSeeder extends Seeder
                 'ver operativos vialidades',
                 'editar operativos vialidades',
             ],
+            'Instructor' => [
+                'ver puntos licencias',
+                'acreditar capacitacion puntos licencias',
+            ],
         ];
 
         $roleUnidadIds = [
@@ -263,6 +267,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'Encargado de Destacamento' => 4,
             'Agente Vial' => 5,
             'Responsable de Turno' => 5,
+            'Instructor' => 6,
         ];
 
         DB::transaction(function () use ($roles, $roleUnidadIds) {

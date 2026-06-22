@@ -18,6 +18,7 @@ use App\Http\Controllers\HechosController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiberacionController;
 use App\Http\Controllers\LicenciaController;
+use App\Http\Controllers\LicenciaPuntoCursoController;
 use App\Http\Controllers\LicenciaPuntoInfraccionCatalogoController;
 use App\Http\Controllers\LicenciaPuntosController;
 use App\Http\Controllers\ListaController;
@@ -250,9 +251,28 @@ Route::prefix('licencias')->group(function () {
 Route::match(['get', 'post'], '/consulta-puntos-licencia', [LicenciaPuntosController::class, 'consulta'])
     ->name('licencias_puntos.consulta');
 
+Route::get('/licencias-puntos/cursos/{curso}/participantes/{participante}/aula', [LicenciaPuntoCursoController::class, 'entrarClaseEnVivo'])
+    ->middleware('signed')
+    ->name('licencias_puntos.cursos.aula.participante');
+
 Route::prefix('licencias-puntos')->middleware(['auth', 'can:ver puntos licencias'])->group(function () {
     Route::get('/', [LicenciaPuntosController::class, 'index'])->name('licencias_puntos.index');
     Route::post('/', [LicenciaPuntosController::class, 'store'])->middleware('can:registrar infracciones puntos licencias')->name('licencias_puntos.store');
+    Route::get('/cursos', [LicenciaPuntoCursoController::class, 'index'])->middleware('can:ver cursos puntos licencias')->name('licencias_puntos.cursos.index');
+    Route::get('/cursos/create', [LicenciaPuntoCursoController::class, 'create'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.create');
+    Route::post('/cursos', [LicenciaPuntoCursoController::class, 'store'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.store');
+    Route::get('/cursos/{curso}', [LicenciaPuntoCursoController::class, 'show'])->middleware('can:ver cursos puntos licencias')->name('licencias_puntos.cursos.show');
+    Route::get('/cursos/{curso}/edit', [LicenciaPuntoCursoController::class, 'edit'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.edit');
+    Route::put('/cursos/{curso}', [LicenciaPuntoCursoController::class, 'update'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.update');
+    Route::post('/cursos/{curso}/aula/iniciar', [LicenciaPuntoCursoController::class, 'iniciarClaseEnVivo'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.aula.iniciar');
+    Route::post('/cursos/{curso}/materiales', [LicenciaPuntoCursoController::class, 'storeMaterial'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.materiales.store');
+    Route::delete('/cursos/{curso}/materiales/{material}', [LicenciaPuntoCursoController::class, 'destroyMaterial'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.materiales.destroy');
+    Route::post('/cursos/{curso}/participantes', [LicenciaPuntoCursoController::class, 'storeParticipante'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.participantes.store');
+    Route::put('/cursos/{curso}/participantes/{participante}', [LicenciaPuntoCursoController::class, 'updateParticipante'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.participantes.update');
+    Route::put('/cursos/{curso}/participantes/{participante}/calificacion', [LicenciaPuntoCursoController::class, 'calificarParticipante'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.participantes.calificacion');
+    Route::delete('/cursos/{curso}/participantes/{participante}', [LicenciaPuntoCursoController::class, 'destroyParticipante'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.participantes.destroy');
+    Route::post('/cursos/{curso}/participantes/{participante}/acreditar', [LicenciaPuntoCursoController::class, 'acreditarParticipante'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.participantes.acreditar');
+    Route::post('/cursos/{curso}/cerrar', [LicenciaPuntoCursoController::class, 'cerrar'])->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.cursos.cerrar');
     Route::get('/{cuenta}', [LicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('licencias_puntos.show');
     Route::post('/{cuenta}/infracciones', [LicenciaPuntosController::class, 'registrarInfraccion'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('licencias_puntos.infracciones.store');
     Route::post('/{cuenta}/capacitacion', [LicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.capacitacion.store');

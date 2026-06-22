@@ -382,7 +382,8 @@ class AuthServiceProvider extends ServiceProvider
 
     private function isSeguridadVialUser($user): bool
     {
-        return (int) ($user->unidad_id ?? 0) === 3;
+        return (int) ($user->unidad_id ?? 0) === 3
+            || optional($user->unidad)->slug === 'seguridad-vial';
     }
 
     private function isFomentoCulturaVialUser($user): bool
@@ -409,6 +410,7 @@ class AuthServiceProvider extends ServiceProvider
     {
         return in_array($this->normalizeAbility($ability), [
             'ver puntos licencias',
+            'ver cursos puntos licencias',
             'crear puntos licencias',
             'registrar infracciones puntos licencias',
             'acreditar capacitacion puntos licencias',
@@ -423,13 +425,14 @@ class AuthServiceProvider extends ServiceProvider
         $ability = $this->normalizeAbility($ability);
         $tieneUnidad = !empty($user->unidad_id);
         $esFomento = $this->isFomentoCulturaVialUser($user);
+        $esSeguridadVial = $this->isSeguridadVialUser($user);
 
         if ($ability === 'ver puntos licencias') {
             return $tieneUnidad;
         }
 
-        if ($this->licenciaPuntosSoloSuperadminEnPrueba()) {
-            return false;
+        if ($ability === 'ver cursos puntos licencias') {
+            return $esFomento || $esSeguridadVial;
         }
 
         if (in_array($ability, [
@@ -453,15 +456,12 @@ class AuthServiceProvider extends ServiceProvider
             'crear catalogo infracciones puntos licencias',
             'editar catalogo infracciones puntos licencias',
         ], true)) {
-            return $tieneUnidad && $this->hasAssignedPermission($user, $ability);
+            return $tieneUnidad
+                && !$esFomento
+                && $this->hasAssignedPermission($user, $ability);
         }
 
         return false;
-    }
-
-    private function licenciaPuntosSoloSuperadminEnPrueba(): bool
-    {
-        return true;
     }
 
     private function isFomentoInstructor($user): bool

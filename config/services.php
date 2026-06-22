@@ -145,6 +145,13 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'bigbluebutton' => [
+        'enabled' => filter_var(env('BIGBLUEBUTTON_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'url' => env('BIGBLUEBUTTON_URL'),
+        'secret' => env('BIGBLUEBUTTON_SECRET'),
+        'timeout' => (int) env('BIGBLUEBUTTON_TIMEOUT', 15),
+    ],
+
     'azure_storage' => [
         'account_name' => env('AZURE_STORAGE_NAME'),
         'account_key' => env('AZURE_STORAGE_KEY'),

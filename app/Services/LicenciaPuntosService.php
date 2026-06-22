@@ -177,6 +177,27 @@ class LicenciaPuntosService
 
             $cuenta->save();
 
+            $metadata = [
+                'puntos_solicitados' => $puntosSolicitados,
+                'validado_por' => $data['validado_por'] ?? 'SSP',
+            ];
+
+            foreach ([
+                'curso_id',
+                'curso_folio',
+                'curso_nombre',
+                'participante_id',
+                'horas_curso',
+                'asistencia_horas',
+                'calificacion',
+                'calificacion_minima',
+                'instructor_id',
+            ] as $metadataKey) {
+                if (array_key_exists($metadataKey, $data)) {
+                    $metadata[$metadataKey] = $data[$metadataKey];
+                }
+            }
+
             $cuenta->movimientos()->create([
                 'user_id' => $actorId,
                 'tipo' => 'recuperacion_capacitacion',
@@ -186,10 +207,7 @@ class LicenciaPuntosService
                 'fecha_movimiento' => $fecha,
                 'referencia' => $data['referencia'] ?? null,
                 'descripcion' => $data['descripcion'] ?? 'Curso de seguridad vial validado por SSP.',
-                'metadata' => [
-                    'puntos_solicitados' => $puntosSolicitados,
-                    'validado_por' => 'SSP',
-                ],
+                'metadata' => $metadata,
             ]);
 
             $this->atenderAlertasAbiertas($cuenta, $fecha);

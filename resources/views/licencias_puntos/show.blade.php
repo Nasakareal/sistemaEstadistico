@@ -26,14 +26,6 @@
     </div>
 @endif
 
-@unless(auth()->user() && auth()->user()->hasRole('Superadmin'))
-    <div class="alert alert-warning">
-        <strong>Herramienta en desarrollo.</strong>
-        Puedes consultar esta cuenta, pero por ahora los movimientos estan bloqueados.
-        Solo el rol Superadmin puede aplicar penalizaciones durante la prueba.
-    </div>
-@endunless
-
 <div class="row">
     <div class="col-lg-4">
         <div class="card card-outline card-primary">
@@ -142,7 +134,7 @@
         @can('registrar infracciones puntos licencias')
         <div class="card card-outline card-danger">
             <div class="card-header">
-                <h3 class="card-title">Registrar penalización (en prueba)</h3>
+                <h3 class="card-title">Registrar penalización</h3>
             </div>
             <form action="{{ route('licencias_puntos.infracciones.store', $cuenta) }}" method="POST">
                 @csrf
@@ -198,9 +190,10 @@
 
         @php
             $puedeSumarPuntos = auth()->user() && auth()->user()->can('acreditar capacitacion puntos licencias');
+            $puedeAcreditarManual = $puedeSumarPuntos && auth()->user()->hasRole('Superadmin');
         @endphp
 
-        @if($puedeSumarPuntos)
+        @if($puedeAcreditarManual)
         <div class="row">
             @can('acreditar capacitacion puntos licencias')
             <div class="col-12">
@@ -239,6 +232,20 @@
                 </div>
             </div>
             @endcan
+        </div>
+        @elseif($puedeSumarPuntos)
+        <div class="card card-outline card-success">
+            <div class="card-header">
+                <h3 class="card-title">Recuperacion por curso</h3>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">Para acreditar puntos, registra a la persona en un curso de recuperacion de 15 horas y cierra el curso cuando termine.</p>
+            </div>
+            <div class="card-footer text-right">
+                <a href="{{ route('licencias_puntos.cursos.index') }}" class="btn btn-success">
+                    <i class="fa-solid fa-chalkboard-user"></i> Ir a cursos
+                </a>
+            </div>
         </div>
         @endif
     </div>

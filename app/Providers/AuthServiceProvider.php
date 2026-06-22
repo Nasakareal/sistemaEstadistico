@@ -468,8 +468,6 @@ class AuthServiceProvider extends ServiceProvider
     {
         if ($user->hasAnyRole([
             'Instructor',
-            'Instructor Fomento',
-            'Instructor de Fomento',
         ])) {
             return true;
         }

@@ -14,8 +14,6 @@ return new class extends Migration
 
     private array $roles = [
         'Instructor',
-        'Instructor Fomento',
-        'Instructor de Fomento',
     ];
 
     public function up(): void

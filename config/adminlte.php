@@ -636,6 +636,13 @@ return [
                     'can'     => 'ver mapa',
                 ],
                 [
+                    'text'    => 'Mapa Colonias',
+                    'icon'    => 'fa-solid fa-draw-polygon',
+                    'classes' => 'text-white',
+                    'url'     => 'mapa-colonias',
+                    'can'     => 'ver mapa',
+                ],
+                [
                     'text'    => 'Mapa Predictivo',
                     'icon'    => 'fa-solid fa-triangle-exclamation',
                     'classes' => 'text-white',

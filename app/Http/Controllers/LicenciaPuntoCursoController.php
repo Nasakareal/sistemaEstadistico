@@ -683,7 +683,7 @@ class LicenciaPuntoCursoController extends Controller
                                 ->where('nombre', 'like', '%Cultura Vial%');
                         });
                 })->orWhereHas('roles', function ($roles) {
-                    $roles->whereIn('name', ['Instructor', 'Instructor Fomento', 'Instructor de Fomento']);
+                    $roles->where('name', 'Instructor');
                 });
             })
             ->orderBy('name')

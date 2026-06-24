@@ -83,6 +83,7 @@ class LicenciaPuntosService
             $cuenta = LicenciaPuntoCuenta::whereKey($cuenta->getKey())->lockForUpdate()->firstOrFail();
             $infraccion = LicenciaPuntoInfraccion::whereKey($infraccion->getKey())->lockForUpdate()->firstOrFail();
             $actorId = $actor ? $actor->id : null;
+            $data['infraccion_id'] = $infraccion->id;
 
             if ($this->buscarMovimientoIdempotente($cuenta, 'infraccion', $data)) {
                 return $cuenta->fresh(['movimientos.infraccion', 'alertas', 'conductor']);
@@ -596,23 +597,31 @@ class LicenciaPuntosService
             return null;
         }
 
-        return $cuenta->movimientos()
-            ->where('tipo', $tipo)
-            ->where(function ($query) use ($idempotencyKey, $referencia) {
-                if ($idempotencyKey !== '') {
-                    $query->where('metadata->idempotency_key', $idempotencyKey);
-                }
+        if ($idempotencyKey !== '') {
+            $movimiento = $cuenta->movimientos()
+                ->where('tipo', $tipo)
+                ->where('metadata->idempotency_key', $idempotencyKey)
+                ->orderByDesc('id')
+                ->first();
 
-                if ($referencia !== '') {
-                    if ($idempotencyKey !== '') {
-                        $query->orWhere('referencia', $referencia);
-                    } else {
-                        $query->where('referencia', $referencia);
-                    }
-                }
-            })
-            ->orderByDesc('id')
-            ->first();
+            if ($movimiento) {
+                return $movimiento;
+            }
+        }
+
+        if ($referencia === '') {
+            return null;
+        }
+
+        $query = $cuenta->movimientos()
+            ->where('tipo', $tipo)
+            ->where('referencia', $referencia);
+
+        if ($tipo === 'infraccion' && !empty($data['infraccion_id'])) {
+            $query->where('infraccion_id', $data['infraccion_id']);
+        }
+
+        return $query->orderByDesc('id')->first();
     }
 
     private function normalizarIdempotencyKey($value): string

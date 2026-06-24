@@ -15,6 +15,7 @@
 @stop
 
 @section('content')
+<div class="licencias-puntos-infracciones-page">
 @if ($errors->any())
     <div class="alert alert-danger">
         <strong>Revisa los datos capturados.</strong>
@@ -39,11 +40,12 @@
                     @csrf
                     <div class="card-body">
                         <div class="form-group">
-                            <label>Penalización visible para operativo</label>
+                            <label>Texto humano para operativo</label>
                             <input type="text" name="nombre" class="form-control" value="{{ old('nombre') }}" maxlength="150" required>
+                            <small class="form-text text-muted">Debe decir la conducta en palabras simples. Ejemplo: No usar cinturon.</small>
                         </div>
                         <div class="form-group">
-                            <label>Codigo</label>
+                            <label>Codigo interno</label>
                             <input type="text" name="codigo" class="form-control" value="{{ old('codigo') }}" maxlength="50" placeholder="Se genera automaticamente si lo dejas vacio">
                         </div>
                         <div class="form-group">
@@ -51,13 +53,13 @@
                             <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 1) }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                         </div>
                         <div class="form-group">
-                            <label>Descripcion operativa</label>
-                            <textarea name="descripcion" class="form-control" rows="4" placeholder="Conducta que se debe seleccionar al capturar la penalizacion">{{ old('descripcion') }}</textarea>
+                            <label>Descripcion de cuando aplica</label>
+                            <textarea name="descripcion" class="form-control" rows="4" placeholder="Explica en que caso se selecciona esta penalizacion">{{ old('descripcion') }}</textarea>
                         </div>
                         <div class="form-group">
-                            <label>Fundamento legal para WhatsApp</label>
+                            <label>Fundamento legal</label>
                             <textarea name="fundamento_legal" class="form-control" rows="4" required>{{ old('fundamento_legal', 'Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.') }}</textarea>
-                            <small class="form-text text-muted">Ejemplo: Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.</small>
+                            <small class="form-text text-muted">Articulo, fraccion, inciso, multa en UMAS y puntos. Este texto tambien se envia por WhatsApp.</small>
                         </div>
                         <div class="icheck-primary">
                             <input type="checkbox" name="activa" value="1" id="activa_nueva" {{ old('activa', '1') ? 'checked' : '' }}>
@@ -153,13 +155,13 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Penalización visible para operativo</label>
+                                        <label>Texto humano para operativo</label>
                                         <input type="text" name="nombre" class="form-control" value="{{ old('nombre', $infraccion->nombre) }}" maxlength="150" required>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label>Codigo</label>
+                                        <label>Codigo interno</label>
                                         <input type="text" name="codigo" class="form-control" value="{{ old('codigo', $infraccion->codigo) }}" maxlength="50">
                                     </div>
                                 </div>
@@ -171,15 +173,15 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group">
-                                        <label>Descripcion operativa</label>
+                                        <label>Descripcion de cuando aplica</label>
                                         <textarea name="descripcion" class="form-control" rows="4">{{ old('descripcion', $infraccion->descripcion) }}</textarea>
                                     </div>
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group">
-                                        <label>Fundamento legal para WhatsApp</label>
+                                        <label>Fundamento legal</label>
                                         <textarea name="fundamento_legal" class="form-control" rows="4" required>{{ old('fundamento_legal', $infraccion->fundamento_legal) }}</textarea>
-                                        <small class="form-text text-muted">Este texto se envia como variable independiente en la plantilla de WhatsApp.</small>
+                                        <small class="form-text text-muted">Articulo, fraccion, inciso, multa en UMAS y puntos. Este texto tambien se envia por WhatsApp.</small>
                                     </div>
                                 </div>
                                 <div class="col-12">
@@ -202,10 +204,55 @@
         </div>
     @endforeach
 @endcan
+</div>
 @stop
 
 @section('css')
 <style>
+    .licencias-puntos-infracciones-page .modal-content {
+        background-color: #121a28;
+        color: #f8fafc;
+        border: 1px solid rgba(148, 163, 184, .35);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, .7);
+    }
+
+    .licencias-puntos-infracciones-page .modal-header,
+    .licencias-puntos-infracciones-page .modal-footer {
+        background-color: #172235;
+        border-color: rgba(148, 163, 184, .25);
+    }
+
+    .licencias-puntos-infracciones-page .modal-body {
+        background-color: #121a28;
+    }
+
+    .licencias-puntos-infracciones-page .modal label {
+        color: #e5edf7;
+    }
+
+    .licencias-puntos-infracciones-page .modal .form-control {
+        background-color: #0b1220;
+        color: #f8fafc;
+        border-color: rgba(148, 163, 184, .4);
+    }
+
+    .licencias-puntos-infracciones-page .modal .form-control:focus {
+        background-color: #0b1220;
+        color: #ffffff;
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 .2rem rgba(56, 189, 248, .18);
+    }
+
+    .licencias-puntos-infracciones-page .modal .close {
+        color: #f8fafc;
+        opacity: .85;
+        text-shadow: none;
+    }
+
+    .modal-backdrop.show {
+        opacity: .78;
+    }
+
     .table td {
         vertical-align: middle;
     }

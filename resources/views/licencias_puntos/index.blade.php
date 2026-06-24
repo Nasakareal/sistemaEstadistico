@@ -119,14 +119,19 @@
                 <div class="col-md-3">
                     <div class="form-group">
                         <label>Penalización</label>
-                        <select name="infraccion_id" class="form-control custom-select" required>
+                        <select name="infraccion_id" class="form-control custom-select js-infraccion-select" required>
                             <option value="">Seleccionar</option>
                             @foreach($infracciones as $infraccion)
-                                <option value="{{ $infraccion->id }}" {{ old('infraccion_id') == $infraccion->id ? 'selected' : '' }}>
+                                <option
+                                    value="{{ $infraccion->id }}"
+                                    data-descripcion="{{ $infraccion->descripcion }}"
+                                    data-fundamento="{{ $infraccion->fundamento_legal }}"
+                                    {{ old('infraccion_id') == $infraccion->id ? 'selected' : '' }}>
                                     {{ $infraccion->nombre }} (-{{ $infraccion->puntos }})
                                 </option>
                             @endforeach
                         </select>
+                        <small class="form-text text-muted js-infraccion-help">Selecciona una penalizacion para ver cuando aplica.</small>
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -307,12 +312,24 @@
     .table td {
         vertical-align: middle;
     }
+
+    .js-infraccion-help {
+        min-height: 38px;
+    }
 </style>
 @stop
 
 @section('js')
 <script>
 $(function () {
+    $('.js-infraccion-select').on('change', function () {
+        const option = $(this).find(':selected');
+        const descripcion = option.data('descripcion') || '';
+        const fundamento = option.data('fundamento') || '';
+        const text = [descripcion, fundamento].filter(Boolean).join(' | ');
+        $(this).closest('.form-group').find('.js-infraccion-help').text(text || 'Selecciona una penalizacion para ver cuando aplica.');
+    }).trigger('change');
+
     $('#conductor_id').on('change', function () {
         const option = $(this).find(':selected');
         if (!option.val()) {

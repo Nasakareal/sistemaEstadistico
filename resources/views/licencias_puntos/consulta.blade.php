@@ -306,7 +306,7 @@
                         <div class="summary-grid">
                             <div class="summary-item">
                                 <span class="summary-label">Puntos disponibles</span>
-                                <strong class="summary-value is-ok">8</strong>
+                                <strong class="summary-value is-ok">{{ \App\Models\LicenciaPuntoCuenta::SALDO_INICIAL }}</strong>
                             </div>
                             <div class="summary-item">
                                 <span class="summary-label">Estado</span>

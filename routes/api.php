@@ -84,6 +84,9 @@ Route::prefix('cultura-vial/public')->group(function () {
     Route::post('/participantes/{participante}/intentos', [CulturaVialController::class, 'storeAttempt'])->whereNumber('participante')->name('api.cultura_vial.public.intentos.store');
 });
 
+Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPuntosController::class, 'showPublicByNumero'])
+    ->name('api.licencias_puntos.public.numero.show');
+
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('perito-home')->middleware(['role:Perito', 'unidad:siniestros'])->group(function () {

@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\ApoyoController;
 use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\CampanaController;
+use App\Http\Controllers\CiudadanoLicenciaPuntosController;
 use App\Http\Controllers\DocumentoHechoController;
 use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\EstadisticasGlobalesController;
@@ -251,6 +252,25 @@ Route::prefix('licencias')->group(function () {
 
 Route::match(['get', 'post'], '/consulta-puntos-licencia', [LicenciaPuntosController::class, 'consulta'])
     ->name('licencias_puntos.consulta');
+
+Route::prefix('mis-puntos-licencia')
+    ->middleware(['auth', 'can:ver portal ciudadano puntos licencias'])
+    ->group(function () {
+        Route::get('/', [CiudadanoLicenciaPuntosController::class, 'index'])->name('ciudadano.licencias_puntos.index');
+        Route::post('/licencias', [CiudadanoLicenciaPuntosController::class, 'storeLicencia'])
+            ->middleware('throttle:6,1')
+            ->name('ciudadano.licencias_puntos.licencias.store');
+        Route::get('/cursos', [CiudadanoLicenciaPuntosController::class, 'cursos'])->name('ciudadano.licencias_puntos.cursos');
+        Route::get('/cursos/participantes/{participante}/aula', [CiudadanoLicenciaPuntosController::class, 'aula'])
+            ->whereNumber('participante')
+            ->name('ciudadano.licencias_puntos.cursos.aula');
+        Route::get('/licencias/{cuenta}', [CiudadanoLicenciaPuntosController::class, 'show'])
+            ->whereNumber('cuenta')
+            ->name('ciudadano.licencias_puntos.show');
+        Route::delete('/licencias/{cuenta}', [CiudadanoLicenciaPuntosController::class, 'destroyLicencia'])
+            ->whereNumber('cuenta')
+            ->name('ciudadano.licencias_puntos.licencias.destroy');
+    });
 
 Route::get('/licencias-puntos/cursos/{curso}/participantes/{participante}/aula', [LicenciaPuntoCursoController::class, 'entrarClaseEnVivo'])
     ->middleware('signed')

@@ -51,6 +51,10 @@
                             <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 1) }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                         </div>
                         <div class="form-group">
+                            <label>Descripcion operativa</label>
+                            <textarea name="descripcion" class="form-control" rows="4" placeholder="Conducta que se debe seleccionar al capturar la penalizacion">{{ old('descripcion') }}</textarea>
+                        </div>
+                        <div class="form-group">
                             <label>Fundamento legal para WhatsApp</label>
                             <textarea name="fundamento_legal" class="form-control" rows="4" required>{{ old('fundamento_legal', 'Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.') }}</textarea>
                             <small class="form-text text-muted">Ejemplo: Fundamentado en el Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.</small>
@@ -92,8 +96,11 @@
                             <tr>
                                 <td>
                                     <strong>{{ $infraccion->nombre }}</strong>
+                                    @if($infraccion->descripcion)
+                                        <small class="d-block text-muted">{{ $infraccion->descripcion }}</small>
+                                    @endif
                                     @if($infraccion->fundamento_legal)
-                                        <small class="d-block text-muted">{{ $infraccion->fundamento_legal }}</small>
+                                        <small class="d-block text-info">{{ $infraccion->fundamento_legal }}</small>
                                     @endif
                                 </td>
                                 <td><code>{{ $infraccion->codigo }}</code></td>
@@ -160,6 +167,12 @@
                                     <div class="form-group">
                                         <label>Puntos</label>
                                         <input type="number" name="puntos" class="form-control" value="{{ old('puntos', $infraccion->puntos) }}" min="1" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label>Descripcion operativa</label>
+                                        <textarea name="descripcion" class="form-control" rows="4">{{ old('descripcion', $infraccion->descripcion) }}</textarea>
                                     </div>
                                 </div>
                                 <div class="col-12">

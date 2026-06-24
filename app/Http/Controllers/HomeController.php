@@ -19,6 +19,10 @@ class HomeController extends Controller
     {
         $usuario = Auth::user();
 
+        if ($usuario && $usuario->can('ver portal ciudadano puntos licencias') && !$usuario->can('ver puntos licencias')) {
+            return redirect()->route('ciudadano.licencias_puntos.index');
+        }
+
         $limit = (int) $request->query('limit', 12);
         if ($limit < 1) $limit = 1;
         if ($limit > 30) $limit = 30;
@@ -43,6 +47,10 @@ class HomeController extends Controller
     public function feed(Request $request)
     {
         $usuario = Auth::user();
+
+        if ($usuario && $usuario->can('ver portal ciudadano puntos licencias') && !$usuario->can('ver puntos licencias')) {
+            abort(403);
+        }
 
         $limit = (int) $request->query('limit', 12);
         if ($limit < 1) $limit = 1;

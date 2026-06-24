@@ -84,6 +84,10 @@ class LicenciaPuntosService
             $infraccion = LicenciaPuntoInfraccion::whereKey($infraccion->getKey())->lockForUpdate()->firstOrFail();
             $actorId = $actor ? $actor->id : null;
 
+            if ($this->buscarMovimientoIdempotente($cuenta, 'infraccion', $data)) {
+                return $cuenta->fresh(['movimientos.infraccion', 'alertas', 'conductor']);
+            }
+
             if (!$infraccion->activa) {
                 throw ValidationException::withMessages([
                     'infraccion_id' => 'La penalización seleccionada no esta activa.',
@@ -116,6 +120,17 @@ class LicenciaPuntosService
 
             $cuenta->save();
 
+            $metadata = [
+                'codigo_infraccion' => $infraccion->codigo,
+                'fundamento_legal' => $infraccion->fundamento_legal,
+                'puntos_norma' => $puntosNorma,
+                'puntos_aplicados' => $puntosAplicados,
+            ];
+            $idempotencyKey = $this->normalizarIdempotencyKey($data['idempotency_key'] ?? null);
+            if ($idempotencyKey !== '') {
+                $metadata['idempotency_key'] = $idempotencyKey;
+            }
+
             $movimiento = $cuenta->movimientos()->create([
                 'infraccion_id' => $infraccion->id,
                 'hecho_id' => $data['hecho_id'] ?? null,
@@ -127,12 +142,7 @@ class LicenciaPuntosService
                 'fecha_movimiento' => $fecha,
                 'referencia' => $data['referencia'] ?? null,
                 'descripcion' => $data['descripcion'] ?? $infraccion->nombre,
-                'metadata' => [
-                    'codigo_infraccion' => $infraccion->codigo,
-                    'fundamento_legal' => $infraccion->fundamento_legal,
-                    'puntos_norma' => $puntosNorma,
-                    'puntos_aplicados' => $puntosAplicados,
-                ],
+                'metadata' => $metadata,
             ]);
 
             $this->generarAlertas($cuenta, $movimiento, $saldoAnterior, $saldoNuevo, $fecha, $actor);
@@ -154,6 +164,11 @@ class LicenciaPuntosService
         return DB::transaction(function () use ($cuenta, $data, $actor) {
             $cuenta = LicenciaPuntoCuenta::whereKey($cuenta->getKey())->lockForUpdate()->firstOrFail();
             $actorId = $actor ? $actor->id : null;
+
+            if ($this->buscarMovimientoIdempotente($cuenta, 'recuperacion_capacitacion', $data)) {
+                return $cuenta->fresh(['movimientos.infraccion', 'alertas', 'conductor']);
+            }
+
             $fecha = $this->fecha($data['fecha_movimiento'] ?? null) ?: Carbon::now('America/Mexico_City');
             $saldoAnterior = (int) $cuenta->saldo_actual;
             $puntosSolicitados = max(1, (int) ($data['puntos'] ?? LicenciaPuntoCuenta::SALDO_MAXIMO));
@@ -181,6 +196,10 @@ class LicenciaPuntosService
                 'puntos_solicitados' => $puntosSolicitados,
                 'validado_por' => $data['validado_por'] ?? 'SSP',
             ];
+            $idempotencyKey = $this->normalizarIdempotencyKey($data['idempotency_key'] ?? null);
+            if ($idempotencyKey !== '') {
+                $metadata['idempotency_key'] = $idempotencyKey;
+            }
 
             foreach ([
                 'curso_id',
@@ -563,5 +582,46 @@ class LicenciaPuntosService
         }
 
         return $digits;
+    }
+
+    private function buscarMovimientoIdempotente(
+        LicenciaPuntoCuenta $cuenta,
+        string $tipo,
+        array $data
+    ): ?LicenciaPuntoMovimiento {
+        $idempotencyKey = $this->normalizarIdempotencyKey($data['idempotency_key'] ?? null);
+        $referencia = $this->normalizarReferencia($data['referencia'] ?? null);
+
+        if ($idempotencyKey === '' && $referencia === '') {
+            return null;
+        }
+
+        return $cuenta->movimientos()
+            ->where('tipo', $tipo)
+            ->where(function ($query) use ($idempotencyKey, $referencia) {
+                if ($idempotencyKey !== '') {
+                    $query->where('metadata->idempotency_key', $idempotencyKey);
+                }
+
+                if ($referencia !== '') {
+                    if ($idempotencyKey !== '') {
+                        $query->orWhere('referencia', $referencia);
+                    } else {
+                        $query->where('referencia', $referencia);
+                    }
+                }
+            })
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function normalizarIdempotencyKey($value): string
+    {
+        return mb_substr(trim((string) $value), 0, 120, 'UTF-8');
+    }
+
+    private function normalizarReferencia($value): string
+    {
+        return mb_substr(trim((string) $value), 0, 120, 'UTF-8');
     }
 }

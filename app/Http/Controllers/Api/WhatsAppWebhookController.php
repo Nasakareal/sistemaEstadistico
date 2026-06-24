@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use App\Services\WhatsAppCloudService;
 use App\Services\WhatsApp\WhatsAppInboundService;
@@ -15,6 +16,17 @@ use App\Services\WhatsApp\WhatsAppQueryService;
 
 class WhatsAppWebhookController extends Controller
 {
+    private const UNAUTHORIZED_COOLDOWNS = [
+        1 => 3600,
+        2 => 86400,
+        3 => 604800,
+        4 => 2419200,
+    ];
+
+    private const UNAUTHORIZED_ESCALATE_AFTER_HITS = 3;
+
+    private const UNAUTHORIZED_STATE_TTL_SECONDS = 5184000;
+
     protected WhatsAppInboundService $inboundService;
     protected WhatsAppUserResolverService $userResolverService;
     protected WhatsAppMenuService $menuService;
@@ -102,6 +114,10 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
+        if ($this->shouldSkipUnauthorizedLookup($from)) {
+            return;
+        }
+
         $input = $this->inboundService->extractUserInput($message);
 
         Log::info('WA mensaje procesable', [
@@ -114,7 +130,7 @@ class WhatsAppWebhookController extends Controller
         $user = $this->userResolverService->findAuthorizedUserByPhone($from);
 
         if (!$user) {
-            $this->sendText($from, 'Número no autorizado para consultas.');
+            $this->silenceUnauthorizedSender($from);
             return;
         }
 
@@ -993,6 +1009,110 @@ class WhatsAppWebhookController extends Controller
     protected function sendText(string $to, string $text): array
     {
         return $this->cloudService->sendText($to, $text);
+    }
+
+    protected function shouldSkipUnauthorizedLookup(string $from): bool
+    {
+        $state = $this->getUnauthorizedState($from);
+        $blockedUntil = (int) ($state['blocked_until'] ?? 0);
+
+        if ($blockedUntil <= time()) {
+            return false;
+        }
+
+        $state = $this->registerUnauthorizedAttempt($from, true);
+
+        Log::info('WA mensaje ignorado por remitente no autorizado en espera', [
+            'from' => $from,
+            'cooldown_level' => $state['level'] ?? null,
+            'blocked_until' => $this->formatTimestamp((int) ($state['blocked_until'] ?? 0)),
+        ]);
+
+        return true;
+    }
+
+    protected function silenceUnauthorizedSender(string $from): void
+    {
+        $state = $this->registerUnauthorizedAttempt($from, false);
+
+        Log::info('WA mensaje ignorado por remitente no autorizado', [
+            'from' => $from,
+            'cooldown_level' => $state['level'] ?? null,
+            'blocked_until' => $this->formatTimestamp((int) ($state['blocked_until'] ?? 0)),
+        ]);
+    }
+
+    protected function registerUnauthorizedAttempt(string $from, bool $duringCooldown): array
+    {
+        $state = $this->getUnauthorizedState($from);
+        $now = time();
+        $blockedUntil = (int) ($state['blocked_until'] ?? 0);
+        $isActive = $blockedUntil > $now;
+
+        $level = $isActive ? (int) ($state['level'] ?? 1) : 1;
+        $hits = $isActive ? (int) ($state['hits'] ?? 0) : 0;
+
+        if ($duringCooldown && $isActive) {
+            $hits++;
+
+            if ($hits >= self::UNAUTHORIZED_ESCALATE_AFTER_HITS) {
+                $level = min($level + 1, count(self::UNAUTHORIZED_COOLDOWNS));
+                $hits = 0;
+            }
+        }
+
+        $seconds = self::UNAUTHORIZED_COOLDOWNS[$level] ?? self::UNAUTHORIZED_COOLDOWNS[1];
+        $blockedUntil = $now + $seconds;
+
+        $state = [
+            'level' => $level,
+            'hits' => $hits,
+            'blocked_until' => $blockedUntil,
+        ];
+
+        Cache::put(
+            $this->unauthorizedStateCacheKey($from),
+            $state,
+            now()->addSeconds($seconds + self::UNAUTHORIZED_STATE_TTL_SECONDS)
+        );
+
+        return $state;
+    }
+
+    protected function getUnauthorizedState(string $from): array
+    {
+        $state = Cache::get($this->unauthorizedStateCacheKey($from), []);
+
+        return is_array($state) ? $state : [];
+    }
+
+    protected function unauthorizedStateCacheKey(string $from): string
+    {
+        return 'whatsapp:unauthorized:' . sha1($this->normalizeUnauthorizedCachePhone($from));
+    }
+
+    protected function normalizeUnauthorizedCachePhone(string $from): string
+    {
+        $value = preg_replace('/\D+/', '', $from);
+
+        if (strlen($value) === 10) {
+            return '521' . $value;
+        }
+
+        if (strlen($value) === 12 && str_starts_with($value, '52')) {
+            return '521' . substr($value, 2);
+        }
+
+        return $value;
+    }
+
+    protected function formatTimestamp(int $timestamp): ?string
+    {
+        if ($timestamp <= 0) {
+            return null;
+        }
+
+        return date('Y-m-d H:i:s', $timestamp);
     }
 
     protected function sendInteractive(string $to, array $interactive): array

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 
 class RegisterController extends Controller
 {
@@ -64,10 +65,21 @@ class RegisterController extends Controller
      */
     protected function create(array $data)
     {
-        return User::create([
+        $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
+
+        if (Role::where('name', 'Ciudadano')->where('guard_name', 'web')->exists()) {
+            $user->assignRole('Ciudadano');
+        }
+
+        return $user;
+    }
+
+    protected function redirectTo()
+    {
+        return route('ciudadano.licencias_puntos.index');
     }
 }

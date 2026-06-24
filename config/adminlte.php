@@ -687,6 +687,13 @@ return [
                 ],
             ],
         ],
+        [
+            'text'    => 'Mis puntos de licencia',
+            'icon'    => 'fa-solid fa-id-card-clip',
+            'classes' => 'bg-blue text-white',
+            'route'   => 'ciudadano.licencias_puntos.index',
+            'can'     => 'ver portal ciudadano puntos licencias',
+        ],
 
         [
             'text'    => 'Módulos de Exámenes',

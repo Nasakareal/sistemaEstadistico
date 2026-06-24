@@ -69,6 +69,15 @@ class LoginController extends Controller
                 ?: redirect()->intended($this->redirectPath());
     }
 
+    protected function authenticated(Request $request, $user)
+    {
+        if ($user && $user->can('ver portal ciudadano puntos licencias') && !$user->can('ver puntos licencias')) {
+            return redirect()->route('ciudadano.licencias_puntos.index');
+        }
+
+        return null;
+    }
+
     public function logout(Request $request)
     {
         Auth::guard('web')->logout();

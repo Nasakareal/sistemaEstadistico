@@ -79,6 +79,16 @@ class LicenciaPuntoCuenta extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public function usuariosCiudadanos()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'licencia_punto_cuenta_user',
+            'cuenta_id',
+            'user_id'
+        )->withPivot(['verified_at', 'last_accessed_at'])->withTimestamps();
+    }
+
     public function scopeCriticas(Builder $query): Builder
     {
         return $query->where('saldo_actual', '<=', 2);

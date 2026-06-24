@@ -73,6 +73,16 @@ class User extends Authenticatable
         return $this->belongsTo(\App\Models\Destacamento::class, 'destacamento_id');
     }
 
+    public function licenciasPuntos()
+    {
+        return $this->belongsToMany(
+            \App\Models\LicenciaPuntoCuenta::class,
+            'licencia_punto_cuenta_user',
+            'user_id',
+            'cuenta_id'
+        )->withPivot(['verified_at', 'last_accessed_at'])->withTimestamps();
+    }
+
     public function isSuperadmin(): bool
     {
         return $this->hasRole('Superadmin');

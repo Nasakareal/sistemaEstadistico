@@ -90,6 +90,7 @@ class LicenciaPuntosController extends Controller
     public function store(Request $request, LicenciaPuntosService $service)
     {
         $this->autorizarRestarPuntos($request);
+        $this->mergeIdempotencyKey($request);
         $request->merge([
             'tipo_licencia' => LicenciaTipoCatalog::requestValue($request->input('tipo_licencia')),
         ]);
@@ -107,6 +108,7 @@ class LicenciaPuntosController extends Controller
             'hecho_id' => ['nullable', 'integer', 'exists:hechos,id'],
             'descripcion' => ['nullable', 'string'],
             'observaciones' => ['nullable', 'string'],
+            'idempotency_key' => ['nullable', 'string', 'max:120'],
         ]);
 
         $infraccion = LicenciaPuntoInfraccion::findOrFail($validated['infraccion_id']);
@@ -143,33 +145,7 @@ class LicenciaPuntosController extends Controller
             return response()->json([
                 'ok' => true,
                 'abilities' => $this->abilitiesPayload(request()),
-                'data' => [
-                    'id' => null,
-                    'numero_licencia' => $numero,
-                    'tipo_licencia' => null,
-                    'tipo_licencia_label' => null,
-                    'titular_nombre' => null,
-                    'curp' => null,
-                    'telefono' => null,
-                    'saldo_actual' => LicenciaPuntoCuenta::SALDO_INICIAL,
-                    'saldo_maximo' => LicenciaPuntoCuenta::SALDO_MAXIMO,
-                    'nivel_saldo' => 'normal',
-                    'estado' => LicenciaPuntoCuenta::ESTADO_VIGENTE,
-                    'estado_label' => 'Vigente',
-                    'fecha_emision' => null,
-                    'fecha_vencimiento' => null,
-                    'fecha_ultima_infraccion' => null,
-                    'fecha_recuperacion' => null,
-                    'reincidencias_cero' => 0,
-                    'expediente_folio' => null,
-                    'oficio_folio' => null,
-                    'finanzas_notificado_at' => null,
-                    'titular_notificado_at' => null,
-                    'conductor_id' => null,
-                    'cuenta_registrada' => false,
-                    'movimientos' => [],
-                    'alertas' => [],
-                ],
+                'data' => $this->cuentaNoRegistradaPayload($numero),
             ]);
         }
 
@@ -182,9 +158,30 @@ class LicenciaPuntosController extends Controller
         ]);
     }
 
+    public function showPublicByNumero(Request $request, string $numeroLicencia, LicenciaPuntosService $service)
+    {
+        $numero = $service->normalizarLicencia($numeroLicencia);
+        $cuenta = LicenciaPuntoCuenta::where('numero_licencia', $numero)->first();
+
+        if (!$cuenta) {
+            return response()->json([
+                'ok' => true,
+                'data' => $this->cuentaNoRegistradaPayload($numero),
+            ]);
+        }
+
+        $cuenta->load(['movimientos.infraccion']);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $this->cuentaPayloadPublic($cuenta, true),
+        ]);
+    }
+
     public function registrarInfraccion(Request $request, LicenciaPuntosService $service)
     {
         $this->autorizarRestarPuntos($request);
+        $this->mergeIdempotencyKey($request);
         $request->merge([
             'tipo_licencia' => LicenciaTipoCatalog::requestValue($request->input('tipo_licencia')),
         ]);
@@ -203,6 +200,7 @@ class LicenciaPuntosController extends Controller
             'hecho_id' => ['nullable', 'integer', 'exists:hechos,id'],
             'descripcion' => ['nullable', 'string'],
             'observaciones' => ['nullable', 'string'],
+            'idempotency_key' => ['nullable', 'string', 'max:120'],
         ]);
 
         if (empty($validated['cuenta_id']) && empty($validated['numero_licencia'])) {
@@ -230,6 +228,7 @@ class LicenciaPuntosController extends Controller
     public function registrarInfraccionCuenta(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
     {
         $this->autorizarRestarPuntos($request);
+        $this->mergeIdempotencyKey($request);
 
         $validated = $request->validate([
             'infraccion_id' => ['required', 'integer', 'exists:licencia_punto_infracciones,id'],
@@ -237,6 +236,7 @@ class LicenciaPuntosController extends Controller
             'referencia' => ['nullable', 'string', 'max:120'],
             'hecho_id' => ['nullable', 'integer', 'exists:hechos,id'],
             'descripcion' => ['nullable', 'string'],
+            'idempotency_key' => ['nullable', 'string', 'max:120'],
         ]);
 
         $infraccion = LicenciaPuntoInfraccion::findOrFail($validated['infraccion_id']);
@@ -252,12 +252,14 @@ class LicenciaPuntosController extends Controller
     public function acreditarCapacitacion(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
     {
         $this->autorizarSumarPuntos($request);
+        $this->mergeIdempotencyKey($request);
 
         $validated = $request->validate([
             'puntos' => ['required', 'integer', 'min:1', 'max:' . LicenciaPuntoCuenta::SALDO_MAXIMO],
             'fecha_movimiento' => ['nullable', 'date'],
             'referencia' => ['nullable', 'string', 'max:120'],
             'descripcion' => ['nullable', 'string'],
+            'idempotency_key' => ['nullable', 'string', 'max:120'],
         ]);
 
         $cuenta = $service->acreditarCapacitacion($cuenta, $validated, $request->user());
@@ -338,6 +340,52 @@ class LicenciaPuntosController extends Controller
         return $payload;
     }
 
+    private function cuentaPayloadPublic(LicenciaPuntoCuenta $cuenta, bool $includeHistory = false): array
+    {
+        $payload = $this->cuentaPayload($cuenta, $includeHistory);
+        $payload['curp'] = null;
+        $payload['telefono'] = null;
+        $payload['conductor_id'] = null;
+        $payload['expediente_folio'] = null;
+        $payload['oficio_folio'] = null;
+        $payload['finanzas_notificado_at'] = null;
+        $payload['titular_notificado_at'] = null;
+        $payload['alertas'] = [];
+
+        return $payload;
+    }
+
+    private function cuentaNoRegistradaPayload(string $numero): array
+    {
+        return [
+            'id' => null,
+            'numero_licencia' => $numero,
+            'tipo_licencia' => null,
+            'tipo_licencia_label' => null,
+            'titular_nombre' => null,
+            'curp' => null,
+            'telefono' => null,
+            'saldo_actual' => LicenciaPuntoCuenta::SALDO_INICIAL,
+            'saldo_maximo' => LicenciaPuntoCuenta::SALDO_MAXIMO,
+            'nivel_saldo' => 'normal',
+            'estado' => LicenciaPuntoCuenta::ESTADO_VIGENTE,
+            'estado_label' => 'Vigente',
+            'fecha_emision' => null,
+            'fecha_vencimiento' => null,
+            'fecha_ultima_infraccion' => null,
+            'fecha_recuperacion' => null,
+            'reincidencias_cero' => 0,
+            'expediente_folio' => null,
+            'oficio_folio' => null,
+            'finanzas_notificado_at' => null,
+            'titular_notificado_at' => null,
+            'conductor_id' => null,
+            'cuenta_registrada' => false,
+            'movimientos' => [],
+            'alertas' => [],
+        ];
+    }
+
     private function abilitiesPayload(Request $request): array
     {
         $user = $request->user();
@@ -407,5 +455,22 @@ class LicenciaPuntosController extends Controller
             'message' => $status['message'] ?? 'Acceso bloqueado por turno.',
             'licencias_puntos_turno' => $status,
         ], 403));
+    }
+
+    private function mergeIdempotencyKey(Request $request): void
+    {
+        if ($request->filled('idempotency_key')) {
+            return;
+        }
+
+        $key = trim((string) (
+            $request->header('Idempotency-Key')
+            ?: $request->header('X-Idempotency-Key')
+            ?: ''
+        ));
+
+        if ($key !== '') {
+            $request->merge(['idempotency_key' => $key]);
+        }
     }
 }

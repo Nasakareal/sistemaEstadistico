@@ -141,6 +141,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver catalogo infracciones puntos licencias',
             'crear catalogo infracciones puntos licencias',
             'editar catalogo infracciones puntos licencias',
+            'ver portal ciudadano puntos licencias',
         ];
 
         foreach ($permissions as $permission) {
@@ -257,6 +258,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'Instructor' => [
                 'ver puntos licencias',
                 'acreditar capacitacion puntos licencias',
+            ],
+            'Ciudadano' => [
+                'ver portal ciudadano puntos licencias',
             ],
         ];
 

@@ -36,7 +36,7 @@ class LicenciaPuntosController extends Controller
         }
 
         $cuentas = $query->paginate(25)->appends($request->query());
-        $infracciones = LicenciaPuntoInfraccion::activas()->orderBy('nombre')->get();
+        $infracciones = $this->infraccionesActivas();
         $conductores = Conductor::query()
             ->whereNotNull('numero_licencia')
             ->orderByDesc('id')
@@ -82,7 +82,7 @@ class LicenciaPuntosController extends Controller
 
         return redirect()
             ->route('licencias_puntos.show', $cuenta)
-            ->with('success', 'Penalización registrada y puntos actualizados.');
+            ->with('success', 'Sancion registrada correctamente.');
     }
 
     public function show(LicenciaPuntoCuenta $cuenta)
@@ -107,7 +107,7 @@ class LicenciaPuntosController extends Controller
             ->limit(5)
             ->get();
 
-        $infracciones = LicenciaPuntoInfraccion::activas()->orderBy('nombre')->get();
+        $infracciones = $this->infraccionesActivas();
 
         return view('licencias_puntos.show', compact('cuenta', 'movimientos', 'alertas', 'infracciones', 'notificacionesWhatsapp'));
     }
@@ -129,7 +129,7 @@ class LicenciaPuntosController extends Controller
 
         return redirect()
             ->route('licencias_puntos.show', $cuenta)
-            ->with('success', 'Penalización registrada y puntos actualizados.');
+            ->with('success', 'Sancion registrada correctamente.');
     }
 
     public function acreditarCapacitacion(Request $request, LicenciaPuntoCuenta $cuenta, LicenciaPuntosService $service)
@@ -189,5 +189,20 @@ class LicenciaPuntosController extends Controller
             && $request->user()->can('acreditar capacitacion puntos licencias'),
             403
         );
+    }
+
+    private function infraccionesActivas()
+    {
+        return LicenciaPuntoInfraccion::activas()
+            ->get()
+            ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
+                return implode('|', [
+                    $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                    $infraccion->fraccion ?: 'ZZZZ',
+                    $infraccion->inciso ?: 'ZZZZ',
+                    $infraccion->nombre,
+                ]);
+            })
+            ->values();
     }
 }

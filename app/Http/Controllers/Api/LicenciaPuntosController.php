@@ -33,9 +33,7 @@ class LicenciaPuntosController extends Controller
                 ],
                 'abilities' => $this->abilitiesPayload($request),
                 'tipos_licencia' => LicenciaTipoCatalog::all(),
-                'infracciones' => LicenciaPuntoInfraccion::activas()
-                    ->orderBy('nombre')
-                    ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion', 'fundamento_legal']),
+                'infracciones' => $this->infraccionesActivasPayload(),
             ],
         ]);
     }
@@ -81,9 +79,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'data' => LicenciaPuntoInfraccion::activas()
-                ->orderBy('nombre')
-                ->get(['id', 'codigo', 'nombre', 'puntos', 'descripcion', 'fundamento_legal']),
+            'data' => $this->infraccionesActivasPayload(),
         ]);
     }
 
@@ -116,7 +112,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Penalización registrada y puntos actualizados.',
+            'message' => 'Sancion registrada correctamente.',
             'data' => $this->cuentaPayload($cuenta, true),
         ], 201);
     }
@@ -220,7 +216,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Penalización registrada y puntos actualizados.',
+            'message' => 'Sancion registrada correctamente.',
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
@@ -244,7 +240,7 @@ class LicenciaPuntosController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Penalización registrada y puntos actualizados.',
+            'message' => 'Sancion registrada correctamente.',
             'data' => $this->cuentaPayload($cuenta, true),
         ]);
     }
@@ -319,7 +315,16 @@ class LicenciaPuntosController extends Controller
                         'id' => $movimiento->infraccion->id,
                         'codigo' => $movimiento->infraccion->codigo,
                         'nombre' => $movimiento->infraccion->nombre,
+                        'articulo' => $movimiento->infraccion->articulo,
+                        'fraccion' => $movimiento->infraccion->fraccion,
+                        'inciso' => $movimiento->infraccion->inciso,
+                        'referencia_legal_corta' => $movimiento->infraccion->referencia_legal_corta,
                         'puntos' => (int) $movimiento->infraccion->puntos,
+                        'multa_uma_min' => $movimiento->infraccion->multa_uma_min,
+                        'multa_uma_max' => $movimiento->infraccion->multa_uma_max,
+                        'multa_uma_texto' => $movimiento->infraccion->multa_uma_texto,
+                        'retencion_vehiculo' => (bool) $movimiento->infraccion->retencion_vehiculo,
+                        'resumen_sanciones' => $movimiento->infraccion->resumen_sanciones,
                         'fundamento_legal' => $movimiento->infraccion->fundamento_legal,
                     ] : null,
                 ]);
@@ -416,6 +421,39 @@ class LicenciaPuntosController extends Controller
             'licencias_puntos_turno' => $turnoAccess,
             'licencias_puntos_turno_permitido' => $turnoAllowed,
         ];
+    }
+
+    private function infraccionesActivasPayload()
+    {
+        return LicenciaPuntoInfraccion::activas()
+            ->get()
+            ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
+                return implode('|', [
+                    $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                    $infraccion->fraccion ?: 'ZZZZ',
+                    $infraccion->inciso ?: 'ZZZZ',
+                    $infraccion->nombre,
+                ]);
+            })
+            ->values()
+            ->map(fn (LicenciaPuntoInfraccion $infraccion) => [
+                'id' => $infraccion->id,
+                'codigo' => $infraccion->codigo,
+                'nombre' => $infraccion->nombre,
+                'articulo' => $infraccion->articulo,
+                'fraccion' => $infraccion->fraccion,
+                'inciso' => $infraccion->inciso,
+                'referencia_legal_corta' => $infraccion->referencia_legal_corta,
+                'puntos' => (int) $infraccion->puntos,
+                'multa_uma_min' => $infraccion->multa_uma_min,
+                'multa_uma_max' => $infraccion->multa_uma_max,
+                'multa_uma_texto' => $infraccion->multa_uma_texto,
+                'retencion_vehiculo' => (bool) $infraccion->retencion_vehiculo,
+                'resumen_sanciones' => $infraccion->resumen_sanciones,
+                'etiqueta_operativa' => $infraccion->etiqueta_operativa,
+                'descripcion' => $infraccion->descripcion,
+                'fundamento_legal' => $infraccion->fundamento_legal,
+            ]);
     }
 
     private function autorizarRestarPuntos(Request $request): void

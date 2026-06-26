@@ -117,22 +117,7 @@
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="form-group">
-                        <label>Penalización</label>
-                        <select name="infraccion_id" class="form-control custom-select js-infraccion-select" required>
-                            <option value="">Seleccionar</option>
-                            @foreach($infracciones as $infraccion)
-                                <option
-                                    value="{{ $infraccion->id }}"
-                                    data-descripcion="{{ $infraccion->descripcion }}"
-                                    data-fundamento="{{ $infraccion->fundamento_legal }}"
-                                    {{ old('infraccion_id') == $infraccion->id ? 'selected' : '' }}>
-                                    {{ $infraccion->nombre }} (-{{ $infraccion->puntos }})
-                                </option>
-                            @endforeach
-                        </select>
-                        <small class="form-text text-muted js-infraccion-help">Selecciona una penalizacion para ver cuando aplica.</small>
-                    </div>
+                    @include('licencias_puntos.infraccion_select', ['infracciones' => $infracciones])
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
@@ -180,7 +165,7 @@
         </div>
         <div class="card-footer text-right">
             <button type="submit" class="btn btn-primary">
-                <i class="fa-solid fa-minus-circle"></i> Aplicar descuento
+                <i class="fa-solid fa-circle-check"></i> Registrar sancion
             </button>
         </div>
     </form>
@@ -314,7 +299,7 @@
     }
 
     .js-infraccion-help {
-        min-height: 38px;
+        min-height: 54px;
     }
 </style>
 @stop
@@ -322,12 +307,31 @@
 @section('js')
 <script>
 $(function () {
+    $('.js-infraccion-articulo').on('change', function () {
+        const articulo = String($(this).val() || '');
+        const picker = $(this).closest('.js-infraccion-picker');
+        const select = picker.find('.js-infraccion-select');
+
+        select.find('option[data-articulo]').each(function () {
+            const visible = !articulo || String($(this).data('articulo') || '') === articulo;
+            $(this).prop('hidden', !visible).prop('disabled', !visible);
+        });
+
+        if (select.find(':selected').prop('disabled')) {
+            select.val('');
+        }
+
+        select.trigger('change');
+    });
+
     $('.js-infraccion-select').on('change', function () {
         const option = $(this).find(':selected');
+        const referencia = option.data('referencia') || '';
+        const sanciones = option.data('sanciones') || '';
         const descripcion = option.data('descripcion') || '';
         const fundamento = option.data('fundamento') || '';
-        const text = [descripcion, fundamento].filter(Boolean).join(' | ');
-        $(this).closest('.form-group').find('.js-infraccion-help').text(text || 'Selecciona una penalizacion para ver cuando aplica.');
+        const text = [referencia, sanciones, descripcion, fundamento].filter(Boolean).join(' | ');
+        $(this).closest('.js-infraccion-picker').find('.js-infraccion-help').text(text || 'Selecciona una sancion para ver cuando aplica.');
     }).trigger('change');
 
     $('#conductor_id').on('change', function () {

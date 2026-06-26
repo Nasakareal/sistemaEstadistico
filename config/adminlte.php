@@ -789,7 +789,7 @@ return [
                     'can'     => 'ver oficios',
                 ],
                 [
-                    'text'    => 'Penalizaciones de puntos',
+                    'text'    => 'Catalogo de sanciones',
                     'icon'    => 'fa-solid fa-id-card-clip',
                     'classes' => 'text-white',
                     'route'   => 'settings.licencias_puntos.infracciones.index',

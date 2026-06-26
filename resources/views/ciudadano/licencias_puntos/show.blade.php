@@ -177,6 +177,9 @@
                                 <td>{{ str_replace('_', ' ', ucfirst($movimiento->tipo)) }}</td>
                                 <td>
                                     <strong>{{ optional($movimiento->infraccion)->nombre ?: $movimiento->referencia }}</strong>
+                                    @if(optional($movimiento->infraccion)->resumen_sanciones)
+                                        <small class="d-block text-warning">{{ $movimiento->infraccion->resumen_sanciones }}</small>
+                                    @endif
                                     <small class="d-block text-muted">{{ $movimiento->descripcion }}</small>
                                 </td>
                                 <td>

@@ -370,6 +370,9 @@
                                         <td>{{ $movimiento->fecha_movimiento ? $movimiento->fecha_movimiento->format('d/m/Y') : 'N/A' }}</td>
                                         <td>
                                             <strong>{{ optional($movimiento->infraccion)->nombre ?: str_replace('_', ' ', ucfirst($movimiento->tipo)) }}</strong>
+                                            @if(optional($movimiento->infraccion)->resumen_sanciones)
+                                                <small class="d-block muted">{{ $movimiento->infraccion->resumen_sanciones }}</small>
+                                            @endif
                                             @if(optional($movimiento->infraccion)->fundamento_legal)
                                                 <small class="d-block muted">{{ $movimiento->infraccion->fundamento_legal }}</small>
                                             @endif

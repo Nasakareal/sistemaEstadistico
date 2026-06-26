@@ -106,9 +106,12 @@ class LicenciaPuntosService
 
             $cuenta->fill([
                 'saldo_actual' => $saldoNuevo,
-                'fecha_ultima_infraccion' => $fecha,
                 'updated_by' => $actorId,
             ]);
+
+            if ($puntosNorma > 0) {
+                $cuenta->fecha_ultima_infraccion = $fecha;
+            }
 
             if ($llegoACero) {
                 $reincidencias = (int) $cuenta->reincidencias_cero + 1;
@@ -123,9 +126,12 @@ class LicenciaPuntosService
 
             $metadata = [
                 'codigo_infraccion' => $infraccion->codigo,
+                'referencia_legal' => $infraccion->referencia_legal_corta,
                 'fundamento_legal' => $infraccion->fundamento_legal,
                 'puntos_norma' => $puntosNorma,
                 'puntos_aplicados' => $puntosAplicados,
+                'retencion_vehiculo' => (bool) $infraccion->retencion_vehiculo,
+                'multa_uma' => $infraccion->multa_uma_texto,
             ];
             $idempotencyKey = $this->normalizarIdempotencyKey($data['idempotency_key'] ?? null);
             if ($idempotencyKey !== '') {

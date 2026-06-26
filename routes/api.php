@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\SettingsPersonalController;
 use App\Http\Controllers\Api\SettingsStatisticsFilesController;
 use App\Http\Controllers\Api\TutorialController;
 use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
+use App\Http\Controllers\Api\ConduceLegalidadController as ApiConduceLegalidadController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -157,6 +158,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{cuenta}', [ApiLicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('api.licencias_puntos.show');
         Route::post('/{cuenta}/infracciones', [ApiLicenciaPuntosController::class, 'registrarInfraccionCuenta'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.cuenta.infracciones.store');
         Route::post('/{cuenta}/capacitacion', [ApiLicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('api.licencias_puntos.capacitacion.store');
+    });
+
+    Route::prefix('conduce-legalidad')->group(function () {
+        Route::get('/meta', [ApiConduceLegalidadController::class, 'meta'])->name('api.conduce_legalidad.meta');
+        Route::get('/operativos', [ApiConduceLegalidadController::class, 'index'])->name('api.conduce_legalidad.operativos.index');
+        Route::post('/operativos', [ApiConduceLegalidadController::class, 'storeOperativo'])->name('api.conduce_legalidad.operativos.store');
+        Route::get('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'show'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.show');
+        Route::put('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'updateOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.update');
+        Route::post('/operativos/{operativo}/capturas', [ApiConduceLegalidadController::class, 'storeCaptura'])->whereNumber('operativo')->name('api.conduce_legalidad.capturas.store');
+        Route::put('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'updateCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.update');
+        Route::delete('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'destroyCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.destroy');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

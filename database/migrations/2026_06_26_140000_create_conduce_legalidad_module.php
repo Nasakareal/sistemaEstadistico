@@ -43,6 +43,7 @@ return new class extends Migration
 
         Schema::create('conduce_legalidad_capturas', function (Blueprint $table) {
             $table->id();
+            $table->string('client_uuid', 80)->nullable()->unique();
             $table->foreignId('operativo_id')->constrained('conduce_legalidad_operativos')->cascadeOnDelete();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('unidad_id')->nullable()->constrained('unidades')->nullOnDelete();
@@ -82,6 +83,9 @@ return new class extends Migration
             $table->foreignId('corralon_id')->nullable()->constrained('gruas')->nullOnDelete();
             $table->string('grua')->nullable();
             $table->string('corralon')->nullable();
+            $table->foreignId('servicio_unidad_id')->nullable()->constrained('unidades')->nullOnDelete();
+            $table->foreignId('servicio_delegacion_id')->nullable()->constrained('delegaciones')->nullOnDelete();
+            $table->foreignId('servicio_created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('aseguradora')->nullable();
             $table->decimal('monto_danos', 12, 2)->nullable();
             $table->longText('partes_danadas')->nullable();
@@ -96,6 +100,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['captura_id', 'retencion_vehiculo']);
+            $table->index(['servicio_unidad_id', 'created_at'], 'clv_servicio_unidad_created_idx');
+            $table->index(['servicio_delegacion_id', 'created_at'], 'clv_servicio_delegacion_created_idx');
         });
 
         Schema::create('conduce_legalidad_personas', function (Blueprint $table) {

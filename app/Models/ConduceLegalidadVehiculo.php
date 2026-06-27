@@ -29,6 +29,9 @@ class ConduceLegalidadVehiculo extends Model
         'corralon_id',
         'grua',
         'corralon',
+        'servicio_unidad_id',
+        'servicio_delegacion_id',
+        'servicio_created_by',
         'aseguradora',
         'monto_danos',
         'partes_danadas',
@@ -47,6 +50,9 @@ class ConduceLegalidadVehiculo extends Model
         'monto_danos' => 'decimal:2',
         'antecedente_vehiculo' => 'boolean',
         'retencion_vehiculo' => 'boolean',
+        'servicio_unidad_id' => 'integer',
+        'servicio_delegacion_id' => 'integer',
+        'servicio_created_by' => 'integer',
     ];
 
     public function captura()
@@ -67,5 +73,20 @@ class ConduceLegalidadVehiculo extends Model
     public function corralonRelacion()
     {
         return $this->belongsTo(Grua::class, 'corralon_id');
+    }
+
+    public function servicioUnidad()
+    {
+        return $this->belongsTo(Unidad::class, 'servicio_unidad_id');
+    }
+
+    public function servicioDelegacion()
+    {
+        return $this->belongsTo(Delegacion::class, 'servicio_delegacion_id');
+    }
+
+    public function servicioUsuario()
+    {
+        return $this->belongsTo(User::class, 'servicio_created_by');
     }
 }

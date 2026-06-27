@@ -162,6 +162,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('conduce-legalidad')->group(function () {
         Route::get('/meta', [ApiConduceLegalidadController::class, 'meta'])->name('api.conduce_legalidad.meta');
+        Route::get('/gruas-siniestros', [ApiConduceLegalidadController::class, 'gruasSiniestros'])->name('api.conduce_legalidad.gruas_siniestros');
         Route::get('/operativos', [ApiConduceLegalidadController::class, 'index'])->name('api.conduce_legalidad.operativos.index');
         Route::post('/operativos', [ApiConduceLegalidadController::class, 'storeOperativo'])->name('api.conduce_legalidad.operativos.store');
         Route::get('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'show'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.show');

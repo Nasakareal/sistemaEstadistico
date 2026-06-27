@@ -13,6 +13,7 @@ class ConduceLegalidadCaptura extends Model
 
     protected $fillable = [
         'operativo_id',
+        'client_uuid',
         'created_by',
         'unidad_id',
         'delegacion_id',

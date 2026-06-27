@@ -7,6 +7,7 @@ use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadPersona;
 use App\Models\ConduceLegalidadVehiculo;
+use App\Models\Grua;
 use App\Models\LicenciaPuntoInfraccion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class ConduceLegalidadController extends Controller
 {
+    private const UNIDAD_SINIESTROS = 1;
     private const UNIDAD_SEGURIDAD_VIAL = 3;
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
@@ -49,6 +51,25 @@ class ConduceLegalidadController extends Controller
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
             ],
+        ]);
+    }
+
+    public function gruasSiniestros(Request $request)
+    {
+        abort_unless($request->user(), 403);
+
+        $gruas = Grua::query()
+            ->select(['id', 'nombre', 'direccion', 'ubicacion_corralon', 'telefono', 'email', 'created_at'])
+            ->whereHas('unidades', function ($query) {
+                $query->where('unidades.id', self::UNIDAD_SINIESTROS);
+            })
+            ->with('unidades:id,nombre,slug')
+            ->with('delegaciones:id,clave,nombre,municipio')
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json([
+            'data' => $gruas,
         ]);
     }
 
@@ -208,11 +229,28 @@ class ConduceLegalidadController extends Controller
         }
 
         $validated = $request->validate($this->capturaRules());
+        $clientUuid = $this->nullableString($validated['client_uuid'] ?? null);
+        if ($clientUuid !== null) {
+            $existing = $operativo->capturas()
+                ->where('client_uuid', $clientUuid)
+                ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas'])
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Captura guardada correctamente.',
+                    'data' => $this->capturaPayload($existing, $user),
+                ]);
+            }
+        }
+
         $this->assertCapturaHasContent($validated);
 
-        $captura = DB::transaction(function () use ($operativo, $user, $validated) {
+        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid) {
             $now = now();
             $captura = $operativo->capturas()->create([
+                'client_uuid' => $clientUuid,
                 'created_by' => $user->id,
                 'unidad_id' => $user->unidad_id,
                 'delegacion_id' => $user->delegacion_id,
@@ -313,6 +351,7 @@ class ConduceLegalidadController extends Controller
     private function capturaRules(): array
     {
         return [
+            'client_uuid' => ['nullable', 'string', 'max:80'],
             'fecha' => ['nullable', 'date'],
             'hora' => ['nullable', 'date_format:H:i'],
             'municipio' => ['nullable', 'string', 'max:120'],
@@ -387,6 +426,7 @@ class ConduceLegalidadController extends Controller
             $infraccion = $this->retencionInfraccion($row['licencia_punto_infraccion_id'] ?? null);
             $motivoRetencion = $this->nullableString($row['motivo_retencion'] ?? null)
                 ?: ($infraccion ? $this->motivoRetencionPorInfraccion($infraccion) : null);
+            $tieneServicioGrua = $this->tieneServicioGrua($row);
 
             $captura->vehiculos()->create([
                 'marca' => $this->nullableString($row['marca'] ?? null),
@@ -405,6 +445,9 @@ class ConduceLegalidadController extends Controller
                 'corralon_id' => $row['corralon_id'] ?? null,
                 'grua' => $this->nullableString($row['grua'] ?? null),
                 'corralon' => $this->nullableString($row['corralon'] ?? null),
+                'servicio_unidad_id' => $tieneServicioGrua ? $captura->unidad_id : null,
+                'servicio_delegacion_id' => $tieneServicioGrua ? $captura->delegacion_id : null,
+                'servicio_created_by' => $tieneServicioGrua ? $captura->created_by : null,
                 'aseguradora' => $this->nullableString($row['aseguradora'] ?? null),
                 'monto_danos' => $row['monto_danos'] ?? null,
                 'partes_danadas' => $this->nullableString($row['partes_danadas'] ?? null),
@@ -418,6 +461,14 @@ class ConduceLegalidadController extends Controller
                 'observaciones' => $this->nullableString($row['observaciones'] ?? null),
             ]);
         }
+    }
+
+    private function tieneServicioGrua(array $row): bool
+    {
+        return !empty($row['grua_id'])
+            || !empty($row['corralon_id'])
+            || $this->nullableString($row['grua'] ?? null) !== null
+            || $this->nullableString($row['corralon'] ?? null) !== null;
     }
 
     private function replacePersonas(ConduceLegalidadCaptura $captura, array $personas): void
@@ -551,6 +602,7 @@ class ConduceLegalidadController extends Controller
 
         return [
             'id' => $captura->id,
+            'client_uuid' => $captura->client_uuid,
             'operativo_id' => $captura->operativo_id,
             'created_by' => $captura->created_by,
             'creador' => $this->userPayload($captura->creador),
@@ -593,6 +645,9 @@ class ConduceLegalidadController extends Controller
             'corralon_id' => $vehiculo->corralon_id,
             'grua' => $vehiculo->grua,
             'corralon' => $vehiculo->corralon,
+            'servicio_unidad_id' => $vehiculo->servicio_unidad_id,
+            'servicio_delegacion_id' => $vehiculo->servicio_delegacion_id,
+            'servicio_created_by' => $vehiculo->servicio_created_by,
             'aseguradora' => $vehiculo->aseguradora,
             'monto_danos' => $vehiculo->monto_danos === null ? null : (float) $vehiculo->monto_danos,
             'partes_danadas' => $vehiculo->partes_danadas,

@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ConduceLegalidadCaptura;
+use App\Models\ConduceLegalidadFoto;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadPersona;
 use App\Models\ConduceLegalidadVehiculo;
 use App\Models\Grua;
 use App\Models\LicenciaPuntoInfraccion;
+use App\Services\ImageThumbnailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -166,7 +169,7 @@ class ConduceLegalidadController extends Controller
         $operativo->loadMissing(['creador', 'actualizador', 'cerrador']);
 
         $capturasQuery = $operativo->capturas()
-            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas'])
+            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos'])
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -217,6 +220,19 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
+    public function destroyOperativo(Request $request, ConduceLegalidadOperativo $operativo)
+    {
+        $user = $request->user();
+        abort_unless($this->canDeleteOperativo($user), 403);
+
+        $operativo->delete();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Operativo eliminado correctamente.',
+        ]);
+    }
+
     public function storeCaptura(Request $request, ConduceLegalidadOperativo $operativo)
     {
         $user = $request->user();
@@ -233,7 +249,7 @@ class ConduceLegalidadController extends Controller
         if ($clientUuid !== null) {
             $existing = $operativo->capturas()
                 ->where('client_uuid', $clientUuid)
-                ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas'])
+                ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos'])
                 ->first();
 
             if ($existing) {
@@ -245,9 +261,9 @@ class ConduceLegalidadController extends Controller
             }
         }
 
-        $this->assertCapturaHasContent($validated);
+        $this->assertCapturaHasContent($validated, $request);
 
-        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid) {
+        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request) {
             $now = now();
             $captura = $operativo->capturas()->create([
                 'client_uuid' => $clientUuid,
@@ -267,11 +283,12 @@ class ConduceLegalidadController extends Controller
 
             $this->replaceVehiculos($captura, $validated['vehiculos'] ?? []);
             $this->replacePersonas($captura, $validated['personas'] ?? []);
+            $this->storeFotos($captura, $request, $user);
 
             return $captura;
         });
 
-        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas']);
+        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
 
         return response()->json([
             'ok' => true,
@@ -287,9 +304,9 @@ class ConduceLegalidadController extends Controller
         abort_unless($this->canEditCaptura($user, $captura), 403);
 
         $validated = $request->validate($this->capturaRules());
-        $this->assertCapturaHasContent($validated);
+        $this->assertCapturaHasContent($validated, $request, $captura);
 
-        DB::transaction(function () use ($captura, $validated) {
+        DB::transaction(function () use ($captura, $validated, $request, $user) {
             $captura->fill([
                 'fecha' => $validated['fecha'] ?? $captura->fecha,
                 'hora' => $validated['hora'] ?? $captura->hora,
@@ -305,9 +322,10 @@ class ConduceLegalidadController extends Controller
 
             $this->replaceVehiculos($captura, $validated['vehiculos'] ?? []);
             $this->replacePersonas($captura, $validated['personas'] ?? []);
+            $this->storeFotos($captura, $request, $user);
         });
 
-        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas']);
+        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
 
         return response()->json([
             'ok' => true,
@@ -320,7 +338,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($captura->operativo_id === $operativo->id, 404);
-        abort_unless($this->canEditCaptura($user, $captura), 403);
+        abort_unless($this->canDeleteCaptura($user), 403);
 
         $captura->delete();
 
@@ -361,6 +379,8 @@ class ConduceLegalidadController extends Controller
             'coordenadas_texto' => ['nullable', 'string', 'max:255'],
             'narrativa' => ['nullable', 'string'],
             'observaciones' => ['nullable', 'string'],
+            'fotos' => ['nullable', 'array', 'max:25'],
+            'fotos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'vehiculos' => ['nullable', 'array', 'max:100'],
             'vehiculos.*' => ['array'],
             'vehiculos.*.marca' => ['nullable', 'string', 'max:80'],
@@ -405,16 +425,73 @@ class ConduceLegalidadController extends Controller
         ];
     }
 
-    private function assertCapturaHasContent(array $validated): void
+    private function assertCapturaHasContent(
+        array $validated,
+        Request $request,
+        ?ConduceLegalidadCaptura $captura = null
+    ): void
     {
         $narrativa = $this->nullableString($validated['narrativa'] ?? null);
         $vehiculos = $validated['vehiculos'] ?? [];
         $personas = $validated['personas'] ?? [];
+        $hasFotos = $request->hasFile('fotos')
+            || ($captura !== null && $captura->fotos()->exists());
 
-        if ($narrativa === null && count($vehiculos) === 0 && count($personas) === 0) {
+        if ($narrativa === null && count($vehiculos) === 0 && count($personas) === 0 && !$hasFotos) {
             throw ValidationException::withMessages([
-                'narrativa' => 'Captura una narrativa o agrega al menos un vehiculo/persona.',
+                'narrativa' => 'Captura una narrativa o agrega al menos un vehiculo/persona/foto.',
             ]);
+        }
+    }
+
+    private function storeFotos(ConduceLegalidadCaptura $captura, Request $request, $user): void
+    {
+        if (!$request->hasFile('fotos')) {
+            return;
+        }
+
+        $files = $request->file('fotos', []);
+        if (!is_array($files)) {
+            $files = [$files];
+        }
+
+        $orden = (int) $captura->fotos()->max('orden');
+
+        foreach ($files as $file) {
+            if (!$file || !$file->isValid()) {
+                continue;
+            }
+
+            $orden++;
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $filename = 'captura_' . $captura->id . '_' . Str::uuid() . '.' . $extension;
+            $fotoPath = $file->storeAs('conduce_legalidad', $filename, 'public');
+            $fotoHash = hash_file('sha256', $file->getRealPath());
+            $thumbnailPath = $this->crearThumbnailSeguro(
+                $fotoPath,
+                'conduce_legalidad_thumbnails/operativo_' . $captura->operativo_id,
+                'captura_' . $captura->id . '_foto_' . $orden
+            );
+
+            $captura->fotos()->create([
+                'foto_path' => $fotoPath,
+                'foto_thumbnail_path' => $thumbnailPath,
+                'foto_nombre_original' => $file->getClientOriginalName(),
+                'foto_hash' => $fotoHash,
+                'orden' => $orden,
+                'created_by' => $user->id ?? null,
+                'updated_by' => $user->id ?? null,
+            ]);
+        }
+    }
+
+    private function crearThumbnailSeguro(string $fotoPath, string $directorio, string $prefijo): ?string
+    {
+        try {
+            return app(ImageThumbnailService::class)->createPublicThumbnail($fotoPath, $directorio, $prefijo);
+        } catch (\Throwable $e) {
+            report($e);
+            return null;
         }
     }
 
@@ -579,6 +656,8 @@ class ConduceLegalidadController extends Controller
             'narrativa' => $operativo->narrativa,
             'observaciones' => $operativo->observaciones,
             'estado' => $operativo->estado,
+            'can_edit' => $this->canManage($user),
+            'can_delete' => $this->canDeleteOperativo($user),
             'created_by' => $operativo->created_by,
             'creador' => $this->userPayload($operativo->creador),
             'total_capturas' => $totalCapturas,
@@ -598,7 +677,7 @@ class ConduceLegalidadController extends Controller
 
     private function capturaPayload(ConduceLegalidadCaptura $captura, $user): array
     {
-        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas']);
+        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
 
         return [
             'id' => $captura->id,
@@ -618,10 +697,26 @@ class ConduceLegalidadController extends Controller
             'narrativa' => $captura->narrativa,
             'observaciones' => $captura->observaciones,
             'can_edit' => $this->canEditCaptura($user, $captura),
+            'can_delete' => $this->canDeleteCaptura($user),
             'vehiculos' => $captura->vehiculos->map(fn (ConduceLegalidadVehiculo $vehiculo) => $this->vehiculoPayload($vehiculo))->values(),
             'personas' => $captura->personas->map(fn (ConduceLegalidadPersona $persona) => $this->personaPayload($persona))->values(),
+            'fotos' => $captura->fotos->map(fn (ConduceLegalidadFoto $foto) => $this->fotoPayload($foto))->values(),
             'created_at' => optional($captura->created_at)->toISOString(),
             'updated_at' => optional($captura->updated_at)->toISOString(),
+        ];
+    }
+
+    private function fotoPayload(ConduceLegalidadFoto $foto): array
+    {
+        return [
+            'id' => $foto->id,
+            'foto_path' => $foto->foto_path,
+            'foto_thumbnail_path' => $foto->foto_thumbnail_path,
+            'foto_nombre_original' => $foto->foto_nombre_original,
+            'foto_url' => $this->storageUrl($foto->foto_path),
+            'foto_thumbnail_url' => $this->storageUrl($foto->foto_thumbnail_path ?: $foto->foto_path),
+            'foto_preview_url' => $this->storageUrl($foto->foto_thumbnail_path ?: $foto->foto_path),
+            'orden' => (int) $foto->orden,
         ];
     }
 
@@ -718,6 +813,12 @@ class ConduceLegalidadController extends Controller
             'id' => $model->id,
             'nombre' => $model->nombre ?? $model->name ?? null,
         ];
+    }
+
+    private function storageUrl(?string $path): ?string
+    {
+        $clean = $this->nullableString($path);
+        return $clean ? asset('storage/' . $clean) : null;
     }
 
     private function textoOperativoInfraccion(LicenciaPuntoInfraccion $infraccion): string
@@ -856,6 +957,25 @@ class ConduceLegalidadController extends Controller
         }
 
         return (int) $captura->created_by === (int) $user->id;
+    }
+
+    private function canDeleteOperativo($user): bool
+    {
+        return $this->canDeleteAdministrativo($user);
+    }
+
+    private function canDeleteCaptura($user): bool
+    {
+        return $this->canDeleteAdministrativo($user);
+    }
+
+    private function canDeleteAdministrativo($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $user->hasAnyRole(['Superadmin', 'Administrador']);
     }
 
     private function isRtVialidades($user): bool

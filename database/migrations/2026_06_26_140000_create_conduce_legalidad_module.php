@@ -125,12 +125,30 @@ return new class extends Migration
             $table->index(['captura_id', 'nombre']);
         });
 
+        Schema::create('conduce_legalidad_fotos', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('captura_id')->constrained('conduce_legalidad_capturas')->cascadeOnDelete();
+            $table->string('foto_path');
+            $table->string('foto_thumbnail_path')->nullable();
+            $table->string('foto_nombre_original')->nullable();
+            $table->string('foto_hash', 191)->nullable();
+            $table->unsignedInteger('orden')->default(0);
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamps();
+
+            $table->index('captura_id');
+            $table->index(['captura_id', 'orden']);
+            $table->index('foto_hash');
+        });
+
         $this->ensurePermissions();
     }
 
     public function down(): void
     {
         Schema::dropIfExists('conduce_legalidad_personas');
+        Schema::dropIfExists('conduce_legalidad_fotos');
         Schema::dropIfExists('conduce_legalidad_vehiculos');
         Schema::dropIfExists('conduce_legalidad_capturas');
         Schema::dropIfExists('conduce_legalidad_operativos');

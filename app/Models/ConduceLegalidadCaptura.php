@@ -63,4 +63,11 @@ class ConduceLegalidadCaptura extends Model
     {
         return $this->hasMany(ConduceLegalidadPersona::class, 'captura_id');
     }
+
+    public function fotos()
+    {
+        return $this->hasMany(ConduceLegalidadFoto::class, 'captura_id')
+            ->orderBy('orden')
+            ->orderBy('id');
+    }
 }

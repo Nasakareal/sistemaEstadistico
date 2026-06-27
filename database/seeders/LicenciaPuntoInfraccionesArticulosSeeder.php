@@ -11,6 +11,9 @@ use RuntimeException;
 class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
 {
     private const TABLE = 'licencia_punto_infracciones';
+    private const SIN_LICENCIA_OPERATIVO_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
+    private const SIN_LICENCIA_OPERATIVO_NOMBRE = 'Persona sin licencia y sin persona habilitada inmediata';
+    private const SIN_LICENCIA_OPERATIVO_FUNDAMENTO = 'Fundamento operativo compuesto: articulo 402, relativo a que solo puede conducir quien cuente con licencia vigente expedida por autoridad competente; articulos 700 y 702, relativos a supuestos expresos de retiro o remision al deposito. No se documenta como causal automatica "sin licencia = deposito"; se documenta que la persona carece de habilitacion juridica para conducir y que la circulacion no puede continuar bajo su mando. La medida de retiro se asienta solo cuando no existe en el lugar persona legalmente habilitada para hacerse cargo inmediato del vehiculo y se adopta para poner fin a la continuacion de la conducta.';
 
     public function run(): void
     {
@@ -141,9 +144,24 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
     private function infracciones(): array
     {
         return [
+            [
+                'codigo' => self::SIN_LICENCIA_OPERATIVO_CODIGO,
+                'nombre' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
+                'articulo' => '402; 700; 702',
+                'fraccion' => null,
+                'inciso' => null,
+                'puntos' => 0,
+                'multa_uma_min' => null,
+                'multa_uma_max' => null,
+                'retencion_vehiculo' => true,
+                'descripcion' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
+                'fundamento_legal' => self::SIN_LICENCIA_OPERATIVO_FUNDAMENTO,
+                'activa' => true,
+            ],
             $this->row('402', null, null, 'LIC_FORANEA', 'Omitir registro de licencia expedida por otra entidad o extranjero', 0, 10, 30, false, false),
             $this->row('503', null, null, 'REG_VISITA_VENCIDO', 'Circular con registro de visita vencido', 0, 50, 60, true),
             $this->row('328', null, null, 'RETIRO_CIRCULACION', 'Supuestos generales de retiro de circulacion del vehiculo', 0, null, null, true, false),
+            $this->row('328', 'II', null, 'LICENCIA_SUSPENDIDA_CANCELADA', 'Licencia suspendida o cancelada', 0, null, null, true, true, 'Aplica cuando la persona conductora tenga licencia suspendida o cancelada.'),
 
             $this->row('420', 'I', 'a,b,c,d,e', 'NO_MOTORIZADO_AMONESTACION', 'Conductas prohibidas en vehiculos no motorizados', 0, null, null, false, false, 'Amonestacion verbal.'),
             $this->row('420', 'II', 'a,b,g,p', 'MOTORIZADO_1P', 'Obstruir visibilidad, usar claxon innecesario o exceder pasajeros', 1, 20, 30),

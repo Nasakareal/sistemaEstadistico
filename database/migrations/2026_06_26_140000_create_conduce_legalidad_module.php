@@ -19,7 +19,7 @@ return new class extends Migration
         Schema::create('conduce_legalidad_operativos', function (Blueprint $table) {
             $table->id();
             $table->string('client_uuid', 80)->nullable()->unique();
-            $table->string('nombre')->default('Operativo Conduce con legalidad');
+            $table->string('nombre')->default('Operativo conduce con legalidad');
             $table->date('fecha')->index();
             $table->time('hora_inicio')->nullable();
             $table->time('hora_cierre')->nullable();

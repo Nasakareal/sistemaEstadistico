@@ -17,8 +17,21 @@ class ConduceLegalidadController extends Controller
 {
     private const UNIDAD_SEGURIDAD_VIAL = 3;
     private const UNIDAD_VIALIDADES_URBANAS = 5;
-    private const NOMBRE_OPERATIVO = 'Operativo Conduce con legalidad';
+    private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
+    private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
+    private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
+    private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
+        'ART420_FIV_IA_B_TRANSPORTE_PUBLICO_ESCOLAR',
+        'ART465_FXI_POLARIZADO_MAYOR_20',
+        'ART519_FIV_IA_NO_MOVER_SINIESTRO_DANOS',
+    ];
+    private const TEXTOS_EXCLUIDOS_OPERATIVO = [
+        'POLARIZADO',
+        'TRANSPORTE PUBLICO',
+        'SERVICIO PUBLICO',
+        'SINIESTRO',
+    ];
 
     public function meta(Request $request)
     {
@@ -102,7 +115,7 @@ class ConduceLegalidadController extends Controller
 
         $operativo = ConduceLegalidadOperativo::create([
             'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
-            'nombre' => $this->nullableString($validated['nombre'] ?? null) ?: self::NOMBRE_OPERATIVO,
+            'nombre' => self::NOMBRE_OPERATIVO,
             'fecha' => $validated['fecha'] ?? $now->toDateString(),
             'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
             'municipio' => $this->nullableString($validated['municipio'] ?? null),
@@ -110,9 +123,6 @@ class ConduceLegalidadController extends Controller
             'lat' => $validated['lat'] ?? null,
             'lng' => $validated['lng'] ?? null,
             'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
-            'objetivo' => $this->nullableString($validated['objetivo'] ?? null),
-            'narrativa' => $this->nullableString($validated['narrativa'] ?? null),
-            'observaciones' => $this->nullableString($validated['observaciones'] ?? null),
             'estado' => $validated['estado'] ?? 'activo',
             'created_by' => $user->id,
             'updated_by' => $user->id,
@@ -158,7 +168,7 @@ class ConduceLegalidadController extends Controller
         $oldEstado = $operativo->estado;
 
         $operativo->fill([
-            'nombre' => $this->nullableString($validated['nombre'] ?? $operativo->nombre) ?: self::NOMBRE_OPERATIVO,
+            'nombre' => self::NOMBRE_OPERATIVO,
             'fecha' => $validated['fecha'] ?? $operativo->fecha,
             'hora_inicio' => array_key_exists('hora_inicio', $validated) ? $validated['hora_inicio'] : $operativo->hora_inicio,
             'hora_cierre' => array_key_exists('hora_cierre', $validated) ? $validated['hora_cierre'] : $operativo->hora_cierre,
@@ -167,9 +177,6 @@ class ConduceLegalidadController extends Controller
             'lat' => array_key_exists('lat', $validated) ? $validated['lat'] : $operativo->lat,
             'lng' => array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng,
             'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $operativo->coordenadas_texto,
-            'objetivo' => array_key_exists('objetivo', $validated) ? $this->nullableString($validated['objetivo']) : $operativo->objetivo,
-            'narrativa' => array_key_exists('narrativa', $validated) ? $this->nullableString($validated['narrativa']) : $operativo->narrativa,
-            'observaciones' => array_key_exists('observaciones', $validated) ? $this->nullableString($validated['observaciones']) : $operativo->observaciones,
             'estado' => $validated['estado'] ?? $operativo->estado,
             'updated_by' => $user->id,
         ]);
@@ -291,7 +298,6 @@ class ConduceLegalidadController extends Controller
 
         return [
             'client_uuid' => ['nullable', 'string', 'max:80', Rule::unique('conduce_legalidad_operativos', 'client_uuid')->ignore($ignoreId)],
-            'nombre' => ['nullable', 'string', 'max:255'],
             'fecha' => ['nullable', 'date'],
             'hora_inicio' => ['nullable', 'date_format:H:i'],
             'hora_cierre' => ['nullable', 'date_format:H:i'],
@@ -300,9 +306,6 @@ class ConduceLegalidadController extends Controller
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'coordenadas_texto' => ['nullable', 'string', 'max:255'],
-            'objetivo' => ['nullable', 'string'],
-            'narrativa' => ['nullable', 'string'],
-            'observaciones' => ['nullable', 'string'],
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ];
     }
@@ -382,6 +385,8 @@ class ConduceLegalidadController extends Controller
 
         foreach ($vehiculos as $row) {
             $infraccion = $this->retencionInfraccion($row['licencia_punto_infraccion_id'] ?? null);
+            $motivoRetencion = $this->nullableString($row['motivo_retencion'] ?? null)
+                ?: ($infraccion ? $this->motivoRetencionPorInfraccion($infraccion) : null);
 
             $captura->vehiculos()->create([
                 'marca' => $this->nullableString($row['marca'] ?? null),
@@ -409,7 +414,7 @@ class ConduceLegalidadController extends Controller
                 'infraccion_codigo' => $infraccion ? $infraccion->codigo : null,
                 'fundamento_legal' => $infraccion ? $infraccion->fundamento_legal : null,
                 'retencion_vehiculo' => $infraccion ? (bool) $infraccion->retencion_vehiculo : false,
-                'motivo_retencion' => $this->nullableString($row['motivo_retencion'] ?? null),
+                'motivo_retencion' => $motivoRetencion,
                 'observaciones' => $this->nullableString($row['observaciones'] ?? null),
             ]);
         }
@@ -446,9 +451,13 @@ class ConduceLegalidadController extends Controller
         }
 
         $infraccion = LicenciaPuntoInfraccion::activas()->find($id);
-        if (!$infraccion || !$infraccion->retencion_vehiculo) {
+        if (
+            !$infraccion ||
+            !$infraccion->retencion_vehiculo ||
+            $this->esFundamentoExcluidoDelOperativo($infraccion)
+        ) {
             throw ValidationException::withMessages([
-                'licencia_punto_infraccion_id' => 'El fundamento seleccionado no amerita retiro de vehiculo o no esta activo.',
+                'licencia_punto_infraccion_id' => 'El fundamento seleccionado no aplica para este operativo o no amerita retiro de vehiculo.',
             ]);
         }
 
@@ -460,6 +469,7 @@ class ConduceLegalidadController extends Controller
         return LicenciaPuntoInfraccion::activas()
             ->where('retencion_vehiculo', true)
             ->get()
+            ->reject(fn (LicenciaPuntoInfraccion $infraccion) => $this->esFundamentoExcluidoDelOperativo($infraccion))
             ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
                 return implode('|', [
                     $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
@@ -483,9 +493,11 @@ class ConduceLegalidadController extends Controller
                 'multa_uma_texto' => $infraccion->multa_uma_texto,
                 'retencion_vehiculo' => (bool) $infraccion->retencion_vehiculo,
                 'resumen_sanciones' => $infraccion->resumen_sanciones,
-                'etiqueta_operativa' => $infraccion->etiqueta_operativa,
+                'etiqueta_operativa' => $this->textoOperativoInfraccion($infraccion),
+                'texto_operativo' => $this->textoOperativoInfraccion($infraccion),
                 'descripcion' => $infraccion->descripcion,
                 'fundamento_legal' => $infraccion->fundamento_legal,
+                'narrativa_sugerida' => $this->narrativaSugeridaInfraccion($infraccion),
             ]);
     }
 
@@ -597,9 +609,11 @@ class ConduceLegalidadController extends Controller
                 'codigo' => $vehiculo->infraccion->codigo,
                 'nombre' => $vehiculo->infraccion->nombre,
                 'referencia_legal_corta' => $vehiculo->infraccion->referencia_legal_corta,
-                'etiqueta_operativa' => $vehiculo->infraccion->etiqueta_operativa,
+                'etiqueta_operativa' => $this->textoOperativoInfraccion($vehiculo->infraccion),
+                'texto_operativo' => $this->textoOperativoInfraccion($vehiculo->infraccion),
                 'fundamento_legal' => $vehiculo->infraccion->fundamento_legal,
                 'retencion_vehiculo' => (bool) $vehiculo->infraccion->retencion_vehiculo,
+                'narrativa_sugerida' => $this->narrativaSugeridaInfraccion($vehiculo->infraccion),
             ] : null,
         ];
     }
@@ -649,6 +663,80 @@ class ConduceLegalidadController extends Controller
             'id' => $model->id,
             'nombre' => $model->nombre ?? $model->name ?? null,
         ];
+    }
+
+    private function textoOperativoInfraccion(LicenciaPuntoInfraccion $infraccion): string
+    {
+        return $this->nullableString($infraccion->nombre)
+            ?: $this->nullableString($infraccion->descripcion)
+            ?: $this->nullableString($infraccion->codigo)
+            ?: 'Fundamento #' . $infraccion->id;
+    }
+
+    private function narrativaSugeridaInfraccion(LicenciaPuntoInfraccion $infraccion): ?string
+    {
+        return strtoupper(trim((string) $infraccion->codigo)) === self::FUNDAMENTO_SIN_LICENCIA_CODIGO
+            ? self::NARRATIVA_SIN_LICENCIA
+            : null;
+    }
+
+    private function esFundamentoExcluidoDelOperativo(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        $codigo = strtoupper(trim((string) $infraccion->codigo));
+        if (in_array($codigo, self::FUNDAMENTOS_EXCLUIDOS_OPERATIVO, true)) {
+            return true;
+        }
+
+        $texto = $this->normalizarTextoFiltro(implode(' ', [
+            $infraccion->codigo,
+            $infraccion->nombre,
+            $infraccion->descripcion,
+            $infraccion->fundamento_legal,
+        ]));
+
+        foreach (self::TEXTOS_EXCLUIDOS_OPERATIVO as $excluido) {
+            if (str_contains($texto, $excluido)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizarTextoFiltro(string $texto): string
+    {
+        $texto = strtoupper(strtr($texto, [
+            'Á' => 'A',
+            'É' => 'E',
+            'Í' => 'I',
+            'Ó' => 'O',
+            'Ú' => 'U',
+            'Ü' => 'U',
+            'Ñ' => 'N',
+            'á' => 'A',
+            'é' => 'E',
+            'í' => 'I',
+            'ó' => 'O',
+            'ú' => 'U',
+            'ü' => 'U',
+            'ñ' => 'N',
+        ]));
+        $texto = preg_replace('/[^A-Z0-9]+/', ' ', $texto) ?? $texto;
+        $texto = preg_replace('/\s+/', ' ', trim($texto)) ?? $texto;
+
+        return $texto;
+    }
+
+    private function motivoRetencionPorInfraccion(LicenciaPuntoInfraccion $infraccion): string
+    {
+        $referencia = $this->nullableString($infraccion->referencia_legal_corta);
+        $motivo = $this->textoOperativoInfraccion($infraccion);
+
+        if ($referencia && $motivo) {
+            return $referencia . ' - ' . $motivo;
+        }
+
+        return $referencia ?: $motivo;
     }
 
     private function abilitiesPayload($user): array

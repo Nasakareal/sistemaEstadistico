@@ -611,6 +611,13 @@ class VehiculoController extends Controller
             $dataForValidation['estado_placas'] = ($ep === '') ? null : $ep;
         }
 
+        if (
+            !empty($dataForValidation['placas']) &&
+            $this->esServicioPublicoFederal($dataForValidation['tipo_servicio'] ?? null)
+        ) {
+            $dataForValidation['estado_placas'] = 'FEDERAL';
+        }
+
         $rules = [
             'client_uuid' => 'nullable|string|max:36',
             'hecho_client_uuid' => 'nullable|string|max:36',
@@ -875,6 +882,23 @@ class VehiculoController extends Controller
             'ä'=>'A','ë'=>'E','ï'=>'I','ö'=>'O','ü'=>'U',
             'Ñ'=>'N','ñ'=>'N','Ç'=>'C','ç'=>'C'
         ]);
+    }
+
+    private function esServicioPublicoFederal($value): bool
+    {
+        if (!is_scalar($value)) {
+            return false;
+        }
+
+        $servicio = strtoupper($this->removeAccents((string) $value));
+        $servicio = preg_replace('/\s+/', ' ', trim($servicio));
+        $compacto = preg_replace('/[^A-Z0-9]/', '', $servicio);
+
+        return str_contains($servicio, 'FEDERAL')
+            || str_contains($servicio, 'SCT')
+            || $compacto === 'SPF'
+            || str_contains($compacto, 'PUBLICOFEDERAL')
+            || str_contains($compacto, 'PUBFED');
     }
 
     private function sanitize(array $data): array

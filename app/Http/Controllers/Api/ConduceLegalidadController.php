@@ -348,6 +348,389 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
+    public function nativeShareOperativo(Request $request, ConduceLegalidadOperativo $operativo)
+    {
+        $user = $request->user();
+        abort_unless($this->canManage($user), 403);
+
+        $operativo->loadMissing(['creador']);
+
+        $capturas = $operativo->capturas()
+            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos'])
+            ->orderBy('fecha')
+            ->orderBy('hora')
+            ->orderBy('id')
+            ->get();
+
+        $texto = $this->tarjetaTotalesOperativo($operativo, $capturas, $user);
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'title' => 'Resumen Operativo Conduce con Legalidad',
+                'texto' => trim($texto),
+                'message' => trim($texto),
+                'media' => [],
+                'fotos' => [],
+                'operativo_id' => $operativo->id,
+                'tipo' => 'operativo_totales',
+            ],
+        ]);
+    }
+
+    public function nativeShareCaptura(Request $request, ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura)
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        abort_unless($captura->operativo_id === $operativo->id, 404);
+
+        $query = $operativo->capturas()->whereKey($captura->id);
+        $this->scopeCapturas($query, $user);
+        abort_unless($query->exists(), 404);
+
+        $operativo->loadMissing(['creador']);
+        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
+
+        $texto = $this->tarjetaCapturaOperativo($operativo, $captura, $user);
+        $fotos = $captura->fotos
+            ->map(fn (ConduceLegalidadFoto $foto) => $this->storageUrl($foto->foto_path))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'title' => 'Captura Operativo Conduce con Legalidad',
+                'texto' => trim($texto),
+                'message' => trim($texto),
+                'foto' => $fotos[0] ?? null,
+                'fotos' => $fotos,
+                'media' => $fotos,
+                'operativo_id' => $operativo->id,
+                'captura_id' => $captura->id,
+                'tipo' => 'captura_individual',
+            ],
+        ]);
+    }
+
+    private function tarjetaTotalesOperativo(ConduceLegalidadOperativo $operativo, $capturas, $user): string
+    {
+        $pairs = [];
+        foreach ($capturas as $captura) {
+            foreach ($captura->vehiculos as $vehiculo) {
+                $pairs[] = [$captura, $vehiculo];
+            }
+        }
+
+        $resguardados = array_values(array_filter(
+            $pairs,
+            fn (array $pair) => $this->vehiculoResguardado($pair[1])
+        ));
+
+        $lines = $this->tarjetaHeaderLines((int) ($user->unidad_id ?? 0), $user->delegacion_id ?? null);
+        $lines[] = 'TEMA: RESUMEN DE VEHICULOS RESGUARDADOS';
+        $lines[] = self::NOMBRE_OPERATIVO;
+        $lines[] = '';
+        $lines[] = 'OPERATIVO ID: ' . $operativo->id;
+        $lines[] = 'PUNTO: ' . $this->upper($operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'MUNICIPIO: ' . $this->upper($operativo->municipio ?: 'SIN DATO');
+        $lines[] = 'FECHA: ' . $this->fechaHoraOperativo($operativo) . ' Hrs.';
+        $lines[] = 'ESTADO: ' . $this->upper($operativo->estado ?: 'SIN DATO');
+        $this->appendCoordenadas($lines, $operativo->lat, $operativo->lng, $operativo->coordenadas_texto);
+        $lines[] = '';
+        $lines[] = 'TOTAL GENERAL:';
+        $lines[] = 'Capturas registradas: ' . $capturas->count();
+        $lines[] = 'Vehiculos capturados: ' . count($pairs);
+        $lines[] = 'Vehiculos resguardados: ' . count($resguardados);
+        $lines[] = 'Personas registradas: ' . $capturas->sum(fn (ConduceLegalidadCaptura $captura) => $captura->personas->count());
+
+        $this->appendDesglose($lines, $resguardados, 'CORRALON', fn (ConduceLegalidadVehiculo $vehiculo) => $this->valorCorralon($vehiculo));
+        $this->appendDesglose($lines, $resguardados, 'GRUA', fn (ConduceLegalidadVehiculo $vehiculo) => $this->valorGrua($vehiculo));
+
+        $lines[] = '';
+        $lines[] = 'VEHICULOS RESGUARDADOS:';
+        if (count($resguardados) === 0) {
+            $lines[] = 'SIN VEHICULOS RESGUARDADOS REGISTRADOS.';
+        } else {
+            foreach ($resguardados as $index => [$captura, $vehiculo]) {
+                $lines[] = '';
+                $lines[] = 'VEHICULO ' . $this->letraVehiculo($index) . ') ' . $this->vehiculoResumen($vehiculo);
+                $lines[] = 'Captura #' . $captura->id . ' - ' . $this->nombreUsuario($captura->creador);
+                $this->appendVehiculoRetencion($lines, $vehiculo);
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto((int) ($user->unidad_id ?? 0)));
+
+        return implode("\n", $lines);
+    }
+
+    private function tarjetaCapturaOperativo(
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        $user
+    ): string
+    {
+        $unidadId = (int) ($captura->unidad_id ?: ($user->unidad_id ?? 0));
+        $delegacionId = $captura->delegacion_id ?: ($user->delegacion_id ?? null);
+
+        $lines = $this->tarjetaHeaderLines($unidadId, $delegacionId);
+        $lines[] = 'TEMA: CAPTURA INDIVIDUAL';
+        $lines[] = self::NOMBRE_OPERATIVO;
+        $lines[] = '';
+        $lines[] = 'OPERATIVO ID: ' . $operativo->id;
+        $lines[] = 'CAPTURA ID: ' . $captura->id;
+        $lines[] = 'PUNTO OPERATIVO: ' . $this->upper($operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'LUGAR CAPTURA: ' . $this->upper($captura->lugar ?: $operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'MUNICIPIO: ' . $this->upper($captura->municipio ?: $operativo->municipio ?: 'SIN DATO');
+        $lines[] = 'FECHA: ' . $this->fechaHoraCaptura($captura) . ' Hrs.';
+        $lines[] = 'USUARIO: ' . $this->upper($this->nombreUsuario($captura->creador));
+        $this->appendCoordenadas($lines, $captura->lat, $captura->lng, $captura->coordenadas_texto);
+
+        if ($this->nullableString($captura->narrativa) !== null) {
+            $lines[] = '';
+            $lines[] = 'NARRATIVA:';
+            $lines[] = trim((string) $captura->narrativa);
+        }
+
+        $lines[] = '';
+        $lines[] = 'VEHICULOS:';
+        if ($captura->vehiculos->count() === 0) {
+            $lines[] = 'SIN VEHICULOS CAPTURADOS.';
+        } else {
+            foreach ($captura->vehiculos as $index => $vehiculo) {
+                $lines[] = '';
+                $lines[] = 'VEHICULO ' . $this->letraVehiculo($index) . ')';
+                $lines[] = $this->vehiculoResumen($vehiculo);
+                $this->appendVehiculoRetencion($lines, $vehiculo);
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'PERSONAS:';
+        if ($captura->personas->count() === 0) {
+            $lines[] = 'SIN PERSONAS CAPTURADAS.';
+        } else {
+            foreach ($captura->personas as $persona) {
+                $lines[] = '- ' . $this->personaResumen($persona);
+            }
+        }
+
+        if ($captura->fotos->count() > 0) {
+            $lines[] = '';
+            $lines[] = 'FOTOS ADJUNTAS: ' . $captura->fotos->count();
+        }
+
+        $lines[] = '';
+        $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto($unidadId));
+
+        return implode("\n", $lines);
+    }
+
+    private function tarjetaHeaderLines(int $unidadId, $delegacionId = null): array
+    {
+        $lines = [
+            'GUARDIA CIVIL',
+            '',
+            'COORDINACION DEL AGRUPAMIENTO DE SEGURIDAD VIAL',
+            '',
+            $this->upper($this->unidadOperativaTexto($unidadId)),
+        ];
+
+        $delegacion = $this->delegacionTexto($delegacionId);
+        if ($delegacion !== null) {
+            $lines[] = $delegacion;
+        }
+
+        $lines[] = '';
+
+        return $lines;
+    }
+
+    private function unidadOperativaTexto(int $unidadId): string
+    {
+        switch ($unidadId) {
+            case self::UNIDAD_SINIESTROS:
+                return 'UNIDAD DE ATENCION A SINIESTROS';
+            case 2:
+                return 'UNIDAD DE DELEGACIONES';
+            case self::UNIDAD_SEGURIDAD_VIAL:
+                return 'UNIDAD DE SEGURIDAD VIAL';
+            case 4:
+                return 'UNIDAD DE PROTECCION A CARRETERAS';
+            case self::UNIDAD_VIALIDADES_URBANAS:
+                return 'UNIDAD DE VIALIDADES URBANAS';
+            default:
+                return DB::table('unidades')->where('id', $unidadId)->value('nombre') ?: 'SIN DATO';
+        }
+    }
+
+    private function delegacionTexto($delegacionId): ?string
+    {
+        $id = (int) ($delegacionId ?? 0);
+        if ($id <= 0) {
+            return null;
+        }
+
+        $nombre = DB::table('delegaciones')->where('id', $id)->value('nombre');
+        return $nombre ? 'DELEGACION ' . $this->upper($nombre) : null;
+    }
+
+    private function appendDesglose(array &$lines, array $pairs, string $label, callable $resolver): void
+    {
+        $totales = [];
+        foreach ($pairs as [, $vehiculo]) {
+            $key = $this->upper($resolver($vehiculo) ?: 'SIN ' . $label . ' REGISTRADA');
+            $totales[$key] = ($totales[$key] ?? 0) + 1;
+        }
+
+        $lines[] = '';
+        $lines[] = 'DESGLOSE POR ' . $label . ':';
+        if (count($totales) === 0) {
+            $lines[] = '- SIN DATOS.';
+            return;
+        }
+
+        ksort($totales);
+        foreach ($totales as $nombre => $total) {
+            $lines[] = '- ' . $nombre . ': ' . $total;
+        }
+    }
+
+    private function appendVehiculoRetencion(array &$lines, ConduceLegalidadVehiculo $vehiculo): void
+    {
+        $motivo = $this->nullableString($vehiculo->motivo_retencion);
+        if ($motivo !== null) {
+            $lines[] = 'Motivo de retencion: ' . $motivo . '.';
+        }
+
+        $referencia = $vehiculo->infraccion ? $vehiculo->infraccion->referencia_legal_corta : null;
+        if ($this->nullableString($referencia) !== null) {
+            $lines[] = 'Fundamento: ' . $referencia . '.';
+        }
+
+        $grua = $this->valorGrua($vehiculo);
+        if ($grua !== null) {
+            $lines[] = 'Grua: ' . $this->upper($grua) . '.';
+        }
+
+        $corralon = $this->valorCorralon($vehiculo);
+        if ($corralon !== null) {
+            $lines[] = 'Corralon: ' . $this->upper($corralon) . '.';
+        }
+    }
+
+    private function appendCoordenadas(array &$lines, $lat, $lng, ?string $coordenadasTexto): void
+    {
+        if ($lat !== null && $lng !== null) {
+            $lines[] = 'COORDENADAS: ' . $lat . ', ' . $lng;
+            $lines[] = 'GOOGLE MAPS: https://www.google.com/maps?q=' . $lat . ',' . $lng;
+            return;
+        }
+
+        $coordenadas = $this->nullableString($coordenadasTexto);
+        if ($coordenadas !== null) {
+            $lines[] = 'COORDENADAS: ' . $coordenadas;
+        }
+    }
+
+    private function vehiculoResumen(ConduceLegalidadVehiculo $vehiculo): string
+    {
+        return 'Marca ' . $this->valorTexto($vehiculo->marca)
+            . ', tipo ' . $this->valorTexto($vehiculo->tipo ?: $vehiculo->tipo_general)
+            . ', linea ' . $this->valorTexto($vehiculo->linea)
+            . ', color ' . $this->valorTexto($vehiculo->color)
+            . ', placas ' . $this->valorTexto($vehiculo->placas ?: 'SIN PLACAS')
+            . ', NIV ' . $this->valorTexto($vehiculo->serie) . '.';
+    }
+
+    private function personaResumen(ConduceLegalidadPersona $persona): string
+    {
+        $parts = [$this->valorTexto($persona->nombre)];
+
+        if ($persona->edad !== null) {
+            $parts[] = $persona->edad . ' anos';
+        }
+
+        if ($this->nullableString($persona->numero_licencia) !== null) {
+            $parts[] = 'licencia ' . $persona->numero_licencia;
+        }
+
+        if ($this->nullableString($persona->estado_licencia) !== null) {
+            $parts[] = 'estado licencia ' . $persona->estado_licencia;
+        }
+
+        return implode(', ', $parts) . '.';
+    }
+
+    private function vehiculoResguardado(ConduceLegalidadVehiculo $vehiculo): bool
+    {
+        return (bool) $vehiculo->retencion_vehiculo
+            || $this->valorGrua($vehiculo) !== null
+            || $this->valorCorralon($vehiculo) !== null;
+    }
+
+    private function valorGrua(ConduceLegalidadVehiculo $vehiculo): ?string
+    {
+        return $this->nullableString($vehiculo->grua)
+            ?: ($vehiculo->grua_id ? 'GRUA #' . $vehiculo->grua_id : null);
+    }
+
+    private function valorCorralon(ConduceLegalidadVehiculo $vehiculo): ?string
+    {
+        return $this->nullableString($vehiculo->corralon)
+            ?: ($vehiculo->corralon_id ? 'CORRALON #' . $vehiculo->corralon_id : null);
+    }
+
+    private function fechaHoraOperativo(ConduceLegalidadOperativo $operativo): string
+    {
+        return trim(implode(' ', array_filter([
+            optional($operativo->fecha)->toDateString(),
+            $this->horaCorta($operativo->hora_inicio),
+        ]))) ?: 'SIN DATO';
+    }
+
+    private function fechaHoraCaptura(ConduceLegalidadCaptura $captura): string
+    {
+        return trim(implode(' ', array_filter([
+            optional($captura->fecha)->toDateString(),
+            $this->horaCorta($captura->hora),
+        ]))) ?: 'SIN DATO';
+    }
+
+    private function horaCorta($hora): ?string
+    {
+        $text = $this->nullableString($hora);
+        return $text === null ? null : substr($text, 0, 5);
+    }
+
+    private function letraVehiculo(int $index): string
+    {
+        $letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        return $index >= 0 && $index < strlen($letters)
+            ? $letters[$index]
+            : (string) ($index + 1);
+    }
+
+    private function nombreUsuario($user): string
+    {
+        return trim((string) ($user->name ?? $user->nombre ?? 'Usuario'));
+    }
+
+    private function valorTexto($value): string
+    {
+        return $this->upper($this->nullableString($value) ?: 'SIN DATO');
+    }
+
+    private function upper($value): string
+    {
+        $text = trim((string) ($value ?? ''));
+        return $text === '' ? 'SIN DATO' : Str::upper($text);
+    }
+
     private function operativoRules(?ConduceLegalidadOperativo $operativo = null): array
     {
         $ignoreId = $operativo ? $operativo->id : null;

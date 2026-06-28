@@ -166,11 +166,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/operativos', [ApiConduceLegalidadController::class, 'index'])->name('api.conduce_legalidad.operativos.index');
         Route::post('/operativos', [ApiConduceLegalidadController::class, 'storeOperativo'])->name('api.conduce_legalidad.operativos.store');
         Route::get('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'show'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.show');
+        Route::get('/operativos/{operativo}/native-share', [ApiConduceLegalidadController::class, 'nativeShareOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.native_share');
         Route::put('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'updateOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.update');
         Route::delete('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'destroyOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.destroy');
         Route::post('/operativos/{operativo}/capturas', [ApiConduceLegalidadController::class, 'storeCaptura'])->whereNumber('operativo')->name('api.conduce_legalidad.capturas.store');
         Route::put('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'updateCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.update');
         Route::delete('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'destroyCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.destroy');
+        Route::get('/operativos/{operativo}/capturas/{captura}/native-share', [ApiConduceLegalidadController::class, 'nativeShareCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.native_share');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

@@ -493,6 +493,9 @@ class ConduceLegalidadController extends Controller
         $primerFoto = $captura->fotos->first();
 
         return [
+            'opciones' => [
+                'incluir_parte_informativo' => false,
+            ],
             'hecho' => [
                 'id' => $captura->id,
                 'folio_c5i' => $folio,

@@ -46,7 +46,10 @@ class IphPuestaDisposicionDocxService
         $phpWord->getSettings()->setThemeFontLang((new Language('es-MX', 'es-MX', 'es-MX'))->setLangId(2058));
         $this->registrarEstilos($phpWord);
 
-        $this->agregarParteInformativo($phpWord, $data);
+        if ($data['incluir_parte_informativo']) {
+            $this->agregarParteInformativo($phpWord, $data);
+        }
+
         $this->agregarIph($phpWord, $data);
         $this->agregarCadenaCustodia($phpWord, $data);
 
@@ -75,6 +78,7 @@ class IphPuestaDisposicionDocxService
         $vehiculos = $mapeo['vehiculos_hecho'] ?? [];
         $lesionados = $mapeo['lesionados_hecho'] ?? [];
         $anexos = $mapeo['anexos'] ?? [];
+        $opciones = $mapeo['opciones'] ?? [];
 
         $fechaHecho = trim((string) ($hechoIph['fecha'] ?? ''));
         $horaHecho = trim((string) ($hechoIph['hora'] ?? ''));
@@ -177,6 +181,7 @@ class IphPuestaDisposicionDocxService
         return [
             'hecho' => $hechoIph,
             'puesta' => $puesta ?: [],
+            'incluir_parte_informativo' => ($opciones['incluir_parte_informativo'] ?? true) !== false,
             'ubicacion' => $ubicacion,
             'vehiculos' => $vehiculos,
             'lesionados' => $lesionados,

@@ -15,9 +15,13 @@ class LicenciaPuntoInfraccion extends Model
         'articulo',
         'fraccion',
         'inciso',
+        'ambito_vehiculo',
         'puntos',
         'multa_uma_min',
         'multa_uma_max',
+        'amonestacion',
+        'arresto_persona',
+        'deposito_si_sin_persona_habilitada',
         'retencion_vehiculo',
         'descripcion',
         'fundamento_legal',
@@ -28,6 +32,9 @@ class LicenciaPuntoInfraccion extends Model
         'puntos' => 'integer',
         'multa_uma_min' => 'integer',
         'multa_uma_max' => 'integer',
+        'amonestacion' => 'boolean',
+        'arresto_persona' => 'boolean',
+        'deposito_si_sin_persona_habilitada' => 'boolean',
         'retencion_vehiculo' => 'boolean',
         'activa' => 'boolean',
     ];
@@ -40,6 +47,20 @@ class LicenciaPuntoInfraccion extends Model
     public function scopeActivas(Builder $query): Builder
     {
         return $query->where('activa', true);
+    }
+
+    public static function ambitosVehiculo(): array
+    {
+        return [
+            'general' => 'General',
+            'automovil' => 'Automovil / carro',
+            'motocicleta' => 'Motocicleta',
+            'transporte_publico' => 'Transporte publico',
+            'carga' => 'Carga',
+            'no_motorizado' => 'No motorizado',
+            'sustancias_peligrosas' => 'Sustancias peligrosas',
+            'siniestro' => 'Siniestro / perito',
+        ];
     }
 
     public function getReferenciaLegalCortaAttribute(): string
@@ -66,12 +87,22 @@ class LicenciaPuntoInfraccion extends Model
         $sanciones = [];
         $puntos = (int) $this->puntos;
 
+        if ((bool) $this->amonestacion) {
+            $sanciones[] = 'amonestacion';
+        }
+
+        if ((bool) $this->arresto_persona) {
+            $sanciones[] = 'arresto de persona';
+        }
+
         if ($puntos > 0) {
             $sanciones[] = '-' . $puntos . ' ' . ($puntos === 1 ? 'punto' : 'puntos');
         }
 
         if ((bool) $this->retencion_vehiculo) {
-            $sanciones[] = 'retiro de vehiculo';
+            $sanciones[] = 'deposito de vehiculo';
+        } elseif ((bool) $this->deposito_si_sin_persona_habilitada) {
+            $sanciones[] = 'deposito si no hay persona habilitada';
         }
 
         if ($sanciones === []) {
@@ -79,6 +110,13 @@ class LicenciaPuntoInfraccion extends Model
         }
 
         return implode(' + ', $sanciones);
+    }
+
+    public function getAmbitoVehiculoTextoAttribute(): string
+    {
+        $ambito = $this->textoLimpio($this->ambito_vehiculo);
+
+        return self::ambitosVehiculo()[$ambito] ?? 'General';
     }
 
     public function getMultaUmaTextoAttribute(): ?string
@@ -99,6 +137,21 @@ class LicenciaPuntoInfraccion extends Model
         }
 
         return null;
+    }
+
+    public function getSancionPersonaTextoAttribute(): ?string
+    {
+        $sanciones = [];
+
+        if ((bool) $this->amonestacion) {
+            $sanciones[] = 'amonestacion';
+        }
+
+        if ((bool) $this->arresto_persona) {
+            $sanciones[] = 'arresto de persona';
+        }
+
+        return $sanciones !== [] ? implode(' + ', $sanciones) : null;
     }
 
     public function getEtiquetaOperativaAttribute(): string

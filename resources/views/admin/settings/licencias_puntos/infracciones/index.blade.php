@@ -6,7 +6,7 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between">
         <div>
             <h1 class="mb-1">Catalogo de sanciones</h1>
-            <p class="text-muted mb-0">Catalogo de sanciones, puntos, retiro de vehiculo y fundamento legal.</p>
+            <p class="text-muted mb-0">Catalogo de sanciones, puntos, arresto, deposito de vehiculo y fundamento legal.</p>
         </div>
         <a href="{{ route('settings.index') }}" class="btn btn-secondary">
             <i class="fa-solid fa-arrow-left"></i> Configuraciones
@@ -69,27 +69,36 @@
                             <input type="text" name="codigo" class="form-control" value="{{ old('codigo') }}" maxlength="50" placeholder="Se genera automaticamente si lo dejas vacio">
                         </div>
                         <div class="form-group">
+                            <label>Ambito operativo</label>
+                            <select name="ambito_vehiculo" class="form-control custom-select">
+                                @foreach($ambitosVehiculo as $value => $label)
+                                    <option value="{{ $value }}" {{ old('ambito_vehiculo', 'general') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label>Puntos a descontar</label>
                             <input type="number" name="puntos" class="form-control" value="{{ old('puntos', 1) }}" min="0" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                             <small class="form-text text-muted">Usa 0 cuando la sancion no descuente puntos.</small>
                         </div>
                         <div class="row">
                             <div class="col-6">
-                                <div class="form-group">
-                                    <label>UMA minima</label>
-                                    <input type="number" name="multa_uma_min" class="form-control" value="{{ old('multa_uma_min') }}" min="0" max="9999">
+                                <div class="icheck-info mb-2">
+                                    <input type="checkbox" name="amonestacion" value="1" id="amonestacion_nueva" {{ old('amonestacion') ? 'checked' : '' }}>
+                                    <label for="amonestacion_nueva">Amonestacion</label>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="form-group">
-                                    <label>UMA maxima</label>
-                                    <input type="number" name="multa_uma_max" class="form-control" value="{{ old('multa_uma_max') }}" min="0" max="9999">
+                                <div class="icheck-danger mb-2">
+                                    <input type="checkbox" name="arresto_persona" value="1" id="arresto_persona_nueva" {{ old('arresto_persona') ? 'checked' : '' }}>
+                                    <label for="arresto_persona_nueva">Arresto de persona</label>
                                 </div>
                             </div>
                         </div>
+                        <small class="form-text text-muted mb-3">Si hay arresto, el sistema aplica deposito del vehiculo cuando no se registre persona habilitada para el resguardo.</small>
                         <div class="icheck-warning mb-3">
                             <input type="checkbox" name="retencion_vehiculo" value="1" id="retencion_vehiculo_nueva" {{ old('retencion_vehiculo') ? 'checked' : '' }}>
-                            <label for="retencion_vehiculo_nueva">Retiro de vehiculo / corralon</label>
+                            <label for="retencion_vehiculo_nueva">Deposito directo de vehiculo / corralon</label>
                         </div>
                         <div class="form-group">
                             <label>Descripcion de cuando aplica</label>
@@ -97,7 +106,7 @@
                         </div>
                         <div class="form-group">
                             <label>Fundamento legal</label>
-                            <textarea name="fundamento_legal" class="form-control" rows="4" placeholder="Se genera con articulo, fraccion, inciso, UMAS, puntos y retiro si lo dejas vacio">{{ old('fundamento_legal') }}</textarea>
+                            <textarea name="fundamento_legal" class="form-control" rows="4" placeholder="Se genera con articulo, fraccion, inciso, amonestacion, arresto, puntos y deposito si lo dejas vacio">{{ old('fundamento_legal') }}</textarea>
                             <small class="form-text text-muted">Este texto tambien se envia por WhatsApp cuando hay descuento de puntos.</small>
                         </div>
                         <div class="icheck-primary">
@@ -151,9 +160,10 @@
                                     @else
                                         <span class="text-muted">Sin base</span>
                                     @endif
-                                    @if($infraccion->multa_uma_texto)
-                                        <small class="d-block text-muted">{{ $infraccion->multa_uma_texto }}</small>
+                                    @if($infraccion->sancion_persona_texto)
+                                        <small class="d-block text-muted">{{ $infraccion->sancion_persona_texto }}</small>
                                     @endif
+                                    <span class="badge badge-light">{{ $infraccion->ambito_vehiculo_texto }}</span>
                                 </td>
                                 <td><code>{{ $infraccion->codigo }}</code></td>
                                 <td>
@@ -162,8 +172,16 @@
                                     @else
                                         <span class="badge badge-secondary">0 pts</span>
                                     @endif
+                                    @if($infraccion->amonestacion)
+                                        <span class="badge badge-info">Amonestacion</span>
+                                    @endif
+                                    @if($infraccion->arresto_persona)
+                                        <span class="badge badge-danger">Arresto</span>
+                                    @endif
                                     @if($infraccion->retencion_vehiculo)
-                                        <span class="badge badge-warning">Corralon</span>
+                                        <span class="badge badge-warning">Deposito directo</span>
+                                    @elseif($infraccion->deposito_si_sin_persona_habilitada)
+                                        <span class="badge badge-warning">Deposito condicional</span>
                                     @endif
                                 </td>
                                 <td>
@@ -242,29 +260,42 @@
                                         <input type="text" name="codigo" class="form-control" value="{{ old('codigo', $infraccion->codigo) }}" maxlength="50">
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Ambito operativo</label>
+                                        <select name="ambito_vehiculo" class="form-control custom-select">
+                                            @foreach($ambitosVehiculo as $value => $label)
+                                                <option value="{{ $value }}" {{ old('ambito_vehiculo', $infraccion->ambito_vehiculo ?: 'general') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="col-md-2">
                                     <div class="form-group">
                                         <label>Puntos</label>
                                         <input type="number" name="puntos" class="form-control" value="{{ old('puntos', $infraccion->puntos) }}" min="0" max="{{ \App\Models\LicenciaPuntoCuenta::SALDO_MAXIMO }}" required>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label>UMA minima</label>
-                                        <input type="number" name="multa_uma_min" class="form-control" value="{{ old('multa_uma_min', $infraccion->multa_uma_min) }}" min="0" max="9999">
+                                <div class="col-md-3 d-flex align-items-center">
+                                    <div class="icheck-info mt-3">
+                                        <input type="checkbox" name="amonestacion" value="1" id="amonestacion_{{ $infraccion->id }}" {{ old('amonestacion', $infraccion->amonestacion) ? 'checked' : '' }}>
+                                        <label for="amonestacion_{{ $infraccion->id }}">Amonestacion</label>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label>UMA maxima</label>
-                                        <input type="number" name="multa_uma_max" class="form-control" value="{{ old('multa_uma_max', $infraccion->multa_uma_max) }}" min="0" max="9999">
+                                <div class="col-md-3 d-flex align-items-center">
+                                    <div class="icheck-danger mt-3">
+                                        <input type="checkbox" name="arresto_persona" value="1" id="arresto_persona_{{ $infraccion->id }}" {{ old('arresto_persona', $infraccion->arresto_persona) ? 'checked' : '' }}>
+                                        <label for="arresto_persona_{{ $infraccion->id }}">Arresto de persona</label>
                                     </div>
                                 </div>
                                 <div class="col-md-4 d-flex align-items-center">
                                     <div class="icheck-warning mt-3">
                                         <input type="checkbox" name="retencion_vehiculo" value="1" id="retencion_vehiculo_{{ $infraccion->id }}" {{ old('retencion_vehiculo', $infraccion->retencion_vehiculo) ? 'checked' : '' }}>
-                                        <label for="retencion_vehiculo_{{ $infraccion->id }}">Retiro de vehiculo / corralon</label>
+                                        <label for="retencion_vehiculo_{{ $infraccion->id }}">Deposito directo / corralon</label>
                                     </div>
+                                </div>
+                                <div class="col-12">
+                                    <small class="form-text text-muted mb-3">Con arresto activo, el deposito se marca automaticamente cuando la captura no indique persona habilitada para resguardar el vehiculo.</small>
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group">
@@ -276,7 +307,7 @@
                                     <div class="form-group">
                                         <label>Fundamento legal</label>
                                         <textarea name="fundamento_legal" class="form-control" rows="4" placeholder="Se genera automaticamente si lo dejas vacio">{{ old('fundamento_legal', $infraccion->fundamento_legal) }}</textarea>
-                                        <small class="form-text text-muted">Articulo, fraccion, inciso, multa en UMAS, puntos y retiro. Este texto tambien se envia por WhatsApp cuando hay descuento.</small>
+                                        <small class="form-text text-muted">Articulo, fraccion, inciso, amonestacion, arresto, puntos y deposito. Este texto tambien se envia por WhatsApp cuando hay descuento.</small>
                                     </div>
                                 </div>
                                 <div class="col-12">

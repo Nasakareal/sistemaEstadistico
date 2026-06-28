@@ -17,8 +17,9 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
             ->withCount('movimientos')
             ->get();
         $infracciones = $this->ordenarInfracciones($infracciones);
+        $ambitosVehiculo = LicenciaPuntoInfraccion::ambitosVehiculo();
 
-        return view('admin.settings.licencias_puntos.infracciones.index', compact('infracciones'));
+        return view('admin.settings.licencias_puntos.infracciones.index', compact('infracciones', 'ambitosVehiculo'));
     }
 
     public function store(Request $request)
@@ -65,9 +66,13 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
             'articulo' => ['nullable', 'string', 'max:30'],
             'fraccion' => ['nullable', 'string', 'max:30'],
             'inciso' => ['nullable', 'string', 'max:30'],
+            'ambito_vehiculo' => ['nullable', 'string', Rule::in(array_keys(LicenciaPuntoInfraccion::ambitosVehiculo()))],
             'puntos' => ['required', 'integer', 'min:0', 'max:' . LicenciaPuntoCuenta::SALDO_MAXIMO],
             'multa_uma_min' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'multa_uma_max' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'amonestacion' => ['nullable', 'boolean'],
+            'arresto_persona' => ['nullable', 'boolean'],
+            'deposito_si_sin_persona_habilitada' => ['nullable', 'boolean'],
             'retencion_vehiculo' => ['nullable', 'boolean'],
             'descripcion' => ['nullable', 'string'],
             'fundamento_legal' => ['nullable', 'string'],
@@ -78,31 +83,28 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
         $validated['articulo'] = $this->normalizarCampoCorto($validated['articulo'] ?? null);
         $validated['fraccion'] = $this->normalizarCampoCorto($validated['fraccion'] ?? null, true);
         $validated['inciso'] = $this->normalizarCampoCorto($validated['inciso'] ?? null);
+        $validated['ambito_vehiculo'] = $validated['ambito_vehiculo'] ?? 'general';
         $validated['puntos'] = (int) $validated['puntos'];
-        $validated['multa_uma_min'] = array_key_exists('multa_uma_min', $validated) && $validated['multa_uma_min'] !== null
-            ? (int) $validated['multa_uma_min']
-            : null;
-        $validated['multa_uma_max'] = array_key_exists('multa_uma_max', $validated) && $validated['multa_uma_max'] !== null
-            ? (int) $validated['multa_uma_max']
-            : null;
+        $validated['multa_uma_min'] = null;
+        $validated['multa_uma_max'] = null;
+        $validated['amonestacion'] = $request->boolean('amonestacion');
+        $validated['arresto_persona'] = $request->boolean('arresto_persona');
+        $validated['deposito_si_sin_persona_habilitada'] = $validated['arresto_persona']
+            || $request->boolean('deposito_si_sin_persona_habilitada');
         $validated['retencion_vehiculo'] = $request->boolean('retencion_vehiculo');
         $validated['descripcion'] = isset($validated['descripcion']) && trim((string) $validated['descripcion']) !== ''
             ? trim((string) $validated['descripcion'])
             : null;
 
         if (
-            $validated['multa_uma_min'] !== null
-            && $validated['multa_uma_max'] !== null
-            && $validated['multa_uma_min'] > $validated['multa_uma_max']
+            $validated['puntos'] <= 0
+            && !$validated['amonestacion']
+            && !$validated['arresto_persona']
+            && !$validated['retencion_vehiculo']
+            && !$validated['deposito_si_sin_persona_habilitada']
         ) {
             throw ValidationException::withMessages([
-                'multa_uma_max' => 'La UMA maxima no puede ser menor que la UMA minima.',
-            ]);
-        }
-
-        if ($validated['puntos'] <= 0 && !$validated['retencion_vehiculo']) {
-            throw ValidationException::withMessages([
-                'puntos' => 'Captura al menos puntos a descontar o marca retiro de vehiculo.',
+                'puntos' => 'Captura al menos puntos a descontar, amonestacion, arresto o deposito.',
             ]);
         }
 
@@ -142,8 +144,12 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
         $referencia = $this->referenciaLegal($data);
         $sanciones = [];
 
-        if ($data['multa_uma_min'] || $data['multa_uma_max']) {
-            $sanciones[] = 'multa de ' . $this->multaUmaTexto($data);
+        if (!empty($data['amonestacion'])) {
+            $sanciones[] = 'amonestacion a la persona';
+        }
+
+        if (!empty($data['arresto_persona'])) {
+            $sanciones[] = 'arresto de la persona';
         }
 
         if ((int) $data['puntos'] > 0) {
@@ -152,11 +158,13 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
         }
 
         if (!empty($data['retencion_vehiculo'])) {
-            $sanciones[] = 'retiro de vehiculo';
+            $sanciones[] = 'remision o retiro del vehiculo al deposito';
+        } elseif (!empty($data['deposito_si_sin_persona_habilitada'])) {
+            $sanciones[] = 'deposito del vehiculo cuando no se encuentre persona legalmente habilitada para hacerse cargo inmediato';
         }
 
         if ($referencia !== '' && $sanciones !== []) {
-            return $referencia . ': ' . implode(' y ', $sanciones) . '.';
+            return $referencia . ': ' . implode('; ', $sanciones) . '.';
         }
 
         if ($referencia !== '') {
@@ -207,6 +215,7 @@ class LicenciaPuntoInfraccionCatalogoController extends Controller
             return implode('|', [
                 $infraccion->activa ? '0' : '1',
                 $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                $infraccion->ambito_vehiculo ?: 'general',
                 $infraccion->fraccion ?: 'ZZZZ',
                 $infraccion->inciso ?: 'ZZZZ',
                 $infraccion->nombre,

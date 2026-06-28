@@ -42,6 +42,7 @@ class ConduceLegalidadVehiculo extends Model
         'fundamento_legal',
         'retencion_vehiculo',
         'motivo_retencion',
+        'persona_habilitada_resguardo',
         'observaciones',
     ];
 
@@ -50,6 +51,7 @@ class ConduceLegalidadVehiculo extends Model
         'monto_danos' => 'decimal:2',
         'antecedente_vehiculo' => 'boolean',
         'retencion_vehiculo' => 'boolean',
+        'persona_habilitada_resguardo' => 'boolean',
         'servicio_unidad_id' => 'integer',
         'servicio_delegacion_id' => 'integer',
         'servicio_created_by' => 'integer',

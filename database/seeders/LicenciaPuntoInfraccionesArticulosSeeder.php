@@ -57,9 +57,13 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
             'articulo',
             'fraccion',
             'inciso',
+            'ambito_vehiculo',
             'puntos',
             'multa_uma_min',
             'multa_uma_max',
+            'amonestacion',
+            'arresto_persona',
+            'deposito_si_sin_persona_habilitada',
             'retencion_vehiculo',
             'descripcion',
             'fundamento_legal',
@@ -150,9 +154,13 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
                 'articulo' => '402; 700; 702',
                 'fraccion' => null,
                 'inciso' => null,
+                'ambito_vehiculo' => 'general',
                 'puntos' => 0,
                 'multa_uma_min' => null,
                 'multa_uma_max' => null,
+                'amonestacion' => false,
+                'arresto_persona' => false,
+                'deposito_si_sin_persona_habilitada' => false,
                 'retencion_vehiculo' => true,
                 'descripcion' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
                 'fundamento_legal' => self::SIN_LICENCIA_OPERATIVO_FUNDAMENTO,
@@ -271,6 +279,8 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
         ?string $extra = null
     ): array {
         $activa = $activa ?? ($puntos > 0 || $retencion);
+        $amonestacion = $this->tieneUma($umaMin, $umaMax) || $this->textoContiene($extra, 'AMONESTACION');
+        $arresto = $this->tieneUma($umaMin, $umaMax) || $this->textoContiene($extra, 'ARRESTO');
 
         return [
             'codigo' => $this->codigo($articulo, $fraccion, $inciso, $slug),
@@ -278,9 +288,13 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
             'articulo' => $articulo,
             'fraccion' => $fraccion,
             'inciso' => $inciso,
+            'ambito_vehiculo' => $this->inferirAmbitoVehiculo($articulo, $fraccion, $slug, $nombre),
             'puntos' => $puntos,
-            'multa_uma_min' => $umaMin,
-            'multa_uma_max' => $umaMax,
+            'multa_uma_min' => null,
+            'multa_uma_max' => null,
+            'amonestacion' => $amonestacion,
+            'arresto_persona' => $arresto,
+            'deposito_si_sin_persona_habilitada' => $arresto,
             'retencion_vehiculo' => $retencion,
             'descripcion' => $nombre,
             'fundamento_legal' => $this->fundamentoLegal($articulo, $fraccion, $inciso, $puntos, $umaMin, $umaMax, $retencion, $extra),
@@ -323,9 +337,15 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
     ): string {
         $partes = [$this->referenciaLegal($articulo, $fraccion, $inciso)];
         $sanciones = [];
+        $amonestacion = $this->tieneUma($umaMin, $umaMax) || $this->textoContiene($extra, 'AMONESTACION');
+        $arresto = $this->tieneUma($umaMin, $umaMax) || $this->textoContiene($extra, 'ARRESTO');
 
-        if ($umaMin || $umaMax) {
-            $sanciones[] = 'multa de ' . $this->multaUmaTexto($umaMin, $umaMax);
+        if ($amonestacion) {
+            $sanciones[] = 'amonestacion a la persona';
+        }
+
+        if ($arresto) {
+            $sanciones[] = 'arresto de la persona';
         }
 
         if ($puntos > 0) {
@@ -334,6 +354,8 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
 
         if ($retencion) {
             $sanciones[] = 'remision o retiro del vehiculo al deposito';
+        } elseif ($arresto) {
+            $sanciones[] = 'deposito del vehiculo cuando no se encuentre persona legalmente habilitada para hacerse cargo inmediato';
         }
 
         if ($sanciones !== []) {
@@ -360,6 +382,127 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
         }
 
         return implode(', ', $partes);
+    }
+
+    private function inferirAmbitoVehiculo(string $articulo, ?string $fraccion, string $slug, string $nombre): string
+    {
+        $texto = $this->normalizarTexto($articulo . ' ' . ($fraccion ?? '') . ' ' . $slug . ' ' . $nombre);
+
+        if ($this->contieneFrase($texto, 'NO MOTORIZADO')) {
+            return 'no_motorizado';
+        }
+
+        if ($articulo === '440' || ($articulo === '420' && $fraccion === 'III') || $this->contieneFrase($texto, 'MOTOCICLETA') || $this->contienePalabra($texto, 'MOTO')) {
+            return 'motocicleta';
+        }
+
+        if (
+            $this->contieneFrase($texto, 'SUSTANCIAS')
+            || $this->contieneFrase($texto, 'TOXICAS')
+            || $this->contieneFrase($texto, 'PELIGROSAS')
+            || $this->contieneFrase($texto, 'INFLAMABLES')
+            || $this->contieneFrase($texto, 'EXPLOSIVAS')
+        ) {
+            return 'sustancias_peligrosas';
+        }
+
+        if (($articulo === '420' && $fraccion === 'V') || $this->contienePalabra($texto, 'CARGA')) {
+            return 'carga';
+        }
+
+        if (
+            $this->contieneFrase($texto, 'TRANSPORTE PUBLICO')
+            || $this->contienePalabra($texto, 'OPERADOR')
+            || $this->contienePalabra($texto, 'OPERADORA')
+            || $this->contieneFrase($texto, 'TRANSPORTE ESCOLAR')
+            || $this->contieneFrase($texto, 'DE PERSONAL')
+        ) {
+            return 'transporte_publico';
+        }
+
+        if (
+            $this->contieneFrase($texto, 'SINIESTRO')
+            || $this->contienePalabra($texto, 'PERITO')
+            || $this->contieneFrase($texto, 'REPARACION DEL DANO')
+        ) {
+            return 'siniestro';
+        }
+
+        if (
+            $this->contienePalabra($texto, 'CONDUCTOR')
+            || $this->contienePalabra($texto, 'CONDUCTORA')
+            || $this->contieneFrase($texto, 'MOTORIZADO')
+            || $this->contieneFrase($texto, 'AUTOMOTOR')
+            || $this->contieneFrase($texto, 'PARTICULAR')
+        ) {
+            return 'automovil';
+        }
+
+        return 'general';
+    }
+
+    private function contieneFrase(string $texto, string $needle): bool
+    {
+        return str_contains($texto, $needle);
+    }
+
+    private function contienePalabra(string $texto, string $needle): bool
+    {
+        return preg_match('/\b' . preg_quote($needle, '/') . '\b/u', $texto) === 1;
+    }
+
+    private function normalizarTexto(string $texto): string
+    {
+        $texto = strtoupper(strtr($texto, [
+            'Á' => 'A',
+            'É' => 'E',
+            'Í' => 'I',
+            'Ó' => 'O',
+            'Ú' => 'U',
+            'Ü' => 'U',
+            'Ñ' => 'N',
+            'á' => 'A',
+            'é' => 'E',
+            'í' => 'I',
+            'ó' => 'O',
+            'ú' => 'U',
+            'ü' => 'U',
+            'ñ' => 'N',
+        ]));
+        $texto = preg_replace('/[^A-Z0-9]+/', ' ', $texto) ?? $texto;
+
+        return preg_replace('/\s+/', ' ', trim($texto)) ?? $texto;
+    }
+
+    private function tieneUma(?int $min, ?int $max): bool
+    {
+        return $min !== null || $max !== null;
+    }
+
+    private function textoContiene(?string $texto, string $needle): bool
+    {
+        if ($texto === null || trim($texto) === '') {
+            return false;
+        }
+
+        $normalizado = strtoupper(strtr($texto, [
+            'Á' => 'A',
+            'É' => 'E',
+            'Í' => 'I',
+            'Ó' => 'O',
+            'Ú' => 'U',
+            'Ü' => 'U',
+            'Ñ' => 'N',
+            'á' => 'A',
+            'é' => 'E',
+            'í' => 'I',
+            'ó' => 'O',
+            'ú' => 'U',
+            'ü' => 'U',
+            'ñ' => 'N',
+        ]));
+
+        return str_contains($normalizado, $needle);
     }
 
     private function multaUmaTexto(?int $min, ?int $max): string

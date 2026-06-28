@@ -30,10 +30,15 @@
                     <option
                         value="{{ $infraccion->id }}"
                         data-articulo="{{ $infraccion->articulo }}"
+                        data-ambito="{{ $infraccion->ambito_vehiculo }}"
+                        data-ambito-texto="{{ $infraccion->ambito_vehiculo_texto }}"
                         data-referencia="{{ $infraccion->referencia_legal_corta }}"
                         data-sanciones="{{ $infraccion->resumen_sanciones }}"
                         data-descripcion="{{ $infraccion->descripcion }}"
                         data-fundamento="{{ $infraccion->fundamento_legal }}"
+                        data-amonestacion="{{ $infraccion->amonestacion ? '1' : '0' }}"
+                        data-arresto-persona="{{ $infraccion->arresto_persona ? '1' : '0' }}"
+                        data-deposito-condicional="{{ $infraccion->deposito_si_sin_persona_habilitada ? '1' : '0' }}"
                         data-retencion="{{ $infraccion->retencion_vehiculo ? '1' : '0' }}"
                         {{ (string) $selected === (string) $infraccion->id ? 'selected' : '' }}>
                         {{ $infraccion->etiqueta_operativa }}

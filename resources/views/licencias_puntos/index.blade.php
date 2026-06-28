@@ -326,11 +326,13 @@ $(function () {
 
     $('.js-infraccion-select').on('change', function () {
         const option = $(this).find(':selected');
+        const ambito = option.data('ambito-texto') || '';
         const referencia = option.data('referencia') || '';
         const sanciones = option.data('sanciones') || '';
         const descripcion = option.data('descripcion') || '';
         const fundamento = option.data('fundamento') || '';
-        const text = [referencia, sanciones, descripcion, fundamento].filter(Boolean).join(' | ');
+        const ambitoTexto = ambito ? 'Ambito: ' + ambito : '';
+        const text = [ambitoTexto, referencia, sanciones, descripcion, fundamento].filter(Boolean).join(' | ');
         $(this).closest('.js-infraccion-picker').find('.js-infraccion-help').text(text || 'Selecciona una sancion para ver cuando aplica.');
     }).trigger('change');
 

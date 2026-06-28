@@ -789,6 +789,8 @@ class ConduceLegalidadController extends Controller
             'vehiculos.*.raw_tarjeta_qr' => ['nullable', 'string'],
             'vehiculos.*.licencia_punto_infraccion_id' => ['nullable', 'integer', 'exists:licencia_punto_infracciones,id'],
             'vehiculos.*.motivo_retencion' => ['nullable', 'string'],
+            'vehiculos.*.persona_habilitada_resguardo' => ['nullable', 'boolean'],
+            'vehiculos.*.responsable_habilitado_presente' => ['nullable', 'boolean'],
             'vehiculos.*.observaciones' => ['nullable', 'string'],
             'personas' => ['nullable', 'array', 'max:100'],
             'personas.*' => ['array'],
@@ -884,8 +886,15 @@ class ConduceLegalidadController extends Controller
 
         foreach ($vehiculos as $row) {
             $infraccion = $this->retencionInfraccion($row['licencia_punto_infraccion_id'] ?? null);
+            $personaHabilitadaResguardo = $this->booleanRow($row, 'persona_habilitada_resguardo', 'responsable_habilitado_presente');
+            $retencionCondicional = $infraccion
+                && (bool) $infraccion->deposito_si_sin_persona_habilitada
+                && !$personaHabilitadaResguardo;
+            $retencionVehiculo = $infraccion
+                ? ((bool) $infraccion->retencion_vehiculo || $retencionCondicional)
+                : false;
             $motivoRetencion = $this->nullableString($row['motivo_retencion'] ?? null)
-                ?: ($infraccion ? $this->motivoRetencionPorInfraccion($infraccion) : null);
+                ?: ($retencionVehiculo && $infraccion ? $this->motivoRetencionPorInfraccion($infraccion, $retencionCondicional) : null);
             $tieneServicioGrua = $this->tieneServicioGrua($row);
 
             $captura->vehiculos()->create([
@@ -916,8 +925,9 @@ class ConduceLegalidadController extends Controller
                 'licencia_punto_infraccion_id' => $infraccion ? $infraccion->id : null,
                 'infraccion_codigo' => $infraccion ? $infraccion->codigo : null,
                 'fundamento_legal' => $infraccion ? $infraccion->fundamento_legal : null,
-                'retencion_vehiculo' => $infraccion ? (bool) $infraccion->retencion_vehiculo : false,
+                'retencion_vehiculo' => $retencionVehiculo,
                 'motivo_retencion' => $motivoRetencion,
+                'persona_habilitada_resguardo' => $personaHabilitadaResguardo,
                 'observaciones' => $this->nullableString($row['observaciones'] ?? null),
             ]);
         }
@@ -929,6 +939,13 @@ class ConduceLegalidadController extends Controller
             || !empty($row['corralon_id'])
             || $this->nullableString($row['grua'] ?? null) !== null
             || $this->nullableString($row['corralon'] ?? null) !== null;
+    }
+
+    private function booleanRow(array $row, string $field, ?string $alias = null): bool
+    {
+        $value = $row[$field] ?? ($alias !== null ? ($row[$alias] ?? false) : false);
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     private function replacePersonas(ConduceLegalidadCaptura $captura, array $personas): void
@@ -964,7 +981,7 @@ class ConduceLegalidadController extends Controller
         $infraccion = LicenciaPuntoInfraccion::activas()->find($id);
         if (
             !$infraccion ||
-            !$infraccion->retencion_vehiculo ||
+            !$this->infraccionAplicaRetencionOperativo($infraccion) ||
             $this->esFundamentoExcluidoDelOperativo($infraccion)
         ) {
             throw ValidationException::withMessages([
@@ -975,10 +992,19 @@ class ConduceLegalidadController extends Controller
         return $infraccion;
     }
 
+    private function infraccionAplicaRetencionOperativo(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        return (bool) $infraccion->retencion_vehiculo
+            || (bool) $infraccion->deposito_si_sin_persona_habilitada;
+    }
+
     private function fundamentosCorralonPayload()
     {
         return LicenciaPuntoInfraccion::activas()
-            ->where('retencion_vehiculo', true)
+            ->where(function ($query) {
+                $query->where('retencion_vehiculo', true)
+                    ->orWhere('deposito_si_sin_persona_habilitada', true);
+            })
             ->get()
             ->reject(fn (LicenciaPuntoInfraccion $infraccion) => $this->esFundamentoExcluidoDelOperativo($infraccion))
             ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
@@ -997,11 +1023,17 @@ class ConduceLegalidadController extends Controller
                 'articulo' => $infraccion->articulo,
                 'fraccion' => $infraccion->fraccion,
                 'inciso' => $infraccion->inciso,
+                'ambito_vehiculo' => $infraccion->ambito_vehiculo,
+                'ambito_vehiculo_texto' => $infraccion->ambito_vehiculo_texto,
                 'referencia_legal_corta' => $infraccion->referencia_legal_corta,
                 'puntos' => (int) $infraccion->puntos,
                 'multa_uma_min' => $infraccion->multa_uma_min,
                 'multa_uma_max' => $infraccion->multa_uma_max,
                 'multa_uma_texto' => $infraccion->multa_uma_texto,
+                'amonestacion' => (bool) $infraccion->amonestacion,
+                'arresto_persona' => (bool) $infraccion->arresto_persona,
+                'deposito_si_sin_persona_habilitada' => (bool) $infraccion->deposito_si_sin_persona_habilitada,
+                'sancion_persona_texto' => $infraccion->sancion_persona_texto,
                 'retencion_vehiculo' => (bool) $infraccion->retencion_vehiculo,
                 'resumen_sanciones' => $infraccion->resumen_sanciones,
                 'etiqueta_operativa' => $this->textoOperativoInfraccion($infraccion),
@@ -1136,16 +1168,24 @@ class ConduceLegalidadController extends Controller
             'fundamento_legal' => $vehiculo->fundamento_legal,
             'retencion_vehiculo' => (bool) $vehiculo->retencion_vehiculo,
             'motivo_retencion' => $vehiculo->motivo_retencion,
+            'persona_habilitada_resguardo' => (bool) $vehiculo->persona_habilitada_resguardo,
             'observaciones' => $vehiculo->observaciones,
             'infraccion' => $vehiculo->infraccion ? [
                 'id' => $vehiculo->infraccion->id,
                 'codigo' => $vehiculo->infraccion->codigo,
                 'nombre' => $vehiculo->infraccion->nombre,
                 'referencia_legal_corta' => $vehiculo->infraccion->referencia_legal_corta,
+                'ambito_vehiculo' => $vehiculo->infraccion->ambito_vehiculo,
+                'ambito_vehiculo_texto' => $vehiculo->infraccion->ambito_vehiculo_texto,
                 'etiqueta_operativa' => $this->textoOperativoInfraccion($vehiculo->infraccion),
                 'texto_operativo' => $this->textoOperativoInfraccion($vehiculo->infraccion),
                 'fundamento_legal' => $vehiculo->infraccion->fundamento_legal,
+                'amonestacion' => (bool) $vehiculo->infraccion->amonestacion,
+                'arresto_persona' => (bool) $vehiculo->infraccion->arresto_persona,
+                'deposito_si_sin_persona_habilitada' => (bool) $vehiculo->infraccion->deposito_si_sin_persona_habilitada,
+                'sancion_persona_texto' => $vehiculo->infraccion->sancion_persona_texto,
                 'retencion_vehiculo' => (bool) $vehiculo->infraccion->retencion_vehiculo,
+                'resumen_sanciones' => $vehiculo->infraccion->resumen_sanciones,
                 'narrativa_sugerida' => $this->narrativaSugeridaInfraccion($vehiculo->infraccion),
             ] : null,
         ];
@@ -1266,10 +1306,14 @@ class ConduceLegalidadController extends Controller
         return $texto;
     }
 
-    private function motivoRetencionPorInfraccion(LicenciaPuntoInfraccion $infraccion): string
+    private function motivoRetencionPorInfraccion(LicenciaPuntoInfraccion $infraccion, bool $retencionCondicional = false): string
     {
         $referencia = $this->nullableString($infraccion->referencia_legal_corta);
         $motivo = $this->textoOperativoInfraccion($infraccion);
+
+        if ($retencionCondicional) {
+            $motivo = trim($motivo . ' - sin persona habilitada para resguardar el vehiculo');
+        }
 
         if ($referencia && $motivo) {
             return $referencia . ' - ' . $motivo;

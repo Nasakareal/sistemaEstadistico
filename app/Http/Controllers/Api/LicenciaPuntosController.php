@@ -411,19 +411,19 @@ class LicenciaPuntosController extends Controller
                 'reason' => 'guest',
                 'message' => 'Sesion requerida.',
             ];
-        $turnoAllowed = (bool)($turnoAccess['allowed'] ?? false);
         $isSuperadmin = $user ? $user->hasRole('Superadmin') : false;
-        $canRestar = $user ? $user->can('registrar infracciones puntos licencias') : false;
-        $canSumar = $user ? $user->can('acreditar capacitacion puntos licencias') : false;
+        $turnoAllowed = $isSuperadmin || (bool)($turnoAccess['allowed'] ?? false);
+        $canRestar = $isSuperadmin || ($user ? $user->can('registrar infracciones puntos licencias') : false);
+        $canSumar = $isSuperadmin || ($user ? $user->can('acreditar capacitacion puntos licencias') : false);
 
         return [
             'is_superadmin' => $isSuperadmin,
             'is_fomento_cultura_vial' => $esFomento,
-            'module_writes_locked' => !$isSuperadmin || !$turnoAllowed || (!$canRestar && !$canSumar),
-            'can_restar_puntos' => $isSuperadmin && $turnoAllowed && $canRestar,
-            'can_sumar_puntos' => $isSuperadmin && $turnoAllowed && $canSumar,
+            'module_writes_locked' => !$turnoAllowed || (!$canRestar && !$canSumar),
+            'can_restar_puntos' => $turnoAllowed && $canRestar,
+            'can_sumar_puntos' => $turnoAllowed && $canSumar,
             'can_recuperar_por_tiempo' => false,
-            'can_ver_catalogo_infracciones' => $user ? $user->can('ver puntos licencias') : false,
+            'can_ver_catalogo_infracciones' => $isSuperadmin || ($user ? $user->can('ver puntos licencias') : false),
             'licencias_puntos_turno' => $turnoAccess,
             'licencias_puntos_turno_permitido' => $turnoAllowed,
         ];
@@ -471,27 +471,32 @@ class LicenciaPuntosController extends Controller
     private function autorizarRestarPuntos(Request $request): void
     {
         $this->autorizarTurnoModulo($request);
-        $this->autorizarPruebaSuperadmin($request);
 
-        abort_unless($request->user() && $request->user()->can('registrar infracciones puntos licencias'), 403);
+        abort_unless(
+            $request->user()
+            && ($request->user()->hasRole('Superadmin') || $request->user()->can('registrar infracciones puntos licencias')),
+            403
+        );
     }
 
     private function autorizarSumarPuntos(Request $request): void
     {
         $this->autorizarTurnoModulo($request);
-        $this->autorizarPruebaSuperadmin($request);
 
-        abort_unless($request->user() && $request->user()->can('acreditar capacitacion puntos licencias'), 403);
-    }
-
-    private function autorizarPruebaSuperadmin(Request $request): void
-    {
-        abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
+        abort_unless(
+            $request->user()
+            && ($request->user()->hasRole('Superadmin') || $request->user()->can('acreditar capacitacion puntos licencias')),
+            403
+        );
     }
 
     private function autorizarTurnoModulo(Request $request): void
     {
         abort_unless($request->user(), 403);
+
+        if ($request->user()->hasRole('Superadmin')) {
+            return;
+        }
 
         $status = app(LicenciaPuntosTurnoAccessService::class)
             ->statusForUser($request->user());

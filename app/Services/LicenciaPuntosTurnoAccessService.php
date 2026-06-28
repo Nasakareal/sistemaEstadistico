@@ -24,6 +24,10 @@ class LicenciaPuntosTurnoAccessService
         $turnoUsuario = $this->turnoMeta($user->turno);
         $turnoEnServicio = $this->turnoMeta($this->turnos->turnoActivoEn($momento));
 
+        if ($user->hasRole('Superadmin')) {
+            return $this->status(true, false, 'superadmin', true, $turnoUsuario, $turnoEnServicio, $momento);
+        }
+
         if (!$this->isUnidadSiniestros($user)) {
             return $this->status(true, false, 'not_siniestros', null, $turnoUsuario, $turnoEnServicio, $momento);
         }

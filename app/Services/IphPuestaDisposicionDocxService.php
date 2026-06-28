@@ -213,6 +213,10 @@ class IphPuestaDisposicionDocxService
             'tipo_hecho' => mb_strtoupper($this->valor($hechoIph['tipo_hecho'] ?? 'HECHO DE TRÁNSITO', 'HECHO DE TRÁNSITO'), 'UTF-8'),
             'causas' => mb_strtoupper($this->valor($hechoIph['causas'] ?? null, ''), 'UTF-8'),
             'modalidad_parte' => $modalidadParte,
+            'dinamica_hecho' => $this->valor($hechoIph['dinamica_hecho'] ?? ($puesta['narrativa'] ?? null), ''),
+            'narrativa_operativa' => $this->valor($hechoIph['narrativa_operativa'] ?? ($puesta['narrativa_operativa'] ?? null), ''),
+            'conclusion_causa' => $this->valor($hechoIph['conclusion_causa'] ?? ($puesta['conclusion_causa'] ?? null), ''),
+            'conclusion_disposicion' => $this->valor($hechoIph['conclusion_disposicion'] ?? ($puesta['conclusion_disposicion'] ?? null), ''),
             'calle_parte' => $calle,
             'colonia_parte' => $colonia,
             'condiciones_climatologicas' => $momentoDia . ', ' . $descripcionClima . '.',
@@ -286,7 +290,7 @@ class IphPuestaDisposicionDocxService
 
         $section->addPageBreak();
         $this->encabezadoParte($section, 'X.', 'DINÁMICA DEL HECHO DE TRÁNSITO:');
-        $this->parrafoParte($section, 'Por los datos e informes recabados en el lugar del hecho, mediante la inspección ocular realizada por los suscritos, se hace constar de manera preliminar la intervención correspondiente al hecho de tránsito descrito en el presente informe, quedando la narrativa pormenorizada sujeta a la complementación por el personal actuante conforme a los datos obtenidos en campo.');
+        $this->parrafoParte($section, $d['dinamica_hecho'] ?: 'Por los datos e informes recabados en el lugar del hecho, mediante la inspección ocular realizada por los suscritos, se hace constar de manera preliminar la intervención correspondiente al hecho de tránsito descrito en el presente informe, quedando la narrativa pormenorizada sujeta a la complementación por el personal actuante conforme a los datos obtenidos en campo.');
 
         $this->encabezadoParte($section, 'XI.', 'DIAGRAMA ILUSTRATIVO NO HECHO A ESCALA.');
         $this->imagenEnMarco($section, $d['croquis'], 640, 720, 'Sin croquis registrado en el sistema.');
@@ -328,7 +332,7 @@ class IphPuestaDisposicionDocxService
         $this->parrafoParte($section, 'De lo anteriormente expuesto y formulado se llega a las siguientes:');
         $this->texto($section, 'CONCLUSIONES:', ['bold' => true, 'size' => 16], ['alignment' => Jc::CENTER, 'spaceBefore' => 420, 'spaceAfter' => 220]);
         $this->parrafoParte($section, $this->conclusionCausaParte($d));
-        $this->parrafoParte($section, $this->conclusionDisposicionParte($d['vehiculos']));
+        $this->parrafoParte($section, $this->conclusionDisposicionParte($d));
         $this->firmaParte($section, $d);
     }
 
@@ -2081,6 +2085,10 @@ class IphPuestaDisposicionDocxService
             ])->filter()->implode(' '));
         }
 
+        if (!empty($d['narrativa_operativa'])) {
+            $parrafos[] = $d['narrativa_operativa'];
+        }
+
         $vehiculos = $d['vehiculos'] ?? [];
 
         if (!empty($vehiculos)) {
@@ -2347,6 +2355,10 @@ class IphPuestaDisposicionDocxService
 
     private function conclusionCausaParte(array $d): string
     {
+        if (!empty($d['conclusion_causa'])) {
+            return $d['conclusion_causa'];
+        }
+
         $causa = $this->clean($d['causas'] ?? null);
         $causaTexto = $causa !== '' ? mb_strtolower($causa, 'UTF-8') : 'la falta de precaución y cuidado';
 
@@ -2357,8 +2369,13 @@ class IphPuestaDisposicionDocxService
             . ', violando por tal motivo el artículo 432 Fracción V, del Reglamento de la Ley de Movilidad y Seguridad Vial vigente en el Estado.';
     }
 
-    private function conclusionDisposicionParte(array $vehiculos): string
+    private function conclusionDisposicionParte(array $d): string
     {
+        if (!empty($d['conclusion_disposicion'])) {
+            return $d['conclusion_disposicion'];
+        }
+
+        $vehiculos = $d['vehiculos'] ?? [];
         $vehiculosTexto = mb_strtolower($this->textoVehiculosParte(count($vehiculos)), 'UTF-8');
         $frase = 'Con base en lo dispuesto en el artículo 59 de la Ley de Tránsito y Vialidad vigente en el Estado, Pongo a su disposición ' . $vehiculosTexto;
         $nombres = $this->gruasParte($vehiculos)->pluck('nombre')->filter()->unique()->implode(' y ');

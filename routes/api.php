@@ -173,6 +173,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'updateCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.update');
         Route::delete('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'destroyCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.destroy');
         Route::get('/operativos/{operativo}/capturas/{captura}/native-share', [ApiConduceLegalidadController::class, 'nativeShareCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.native_share');
+        Route::get('/operativos/{operativo}/capturas/{captura}/iph-puesta-disposicion', [ApiConduceLegalidadController::class, 'descargarIphCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.iph_puesta_disposicion');
     });
 
     Route::prefix('guardianes-camino')->middleware(['unidad:carreteras'])->group(function () {

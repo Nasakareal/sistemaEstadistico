@@ -9,8 +9,10 @@ use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadPersona;
 use App\Models\ConduceLegalidadVehiculo;
 use App\Models\Grua;
+use App\Models\Hechos;
 use App\Models\LicenciaPuntoInfraccion;
 use App\Services\ImageThumbnailService;
+use App\Services\IphPuestaDisposicionDocxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -413,6 +415,407 @@ class ConduceLegalidadController extends Controller
                 'tipo' => 'captura_individual',
             ],
         ]);
+    }
+
+    public function descargarIphCaptura(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        IphPuestaDisposicionDocxService $docxService
+    ) {
+        $user = $request->user();
+        abort_unless($user, 403);
+        abort_unless($captura->operativo_id === $operativo->id, 404);
+
+        $query = $operativo->capturas()->whereKey($captura->id);
+        $this->scopeCapturas($query, $user);
+        abort_unless($query->exists(), 404);
+
+        $operativo->loadMissing(['creador']);
+        $captura->loadMissing([
+            'creador.personal.unidad',
+            'creador.unidad',
+            'unidad',
+            'delegacion',
+            'vehiculos.infraccion',
+            'vehiculos.gruaRelacion',
+            'vehiculos.corralonRelacion',
+            'personas',
+            'fotos',
+        ]);
+
+        [$path, $filename] = $docxService->generar(
+            $this->hechoTemporalIph($operativo, $captura),
+            $this->mapearIphDesdeCaptura($operativo, $captura, $user)
+        );
+
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])->deleteFileAfterSend(true);
+    }
+
+    private function hechoTemporalIph(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): Hechos
+    {
+        $folio = $this->folioCaptura($operativo, $captura);
+        $hecho = new Hechos();
+        $hecho->forceFill([
+            'id' => $captura->id,
+            'folio_c5i' => $folio,
+            'fecha' => $captura->fecha ?: $operativo->fecha,
+            'hora' => $captura->hora ?: $operativo->hora_inicio,
+            'tipo_hecho' => 'RETIRO DE VEHICULO DERIVADO DE OPERATIVO CONDUCE CON LEGALIDAD',
+            'municipio' => $captura->municipio ?: $operativo->municipio,
+            'calle' => $captura->lugar ?: $operativo->lugar,
+            'ubicacion_formateada' => $captura->lugar ?: $operativo->lugar,
+            'lat' => $captura->lat ?: $operativo->lat,
+            'lng' => $captura->lng ?: $operativo->lng,
+        ]);
+
+        return $hecho;
+    }
+
+    private function mapearIphDesdeCaptura(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura, $user): array
+    {
+        $folio = $this->folioCaptura($operativo, $captura);
+        $fecha = optional($captura->fecha ?: $operativo->fecha)->toDateString();
+        $hora = $this->horaCorta($captura->hora ?: $operativo->hora_inicio);
+        $lugar = $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar);
+        $municipio = $this->nullableString($captura->municipio) ?: $this->nullableString($operativo->municipio) ?: 'Morelia';
+        $unidadNombre = $this->nullableString(optional($captura->unidad)->nombre)
+            ?: $this->nullableString(optional($captura->creador)->unidad->nombre ?? null)
+            ?: 'Coordinación del Agrupamiento de Seguridad Vial';
+        $agenteNombre = $this->nullableString(optional($captura->creador)->name)
+            ?: $this->nullableString($user->name ?? null)
+            ?: 'Elemento actuante';
+        $narrativaOperativa = $this->narrativaIphConduceLegalidad($operativo, $captura);
+        $dinamica = $this->dinamicaIphConduceLegalidad($operativo, $captura, $narrativaOperativa);
+        $fundamento = $this->fundamentosIphCaptura($captura);
+        $primerFoto = $captura->fotos->first();
+
+        return [
+            'hecho' => [
+                'id' => $captura->id,
+                'folio_c5i' => $folio,
+                'fecha' => $fecha,
+                'hora' => $hora,
+                'situacion' => 'Atendido',
+                'perito' => $agenteNombre,
+                'creador_nombre' => $agenteNombre,
+                'unidad_numero_economico' => '',
+                'unidad_org_id' => (int) ($captura->unidad_id ?: self::UNIDAD_SEGURIDAD_VIAL),
+                'unidad_org_nombre' => $unidadNombre,
+                'delegacion_id' => $captura->delegacion_id,
+                'delegacion_nombre' => optional($captura->delegacion)->nombre,
+                'oficio_mp' => $folio,
+                'vehiculos_mp' => $captura->vehiculos->count(),
+                'personas_mp' => $captura->personas->count(),
+                'lesionados_count' => 0,
+                'fallecidos_count' => 0,
+                'tipo_hecho' => 'RETIRO DE VEHICULO DERIVADO DE OPERATIVO CONDUCE CON LEGALIDAD',
+                'tiempo' => '',
+                'clima' => '',
+                'condiciones' => '',
+                'causas' => $this->causaIphCaptura($captura),
+                'colision_camino' => '',
+                'dinamica_hecho' => $dinamica,
+                'narrativa_operativa' => $narrativaOperativa,
+                'conclusion_causa' => $this->conclusionCausaIphCaptura($captura, $fundamento),
+                'conclusion_disposicion' => $this->conclusionDisposicionIphCaptura($captura, $fundamento),
+                'ubicacion' => [
+                    'calle' => $lugar,
+                    'colonia' => '',
+                    'entre_calles' => '',
+                    'municipio' => $municipio,
+                    'codigo_postal' => '',
+                    'lat' => $captura->lat ?: $operativo->lat,
+                    'lng' => $captura->lng ?: $operativo->lng,
+                    'ubicacion_formateada' => $lugar,
+                    'place_id' => null,
+                ],
+            ],
+            'puesta_disposicion' => [
+                'id' => null,
+                'folio' => $folio,
+                'numero_puesta' => $folio,
+                'anio' => now('America/Mexico_City')->format('Y'),
+                'tipo_puesta' => 'RETIRO Y RESGUARDO DE VEHICULO',
+                'motivo' => $fundamento,
+                'estatus' => 'Generado desde operativo',
+                'nombre_policia' => $agenteNombre,
+                'nombre_mp' => '',
+                'autoridad_receptora' => 'AUTORIDAD COMPETENTE PARA LOS FINES LEGALES PROCEDENTES',
+                'area' => $unidadNombre,
+                'carpeta_investigacion' => '',
+                'oficio' => $folio,
+                'fecha_puesta' => $fecha,
+                'hora_puesta' => $hora,
+                'lugar_puesta' => $lugar,
+                'narrativa' => $dinamica,
+                'narrativa_operativa' => $narrativaOperativa,
+                'conclusion_causa' => $this->conclusionCausaIphCaptura($captura, $fundamento),
+                'conclusion_disposicion' => $this->conclusionDisposicionIphCaptura($captura, $fundamento),
+                'observaciones' => $captura->observaciones,
+                'unidad_id' => (int) ($captura->unidad_id ?: self::UNIDAD_SEGURIDAD_VIAL),
+                'unidad_nombre' => $unidadNombre,
+                'delegacion_id' => $captura->delegacion_id,
+                'delegacion_nombre' => optional($captura->delegacion)->nombre,
+                'destacamento_id' => null,
+                'destacamento_nombre' => null,
+            ],
+            'vehiculos_hecho' => $this->vehiculosIphCaptura($captura),
+            'conductores_hecho' => $this->conductoresIphCaptura($captura),
+            'lesionados_hecho' => [],
+            'personas' => $this->personasIphCaptura($captura),
+            'vehiculos' => $this->vehiculosPuestaIphCaptura($captura),
+            'objetos' => [],
+            'anexos' => [
+                'foto_lugar' => $primerFoto ? $primerFoto->foto_path : null,
+                'foto_situacion' => null,
+                'iph_delegaciones_path' => null,
+                'archivo_puesta' => null,
+                'croquis_preview' => null,
+            ],
+        ];
+    }
+
+    private function folioCaptura(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): string
+    {
+        return 'CL-' . $operativo->id . '-' . $captura->id;
+    }
+
+    private function vehiculosIphCaptura(ConduceLegalidadCaptura $captura): array
+    {
+        return $captura->vehiculos->values()->map(function (ConduceLegalidadVehiculo $vehiculo, int $index) use ($captura) {
+            $persona = $this->personaPorIndice($captura, $index);
+            $grua = $vehiculo->gruaRelacion;
+            $corralon = $vehiculo->corralonRelacion;
+
+            return [
+                'id' => $vehiculo->id,
+                'tipo' => $vehiculo->tipo ?: ($vehiculo->tipo_general ?: 'Vehiculo'),
+                'marca' => $vehiculo->marca,
+                'linea' => $vehiculo->linea,
+                'modelo' => $vehiculo->modelo,
+                'color' => $vehiculo->color,
+                'placas' => $vehiculo->placas,
+                'estado_placas' => $vehiculo->estado_placas,
+                'serie' => $vehiculo->serie,
+                'capacidad_personas' => $vehiculo->capacidad_personas,
+                'tipo_servicio' => $vehiculo->tipo_servicio,
+                'tarjeta_circulacion_nombre' => $vehiculo->tarjeta_circulacion_nombre,
+                'foto' => null,
+                'grua' => $vehiculo->grua ?: optional($grua)->nombre,
+                'grua_id' => $vehiculo->grua_id,
+                'grua_nombre' => optional($grua)->nombre ?: $vehiculo->grua,
+                'grua_direccion' => optional($grua)->direccion ?: optional($corralon)->direccion,
+                'grua_ubicacion_corralon' => optional($grua)->ubicacion_corralon ?: optional($corralon)->ubicacion_corralon,
+                'corralon' => $vehiculo->corralon ?: optional($corralon)->nombre,
+                'monto_danos' => $vehiculo->monto_danos,
+                'partes_danadas' => $vehiculo->partes_danadas,
+                'aseguradora' => $vehiculo->aseguradora,
+                'antecedente_vehiculo' => (bool) $vehiculo->antecedente_vehiculo,
+                'conductores' => $persona ? [$this->conductorIph($persona)] : [],
+            ];
+        })->values()->all();
+    }
+
+    private function conductoresIphCaptura(ConduceLegalidadCaptura $captura): array
+    {
+        return $captura->personas->values()->map(function (ConduceLegalidadPersona $persona, int $index) use ($captura) {
+            $vehiculo = $captura->vehiculos->get($index) ?: $captura->vehiculos->first();
+            $data = $this->conductorIph($persona);
+            $data['vehiculo_id'] = optional($vehiculo)->id;
+            $data['vehiculo_label'] = $vehiculo ? $this->vehiculoLabel($vehiculo) : '';
+
+            return $data;
+        })->values()->all();
+    }
+
+    private function personasIphCaptura(ConduceLegalidadCaptura $captura): array
+    {
+        return $captura->personas->values()->map(function (ConduceLegalidadPersona $persona, int $index) use ($captura) {
+            $vehiculo = $captura->vehiculos->get($index) ?: $captura->vehiculos->first();
+
+            return [
+                'nombre_completo' => $persona->nombre,
+                'alias' => null,
+                'edad' => $persona->edad,
+                'sexo' => $persona->sexo,
+                'fecha_nacimiento' => null,
+                'curp' => null,
+                'rfc' => null,
+                'domicilio' => $persona->domicilio,
+                'calidad' => 'Persona conductora o interviniente',
+                'delito_o_motivo' => $vehiculo ? $this->motivoIphVehiculo($vehiculo) : 'Operativo Conduce con Legalidad',
+                'orden_aprehension' => false,
+                'mandamiento_judicial' => null,
+                'observaciones' => $persona->observaciones,
+            ];
+        })->values()->all();
+    }
+
+    private function vehiculosPuestaIphCaptura(ConduceLegalidadCaptura $captura): array
+    {
+        return $captura->vehiculos->values()->map(fn (ConduceLegalidadVehiculo $vehiculo) => [
+            'vehiculo_id' => $vehiculo->id,
+            'tipo' => $vehiculo->tipo ?: ($vehiculo->tipo_general ?: 'Vehiculo'),
+            'marca' => $vehiculo->marca,
+            'submarca' => $vehiculo->linea,
+            'modelo' => $vehiculo->modelo,
+            'color' => $vehiculo->color,
+            'placas' => $vehiculo->placas,
+            'serie' => $vehiculo->serie,
+            'calidad' => 'Vehiculo retirado o resguardado',
+            'motivo_relacion' => $this->motivoIphVehiculo($vehiculo),
+            'con_reporte_robo' => false,
+            'numero_reporte_robo' => null,
+            'observaciones' => $vehiculo->observaciones,
+        ])->values()->all();
+    }
+
+    private function conductorIph(ConduceLegalidadPersona $persona): array
+    {
+        return [
+            'nombre' => $persona->nombre,
+            'edad' => $persona->edad,
+            'sexo' => $persona->sexo,
+            'domicilio' => $persona->domicilio,
+            'ocupacion' => $persona->ocupacion,
+            'numero_licencia' => $persona->numero_licencia,
+            'tipo_licencia' => $persona->tipo_licencia,
+            'estado_licencia' => $persona->estado_licencia,
+            'vigencia_licencia' => optional($persona->vigencia_licencia)->toDateString(),
+            'antecedentes' => false,
+            'certificado_lesiones' => null,
+            'certificado_alcoholemia' => null,
+            'aliento_etilico' => null,
+        ];
+    }
+
+    private function narrativaIphConduceLegalidad(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): string
+    {
+        $fundamento = $this->fundamentosIphCaptura($captura);
+        $vehiculos = $captura->vehiculos->values()
+            ->map(fn (ConduceLegalidadVehiculo $vehiculo) => $this->vehiculoLabel($vehiculo))
+            ->filter()
+            ->implode('; ');
+        $personas = $captura->personas->pluck('nombre')->filter()->implode(', ');
+        $lugar = $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar) ?: 'el punto del operativo';
+        $capturada = $this->nullableString($captura->narrativa);
+
+        $lineas = [
+            'Durante el Operativo Conduce con Legalidad, en ' . $lugar . ', el personal actuante detecto el vehiculo o vehiculos registrados en el sistema' . ($vehiculos ? ': ' . $vehiculos : '') . '.',
+            $personas ? 'Se relaciono como persona conductora o interviniente a: ' . $personas . '.' : null,
+            $capturada ? 'Narrativa asentada por el elemento actuante: ' . $capturada : null,
+            'La intervencion se documenta con base en el fundamento especifico capturado para la conducta observada: ' . $fundamento . '.',
+            'La medida de retiro o resguardo se registra para impedir la continuacion de la conducta y preservar la seguridad vial. Cuando el supuesto operativo derive de falta de licencia o permiso vigente, se deja constancia de que no se asienta como causal automatica de deposito; se documenta la falta de habilitacion juridica para continuar conduciendo y la ausencia de alternativa inmediata legalmente viable para que una persona habilitada se haga cargo del vehiculo en condiciones seguras.',
+            'El traslado, entrega, inventario y resguardo del vehiculo deberan quedar soportados con los datos de grua, corralon, fotografias, boleta de infraccion y demas constancias operativas disponibles.',
+        ];
+
+        return collect($lineas)->filter()->implode(' ');
+    }
+
+    private function dinamicaIphConduceLegalidad(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura, string $narrativaOperativa): string
+    {
+        $fecha = optional($captura->fecha ?: $operativo->fecha)->format('d-m-Y');
+        $hora = $this->horaCorta($captura->hora ?: $operativo->hora_inicio);
+
+        return 'El dia ' . ($fecha ?: 'no especificado') . ', aproximadamente a las ' . ($hora ?: 'hora no especificada') . ' horas, en el marco del Operativo Conduce con Legalidad, se realizo la intervencion preventiva y administrativa descrita. ' . $narrativaOperativa;
+    }
+
+    private function conclusionCausaIphCaptura(ConduceLegalidadCaptura $captura, string $fundamento): string
+    {
+        return 'UNICA.- La intervencion documentada corresponde a la deteccion de una conducta en materia de transito y seguridad vial dentro del Operativo Conduce con Legalidad, sustentada en el fundamento asentado en la captura: ' . $fundamento . '. La medida descrita se registra para hacer cesar la continuacion de la conducta y preservar la seguridad vial, sin prejuzgar responsabilidades diversas a las que determine la autoridad competente.';
+    }
+
+    private function conclusionDisposicionIphCaptura(ConduceLegalidadCaptura $captura, string $fundamento): string
+    {
+        $vehiculosTexto = $captura->vehiculos->count() === 1 ? 'el vehiculo registrado' : 'los vehiculos registrados';
+        $destinos = $captura->vehiculos->map(function (ConduceLegalidadVehiculo $vehiculo) {
+            return $this->nullableString($vehiculo->corralon)
+                ?: $this->nullableString($vehiculo->grua)
+                ?: $this->nullableString(optional($vehiculo->corralonRelacion)->nombre)
+                ?: $this->nullableString(optional($vehiculo->gruaRelacion)->nombre);
+        })->filter()->unique()->implode(' y ');
+
+        $texto = 'Con base en el fundamento capturado para la intervencion (' . $fundamento . '), se deja constancia de la puesta a resguardo de ' . $vehiculosTexto;
+
+        if ($destinos !== '') {
+            $texto .= ' en ' . mb_strtoupper($destinos, 'UTF-8');
+        }
+
+        return $texto . ', para los fines administrativos y legales procedentes, quedando sujeto a la documentacion complementaria, inventario, boleta y cadena de resguardo que correspondan.';
+    }
+
+    private function causaIphCaptura(ConduceLegalidadCaptura $captura): string
+    {
+        $causa = $captura->vehiculos
+            ->map(fn (ConduceLegalidadVehiculo $vehiculo) => $this->motivoIphVehiculo($vehiculo))
+            ->filter()
+            ->unique()
+            ->implode('; ');
+
+        return $causa ?: 'OPERATIVO CONDUCE CON LEGALIDAD';
+    }
+
+    private function fundamentosIphCaptura(ConduceLegalidadCaptura $captura): string
+    {
+        $fundamentos = $captura->vehiculos
+            ->map(fn (ConduceLegalidadVehiculo $vehiculo) => $this->motivoIphVehiculo($vehiculo))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($fundamentos->isNotEmpty()) {
+            return $fundamentos->implode('; ');
+        }
+
+        return 'Ley y Reglamento de Transito y Seguridad Vial aplicables al Operativo Conduce con Legalidad';
+    }
+
+    private function motivoIphVehiculo(ConduceLegalidadVehiculo $vehiculo): string
+    {
+        $infraccion = $vehiculo->infraccion;
+
+        return $this->joinText([
+            $infraccion ? $this->nullableString($infraccion->referencia_legal_corta) : null,
+            $this->nullableString($vehiculo->fundamento_legal),
+            $infraccion ? $this->nullableString($infraccion->fundamento_legal) : null,
+            $infraccion ? $this->nullableString($infraccion->resumen_sanciones) : null,
+            $this->nullableString($vehiculo->motivo_retencion),
+            $infraccion ? $this->textoOperativoInfraccion($infraccion) : null,
+        ], ' - ') ?: 'Fundamento operativo capturado para retiro o resguardo del vehiculo';
+    }
+
+    private function personaPorIndice(ConduceLegalidadCaptura $captura, int $index): ?ConduceLegalidadPersona
+    {
+        if ($captura->personas->isEmpty()) {
+            return null;
+        }
+
+        return $captura->personas->get($index) ?: $captura->personas->first();
+    }
+
+    private function vehiculoLabel(ConduceLegalidadVehiculo $vehiculo): string
+    {
+        return $this->joinText([
+            $vehiculo->marca,
+            $vehiculo->linea,
+            $vehiculo->modelo,
+            $vehiculo->tipo_general ?: $vehiculo->tipo,
+            $vehiculo->color,
+            $vehiculo->placas ? 'placas ' . $vehiculo->placas : null,
+            $vehiculo->serie ? 'serie ' . $vehiculo->serie : null,
+        ], ' ');
+    }
+
+    private function joinText(array $values, string $separator): string
+    {
+        return collect($values)
+            ->map(fn ($value) => trim((string) ($value ?? '')))
+            ->filter()
+            ->unique(fn ($value) => mb_strtoupper($value, 'UTF-8'))
+            ->implode($separator);
     }
 
     private function tarjetaTotalesOperativo(ConduceLegalidadOperativo $operativo, $capturas, $user): string

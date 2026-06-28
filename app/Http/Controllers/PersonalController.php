@@ -227,6 +227,7 @@ class PersonalController extends Controller
             'user_id' => 'nullable|exists:users,id|unique:personals,user_id',
 
             'numero_empleado' => 'nullable|string|max:50',
+            'numero_placa' => 'nullable|string|max:50',
 
             'nombre' => 'required|string|max:100',
             'ap_paterno' => 'nullable|string|max:100',
@@ -414,6 +415,7 @@ class PersonalController extends Controller
             'user_id' => 'nullable|exists:users,id|unique:personals,user_id,' . $personal->id,
 
             'numero_empleado' => 'nullable|string|max:50',
+            'numero_placa' => 'nullable|string|max:50',
 
             'nombre' => 'required|string|max:100',
             'ap_paterno' => 'nullable|string|max:100',

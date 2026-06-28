@@ -18,6 +18,7 @@ class Personal extends Model
         'patrulla_id',
         'user_id',
         'numero_empleado',
+        'numero_placa',
         'nombre',
         'ap_paterno',
         'ap_materno',

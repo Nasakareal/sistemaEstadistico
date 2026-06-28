@@ -72,6 +72,11 @@
                                 </div>
 
                                 <div class="col-md-4 mb-3">
+                                    <strong>Número de placa:</strong><br>
+                                    {{ $personal->numero_placa ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
                                     <strong>Usuario del sistema:</strong><br>
                                     @if($personal->user)
                                         {{ $personal->user->name }}{{ $personal->user->email ? ' - ' . $personal->user->email : '' }}

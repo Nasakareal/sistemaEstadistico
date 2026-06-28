@@ -1217,10 +1217,20 @@ class ConduceLegalidadController extends Controller
             return null;
         }
 
+        $user->loadMissing(['personal.unidad', 'unidad']);
+        $personal = $user->personal;
+        $unidad = ($personal && $personal->unidad) ? $personal->unidad : $user->unidad;
+        $unidadNombre = $unidad ? $unidad->nombre : null;
+        $numeroPlaca = $this->nullableString($personal ? $personal->numero_placa : null);
+
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'numero_placa' => $numeroPlaca,
+            'placa' => $numeroPlaca,
+            'adscripcion' => $unidadNombre,
+            'unidad_nombre' => $unidadNombre,
             'unidad_id' => $user->unidad_id,
             'delegacion_id' => $user->delegacion_id,
         ];

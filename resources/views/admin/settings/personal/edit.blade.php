@@ -62,7 +62,19 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-8">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="numero_placa">Número de placa</label>
+                                    <input type="text" name="numero_placa" id="numero_placa"
+                                           class="form-control @error('numero_placa') is-invalid @enderror"
+                                           value="{{ old('numero_placa', $personal->numero_placa) }}">
+                                    @error('numero_placa')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="foto">Foto</label>
                                     <input type="file" name="foto" id="foto"

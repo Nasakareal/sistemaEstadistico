@@ -27,6 +27,7 @@
                                 <th><center>No.</center></th>
                                 <th><center>Nombre</center></th>
                                 <th><center>Unidad</center></th>
+                                <th><center>No. placa</center></th>
                                 <th><center>CUIP</center></th>
                                 <th><center>CURP</center></th>
                                 <th><center>Grado</center></th>
@@ -42,6 +43,7 @@
                                         {{ $personal->nombre_completo }}
                                     </td>
                                     <td>{{ $personal->unidad->nombre ?? 'N/A' }}</td>
+                                    <td>{{ $personal->numero_placa ?? 'N/A' }}</td>
                                     <td>{{ $personal->cuip ?? 'N/A' }}</td>
                                     <td>{{ $personal->curp ?? 'N/A' }}</td>
                                     <td>{{ $personal->grado ?? 'N/A' }}</td>

@@ -45,6 +45,7 @@ class SettingsPersonalController extends Controller
                         ->orWhere('ap_paterno', 'like', "%{$q}%")
                         ->orWhere('ap_materno', 'like', "%{$q}%")
                         ->orWhere('numero_empleado', 'like', "%{$q}%")
+                        ->orWhere('numero_placa', 'like', "%{$q}%")
                         ->orWhere('curp', 'like', "%{$q}%")
                         ->orWhere('cuip', 'like', "%{$q}%")
                         ->orWhere('cup', 'like', "%{$q}%")
@@ -230,6 +231,7 @@ class SettingsPersonalController extends Controller
         $data = [
             'id' => $personal->id,
             'numero_empleado' => $personal->numero_empleado,
+            'numero_placa' => $personal->numero_placa,
             'nombre' => $personal->nombre,
             'ap_paterno' => $personal->ap_paterno,
             'ap_materno' => $personal->ap_materno,

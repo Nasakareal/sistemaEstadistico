@@ -21,6 +21,8 @@ class LicenciaPuntoInfraccion extends Model
         'multa_uma_max',
         'amonestacion',
         'arresto_persona',
+        'suspension_licencia',
+        'cancelacion_licencia',
         'deposito_si_sin_persona_habilitada',
         'retencion_vehiculo',
         'descripcion',
@@ -34,6 +36,8 @@ class LicenciaPuntoInfraccion extends Model
         'multa_uma_max' => 'integer',
         'amonestacion' => 'boolean',
         'arresto_persona' => 'boolean',
+        'suspension_licencia' => 'boolean',
+        'cancelacion_licencia' => 'boolean',
         'deposito_si_sin_persona_habilitada' => 'boolean',
         'retencion_vehiculo' => 'boolean',
         'activa' => 'boolean',
@@ -95,6 +99,14 @@ class LicenciaPuntoInfraccion extends Model
             $sanciones[] = 'arresto de persona';
         }
 
+        if ((bool) $this->suspension_licencia) {
+            $sanciones[] = 'suspension de licencia';
+        }
+
+        if ((bool) $this->cancelacion_licencia) {
+            $sanciones[] = 'cancelacion de licencia';
+        }
+
         if ($puntos > 0) {
             $sanciones[] = '-' . $puntos . ' ' . ($puntos === 1 ? 'punto' : 'puntos');
         }
@@ -149,6 +161,14 @@ class LicenciaPuntoInfraccion extends Model
 
         if ((bool) $this->arresto_persona) {
             $sanciones[] = 'arresto de persona';
+        }
+
+        if ((bool) $this->suspension_licencia) {
+            $sanciones[] = 'suspension de licencia';
+        }
+
+        if ((bool) $this->cancelacion_licencia) {
+            $sanciones[] = 'cancelacion de licencia';
         }
 
         return $sanciones !== [] ? implode(' + ', $sanciones) : null;

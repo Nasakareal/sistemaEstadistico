@@ -63,6 +63,8 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
             'multa_uma_max',
             'amonestacion',
             'arresto_persona',
+            'suspension_licencia',
+            'cancelacion_licencia',
             'deposito_si_sin_persona_habilitada',
             'retencion_vehiculo',
             'descripcion',
@@ -96,17 +98,33 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
 
         $articulos = $this->articulosEnFuente($contenido);
         $faltantes = [];
-        foreach (array_unique(array_column($this->infracciones(), 'articulo')) as $articulo) {
-            if (!isset($articulos[$articulo])) {
-                $faltantes[] = $articulo;
+        foreach ($this->infracciones() as $row) {
+            if (($row['codigo'] ?? null) === self::SIN_LICENCIA_OPERATIVO_CODIGO) {
+                continue;
+            }
+
+            foreach ($this->articulosReferenciados((string) ($row['articulo'] ?? '')) as $articulo) {
+                if (!isset($articulos[$articulo])) {
+                    $faltantes[] = $articulo;
+                }
             }
         }
 
         if ($faltantes !== []) {
             throw new RuntimeException(
-                'El archivo public/articulos.txt no contiene los articulos esperados: ' . implode(', ', $faltantes) . '.'
+                'El archivo public/articulos.txt no contiene los articulos esperados: ' . implode(', ', array_values(array_unique($faltantes))) . '.'
             );
         }
+    }
+
+    private function articulosReferenciados(string $articuloRaw): array
+    {
+        return collect(preg_split('/[^0-9]+/', $articuloRaw) ?: [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function articulosEnFuente(string $contenido): array
@@ -279,11 +297,12 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
         ?string $extra = null
     ): array {
         $activa = $activa ?? ($puntos > 0 || $retencion);
-        $amonestacion = $this->tieneUma($umaMin, $umaMax) || $this->textoContiene($extra, 'AMONESTACION');
-        $arresto = $this->tieneUma($umaMin, $umaMax) || $this->textoContiene($extra, 'ARRESTO');
+        $amonestacion = $this->textoContiene($extra, 'AMONESTACION');
+        $arresto = $this->textoContiene($extra, 'ARRESTO');
+        $codigo = $this->codigo($articulo, $fraccion, $inciso, $slug);
 
-        return [
-            'codigo' => $this->codigo($articulo, $fraccion, $inciso, $slug),
+        $payload = [
+            'codigo' => $codigo,
             'nombre' => Str::limit($nombre, 150, ''),
             'articulo' => $articulo,
             'fraccion' => $fraccion,
@@ -294,12 +313,63 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
             'multa_uma_max' => null,
             'amonestacion' => $amonestacion,
             'arresto_persona' => $arresto,
+            'suspension_licencia' => false,
+            'cancelacion_licencia' => false,
             'deposito_si_sin_persona_habilitada' => $arresto,
             'retencion_vehiculo' => $retencion,
             'descripcion' => $nombre,
-            'fundamento_legal' => $this->fundamentoLegal($articulo, $fraccion, $inciso, $puntos, $umaMin, $umaMax, $retencion, $extra),
+            'fundamento_legal' => '',
             'activa' => $activa,
         ];
+
+        $payload = array_merge($payload, $this->decretoGoberOverride($codigo));
+        $payload['fundamento_legal'] = $this->fundamentoLegalDesdePayload($payload, $extra);
+
+        return $payload;
+    }
+
+    private function decretoGoberOverride(string $codigo): array
+    {
+        $overrides = [
+            'ART420_FII_I_MOTORIZADO_1P' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false],
+            'ART420_FII_I_MOTORIZADO_1P_B' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false],
+            'ART420_FII_I_MOTORIZADO_3P' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART420_FIII_I_MOTO_CARGA_SUJETARSE' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false],
+            'ART420_FIII_I_MOTO_PASAJERO_MENOR' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'cancelacion_licencia' => false, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART420_FIV_I_TRANSPORTE_PUBLICO_ESCOLAR' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART420_FV_I_CARGA_PASAJEROS_AREA' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART420_FV_I_CARGA_EXCESIVA' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART420_FVI_I_SUSTANCIAS_PERSONAS_AJENAS' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART420_FVI_I_SUSTANCIAS_DESCARGA' => ['amonestacion' => false, 'arresto_persona' => false, 'cancelacion_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART422_DOCUMENTOS_PLACAS_GENERAL' => ['puntos' => 4, 'amonestacion' => true, 'arresto_persona' => false, 'retencion_vehiculo' => true],
+            'ART422_FI_I_PLACAS_NO_COINCIDEN' => ['puntos' => 4, 'amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true, 'retencion_vehiculo' => true],
+            'ART425_USO_INDEBIDO_PLACAS_TARJETA' => ['puntos' => 3, 'amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true, 'retencion_vehiculo' => true],
+            'ART436_FIII_CONDUCTOR_AREA_RESTRINGIDA' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true, 'retencion_vehiculo' => true],
+            'ART436_FIII_OPERADOR_AREA_RESTRINGIDA' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true, 'retencion_vehiculo' => true],
+            'ART436_FIV_CONDUCTOR_SENALAMIENTO_RESTRICTIVO' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART436_FIV_OPERADOR_SENALAMIENTO_RESTRICTIVO' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART436_FX_I_CARRIL_CONFINADO_CIRCULAR' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART436_FX_I_CONDUCTOR_CARRIL_CONFINADO_ASCENSO' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART436_FX_I_OPERADOR_CARRIL_CONFINADO_ASCENSO' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART436_FX_I_OBSTACULIZAR_CARRIL_CONFINADO' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FI_MOTO_ACERAS_PEATONES' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FII_MOTO_VIA_CICLISTA' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true, 'retencion_vehiculo' => true],
+            'ART440_FIII_MOTO_CARRIL_TRANSPORTE' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FIV_MOTO_PUENTE_PEATONAL' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FV_MOTO_ENTRE_CARRILES' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FVI_MOTO_CARRILES_CENTRALES' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART440_FVII_MOTO_VIAS_RESTRINGIDAS' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FVIII_MOTO_MENORES_DOCE' => ['amonestacion' => false, 'arresto_persona' => false, 'cancelacion_licencia' => true, 'deposito_si_sin_persona_habilitada' => false],
+            'ART440_FIX_MOTO_MANIOBRAS_RIESGOSAS' => ['amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART465_FII_SIRENAS_TORRETAS' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART465_FV_PLACAS_OBSTRUIDAS_NEON' => ['puntos' => 4, 'amonestacion' => false, 'arresto_persona' => true, 'deposito_si_sin_persona_habilitada' => true],
+            'ART465_FVI_ANTIRADARES' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART465_FX_CROMATICA_PROHIBIDA' => ['amonestacion' => false, 'arresto_persona' => false, 'suspension_licencia' => true, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART465_FXI_POLARIZADO_MAYOR_20' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+            'ART477_PLACAS_DEMOSTRACION_USO_INDEBIDO' => ['amonestacion' => true, 'arresto_persona' => false, 'deposito_si_sin_persona_habilitada' => false, 'retencion_vehiculo' => true],
+        ];
+
+        return $overrides[$codigo] ?? [];
     }
 
     private function codigo(string $articulo, ?string $fraccion, ?string $inciso, string $slug): string
@@ -355,6 +425,49 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
         if ($retencion) {
             $sanciones[] = 'remision o retiro del vehiculo al deposito';
         } elseif ($arresto) {
+            $sanciones[] = 'deposito del vehiculo cuando no se encuentre persona legalmente habilitada para hacerse cargo inmediato';
+        }
+
+        if ($sanciones !== []) {
+            $partes[] = implode('; ', $sanciones) . '.';
+        }
+
+        if ($extra) {
+            $partes[] = rtrim($extra, '.') . '.';
+        }
+
+        return implode(': ', array_filter($partes));
+    }
+
+    private function fundamentoLegalDesdePayload(array $payload, ?string $extra): string
+    {
+        $partes = [$this->referenciaLegal($payload['articulo'], $payload['fraccion'], $payload['inciso'])];
+        $sanciones = [];
+
+        if (!empty($payload['amonestacion'])) {
+            $sanciones[] = 'amonestacion a la persona';
+        }
+
+        if (!empty($payload['arresto_persona'])) {
+            $sanciones[] = 'arresto de la persona hasta por 36 horas';
+        }
+
+        if (!empty($payload['suspension_licencia'])) {
+            $sanciones[] = 'suspension de la licencia o permiso para conducir';
+        }
+
+        if (!empty($payload['cancelacion_licencia'])) {
+            $sanciones[] = 'cancelacion de la licencia o permiso para conducir';
+        }
+
+        $puntos = (int) ($payload['puntos'] ?? 0);
+        if ($puntos > 0) {
+            $sanciones[] = $puntos . ' ' . ($puntos === 1 ? 'punto' : 'puntos') . ' de penalizacion en la licencia para conducir';
+        }
+
+        if (!empty($payload['retencion_vehiculo'])) {
+            $sanciones[] = 'remision o retiro del vehiculo al deposito';
+        } elseif (!empty($payload['deposito_si_sin_persona_habilitada'])) {
             $sanciones[] = 'deposito del vehiculo cuando no se encuentre persona legalmente habilitada para hacerse cargo inmediato';
         }
 

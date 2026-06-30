@@ -169,6 +169,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/operativos/{operativo}/native-share', [ApiConduceLegalidadController::class, 'nativeShareOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.native_share');
         Route::put('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'updateOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.update');
         Route::delete('/operativos/{operativo}', [ApiConduceLegalidadController::class, 'destroyOperativo'])->whereNumber('operativo')->name('api.conduce_legalidad.operativos.destroy');
+        Route::post('/operativos/{operativo}/rnd-chatbot', [ApiConduceLegalidadController::class, 'sendRndChatbot'])->whereNumber('operativo')->name('api.conduce_legalidad.rnd_chatbot');
         Route::post('/operativos/{operativo}/capturas', [ApiConduceLegalidadController::class, 'storeCaptura'])->whereNumber('operativo')->name('api.conduce_legalidad.capturas.store');
         Route::put('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'updateCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.update');
         Route::delete('/operativos/{operativo}/capturas/{captura}', [ApiConduceLegalidadController::class, 'destroyCaptura'])->whereNumber('operativo')->whereNumber('captura')->name('api.conduce_legalidad.capturas.destroy');

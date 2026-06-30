@@ -26,12 +26,14 @@ class ConduceLegalidadCaptura extends Model
         'coordenadas_texto',
         'narrativa',
         'observaciones',
+        'rnd_data',
     ];
 
     protected $casts = [
         'fecha' => 'date',
         'lat' => 'decimal:7',
         'lng' => 'decimal:7',
+        'rnd_data' => 'array',
     ];
 
     public function operativo()

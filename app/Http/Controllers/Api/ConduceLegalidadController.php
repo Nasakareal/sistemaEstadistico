@@ -13,6 +13,7 @@ use App\Models\Hechos;
 use App\Models\LicenciaPuntoInfraccion;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
+use App\Services\WhatsAppCloudService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -22,6 +23,7 @@ use Illuminate\Validation\ValidationException;
 class ConduceLegalidadController extends Controller
 {
     private const UNIDAD_SINIESTROS = 1;
+    private const UNIDAD_DELEGACIONES = 2;
     private const UNIDAD_SEGURIDAD_VIAL = 3;
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
@@ -43,6 +45,15 @@ class ConduceLegalidadController extends Controller
         'SIN REGISTRO PREVIO EN REV',
         'PLACAS FORANEAS SIN REGISTRO PREVIO',
         'REGISTRO DE VISITA VENCIDO',
+        'ESTACIONAR',
+        'CERRAR U OBSTRUIR CIRCULACION',
+        'OBSTRUIR CIRCULACION',
+        'REPARACIONES A VEHICULOS',
+        'REPARAR VEHICULO',
+        'RESERVAR ESTACIONAMIENTO',
+        'REQUERIMIENTO DE RETIRO',
+        'ESPACIOS ESPECIALES DE ASCENSO',
+        'ASCENSO DESCENSO TIEMPO EXCEDIDO',
     ];
 
     public function meta(Request $request)
@@ -287,6 +298,7 @@ class ConduceLegalidadController extends Controller
                 'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
                 'narrativa' => $this->nullableString($validated['narrativa'] ?? null),
                 'observaciones' => $this->nullableString($validated['observaciones'] ?? null),
+                'rnd_data' => $this->canUseRnd($user) ? $this->normalizeRndData($validated['rnd_data'] ?? null) : null,
             ]);
 
             $this->replaceVehiculos($captura, $validated['vehiculos'] ?? []);
@@ -325,6 +337,9 @@ class ConduceLegalidadController extends Controller
                 'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $captura->coordenadas_texto,
                 'narrativa' => array_key_exists('narrativa', $validated) ? $this->nullableString($validated['narrativa']) : $captura->narrativa,
                 'observaciones' => array_key_exists('observaciones', $validated) ? $this->nullableString($validated['observaciones']) : $captura->observaciones,
+                'rnd_data' => ($this->canUseRnd($user) && array_key_exists('rnd_data', $validated))
+                    ? $this->normalizeRndData($validated['rnd_data'])
+                    : $captura->rnd_data,
             ]);
             $captura->save();
 
@@ -356,6 +371,78 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
+    public function sendRndChatbot(Request $request, ConduceLegalidadOperativo $operativo, WhatsAppCloudService $whatsApp)
+    {
+        $user = $request->user();
+        abort_unless($this->canUseRnd($user), 403);
+
+        $validated = $request->validate([
+            'captura_id' => ['nullable', 'integer'],
+            'rnd_data' => ['required', 'array'],
+            'rnd_data.*' => ['nullable', 'string', 'max:2000'],
+            'message' => ['nullable', 'string', 'max:12000'],
+            'solicitante_nombre' => ['nullable', 'string', 'max:255'],
+            'solicitante_telefono' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        $rndData = $this->normalizeRndData($validated['rnd_data'] ?? []);
+        if ($rndData === null) {
+            throw ValidationException::withMessages([
+                'rnd_data' => 'Captura al menos un dato RND.',
+            ]);
+        }
+
+        $captura = null;
+        $capturaId = (int) ($validated['captura_id'] ?? 0);
+        if ($capturaId > 0) {
+            $captura = $operativo->capturas()->whereKey($capturaId)->first();
+            abort_unless($captura, 404);
+            abort_unless($this->canEditCaptura($user, $captura), 403);
+
+            $captura->rnd_data = $rndData;
+            $captura->save();
+        }
+
+        $usuario = $this->nullableString($validated['solicitante_nombre'] ?? null)
+            ?: $this->nombreUsuario($user);
+        $telefono = $this->nullableString($validated['solicitante_telefono'] ?? null)
+            ?: $this->nullableString(data_get($user, 'telefono'))
+            ?: $this->nullableString(data_get($user, 'personal.telefono'))
+            ?: 'SIN DATO';
+        $referencia = 'Operativo ' . $operativo->id . ($captura ? ' / Captura ' . $captura->id : '');
+        $message = $this->nullableString($validated['message'] ?? null)
+            ?: $this->rndMessage($rndData, $usuario, $telefono, $referencia);
+
+        $to = (string) config('services.whatsapp.conduce_legalidad.rnd_chatbot_to', '5214433163728');
+        $template = (string) config('services.whatsapp.conduce_legalidad.rnd_chatbot_template', 'solicitud_rnd_faltas_administrativas');
+        $language = (string) config('services.whatsapp.conduce_legalidad.rnd_chatbot_template_language', 'es_MX');
+
+        $response = $whatsApp->sendTemplate($to, $template, [
+            $usuario,
+            $telefono,
+            $referencia,
+            $message,
+        ], $language);
+
+        if (!($response['ok'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Meta no acepto la solicitud RND. Revisa la plantilla/configuracion de WhatsApp.',
+                'meta' => $response['body'] ?? null,
+            ], 502);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Solicitud RND enviada al chatbot.',
+            'data' => [
+                'to' => preg_replace('/\D+/', '', $to) ?: $to,
+                'template' => $template,
+                'language' => $language,
+                'referencia' => $referencia,
+            ],
+        ]);
+    }
     public function nativeShareOperativo(Request $request, ConduceLegalidadOperativo $operativo)
     {
         $user = $request->user();
@@ -1174,6 +1261,8 @@ class ConduceLegalidadController extends Controller
             'coordenadas_texto' => ['nullable', 'string', 'max:255'],
             'narrativa' => ['nullable', 'string'],
             'observaciones' => ['nullable', 'string'],
+            'rnd_data' => ['nullable', 'array'],
+            'rnd_data.*' => ['nullable', 'string', 'max:2000'],
             'fotos' => ['nullable', 'array', 'max:25'],
             'fotos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'vehiculos' => ['nullable', 'array', 'max:100'],
@@ -1587,6 +1676,7 @@ class ConduceLegalidadController extends Controller
             'coordenadas_texto' => $captura->coordenadas_texto,
             'narrativa' => $captura->narrativa,
             'observaciones' => $captura->observaciones,
+            'rnd_data' => $captura->rnd_data,
             'can_edit' => $this->canEditCaptura($user, $captura),
             'can_delete' => $this->canDeleteCaptura($user),
             'vehiculos' => $captura->vehiculos->map(fn (ConduceLegalidadVehiculo $vehiculo) => $this->vehiculoPayload($vehiculo))->values(),
@@ -1831,6 +1921,7 @@ class ConduceLegalidadController extends Controller
             'can_create_operativo' => $this->canCreateOperativo($user),
             'can_manage_operativos' => $this->canManage($user),
             'can_view_all_capturas' => $this->canManage($user),
+            'can_use_rnd' => $this->canUseRnd($user),
             'scope' => $this->canManage($user) ? 'all' : 'own',
         ];
     }
@@ -1844,6 +1935,113 @@ class ConduceLegalidadController extends Controller
         $query->where('created_by', $user ? $user->id : null);
     }
 
+    private function canUseRnd($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return (int) ($user->unidad_id ?? 0) !== self::UNIDAD_DELEGACIONES
+            && optional($user->unidad)->slug !== 'delegaciones';
+    }
+
+    private function normalizeRndData($raw): ?array
+    {
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        $out = [];
+        foreach ($this->rndDataKeys() as $key) {
+            if (!array_key_exists($key, $raw)) {
+                continue;
+            }
+
+            $value = $this->nullableString($raw[$key]);
+            if ($value !== null) {
+                $out[$key] = Str::limit($value, 2000, '');
+            }
+        }
+
+        return $out === [] ? null : $out;
+    }
+
+    private function rndDataKeys(): array
+    {
+        return [
+            'elementos_nombre',
+            'elementos_cargo',
+            'elementos_adscripcion',
+            'falta_administrativa',
+            'detencion_fecha_hora',
+            'detencion_tiempo_forma',
+            'detencion_motivo',
+            'lugar_municipio',
+            'lugar_localidad',
+            'lugar_calle_numero',
+            'lugar_referencia',
+            'detenido_nombre',
+            'detenido_alias',
+            'detenido_nacionalidad',
+            'detenido_edad',
+            'detenido_lesiones_visibles',
+            'detenido_delincuencia_organizada',
+            'detenido_complexion',
+            'traslado_ruta',
+            'traslado_unidad',
+            'solicitante_nombre',
+            'solicitante_telefono',
+        ];
+    }
+
+    private function rndMessage(array $data, string $usuario, string $telefono, string $referencia): string
+    {
+        $v = fn (string $key) => $this->rndValue($data[$key] ?? null);
+
+        return implode("\n", [
+            'DATOS PARA RND DE FALTAS ADMINISTRATIVAS',
+            '',
+            'REFERENCIA',
+            'Usuario: ' . $usuario,
+            'Telefono: ' . $telefono,
+            'Registro: ' . $referencia,
+            '',
+            'ELEMENTOS',
+            'Nombre: ' . $v('elementos_nombre'),
+            'Cargo: ' . $v('elementos_cargo'),
+            'Adscripcion: ' . $v('elementos_adscripcion'),
+            '',
+            'DETENCION',
+            'Falta: ' . $v('falta_administrativa'),
+            'Fecha/hora: ' . $v('detencion_fecha_hora'),
+            'Tiempo y forma: ' . $v('detencion_tiempo_forma'),
+            'Motivo: ' . $v('detencion_motivo'),
+            '',
+            'LUGAR',
+            'Municipio: ' . $v('lugar_municipio'),
+            'Localidad: ' . $v('lugar_localidad'),
+            'Calle/numero: ' . $v('lugar_calle_numero'),
+            'Referencia: ' . $v('lugar_referencia'),
+            '',
+            'DETENIDO',
+            'Nombre: ' . $v('detenido_nombre'),
+            'Alias: ' . $v('detenido_alias'),
+            'Nacionalidad: ' . $v('detenido_nacionalidad'),
+            'Edad: ' . $v('detenido_edad'),
+            'Lesiones visibles: ' . $v('detenido_lesiones_visibles'),
+            'Delincuencia organizada: ' . $v('detenido_delincuencia_organizada'),
+            'Complexion: ' . $v('detenido_complexion'),
+            '',
+            'TRASLADO',
+            'Ruta: ' . $v('traslado_ruta'),
+            'Unidad: ' . $v('traslado_unidad'),
+        ]);
+    }
+
+    private function rndValue($value): string
+    {
+        return $this->nullableString($value) ?: 'SIN DATO';
+    }
     private function canCreateOperativo($user): bool
     {
         if (!$user) {

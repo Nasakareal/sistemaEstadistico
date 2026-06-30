@@ -559,6 +559,13 @@ return [
                             'can'     => 'menu-estadisticas-globales',
                         ],
                         [
+                            'text'    => 'Actividades',
+                            'icon'    => 'fa-solid fa-clipboard-list',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-actividades',
+                            'can'     => 'menu-estadisticas-actividades-delegaciones',
+                        ],
+                        [
                             'text'    => 'Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',

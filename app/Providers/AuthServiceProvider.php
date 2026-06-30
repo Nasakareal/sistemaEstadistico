@@ -264,6 +264,15 @@ class AuthServiceProvider extends ServiceProvider
                 );
         });
 
+        Gate::define('menu-estadisticas-actividades-delegaciones', function ($user) {
+            return $user->can('ver estadisticas actividades')
+                && (
+                    $user->perteneceAUnidad('delegaciones')
+                    || (int) $user->unidad_id === 2
+                    || (int) $user->unidad_id === 3
+                );
+        });
+
         Gate::define('menu-estadisticas-actividades-fomento', function ($user) {
             return $user->can('ver estadisticas actividades')
                 && (
@@ -297,6 +306,7 @@ class AuthServiceProvider extends ServiceProvider
                 )
             ) || (
                 $user->can('menu-estadisticas-actividades-siniestros')
+                || $user->can('menu-estadisticas-actividades-delegaciones')
                 || $user->can('menu-estadisticas-actividades-fomento')
                 || $user->can('menu-estadisticas-actividades-vialidades')
             );

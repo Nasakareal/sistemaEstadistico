@@ -22,16 +22,42 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="name">Nombre del Usuario</label>
-                                    <input type="text" name="name" id="name"
-                                           class="form-control @error('name') is-invalid @enderror"
-                                           value="{{ old('name', $user->name) }}" placeholder="Ingrese el nombre" required>
-                                    @error('name')
+                                    <label for="apellido_paterno">Apellido paterno</label>
+                                    <input type="text" name="apellido_paterno" id="apellido_paterno"
+                                           class="form-control @error('apellido_paterno') is-invalid @enderror"
+                                           value="{{ old('apellido_paterno', $user->apellido_paterno) }}" placeholder="Ingrese el apellido paterno">
+                                    @error('apellido_paterno')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="apellido_materno">Apellido materno</label>
+                                    <input type="text" name="apellido_materno" id="apellido_materno"
+                                           class="form-control @error('apellido_materno') is-invalid @enderror"
+                                           value="{{ old('apellido_materno', $user->apellido_materno) }}" placeholder="Ingrese el apellido materno">
+                                    @error('apellido_materno')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="nombres">Nombre(s)</label>
+                                    <input type="text" name="nombres" id="nombres"
+                                           class="form-control @error('nombres') is-invalid @enderror"
+                                           value="{{ old('nombres', $user->nombres ?: $user->name) }}" placeholder="Ingrese el/los nombre(s)" required>
+                                    @error('nombres')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="email">Email</label>

@@ -69,7 +69,10 @@ class UserController extends Controller
         $unidadCarreterasId = $this->unidadCarreterasId();
 
         $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'apellido_paterno' => 'nullable|string|max:255',
+            'apellido_materno' => 'nullable|string|max:255',
+            'nombres' => 'required_without:name|nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'telefono' => 'nullable|string|max:30',
             'password' => 'required|min:6|confirmed',
@@ -82,6 +85,7 @@ class UserController extends Controller
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
         ]);
 
+        $validatedData = $this->normalizarNombreUsuario($validatedData);
         $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
 
         if (!is_null($validatedData['telefono'])) {
@@ -151,6 +155,9 @@ class UserController extends Controller
         try {
             $user = User::create([
                 'name' => $validatedData['name'],
+                'apellido_paterno' => $validatedData['apellido_paterno'],
+                'apellido_materno' => $validatedData['apellido_materno'],
+                'nombres' => $validatedData['nombres'],
                 'email' => $validatedData['email'],
                 'telefono' => $validatedData['telefono'],
                 'password' => bcrypt($validatedData['password']),
@@ -237,7 +244,10 @@ class UserController extends Controller
         $unidadCarreterasId = $this->unidadCarreterasId();
 
         $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'apellido_paterno' => 'nullable|string|max:255',
+            'apellido_materno' => 'nullable|string|max:255',
+            'nombres' => 'required_without:name|nullable|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'telefono' => 'nullable|string|max:30',
             'area' => 'nullable|string|max:30',
@@ -250,6 +260,7 @@ class UserController extends Controller
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
         ]);
 
+        $validatedData = $this->normalizarNombreUsuario($validatedData);
         $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
 
         if (!is_null($validatedData['telefono'])) {
@@ -332,6 +343,9 @@ class UserController extends Controller
         try {
             $user->update([
                 'name' => $validatedData['name'],
+                'apellido_paterno' => $validatedData['apellido_paterno'],
+                'apellido_materno' => $validatedData['apellido_materno'],
+                'nombres' => $validatedData['nombres'],
                 'email' => $validatedData['email'],
                 'telefono' => $validatedData['telefono'],
                 'area' => $validatedData['area'] ?? null,
@@ -423,6 +437,28 @@ class UserController extends Controller
         $user->save();
 
         return redirect()->route('profile')->with('success', '¡Contraseña actualizada correctamente!');
+    }
+
+    private function normalizarNombreUsuario(array $validated): array
+    {
+        $validated['apellido_paterno'] = $this->limpiarTexto($validated['apellido_paterno'] ?? null);
+        $validated['apellido_materno'] = $this->limpiarTexto($validated['apellido_materno'] ?? null);
+        $validated['nombres'] = $this->limpiarTexto($validated['nombres'] ?? null)
+            ?: $this->limpiarTexto($validated['name'] ?? null);
+
+        $validated['name'] = User::nombreCompleto(
+            $validated['nombres'],
+            $validated['apellido_paterno'],
+            $validated['apellido_materno']
+        );
+
+        return $validated;
+    }
+
+    private function limpiarTexto(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        return $value === '' ? null : $value;
     }
 
     private function normalizarTelefonoMx(?string $telefono): ?string

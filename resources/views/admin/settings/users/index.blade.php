@@ -33,7 +33,7 @@
                         <thead>
                             <tr>
                                 <th><center>Número</center></th>
-                                <th><center>Nombres del Usuario</center></th>
+                                <th><center>Nombre completo</center></th>
                                 <th><center>Rol</center></th>
                                 <th><center>Email</center></th>
                                 <th><center>Unidad</center></th>

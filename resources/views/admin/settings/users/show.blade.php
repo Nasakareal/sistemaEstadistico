@@ -16,9 +16,32 @@
 
                 <div class="card-body">
                     <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Apellido paterno</label>
+                                <p class="form-control-static">{{ $user->apellido_paterno ?? 'Sin apellido paterno' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Apellido materno</label>
+                                <p class="form-control-static">{{ $user->apellido_materno ?? 'Sin apellido materno' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Nombre(s)</label>
+                                <p class="form-control-static">{{ $user->nombres ?: $user->name }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Nombre</label>
+                                <label>Nombre completo</label>
                                 <p class="form-control-static">{{ $user->name }}</p>
                             </div>
                         </div>

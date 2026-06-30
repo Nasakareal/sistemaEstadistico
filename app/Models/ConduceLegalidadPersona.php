@@ -25,6 +25,9 @@ class ConduceLegalidadPersona extends Model
         'vigencia_licencia',
         'permanente',
         'raw_licencia_qr',
+        'licencia_punto_infraccion_id',
+        'infraccion_codigo',
+        'fundamento_legal',
         'observaciones',
     ];
 
@@ -37,5 +40,10 @@ class ConduceLegalidadPersona extends Model
     public function captura()
     {
         return $this->belongsTo(ConduceLegalidadCaptura::class, 'captura_id');
+    }
+
+    public function infraccion()
+    {
+        return $this->belongsTo(LicenciaPuntoInfraccion::class, 'licencia_punto_infraccion_id');
     }
 }

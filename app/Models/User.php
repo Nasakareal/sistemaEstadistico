@@ -17,6 +17,9 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'apellido_paterno',
+        'apellido_materno',
+        'nombres',
         'email',
         'telefono',
         'password',
@@ -42,6 +45,49 @@ class User extends Authenticatable
         'last_seen_at' => 'datetime',
         'disconnected_alert_sent_at' => 'datetime',
     ];
+
+    protected static function booted()
+    {
+        static::saving(function (self $user) {
+            $user->sincronizarNombreCompleto();
+        });
+    }
+
+    public static function nombreCompleto(?string $nombres, ?string $apellidoPaterno = null, ?string $apellidoMaterno = null): string
+    {
+        return collect([$nombres, $apellidoPaterno, $apellidoMaterno])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->implode(' ');
+    }
+
+    public function getNombreCompletoAttribute(): string
+    {
+        return static::nombreCompleto($this->nombres, $this->apellido_paterno, $this->apellido_materno)
+            ?: (string) $this->name;
+    }
+
+    private function sincronizarNombreCompleto(): void
+    {
+        $partesEditadas = $this->isDirty('nombres')
+            || $this->isDirty('apellido_paterno')
+            || $this->isDirty('apellido_materno');
+
+        if ($partesEditadas) {
+            $this->attributes['name'] = static::nombreCompleto(
+                $this->nombres,
+                $this->apellido_paterno,
+                $this->apellido_materno
+            );
+            return;
+        }
+
+        if ($this->isDirty('name') || empty($this->attributes['nombres'])) {
+            $this->attributes['nombres'] = $this->attributes['name'] ?? null;
+            $this->attributes['apellido_paterno'] = null;
+            $this->attributes['apellido_materno'] = null;
+        }
+    }
 
     public function personal()
     {

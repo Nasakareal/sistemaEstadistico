@@ -14,6 +14,9 @@ class UsersSeeder extends Seeder
             'email' => 'admin@admin.com',
         ], [
             'name' => 'Mario Bautista',
+            'apellido_paterno' => 'Bautista',
+            'apellido_materno' => null,
+            'nombres' => 'Mario',
             'password' => Hash::make('123'),
             'created_at' => now(),
             'updated_at' => now(),

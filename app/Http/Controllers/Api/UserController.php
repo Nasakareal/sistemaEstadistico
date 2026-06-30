@@ -33,6 +33,9 @@ class UserController extends Controller
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('name', 'like', "%{$q}%")
+                        ->orWhere('nombres', 'like', "%{$q}%")
+                        ->orWhere('apellido_paterno', 'like', "%{$q}%")
+                        ->orWhere('apellido_materno', 'like', "%{$q}%")
                         ->orWhere('email', 'like', "%{$q}%")
                         ->orWhere('telefono', 'like', "%{$q}%")
                         ->orWhere('area', 'like', "%{$q}%");
@@ -98,12 +101,16 @@ class UserController extends Controller
     {
         $actor = $request->user();
         $validated = $this->validatePayload($request);
+        $validated = $this->normalizarNombreUsuario($validated);
         $role = $this->resolveAssignableRole($actor, (int) $validated['role_id']);
         $this->normalizeAndValidateAssignments($actor, $validated, $role);
 
         $user = DB::transaction(function () use ($validated, $role) {
             $user = User::create([
                 'name' => $validated['name'],
+                'apellido_paterno' => $validated['apellido_paterno'],
+                'apellido_materno' => $validated['apellido_materno'],
+                'nombres' => $validated['nombres'],
                 'email' => $validated['email'],
                 'telefono' => $validated['telefono'] ?? null,
                 'password' => Hash::make($validated['password']),
@@ -148,6 +155,7 @@ class UserController extends Controller
         abort_unless($this->queryUsuariosVisiblesParaActor($actor)->whereKey($user->id)->exists(), 404);
 
         $validated = $this->validatePayload($request, $user);
+        $validated = $this->normalizarNombreUsuario($validated);
         $role = $this->resolveAssignableRole($actor, (int) $validated['role_id']);
 
         if ($user->hasRole('Superadmin') && $role->name !== 'Superadmin' && User::role('Superadmin')->count() <= 1) {
@@ -161,6 +169,9 @@ class UserController extends Controller
         DB::transaction(function () use ($user, $validated, $role, $request) {
             $updates = [
                 'name' => $validated['name'],
+                'apellido_paterno' => $validated['apellido_paterno'],
+                'apellido_materno' => $validated['apellido_materno'],
+                'nombres' => $validated['nombres'],
                 'email' => $validated['email'],
                 'telefono' => $validated['telefono'] ?? null,
                 'estado' => $validated['estado'] ?? $user->estado ?? 'Activo',
@@ -197,7 +208,10 @@ class UserController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'apellido_paterno' => ['nullable', 'string', 'max:255'],
+            'apellido_materno' => ['nullable', 'string', 'max:255'],
+            'nombres' => ['required_without:name', 'nullable', 'string', 'max:255'],
             'email' => [
                 'required',
                 'email',
@@ -232,6 +246,28 @@ class UserController extends Controller
         }
 
         return $validated;
+    }
+
+    private function normalizarNombreUsuario(array $validated): array
+    {
+        $validated['apellido_paterno'] = $this->limpiarTexto($validated['apellido_paterno'] ?? null);
+        $validated['apellido_materno'] = $this->limpiarTexto($validated['apellido_materno'] ?? null);
+        $validated['nombres'] = $this->limpiarTexto($validated['nombres'] ?? null)
+            ?: $this->limpiarTexto($validated['name'] ?? null);
+
+        $validated['name'] = User::nombreCompleto(
+            $validated['nombres'],
+            $validated['apellido_paterno'],
+            $validated['apellido_materno']
+        );
+
+        return $validated;
+    }
+
+    private function limpiarTexto(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        return $value === '' ? null : $value;
     }
 
     private function resolveAssignableRole(User $actor, int $roleId): Role
@@ -313,6 +349,10 @@ class UserController extends Controller
         return [
             'id' => $user->id,
             'name' => $user->name,
+            'nombre_completo' => $user->nombre_completo,
+            'apellido_paterno' => $user->apellido_paterno,
+            'apellido_materno' => $user->apellido_materno,
+            'nombres' => $user->nombres,
             'email' => $user->email,
             'telefono' => $user->telefono,
             'estado' => $user->estado,

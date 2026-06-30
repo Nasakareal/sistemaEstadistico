@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\DecretoGoberLicenciaPuntoCatalog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -85,36 +86,9 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
 
     private function validarArchivoFuente(): void
     {
-        $path = public_path('articulos.txt');
-
-        if (!is_file($path)) {
-            throw new RuntimeException('No se encontro el archivo fuente: public/articulos.txt.');
-        }
-
-        $contenido = file_get_contents($path);
-        if ($contenido === false || trim($contenido) === '') {
-            throw new RuntimeException('El archivo public/articulos.txt esta vacio o no se puede leer.');
-        }
-
-        $articulos = $this->articulosEnFuente($contenido);
-        $faltantes = [];
-        foreach ($this->infracciones() as $row) {
-            if (($row['codigo'] ?? null) === self::SIN_LICENCIA_OPERATIVO_CODIGO) {
-                continue;
-            }
-
-            foreach ($this->articulosReferenciados((string) ($row['articulo'] ?? '')) as $articulo) {
-                if (!isset($articulos[$articulo])) {
-                    $faltantes[] = $articulo;
-                }
-            }
-        }
-
-        if ($faltantes !== []) {
-            throw new RuntimeException(
-                'El archivo public/articulos.txt no contiene los articulos esperados: ' . implode(', ', array_values(array_unique($faltantes))) . '.'
-            );
-        }
+        DecretoGoberLicenciaPuntoCatalog::assertSourceCoversRows(
+            public_path(DecretoGoberLicenciaPuntoCatalog::SOURCE_FILENAME)
+        );
     }
 
     private function articulosReferenciados(string $articuloRaw): array
@@ -136,12 +110,27 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
 
     private function desactivarRegistrosDePrueba($now): void
     {
+        $codigosVigentes = collect($this->infracciones())
+            ->pluck('codigo')
+            ->all();
+
+        DB::table(self::TABLE)
+            ->whereNotIn('codigo', $codigosVigentes)
+            ->update([
+                'activa' => false,
+                'updated_at' => $now,
+            ]);
+
         DB::table(self::TABLE)
             ->whereIn('codigo', [
                 'EXCESO_VELOCIDAD',
                 'CELULAR_CONDUCIR',
                 'SEMAFORO_ROJO',
                 'ART419_I_ABDE_SEGURIDAD',
+                'ART419_FII_I_MOTO_LUCES_CASCO_DECRETO',
+                'ART419_FII_I_MOTO_PASAJEROS_CASCO_DECRETO',
+                'ART419_FII_IA_C_MOTO_LUCES_CASCO_DECRETO',
+                'ART419_FII_IB_D_MOTO_PASAJEROS_CASCO_DECRETO',
             ])
             ->update([
                 'activa' => false,
@@ -165,11 +154,34 @@ class LicenciaPuntoInfraccionesArticulosSeeder extends Seeder
 
     private function infracciones(): array
     {
+        return array_merge([
+            [
+                'codigo' => self::SIN_LICENCIA_OPERATIVO_CODIGO,
+                'nombre' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
+                'articulo' => '402',
+                'fraccion' => null,
+                'inciso' => null,
+                'ambito_vehiculo' => 'general',
+                'puntos' => 0,
+                'multa_uma_min' => null,
+                'multa_uma_max' => null,
+                'amonestacion' => false,
+                'arresto_persona' => false,
+                'suspension_licencia' => false,
+                'cancelacion_licencia' => false,
+                'deposito_si_sin_persona_habilitada' => false,
+                'retencion_vehiculo' => true,
+                'descripcion' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
+                'fundamento_legal' => self::SIN_LICENCIA_OPERATIVO_FUNDAMENTO,
+                'activa' => true,
+            ],
+        ], DecretoGoberLicenciaPuntoCatalog::rows());
+
         return [
             [
                 'codigo' => self::SIN_LICENCIA_OPERATIVO_CODIGO,
                 'nombre' => self::SIN_LICENCIA_OPERATIVO_NOMBRE,
-                'articulo' => '402; 700; 702',
+                'articulo' => '402',
                 'fraccion' => null,
                 'inciso' => null,
                 'ambito_vehiculo' => 'general',

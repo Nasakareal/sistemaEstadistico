@@ -38,6 +38,11 @@ class ConduceLegalidadController extends Controller
         'TRANSPORTE PUBLICO',
         'SERVICIO PUBLICO',
         'SINIESTRO',
+        'COMPETENCIAS DE VELOCIDAD',
+        'PLACAS DE DEMOSTRACION',
+        'SIN REGISTRO PREVIO EN REV',
+        'PLACAS FORANEAS SIN REGISTRO PREVIO',
+        'REGISTRO DE VISITA VENCIDO',
     ];
 
     public function meta(Request $request)
@@ -55,6 +60,7 @@ class ConduceLegalidadController extends Controller
                 ],
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
+                'fundamentos_persona' => $this->fundamentosPersonaPayload(),
             ],
         ]);
     }
@@ -171,7 +177,7 @@ class ConduceLegalidadController extends Controller
         $operativo->loadMissing(['creador', 'actualizador', 'cerrador']);
 
         $capturasQuery = $operativo->capturas()
-            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos'])
+            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -251,7 +257,7 @@ class ConduceLegalidadController extends Controller
         if ($clientUuid !== null) {
             $existing = $operativo->capturas()
                 ->where('client_uuid', $clientUuid)
-                ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos'])
+                ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
                 ->first();
 
             if ($existing) {
@@ -290,7 +296,7 @@ class ConduceLegalidadController extends Controller
             return $captura;
         });
 
-        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
+        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return response()->json([
             'ok' => true,
@@ -327,7 +333,7 @@ class ConduceLegalidadController extends Controller
             $this->storeFotos($captura, $request, $user);
         });
 
-        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
+        $captura->load(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return response()->json([
             'ok' => true,
@@ -358,7 +364,7 @@ class ConduceLegalidadController extends Controller
         $operativo->loadMissing(['creador']);
 
         $capturas = $operativo->capturas()
-            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos'])
+            ->with(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
             ->orderBy('fecha')
             ->orderBy('hora')
             ->orderBy('id')
@@ -391,7 +397,7 @@ class ConduceLegalidadController extends Controller
         abort_unless($query->exists(), 404);
 
         $operativo->loadMissing(['creador']);
-        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
+        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         $texto = $this->tarjetaCapturaOperativo($operativo, $captura, $user);
         $fotos = $captura->fotos
@@ -440,7 +446,7 @@ class ConduceLegalidadController extends Controller
             'vehiculos.infraccion',
             'vehiculos.gruaRelacion',
             'vehiculos.corralonRelacion',
-            'personas',
+            'personas.infraccion',
             'fotos',
         ]);
 
@@ -1212,6 +1218,7 @@ class ConduceLegalidadController extends Controller
             'personas.*.vigencia_licencia' => ['nullable', 'date'],
             'personas.*.permanente' => ['nullable', 'boolean'],
             'personas.*.raw_licencia_qr' => ['nullable', 'string'],
+            'personas.*.licencia_punto_infraccion_id' => ['nullable', 'integer', 'exists:licencia_punto_infracciones,id'],
             'personas.*.observaciones' => ['nullable', 'string'],
         ];
     }
@@ -1359,6 +1366,8 @@ class ConduceLegalidadController extends Controller
         $captura->personas()->delete();
 
         foreach ($personas as $row) {
+            $infraccion = $this->personaInfraccion($row['licencia_punto_infraccion_id'] ?? null);
+
             $captura->personas()->create([
                 'nombre' => $this->nullableString($row['nombre'] ?? null),
                 'telefono' => $this->nullableString($row['telefono'] ?? null),
@@ -1372,6 +1381,9 @@ class ConduceLegalidadController extends Controller
                 'vigencia_licencia' => $row['vigencia_licencia'] ?? null,
                 'permanente' => (bool) ($row['permanente'] ?? false),
                 'raw_licencia_qr' => $this->nullableString($row['raw_licencia_qr'] ?? null),
+                'licencia_punto_infraccion_id' => $infraccion ? $infraccion->id : null,
+                'infraccion_codigo' => $infraccion ? $infraccion->codigo : null,
+                'fundamento_legal' => $infraccion ? $infraccion->fundamento_legal : null,
                 'observaciones' => $this->nullableString($row['observaciones'] ?? null),
             ]);
         }
@@ -1398,10 +1410,36 @@ class ConduceLegalidadController extends Controller
         return $infraccion;
     }
 
+    private function personaInfraccion($id): ?LicenciaPuntoInfraccion
+    {
+        $id = (int) ($id ?? 0);
+        if ($id <= 0) {
+            return null;
+        }
+
+        $infraccion = LicenciaPuntoInfraccion::activas()->find($id);
+        if (!$infraccion || !$this->infraccionAplicaSancionPersonaOperativo($infraccion)) {
+            throw ValidationException::withMessages([
+                'licencia_punto_infraccion_id' => 'El fundamento seleccionado no aplica como sancion de persona en este operativo.',
+            ]);
+        }
+
+        return $infraccion;
+    }
+
     private function infraccionAplicaRetencionOperativo(LicenciaPuntoInfraccion $infraccion): bool
     {
         return (bool) $infraccion->retencion_vehiculo
             || (bool) $infraccion->deposito_si_sin_persona_habilitada;
+    }
+
+    private function infraccionAplicaSancionPersonaOperativo(LicenciaPuntoInfraccion $infraccion): bool
+    {
+        return (bool) $infraccion->amonestacion
+            || (bool) $infraccion->arresto_persona
+            || (bool) $infraccion->suspension_licencia
+            || (bool) $infraccion->cancelacion_licencia
+            || (int) $infraccion->puntos > 0;
     }
 
     private function fundamentosCorralonPayload()
@@ -1422,34 +1460,64 @@ class ConduceLegalidadController extends Controller
                 ]);
             })
             ->values()
-            ->map(fn (LicenciaPuntoInfraccion $infraccion) => [
-                'id' => $infraccion->id,
-                'codigo' => $infraccion->codigo,
-                'nombre' => $infraccion->nombre,
-                'articulo' => $infraccion->articulo,
-                'fraccion' => $infraccion->fraccion,
-                'inciso' => $infraccion->inciso,
-                'ambito_vehiculo' => $infraccion->ambito_vehiculo,
-                'ambito_vehiculo_texto' => $infraccion->ambito_vehiculo_texto,
-                'referencia_legal_corta' => $infraccion->referencia_legal_corta,
-                'puntos' => (int) $infraccion->puntos,
-                'multa_uma_min' => $infraccion->multa_uma_min,
-                'multa_uma_max' => $infraccion->multa_uma_max,
-                'multa_uma_texto' => $infraccion->multa_uma_texto,
-                'amonestacion' => (bool) $infraccion->amonestacion,
-                'arresto_persona' => (bool) $infraccion->arresto_persona,
-                'suspension_licencia' => (bool) $infraccion->suspension_licencia,
-                'cancelacion_licencia' => (bool) $infraccion->cancelacion_licencia,
-                'deposito_si_sin_persona_habilitada' => (bool) $infraccion->deposito_si_sin_persona_habilitada,
-                'sancion_persona_texto' => $infraccion->sancion_persona_texto,
-                'retencion_vehiculo' => (bool) $infraccion->retencion_vehiculo,
-                'resumen_sanciones' => $infraccion->resumen_sanciones,
-                'etiqueta_operativa' => $this->textoOperativoInfraccion($infraccion),
-                'texto_operativo' => $this->textoOperativoInfraccion($infraccion),
-                'descripcion' => $infraccion->descripcion,
-                'fundamento_legal' => $infraccion->fundamento_legal,
-                'narrativa_sugerida' => $this->narrativaSugeridaInfraccion($infraccion),
-            ]);
+            ->map(fn (LicenciaPuntoInfraccion $infraccion) => $this->fundamentoInfraccionPayload($infraccion));
+    }
+
+    private function fundamentosPersonaPayload()
+    {
+        return LicenciaPuntoInfraccion::activas()
+            ->where(function ($query) {
+                $query->where('amonestacion', true)
+                    ->orWhere('arresto_persona', true)
+                    ->orWhere('suspension_licencia', true)
+                    ->orWhere('cancelacion_licencia', true)
+                    ->orWhere('puntos', '>', 0);
+            })
+            ->get()
+            ->filter(fn (LicenciaPuntoInfraccion $infraccion) => $this->infraccionAplicaSancionPersonaOperativo($infraccion))
+            ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
+                return implode('|', [
+                    $infraccion->arresto_persona ? '0' : '1',
+                    $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                    $infraccion->fraccion ?: 'ZZZZ',
+                    $infraccion->inciso ?: 'ZZZZ',
+                    $infraccion->nombre,
+                ]);
+            })
+            ->values()
+            ->map(fn (LicenciaPuntoInfraccion $infraccion) => $this->fundamentoInfraccionPayload($infraccion));
+    }
+
+    private function fundamentoInfraccionPayload(LicenciaPuntoInfraccion $infraccion): array
+    {
+        return [
+            'id' => $infraccion->id,
+            'codigo' => $infraccion->codigo,
+            'nombre' => $infraccion->nombre,
+            'articulo' => $infraccion->articulo,
+            'fraccion' => $infraccion->fraccion,
+            'inciso' => $infraccion->inciso,
+            'ambito_vehiculo' => $infraccion->ambito_vehiculo,
+            'ambito_vehiculo_texto' => $infraccion->ambito_vehiculo_texto,
+            'referencia_legal_corta' => $infraccion->referencia_legal_corta,
+            'puntos' => (int) $infraccion->puntos,
+            'multa_uma_min' => $infraccion->multa_uma_min,
+            'multa_uma_max' => $infraccion->multa_uma_max,
+            'multa_uma_texto' => $infraccion->multa_uma_texto,
+            'amonestacion' => (bool) $infraccion->amonestacion,
+            'arresto_persona' => (bool) $infraccion->arresto_persona,
+            'suspension_licencia' => (bool) $infraccion->suspension_licencia,
+            'cancelacion_licencia' => (bool) $infraccion->cancelacion_licencia,
+            'deposito_si_sin_persona_habilitada' => (bool) $infraccion->deposito_si_sin_persona_habilitada,
+            'sancion_persona_texto' => $infraccion->sancion_persona_texto,
+            'retencion_vehiculo' => (bool) $infraccion->retencion_vehiculo,
+            'resumen_sanciones' => $infraccion->resumen_sanciones,
+            'etiqueta_operativa' => $this->textoOperativoInfraccion($infraccion),
+            'texto_operativo' => $this->textoOperativoInfraccion($infraccion),
+            'descripcion' => $infraccion->descripcion,
+            'fundamento_legal' => $infraccion->fundamento_legal,
+            'narrativa_sugerida' => $this->narrativaSugeridaInfraccion($infraccion),
+        ];
     }
 
     private function operativoPayload(ConduceLegalidadOperativo $operativo, $user, $capturas = null): array
@@ -1500,7 +1568,7 @@ class ConduceLegalidadController extends Controller
 
     private function capturaPayload(ConduceLegalidadCaptura $captura, $user): array
     {
-        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas', 'fotos']);
+        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return [
             'id' => $captura->id,
@@ -1625,6 +1693,12 @@ class ConduceLegalidadController extends Controller
             'vigencia_licencia' => optional($persona->vigencia_licencia)->toDateString(),
             'permanente' => (bool) $persona->permanente,
             'raw_licencia_qr' => $persona->raw_licencia_qr,
+            'licencia_punto_infraccion_id' => $persona->licencia_punto_infraccion_id,
+            'infraccion_codigo' => $persona->infraccion_codigo,
+            'fundamento_legal' => $persona->fundamento_legal,
+            'infraccion' => $persona->infraccion
+                ? $this->fundamentoInfraccionPayload($persona->infraccion)
+                : null,
             'observaciones' => $persona->observaciones,
         ];
     }

@@ -28,6 +28,8 @@ class ConduceLegalidadController extends Controller
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
+    private const FORMATO_IPH_BARANDILLAS = 'barandillas';
+    private const FORMATO_IPH_ANTERIOR = 'anterior';
     private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
     private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
     private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
@@ -72,6 +74,7 @@ class ConduceLegalidadController extends Controller
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
                 'fundamentos_persona' => $this->fundamentosPersonaPayload(),
+                'formatos_impresion' => $this->formatosImpresionPayload(),
             ],
         ]);
     }
@@ -126,7 +129,8 @@ class ConduceLegalidadController extends Controller
             $query->where(function ($sub) use ($buscar) {
                 $sub->where('nombre', 'like', "%{$buscar}%")
                     ->orWhere('municipio', 'like', "%{$buscar}%")
-                    ->orWhere('lugar', 'like', "%{$buscar}%");
+                    ->orWhere('lugar', 'like', "%{$buscar}%")
+                    ->orWhere('colonia', 'like', "%{$buscar}%");
             });
         }
 
@@ -163,6 +167,7 @@ class ConduceLegalidadController extends Controller
             'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
             'municipio' => $this->nullableString($validated['municipio'] ?? null),
             'lugar' => $this->nullableString($validated['lugar'] ?? null),
+            'colonia' => $this->nullableString($validated['colonia'] ?? null),
             'lat' => $validated['lat'] ?? null,
             'lng' => $validated['lng'] ?? null,
             'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
@@ -217,6 +222,7 @@ class ConduceLegalidadController extends Controller
             'hora_cierre' => array_key_exists('hora_cierre', $validated) ? $validated['hora_cierre'] : $operativo->hora_cierre,
             'municipio' => array_key_exists('municipio', $validated) ? $this->nullableString($validated['municipio']) : $operativo->municipio,
             'lugar' => array_key_exists('lugar', $validated) ? $this->nullableString($validated['lugar']) : $operativo->lugar,
+            'colonia' => array_key_exists('colonia', $validated) ? $this->nullableString($validated['colonia']) : $operativo->colonia,
             'lat' => array_key_exists('lat', $validated) ? $validated['lat'] : $operativo->lat,
             'lng' => array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng,
             'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $operativo->coordenadas_texto,
@@ -537,14 +543,81 @@ class ConduceLegalidadController extends Controller
             'fotos',
         ]);
 
-        [$path, $filename] = $docxService->generar(
-            $this->hechoTemporalIph($operativo, $captura),
-            $this->mapearIphDesdeCaptura($operativo, $captura, $user)
-        );
+        $formato = $this->formatoIphCaptura($request);
+        $hecho = $this->hechoTemporalIph($operativo, $captura);
+        $mapeo = $this->mapearIphDesdeCaptura($operativo, $captura, $user);
+
+        [$path, $filename] = $formato === self::FORMATO_IPH_ANTERIOR
+            ? $docxService->generar($hecho, $mapeo)
+            : $docxService->generarConduceLegalidadBarandillas($hecho, $mapeo);
 
         return response()->download($path, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ])->deleteFileAfterSend(true);
+    }
+
+    private function formatoIphCaptura(Request $request): string
+    {
+        $value = $request->query('formato', $request->query('formato_impresion', $request->query('tipo_formato')));
+        $formato = $this->normalizarFormatoIph($value);
+
+        if ($formato === '') {
+            return self::FORMATO_IPH_BARANDILLAS;
+        }
+
+        $aliases = [
+            'barandillas' => self::FORMATO_IPH_BARANDILLAS,
+            'actual' => self::FORMATO_IPH_BARANDILLAS,
+            'nuevo' => self::FORMATO_IPH_BARANDILLAS,
+            'formato_nuevo' => self::FORMATO_IPH_BARANDILLAS,
+            'formato_actual' => self::FORMATO_IPH_BARANDILLAS,
+            'nuevo_barandillas' => self::FORMATO_IPH_BARANDILLAS,
+            'plantilla' => self::FORMATO_IPH_BARANDILLAS,
+            'plantilla_barandillas' => self::FORMATO_IPH_BARANDILLAS,
+            'iph_barandillas' => self::FORMATO_IPH_BARANDILLAS,
+            'anterior' => self::FORMATO_IPH_ANTERIOR,
+            'clasico' => self::FORMATO_IPH_ANTERIOR,
+            'compacto' => self::FORMATO_IPH_ANTERIOR,
+            'formato_anterior' => self::FORMATO_IPH_ANTERIOR,
+            'legacy' => self::FORMATO_IPH_ANTERIOR,
+            'viejo' => self::FORMATO_IPH_ANTERIOR,
+            'iph' => self::FORMATO_IPH_ANTERIOR,
+            'iph_completo' => self::FORMATO_IPH_ANTERIOR,
+            'oficial' => self::FORMATO_IPH_ANTERIOR,
+            'ticket' => self::FORMATO_IPH_ANTERIOR,
+            'termico' => self::FORMATO_IPH_ANTERIOR,
+            'termica' => self::FORMATO_IPH_ANTERIOR,
+            '48' => self::FORMATO_IPH_ANTERIOR,
+            '48mm' => self::FORMATO_IPH_ANTERIOR,
+            '48_mm' => self::FORMATO_IPH_ANTERIOR,
+            '50' => self::FORMATO_IPH_ANTERIOR,
+            '50mm' => self::FORMATO_IPH_ANTERIOR,
+            '50_mm' => self::FORMATO_IPH_ANTERIOR,
+            '58' => self::FORMATO_IPH_ANTERIOR,
+            '58mm' => self::FORMATO_IPH_ANTERIOR,
+            '58_mm' => self::FORMATO_IPH_ANTERIOR,
+        ];
+
+        if (!isset($aliases[$formato])) {
+            throw ValidationException::withMessages([
+                'formato' => 'Selecciona un formato de impresion valido.',
+            ]);
+        }
+
+        return $aliases[$formato];
+    }
+
+    private function normalizarFormatoIph($value): string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            return '';
+        }
+
+        $text = Str::lower(Str::ascii($text));
+        $text = str_replace([' ', '-'], '_', $text);
+
+        return preg_replace('/[^a-z0-9_]+/', '', $text) ?? '';
     }
 
     private function hechoTemporalIph(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): Hechos
@@ -559,6 +632,7 @@ class ConduceLegalidadController extends Controller
             'tipo_hecho' => 'RETIRO DE VEHICULO DERIVADO DE OPERATIVO CONDUCE CON LEGALIDAD',
             'municipio' => $captura->municipio ?: $operativo->municipio,
             'calle' => $captura->lugar ?: $operativo->lugar,
+            'colonia' => $operativo->colonia,
             'ubicacion_formateada' => $captura->lugar ?: $operativo->lugar,
             'lat' => $captura->lat ?: $operativo->lat,
             'lng' => $captura->lng ?: $operativo->lng,
@@ -574,6 +648,8 @@ class ConduceLegalidadController extends Controller
         $hora = $this->horaCorta($captura->hora ?: $operativo->hora_inicio);
         $lugar = $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar);
         $municipio = $this->nullableString($captura->municipio) ?: $this->nullableString($operativo->municipio) ?: 'Morelia';
+        $colonia = $this->nullableString($operativo->colonia);
+        $ubicacionFormateada = $colonia ? $lugar . ', Col. ' . $colonia : $lugar;
         $unidadNombre = $this->nullableString(optional($captura->unidad)->nombre)
             ?: $this->nullableString(optional($captura->creador)->unidad->nombre ?? null)
             ?: 'Coordinación del Agrupamiento de Seguridad Vial';
@@ -619,13 +695,13 @@ class ConduceLegalidadController extends Controller
                 'conclusion_disposicion' => $this->conclusionDisposicionIphCaptura($captura, $fundamento),
                 'ubicacion' => [
                     'calle' => $lugar,
-                    'colonia' => '',
+                    'colonia' => $colonia ?: '',
                     'entre_calles' => '',
                     'municipio' => $municipio,
                     'codigo_postal' => '',
                     'lat' => $captura->lat ?: $operativo->lat,
                     'lng' => $captura->lng ?: $operativo->lng,
-                    'ubicacion_formateada' => $lugar,
+                    'ubicacion_formateada' => $ubicacionFormateada,
                     'place_id' => null,
                 ],
             ],
@@ -737,6 +813,7 @@ class ConduceLegalidadController extends Controller
                 'alias' => null,
                 'edad' => $persona->edad,
                 'sexo' => $persona->sexo,
+                'nacionalidad' => $persona->nacionalidad,
                 'fecha_nacimiento' => null,
                 'curp' => null,
                 'rfc' => null,
@@ -746,7 +823,7 @@ class ConduceLegalidadController extends Controller
                 'orden_aprehension' => false,
                 'mandamiento_judicial' => null,
                 'observaciones' => $persona->observaciones,
-            ];
+            ] + $this->camposDescripcionFisicaIph($persona);
         })->values()->all();
     }
 
@@ -773,8 +850,11 @@ class ConduceLegalidadController extends Controller
     {
         return [
             'nombre' => $persona->nombre,
+            'nombre_completo' => $persona->nombre,
+            'alias' => null,
             'edad' => $persona->edad,
             'sexo' => $persona->sexo,
+            'nacionalidad' => $persona->nacionalidad,
             'domicilio' => $persona->domicilio,
             'ocupacion' => $persona->ocupacion,
             'numero_licencia' => $persona->numero_licencia,
@@ -785,6 +865,24 @@ class ConduceLegalidadController extends Controller
             'certificado_lesiones' => null,
             'certificado_alcoholemia' => null,
             'aliento_etilico' => null,
+        ] + $this->camposDescripcionFisicaIph($persona);
+    }
+
+    private function camposDescripcionFisicaIph(ConduceLegalidadPersona $persona): array
+    {
+        return [
+            'edad_aproximada' => $persona->edad_aproximada,
+            'complexion' => $persona->complexion,
+            'estatura' => $persona->estatura,
+            'tez' => $persona->tez,
+            'cabello' => $persona->cabello,
+            'prenda_superior' => $persona->prenda_superior,
+            'color_superior' => $persona->color_superior,
+            'prenda_inferior' => $persona->prenda_inferior,
+            'color_inferior' => $persona->color_inferior,
+            'calzado' => $persona->calzado,
+            'color_calzado' => $persona->color_calzado,
+            'rasgos_visibles' => $persona->rasgos_visibles ?: [],
         ];
     }
 
@@ -934,6 +1032,7 @@ class ConduceLegalidadController extends Controller
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
         $lines[] = 'PUNTO: ' . $this->upper($operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'COLONIA: ' . $this->upper($operativo->colonia ?: 'SIN DATO');
         $lines[] = 'MUNICIPIO: ' . $this->upper($operativo->municipio ?: 'SIN DATO');
         $lines[] = 'FECHA: ' . $this->fechaHoraOperativo($operativo) . ' Hrs.';
         $lines[] = 'ESTADO: ' . $this->upper($operativo->estado ?: 'SIN DATO');
@@ -984,6 +1083,7 @@ class ConduceLegalidadController extends Controller
         $lines[] = 'CAPTURA ID: ' . $captura->id;
         $lines[] = 'PUNTO OPERATIVO: ' . $this->upper($operativo->lugar ?: 'SIN DATO');
         $lines[] = 'LUGAR CAPTURA: ' . $this->upper($captura->lugar ?: $operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'COLONIA: ' . $this->upper($operativo->colonia ?: 'SIN DATO');
         $lines[] = 'MUNICIPIO: ' . $this->upper($captura->municipio ?: $operativo->municipio ?: 'SIN DATO');
         $lines[] = 'FECHA: ' . $this->fechaHoraCaptura($captura) . ' Hrs.';
         $lines[] = 'USUARIO: ' . $this->upper($this->nombreUsuario($captura->creador));
@@ -1233,6 +1333,7 @@ class ConduceLegalidadController extends Controller
     private function operativoRules(?ConduceLegalidadOperativo $operativo = null): array
     {
         $ignoreId = $operativo ? $operativo->id : null;
+        $locationRequired = $operativo ? ['sometimes', 'required'] : ['required'];
 
         return [
             'client_uuid' => ['nullable', 'string', 'max:80', Rule::unique('conduce_legalidad_operativos', 'client_uuid')->ignore($ignoreId)],
@@ -1240,10 +1341,11 @@ class ConduceLegalidadController extends Controller
             'hora_inicio' => ['nullable', 'date_format:H:i'],
             'hora_cierre' => ['nullable', 'date_format:H:i'],
             'municipio' => ['nullable', 'string', 'max:120'],
-            'lugar' => ['nullable', 'string', 'max:255'],
-            'lat' => ['nullable', 'numeric', 'between:-90,90'],
-            'lng' => ['nullable', 'numeric', 'between:-180,180'],
-            'coordenadas_texto' => ['nullable', 'string', 'max:255'],
+            'lugar' => array_merge($locationRequired, ['string', 'max:255']),
+            'colonia' => array_merge($locationRequired, ['string', 'max:120']),
+            'lat' => array_merge($locationRequired, ['numeric', 'between:-90,90']),
+            'lng' => array_merge($locationRequired, ['numeric', 'between:-180,180']),
+            'coordenadas_texto' => array_merge($locationRequired, ['string', 'max:255']),
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ];
     }
@@ -1299,8 +1401,22 @@ class ConduceLegalidadController extends Controller
             'personas.*.telefono' => ['nullable', 'string', 'max:30'],
             'personas.*.domicilio' => ['nullable', 'string', 'max:255'],
             'personas.*.sexo' => ['nullable', 'string', 'max:30'],
+            'personas.*.nacionalidad' => ['nullable', 'string', 'max:80'],
             'personas.*.ocupacion' => ['nullable', 'string', 'max:255'],
             'personas.*.edad' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'personas.*.edad_aproximada' => ['nullable', 'string', 'max:40'],
+            'personas.*.complexion' => ['nullable', 'string', 'max:80'],
+            'personas.*.estatura' => ['nullable', 'string', 'max:80'],
+            'personas.*.tez' => ['nullable', 'string', 'max:80'],
+            'personas.*.cabello' => ['nullable', 'string', 'max:80'],
+            'personas.*.prenda_superior' => ['nullable', 'string', 'max:80'],
+            'personas.*.color_superior' => ['nullable', 'string', 'max:80'],
+            'personas.*.prenda_inferior' => ['nullable', 'string', 'max:80'],
+            'personas.*.color_inferior' => ['nullable', 'string', 'max:80'],
+            'personas.*.calzado' => ['nullable', 'string', 'max:80'],
+            'personas.*.color_calzado' => ['nullable', 'string', 'max:80'],
+            'personas.*.rasgos_visibles' => ['nullable', 'array'],
+            'personas.*.rasgos_visibles.*' => ['string', 'max:80'],
             'personas.*.tipo_licencia' => ['nullable', 'string', 'max:80'],
             'personas.*.estado_licencia' => ['nullable', 'string', 'max:120'],
             'personas.*.numero_licencia' => ['nullable', 'string', 'max:80'],
@@ -1462,8 +1578,21 @@ class ConduceLegalidadController extends Controller
                 'telefono' => $this->nullableString($row['telefono'] ?? null),
                 'domicilio' => $this->nullableString($row['domicilio'] ?? null),
                 'sexo' => $this->nullableString($row['sexo'] ?? null),
+                'nacionalidad' => $this->nullableString($row['nacionalidad'] ?? null),
                 'ocupacion' => $this->nullableString($row['ocupacion'] ?? null),
                 'edad' => $row['edad'] ?? null,
+                'edad_aproximada' => $this->nullableString($row['edad_aproximada'] ?? null),
+                'complexion' => $this->nullableString($row['complexion'] ?? null),
+                'estatura' => $this->nullableString($row['estatura'] ?? null),
+                'tez' => $this->nullableString($row['tez'] ?? null),
+                'cabello' => $this->nullableString($row['cabello'] ?? null),
+                'prenda_superior' => $this->nullableString($row['prenda_superior'] ?? null),
+                'color_superior' => $this->nullableString($row['color_superior'] ?? null),
+                'prenda_inferior' => $this->nullableString($row['prenda_inferior'] ?? null),
+                'color_inferior' => $this->nullableString($row['color_inferior'] ?? null),
+                'calzado' => $this->nullableString($row['calzado'] ?? null),
+                'color_calzado' => $this->nullableString($row['color_calzado'] ?? null),
+                'rasgos_visibles' => $this->nullableStringArray($row['rasgos_visibles'] ?? null),
                 'tipo_licencia' => $this->nullableString($row['tipo_licencia'] ?? null),
                 'estado_licencia' => $this->nullableString($row['estado_licencia'] ?? null),
                 'numero_licencia' => $this->nullableString($row['numero_licencia'] ?? null),
@@ -1529,6 +1658,26 @@ class ConduceLegalidadController extends Controller
             || (bool) $infraccion->suspension_licencia
             || (bool) $infraccion->cancelacion_licencia
             || (int) $infraccion->puntos > 0;
+    }
+
+    private function formatosImpresionPayload(): array
+    {
+        return [
+            [
+                'key' => self::FORMATO_IPH_BARANDILLAS,
+                'label' => 'Formato nuevo Barandillas',
+                'query_param' => 'formato',
+                'query_value' => self::FORMATO_IPH_BARANDILLAS,
+                'default' => true,
+            ],
+            [
+                'key' => self::FORMATO_IPH_ANTERIOR,
+                'label' => 'Formato anterior',
+                'query_param' => 'formato',
+                'query_value' => self::FORMATO_IPH_ANTERIOR,
+                'default' => false,
+            ],
+        ];
     }
 
     private function fundamentosCorralonPayload()
@@ -1629,6 +1778,7 @@ class ConduceLegalidadController extends Controller
             'hora_cierre' => $operativo->hora_cierre,
             'municipio' => $operativo->municipio,
             'lugar' => $operativo->lugar,
+            'colonia' => $operativo->colonia,
             'lat' => $operativo->lat === null ? null : (float) $operativo->lat,
             'lng' => $operativo->lng === null ? null : (float) $operativo->lng,
             'coordenadas_texto' => $operativo->coordenadas_texto,
@@ -1775,8 +1925,21 @@ class ConduceLegalidadController extends Controller
             'telefono' => $persona->telefono,
             'domicilio' => $persona->domicilio,
             'sexo' => $persona->sexo,
+            'nacionalidad' => $persona->nacionalidad,
             'ocupacion' => $persona->ocupacion,
             'edad' => $persona->edad,
+            'edad_aproximada' => $persona->edad_aproximada,
+            'complexion' => $persona->complexion,
+            'estatura' => $persona->estatura,
+            'tez' => $persona->tez,
+            'cabello' => $persona->cabello,
+            'prenda_superior' => $persona->prenda_superior,
+            'color_superior' => $persona->color_superior,
+            'prenda_inferior' => $persona->prenda_inferior,
+            'color_inferior' => $persona->color_inferior,
+            'calzado' => $persona->calzado,
+            'color_calzado' => $persona->color_calzado,
+            'rasgos_visibles' => $persona->rasgos_visibles ?: [],
             'tipo_licencia' => $persona->tipo_licencia,
             'estado_licencia' => $persona->estado_licencia,
             'numero_licencia' => $persona->numero_licencia,
@@ -2121,6 +2284,23 @@ class ConduceLegalidadController extends Controller
     {
         return (int) ($user->unidad_id ?? 0) === self::UNIDAD_VIALIDADES_URBANAS
             || optional($user->unidad)->slug === 'vialidades-urbanas';
+    }
+
+    private function nullableStringArray($value): ?array
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $items = [];
+        foreach ($value as $item) {
+            $text = $this->nullableString($item);
+            if ($text !== null && !in_array($text, $items, true)) {
+                $items[] = $text;
+            }
+        }
+
+        return empty($items) ? null : $items;
     }
 
     private function nullableString($value): ?string

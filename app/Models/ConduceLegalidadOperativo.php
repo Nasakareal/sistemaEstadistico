@@ -19,6 +19,7 @@ class ConduceLegalidadOperativo extends Model
         'hora_cierre',
         'municipio',
         'lugar',
+        'colonia',
         'lat',
         'lng',
         'coordenadas_texto',

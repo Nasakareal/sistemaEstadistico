@@ -17,6 +17,7 @@ class ConduceLegalidadPersona extends Model
         'telefono',
         'domicilio',
         'sexo',
+        'nacionalidad',
         'ocupacion',
         'edad',
         'tipo_licencia',
@@ -28,6 +29,18 @@ class ConduceLegalidadPersona extends Model
         'licencia_punto_infraccion_id',
         'infraccion_codigo',
         'fundamento_legal',
+        'edad_aproximada',
+        'complexion',
+        'estatura',
+        'tez',
+        'cabello',
+        'prenda_superior',
+        'color_superior',
+        'prenda_inferior',
+        'color_inferior',
+        'calzado',
+        'color_calzado',
+        'rasgos_visibles',
         'observaciones',
     ];
 
@@ -35,6 +48,7 @@ class ConduceLegalidadPersona extends Model
         'edad' => 'integer',
         'vigencia_licencia' => 'date',
         'permanente' => 'boolean',
+        'rasgos_visibles' => 'array',
     ];
 
     public function captura()

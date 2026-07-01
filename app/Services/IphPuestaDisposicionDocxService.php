@@ -70,6 +70,496 @@ class IphPuestaDisposicionDocxService
         return [$path, "iph_puesta_disposicion_{$folio}.docx"];
     }
 
+    public function generarConduceLegalidadBarandillas(Hechos $hecho, array $mapeo): array
+    {
+        Settings::setOutputEscapingEnabled(true);
+
+        $data = $this->prepararDatos($hecho, $mapeo);
+        $data['personas'] = $this->arrayBarandillas($mapeo['personas'] ?? []);
+        $data['conductores'] = $this->arrayBarandillas($mapeo['conductores_hecho'] ?? []);
+        $data['vehiculos_puesta'] = $this->arrayBarandillas($mapeo['vehiculos'] ?? []);
+
+        $template = $this->templateBarandillasConduce($data);
+
+        if (!File::exists($template)) {
+            throw new \RuntimeException('No se encontró la plantilla IPH de Barandillas: ' . basename($template));
+        }
+
+        $directorio = storage_path('app/temp');
+        File::ensureDirectoryExists($directorio);
+
+        $path = $directorio . DIRECTORY_SEPARATOR . uniqid('iph_barandillas_conduce_', true) . '.docx';
+
+        if (!File::copy($template, $path)) {
+            throw new \RuntimeException('No se pudo preparar la plantilla IPH de Barandillas.');
+        }
+
+        $this->reemplazarVariablesDocx($path, $this->valoresBarandillasConduce($data));
+        $this->normalizarImagenesDocx($path);
+
+        $folio = Str::slug((string) ($hecho->folio_c5i ?: $hecho->id), '_') ?: (string) $hecho->id;
+        $tipo = $this->personaBarandillas($data) ? 'persona_vehiculo' : 'vehiculo';
+
+        return [$path, "iph_barandillas_conduce_{$tipo}_{$folio}.docx"];
+    }
+
+    private function templateBarandillasConduce(array $data): string
+    {
+        return public_path($this->personaBarandillas($data)
+            ? 'IPH_BARANDILLAS_PERSONA.docx'
+            : 'IPH_BARANDILLAS_VEHICULO.docx');
+    }
+
+    private function valoresBarandillasConduce(array $data): array
+    {
+        $persona = $this->personaBarandillas($data) ?: ['nombre_completo' => $data['nombre_policia'] ?? ''];
+        $vehiculo = $this->vehiculoBarandillas($data) ?: [];
+        $nombrePartes = $this->partesNombreBarandillas($persona['nombre_completo'] ?? ($persona['nombre'] ?? ''));
+        $fecha = $this->fechaBarandillas($data['fecha_hecho'] ?? null);
+        $hora = $this->horaBarandillas($data['hora_hecho'] ?? null);
+        $ubicacion = $data['ubicacion'] ?? [];
+        $lugar = $this->clean($ubicacion['calle'] ?? null) ?: $this->clean($data['lugar'] ?? null);
+        $colonia = $this->clean($ubicacion['colonia'] ?? null) ?: $this->clean($data['colonia_parte'] ?? null);
+        $cp = $this->clean($ubicacion['codigo_postal'] ?? ($ubicacion['cp'] ?? null));
+        $nacionalidad = $this->clean($persona['nacionalidad'] ?? null);
+        $esMexicana = $this->esNacionalidadMexicana($nacionalidad);
+        $esExtranjera = $this->esNacionalidadExtranjera($nacionalidad);
+        $placas = $this->clean($vehiculo['placas'] ?? null);
+        $placaExtranjera = $this->placaExtranjeraBarandillas($vehiculo['estado_placas'] ?? null);
+        $servicioPublico = $this->servicioPublicoBarandillas($vehiculo['tipo_servicio'] ?? null);
+        $grua = $this->valorGrua($vehiculo['grua_nombre'] ?? null)
+            ?: $this->valorGrua($vehiculo['grua'] ?? null)
+            ?: $this->valorGrua($vehiculo['corralon'] ?? null);
+
+        return [
+            '$descripciónfisica' => $this->descripcionFisicaBarandillas($persona),
+            '$apellidoPaterno' => $nombrePartes['apellido_paterno'],
+            '$apellidoMaterno' => $nombrePartes['apellido_materno'],
+            '$apellido' => trim($nombrePartes['apellido_paterno'] . ' ' . $nombrePartes['apellido_materno']),
+            '$narrativa' => $this->clean($data['narrativa_operativa'] ?? null) ?: $this->clean($data['dinamica_hecho'] ?? null),
+            '$nombre' => $nombrePartes['nombre'],
+            '$unidad' => $this->clean($data['hecho']['unidad_org_nombre'] ?? null) ?: $this->clean($data['puesta']['unidad_nombre'] ?? null) ?: $this->clean($data['oficina'] ?? null),
+            '$lugar (lugar)' => $lugar,
+            '$lugar' => $lugar,
+            '$colonia' => $colonia,
+            '$lat' => $this->clean($ubicacion['lat'] ?? null),
+            '$lng' => $this->clean($ubicacion['lng'] ?? null),
+            '$cp' => $cp,
+            '$alias' => $this->clean($persona['alias'] ?? null),
+            '$sf' => $this->marcaSexoBarandillas($persona['sexo'] ?? null, 'femenino'),
+            '$sm' => $this->marcaSexoBarandillas($persona['sexo'] ?? null, 'masculino'),
+            '$nac' => $esMexicana ? 'X' : '',
+            '$ext' => $esExtranjera ? 'X' : '',
+            '$extcu' => $esExtranjera ? $nacionalidad : '',
+            '$marca' => $this->clean($vehiculo['marca'] ?? null),
+            '$linea' => $this->clean($vehiculo['linea'] ?? ($vehiculo['submarca'] ?? null)),
+            '$modelo' => $this->clean($vehiculo['modelo'] ?? null),
+            '$color' => $this->clean($vehiculo['color'] ?? null),
+            '$placas' => $placas,
+            '$serie' => $this->clean($vehiculo['serie'] ?? null),
+            '$upa' => ($placas && !$servicioPublico) ? 'X' : '',
+            '$upu' => ($placas && $servicioPublico) ? 'X' : '',
+            '$prona' => ($placas && !$placaExtranjera) ? 'X' : '',
+            '$proex' => ($placas && $placaExtranjera) ? 'X' : '',
+            '$grua' => $grua ?: '',
+            '$d' => $fecha['dia'],
+            '$me' => $fecha['mes'],
+            '$m' => '',
+            '$ye' => $fecha['anio'],
+            '$ho' => $hora['hora'],
+            '$min' => $hora['minuto'],
+        ];
+    }
+
+    private function reemplazarVariablesDocx(string $path, array $values): void
+    {
+        $zip = new \ZipArchive();
+
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('No se pudo abrir el DOCX generado para reemplazar variables.');
+        }
+
+        uksort($values, fn ($a, $b) => mb_strlen($b, 'UTF-8') <=> mb_strlen($a, 'UTF-8'));
+        $mergePlaceholders = array_values(array_filter(array_keys($values), fn ($key) => $key !== '$m'));
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+
+            if (!$name || !preg_match('/^word\/.+\.xml$/', $name)) {
+                continue;
+            }
+
+            $xml = $zip->getFromIndex($i);
+
+            if ($xml === false || strpos($xml, '$') === false) {
+                continue;
+            }
+
+            $xml = $this->unirVariablesPartidasDocx($xml, $mergePlaceholders);
+
+            foreach ($values as $placeholder => $value) {
+                $xml = $this->reemplazarVariableDocx($xml, $placeholder, $value);
+            }
+
+            $xml = preg_replace('/\$[A-Za-zÁÉÍÓÚÜÑáéíóúüñ_][A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_]*/u', '', $xml) ?? $xml;
+            $zip->addFromString($name, $xml);
+        }
+
+        $zip->close();
+    }
+
+    private function reemplazarVariableDocx(string $xml, string $placeholder, $value): string
+    {
+        if ($this->debeRepartirVariableDocx($xml, $placeholder, $value)) {
+            return $this->reemplazarVariablePorCaracteresDocx($xml, $placeholder, $value);
+        }
+
+        return str_replace($placeholder, $this->escapeDocxText($value), $xml);
+    }
+
+    private function debeRepartirVariableDocx(string $xml, string $placeholder, $value): bool
+    {
+        if (!in_array($placeholder, ['$d', '$me', '$ye', '$ho', '$min'], true)) {
+            return false;
+        }
+
+        $text = $this->textoSecuencialDocx($value);
+
+        return mb_strlen($text, 'UTF-8') > 1
+            && substr_count($xml, $placeholder) > 1;
+    }
+
+    private function reemplazarVariablePorCaracteresDocx(string $xml, string $placeholder, $value): string
+    {
+        $chars = preg_split('//u', $this->textoSecuencialDocx($value), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $total = count($chars);
+
+        if ($total <= 1) {
+            return str_replace($placeholder, $this->escapeDocxText($value), $xml);
+        }
+
+        $index = 0;
+        $pattern = '/' . preg_quote($placeholder, '/') . '/u';
+
+        return preg_replace_callback($pattern, function () use (&$index, $chars, $total) {
+            $char = $chars[$index % $total] ?? '';
+            $index++;
+
+            return $this->escapeDocxText($char);
+        }, $xml) ?? $xml;
+    }
+
+    private function textoSecuencialDocx($value): string
+    {
+        return trim(preg_replace('/\s+/u', '', (string) $value) ?? '');
+    }
+
+    private function unirVariablesPartidasDocx(string $xml, array $placeholders): string
+    {
+        preg_match_all('/<w:t(?:\s[^>]*)?>(.*?)<\/w:t>/su', $xml, $matches, PREG_OFFSET_CAPTURE);
+
+        if (empty($matches[0])) {
+            return $xml;
+        }
+
+        usort($placeholders, fn ($a, $b) => mb_strlen($b, 'UTF-8') <=> mb_strlen($a, 'UTF-8'));
+        $nodes = [];
+
+        foreach ($matches[0] as $index => $match) {
+            $nodes[] = [
+                'xml' => $match[0],
+                'offset' => $match[1],
+                'text' => html_entity_decode($matches[1][$index][0], ENT_QUOTES | ENT_XML1, 'UTF-8'),
+            ];
+        }
+
+        $replacements = [];
+        $count = count($nodes);
+
+        for ($i = 0; $i < $count; $i++) {
+            if (isset($replacements[$i]) || strpos($nodes[$i]['text'], '$') === false) {
+                continue;
+            }
+
+            $combined = '';
+            $indices = [];
+
+            for ($j = $i; $j < min($count, $i + 6); $j++) {
+                $combined .= $nodes[$j]['text'];
+                $indices[] = $j;
+
+                if (in_array($combined, $placeholders, true) && count($indices) > 1) {
+                    $replacements[$indices[0]] = $combined;
+
+                    foreach (array_slice($indices, 1) as $idx) {
+                        $replacements[$idx] = '';
+                    }
+
+                    break;
+                }
+
+                $isPrefix = false;
+
+                foreach ($placeholders as $placeholder) {
+                    if (strpos($placeholder, $combined) === 0) {
+                        $isPrefix = true;
+                        break;
+                    }
+                }
+
+                if (!$isPrefix) {
+                    break;
+                }
+            }
+        }
+
+        if (empty($replacements)) {
+            return $xml;
+        }
+
+        $output = '';
+        $position = 0;
+
+        foreach ($nodes as $index => $node) {
+            $output .= substr($xml, $position, $node['offset'] - $position);
+            $output .= array_key_exists($index, $replacements)
+                ? $this->escribirNodoTextoDocx($node['xml'], $replacements[$index])
+                : $node['xml'];
+            $position = $node['offset'] + strlen($node['xml']);
+        }
+
+        return $output . substr($xml, $position);
+    }
+
+    private function escribirNodoTextoDocx(string $nodeXml, string $text): string
+    {
+        return preg_replace_callback(
+            '/^(<w:t(?:\s[^>]*)?>).*?(<\/w:t>)$/su',
+            fn ($match) => $match[1] . $text . $match[2],
+            $nodeXml,
+            1
+        ) ?? $nodeXml;
+    }
+
+    private function escapeDocxText($value): string
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', (string) $value) ?? '');
+
+        return htmlspecialchars($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    }
+
+    private function personaBarandillas(array $data): ?array
+    {
+        foreach ([$data['personas'] ?? [], $data['conductores'] ?? []] as $personas) {
+            foreach ($personas as $persona) {
+                if (is_array($persona) && $this->clean($persona['nombre_completo'] ?? ($persona['nombre'] ?? null))) {
+                    return $persona;
+                }
+            }
+        }
+
+        foreach ($data['vehiculos'] ?? [] as $vehiculo) {
+            foreach (($vehiculo['conductores'] ?? []) as $persona) {
+                if (is_array($persona) && $this->clean($persona['nombre_completo'] ?? ($persona['nombre'] ?? null))) {
+                    return $persona;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function vehiculoBarandillas(array $data): ?array
+    {
+        foreach ([$data['vehiculos'] ?? [], $data['vehiculos_puesta'] ?? []] as $vehiculos) {
+            foreach ($vehiculos as $vehiculo) {
+                if (is_array($vehiculo)) {
+                    return $vehiculo;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function partesNombreBarandillas($nombre): array
+    {
+        $partes = preg_split('/\s+/u', trim((string) $nombre)) ?: [];
+        $partes = array_values(array_filter($partes, fn ($parte) => $parte !== ''));
+
+        if (count($partes) >= 3) {
+            $apellidoMaterno = array_pop($partes);
+            $apellidoPaterno = array_pop($partes);
+
+            return [
+                'nombre' => implode(' ', $partes),
+                'apellido_paterno' => $apellidoPaterno,
+                'apellido_materno' => $apellidoMaterno,
+            ];
+        }
+
+        if (count($partes) === 2) {
+            return [
+                'nombre' => $partes[0],
+                'apellido_paterno' => $partes[1],
+                'apellido_materno' => '',
+            ];
+        }
+
+        return [
+            'nombre' => $partes[0] ?? '',
+            'apellido_paterno' => '',
+            'apellido_materno' => '',
+        ];
+    }
+
+    private function descripcionFisicaBarandillas(array $persona): string
+    {
+        $edad = $this->clean($persona['edad_aproximada'] ?? null) ?: $this->clean($persona['edad'] ?? null);
+        $mediaFiliacion = [];
+        $vestimenta = [];
+        $rasgos = $this->listaTextoBarandillas($persona['rasgos_visibles'] ?? []);
+
+        foreach ([
+            'complexion' => 'complexión',
+            'estatura' => 'estatura',
+            'tez' => 'tez',
+            'cabello' => 'cabello',
+        ] as $key => $label) {
+            if ($value = $this->clean($persona[$key] ?? null)) {
+                $mediaFiliacion[] = $label . ' ' . $value;
+            }
+        }
+
+        foreach ([
+            ['prenda_superior', 'color_superior', 'parte superior'],
+            ['prenda_inferior', 'color_inferior', 'parte inferior'],
+            ['calzado', 'color_calzado', 'calzado'],
+        ] as [$prendaKey, $colorKey, $label]) {
+            $prenda = $this->clean($persona[$prendaKey] ?? null);
+            $color = $this->clean($persona[$colorKey] ?? null);
+
+            if ($prenda || $color) {
+                $vestimenta[] = trim($label . ': ' . trim($prenda . ($color ? ' color ' . $color : '')));
+            }
+        }
+
+        $lineas = [];
+
+        if ($edad) {
+            $lineas[] = 'Edad aproximada: ' . (is_numeric($edad) ? $edad . ' años' : $edad);
+        }
+
+        if ($mediaFiliacion) {
+            $lineas[] = 'Media filiación: ' . implode(', ', $mediaFiliacion);
+        }
+
+        if ($vestimenta) {
+            $lineas[] = 'Vestimenta: ' . implode('; ', $vestimenta);
+        }
+
+        if ($rasgos) {
+            $lineas[] = 'Rasgos visibles: ' . implode(', ', $rasgos);
+        }
+
+        return implode('. ', $lineas) ?: $this->clean($persona['observaciones'] ?? null);
+    }
+
+    private function listaTextoBarandillas($value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : preg_split('/[,;]+/u', $value);
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(fn ($item) => $this->clean($item), $value)));
+    }
+
+    private function marcaSexoBarandillas($sexo, string $expected): string
+    {
+        $clave = $this->normalizarClaveIph($sexo);
+
+        if ($expected === 'femenino') {
+            return in_array($clave, ['F', 'FEMENINO', 'MUJER'], true) ? 'X' : '';
+        }
+
+        if ($expected === 'masculino') {
+            return in_array($clave, ['M', 'MASCULINO', 'HOMBRE'], true) ? 'X' : '';
+        }
+
+        return '';
+    }
+
+    private function esNacionalidadMexicana(?string $nacionalidad): bool
+    {
+        $clave = $this->normalizarClaveIph($nacionalidad);
+
+        return $clave !== '' && (strpos($clave, 'MEXICO') !== false || strpos($clave, 'MEXIC') !== false);
+    }
+
+    private function esNacionalidadExtranjera(?string $nacionalidad): bool
+    {
+        $clave = $this->normalizarClaveIph($nacionalidad);
+
+        return $clave !== ''
+            && !$this->esNacionalidadMexicana($nacionalidad)
+            && !in_array($clave, ['NOAPRECIABLE', 'SINDATO', 'NOESPECIFICADO'], true);
+    }
+
+    private function placaExtranjeraBarandillas($estadoPlacas): bool
+    {
+        $clave = $this->normalizarClaveIph($estadoPlacas);
+
+        foreach (['EXTRANJER', 'USA', 'EUA', 'EEUU', 'ESTADOSUNIDOS', 'FOREIGN'] as $fragmento) {
+            if (strpos($clave, $fragmento) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function servicioPublicoBarandillas($tipoServicio): bool
+    {
+        $clave = $this->normalizarClaveIph($tipoServicio);
+
+        return strpos($clave, 'PUBLIC') !== false || strpos($clave, 'TRANSPORTEPUBLICO') !== false;
+    }
+
+    private function fechaBarandillas($fecha): array
+    {
+        try {
+            $carbon = $fecha ? Carbon::parse($fecha, 'America/Mexico_City') : null;
+        } catch (\Throwable $e) {
+            $carbon = null;
+        }
+
+        return [
+            'dia' => $carbon ? $carbon->format('d') : '',
+            'mes' => $carbon ? $carbon->format('m') : '',
+            'anio' => $carbon ? $carbon->format('Y') : '',
+        ];
+    }
+
+    private function horaBarandillas($hora): array
+    {
+        $hora = substr(trim((string) $hora), 0, 5);
+        $partes = preg_match('/^(\d{1,2}):(\d{2})$/', $hora, $match) ? $match : null;
+
+        return [
+            'hora' => $partes ? str_pad($partes[1], 2, '0', STR_PAD_LEFT) : '',
+            'minuto' => $partes ? $partes[2] : '',
+        ];
+    }
+
+    private function arrayBarandillas($value): array
+    {
+        return is_array($value) ? array_values($value) : [];
+    }
     private function prepararDatos(Hechos $hecho, array $mapeo): array
     {
         $hechoIph = $mapeo['hecho'] ?? [];

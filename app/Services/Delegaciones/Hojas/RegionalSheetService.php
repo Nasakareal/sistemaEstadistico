@@ -1033,7 +1033,9 @@ class RegionalSheetService
             'OTRAS (Especificar en las novedades relevantes)',
         ];
 
-        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 10);
+        $datos = $this->agruparCampanasDelegaciones(
+            $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 10)
+        );
 
         $sheet->mergeCells('A67:A70');
         $sheet->mergeCells('B67:B70');
@@ -1091,6 +1093,52 @@ class RegionalSheetService
         ]);
 
         $sheet->getStyle('D67:I70')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    protected function agruparCampanasDelegaciones(array $datos): array
+    {
+        $aliases = [
+            'CONDUCE SIN ALCOHOL' => 'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'USO DE CASCO' => 'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'NO A LA MOTO SARDINA' => 'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'RESPETA LOS LÍMITES DE VELOCIDAD' => 'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'UTILIZA EL CINTURÓN DE SEGURIDAD' => 'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'VIOLENCIA CONTRA LA MUJER Y DE GÉNERO' => 'CONCIENTIZACIÓN Y PREVENCIÓN',
+            'VACACIONES DE SEMANA SANTA' => 'ESTACIONALES (SEMANA SANTA, NAVIDAD ETC.)',
+            'VACACIONES DE VERANO' => 'ESTACIONALES (SEMANA SANTA, NAVIDAD ETC.)',
+            'VACACIONES DECEMBRINAS' => 'ESTACIONALES (SEMANA SANTA, NAVIDAD ETC.)',
+            'OTRAS CAMPAÑAS (Especificar en observaciones)' => 'OTRAS (Especificar en las novedades relevantes)',
+        ];
+
+        foreach ($aliases as $origen => $destino) {
+            if (!isset($datos[$origen])) {
+                continue;
+            }
+
+            if (!isset($datos[$destino])) {
+                $datos[$destino] = $this->resumenActividadVacio();
+            }
+
+            foreach (array_keys($this->resumenActividadVacio()) as $campo) {
+                $datos[$destino][$campo] += $datos[$origen][$campo] ?? 0;
+            }
+
+            unset($datos[$origen]);
+        }
+
+        return $datos;
+    }
+
+    protected function resumenActividadVacio(): array
+    {
+        return [
+            'cantidad' => 0,
+            'estado_fuerza' => 0,
+            'unidades' => 0,
+            'kilometros' => 0,
+            'personas' => 0,
+            'recomendaciones' => 0,
+        ];
     }
 
     protected function llenarProximidadSocial($sheet, string $fecha, array $idsDelegaciones): void

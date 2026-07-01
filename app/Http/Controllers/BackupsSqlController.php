@@ -401,7 +401,11 @@ class BackupsSqlController extends Controller
     {
         $delegacion = $registro->delegacion ?? null;
 
-        return optional(optional($delegacion)->padre)->nombre;
+        if (!$delegacion) {
+            return null;
+        }
+
+        return optional($delegacion->padre)->nombre ?: $delegacion->nombre;
     }
 
     private function contarValoresTexto(?string $texto): int

@@ -11,6 +11,7 @@ use App\Models\ConduceLegalidadVehiculo;
 use App\Models\Grua;
 use App\Models\Hechos;
 use App\Models\LicenciaPuntoInfraccion;
+use App\Services\CodigoPostalGeoService;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\WhatsAppCloudService;
@@ -30,6 +31,8 @@ class ConduceLegalidadController extends Controller
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
     private const FORMATO_IPH_BARANDILLAS = 'barandillas';
     private const FORMATO_IPH_ANTERIOR = 'anterior';
+    private const TICKET_SUPERVISOR_NOMBRE = 'Luis Eduardo Lugo Ordorica';
+    private const TICKET_SUPERVISOR_CARGO = 'Subdirector de Vialidades Urbanas';
     private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
     private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
     private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
@@ -130,7 +133,9 @@ class ConduceLegalidadController extends Controller
                 $sub->where('nombre', 'like', "%{$buscar}%")
                     ->orWhere('municipio', 'like', "%{$buscar}%")
                     ->orWhere('lugar', 'like', "%{$buscar}%")
-                    ->orWhere('colonia', 'like', "%{$buscar}%");
+                    ->orWhere('numero', 'like', "%{$buscar}%")
+                    ->orWhere('colonia', 'like', "%{$buscar}%")
+                    ->orWhere('codigo_postal', 'like', "%{$buscar}%");
             });
         }
 
@@ -159,6 +164,7 @@ class ConduceLegalidadController extends Controller
 
         $validated = $request->validate($this->operativoRules());
         $now = now();
+        $codigoPostal = $this->resolverCodigoPostalOperativo($validated['lat'] ?? null, $validated['lng'] ?? null);
 
         $operativo = ConduceLegalidadOperativo::create([
             'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
@@ -167,7 +173,9 @@ class ConduceLegalidadController extends Controller
             'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
             'municipio' => $this->nullableString($validated['municipio'] ?? null),
             'lugar' => $this->nullableString($validated['lugar'] ?? null),
+            'numero' => $this->nullableString($validated['numero'] ?? null),
             'colonia' => $this->nullableString($validated['colonia'] ?? null),
+            'codigo_postal' => $codigoPostal,
             'lat' => $validated['lat'] ?? null,
             'lng' => $validated['lng'] ?? null,
             'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
@@ -214,6 +222,14 @@ class ConduceLegalidadController extends Controller
 
         $validated = $request->validate($this->operativoRules($operativo));
         $oldEstado = $operativo->estado;
+        $latCodigoPostal = array_key_exists('lat', $validated) ? $validated['lat'] : $operativo->lat;
+        $lngCodigoPostal = array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng;
+        $actualizarCodigoPostal = array_key_exists('lat', $validated)
+            || array_key_exists('lng', $validated)
+            || empty($operativo->codigo_postal);
+        $codigoPostal = $actualizarCodigoPostal
+            ? $this->resolverCodigoPostalOperativo($latCodigoPostal, $lngCodigoPostal)
+            : $operativo->codigo_postal;
 
         $operativo->fill([
             'nombre' => self::NOMBRE_OPERATIVO,
@@ -222,7 +238,9 @@ class ConduceLegalidadController extends Controller
             'hora_cierre' => array_key_exists('hora_cierre', $validated) ? $validated['hora_cierre'] : $operativo->hora_cierre,
             'municipio' => array_key_exists('municipio', $validated) ? $this->nullableString($validated['municipio']) : $operativo->municipio,
             'lugar' => array_key_exists('lugar', $validated) ? $this->nullableString($validated['lugar']) : $operativo->lugar,
+            'numero' => array_key_exists('numero', $validated) ? $this->nullableString($validated['numero']) : $operativo->numero,
             'colonia' => array_key_exists('colonia', $validated) ? $this->nullableString($validated['colonia']) : $operativo->colonia,
+            'codigo_postal' => $codigoPostal,
             'lat' => array_key_exists('lat', $validated) ? $validated['lat'] : $operativo->lat,
             'lng' => array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng,
             'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $operativo->coordenadas_texto,
@@ -623,6 +641,11 @@ class ConduceLegalidadController extends Controller
     private function hechoTemporalIph(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): Hechos
     {
         $folio = $this->folioCaptura($operativo, $captura);
+        $lugar = $this->lugarConNumero(
+            $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
+            $operativo->numero
+        );
+        $codigoPostal = $this->codigoPostalOperativo($operativo);
         $hecho = new Hechos();
         $hecho->forceFill([
             'id' => $captura->id,
@@ -631,9 +654,10 @@ class ConduceLegalidadController extends Controller
             'hora' => $captura->hora ?: $operativo->hora_inicio,
             'tipo_hecho' => 'RETIRO DE VEHICULO DERIVADO DE OPERATIVO CONDUCE CON LEGALIDAD',
             'municipio' => $captura->municipio ?: $operativo->municipio,
-            'calle' => $captura->lugar ?: $operativo->lugar,
+            'calle' => $lugar,
             'colonia' => $operativo->colonia,
-            'ubicacion_formateada' => $captura->lugar ?: $operativo->lugar,
+            'codigo_postal' => $codigoPostal,
+            'ubicacion_formateada' => $lugar,
             'lat' => $captura->lat ?: $operativo->lat,
             'lng' => $captura->lng ?: $operativo->lng,
         ]);
@@ -646,10 +670,18 @@ class ConduceLegalidadController extends Controller
         $folio = $this->folioCaptura($operativo, $captura);
         $fecha = optional($captura->fecha ?: $operativo->fecha)->toDateString();
         $hora = $this->horaCorta($captura->hora ?: $operativo->hora_inicio);
-        $lugar = $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar);
+        $lugar = $this->lugarConNumero(
+            $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
+            $operativo->numero
+        );
         $municipio = $this->nullableString($captura->municipio) ?: $this->nullableString($operativo->municipio) ?: 'Morelia';
         $colonia = $this->nullableString($operativo->colonia);
-        $ubicacionFormateada = $colonia ? $lugar . ', Col. ' . $colonia : $lugar;
+        $codigoPostal = $this->codigoPostalOperativo($operativo);
+        $ubicacionFormateada = implode(', ', array_filter([
+            $lugar,
+            $colonia ? 'Col. ' . $colonia : null,
+            $codigoPostal ? 'CP ' . $codigoPostal : null,
+        ]));
         $unidadNombre = $this->nullableString(optional($captura->unidad)->nombre)
             ?: $this->nullableString(optional($captura->creador)->unidad->nombre ?? null)
             ?: 'Coordinación del Agrupamiento de Seguridad Vial';
@@ -698,7 +730,7 @@ class ConduceLegalidadController extends Controller
                     'colonia' => $colonia ?: '',
                     'entre_calles' => '',
                     'municipio' => $municipio,
-                    'codigo_postal' => '',
+                    'codigo_postal' => $codigoPostal ?: '',
                     'lat' => $captura->lat ?: $operativo->lat,
                     'lng' => $captura->lng ?: $operativo->lng,
                     'ubicacion_formateada' => $ubicacionFormateada,
@@ -894,7 +926,10 @@ class ConduceLegalidadController extends Controller
             ->filter()
             ->implode('; ');
         $personas = $captura->personas->pluck('nombre')->filter()->implode(', ');
-        $lugar = $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar) ?: 'el punto del operativo';
+        $lugar = $this->lugarConNumero(
+            $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
+            $operativo->numero
+        ) ?: 'el punto del operativo';
         $capturada = $this->nullableString($captura->narrativa);
 
         $lineas = [
@@ -1014,6 +1049,8 @@ class ConduceLegalidadController extends Controller
 
     private function tarjetaTotalesOperativo(ConduceLegalidadOperativo $operativo, $capturas, $user): string
     {
+        $puntoOperativo = $this->lugarConNumero($operativo->lugar, $operativo->numero);
+        $codigoPostal = $this->codigoPostalOperativo($operativo);
         $pairs = [];
         foreach ($capturas as $captura) {
             foreach ($captura->vehiculos as $vehiculo) {
@@ -1031,8 +1068,11 @@ class ConduceLegalidadController extends Controller
         $lines[] = self::NOMBRE_OPERATIVO;
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
-        $lines[] = 'PUNTO: ' . $this->upper($operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'PUNTO: ' . $this->upper($puntoOperativo ?: 'SIN DATO');
         $lines[] = 'COLONIA: ' . $this->upper($operativo->colonia ?: 'SIN DATO');
+        if ($codigoPostal !== null) {
+            $lines[] = 'CODIGO POSTAL: ' . $codigoPostal;
+        }
         $lines[] = 'MUNICIPIO: ' . $this->upper($operativo->municipio ?: 'SIN DATO');
         $lines[] = 'FECHA: ' . $this->fechaHoraOperativo($operativo) . ' Hrs.';
         $lines[] = 'ESTADO: ' . $this->upper($operativo->estado ?: 'SIN DATO');
@@ -1062,6 +1102,7 @@ class ConduceLegalidadController extends Controller
 
         $lines[] = '';
         $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto((int) ($user->unidad_id ?? 0)));
+        $this->appendSupervisorTicket($lines);
 
         return implode("\n", $lines);
     }
@@ -1074,6 +1115,12 @@ class ConduceLegalidadController extends Controller
     {
         $unidadId = (int) ($captura->unidad_id ?: ($user->unidad_id ?? 0));
         $delegacionId = $captura->delegacion_id ?: ($user->delegacion_id ?? null);
+        $puntoOperativo = $this->lugarConNumero($operativo->lugar, $operativo->numero);
+        $lugarCaptura = $this->lugarConNumero(
+            $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
+            $operativo->numero
+        );
+        $codigoPostal = $this->codigoPostalOperativo($operativo);
 
         $lines = $this->tarjetaHeaderLines($unidadId, $delegacionId);
         $lines[] = 'TEMA: CAPTURA INDIVIDUAL';
@@ -1081,9 +1128,12 @@ class ConduceLegalidadController extends Controller
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
         $lines[] = 'CAPTURA ID: ' . $captura->id;
-        $lines[] = 'PUNTO OPERATIVO: ' . $this->upper($operativo->lugar ?: 'SIN DATO');
-        $lines[] = 'LUGAR CAPTURA: ' . $this->upper($captura->lugar ?: $operativo->lugar ?: 'SIN DATO');
+        $lines[] = 'PUNTO OPERATIVO: ' . $this->upper($puntoOperativo ?: 'SIN DATO');
+        $lines[] = 'LUGAR CAPTURA: ' . $this->upper($lugarCaptura ?: 'SIN DATO');
         $lines[] = 'COLONIA: ' . $this->upper($operativo->colonia ?: 'SIN DATO');
+        if ($codigoPostal !== null) {
+            $lines[] = 'CODIGO POSTAL: ' . $codigoPostal;
+        }
         $lines[] = 'MUNICIPIO: ' . $this->upper($captura->municipio ?: $operativo->municipio ?: 'SIN DATO');
         $lines[] = 'FECHA: ' . $this->fechaHoraCaptura($captura) . ' Hrs.';
         $lines[] = 'USUARIO: ' . $this->upper($this->nombreUsuario($captura->creador));
@@ -1125,8 +1175,16 @@ class ConduceLegalidadController extends Controller
 
         $lines[] = '';
         $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto($unidadId));
+        $this->appendSupervisorTicket($lines);
 
         return implode("\n", $lines);
+    }
+
+    private function appendSupervisorTicket(array &$lines): void
+    {
+        $lines[] = '';
+        $lines[] = 'Supervisó: ' . self::TICKET_SUPERVISOR_NOMBRE;
+        $lines[] = self::TICKET_SUPERVISOR_CARGO;
     }
 
     private function tarjetaHeaderLines(int $unidadId, $delegacionId = null): array
@@ -1342,6 +1400,7 @@ class ConduceLegalidadController extends Controller
             'hora_cierre' => ['nullable', 'date_format:H:i'],
             'municipio' => ['nullable', 'string', 'max:120'],
             'lugar' => array_merge($locationRequired, ['string', 'max:255']),
+            'numero' => ['nullable', 'string', 'max:40'],
             'colonia' => array_merge($locationRequired, ['string', 'max:120']),
             'lat' => array_merge($locationRequired, ['numeric', 'between:-90,90']),
             'lng' => array_merge($locationRequired, ['numeric', 'between:-180,180']),
@@ -1778,7 +1837,9 @@ class ConduceLegalidadController extends Controller
             'hora_cierre' => $operativo->hora_cierre,
             'municipio' => $operativo->municipio,
             'lugar' => $operativo->lugar,
+            'numero' => $operativo->numero,
             'colonia' => $operativo->colonia,
+            'codigo_postal' => $operativo->codigo_postal,
             'lat' => $operativo->lat === null ? null : (float) $operativo->lat,
             'lng' => $operativo->lng === null ? null : (float) $operativo->lng,
             'coordenadas_texto' => $operativo->coordenadas_texto,
@@ -2284,6 +2345,57 @@ class ConduceLegalidadController extends Controller
     {
         return (int) ($user->unidad_id ?? 0) === self::UNIDAD_VIALIDADES_URBANAS
             || optional($user->unidad)->slug === 'vialidades-urbanas';
+    }
+
+    private function lugarConNumero($lugar, $numero): ?string
+    {
+        $lugar = $this->nullableString($lugar);
+        $numero = $this->nullableString($numero);
+
+        if ($lugar === null) {
+            return $numero;
+        }
+
+        if ($numero === null) {
+            return $lugar;
+        }
+
+        return $lugar . ' ' . $numero;
+    }
+
+    private function resolverCodigoPostalOperativo($lat, $lng): ?string
+    {
+        return $this->nullableString(
+            app(CodigoPostalGeoService::class)->resolver($lat, $lng)
+        );
+    }
+
+    private function codigoPostalOperativo(ConduceLegalidadOperativo $operativo): ?string
+    {
+        $codigoPostal = $this->nullableString($operativo->codigo_postal ?? null);
+
+        if ($codigoPostal !== null) {
+            return $codigoPostal;
+        }
+
+        $codigoPostal = $this->resolverCodigoPostalOperativo($operativo->lat, $operativo->lng);
+
+        if ($codigoPostal === null) {
+            return null;
+        }
+
+        if ($operativo->exists) {
+            $timestamps = $operativo->timestamps;
+            $operativo->timestamps = false;
+
+            try {
+                $operativo->forceFill(['codigo_postal' => $codigoPostal])->save();
+            } finally {
+                $operativo->timestamps = $timestamps;
+            }
+        }
+
+        return $codigoPostal;
     }
 
     private function nullableStringArray($value): ?array

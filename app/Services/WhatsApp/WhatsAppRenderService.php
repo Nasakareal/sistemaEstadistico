@@ -4,6 +4,7 @@ namespace App\Services\WhatsApp;
 
 use App\Models\Hechos;
 use App\Models\Personal;
+use App\Models\PersonalDocumento;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -206,6 +207,7 @@ class WhatsAppRenderService
             'user',
             'fotoPrincipal',
             'fotos',
+            'documentos.documentoTipo',
             'asignaciones.armamento',
         ]);
 
@@ -275,6 +277,12 @@ class WhatsAppRenderService
             $lineas[] = 'Armamento actual: ' . implode(' | ', $armamentoResumen);
         }
 
+        $documentosLineas = $this->lineasDocumentosPersonal($personal);
+        $lineas[] = empty($documentosLineas)
+            ? 'Documentos subidos: SIN ARCHIVOS REGISTRADOS'
+            : 'Documentos subidos:';
+        $lineas = array_merge($lineas, $documentosLineas);
+
         $imagenes = $this->urlsTemporalesFotosPersonal($personal);
 
         return [
@@ -282,6 +290,125 @@ class WhatsAppRenderService
             'lineas' => $lineas,
             'imagenes' => array_slice($imagenes, 0, 3),
         ];
+    }
+
+    protected function lineasDocumentosPersonal(Personal $personal): array
+    {
+        try {
+            $personal->loadMissing(['documentos.documentoTipo']);
+
+            $lineas = [];
+            $rutasVistas = [];
+            $documentos = collect($personal->documentos ?? [])
+                ->sortByDesc(fn ($documento) => (bool) ($documento->activo ?? false))
+                ->values();
+
+            foreach ($documentos as $documento) {
+                if (!$documento instanceof PersonalDocumento || !$documento->id) {
+                    continue;
+                }
+
+                foreach ($this->archivosDocumentoPersonal($documento, $rutasVistas) as $archivo) {
+                    $lineas[] = $this->lineaDocumentoPersonal($documento, $archivo);
+                }
+            }
+
+            return $lineas;
+        } catch (\Throwable $e) {
+            Log::warning('WA personal document URLs error', [
+                'personal_id' => $personal->id ?? null,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    protected function archivosDocumentoPersonal(PersonalDocumento $documento, array &$rutasVistas): array
+    {
+        $candidatos = [
+            [
+                'archivo' => 'comision',
+                'ruta' => $documento->archivo_oficio_comision,
+                'label' => 'Oficio de comisión',
+                'folio' => $documento->oficio_comision_secretario ?: $documento->numero,
+                'fecha' => $documento->fecha_oficio,
+                'nombre' => null,
+            ],
+            [
+                'archivo' => 'asignacion',
+                'ruta' => $documento->archivo_oficio_asignacion,
+                'label' => 'Oficio de asignación',
+                'folio' => $documento->oficio_asignacion ?: $documento->numero,
+                'fecha' => $documento->fecha_asignacion,
+                'nombre' => null,
+            ],
+            [
+                'archivo' => 'general',
+                'ruta' => $documento->archivo_path,
+                'label' => 'Archivo principal',
+                'folio' => $documento->numero,
+                'fecha' => $documento->fecha_emision,
+                'nombre' => $documento->archivo_nombre,
+            ],
+        ];
+
+        $archivos = [];
+
+        foreach ($candidatos as $candidato) {
+            $ruta = str_replace('\\', '/', trim((string) ($candidato['ruta'] ?? '')));
+
+            if ($ruta === '' || isset($rutasVistas[$ruta])) {
+                continue;
+            }
+
+            $rutasVistas[$ruta] = true;
+            $candidato['ruta'] = $ruta;
+            $candidato['nombre'] = trim((string) ($candidato['nombre'] ?: basename($ruta)));
+            $candidato['url'] = URL::temporarySignedRoute(
+                'personal.documentos.signed',
+                now()->addHours(24),
+                [
+                    'documento' => $documento->id,
+                    'archivo' => $candidato['archivo'],
+                ]
+            );
+
+            $archivos[] = $candidato;
+        }
+
+        return $archivos;
+    }
+
+    protected function lineaDocumentoPersonal(PersonalDocumento $documento, array $archivo): string
+    {
+        $tipo = trim((string) optional($documento->documentoTipo)->nombre);
+        $tipo = $tipo !== '' ? $tipo : 'Documento';
+        $label = trim((string) ($archivo['label'] ?? 'Archivo'));
+        $folio = trim((string) ($archivo['folio'] ?? ''));
+        $fecha = $archivo['fecha'] ?? null;
+
+        $partes = [$tipo . ($label !== '' ? ' - ' . $label : '')];
+
+        if ($folio !== '') {
+            $partes[] = 'Folio ' . $folio;
+        }
+
+        if ($fecha) {
+            $partes[] = 'Fecha ' . $fecha->format('d-m-Y');
+        }
+
+        if (!(bool) ($documento->activo ?? false)) {
+            $partes[] = 'Inactivo';
+        }
+
+        $nombre = trim((string) ($archivo['nombre'] ?? ''));
+
+        if ($nombre !== '') {
+            $partes[] = $nombre;
+        }
+
+        return '- ' . implode(' | ', $partes) . "\n" . 'Descarga: ' . $archivo['url'];
     }
 
     protected function urlsTemporalesFotosPersonal(Personal $personal): array

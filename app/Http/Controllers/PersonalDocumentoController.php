@@ -5,12 +5,27 @@ namespace App\Http\Controllers;
 use App\Models\DocumentoTipo;
 use App\Models\Personal;
 use App\Models\PersonalDocumento;
+use App\Services\Documentos\DocumentoArchivoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PersonalDocumentoController extends Controller
 {
+    private $archivoStorage;
+
+    public function __construct(DocumentoArchivoStorage $archivoStorage)
+    {
+        $this->archivoStorage = $archivoStorage;
+    }
+
+    public function showSigned(PersonalDocumento $documento, string $archivo)
+    {
+        [$ruta, $nombre] = $this->archivoParaDescarga($documento, $archivo);
+
+        return $this->archivoStorage->response($ruta, $nombre, 'attachment');
+    }
+
     public function store(Request $request, Personal $personal)
     {
         $validated = $this->validar($request);
@@ -208,6 +223,39 @@ class PersonalDocumentoController extends Controller
         if ($ruta && Storage::disk('public')->exists($ruta)) {
             Storage::disk('public')->delete($ruta);
         }
+    }
+
+    private function archivoParaDescarga(PersonalDocumento $documento, string $archivo): array
+    {
+        switch ($archivo) {
+            case 'general':
+                $ruta = $documento->archivo_path;
+                $nombre = $documento->archivo_nombre ?: basename((string) $ruta);
+                break;
+            case 'comision':
+                $ruta = $documento->archivo_oficio_comision;
+                $nombre = basename((string) $ruta);
+                break;
+            case 'asignacion':
+                $ruta = $documento->archivo_oficio_asignacion;
+                $nombre = basename((string) $ruta);
+                break;
+            default:
+                abort(404);
+        }
+
+        $ruta = str_replace('\\', '/', trim((string) $ruta));
+
+        if ($ruta === '' || strpos($ruta, '..') !== false || !$this->startsWith($ruta, 'personals/')) {
+            abort(404);
+        }
+
+        return [$ruta, $nombre ?: basename($ruta)];
+    }
+
+    private function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
     }
 
     private function tipoDocumentoOficiosId(): int

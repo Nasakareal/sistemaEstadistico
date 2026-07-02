@@ -8,16 +8,24 @@ class WhatsAppUserResolverService
 {
     public function findAuthorizedUserByPhone(string $from): ?User
     {
-        $telefono = $this->normalizePhone($from);
+        $telefonos = $this->phoneVariants($from);
 
-        if ($telefono === '') {
+        if (empty($telefonos)) {
             return null;
         }
 
-        return User::query()
-            ->with(['unidad', 'roles'])
-            ->where('telefono', $telefono)
-            ->first();
+        foreach ($telefonos as $telefono) {
+            $user = User::query()
+                ->with(['unidad', 'roles'])
+                ->where('telefono', $telefono)
+                ->first();
+
+            if ($user) {
+                return $user;
+            }
+        }
+
+        return null;
     }
 
     public function resolveContext(User $user): array
@@ -134,6 +142,30 @@ class WhatsAppUserResolverService
         }
 
         return $value;
+    }
+
+    protected function phoneVariants(string $value): array
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?: '';
+        $normalized = $this->normalizePhone($digits);
+        $variants = [$normalized, $digits];
+
+        if (preg_match('/^521(\d{10})$/', $normalized, $matches)) {
+            $variants[] = $matches[1];
+            $variants[] = '52' . $matches[1];
+        }
+
+        if (preg_match('/^52(\d{10})$/', $digits, $matches)) {
+            $variants[] = '521' . $matches[1];
+            $variants[] = $matches[1];
+        }
+
+        return collect($variants)
+            ->map(fn ($phone) => trim((string) $phone))
+            ->filter(fn ($phone) => $phone !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function startsWith(string $value, string $prefix): bool

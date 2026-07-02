@@ -322,6 +322,11 @@ Route::get('/personal/{personal}/foto-principal-temporal', [PersonalFotoControll
     ->middleware('signed')
     ->name('personal.fotos.principal.signed');
 
+Route::get('/personal-documentos/{documento}/{archivo}/archivo-temporal', [PersonalDocumentoController::class, 'showSigned'])
+    ->middleware('signed')
+    ->where('archivo', 'general|comision|asignacion')
+    ->name('personal.documentos.signed');
+
 Route::get('/actividad-fotos/{foto}/{tipo?}', [ActividadFotoArchivoController::class, 'show'])
     ->whereNumber('foto')
     ->where('tipo', 'original|thumbnail')

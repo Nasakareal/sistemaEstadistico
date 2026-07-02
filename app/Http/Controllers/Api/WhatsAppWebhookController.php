@@ -114,10 +114,6 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
-        if ($this->shouldSkipUnauthorizedLookup($from)) {
-            return;
-        }
-
         $input = $this->inboundService->extractUserInput($message);
 
         Log::info('WA mensaje procesable', [
@@ -130,9 +126,15 @@ class WhatsAppWebhookController extends Controller
         $user = $this->userResolverService->findAuthorizedUserByPhone($from);
 
         if (!$user) {
+            if ($this->shouldSkipUnauthorizedLookup($from)) {
+                return;
+            }
+
             $this->silenceUnauthorizedSender($from);
             return;
         }
+
+        $this->clearUnauthorizedSender($from);
 
         $context = $this->userResolverService->resolveContext($user);
 
@@ -1040,6 +1042,11 @@ class WhatsAppWebhookController extends Controller
             'cooldown_level' => $state['level'] ?? null,
             'blocked_until' => $this->formatTimestamp((int) ($state['blocked_until'] ?? 0)),
         ]);
+    }
+
+    protected function clearUnauthorizedSender(string $from): void
+    {
+        Cache::forget($this->unauthorizedStateCacheKey($from));
     }
 
     protected function registerUnauthorizedAttempt(string $from, bool $duringCooldown): array

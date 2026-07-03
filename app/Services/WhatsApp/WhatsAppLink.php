@@ -122,7 +122,14 @@ class WhatsAppLink
                     $c = $v->conductores->first();
                     $nombre = $c->nombre ?: "SIN DATO";
                     $edad = $c->edad ?: "S/E";
-                    $lines[] = "Manifiesta viajar a bordo el C. {$nombre} de {$edad} años.";
+                    $telefono = trim((string) ($c->telefono ?? ''));
+                    $textoConductor = "Manifiesta viajar a bordo el C. {$nombre} de {$edad} años.";
+
+                    if ($telefono !== '') {
+                        $textoConductor .= " Teléfono: {$telefono}.";
+                    }
+
+                    $lines[] = $textoConductor;
                 }
 
                 $gruaVeh = isset($v->grua) ? trim((string) $v->grua) : '';
@@ -136,10 +143,14 @@ class WhatsAppLink
                     $lines[] = "Corralón: " . self::upper($corralonVeh) . ".";
                 }
 
-                $serv = DB::table('servicios')
-                    ->where('vehiculo_id', $v->id)
-                    ->orderByDesc('id')
-                    ->first();
+                $serv = null;
+
+                if (!empty($v->id)) {
+                    $serv = DB::table('servicios')
+                        ->where('vehiculo_id', $v->id)
+                        ->orderByDesc('id')
+                        ->first();
+                }
 
                 if ($serv) {
                     $extra = [];

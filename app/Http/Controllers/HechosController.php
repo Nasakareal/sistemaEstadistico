@@ -845,7 +845,7 @@ class HechosController extends Controller
             return redirect()->back()->with('info', 'Este hecho ya fue compartido por WhatsApp.');
         }
 
-        $hecho->load(['vehiculos']);
+        $hecho->load(['vehiculos.conductores', 'lesionados', 'puestaDisposicion.personas']);
 
         $card = WhatsAppLink::textForHecho($hecho);
 
@@ -1432,7 +1432,7 @@ class HechosController extends Controller
             abort(404);
         }
 
-        $hecho->load(['vehiculos']);
+        $hecho->load(['vehiculos.conductores', 'lesionados', 'puestaDisposicion.personas']);
 
         $message = WhatsAppLink::textForHecho($hecho);
 

@@ -1496,7 +1496,7 @@ class HechoController extends Controller
             ], 404);
         }
 
-        $hecho->load(['vehiculos.conductores', 'lesionados']);
+        $hecho->load(['vehiculos.conductores', 'lesionados', 'puestaDisposicion.personas']);
 
         $message = WhatsAppLink::textForHecho($hecho);
 
@@ -1556,7 +1556,7 @@ class HechoController extends Controller
             ], 404);
         }
 
-        $hecho->load(['vehiculos']);
+        $hecho->load(['vehiculos.conductores', 'lesionados', 'puestaDisposicion.personas']);
 
         $message = WhatsAppLink::textForHecho($hecho);
 

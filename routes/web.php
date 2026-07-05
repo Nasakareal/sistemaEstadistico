@@ -918,6 +918,10 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/gruas/exportar/{formato}', [EstadisticasDelegacionesSettingsController::class, 'exportarGruasDelegaciones'])
             ->where('formato', 'excel|pdf')
             ->name('settings.estadisticas_delegaciones.gruas.exportar');
+        Route::get('/actividades-fisicas', [EstadisticasDelegacionesSettingsController::class, 'actividadesFisicas'])
+            ->name('settings.estadisticas_delegaciones.actividades_fisicas');
+        Route::post('/actividades-fisicas', [EstadisticasDelegacionesSettingsController::class, 'guardarActividadFisica'])
+            ->name('settings.estadisticas_delegaciones.actividades_fisicas.store');
         Route::get('/excel-diario', [EstadisticasDelegacionesSettingsController::class, 'excelDiario'])->name('settings.estadisticas_delegaciones.excel_diario');
         Route::get('/excel-diario/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_delegaciones.excel_diario.descargar');
 

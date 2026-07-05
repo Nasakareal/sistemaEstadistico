@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DelegacionActividadFisicaController;
 use App\Http\Controllers\Api\DelegacionesHomeController;
 use App\Http\Controllers\Api\DelegacionesExcelRevisionController;
 use App\Http\Controllers\Api\DocumentoHechoController;
@@ -111,6 +112,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('delegaciones-home')->group(function () {
         Route::get('/mapa', [DelegacionesHomeController::class, 'mapa'])->name('api.delegaciones_home.mapa');
         Route::get('/filtros', [DelegacionesHomeController::class, 'filtros'])->name('api.delegaciones_home.filtros');
+    });
+
+    Route::prefix('delegaciones/actividades-fisicas')->group(function () {
+        Route::get('/tipos', [DelegacionActividadFisicaController::class, 'tipos'])->name('api.delegaciones.actividades_fisicas.tipos');
+        Route::get('/', [DelegacionActividadFisicaController::class, 'index'])->name('api.delegaciones.actividades_fisicas.index');
+        Route::post('/', [DelegacionActividadFisicaController::class, 'store'])->name('api.delegaciones.actividades_fisicas.store');
+        Route::get('/{actividadFisica}', [DelegacionActividadFisicaController::class, 'show'])->whereNumber('actividadFisica')->name('api.delegaciones.actividades_fisicas.show');
     });
 
     Route::prefix('directorio-red-apoyo')->middleware('can:ver directorio red apoyo')->group(function () {

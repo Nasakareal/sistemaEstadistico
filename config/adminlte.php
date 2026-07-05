@@ -566,6 +566,13 @@ return [
                             'can'     => 'menu-estadisticas-actividades-delegaciones',
                         ],
                         [
+                            'text'    => 'Actividades Físicas',
+                            'icon'    => 'fa-solid fa-person-running',
+                            'classes' => 'text-info',
+                            'route'   => 'settings.estadisticas_delegaciones.actividades_fisicas',
+                            'can'     => 'menu-estadisticas-delegaciones',
+                        ],
+                        [
                             'text'    => 'Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',

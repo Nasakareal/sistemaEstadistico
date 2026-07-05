@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Delegacion;
+use App\Models\DelegacionActividadFisica;
 use App\Models\Hechos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -10,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -173,6 +175,147 @@ class EstadisticasDelegacionesSettingsController extends Controller
         $data = $this->obtenerGruasPorDelegacion($request);
 
         return view('admin.settings.estadisticas_delegaciones.gruas.index', $data);
+    }
+
+    public function actividadesFisicas(Request $request)
+    {
+        $this->ensureCanViewDelegacionesStats($request);
+
+        $fechaInicio = $this->normalizarFechaFiltro($request->input('fecha_inicio'));
+        $fechaFin = $this->normalizarFechaFiltro($request->input('fecha_fin'));
+
+        if ($fechaInicio && $fechaFin && $fechaInicio > $fechaFin) {
+            [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+        }
+
+        $delegaciones = Delegacion::query()
+            ->with('padre:id,nombre,clave')
+            ->where(function ($query) {
+                $query->where('activa', 1)
+                    ->orWhereHas('actividadesFisicas');
+            })
+            ->orderBy('nombre')
+            ->get(['id', 'clave', 'nombre', 'municipio', 'activa', 'delegacion_padre_id']);
+
+        $tiposEjercicio = DelegacionActividadFisica::query()
+            ->select('tipo_ejercicio')
+            ->whereNotNull('tipo_ejercicio')
+            ->where('tipo_ejercicio', '<>', '')
+            ->distinct()
+            ->orderBy('tipo_ejercicio')
+            ->pluck('tipo_ejercicio')
+            ->values();
+
+        $delegacionId = (int) $request->input('delegacion_id', 0);
+        if ($delegacionId > 0 && !$delegaciones->contains('id', $delegacionId)) {
+            $delegacionId = 0;
+        }
+
+        $tipoEjercicio = trim((string) $request->input('tipo_ejercicio', ''));
+        $buscar = trim((string) $request->input('buscar', ''));
+
+        $query = DelegacionActividadFisica::query()
+            ->with(['delegacion.padre', 'creador']);
+
+        if ($fechaInicio) {
+            $query->whereDate('fecha', '>=', $fechaInicio);
+        }
+
+        if ($fechaFin) {
+            $query->whereDate('fecha', '<=', $fechaFin);
+        }
+
+        if ($delegacionId > 0) {
+            $query->where('delegacion_id', $delegacionId);
+        }
+
+        if ($tipoEjercicio !== '') {
+            $query->where('tipo_ejercicio', $tipoEjercicio);
+        }
+
+        if ($buscar !== '') {
+            $query->where(function ($subquery) use ($buscar) {
+                $subquery->where('tipo_ejercicio', 'like', '%' . $buscar . '%')
+                    ->orWhere('elementos_participantes', 'like', '%' . $buscar . '%')
+                    ->orWhereHas('delegacion', function ($delegacion) use ($buscar) {
+                        $delegacion->where('nombre', 'like', '%' . $buscar . '%')
+                            ->orWhere('clave', 'like', '%' . $buscar . '%');
+                    });
+            });
+        }
+
+        $resumenQuery = clone $query;
+        $totalActividades = (clone $resumenQuery)->count();
+        $totalElementos = (clone $resumenQuery)->sum('elementos_participantes');
+        $delegacionesConActividad = (clone $resumenQuery)
+            ->whereNotNull('delegacion_id')
+            ->distinct('delegacion_id')
+            ->count('delegacion_id');
+        $actividadesConFoto = (clone $resumenQuery)
+            ->whereNotNull('foto_path')
+            ->count();
+
+        $actividades = $query
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->orderByDesc('id')
+            ->paginate(25)
+            ->appends($request->query());
+
+        return view('admin.settings.estadisticas_delegaciones.actividades_fisicas.index', [
+            'actividades' => $actividades,
+            'delegaciones' => $delegaciones,
+            'tiposEjercicio' => $tiposEjercicio,
+            'fechaInicio' => $fechaInicio,
+            'fechaFin' => $fechaFin,
+            'delegacionId' => $delegacionId,
+            'tipoEjercicio' => $tipoEjercicio,
+            'buscar' => $buscar,
+            'puedeCapturar' => $this->canManageDelegacionesStats($request->user()),
+            'resumen' => [
+                'actividades' => $totalActividades,
+                'con_foto' => $actividadesConFoto,
+                'elementos' => $totalElementos,
+                'delegaciones' => $delegacionesConActividad,
+            ],
+        ]);
+    }
+
+    public function guardarActividadFisica(Request $request)
+    {
+        $this->ensureCanManageDelegacionesStats($request);
+
+        $data = $request->validate([
+            'delegacion_id' => ['required', 'integer', 'exists:delegaciones,id'],
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
+            'hora' => ['nullable', 'date_format:H:i'],
+            'tipo_ejercicio' => ['required', 'string', 'max:180'],
+            'elementos_participantes' => ['required', 'integer', 'min:0', 'max:999'],
+            'foto' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $ahora = now('America/Mexico_City');
+        $foto = $request->file('foto');
+        $extension = strtolower($foto->getClientOriginalExtension() ?: 'jpg');
+        $nombreArchivo = $ahora->format('Ymd_His') . '_' . Str::random(10) . '.' . $extension;
+        $fotoPath = $foto->storeAs('delegaciones/actividades-fisicas', $nombreArchivo, 'public');
+
+        DelegacionActividadFisica::create([
+            'delegacion_id' => (int) $data['delegacion_id'],
+            'fecha' => $data['fecha'] ?: $ahora->toDateString(),
+            'hora' => $data['hora'] ?: $ahora->format('H:i:s'),
+            'tipo_ejercicio' => mb_strtoupper(trim((string) $data['tipo_ejercicio']), 'UTF-8'),
+            'elementos_participantes' => (int) $data['elementos_participantes'],
+            'foto_path' => $fotoPath,
+            'foto_nombre_original' => $foto->getClientOriginalName(),
+            'foto_hash' => hash_file('sha256', $foto->getRealPath()),
+            'created_by' => optional($request->user())->id,
+            'updated_by' => optional($request->user())->id,
+        ]);
+
+        return redirect()
+            ->route('settings.estadisticas_delegaciones.actividades_fisicas')
+            ->with('success', 'Actividad física registrada.');
     }
 
     public function exportarGruasDelegaciones(Request $request, string $formato)
@@ -718,5 +861,20 @@ class EstadisticasDelegacionesSettingsController extends Controller
             'Ü' => 'U',
             'Ñ' => 'N',
         ]);
+    }
+
+    private function normalizarFechaFiltro($fecha): ?string
+    {
+        $fecha = trim((string) $fecha);
+
+        if ($fecha === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', $fecha, 'America/Mexico_City')->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

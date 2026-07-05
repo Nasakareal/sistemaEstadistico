@@ -44,6 +44,11 @@ class Delegacion extends Model
         return $this->hasMany(Actividad::class, 'delegacion_id');
     }
 
+    public function actividadesFisicas()
+    {
+        return $this->hasMany(DelegacionActividadFisica::class, 'delegacion_id');
+    }
+
     public function padre()
     {
         return $this->belongsTo(self::class, 'delegacion_padre_id');

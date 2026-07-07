@@ -54,7 +54,7 @@ class HechoFotoStorage
             return ['status' => 'empty', 'path' => $targetPath];
         }
 
-        if ($this->usesAzure() && $this->exists($targetPath)) {
+        if ($this->usesAzure() && $this->targetBlobExists($targetPath)) {
             return ['status' => 'already_exists', 'path' => $targetPath];
         }
 
@@ -87,7 +87,7 @@ class HechoFotoStorage
             }
 
             return [
-                'status' => $this->usesAzure() && $this->exists($targetPath) ? 'already_exists' : 'missing_source',
+                'status' => $this->usesAzure() && $this->targetBlobExists($targetPath) ? 'already_exists' : 'missing_source',
                 'path' => $targetPath,
             ];
         }
@@ -292,6 +292,14 @@ class HechoFotoStorage
 
         return $this->usesAzure()
             && $this->blobExists($this->legacyContainer(), $path);
+    }
+
+    public function targetBlobExists(?string $path): bool
+    {
+        $path = $this->normalizePath($path);
+
+        return $this->usesAzure()
+            && $this->blobExists($this->container(), $path);
     }
 
     public function usesAzure(): bool

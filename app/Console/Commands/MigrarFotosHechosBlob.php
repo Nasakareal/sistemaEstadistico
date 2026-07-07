@@ -101,7 +101,7 @@ class MigrarFotosHechosBlob extends Command
         $stats['revisadas']++;
 
         try {
-            $exists = $storage->usesAzure() && $storage->exists($path);
+            $exists = $storage->targetBlobExists($path);
 
             if ($exists) {
                 $stats['ya_en_blob']++;

@@ -28,6 +28,7 @@ class ConduceLegalidadController extends Controller
     private const UNIDAD_SEGURIDAD_VIAL = 3;
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
+    private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo Alcoholimetría';
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
     private const FORMATO_IPH_BARANDILLAS = 'barandillas';
     private const FORMATO_IPH_ANTERIOR = 'anterior';
@@ -168,7 +169,7 @@ class ConduceLegalidadController extends Controller
 
         $operativo = ConduceLegalidadOperativo::create([
             'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
-            'nombre' => self::NOMBRE_OPERATIVO,
+            'nombre' => $this->nombreOperativo($validated['nombre'] ?? null),
             'fecha' => $validated['fecha'] ?? $now->toDateString(),
             'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
             'municipio' => $this->nullableString($validated['municipio'] ?? null),
@@ -179,6 +180,7 @@ class ConduceLegalidadController extends Controller
             'lat' => $validated['lat'] ?? null,
             'lng' => $validated['lng'] ?? null,
             'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
+            'objetivo' => $this->nullableString($validated['objetivo'] ?? null),
             'estado' => $validated['estado'] ?? 'activo',
             'created_by' => $user->id,
             'updated_by' => $user->id,
@@ -232,7 +234,7 @@ class ConduceLegalidadController extends Controller
             : $operativo->codigo_postal;
 
         $operativo->fill([
-            'nombre' => self::NOMBRE_OPERATIVO,
+            'nombre' => array_key_exists('nombre', $validated) ? $this->nombreOperativo($validated['nombre']) : $operativo->nombre,
             'fecha' => $validated['fecha'] ?? $operativo->fecha,
             'hora_inicio' => array_key_exists('hora_inicio', $validated) ? $validated['hora_inicio'] : $operativo->hora_inicio,
             'hora_cierre' => array_key_exists('hora_cierre', $validated) ? $validated['hora_cierre'] : $operativo->hora_cierre,
@@ -244,6 +246,7 @@ class ConduceLegalidadController extends Controller
             'lat' => array_key_exists('lat', $validated) ? $validated['lat'] : $operativo->lat,
             'lng' => array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng,
             'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $operativo->coordenadas_texto,
+            'objetivo' => array_key_exists('objetivo', $validated) ? $this->nullableString($validated['objetivo']) : $operativo->objetivo,
             'estado' => $validated['estado'] ?? $operativo->estado,
             'updated_by' => $user->id,
         ]);
@@ -486,7 +489,7 @@ class ConduceLegalidadController extends Controller
         return response()->json([
             'ok' => true,
             'data' => [
-                'title' => 'Resumen Operativo Conduce con Legalidad',
+                'title' => 'Resumen ' . ($operativo->nombre ?: self::NOMBRE_OPERATIVO),
                 'texto' => trim($texto),
                 'message' => trim($texto),
                 'media' => [],
@@ -1065,7 +1068,7 @@ class ConduceLegalidadController extends Controller
 
         $lines = $this->tarjetaHeaderLines((int) ($user->unidad_id ?? 0), $user->delegacion_id ?? null);
         $lines[] = 'TEMA: RESUMEN DE VEHICULOS RESGUARDADOS';
-        $lines[] = self::NOMBRE_OPERATIVO;
+        $lines[] = $operativo->nombre ?: self::NOMBRE_OPERATIVO;
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
         $lines[] = 'PUNTO: ' . $this->upper($puntoOperativo ?: 'SIN DATO');
@@ -1124,7 +1127,7 @@ class ConduceLegalidadController extends Controller
 
         $lines = $this->tarjetaHeaderLines($unidadId, $delegacionId);
         $lines[] = 'TEMA: CAPTURA INDIVIDUAL';
-        $lines[] = self::NOMBRE_OPERATIVO;
+        $lines[] = $operativo->nombre ?: self::NOMBRE_OPERATIVO;
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
         $lines[] = 'CAPTURA ID: ' . $captura->id;
@@ -1388,6 +1391,16 @@ class ConduceLegalidadController extends Controller
         return $text === '' ? 'SIN DATO' : Str::upper($text);
     }
 
+    private function nombreOperativo($value): string
+    {
+        $text = $this->nullableString($value);
+        $normalized = $text === null ? '' : Str::upper(Str::ascii($text));
+
+        return Str::contains($normalized, 'ALCOHOL')
+            ? self::NOMBRE_OPERATIVO_ALCOHOLIMETRIA
+            : self::NOMBRE_OPERATIVO;
+    }
+
     private function operativoRules(?ConduceLegalidadOperativo $operativo = null): array
     {
         $ignoreId = $operativo ? $operativo->id : null;
@@ -1395,6 +1408,8 @@ class ConduceLegalidadController extends Controller
 
         return [
             'client_uuid' => ['nullable', 'string', 'max:80', Rule::unique('conduce_legalidad_operativos', 'client_uuid')->ignore($ignoreId)],
+            'nombre' => ['nullable', 'string', 'max:120'],
+            'objetivo' => ['nullable', 'string'],
             'fecha' => ['nullable', 'date'],
             'hora_inicio' => ['nullable', 'date_format:H:i'],
             'hora_cierre' => ['nullable', 'date_format:H:i'],
@@ -2421,3 +2436,4 @@ class ConduceLegalidadController extends Controller
         return $text === '' ? null : $text;
     }
 }
+

@@ -202,6 +202,19 @@ class HechoFotoStorage
         return $deleted;
     }
 
+    public function localExistingCount(?string $path): int
+    {
+        $count = 0;
+
+        foreach ($this->localCandidates($path) as $candidate) {
+            if (Storage::disk($candidate['disk'])->exists($candidate['path'])) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
     public function temporaryLocalPath(?string $path): ?string
     {
         $path = $this->normalizePath($path);

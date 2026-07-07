@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Fotos\HechoFotoStorage;
 use App\Support\HechoAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -190,6 +191,8 @@ class HomeController extends Controller
 
                 if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
                     $foto_url = $path;
+                } elseif ((string) $row->type === 'HECHO') {
+                    $foto_url = app(HechoFotoStorage::class)->url($path);
                 } else {
                     $foto_url = asset('storage/' . $path);
                 }

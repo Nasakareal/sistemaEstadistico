@@ -6,10 +6,10 @@ use App\Models\Hechos;
 use App\Models\Dictamen;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Storage;
 use App\Models\Unidad;
 use App\Helpers\StreetNormalizer;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\Fotos\HechoFotoStorage;
 use App\Services\HechoRevisionNotificationService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\IphPuestaDisposicionService;
@@ -282,14 +282,15 @@ class HechosController extends Controller
         app(HechoRevisionNotificationService::class)->notificarJefesDeGrupoPorHechoPendiente($hecho);
 
         $updates = [];
+        $fotoStorage = app(HechoFotoStorage::class);
 
         if ($request->hasFile('foto_lugar')) {
-            $path = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+            $path = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
             $updates['foto_lugar'] = $path;
         }
 
         if ($request->hasFile('foto_situacion')) {
-            $path = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+            $path = $fotoStorage->putUploadedFile($request->file('foto_situacion'), $hecho, 'situacion');
             $updates['foto_situacion'] = $path;
         }
 
@@ -650,38 +651,42 @@ class HechosController extends Controller
         $validated['codigo_postal'] = app(CodigoPostalGeoService::class)
             ->resolver($validated['lat'] ?? null, $validated['lng'] ?? null);
 
+        $fotoStorage = app(HechoFotoStorage::class);
+        $oldFotoLugarParaEliminar = null;
+        $oldFotoSituacionParaEliminar = null;
+
         if ($quitarFotoLugar) {
-            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
-                Storage::disk('public')->delete($hecho->foto_lugar);
-            }
+            $fotoStorage->delete($hecho->foto_lugar);
             $validated['foto_lugar'] = null;
         }
 
         if ($quitarFotoSituacion) {
-            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
-                Storage::disk('public')->delete($hecho->foto_situacion);
-            }
+            $fotoStorage->delete($hecho->foto_situacion);
             $validated['foto_situacion'] = null;
         }
 
         if ($request->hasFile('foto_lugar')) {
-            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
-                Storage::disk('public')->delete($hecho->foto_lugar);
-            }
-            $validated['foto_lugar'] = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+            $oldFotoLugarParaEliminar = $hecho->foto_lugar;
+            $validated['foto_lugar'] = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
         }
 
         if ($request->hasFile('foto_situacion')) {
-            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
-                Storage::disk('public')->delete($hecho->foto_situacion);
-            }
-            $validated['foto_situacion'] = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+            $oldFotoSituacionParaEliminar = $hecho->foto_situacion;
+            $validated['foto_situacion'] = $fotoStorage->putUploadedFile($request->file('foto_situacion'), $hecho, 'situacion');
         }
 
         $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
         unset($validated['dictamen_id']);
 
         $hecho->update($validated);
+
+        if ($oldFotoLugarParaEliminar && $oldFotoLugarParaEliminar !== ($validated['foto_lugar'] ?? null)) {
+            $fotoStorage->delete($oldFotoLugarParaEliminar);
+        }
+
+        if ($oldFotoSituacionParaEliminar && $oldFotoSituacionParaEliminar !== ($validated['foto_situacion'] ?? null)) {
+            $fotoStorage->delete($oldFotoSituacionParaEliminar);
+        }
 
         $hecho->actualizarEstadoCaptura();
 
@@ -781,13 +786,9 @@ class HechosController extends Controller
         }
 
         try {
-            if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
-                Storage::disk('public')->delete($hecho->foto_lugar);
-            }
-
-            if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
-                Storage::disk('public')->delete($hecho->foto_situacion);
-            }
+            $fotoStorage = app(HechoFotoStorage::class);
+            $fotoStorage->delete($hecho->foto_lugar);
+            $fotoStorage->delete($hecho->foto_situacion);
 
             $dictamenActual = $hecho->dictamen;
             if ($dictamenActual) {
@@ -866,18 +867,19 @@ class HechosController extends Controller
         $message = implode("\n", $messageParts);
 
         $media = [];
+        $fotoStorage = app(HechoFotoStorage::class);
 
         if (!empty($hecho->foto_lugar)) {
-            $media[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+            $media[] = $fotoStorage->url($hecho->foto_lugar);
         }
 
         if (!empty($hecho->foto_situacion)) {
-            $media[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+            $media[] = $fotoStorage->url($hecho->foto_situacion);
         }
 
         foreach ($hecho->vehiculos as $v) {
             if (!empty($v->fotos)) {
-                $media[] = asset('storage/' . ltrim($v->fotos, '/'));
+                $media[] = $fotoStorage->url($v->fotos);
             }
         }
 
@@ -1466,18 +1468,19 @@ class HechosController extends Controller
         }
 
         $fotos = [];
+        $fotoStorage = app(HechoFotoStorage::class);
 
         if (!empty($hecho->foto_lugar)) {
-            $fotos[] = asset('storage/' . ltrim($hecho->foto_lugar, '/'));
+            $fotos[] = $fotoStorage->url($hecho->foto_lugar);
         }
 
         if (!empty($hecho->foto_situacion)) {
-            $fotos[] = asset('storage/' . ltrim($hecho->foto_situacion, '/'));
+            $fotos[] = $fotoStorage->url($hecho->foto_situacion);
         }
 
         foreach ($hecho->vehiculos as $v) {
             if (!empty($v->fotos)) {
-                $fotos[] = asset('storage/' . ltrim($v->fotos, '/'));
+                $fotos[] = $fotoStorage->url($v->fotos);
             }
         }
 

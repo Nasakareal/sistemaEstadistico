@@ -180,5 +180,11 @@ return [
         'fotos_enabled' => env('AZURE_STORAGE_FOTOS_ENABLED',
             env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
         ),
+        'hechos_fotos_container' => env('AZURE_STORAGE_HECHOS_FOTOS_CONTAINER', 'hechos-fotos'),
+        'hechos_fotos_enabled' => env('AZURE_STORAGE_HECHOS_FOTOS_ENABLED',
+            env('AZURE_STORAGE_FOTOS_ENABLED',
+                env('FILESYSTEM_DISK') === 'azure' || env('FILESYSTEM_DRIVER') === 'azure'
+            )
+        ),
     ],
 ];

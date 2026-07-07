@@ -28,8 +28,9 @@
                             $fotoLugarPath = $hecho->foto_lugar_path ?? ($hecho->foto_lugar ?? null);
                             $fotoSituacionPath = $hecho->foto_situacion_path ?? ($hecho->foto_situacion ?? null);
 
-                            $fotoLugarUrl = $fotoLugarPath ? Storage::url($fotoLugarPath) : null;
-                            $fotoSituacionUrl = $fotoSituacionPath ? Storage::url($fotoSituacionPath) : null;
+                            $fotoStorage = app(\App\Services\Fotos\HechoFotoStorage::class);
+                            $fotoLugarUrl = $fotoLugarPath ? $fotoStorage->url($fotoLugarPath) : null;
+                            $fotoSituacionUrl = $fotoSituacionPath ? $fotoStorage->url($fotoSituacionPath) : null;
                             $coordenadasManualValue = old('coordenadas_manual', (is_numeric($hecho->lat) && is_numeric($hecho->lng))
                                 ? number_format((float) $hecho->lat, 7, '.', '') . ', ' . number_format((float) $hecho->lng, 7, '.', '')
                                 : '');

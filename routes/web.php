@@ -15,6 +15,7 @@ use App\Http\Controllers\EstadisticasAseguramientosController;
 
 use App\Http\Controllers\FormatoController;
 use App\Http\Controllers\GruaController;
+use App\Http\Controllers\HechoFotoArchivoController;
 use App\Http\Controllers\HechosController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiberacionController;
@@ -326,6 +327,11 @@ Route::get('/personal-documentos/{documento}/{archivo}/archivo-temporal', [Perso
     ->middleware('signed')
     ->where('archivo', 'general|comision|asignacion')
     ->name('personal.documentos.signed');
+
+Route::get('/hechos-fotos/archivo-temporal/{path}', [HechoFotoArchivoController::class, 'showSigned'])
+    ->middleware('signed')
+    ->where('path', '.*')
+    ->name('hechos.fotos.signed');
 
 Route::get('/actividad-fotos/{foto}/{tipo?}', [ActividadFotoArchivoController::class, 'show'])
     ->whereNumber('foto')

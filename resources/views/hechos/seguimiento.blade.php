@@ -203,7 +203,7 @@
                         @foreach ($hechos as $hecho)
                             @php
                                 $foto = $hecho->foto_lugar;
-                                $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
+                                $urlFoto = $foto ? app(\App\Services\Fotos\HechoFotoStorage::class)->url($foto) : null;
 
                                 $fechaMostrar = !empty($hecho->fecha)
                                     ? \Carbon\Carbon::parse($hecho->fecha)->format('Y-m-d')

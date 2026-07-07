@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hechos;
+use App\Services\Fotos\HechoFotoStorage;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -66,8 +67,9 @@ class ResumenEjecutivoController extends Controller
             ])
             ->values()
             ->map(function ($h) {
-                $fotoLugar = $h->foto_lugar ? asset('storage/' . ltrim($h->foto_lugar, '/')) : null;
-                $fotoSituacion = $h->foto_situacion ? asset('storage/' . ltrim($h->foto_situacion, '/')) : null;
+                $fotoStorage = app(HechoFotoStorage::class);
+                $fotoLugar = $fotoStorage->url($h->foto_lugar);
+                $fotoSituacion = $fotoStorage->url($h->foto_situacion);
 
                 $ubicacionPartes = array_filter([
                     $h->calle,

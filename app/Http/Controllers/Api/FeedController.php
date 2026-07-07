@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Fotos\HechoFotoStorage;
 use Illuminate\Http\Request;
 use App\Models\Delegacion;
 use Illuminate\Support\Collection;
@@ -56,6 +57,8 @@ class FeedController extends Controller
 
                 if ($this->startsWith($path, 'http://') || $this->startsWith($path, 'https://')) {
                     $fotoUrl = $path;
+                } elseif ((string) $row->type === 'HECHO') {
+                    $fotoUrl = app(HechoFotoStorage::class)->url($path);
                 } else {
                     $fotoUrl = asset('storage/' . $path);
                 }
@@ -184,6 +187,8 @@ class FeedController extends Controller
 
                 if ($this->startsWith($path, 'http://') || $this->startsWith($path, 'https://')) {
                     $fotoUrl = $path;
+                } elseif ((string) $row->type === 'HECHO') {
+                    $fotoUrl = app(HechoFotoStorage::class)->url($path);
                 } else {
                     $fotoUrl = asset('storage/' . $path);
                 }

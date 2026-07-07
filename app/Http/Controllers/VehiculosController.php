@@ -8,7 +8,7 @@ use App\Models\Conductor;
 use Illuminate\Support\Facades\DB;
 use App\Models\Grua;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use App\Services\Fotos\HechoFotoStorage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Support\GruaEditGuard;
@@ -638,9 +638,7 @@ class VehiculosController extends Controller
         }
 
         DB::transaction(function () use ($hecho, $vehiculo) {
-            if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                Storage::disk('public')->delete($vehiculo->fotos);
-            }
+            app(HechoFotoStorage::class)->delete($vehiculo->fotos);
 
             foreach ($vehiculo->conductores as $conductor) {
                 $vehiculo->conductores()->detach($conductor->id);
@@ -720,14 +718,17 @@ class VehiculosController extends Controller
             'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
-        if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-            Storage::disk('public')->delete($vehiculo->fotos);
-        }
+        $fotoStorage = app(HechoFotoStorage::class);
+        $oldPath = $vehiculo->fotos;
+        $path = $fotoStorage->putUploadedFile($request->file('foto'), $hecho, 'vehiculo', $vehiculo);
 
-        $path = $request->file('foto')->store('vehiculos', 'public');
         $vehiculo->update([
             'fotos' => $path,
         ]);
+
+        if ($oldPath && $oldPath !== $path) {
+            $fotoStorage->delete($oldPath);
+        }
 
         return redirect()
             ->route('vehiculos.foto', ['hecho' => $hecho->id, 'vehiculo' => $vehiculo->id])
@@ -740,9 +741,7 @@ class VehiculosController extends Controller
             abort(404, 'El vehículo no pertenece a este hecho.');
         }
 
-        if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-            Storage::disk('public')->delete($vehiculo->fotos);
-        }
+        app(HechoFotoStorage::class)->delete($vehiculo->fotos);
 
         $vehiculo->update([
             'fotos' => null,

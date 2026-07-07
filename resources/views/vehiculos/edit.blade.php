@@ -582,7 +582,7 @@
                                     <div class="d-flex flex-wrap">
                                         @if(!empty($vehiculo->fotos))
                                             <div class="m-2">
-                                                <img src="{{ asset('storage/' . $vehiculo->fotos) }}" alt="Foto del vehículo" class="img-thumbnail" width="120">
+                                                <img src="{{ app(\App\Services\Fotos\HechoFotoStorage::class)->url($vehiculo->fotos) }}" alt="Foto del vehículo" class="img-thumbnail" width="120">
                                             </div>
                                         @else
                                             <p class="text-muted">No hay foto disponible.</p>

@@ -70,6 +70,10 @@
 
         $cleanPath = ltrim($path, '/\\');
 
+        if (preg_match('#^(hechos|vehiculos)/#i', $cleanPath)) {
+            return app(\App\Services\Fotos\HechoFotoStorage::class)->url($cleanPath);
+        }
+
         if (strpos($cleanPath, 'storage/') === 0) {
             return asset($cleanPath);
         }

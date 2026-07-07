@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Hechos;
 use App\Services\Croquis\CroquisArchivoStorage;
+use App\Services\Fotos\HechoFotoStorage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -2476,6 +2477,18 @@ class IphPuestaDisposicionDocxService
                 }
 
                 return $croquisPath;
+            }
+        }
+
+        if (preg_match('#(^|/)(hechos|vehiculos)/#i', $src)) {
+            $fotoPath = app(HechoFotoStorage::class)->temporaryLocalPath($src);
+
+            if ($fotoPath && is_file($fotoPath)) {
+                if (Str::startsWith(str_replace('\\', '/', $fotoPath), str_replace('\\', '/', storage_path('app/temp/')))) {
+                    $this->tempFiles[] = $fotoPath;
+                }
+
+                return $fotoPath;
             }
         }
 

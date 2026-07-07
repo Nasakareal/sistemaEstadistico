@@ -7,11 +7,11 @@ use App\Models\Hechos;
 use App\Models\Vehiculo;
 use App\Models\Conductor;
 use App\Models\Grua;
+use App\Services\Fotos\HechoFotoStorage;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
 use Throwable;
@@ -347,9 +347,7 @@ class VehiculoController extends Controller
 
             return DB::transaction(function () use ($hecho, $vehiculo) {
 
-                if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                    Storage::disk('public')->delete($vehiculo->fotos);
-                }
+                app(HechoFotoStorage::class)->delete($vehiculo->fotos);
 
                 $hecho->vehiculos()->detach($vehiculo->id);
 
@@ -382,7 +380,7 @@ class VehiculoController extends Controller
             return $this->ok('Foto del vehículo.', [
                 'vehiculo_id' => $vehiculo->id,
                 'fotos'       => $vehiculo->fotos,
-                'url'         => $vehiculo->fotos ? asset('storage/' . $vehiculo->fotos) : null,
+                'url'         => $this->hechoFotoUrl($vehiculo->fotos),
             ]);
         } catch (Throwable $e) {
             return $this->fail('Ocurrió un error al consultar la foto.', 500);
@@ -418,21 +416,23 @@ class VehiculoController extends Controller
                 return $this->validationFailed($validator->errors()->toArray(), 'Datos inválidos. Revisa la foto.');
             }
 
-            return DB::transaction(function () use ($request, $vehiculo) {
-                if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                    Storage::disk('public')->delete($vehiculo->fotos);
-                }
-
-                $path = $request->file('foto')->store('vehiculos', 'public');
+            return DB::transaction(function () use ($request, $hecho, $vehiculo) {
+                $fotoStorage = app(HechoFotoStorage::class);
+                $oldPath = $vehiculo->fotos;
+                $path = $fotoStorage->putUploadedFile($request->file('foto'), $hecho, 'vehiculo', $vehiculo);
 
                 $vehiculo->update([
                     'fotos' => $path,
                 ]);
 
+                if ($oldPath && $oldPath !== $path) {
+                    $fotoStorage->delete($oldPath);
+                }
+
                 return $this->created('Foto guardada correctamente.', [
                     'vehiculo_id' => $vehiculo->id,
                     'fotos'       => $vehiculo->fotos,
-                    'url'         => asset('storage/' . $vehiculo->fotos),
+                    'url'         => $this->hechoFotoUrl($vehiculo->fotos),
                 ]);
             });
 
@@ -453,9 +453,7 @@ class VehiculoController extends Controller
             }
 
             return DB::transaction(function () use ($vehiculo) {
-                if (!empty($vehiculo->fotos) && Storage::disk('public')->exists($vehiculo->fotos)) {
-                    Storage::disk('public')->delete($vehiculo->fotos);
-                }
+                app(HechoFotoStorage::class)->delete($vehiculo->fotos);
 
                 $vehiculo->update([
                     'fotos' => null,
@@ -488,7 +486,7 @@ class VehiculoController extends Controller
                 'vehiculo_id' => $vehiculo->id,
                 'numero_inventario_grua' => $vehiculo->numero_inventario_grua,
                 'foto_inventario_grua' => $vehiculo->foto_inventario_grua,
-                'url' => $vehiculo->foto_inventario_grua ? asset('storage/' . $vehiculo->foto_inventario_grua) : null,
+                'url' => $this->hechoFotoUrl($vehiculo->foto_inventario_grua),
                 'fecha_inventario_grua' => $vehiculo->fecha_inventario_grua,
             ]);
 
@@ -524,30 +522,33 @@ class VehiculoController extends Controller
                 return $this->validationFailed($validator->errors()->toArray());
             }
 
-            return DB::transaction(function () use ($request, $vehiculo) {
+            return DB::transaction(function () use ($request, $hecho, $vehiculo) {
 
                 $data = [
                     'numero_inventario_grua' => strtoupper($this->removeAccents($request->numero_inventario_grua)),
                     'fecha_inventario_grua' => now(),
                 ];
+                $oldPath = null;
 
                 if ($request->hasFile('foto_inventario_grua')) {
+                    $fotoStorage = app(HechoFotoStorage::class);
+                    $oldPath = $vehiculo->foto_inventario_grua;
 
-                    if (!empty($vehiculo->foto_inventario_grua) && Storage::disk('public')->exists($vehiculo->foto_inventario_grua)) {
-                        Storage::disk('public')->delete($vehiculo->foto_inventario_grua);
-                    }
-
-                    $path = $request->file('foto_inventario_grua')->store('vehiculos/inventarios-grua', 'public');
+                    $path = $fotoStorage->putUploadedFile($request->file('foto_inventario_grua'), $hecho, 'inventario_grua', $vehiculo);
 
                     $data['foto_inventario_grua'] = $path;
                 }
 
                 $vehiculo->update($data);
 
+                if (!empty($oldPath) && !empty($data['foto_inventario_grua']) && $oldPath !== $data['foto_inventario_grua']) {
+                    app(HechoFotoStorage::class)->delete($oldPath);
+                }
+
                 return $this->ok('Inventario de grúa guardado correctamente.', [
                     'vehiculo_id' => $vehiculo->id,
                     'numero_inventario_grua' => $vehiculo->numero_inventario_grua,
-                    'url' => $vehiculo->foto_inventario_grua ? asset('storage/' . $vehiculo->foto_inventario_grua) : null,
+                    'url' => $this->hechoFotoUrl($vehiculo->foto_inventario_grua),
                 ]);
             });
 
@@ -569,9 +570,7 @@ class VehiculoController extends Controller
 
             return DB::transaction(function () use ($vehiculo) {
 
-                if (!empty($vehiculo->foto_inventario_grua) && Storage::disk('public')->exists($vehiculo->foto_inventario_grua)) {
-                    Storage::disk('public')->delete($vehiculo->foto_inventario_grua);
-                }
+                app(HechoFotoStorage::class)->delete($vehiculo->foto_inventario_grua);
 
                 $vehiculo->update([
                     'numero_inventario_grua' => null,
@@ -867,6 +866,11 @@ class VehiculoController extends Controller
             'certificado_alcoholemia' => $v['certificado_alcoholemia'] ?? false,
             'aliento_etilico'         => $v['aliento_etilico'] ?? false,
         ];
+    }
+
+    private function hechoFotoUrl(?string $path): ?string
+    {
+        return app(HechoFotoStorage::class)->url($path);
     }
 
     private function removeAccents(string $s): string

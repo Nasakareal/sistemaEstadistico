@@ -14,6 +14,7 @@ use App\Services\WhatsApp\WhatsAppLink;
 use App\Services\Croquis\CroquisArchivoStorage;
 use App\Services\CodigoPostalGeoService;
 use App\Services\DelegacionesWhatsAppAlertService;
+use App\Services\Fotos\HechoFotoStorage;
 use App\Services\HechoRevisionNotificationService;
 use App\Models\Dictamen;
 use App\Support\HechoAccess;
@@ -137,8 +138,8 @@ class HechoController extends Controller
         $results = $query->paginate($perPage);
 
         $data = array_map(function ($row) {
-            $row['foto_lugar_url']     = $this->publicStoragePath($row['foto_lugar'] ?? null);
-            $row['foto_situacion_url'] = $this->publicStoragePath($row['foto_situacion'] ?? null);
+            $row['foto_lugar_url']     = $this->hechoFotoUrl($row['foto_lugar'] ?? null);
+            $row['foto_situacion_url'] = $this->hechoFotoUrl($row['foto_situacion'] ?? null);
             return $row;
         }, $results->items());
 
@@ -529,6 +530,7 @@ class HechoController extends Controller
         $hecho = null;
         $newFotoLugarPath = null;
         $newFotoSituacionPath = null;
+        $fotoStorage = app(HechoFotoStorage::class);
 
         try {
             DB::transaction(function () use (
@@ -536,6 +538,7 @@ class HechoController extends Controller
                 $validated,
                 $dictamenId,
                 $puedeUsarDictamenes,
+                $fotoStorage,
                 &$hecho,
                 &$newFotoLugarPath,
                 &$newFotoSituacionPath
@@ -545,12 +548,12 @@ class HechoController extends Controller
                 $updates = [];
 
                 if ($request->hasFile('foto_lugar')) {
-                    $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $newFotoLugarPath = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
                     $updates['foto_lugar'] = $newFotoLugarPath;
                 }
 
                 if ($request->hasFile('foto_situacion')) {
-                    $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $newFotoSituacionPath = $fotoStorage->putUploadedFile($request->file('foto_situacion'), $hecho, 'situacion');
                     $updates['foto_situacion'] = $newFotoSituacionPath;
                 }
 
@@ -572,13 +575,8 @@ class HechoController extends Controller
                 }
             });
         } catch (\Throwable $e) {
-            if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
-                Storage::disk('public')->delete($newFotoLugarPath);
-            }
-
-            if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
-                Storage::disk('public')->delete($newFotoSituacionPath);
-            }
+            $fotoStorage->delete($newFotoLugarPath);
+            $fotoStorage->delete($newFotoSituacionPath);
 
             return response()->json([
                 'message' => $e->getMessage(),
@@ -857,6 +855,7 @@ class HechoController extends Controller
         $newFotoSituacionPath = null;
         $oldFotoLugar = $hecho->foto_lugar;
         $oldFotoSituacion = $hecho->foto_situacion;
+        $fotoStorage = app(HechoFotoStorage::class);
 
         try {
             DB::transaction(function () use (
@@ -866,16 +865,17 @@ class HechoController extends Controller
                 $dictamenId,
                 $dictamenIdProvided,
                 $puedeUsarDictamenes,
+                $fotoStorage,
                 &$newFotoLugarPath,
                 &$newFotoSituacionPath
             ) {
                 if ($request->hasFile('foto_lugar')) {
-                    $newFotoLugarPath = $request->file('foto_lugar')->store("hechos/{$hecho->id}", 'public');
+                    $newFotoLugarPath = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
                     $validated['foto_lugar'] = $newFotoLugarPath;
                 }
 
                 if ($request->hasFile('foto_situacion')) {
-                    $newFotoSituacionPath = $request->file('foto_situacion')->store("hechos/{$hecho->id}", 'public');
+                    $newFotoSituacionPath = $fotoStorage->putUploadedFile($request->file('foto_situacion'), $hecho, 'situacion');
                     $validated['foto_situacion'] = $newFotoSituacionPath;
                 }
 
@@ -921,13 +921,8 @@ class HechoController extends Controller
                 }
             });
         } catch (\Throwable $e) {
-            if ($newFotoLugarPath && Storage::disk('public')->exists($newFotoLugarPath)) {
-                Storage::disk('public')->delete($newFotoLugarPath);
-            }
-
-            if ($newFotoSituacionPath && Storage::disk('public')->exists($newFotoSituacionPath)) {
-                Storage::disk('public')->delete($newFotoSituacionPath);
-            }
+            $fotoStorage->delete($newFotoLugarPath);
+            $fotoStorage->delete($newFotoSituacionPath);
 
             return response()->json([
                 'message' => $e->getMessage(),
@@ -939,12 +934,12 @@ class HechoController extends Controller
 
         $hecho->actualizarEstadoCaptura();
 
-        if ($newFotoLugarPath && !empty($oldFotoLugar) && Storage::disk('public')->exists($oldFotoLugar)) {
-            Storage::disk('public')->delete($oldFotoLugar);
+        if ($newFotoLugarPath && !empty($oldFotoLugar)) {
+            $fotoStorage->delete($oldFotoLugar);
         }
 
-        if ($newFotoSituacionPath && !empty($oldFotoSituacion) && Storage::disk('public')->exists($oldFotoSituacion)) {
-            Storage::disk('public')->delete($oldFotoSituacion);
+        if ($newFotoSituacionPath && !empty($oldFotoSituacion)) {
+            $fotoStorage->delete($oldFotoSituacion);
         }
 
         $hecho = $hecho->fresh()->load(['vehiculos.conductores', 'lesionados']);
@@ -1015,13 +1010,9 @@ class HechoController extends Controller
 
         try {
             DB::transaction(function () use ($hecho) {
-                if (!empty($hecho->foto_lugar) && Storage::disk('public')->exists($hecho->foto_lugar)) {
-                    Storage::disk('public')->delete($hecho->foto_lugar);
-                }
-
-                if (!empty($hecho->foto_situacion) && Storage::disk('public')->exists($hecho->foto_situacion)) {
-                    Storage::disk('public')->delete($hecho->foto_situacion);
-                }
+                $fotoStorage = app(HechoFotoStorage::class);
+                $fotoStorage->delete($hecho->foto_lugar);
+                $fotoStorage->delete($hecho->foto_situacion);
 
                 if (!empty($hecho->descargo_path) && Storage::disk('public')->exists($hecho->descargo_path)) {
                     Storage::disk('public')->delete($hecho->descargo_path);
@@ -1185,8 +1176,8 @@ class HechoController extends Controller
 
         $data = $hecho->toArray();
 
-        $data['foto_lugar_url']     = $this->publicStoragePath($hecho->foto_lugar);
-        $data['foto_situacion_url'] = $this->publicStoragePath($hecho->foto_situacion);
+        $data['foto_lugar_url']     = $this->hechoFotoUrl($hecho->foto_lugar);
+        $data['foto_situacion_url'] = $this->hechoFotoUrl($hecho->foto_situacion);
         $data['iph_delegaciones_path'] = $hecho->iph_delegaciones_path ?? null;
         $data['iph_delegaciones_url'] = $this->publicStoragePath($data['iph_delegaciones_path']);
         $data['descargo_path'] = $data['descargo_path'] ?? $data['iph_delegaciones_path'];
@@ -1445,6 +1436,11 @@ class HechoController extends Controller
         return asset('storage/' . ltrim($storedPath, '/'));
     }
 
+    private function hechoFotoUrl(?string $storedPath): ?string
+    {
+        return app(HechoFotoStorage::class)->url($storedPath);
+    }
+
     private function applyHechosVisibilityScope($query, $usuario): void
     {
         HechoAccess::applyVisibilityScope($query, $usuario);
@@ -1592,16 +1588,16 @@ class HechoController extends Controller
         $fotos = [];
 
         if (!empty($hecho->foto_lugar)) {
-            $fotos[] = $this->publicStoragePath($hecho->foto_lugar);
+            $fotos[] = $this->hechoFotoUrl($hecho->foto_lugar);
         }
 
         if (!empty($hecho->foto_situacion)) {
-            $fotos[] = $this->publicStoragePath($hecho->foto_situacion);
+            $fotos[] = $this->hechoFotoUrl($hecho->foto_situacion);
         }
 
         foreach ($hecho->vehiculos as $v) {
             if (!empty($v->fotos)) {
-                $fotos[] = $this->publicStoragePath($v->fotos);
+                $fotos[] = $this->hechoFotoUrl($v->fotos);
             }
         }
 

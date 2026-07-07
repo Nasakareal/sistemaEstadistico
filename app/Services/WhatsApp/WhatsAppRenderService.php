@@ -5,6 +5,7 @@ namespace App\Services\WhatsApp;
 use App\Models\Hechos;
 use App\Models\Personal;
 use App\Models\PersonalDocumento;
+use App\Services\Fotos\HechoFotoStorage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -630,6 +631,10 @@ class WhatsAppRenderService
 
         if ($this->startsWith($path, 'http://') || $this->startsWith($path, 'https://')) {
             return $path;
+        }
+
+        if ($this->startsWith($path, 'hechos/') || $this->startsWith($path, 'vehiculos/')) {
+            return app(HechoFotoStorage::class)->url($path);
         }
 
         try {

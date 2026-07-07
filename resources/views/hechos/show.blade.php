@@ -15,6 +15,7 @@
     $volverHechoUrl = $urlAnterior && $urlAnterior !== url()->current()
         ? $urlAnterior
         : route('hechos.index');
+    $hechoFotoStorage = app(\App\Services\Fotos\HechoFotoStorage::class);
 @endphp
 
 @section('content_header')
@@ -392,9 +393,9 @@
                                         </div>
 
                                         @if(!empty($hecho->foto_lugar))
-                                            <a href="{{ asset('storage/' . $hecho->foto_lugar) }}" target="_blank" rel="noopener" class="sv-photo-link">
+                                            <a href="{{ $hechoFotoStorage->url($hecho->foto_lugar) }}" target="_blank" rel="noopener" class="sv-photo-link">
                                                 <div class="sv-photo-box">
-                                                    <img src="{{ asset('storage/' . $hecho->foto_lugar) }}"
+                                                    <img src="{{ $hechoFotoStorage->url($hecho->foto_lugar) }}"
                                                          class="sv-photo-img"
                                                          alt="Foto del lugar"
                                                          loading="lazy"
@@ -413,9 +414,9 @@
                                         </div>
 
                                         @if(!empty($hecho->foto_situacion))
-                                            <a href="{{ asset('storage/' . $hecho->foto_situacion) }}" target="_blank" rel="noopener" class="sv-photo-link">
+                                            <a href="{{ $hechoFotoStorage->url($hecho->foto_situacion) }}" target="_blank" rel="noopener" class="sv-photo-link">
                                                 <div class="sv-photo-box">
-                                                    <img src="{{ asset('storage/' . $hecho->foto_situacion) }}"
+                                                    <img src="{{ $hechoFotoStorage->url($hecho->foto_situacion) }}"
                                                          class="sv-photo-img"
                                                          alt="Foto de la situación"
                                                          loading="lazy"
@@ -628,7 +629,7 @@
 
                                             <div class="sv-veh-body">
                                                 @if(!empty($vehiculo->fotos))
-                                                    <img src="{{ asset('storage/' . $vehiculo->fotos) }}" class="sv-veh-img" alt="Foto del vehículo">
+                                                    <img src="{{ $hechoFotoStorage->url($vehiculo->fotos) }}" class="sv-veh-img" alt="Foto del vehículo">
                                                 @else
                                                     <div class="sv-veh-noimg">
                                                         <i class="fa-regular fa-image"></i>

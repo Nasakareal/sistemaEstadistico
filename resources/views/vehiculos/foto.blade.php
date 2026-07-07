@@ -22,9 +22,13 @@
             </div>
 
             <div class="card-body">
-                @if ($vehiculo->fotos)
+                @php
+                    $fotoVehiculoUrl = $vehiculo->fotos ? app(\App\Services\Fotos\HechoFotoStorage::class)->url($vehiculo->fotos) : null;
+                @endphp
+
+                @if ($fotoVehiculoUrl)
                     <div class="mb-3 text-center">
-                        <img src="{{ asset('storage/'.$vehiculo->fotos) }}" alt="Foto del vehículo" class="img-fluid rounded" style="max-height: 360px;">
+                        <img src="{{ $fotoVehiculoUrl }}" alt="Foto del vehículo" class="img-fluid rounded" style="max-height: 360px;">
                     </div>
 
                     <div class="text-center mb-4">

@@ -47,7 +47,7 @@
                                     <td>
                                         @php
                                             $foto = $hecho->foto_lugar;
-                                            $urlFoto = $foto ? asset('storage/' . ltrim($foto, '/')) : null;
+                                            $urlFoto = $foto ? app(\App\Services\Fotos\HechoFotoStorage::class)->url($foto) : null;
                                         @endphp
 
                                         @if ($urlFoto)

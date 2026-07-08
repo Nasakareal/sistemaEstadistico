@@ -99,6 +99,19 @@
                                     @endif
                                 </td>
                             </tr>
+
+                            <tr>
+                                <th>Resguardo</th>
+                                <td>
+                                    @if ($patrulla->resguardo_pdf_url)
+                                        <a href="{{ $patrulla->resguardo_pdf_url }}" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm">
+                                            <i class="fa-regular fa-file-pdf"></i> Ver PDF de resguardo
+                                        </a>
+                                    @else
+                                        <span class="text-muted">Sin resguardo cargado</span>
+                                    @endif
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
 

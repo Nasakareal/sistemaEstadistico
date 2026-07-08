@@ -26,6 +26,7 @@
                                 <th><center>Número Económico</center></th>
                                 <th><center>Unidad</center></th>
                                 <th><center>Estado</center></th>
+                                <th><center>Resguardo</center></th>
                                 <th><center>Fecha de Registro</center></th>
                                 <th><center>Acciones</center></th>
                             </tr>
@@ -41,6 +42,15 @@
                                             <span class="badge badge-success">Activa</span>
                                         @else
                                             <span class="badge badge-danger">Inactiva</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($patrulla->resguardo_pdf_url)
+                                            <a href="{{ $patrulla->resguardo_pdf_url }}" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm">
+                                                <i class="fa-regular fa-file-pdf"></i>
+                                            </a>
+                                        @else
+                                            <span class="text-muted">—</span>
                                         @endif
                                     </td>
                                     <td>{{ optional($patrulla->created_at)->format('d-m-Y') }}</td>

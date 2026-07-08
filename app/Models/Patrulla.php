@@ -26,6 +26,7 @@ class Patrulla extends Model
         'no_motor',
         'observaciones',
         'foto',
+        'resguardo_pdf',
     ];
 
     protected $casts = [
@@ -78,5 +79,10 @@ class Patrulla extends Model
     public function getFotoUrlAttribute()
     {
         return $this->foto ? asset('storage/' . $this->foto) : null;
+    }
+
+    public function getResguardoPdfUrlAttribute()
+    {
+        return $this->resguardo_pdf ? asset('storage/' . $this->resguardo_pdf) : null;
     }
 }

@@ -384,6 +384,45 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="resguardo_pdf">Resguardo de la Patrulla (PDF)</label>
+                                    <input
+                                        type="file"
+                                        name="resguardo_pdf"
+                                        id="resguardo_pdf"
+                                        class="form-control @error('resguardo_pdf') is-invalid @enderror"
+                                        accept=".pdf,application/pdf"
+                                    >
+                                    @error('resguardo_pdf')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Opcional. Si subes uno nuevo, reemplazará el resguardo actual. Máximo 10 MB.</small>
+
+                                    @if ($patrulla->resguardo_pdf_url)
+                                        <div class="mt-2">
+                                            <a href="{{ $patrulla->resguardo_pdf_url }}" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm">
+                                                <i class="fa-regular fa-file-pdf"></i> Ver resguardo actual
+                                            </a>
+                                            <div class="form-check mt-2">
+                                                <input
+                                                    type="checkbox"
+                                                    name="eliminar_resguardo_pdf"
+                                                    value="1"
+                                                    id="eliminar_resguardo_pdf"
+                                                    class="form-check-input"
+                                                >
+                                                <label class="form-check-label" for="eliminar_resguardo_pdf">
+                                                    Eliminar resguardo actual
+                                                </label>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>

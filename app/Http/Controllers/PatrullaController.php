@@ -99,6 +99,7 @@ class PatrullaController extends Controller
             'color' => 'nullable|string|max:50',
             'no_motor' => 'nullable|string|max:60',
             'observaciones' => 'nullable|string',
+            'resguardo_pdf' => 'nullable|file|mimes:pdf|max:10240',
             'fotos' => 'required|array',
             'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -130,6 +131,9 @@ class PatrullaController extends Controller
                 'no_motor' => $validated['no_motor'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
                 'foto' => null,
+                'resguardo_pdf' => $request->hasFile('resguardo_pdf')
+                    ? $request->file('resguardo_pdf')->store('patrullas/resguardos', 'public')
+                    : null,
             ]);
 
             if ($request->hasFile('fotos')) {
@@ -201,6 +205,8 @@ class PatrullaController extends Controller
             'color' => 'nullable|string|max:50',
             'no_motor' => 'nullable|string|max:60',
             'observaciones' => 'nullable|string',
+            'resguardo_pdf' => 'nullable|file|mimes:pdf|max:10240',
+            'eliminar_resguardo_pdf' => 'nullable|boolean',
             'fotos' => 'nullable|array',
             'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -216,6 +222,19 @@ class PatrullaController extends Controller
             $validated['marca'] = $this->normalizarTexto($validated['marca'] ?? null);
             $validated['linea'] = $this->normalizarTexto($validated['linea'] ?? null);
             $validated['color'] = $this->normalizarTexto($validated['color'] ?? null);
+            $resguardoPdf = $patrulla->resguardo_pdf;
+
+            if ($request->boolean('eliminar_resguardo_pdf') || $request->hasFile('resguardo_pdf')) {
+                if ($resguardoPdf && Storage::disk('public')->exists($resguardoPdf)) {
+                    Storage::disk('public')->delete($resguardoPdf);
+                }
+
+                $resguardoPdf = null;
+            }
+
+            if ($request->hasFile('resguardo_pdf')) {
+                $resguardoPdf = $request->file('resguardo_pdf')->store('patrullas/resguardos', 'public');
+            }
 
             $patrulla->update([
                 'numero_economico' => $validated['numero_economico'],
@@ -231,6 +250,7 @@ class PatrullaController extends Controller
                 'color' => $validated['color'] ?? null,
                 'no_motor' => $validated['no_motor'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
+                'resguardo_pdf' => $resguardoPdf,
             ]);
 
             if ($request->hasFile('fotos')) {
@@ -282,6 +302,10 @@ class PatrullaController extends Controller
 
             if ($patrulla->foto && Storage::disk('public')->exists($patrulla->foto)) {
                 Storage::disk('public')->delete($patrulla->foto);
+            }
+
+            if ($patrulla->resguardo_pdf && Storage::disk('public')->exists($patrulla->resguardo_pdf)) {
+                Storage::disk('public')->delete($patrulla->resguardo_pdf);
             }
 
             $patrulla->delete();

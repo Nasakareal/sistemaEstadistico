@@ -322,6 +322,25 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="resguardo_pdf">Resguardo de la Patrulla (PDF)</label>
+                                    <input
+                                        type="file"
+                                        name="resguardo_pdf"
+                                        id="resguardo_pdf"
+                                        class="form-control @error('resguardo_pdf') is-invalid @enderror"
+                                        accept=".pdf,application/pdf"
+                                    >
+                                    @error('resguardo_pdf')
+                                        <span class="invalid-feedback d-block" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Opcional. Formato permitido: PDF, máximo 10 MB.</small>
+                                </div>
+                            </div>
+
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>

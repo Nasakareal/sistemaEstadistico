@@ -386,6 +386,26 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label for="resguardo_nombre">Nombre de quien tiene el resguardo</label>
+                                    <input
+                                        type="text"
+                                        name="resguardo_nombre"
+                                        id="resguardo_nombre"
+                                        class="form-control @error('resguardo_nombre') is-invalid @enderror"
+                                        value="{{ old('resguardo_nombre', $patrulla->resguardo_nombre) }}"
+                                        placeholder="Nombre completo"
+                                    >
+                                    @error('resguardo_nombre')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                    @enderror
+                                    <small class="text-muted">Opcional. Sirve para identificar a quién está asignado el resguardo.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label for="resguardo_pdf">Resguardo de la Patrulla (PDF)</label>
                                     <input
                                         type="file"
@@ -422,7 +442,9 @@
                                     @endif
                                 </div>
                             </div>
+                        </div>
 
+                        <div class="row">
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label for="observaciones">Observaciones</label>

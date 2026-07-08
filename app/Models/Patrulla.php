@@ -27,6 +27,7 @@ class Patrulla extends Model
         'observaciones',
         'foto',
         'resguardo_pdf',
+        'resguardo_nombre',
     ];
 
     protected $casts = [

@@ -112,6 +112,11 @@
                                     @endif
                                 </td>
                             </tr>
+
+                            <tr>
+                                <th>A resguardo de</th>
+                                <td>{{ $patrulla->resguardo_nombre ?? 'No especificado' }}</td>
+                            </tr>
                         </tbody>
                     </table>
 

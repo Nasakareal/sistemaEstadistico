@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Fotos\HechoFotoStorage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,6 +11,11 @@ class Vehiculo extends Model
     use HasFactory;
 
     protected $table = 'vehiculos';
+
+    protected $appends = [
+        'fotos_url',
+        'foto_inventario_grua_url',
+    ];
 
     protected $fillable = [
         'client_uuid',
@@ -20,6 +26,7 @@ class Vehiculo extends Model
         'color',
         'placas',
         'estado_placas',
+        'permiso_circular',
         'serie',
         'capacidad_personas',
         'tipo_servicio',
@@ -36,6 +43,20 @@ class Vehiculo extends Model
         'aseguradora',
         'antecedente_vehiculo',
     ];
+
+    public function getFotosUrlAttribute(): ?string
+    {
+        return app(HechoFotoStorage::class)->url(
+            $this->attributes['fotos'] ?? null
+        );
+    }
+
+    public function getFotoInventarioGruaUrlAttribute(): ?string
+    {
+        return app(HechoFotoStorage::class)->url(
+            $this->attributes['foto_inventario_grua'] ?? null
+        );
+    }
 
     public function hechos()
     {

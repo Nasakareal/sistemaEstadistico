@@ -639,6 +639,7 @@ class VehiculoController extends Controller
                 'required_with:placas',
                 'regex:/^[A-Z]{3,15}$/'
             ],
+            'permiso_circular' => 'nullable|string|max:60',
 
             'serie' => ['nullable','string','max:17','regex:/^[A-Z0-9]{6,17}$/'],
 
@@ -688,7 +689,7 @@ class VehiculoController extends Controller
     private function normalize(Request $request, array $data): array
     {
         $upper = [
-            'marca','modelo','tipo','linea','color','estado_placas','tipo_servicio',
+            'marca','modelo','tipo','linea','color','estado_placas','permiso_circular','tipo_servicio',
             'tarjeta_circulacion_nombre','corralon','aseguradora','partes_danadas',
             'conductor_nombre','domicilio','sexo','ocupacion','tipo_licencia',
             'estado_licencia','numero_licencia'
@@ -806,6 +807,7 @@ class VehiculoController extends Controller
             'color'                      => $v['color'] ?? null,
             'placas'                     => $v['placas'] ?? null,
             'estado_placas'              => $v['estado_placas'] ?? null,
+            'permiso_circular'           => $v['permiso_circular'] ?? null,
             'serie'                      => $v['serie'] ?? null,
             'capacidad_personas'         => $v['capacidad_personas'] ?? 0,
             'tipo_servicio'              => $v['tipo_servicio'] ?? null,
@@ -831,6 +833,7 @@ class VehiculoController extends Controller
             'color'                      => $v['color'] ?? null,
             'placas'                     => $v['placas'] ?? null,
             'estado_placas'              => $v['estado_placas'] ?? null,
+            'permiso_circular'           => $v['permiso_circular'] ?? null,
             'serie'                      => $v['serie'] ?? null,
             'capacidad_personas'         => $v['capacidad_personas'] ?? 0,
             'tipo_servicio'              => $v['tipo_servicio'] ?? null,
@@ -969,6 +972,7 @@ class VehiculoController extends Controller
             'color' => 'color',
             'placas' => 'placas',
             'estado_placas' => 'estado de placas',
+            'permiso_circular' => 'permiso para circular',
             'serie' => 'NIV/serie',
             'capacidad_personas' => 'capacidad de personas',
             'tipo_servicio' => 'tipo de servicio',

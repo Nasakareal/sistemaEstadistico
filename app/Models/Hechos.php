@@ -55,6 +55,7 @@ class Hechos extends Model
         'propiedades_afectadas',
         'monto_danos_patrimoniales',
         'foto_lugar',
+        'foto_lugar_2',
         'foto_situacion',
         'iph_delegaciones_path',
         'delegacion_id',

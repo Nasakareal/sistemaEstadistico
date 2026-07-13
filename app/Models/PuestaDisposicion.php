@@ -94,4 +94,11 @@ class PuestaDisposicion extends Model
     {
         return $this->hasMany(PuestaDisposicionObjeto::class, 'puesta_disposicion_id');
     }
+
+    public function fotos()
+    {
+        return $this->hasMany(PuestaDisposicionFoto::class, 'puesta_disposicion_id')
+            ->orderBy('orden')
+            ->orderBy('id');
+    }
 }

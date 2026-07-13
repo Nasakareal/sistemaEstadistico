@@ -9,6 +9,7 @@ use App\Models\Conductor;
 use App\Models\Grua;
 use App\Services\Fotos\HechoFotoStorage;
 use App\Support\HechoAccess;
+use App\Support\TelefonoMexico;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -608,6 +609,10 @@ class VehiculoController extends Controller
             $ep = str_replace(['.', ',', '-', '_'], '', $ep);
             $ep = preg_replace('/\s+/', ' ', trim($ep));
             $dataForValidation['estado_placas'] = ($ep === '') ? null : $ep;
+        }
+
+        if (array_key_exists('telefono', $dataForValidation)) {
+            $dataForValidation['telefono'] = TelefonoMexico::normalize($dataForValidation['telefono']);
         }
 
         if (

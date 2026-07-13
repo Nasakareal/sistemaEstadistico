@@ -88,6 +88,7 @@ class HechoController extends Controller
                 'hechos.codigo_postal',
                 'hechos.situacion',
                 'hechos.foto_lugar',
+                'hechos.foto_lugar_2',
                 'hechos.foto_situacion',
                 'hechos.danos_patrimoniales',
                 'hechos.propiedades_afectadas',
@@ -139,6 +140,7 @@ class HechoController extends Controller
 
         $data = array_map(function ($row) {
             $row['foto_lugar_url']     = $this->hechoFotoUrl($row['foto_lugar'] ?? null);
+            $row['foto_lugar_2_url']   = $this->hechoFotoUrl($row['foto_lugar_2'] ?? null);
             $row['foto_situacion_url'] = $this->hechoFotoUrl($row['foto_situacion'] ?? null);
             return $row;
         }, $results->items());
@@ -396,6 +398,7 @@ class HechoController extends Controller
             'ubicacion_formateada' => 'nullable|string|max:2000',
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_lugar_2' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
@@ -458,7 +461,7 @@ class HechoController extends Controller
         }
 
         $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
-        unset($validated['dictamen_id'], $validated['foto_lugar'], $validated['foto_situacion']);
+        unset($validated['dictamen_id'], $validated['foto_lugar'], $validated['foto_lugar_2'], $validated['foto_situacion']);
 
         $validated['checaron_antecedentes'] = $request->boolean('checaron_antecedentes');
         $validated['danos_patrimoniales'] = $request->boolean('danos_patrimoniales');
@@ -529,6 +532,7 @@ class HechoController extends Controller
 
         $hecho = null;
         $newFotoLugarPath = null;
+        $newFotoLugar2Path = null;
         $newFotoSituacionPath = null;
         $fotoStorage = app(HechoFotoStorage::class);
 
@@ -541,6 +545,7 @@ class HechoController extends Controller
                 $fotoStorage,
                 &$hecho,
                 &$newFotoLugarPath,
+                &$newFotoLugar2Path,
                 &$newFotoSituacionPath
             ) {
                 $hecho = Hechos::create($validated);
@@ -550,6 +555,11 @@ class HechoController extends Controller
                 if ($request->hasFile('foto_lugar')) {
                     $newFotoLugarPath = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
                     $updates['foto_lugar'] = $newFotoLugarPath;
+                }
+
+                if ($request->hasFile('foto_lugar_2')) {
+                    $newFotoLugar2Path = $fotoStorage->putUploadedFile($request->file('foto_lugar_2'), $hecho, 'lugar_2');
+                    $updates['foto_lugar_2'] = $newFotoLugar2Path;
                 }
 
                 if ($request->hasFile('foto_situacion')) {
@@ -576,6 +586,7 @@ class HechoController extends Controller
             });
         } catch (\Throwable $e) {
             $fotoStorage->delete($newFotoLugarPath);
+            $fotoStorage->delete($newFotoLugar2Path);
             $fotoStorage->delete($newFotoSituacionPath);
 
             return response()->json([
@@ -673,6 +684,7 @@ class HechoController extends Controller
             'ubicacion_formateada' => 'sometimes|nullable|string|max:2000',
             'place_id' => 'sometimes|nullable|string|max:128',
             'foto_lugar' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_lugar_2' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
@@ -852,8 +864,10 @@ class HechoController extends Controller
         unset($validated['unidad_org_id']);
 
         $newFotoLugarPath = null;
+        $newFotoLugar2Path = null;
         $newFotoSituacionPath = null;
         $oldFotoLugar = $hecho->foto_lugar;
+        $oldFotoLugar2 = $hecho->foto_lugar_2;
         $oldFotoSituacion = $hecho->foto_situacion;
         $fotoStorage = app(HechoFotoStorage::class);
 
@@ -867,11 +881,17 @@ class HechoController extends Controller
                 $puedeUsarDictamenes,
                 $fotoStorage,
                 &$newFotoLugarPath,
+                &$newFotoLugar2Path,
                 &$newFotoSituacionPath
             ) {
                 if ($request->hasFile('foto_lugar')) {
                     $newFotoLugarPath = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
                     $validated['foto_lugar'] = $newFotoLugarPath;
+                }
+
+                if ($request->hasFile('foto_lugar_2')) {
+                    $newFotoLugar2Path = $fotoStorage->putUploadedFile($request->file('foto_lugar_2'), $hecho, 'lugar_2');
+                    $validated['foto_lugar_2'] = $newFotoLugar2Path;
                 }
 
                 if ($request->hasFile('foto_situacion')) {
@@ -922,6 +942,7 @@ class HechoController extends Controller
             });
         } catch (\Throwable $e) {
             $fotoStorage->delete($newFotoLugarPath);
+            $fotoStorage->delete($newFotoLugar2Path);
             $fotoStorage->delete($newFotoSituacionPath);
 
             return response()->json([
@@ -936,6 +957,10 @@ class HechoController extends Controller
 
         if ($newFotoLugarPath && !empty($oldFotoLugar)) {
             $fotoStorage->delete($oldFotoLugar);
+        }
+
+        if ($newFotoLugar2Path && !empty($oldFotoLugar2)) {
+            $fotoStorage->delete($oldFotoLugar2);
         }
 
         if ($newFotoSituacionPath && !empty($oldFotoSituacion)) {
@@ -1012,6 +1037,7 @@ class HechoController extends Controller
             DB::transaction(function () use ($hecho) {
                 $fotoStorage = app(HechoFotoStorage::class);
                 $fotoStorage->delete($hecho->foto_lugar);
+                $fotoStorage->delete($hecho->foto_lugar_2);
                 $fotoStorage->delete($hecho->foto_situacion);
 
                 if (!empty($hecho->descargo_path) && Storage::disk('public')->exists($hecho->descargo_path)) {
@@ -1177,6 +1203,7 @@ class HechoController extends Controller
         $data = $hecho->toArray();
 
         $data['foto_lugar_url']     = $this->hechoFotoUrl($hecho->foto_lugar);
+        $data['foto_lugar_2_url']   = $this->hechoFotoUrl($hecho->foto_lugar_2);
         $data['foto_situacion_url'] = $this->hechoFotoUrl($hecho->foto_situacion);
         $data['iph_delegaciones_path'] = $hecho->iph_delegaciones_path ?? null;
         $data['iph_delegaciones_url'] = $this->publicStoragePath($data['iph_delegaciones_path']);
@@ -1371,6 +1398,7 @@ class HechoController extends Controller
             'propiedades_afectadas.max'         => 'Máximo 2000 caracteres en “Propiedades afectadas”.',
 
             'foto_lugar.max'        => 'La foto del lugar es muy pesada (máximo 5 MB).',
+            'foto_lugar_2.max'      => 'La foto 2 del lugar es muy pesada (máximo 5 MB).',
             'foto_situacion.max'    => 'La foto de situación es muy pesada (máximo 5 MB).',
 
             'vehiculos_esperados.required' => 'Indica cuántos vehículos participaron.',
@@ -1589,6 +1617,10 @@ class HechoController extends Controller
 
         if (!empty($hecho->foto_lugar)) {
             $fotos[] = $this->hechoFotoUrl($hecho->foto_lugar);
+        }
+
+        if (!empty($hecho->foto_lugar_2)) {
+            $fotos[] = $this->hechoFotoUrl($hecho->foto_lugar_2);
         }
 
         if (!empty($hecho->foto_situacion)) {

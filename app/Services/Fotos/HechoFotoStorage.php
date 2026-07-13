@@ -3,6 +3,7 @@
 namespace App\Services\Fotos;
 
 use App\Models\Hechos;
+use App\Models\PuestaDisposicion;
 use App\Models\Vehiculo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
@@ -40,6 +41,36 @@ class HechoFotoStorage
 
         if (!Storage::disk('public')->putFileAs(dirname($path), $file, basename($path))) {
             throw new RuntimeException('No se pudo guardar la foto del hecho en almacenamiento local.');
+        }
+
+        return $path;
+    }
+
+    public function putPuestaDisposicionFile(UploadedFile $file, PuestaDisposicion $puesta): string
+    {
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin'));
+        $extension = preg_replace('/[^a-z0-9]+/', '', $extension) ?: 'bin';
+        $year = (string) ($puesta->anio ?: now('America/Mexico_City')->format('Y'));
+        $fileName = 'foto_' . now('America/Mexico_City')->format('Ymd_His') . '_' . Str::random(12) . '.' . $extension;
+        $path = 'puestas-disposicion/' . $year . '/puesta_' . $puesta->id . '/' . $fileName;
+
+        if ($this->usesAzure()) {
+            $stream = fopen($file->getRealPath(), 'rb');
+            if ($stream === false) {
+                throw new RuntimeException('No se pudo abrir la foto de la puesta a disposición.');
+            }
+
+            try {
+                $this->putStream($path, $stream, $file->getMimeType() ?: 'application/octet-stream');
+            } finally {
+                if (is_resource($stream)) fclose($stream);
+            }
+
+            return $path;
+        }
+
+        if (!Storage::disk('public')->putFileAs(dirname($path), $file, basename($path))) {
+            throw new RuntimeException('No se pudo guardar la foto de la puesta a disposición.');
         }
 
         return $path;

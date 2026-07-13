@@ -7,10 +7,12 @@ use App\Models\PuestaDisposicion;
 use App\Models\PuestaDisposicionPersona;
 use App\Models\PuestaDisposicionVehiculo;
 use App\Models\PuestaDisposicionObjeto;
+use App\Models\PuestaDisposicionFoto;
 use App\Models\Unidad;
 use App\Models\Hechos;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Documentos\DocumentoArchivoStorage;
+use App\Services\Fotos\HechoFotoStorage;
 use App\Support\HechoAccess;
 use App\Support\PuestaDisposicionRules;
 use Illuminate\Http\Request;
@@ -38,7 +40,7 @@ class PuestaDisposicionController extends Controller
 
     private function queryVisibleByUser($usuario)
     {
-        $query = PuestaDisposicion::query()->with(['unidad','delegacion','destacamento','creador']);
+        $query = PuestaDisposicion::query()->with(['unidad','delegacion','destacamento','creador','fotos']);
 
         if ($this->puedeVerTodasLasUnidades($usuario)) return $query;
 
@@ -57,7 +59,7 @@ class PuestaDisposicionController extends Controller
     private function findVisibleOrFail($id,$usuario): PuestaDisposicion
     {
         return $this->queryVisibleByUser($usuario)
-            ->with(['personas','vehiculos','objetos','unidad','delegacion','destacamento','creador','actualizador'])
+            ->with(['personas','vehiculos','objetos','fotos','unidad','delegacion','destacamento','creador','actualizador'])
             ->findOrFail($id);
     }
 
@@ -214,6 +216,8 @@ class PuestaDisposicionController extends Controller
             'narrativa'=>'nullable|string',
             'observaciones'=>'nullable|string',
             'archivo_puesta'=>'nullable|file|mimes:pdf|max:20480',
+            'fotos'=>'nullable|array|max:10',
+            'fotos.*'=>'image|mimes:jpg,jpeg,png,webp|max:5120',
 
             'personas'=>'nullable|array',
             'personas.*.nombre_completo'=>'nullable|string|max:255',
@@ -339,7 +343,9 @@ class PuestaDisposicionController extends Controller
         if ($request->filled('motivo')) $query->where('motivo',strtoupper(trim($request->motivo)));
         if ($request->filled('tipo_puesta')) $query->where('tipo_puesta',strtoupper(trim($request->tipo_puesta)));
 
-        return response()->json($query->get());
+        return response()->json(
+            $query->get()->map(fn (PuestaDisposicion $puesta) => $this->withFotoUrls($puesta))->values()
+        );
     }
 
     public function store(Request $request)
@@ -378,6 +384,8 @@ class PuestaDisposicionController extends Controller
             'objetos'=>count($request->input('objetos', [])),
             'tiene_archivo'=>$request->hasFile('archivo_puesta'),
         ]);
+
+        $fotoPaths=[];
 
         try {
             DB::beginTransaction();
@@ -422,16 +430,33 @@ class PuestaDisposicionController extends Controller
                 'created_by'=>$usuario->id,
             ]);
 
+            foreach ($request->file('fotos', []) as $orden => $foto) {
+                $path=$this->fotos()->putPuestaDisposicionFile($foto,$puesta);
+                $fotoPaths[]=$path;
+                PuestaDisposicionFoto::create([
+                    'puesta_disposicion_id'=>$puesta->id,
+                    'ruta'=>$path,
+                    'orden'=>$orden,
+                    'created_by'=>$usuario->id,
+                ]);
+            }
+
             $this->guardarDetalles($puesta, $request);
 
             DB::commit();
 
             app(DelegacionesWhatsAppAlertService::class)->notificarPuestaDisposicion($puesta);
 
-            return response()->json($puesta->load(['personas','vehiculos','objetos','unidad']),201);
+            return response()->json(
+                $this->withFotoUrls($puesta->load(['personas','vehiculos','objetos','fotos','unidad'])),
+                201
+            );
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            foreach ($fotoPaths as $path) {
+                $this->fotos()->delete($path);
+            }
             Log::error('Puesta a disposicion API: error al guardar', [
                 'user_id'=>$usuario ? $usuario->id : null,
                 'unidad_id'=>$unidadRegistroId,
@@ -447,7 +472,7 @@ class PuestaDisposicionController extends Controller
     {
         $usuario=Auth::user();
         $data=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
-        return response()->json($data);
+        return response()->json($this->withFotoUrls($data));
     }
 
     public function archivo(PuestaDisposicion $puestaDisposicion)
@@ -492,11 +517,17 @@ class PuestaDisposicionController extends Controller
         $usuario=Auth::user();
         $puesta=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
 
+        $puesta->loadMissing('fotos');
         $archivo=$puesta->archivo_puesta;
+        $fotos=$puesta->fotos->pluck('ruta')->all();
         $puesta->delete();
 
         if ($archivo) {
             $this->documentos()->delete($archivo);
+        }
+
+        foreach ($fotos as $foto) {
+            $this->fotos()->delete($foto);
         }
 
         return response()->json(['ok'=>true]);
@@ -505,5 +536,26 @@ class PuestaDisposicionController extends Controller
     private function documentos(): DocumentoArchivoStorage
     {
         return app(DocumentoArchivoStorage::class);
+    }
+
+    private function fotos(): HechoFotoStorage
+    {
+        return app(HechoFotoStorage::class);
+    }
+
+    private function withFotoUrls(PuestaDisposicion $puesta): array
+    {
+        $puesta->loadMissing('fotos');
+        $data=$puesta->toArray();
+        $data['fotos']=$puesta->fotos->map(function (PuestaDisposicionFoto $foto) {
+            return [
+                'id'=>$foto->id,
+                'ruta'=>$foto->ruta,
+                'orden'=>$foto->orden,
+                'url'=>$this->fotos()->url($foto->ruta),
+            ];
+        })->values()->all();
+
+        return $data;
     }
 }

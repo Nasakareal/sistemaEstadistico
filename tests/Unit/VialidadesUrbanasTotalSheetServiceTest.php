@@ -159,7 +159,7 @@ class VialidadesUrbanasTotalSheetServiceTest extends TestCase
         $this->assertSame('RESPUESTA VIAL INMEDIATA', $sheet->getCell('C28')->getValue());
         $this->assertSame('ABANDERAMIENTO ACTIVO', $sheet->getCell('C29')->getValue());
         $this->assertSame('PASO CONTINUO', $sheet->getCell('C30')->getValue());
-        $this->assertSame('', $sheet->getCell('C31')->getValue());
+        $this->assertSame('OTROS OPERATIVOS (Especificar en las novedades relevantes)', $sheet->getCell('C31')->getValue());
         $this->assertSame('', $sheet->getCell('C32')->getValue());
         $this->assertSame('', $sheet->getCell('C33')->getValue());
         $this->assertSame('', $sheet->getCell('C34')->getValue());

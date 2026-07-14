@@ -40,6 +40,7 @@ class ActividadCategoriasSeeder extends Seeder
                 'OBRAS PÚBLICAS',
                 'ACOMPAÑAMIENTO A CARAVANAS U OTROS',
                 'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)',
+                'BLOQUEO CARRETERO',
             ],
             'OPERATIVOS' => [
                 ['nombre' => 'ESCUELA SEGURA', 'unidad_id' => self::UNIDAD_VIALIDADES_URBANAS_ID],
@@ -57,6 +58,8 @@ class ActividadCategoriasSeeder extends Seeder
                 'BLINDAJE CON ESTADOS COLINDANTES',
                 'BASES DE OPERACIONES INTERINSTITUCIONAL',
                 'OTROS OPERATIVOS (Especificar en las novedades relevantes)',
+                'ALCOHOLIMETRÍA',
+                'CONDUCE CON LEGALIDAD',
             ],
             'PROGRAMAS' => [
                 'CONDUCE SIN ALCOHOL (ALCOHOLÍMETRO)',
@@ -72,6 +75,8 @@ class ActividadCategoriasSeeder extends Seeder
                 'OFICINAS GUBERNAMENTALES',
                 'MANIFESTACIONES',
                 'OTROS MONITOREOS (Especificar en las novedades relevantes)',
+                'CARRETERAS',
+                'CASETAS',
             ],
             'AUXILIO VIAL A CONDUCTORES' => [
                 'FALLAS MECÁNICAS',
@@ -89,6 +94,7 @@ class ActividadCategoriasSeeder extends Seeder
                 'PATRULLAJES',
                 'SERVICIOS DE ESCOLTAS',
                 'OTROS (Especificar en las novedades relevantes)',
+                'RESGUARDO DE VEHÍCULO POR OBSTRUCCIÓN O ABANDONO',
             ],
             'CAPACITACIONES' => [
                 'TALLER EDUCACIÓN SEGURIDAD VIAL',

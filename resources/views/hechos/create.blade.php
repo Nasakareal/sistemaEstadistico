@@ -557,9 +557,9 @@
                         @endif
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="foto_lugar">Foto del lugar (opcional)</label>
+                                    <label for="foto_lugar">Foto del hecho 1 (opcional)</label>
                                     <input type="file"
                                            name="foto_lugar"
                                            id="foto_lugar"
@@ -572,7 +572,22 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6" id="foto_situacion_group" style="display:none;">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="foto_lugar_2">Foto del hecho 2 (opcional)</label>
+                                    <input type="file"
+                                           name="foto_lugar_2"
+                                           id="foto_lugar_2"
+                                           accept="image/*"
+                                           class="form-control @error('foto_lugar_2') is-invalid @enderror">
+                                    @error('foto_lugar_2')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small id="foto_lugar_2_name" class="help-muted"></small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4" id="foto_situacion_group" style="display:none;">
                                 <div class="form-group">
                                     <label for="foto_situacion">
                                         Foto de la situación <span id="foto_situacion_required" style="color:red; display:none;">*</span>
@@ -704,6 +719,8 @@
 
             const fotoLugarInput = document.getElementById('foto_lugar');
             const fotoLugarName = document.getElementById('foto_lugar_name');
+            const fotoLugar2Input = document.getElementById('foto_lugar_2');
+            const fotoLugar2Name = document.getElementById('foto_lugar_2_name');
             const fotoSituacionName = document.getElementById('foto_situacion_name');
 
             const btnGeo = document.getElementById('btn_geo');
@@ -722,6 +739,7 @@
 
             if (window.SeguridadVialLandscapeCropper) {
                 window.SeguridadVialLandscapeCropper.attach(fotoLugarInput);
+                window.SeguridadVialLandscapeCropper.attach(fotoLugar2Input);
             }
 
             function fillOficioFromDictamen() {
@@ -880,6 +898,13 @@
                 fotoLugarInput.addEventListener('change', function () {
                     const f = fotoLugarInput.files && fotoLugarInput.files[0] ? fotoLugarInput.files[0].name : '';
                     if (fotoLugarName) fotoLugarName.textContent = f ? ('Archivo: ' + f) : '';
+                });
+            }
+
+            if (fotoLugar2Input) {
+                fotoLugar2Input.addEventListener('change', function () {
+                    const f = fotoLugar2Input.files && fotoLugar2Input.files[0] ? fotoLugar2Input.files[0].name : '';
+                    if (fotoLugar2Name) fotoLugar2Name.textContent = f ? ('Archivo: ' + f) : '';
                 });
             }
 

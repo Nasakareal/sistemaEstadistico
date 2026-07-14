@@ -2808,7 +2808,7 @@ class TotalSheetService
             ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => 'RESPUESTA VIAL INMEDIATA', 'band' => true],
             ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => 'ABANDERAMIENTO ACTIVO', 'band' => true],
             ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => 'PASO CONTINUO', 'band' => true],
-            ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => '', 'band' => true],
+            ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => 'OTROS OPERATIVOS (Especificar en las novedades relevantes)', 'band' => true],
             ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => '', 'band' => true],
             ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => '', 'band' => true],
             ['no' => '', 'categoria' => '', 'categoria_real' => 'OPERATIVOS', 'actividad' => '', 'band' => true],

@@ -473,7 +473,11 @@ class RegionalSheetService
             'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)',
         ];
 
-        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 3);
+        $datos = $this->agruparNoListadasEnOtros(
+            $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 3),
+            $actividades,
+            'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)'
+        );
         $datosSiniestros = $this->obtenerResumenSiniestros($fecha, $idsDelegaciones);
 
         $sheet->mergeCells('A19:A25');
@@ -551,7 +555,11 @@ class RegionalSheetService
             'OTROS OPERATIVOS (Especificar en las novedades relevantes)',
         ];
 
-        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 4);
+        $datos = $this->agruparNoListadasEnOtros(
+            $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 4),
+            $actividades,
+            'OTROS OPERATIVOS (Especificar en las novedades relevantes)'
+        );
 
         $sheet->mergeCells('A26:A35');
         $sheet->mergeCells('B26:B35');
@@ -713,7 +721,11 @@ class RegionalSheetService
             'OTROS MONITOREOS (Especificar en las novedades relevantes)',
         ];
 
-        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 6);
+        $datos = $this->agruparNoListadasEnOtros(
+            $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 6),
+            $actividades,
+            'OTROS MONITOREOS (Especificar en las novedades relevantes)'
+        );
 
         $sheet->mergeCells('A38:A46');
         $sheet->mergeCells('B38:B46');
@@ -870,7 +882,11 @@ class RegionalSheetService
             'OTROS (Especificar en las novedades relevantes)',
         ];
 
-        $datos = $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 8);
+        $datos = $this->agruparNoListadasEnOtros(
+            $this->obtenerResumenPorSubcategoria($fecha, $idsDelegaciones, 8),
+            $actividades,
+            'OTROS (Especificar en las novedades relevantes)'
+        );
 
         $sheet->mergeCells('A52:A59');
         $sheet->mergeCells('B52:B59');
@@ -1139,6 +1155,29 @@ class RegionalSheetService
             'personas' => 0,
             'recomendaciones' => 0,
         ];
+    }
+
+    protected function agruparNoListadasEnOtros(array $datos, array $actividades, string $renglonOtros): array
+    {
+        $permitidas = array_fill_keys($actividades, true);
+
+        if (!isset($datos[$renglonOtros])) {
+            $datos[$renglonOtros] = $this->resumenActividadVacio();
+        }
+
+        foreach (array_keys($datos) as $subcategoria) {
+            if (isset($permitidas[$subcategoria])) {
+                continue;
+            }
+
+            foreach (array_keys($this->resumenActividadVacio()) as $campo) {
+                $datos[$renglonOtros][$campo] += $datos[$subcategoria][$campo] ?? 0;
+            }
+
+            unset($datos[$subcategoria]);
+        }
+
+        return $datos;
     }
 
     protected function llenarProximidadSocial($sheet, string $fecha, array $idsDelegaciones): void

@@ -682,7 +682,7 @@ class FeedController extends Controller
                 CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
                 NULL as categoria_nombre,
                 NULL as subcategoria_nombre,
-                COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
+                COALESCE(h.foto_lugar, h.foto_lugar_2, h.foto_situacion) as foto_path,
                 h.created_at as created_at
             ", [$typeOrder]);
         }
@@ -699,7 +699,7 @@ class FeedController extends Controller
             CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
             NULL as categoria_nombre,
             NULL as subcategoria_nombre,
-            COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
+            COALESCE(h.foto_lugar, h.foto_lugar_2, h.foto_situacion) as foto_path,
             h.created_at as created_at
         ")->orderByDesc('h.created_at')->orderByDesc('h.id');
     }

@@ -41,6 +41,7 @@ class DelegacionesExcelRevisionService
             'OBRAS PÚBLICAS',
             'ACOMPAÑAMIENTO A CARAVANAS U OTROS',
             'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)',
+            'BLOQUEO CARRETERO',
         ],
         4 => [
             'ESCUELAS SEGURAS',
@@ -53,6 +54,8 @@ class DelegacionesExcelRevisionService
             'APOYO COCOTRA',
             'BASES DE OPERACIONES INTERINSTITUCIONAL',
             'OTROS OPERATIVOS (Especificar en las novedades relevantes)',
+            'ALCOHOLIMETRÍA',
+            'CONDUCE CON LEGALIDAD',
         ],
         5 => [
             'CONDUCE SIN ALCOHOL (ALCOHOLÍMETRO)',
@@ -68,6 +71,8 @@ class DelegacionesExcelRevisionService
             'OFICINAS GUBERNAMENTALES',
             'MANIFESTACIONES',
             'OTROS MONITOREOS (Especificar en las novedades relevantes)',
+            'CARRETERAS',
+            'CASETAS',
         ],
         7 => [
             'FALLAS MECÁNICAS',
@@ -85,6 +90,7 @@ class DelegacionesExcelRevisionService
             'PATRULLAJES',
             'SERVICIOS DE ESCOLTAS',
             'OTROS (Especificar en las novedades relevantes)',
+            'RESGUARDO DE VEHÍCULO POR OBSTRUCCIÓN O ABANDONO',
         ],
         9 => [
             'TALLER EDUCACIÓN SEGURIDAD VIAL',
@@ -110,6 +116,22 @@ class DelegacionesExcelRevisionService
             'RECUPERACIÓN DE ESPACIOS',
             'OTRAS (Especificar en las novedades relevantes)',
         ],
+    ];
+
+    private const RENGLONES_OTROS = [
+        3 => 'OTROS ABANDERAMIENTOS (Especificar en las novedades relevantes)',
+        4 => 'OTROS OPERATIVOS (Especificar en las novedades relevantes)',
+        6 => 'OTROS MONITOREOS (Especificar en las novedades relevantes)',
+        8 => 'OTROS (Especificar en las novedades relevantes)',
+    ];
+
+    private const NUEVAS_SUBCATEGORIAS_RESIDUALES = [
+        'BLOQUEO CARRETERO',
+        'ALCOHOLIMETRÍA',
+        'CONDUCE CON LEGALIDAD',
+        'CARRETERAS',
+        'CASETAS',
+        'RESGUARDO DE VEHÍCULO POR OBSTRUCCIÓN O ABANDONO',
     ];
 
     public function resumen(string $fecha): array
@@ -374,7 +396,10 @@ class DelegacionesExcelRevisionService
             ->map(function ($row) {
                 return $this->detalleActividad($row, 'Cuenta como 1 dispositivo en la suma actual') + [
                     'peso_dispositivo' => 1,
-                    'renglon_excel' => $row->subcategoria,
+                    'renglon_excel' => $this->renglonExcelActividad(
+                        (int) $row->actividad_categoria_id,
+                        (string) $row->subcategoria
+                    ),
                 ];
             })
             ->values()
@@ -418,7 +443,7 @@ class DelegacionesExcelRevisionService
         $base = [];
         $actividadRows = DB::table('actividades as a')
             ->join('actividad_subcategorias as s', 'a.actividad_subcategoria_id', '=', 's.id')
-            ->select('s.nombre as actividad', DB::raw('COUNT(*) as total'))
+            ->select('a.actividad_categoria_id', 's.nombre as actividad', DB::raw('COUNT(*) as total'))
             ->whereRaw('TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?', [
                 $inicio->toDateTimeString(),
                 $fin->toDateTimeString(),
@@ -433,11 +458,14 @@ class DelegacionesExcelRevisionService
                     });
                 }
             })
-            ->groupBy('s.nombre')
+            ->groupBy('a.actividad_categoria_id', 's.nombre')
             ->get();
 
         foreach ($actividadRows as $row) {
-            $actividad = (string) $row->actividad;
+            $actividad = $this->renglonExcelActividad(
+                (int) $row->actividad_categoria_id,
+                (string) $row->actividad
+            );
             $base[$actividad] = ($base[$actividad] ?? 0) + (int) $row->total;
         }
 
@@ -501,6 +529,16 @@ class DelegacionesExcelRevisionService
         $texto = preg_replace('/\s+/', ' ', $texto);
 
         return mb_strtoupper($texto ?? '');
+    }
+
+    private function renglonExcelActividad(int $categoriaId, string $subcategoria): string
+    {
+        if (isset(self::RENGLONES_OTROS[$categoriaId])
+            && in_array($subcategoria, self::NUEVAS_SUBCATEGORIAS_RESIDUALES, true)) {
+            return self::RENGLONES_OTROS[$categoriaId];
+        }
+
+        return $subcategoria;
     }
 
     private function leerResumenHoja(Worksheet $sheet): array

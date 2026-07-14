@@ -11,14 +11,16 @@ window.CroquisEditor = (function () {
             this.dragging = false;
             this.rotating = false;
             this.resizing = false;
-            this.editingCurve = false;
+            this.editingCurve = null;
 
             this.offsetX = 0;
             this.offsetY = 0;
 
             this.resizeStart = null;
             this.rotateStart = null;
-            this.curveStart = null;
+
+            this.clipboard = null;
+            this.pasteOffset = 0;
 
             this.seleccionado = null;
 
@@ -61,12 +63,64 @@ window.CroquisEditor = (function () {
             this.onSelectionChange(null);
         }
 
+        copySelected() {
+            if (!this.seleccionado) {
+                return false;
+            }
+
+            this.clipboard = JSON.parse(JSON.stringify(this.seleccionado));
+            delete this.clipboard.id;
+            delete this.clipboard.seleccionado;
+            this.pasteOffset = 0;
+
+            return true;
+        }
+
+        pasteCopied() {
+            if (!this.clipboard) {
+                return false;
+            }
+
+            this.pasteOffset += 24;
+            const raw = JSON.parse(JSON.stringify(this.clipboard));
+            raw.id = null;
+            raw.x = Number(raw.x ?? 200) + this.pasteOffset;
+            raw.y = Number(raw.y ?? 200) + this.pasteOffset;
+            const clone = window.CroquisModels.normalize(raw);
+
+            if (!clone) {
+                return false;
+            }
+
+            this.addElement(clone);
+            return true;
+        }
+
+        duplicateSelected() {
+            return this.copySelected() && this.pasteCopied();
+        }
+
         changeSelectedLanes(delta) {
             if (!this.seleccionado || typeof this.seleccionado.carriles === 'undefined') {
                 return false;
             }
 
             this.seleccionado.carriles = Math.max(1, this.seleccionado.carriles + delta);
+            this.render();
+            this.onChange(this.elementos);
+            this.onSelectionChange(this.seleccionado);
+
+            return true;
+        }
+
+        setSelectedRoadEdge(side, type) {
+            const roadTypes = ['calle', 'curva', 'cruce', 'entronque', 'glorieta'];
+            if (!this.seleccionado || !roadTypes.includes(this.seleccionado.tipo)) {
+                return false;
+            }
+
+            const field = side === 'izquierdo' ? 'bordeIzquierdo' : 'bordeDerecho';
+            this.seleccionado[field] = ['banqueta', 'camellon'].includes(type) ? type : null;
             this.render();
             this.onChange(this.elementos);
             this.onSelectionChange(this.seleccionado);
@@ -131,8 +185,33 @@ window.CroquisEditor = (function () {
             return Math.sqrt(Math.pow(ax - bx, 2) + Math.pow(ay - by, 2));
         }
 
+        distanceToSegment(point, start, end) {
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const lengthSquared = (dx * dx) + (dy * dy);
+
+            if (lengthSquared === 0) {
+                return this.distance(point.x, point.y, start.x, start.y);
+            }
+
+            const t = Math.max(0, Math.min(1,
+                (((point.x - start.x) * dx) + ((point.y - start.y) * dy)) / lengthSquared
+            ));
+
+            return this.distance(point.x, point.y, start.x + (t * dx), start.y + (t * dy));
+        }
+
+        scaleCurve(el, source, factor) {
+            ['inicioX', 'inicioY', 'control1X', 'control1Y', 'control2X', 'control2Y', 'finX', 'finY']
+                .forEach(key => el[key] = source[key] * factor);
+        }
+
         totalRoadWidth(el) {
             return Math.max(1, Number(el.carriles) || 1) * Math.max(1, Number(el.anchoCarril) || 1);
+        }
+
+        maxAttachedWidth(el) {
+            return window.CroquisRenderer.maxAttachedWidth(el);
         }
 
         setTotalRoadWidth(el, totalWidth) {
@@ -152,42 +231,48 @@ window.CroquisEditor = (function () {
         isInsideElement(el, x, y) {
             const p = this.toLocal(el, x, y);
 
-            if (['carro', 'vehiculo', 'icono', 'texto'].includes(el.tipo)) {
+            if (['carro', 'vehiculo', 'icono', 'texto', 'camellon', 'banqueta'].includes(el.tipo)) {
                 const bounds = this.getBounds(el);
                 return Math.abs(p.x) <= bounds.w / 2 && Math.abs(p.y) <= bounds.h / 2;
             }
 
             if (el.tipo === 'calle') {
-                const h = this.totalRoadWidth(el);
+                const h = this.totalRoadWidth(el) + (this.maxAttachedWidth(el) * 2);
                 return Math.abs(p.x) <= el.largo / 2 && Math.abs(p.y) <= h / 2;
             }
 
             if (el.tipo === 'curva') {
-                const outer = el.radioInterno + this.totalRoadWidth(el);
-                const dist = Math.sqrt((p.x * p.x) + (p.y * p.y));
-                const ang = Math.atan2(p.y, p.x);
-                const limite = (el.angulo || 90) * Math.PI / 180;
-                return p.x >= 0 && p.y >= 0 && ang >= 0 && ang <= limite && dist >= el.radioInterno && dist <= outer;
+                const points = window.CroquisRenderer.curvePolyline(el, 0, 64);
+                const tolerance = (this.totalRoadWidth(el) / 2) + this.maxAttachedWidth(el) + 5;
+
+                for (let i = 1; i < points.length; i++) {
+                    if (this.distanceToSegment(p, points[i - 1], points[i]) <= tolerance) {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             if (el.tipo === 'cruce') {
-                const roadW = this.totalRoadWidth(el);
+                const roadW = this.totalRoadWidth(el) + (this.maxAttachedWidth(el) * 2);
                 const insideH = Math.abs(p.x) <= this.crossHorizontalLength(el) / 2 && Math.abs(p.y) <= roadW / 2;
                 const insideV = Math.abs(p.x) <= roadW / 2 && Math.abs(p.y) <= this.crossVerticalLength(el) / 2;
                 return insideH || insideV;
             }
 
             if (el.tipo === 'entronque') {
-                const roadW = el.carriles * el.anchoCarril;
+                const roadW = (el.carriles * el.anchoCarril) + (this.maxAttachedWidth(el) * 2);
                 const base = Math.abs(p.x) <= el.largoBase / 2 && Math.abs(p.y) <= roadW / 2;
                 const brazo = Math.abs(p.x) <= roadW / 2 && p.y >= -el.largoBrazo && p.y <= 0;
                 return base || brazo;
             }
 
             if (el.tipo === 'glorieta') {
-                const outerRing = el.radioIsla + this.totalRoadWidth(el);
+                const innerRing = Math.max(0, el.radioIsla - window.CroquisRenderer.attachedWidth(el.bordeIzquierdo));
+                const outerRing = el.radioIsla + this.totalRoadWidth(el) + window.CroquisRenderer.attachedWidth(el.bordeDerecho);
                 const dist = Math.sqrt((p.x * p.x) + (p.y * p.y));
-                return dist >= el.radioIsla && dist <= outerRing;
+                return dist >= innerRing && dist <= outerRing;
             }
 
             return false;
@@ -205,8 +290,11 @@ window.CroquisEditor = (function () {
                 return 'resize';
             }
 
-            if (handles.curve && this.distance(p.x, p.y, handles.curve.x, handles.curve.y) <= handles.curve.r + 4) {
-                return 'curve';
+            for (const name of ['curveStart', 'curveControl1', 'curveControl2', 'curveEnd']) {
+                const handle = handles[name];
+                if (handle && this.distance(p.x, p.y, handle.x, handle.y) <= handle.r + 4) {
+                    return name;
+                }
             }
 
             return null;
@@ -250,8 +338,8 @@ window.CroquisEditor = (function () {
                         return;
                     }
 
-                    if (handle === 'curve') {
-                        this.editingCurve = true;
+                    if (handle.startsWith('curve')) {
+                        this.editingCurve = handle;
                         return;
                     }
                 }
@@ -336,8 +424,18 @@ window.CroquisEditor = (function () {
                 }
 
                 if (el.tipo === 'curva') {
-                    el.radioInterno = Math.max(15, original.radioInterno + localDx);
-                    this.setTotalRoadWidth(el, this.totalRoadWidth(original) + localDy);
+                    const bounds = this.getBounds(original);
+                    const factor = Math.max(0.15, 1 + Math.max(
+                        localDx / Math.max(20, bounds.w / 2),
+                        localDy / Math.max(20, bounds.h / 2)
+                    ));
+                    this.scaleCurve(el, original, factor);
+                    this.setTotalRoadWidth(el, this.totalRoadWidth(original) * factor);
+                }
+
+                if (el.tipo === 'camellon' || el.tipo === 'banqueta') {
+                    el.largo = Math.max(20, original.largo + localDx);
+                    el.ancho = Math.max(8, original.ancho + localDy);
                 }
 
                 if (el.tipo === 'cruce') {
@@ -362,9 +460,17 @@ window.CroquisEditor = (function () {
 
             if (this.editingCurve && this.seleccionado.tipo === 'curva') {
                 const p = this.toLocal(this.seleccionado, pos.x, pos.y);
-                let ang = Math.atan2(Math.max(0, p.y), Math.max(0, p.x)) * 180 / Math.PI;
-                ang = Math.max(30, Math.min(180, ang));
-                this.seleccionado.angulo = ang;
+                const fields = {
+                    curveStart: ['inicioX', 'inicioY'],
+                    curveControl1: ['control1X', 'control1Y'],
+                    curveControl2: ['control2X', 'control2Y'],
+                    curveEnd: ['finX', 'finY']
+                }[this.editingCurve];
+
+                if (fields) {
+                    this.seleccionado[fields[0]] = p.x;
+                    this.seleccionado[fields[1]] = p.y;
+                }
                 this.render();
                 this.onChange(this.elementos);
                 return;
@@ -375,7 +481,7 @@ window.CroquisEditor = (function () {
             this.dragging = false;
             this.rotating = false;
             this.resizing = false;
-            this.editingCurve = false;
+            this.editingCurve = null;
             this.resizeStart = null;
             this.rotateStart = null;
             this.canvas.classList.remove('dragging');
@@ -401,13 +507,6 @@ window.CroquisEditor = (function () {
                 return;
             }
 
-            if (evt.altKey && el.tipo === 'curva') {
-                el.angulo = Math.max(30, Math.min(180, (el.angulo || 90) + (delta * 5)));
-                this.render();
-                this.onChange(this.elementos);
-                return;
-            }
-
             if (el.tipo === 'carro') {
                 el.ancho = Math.max(25, el.ancho + (delta * 5));
                 el.alto = Math.max(15, el.alto + (delta * 3));
@@ -425,8 +524,15 @@ window.CroquisEditor = (function () {
             }
 
             if (el.tipo === 'curva') {
-                el.radioInterno = Math.max(15, el.radioInterno + (delta * 8));
-                this.setTotalRoadWidth(el, this.totalRoadWidth(el) + (delta * 4));
+                const original = { ...el };
+                const factor = delta > 0 ? 1.06 : 0.94;
+                this.scaleCurve(el, original, factor);
+                this.setTotalRoadWidth(el, this.totalRoadWidth(original) * factor);
+            }
+
+            if (el.tipo === 'camellon' || el.tipo === 'banqueta') {
+                el.largo = Math.max(20, el.largo + (delta * 12));
+                el.ancho = Math.max(8, el.ancho + (delta * 3));
             }
 
             if (el.tipo === 'cruce') {
@@ -449,6 +555,32 @@ window.CroquisEditor = (function () {
         }
 
         onKeyDown(evt) {
+            const target = evt.target;
+            const isEditingText = target && (
+                ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+                || target.isContentEditable
+            );
+
+            if (isEditingText) return;
+
+            const key = evt.key.toLowerCase();
+            const commandKey = evt.ctrlKey || evt.metaKey;
+
+            if (commandKey && key === 'c') {
+                if (this.copySelected()) evt.preventDefault();
+                return;
+            }
+
+            if (commandKey && key === 'v') {
+                if (this.pasteCopied()) evt.preventDefault();
+                return;
+            }
+
+            if (commandKey && key === 'd') {
+                if (this.duplicateSelected()) evt.preventDefault();
+                return;
+            }
+
             if (!this.seleccionado) return;
 
             if (evt.key === 'Delete' || evt.key === 'Backspace') {
@@ -492,16 +624,6 @@ window.CroquisEditor = (function () {
                 evt.preventDefault();
                 this.changeSelectedLanes(-1);
                 return;
-            }
-
-            if (this.seleccionado.tipo === 'curva' && evt.key.toLowerCase() === 'q') {
-                evt.preventDefault();
-                this.seleccionado.angulo = Math.max(30, (this.seleccionado.angulo || 90) - 5);
-            }
-
-            if (this.seleccionado.tipo === 'curva' && evt.key.toLowerCase() === 'e') {
-                evt.preventDefault();
-                this.seleccionado.angulo = Math.min(180, (this.seleccionado.angulo || 90) + 5);
             }
 
             this.render();

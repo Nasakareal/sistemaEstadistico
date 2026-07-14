@@ -103,7 +103,7 @@ class HomeController extends Controller
                     END
                 ) as delegacion_nombre,
                 CONCAT(TRIM(COALESCE(h.calle,'')), ', col. ', TRIM(COALESCE(h.colonia,''))) as resumen,
-                COALESCE(h.foto_lugar, h.foto_situacion) as foto_path,
+                COALESCE(h.foto_lugar, h.foto_lugar_2, h.foto_situacion) as foto_path,
                 h.created_at as created_at
             ");
 

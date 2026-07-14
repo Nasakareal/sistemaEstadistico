@@ -202,7 +202,7 @@
                     <tbody>
                         @foreach ($hechos as $hecho)
                             @php
-                                $foto = $hecho->foto_lugar;
+                                $foto = $hecho->foto_lugar ?: $hecho->foto_lugar_2;
                                 $urlFoto = $foto ? app(\App\Services\Fotos\HechoFotoStorage::class)->url($foto) : null;
 
                                 $fechaMostrar = !empty($hecho->fecha)

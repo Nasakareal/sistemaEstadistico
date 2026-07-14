@@ -113,6 +113,7 @@ class MoreliaRpSheetService
             'SEGURIDAD EN CARRETERAS - ZINAPECUARO - MORELIA',
             'TIENDAS DEPARTAMENTALES',
             'VÍAS FÉRREAS',
+            'OTROS',
         ];
 
         $actividades = DB::table('actividades as a')
@@ -128,11 +129,11 @@ class MoreliaRpSheetService
                 's.nombre as subcategoria',
             ])
             ->whereRaw("TIMESTAMP(a.fecha, a.hora) >= ? AND TIMESTAMP(a.fecha, a.hora) < ?", $this->rangoCorte($fecha))
+            ->where('a.unidad_org_id', 2)
             ->where(function ($query) {
                 $query->where('a.municipio', 'MORELIA')
                     ->orWhere('a.municipio', 'Morelia');
             })
-            ->whereIn('s.nombre', $orden)
             ->orderBy('a.id')
             ->get();
 
@@ -150,11 +151,7 @@ class MoreliaRpSheetService
         }
 
         foreach ($actividades as $actividad) {
-            $subcategoria = $actividad->subcategoria;
-
-            if (!isset($agrupado[$subcategoria])) {
-                continue;
-            }
+            $subcategoria = $this->clasificarSubcategoria((string) $actividad->subcategoria, $agrupado);
 
             $agrupado[$subcategoria]['cuenta_actividad']++;
             $agrupado[$subcategoria]['suma_agentes'] += (int) ($actividad->personas_participantes ?? 0);
@@ -164,6 +161,11 @@ class MoreliaRpSheetService
         }
 
         return array_values($agrupado);
+    }
+
+    protected function clasificarSubcategoria(string $subcategoria, array $agrupado): string
+    {
+        return isset($agrupado[$subcategoria]) ? $subcategoria : 'OTROS';
     }
 
     protected function contarUnidades(?string $texto): int

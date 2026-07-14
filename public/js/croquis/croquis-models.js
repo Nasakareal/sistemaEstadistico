@@ -76,17 +76,63 @@ window.CroquisModels = (function () {
             ...base('calle', x, y),
             largo: 260,
             anchoCarril: 28,
-            carriles: 1
+            carriles: 1,
+            bordeIzquierdo: null,
+            bordeDerecho: null
         };
     }
 
     function curva(x = 320, y = 240) {
         return {
             ...base('curva', x, y),
-            radioInterno: 45,
             anchoCarril: 28,
             carriles: 1,
-            angulo: 90
+            bordeIzquierdo: null,
+            bordeDerecho: null,
+            inicioX: -130,
+            inicioY: 55,
+            control1X: -80,
+            control1Y: -70,
+            control2X: 80,
+            control2Y: -70,
+            finX: 130,
+            finY: 55
+        };
+    }
+
+    function camellon(x = 300, y = 250) {
+        return {
+            ...base('camellon', x, y),
+            largo: 240,
+            ancho: 34
+        };
+    }
+
+    function banqueta(x = 300, y = 250) {
+        return {
+            ...base('banqueta', x, y),
+            largo: 240,
+            ancho: 26
+        };
+    }
+
+    function legacyCurvePoints(raw, anchoCarril, carriles) {
+        const inner = Number(raw.radioInterno ?? raw.radio ?? 45);
+        const angle = Math.min(180, Math.max(5, Number(raw.angulo ?? 90))) * Math.PI / 180;
+        const radius = inner + ((anchoCarril * carriles) / 2);
+        const tangent = (4 / 3) * Math.tan(angle / 4) * radius;
+        const endX = Math.cos(angle) * radius;
+        const endY = Math.sin(angle) * radius;
+
+        return {
+            inicioX: radius,
+            inicioY: 0,
+            control1X: radius,
+            control1Y: tangent,
+            control2X: endX + (Math.sin(angle) * tangent),
+            control2Y: endY - (Math.cos(angle) * tangent),
+            finX: endX,
+            finY: endY
         };
     }
 
@@ -97,7 +143,9 @@ window.CroquisModels = (function () {
             largoHorizontal: 220,
             largoVertical: 220,
             anchoCarril: 28,
-            carriles: 1
+            carriles: 1,
+            bordeIzquierdo: null,
+            bordeDerecho: null
         };
     }
 
@@ -107,7 +155,9 @@ window.CroquisModels = (function () {
             largoBase: 220,
             largoBrazo: 140,
             anchoCarril: 28,
-            carriles: 1
+            carriles: 1,
+            bordeIzquierdo: null,
+            bordeDerecho: null
         };
     }
 
@@ -117,7 +167,20 @@ window.CroquisModels = (function () {
             radioIsla: 40,
             anchoCarril: 24,
             carriles: 1,
-            largoAcceso: 140
+            largoAcceso: 140,
+            bordeIzquierdo: null,
+            bordeDerecho: null
+        };
+    }
+
+    function normalizeRoadEdges(raw) {
+        const allowed = ['banqueta', 'camellon'];
+        const left = String(raw.bordeIzquierdo ?? '').toLowerCase();
+        const right = String(raw.bordeDerecho ?? '').toLowerCase();
+
+        return {
+            bordeIzquierdo: allowed.includes(left) ? left : null,
+            bordeDerecho: allowed.includes(right) ? right : null
         };
     }
 
@@ -178,17 +241,43 @@ window.CroquisModels = (function () {
                 ...baseData,
                 largo: Number(raw.largo ?? raw.w ?? 260),
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 1))
+                carriles: Math.max(1, Number(raw.carriles ?? 1)),
+                ...normalizeRoadEdges(raw)
             };
         }
 
         if (raw.tipo === 'curva') {
+            const anchoCarril = Number(raw.anchoCarril ?? 28);
+            const carriles = Math.max(1, Number(raw.carriles ?? 1));
+            const hasBezier = ['inicioX', 'inicioY', 'control1X', 'control1Y', 'control2X', 'control2Y', 'finX', 'finY']
+                .every(key => Number.isFinite(Number(raw[key])));
+            const points = hasBezier
+                ? {
+                    inicioX: Number(raw.inicioX),
+                    inicioY: Number(raw.inicioY),
+                    control1X: Number(raw.control1X),
+                    control1Y: Number(raw.control1Y),
+                    control2X: Number(raw.control2X),
+                    control2Y: Number(raw.control2Y),
+                    finX: Number(raw.finX),
+                    finY: Number(raw.finY)
+                }
+                : legacyCurvePoints(raw, anchoCarril, carriles);
+
             return {
                 ...baseData,
-                radioInterno: Number(raw.radioInterno ?? raw.radio ?? 45),
-                anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 1)),
-                angulo: Math.min(180, Math.max(30, Number(raw.angulo ?? 90)))
+                anchoCarril,
+                carriles,
+                ...normalizeRoadEdges(raw),
+                ...points
+            };
+        }
+
+        if (raw.tipo === 'camellon' || raw.tipo === 'banqueta') {
+            return {
+                ...baseData,
+                largo: Math.max(20, Number(raw.largo ?? raw.w ?? 240)),
+                ancho: Math.max(8, Number(raw.ancho ?? raw.h ?? (raw.tipo === 'camellon' ? 34 : 26)))
             };
         }
 
@@ -203,7 +292,8 @@ window.CroquisModels = (function () {
                 largoHorizontal,
                 largoVertical,
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 1))
+                carriles: Math.max(1, Number(raw.carriles ?? 1)),
+                ...normalizeRoadEdges(raw)
             };
         }
 
@@ -213,7 +303,8 @@ window.CroquisModels = (function () {
                 largoBase: Number(raw.largoBase ?? raw.size ?? 220),
                 largoBrazo: Number(raw.largoBrazo ?? 140),
                 anchoCarril: Number(raw.anchoCarril ?? 28),
-                carriles: Math.max(1, Number(raw.carriles ?? 1))
+                carriles: Math.max(1, Number(raw.carriles ?? 1)),
+                ...normalizeRoadEdges(raw)
             };
         }
 
@@ -223,7 +314,8 @@ window.CroquisModels = (function () {
                 radioIsla: Number(raw.radioIsla ?? 40),
                 anchoCarril: Number(raw.anchoCarril ?? 24),
                 carriles: Math.max(1, Number(raw.carriles ?? 1)),
-                largoAcceso: Number(raw.largoAcceso ?? 140)
+                largoAcceso: Number(raw.largoAcceso ?? 140),
+                ...normalizeRoadEdges(raw)
             };
         }
 
@@ -256,6 +348,8 @@ window.CroquisModels = (function () {
         texto,
         calle,
         curva,
+        camellon,
+        banqueta,
         cruce,
         entronque,
         glorieta,

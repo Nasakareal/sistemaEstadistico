@@ -387,9 +387,9 @@
                             <div class="sv-v">
                                 <div class="row">
                                     {{-- FOTO LUGAR --}}
-                                    <div class="col-12 mb-3">
+                                    <div class="col-md-6 mb-3">
                                         <div class="sv-photo-title">
-                                            <i class="fa-regular fa-image"></i> Foto del lugar
+                                            <i class="fa-regular fa-image"></i> Foto del hecho 1
                                         </div>
 
                                         @if(!empty($hecho->foto_lugar))
@@ -397,13 +397,34 @@
                                                 <div class="sv-photo-box">
                                                     <img src="{{ $hechoFotoStorage->url($hecho->foto_lugar) }}"
                                                          class="sv-photo-img"
-                                                         alt="Foto del lugar"
+                                                         alt="Foto del hecho 1"
                                                          loading="lazy"
                                                          decoding="async">
                                                 </div>
                                             </a>
                                         @else
-                                            <div class="sv-empty">No hay foto del lugar.</div>
+                                            <div class="sv-empty">No hay foto del hecho 1.</div>
+                                        @endif
+                                    </div>
+
+                                    {{-- FOTO LUGAR 2 --}}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="sv-photo-title">
+                                            <i class="fa-regular fa-image"></i> Foto del hecho 2
+                                        </div>
+
+                                        @if(!empty($hecho->foto_lugar_2))
+                                            <a href="{{ $hechoFotoStorage->url($hecho->foto_lugar_2) }}" target="_blank" rel="noopener" class="sv-photo-link">
+                                                <div class="sv-photo-box">
+                                                    <img src="{{ $hechoFotoStorage->url($hecho->foto_lugar_2) }}"
+                                                         class="sv-photo-img"
+                                                         alt="Foto del hecho 2"
+                                                         loading="lazy"
+                                                         decoding="async">
+                                                </div>
+                                            </a>
+                                        @else
+                                            <div class="sv-empty">No hay foto del hecho 2.</div>
                                         @endif
                                     </div>
 

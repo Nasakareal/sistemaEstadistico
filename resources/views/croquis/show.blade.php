@@ -235,12 +235,32 @@
                         <button type="button" class="dropdown-item" data-croquis-action="agregarCruce">Cruce</button>
                         <button type="button" class="dropdown-item" data-croquis-action="agregarEntronque">Entronque en T</button>
                         <button type="button" class="dropdown-item" data-croquis-action="agregarGlorieta">Glorieta</button>
+                        <div class="dropdown-divider"></div>
+                        <button type="button" class="dropdown-item" data-croquis-action="agregarCamellon">Camellón</button>
+                        <button type="button" class="dropdown-item" data-croquis-action="agregarBanqueta">Banqueta</button>
                     </div>
                 </div>
 
                 <div class="btn-group" role="group" aria-label="Carriles">
                     <button type="button" class="btn btn-outline-secondary" data-croquis-action="quitarCarril">- Carril</button>
                     <button type="button" class="btn btn-outline-secondary" data-croquis-action="agregarCarril">+ Carril</button>
+                </div>
+
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Laterales
+                    </button>
+                    <div class="dropdown-menu">
+                        <h6 class="dropdown-header">Lado izquierdo</h6>
+                        <button type="button" class="dropdown-item" data-croquis-action="banquetaIzquierda">Añadir banqueta</button>
+                        <button type="button" class="dropdown-item" data-croquis-action="camellonIzquierdo">Añadir camellón</button>
+                        <button type="button" class="dropdown-item text-danger" data-croquis-action="quitarLateralIzquierdo">Quitar lateral</button>
+                        <div class="dropdown-divider"></div>
+                        <h6 class="dropdown-header">Lado derecho</h6>
+                        <button type="button" class="dropdown-item" data-croquis-action="banquetaDerecha">Añadir banqueta</button>
+                        <button type="button" class="dropdown-item" data-croquis-action="camellonDerecho">Añadir camellón</button>
+                        <button type="button" class="dropdown-item text-danger" data-croquis-action="quitarLateralDerecho">Quitar lateral</button>
+                    </div>
                 </div>
 
                 <div class="btn-group">
@@ -271,6 +291,12 @@
                     </div>
                 </div>
 
+                <div class="btn-group" role="group" aria-label="Copiar y pegar elementos">
+                    <button type="button" class="btn btn-outline-primary" data-croquis-action="copiar" title="Copiar elemento seleccionado (Ctrl+C)">Copiar</button>
+                    <button type="button" class="btn btn-outline-primary" data-croquis-action="pegar" title="Pegar elemento copiado (Ctrl+V)">Pegar</button>
+                    <button type="button" class="btn btn-outline-primary" data-croquis-action="duplicar" title="Duplicar elemento seleccionado (Ctrl+D)">Duplicar</button>
+                </div>
+
                 <button type="button" class="btn btn-danger" data-croquis-action="limpiar">Limpiar</button>
                 <button type="button" class="btn btn-success" data-croquis-action="guardar">Guardar</button>
             </div>
@@ -285,12 +311,12 @@
                 Arrastra la pieza para moverla.
                 Círculo rojo: girar.
                 Círculo naranja: cambiar tamaño.
-                Círculo morado en la curva: abrir/cerrar la curva.
+                En una curva, arrastra los dos puntos morados para cambiar sus extremos y los dos verdes para deformarla libremente.
                 + Carril / - Carril, Ctrl + scroll o teclas + / -: cambiar carriles.
+                Laterales: añade, reemplaza o quita una banqueta o camellón pegado al lado izquierdo o derecho de la vialidad seleccionada.
+                Ctrl+C / Ctrl+V: copiar y pegar cualquier elemento conservando exactamente su tamaño y forma. Ctrl+D: duplicar directamente.
                 Shift + scroll: girar.
-                Alt + scroll en curva: cambiar apertura.
-                Q / E en curva: cerrar o abrir.
-                En vehículos y vialidades, el círculo naranja ajusta largo y ancho; la rueda cambia el tamaño total.
+                En vehículos, vialidades, camellones y banquetas, el círculo naranja ajusta largo y ancho; la rueda cambia el tamaño total.
                 Supr: borrar.
             </div>
 

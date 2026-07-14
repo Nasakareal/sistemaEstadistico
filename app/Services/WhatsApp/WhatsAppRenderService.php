@@ -179,6 +179,7 @@ class WhatsAppRenderService
 
         $fotos = array_values(array_unique(array_filter(array_merge(
             $this->extraerUrlsDesdeCampo($hecho->foto_lugar),
+            $this->extraerUrlsDesdeCampo($hecho->foto_lugar_2),
             $this->extraerUrlsDesdeCampo($hecho->foto_situacion),
             $fotosVehiculos
         ))));

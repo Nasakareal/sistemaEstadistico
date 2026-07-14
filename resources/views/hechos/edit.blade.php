@@ -26,10 +26,12 @@
 
                         @php
                             $fotoLugarPath = $hecho->foto_lugar_path ?? ($hecho->foto_lugar ?? null);
+                            $fotoLugar2Path = $hecho->foto_lugar_2_path ?? ($hecho->foto_lugar_2 ?? null);
                             $fotoSituacionPath = $hecho->foto_situacion_path ?? ($hecho->foto_situacion ?? null);
 
                             $fotoStorage = app(\App\Services\Fotos\HechoFotoStorage::class);
                             $fotoLugarUrl = $fotoLugarPath ? $fotoStorage->url($fotoLugarPath) : null;
+                            $fotoLugar2Url = $fotoLugar2Path ? $fotoStorage->url($fotoLugar2Path) : null;
                             $fotoSituacionUrl = $fotoSituacionPath ? $fotoStorage->url($fotoSituacionPath) : null;
                             $coordenadasManualValue = old('coordenadas_manual', (is_numeric($hecho->lat) && is_numeric($hecho->lng))
                                 ? number_format((float) $hecho->lat, 7, '.', '') . ', ' . number_format((float) $hecho->lng, 7, '.', '')
@@ -587,9 +589,9 @@
                         @endif
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="foto_lugar">Foto del lugar (opcional)</label>
+                                    <label for="foto_lugar">Foto del hecho 1 (opcional)</label>
                                     <input type="file" name="foto_lugar" id="foto_lugar" accept="image/*"
                                            class="form-control @error('foto_lugar') is-invalid @enderror">
                                     @error('foto_lugar')
@@ -617,7 +619,37 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6" id="foto_situacion_group" style="display:none;">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="foto_lugar_2">Foto del hecho 2 (opcional)</label>
+                                    <input type="file" name="foto_lugar_2" id="foto_lugar_2" accept="image/*"
+                                           class="form-control @error('foto_lugar_2') is-invalid @enderror">
+                                    @error('foto_lugar_2')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+
+                                    @if ($fotoLugar2Url)
+                                        <div class="mt-2" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                            <img src="{{ $fotoLugar2Url }}" alt="Foto del hecho 2"
+                                                 style="width:110px; height:80px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,.12);">
+                                            <a class="btn btn-sm btn-info" href="{{ $fotoLugar2Url }}" target="_blank" rel="noopener">
+                                                <i class="fa-solid fa-up-right-from-square"></i> Ver
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger" id="btn_quitar_foto_lugar_2">
+                                                <i class="fa-solid fa-trash"></i> Quitar
+                                            </button>
+                                            <input type="hidden" name="quitar_foto_lugar_2" id="quitar_foto_lugar_2" value="0">
+                                        </div>
+                                        <small class="help-muted d-block mt-1">Si subes otra imagen, reemplaza la actual.</small>
+                                    @else
+                                        <input type="hidden" name="quitar_foto_lugar_2" id="quitar_foto_lugar_2" value="0">
+                                    @endif
+
+                                    <small id="foto_lugar_2_name" class="help-muted"></small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4" id="foto_situacion_group" style="display:none;">
                                 <div class="form-group">
                                     <label for="foto_situacion">
                                         Foto de la situación <span id="foto_situacion_required" style="color:red; display:none;">*</span>
@@ -764,6 +796,8 @@
 
             const fotoLugarInput = document.getElementById('foto_lugar');
             const fotoLugarName  = document.getElementById('foto_lugar_name');
+            const fotoLugar2Input = document.getElementById('foto_lugar_2');
+            const fotoLugar2Name  = document.getElementById('foto_lugar_2_name');
 
             const btnGeo      = document.getElementById('btn_geo');
             const btnGeoClear = document.getElementById('btn_geo_clear');
@@ -784,6 +818,7 @@
 
             if (window.SeguridadVialLandscapeCropper) {
                 window.SeguridadVialLandscapeCropper.attach(fotoLugarInput);
+                window.SeguridadVialLandscapeCropper.attach(fotoLugar2Input);
             }
 
             function toastError(msg) {
@@ -1084,6 +1119,16 @@
                 });
             }
 
+            if (fotoLugar2Input) {
+                fotoLugar2Input.addEventListener('change', function () {
+                    const f = fotoLugar2Input.files && fotoLugar2Input.files[0] ? fotoLugar2Input.files[0].name : '';
+                    if (fotoLugar2Name) fotoLugar2Name.textContent = f ? ('Archivo: ' + f) : '';
+
+                    const h = document.getElementById('quitar_foto_lugar_2');
+                    if (h) h.value = '0';
+                });
+            }
+
             if (coordenadasManualInput) {
                 coordenadasManualInput.addEventListener('input', aplicarCoordenadasManual);
             }
@@ -1113,6 +1158,27 @@
                             if (h) h.value = '1';
                             if (fotoLugarInput) fotoLugarInput.value = '';
                             if (fotoLugarName) fotoLugarName.textContent = '';
+                        }
+                    });
+                });
+            }
+
+            const btnQuitarLugar2 = document.getElementById('btn_quitar_foto_lugar_2');
+            if (btnQuitarLugar2) {
+                btnQuitarLugar2.addEventListener('click', function () {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Quitar foto',
+                        text: 'Se quitará la foto 2 del hecho al guardar cambios.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, quitar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((r) => {
+                        if (r.isConfirmed) {
+                            const h = document.getElementById('quitar_foto_lugar_2');
+                            if (h) h.value = '1';
+                            if (fotoLugar2Input) fotoLugar2Input.value = '';
+                            if (fotoLugar2Name) fotoLugar2Name.textContent = '';
                         }
                     });
                 });

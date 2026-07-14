@@ -316,6 +316,13 @@ window.CroquisUI = (function () {
             editor.addElement(window.CroquisModels.icono(200, 200, icono.key, icono.src));
         }
 
+        function cambiarLateral(side, type) {
+            clearSubmenu();
+            if (!editor.setSelectedRoadEdge(side, type)) {
+                window.alert('Selecciona primero una calle, curva, cruce, entronque o glorieta.');
+            }
+        }
+
         const actions = {
             agregarCalle: () => {
                 clearSubmenu();
@@ -324,6 +331,14 @@ window.CroquisUI = (function () {
             agregarCurva: () => {
                 clearSubmenu();
                 editor.addElement(window.CroquisModels.curva(260, 220));
+            },
+            agregarCamellon: () => {
+                clearSubmenu();
+                editor.addElement(window.CroquisModels.camellon(300, 260));
+            },
+            agregarBanqueta: () => {
+                clearSubmenu();
+                editor.addElement(window.CroquisModels.banqueta(300, 260));
             },
             agregarCruce: () => {
                 clearSubmenu();
@@ -345,6 +360,12 @@ window.CroquisUI = (function () {
                 clearSubmenu();
                 editor.changeSelectedLanes(-1);
             },
+            banquetaIzquierda: () => cambiarLateral('izquierdo', 'banqueta'),
+            camellonIzquierdo: () => cambiarLateral('izquierdo', 'camellon'),
+            quitarLateralIzquierdo: () => cambiarLateral('izquierdo', null),
+            banquetaDerecha: () => cambiarLateral('derecho', 'banqueta'),
+            camellonDerecho: () => cambiarLateral('derecho', 'camellon'),
+            quitarLateralDerecho: () => cambiarLateral('derecho', null),
 
             agregarTexto: () => {
                 clearSubmenu();
@@ -357,6 +378,25 @@ window.CroquisUI = (function () {
             agregarEtiquetaReferencia: () => {
                 clearSubmenu();
                 agregarTextoConPrompt('Referencia');
+            },
+
+            copiar: () => {
+                clearSubmenu();
+                if (!editor.copySelected()) {
+                    window.alert('Selecciona primero el elemento que quieres copiar.');
+                }
+            },
+            pegar: () => {
+                clearSubmenu();
+                if (!editor.pasteCopied()) {
+                    window.alert('Primero copia un elemento del croquis.');
+                }
+            },
+            duplicar: () => {
+                clearSubmenu();
+                if (!editor.duplicateSelected()) {
+                    window.alert('Selecciona primero el elemento que quieres duplicar.');
+                }
             },
 
             limpiar: () => {

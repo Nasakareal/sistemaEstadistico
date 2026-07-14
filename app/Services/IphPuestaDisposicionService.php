@@ -58,6 +58,7 @@ class IphPuestaDisposicionService
             'objetos' => $puesta ? $this->mapearObjetos($puesta) : [],
             'anexos' => [
                 'foto_lugar' => $hecho->foto_lugar,
+                'foto_lugar_2' => $hecho->foto_lugar_2,
                 'foto_situacion' => $hecho->foto_situacion,
                 'iph_delegaciones_path' => $hecho->iph_delegaciones_path,
                 'archivo_puesta' => $puesta ? $puesta->archivo_puesta : null,

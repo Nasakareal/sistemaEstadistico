@@ -186,10 +186,27 @@ class CroquisPreviewService
             $elemento['anchoCarril'] = $this->number($raw['anchoCarril'] ?? null, 28);
             $elemento['carriles'] = max(1, $this->integer($raw['carriles'] ?? null, 1));
         } elseif ($tipo === 'curva') {
-            $elemento['radioInterno'] = $this->number($raw['radioInterno'] ?? ($raw['radio'] ?? null), 45);
-            $elemento['anchoCarril'] = $this->number($raw['anchoCarril'] ?? null, 28);
-            $elemento['carriles'] = max(1, $this->integer($raw['carriles'] ?? null, 1));
-            $elemento['angulo'] = $this->clamp($this->number($raw['angulo'] ?? null, 90), 30, 180);
+            $anchoCarril = $this->number($raw['anchoCarril'] ?? null, 28);
+            $carriles = max(1, $this->integer($raw['carriles'] ?? null, 1));
+            $elemento['anchoCarril'] = $anchoCarril;
+            $elemento['carriles'] = $carriles;
+            $keys = ['inicioX', 'inicioY', 'control1X', 'control1Y', 'control2X', 'control2Y', 'finX', 'finY'];
+            $hasBezier = true;
+
+            foreach ($keys as $key) {
+                if (!array_key_exists($key, $raw) || !is_numeric($raw[$key])) {
+                    $hasBezier = false;
+                    break;
+                }
+            }
+
+            $points = $hasBezier
+                ? array_combine($keys, array_map(fn ($key) => (float) $raw[$key], $keys))
+                : $this->legacyCurvePoints($raw, $anchoCarril, $carriles);
+            $elemento = array_merge($elemento, $points);
+        } elseif ($tipo === 'camellon' || $tipo === 'banqueta') {
+            $elemento['largo'] = max(20, $this->number($raw['largo'] ?? ($raw['w'] ?? null), 240));
+            $elemento['ancho'] = max(8, $this->number($raw['ancho'] ?? ($raw['h'] ?? null), $tipo === 'camellon' ? 34 : 26));
         } elseif ($tipo === 'cruce') {
             $largo = $this->number($raw['largo'] ?? ($raw['size'] ?? ($raw['largoHorizontal'] ?? ($raw['largoVertical'] ?? null))), 220);
             $largoHorizontal = $this->number($raw['largoHorizontal'] ?? ($raw['w'] ?? null), $largo);
@@ -209,6 +226,11 @@ class CroquisPreviewService
             $elemento['anchoCarril'] = $this->number($raw['anchoCarril'] ?? null, 24);
             $elemento['carriles'] = max(1, $this->integer($raw['carriles'] ?? null, 1));
             $elemento['largoAcceso'] = $this->number($raw['largoAcceso'] ?? null, 140);
+        }
+
+        if (in_array($tipo, ['calle', 'curva', 'cruce', 'entronque', 'glorieta'], true)) {
+            $elemento['bordeIzquierdo'] = $this->normalizeRoadEdge($raw['bordeIzquierdo'] ?? null);
+            $elemento['bordeDerecho'] = $this->normalizeRoadEdge($raw['bordeDerecho'] ?? null);
         }
 
         return $elemento;
@@ -288,6 +310,12 @@ class CroquisPreviewService
                 break;
             case 'curva':
                 $this->drawCurve($img, $el, $cx, $cy);
+                break;
+            case 'camellon':
+                $this->drawMedian($img, $el, $cx, $cy);
+                break;
+            case 'banqueta':
+                $this->drawSidewalk($img, $el, $cx, $cy);
                 break;
             case 'cruce':
                 $this->drawCross($img, $el, $cx, $cy);
@@ -390,6 +418,7 @@ class CroquisPreviewService
     {
         $width = $this->number($el['largo'] ?? null, 260);
         $height = $this->totalRoadWidth($el);
+        $this->drawAttachedRoadEdges($img, $el, $cx, $cy);
         $road = $this->color($img, '#2F2F2F');
         imagefilledrectangle($img, (int) round($cx - ($width / 2)), (int) round($cy - ($height / 2)), (int) round($cx + ($width / 2)), (int) round($cy + ($height / 2)), $road);
 
@@ -400,31 +429,64 @@ class CroquisPreviewService
 
     private function drawCurve($img, array $el, float $cx, float $cy): void
     {
-        $inner = $this->number($el['radioInterno'] ?? null, 45);
-        $outer = $inner + $this->totalRoadWidth($el);
-        $angle = $this->number($el['angulo'] ?? null, 90);
-        $points = [];
+        $this->drawAttachedRoadEdges($img, $el, $cx, $cy);
+        $points = $this->curvePolyline($el);
+        $roadWidth = max(1, (int) round($this->totalRoadWidth($el)));
+        $road = $this->color($img, '#2F2F2F');
+        imagesetthickness($img, $roadWidth);
 
-        for ($a = 0; $a <= $angle; $a += 3) {
-            $rad = deg2rad($a);
-            $points[] = (int) round($cx + (cos($rad) * $outer));
-            $points[] = (int) round($cy + (sin($rad) * $outer));
+        for ($i = 1; $i < count($points); $i++) {
+            imageline(
+                $img,
+                (int) round($cx + $points[$i - 1]['x']),
+                (int) round($cy + $points[$i - 1]['y']),
+                (int) round($cx + $points[$i]['x']),
+                (int) round($cy + $points[$i]['y']),
+                $road
+            );
         }
 
-        for ($a = $angle; $a >= 0; $a -= 3) {
-            $rad = deg2rad($a);
-            $points[] = (int) round($cx + (cos($rad) * $inner));
-            $points[] = (int) round($cy + (sin($rad) * $inner));
+        foreach ($points as $point) {
+            imagefilledellipse(
+                $img,
+                (int) round($cx + $point['x']),
+                (int) round($cy + $point['y']),
+                $roadWidth,
+                $roadWidth,
+                $road
+            );
         }
 
-        if (count($points) >= 6) {
-            imagefilledpolygon($img, $points, (int) (count($points) / 2), $this->color($img, '#2F2F2F'));
-        }
+        imagesetthickness($img, 1);
 
-        $carriles = max(1, $this->integer($el['carriles'] ?? null, 1));
-        for ($i = 1; $i < $carriles; $i++) {
-            $radius = $inner + ($i * $this->number($el['anchoCarril'] ?? null, 28));
-            $this->dashedArc($img, $cx, $cy, $radius, 0, $angle);
+        foreach ($this->laneDividers($el) as $offset) {
+            $this->dashedPolyline($img, $this->curvePolyline($el, $offset), $cx, $cy);
+        }
+    }
+
+    private function drawMedian($img, array $el, float $cx, float $cy): void
+    {
+        $length = $this->number($el['largo'] ?? null, 240);
+        $width = $this->number($el['ancho'] ?? null, 34);
+        imagefilledrectangle($img, (int) round($cx - ($length / 2)), (int) round($cy - ($width / 2)), (int) round($cx + ($length / 2)), (int) round($cy + ($width / 2)), $this->color($img, '#D7D7D7'));
+        imagefilledrectangle($img, (int) round($cx - ($length / 2) + 3), (int) round($cy - ($width / 2) + 3), (int) round($cx + ($length / 2) - 3), (int) round($cy + ($width / 2) - 3), $this->color($img, '#70A95B'));
+    }
+
+    private function drawSidewalk($img, array $el, float $cx, float $cy): void
+    {
+        $length = $this->number($el['largo'] ?? null, 240);
+        $width = $this->number($el['ancho'] ?? null, 26);
+        $left = $cx - ($length / 2);
+        $top = $cy - ($width / 2);
+        $right = $cx + ($length / 2);
+        $bottom = $cy + ($width / 2);
+        imagefilledrectangle($img, (int) round($left), (int) round($top), (int) round($right), (int) round($bottom), $this->color($img, '#C9C9C9'));
+        imagerectangle($img, (int) round($left), (int) round($top), (int) round($right), (int) round($bottom), $this->color($img, '#858585'));
+
+        $joint = $left + 28;
+        while ($joint < $right) {
+            imageline($img, (int) round($joint), (int) round($top), (int) round($joint), (int) round($bottom), $this->color($img, '#A2A2A2'));
+            $joint += 28;
         }
     }
 
@@ -433,6 +495,7 @@ class CroquisPreviewService
         $roadW = $this->totalRoadWidth($el);
         $armH = $this->number($el['largoHorizontal'] ?? ($el['largo'] ?? null), 220);
         $armV = $this->number($el['largoVertical'] ?? ($el['largo'] ?? null), 220);
+        $this->drawAttachedRoadEdges($img, $el, $cx, $cy);
         $road = $this->color($img, '#2F2F2F');
 
         imagefilledrectangle($img, (int) round($cx - ($armH / 2)), (int) round($cy - ($roadW / 2)), (int) round($cx + ($armH / 2)), (int) round($cy + ($roadW / 2)), $road);
@@ -449,6 +512,7 @@ class CroquisPreviewService
         $roadW = $this->totalRoadWidth($el);
         $base = $this->number($el['largoBase'] ?? null, 220);
         $arm = $this->number($el['largoBrazo'] ?? null, 140);
+        $this->drawAttachedRoadEdges($img, $el, $cx, $cy);
         $road = $this->color($img, '#2F2F2F');
 
         imagefilledrectangle($img, (int) round($cx - ($base / 2)), (int) round($cy - ($roadW / 2)), (int) round($cx + ($base / 2)), (int) round($cy + ($roadW / 2)), $road);
@@ -465,13 +529,217 @@ class CroquisPreviewService
         $inner = $this->number($el['radioIsla'] ?? null, 40);
         $outer = $inner + $this->totalRoadWidth($el);
         imagefilledellipse($img, (int) round($cx), (int) round($cy), (int) round($outer * 2), (int) round($outer * 2), $this->color($img, '#2F2F2F'));
-        imagefilledellipse($img, (int) round($cx), (int) round($cy), (int) round(max(6, $inner - 4) * 2), (int) round(max(6, $inner - 4) * 2), $this->color($img, '#5CB85C'));
+        $islandRadius = max(6, $inner - $this->attachedWidth($el['bordeIzquierdo'] ?? null) - 4);
+        imagefilledellipse($img, (int) round($cx), (int) round($cy), (int) round($islandRadius * 2), (int) round($islandRadius * 2), $this->color($img, '#5CB85C'));
+        $this->drawAttachedRoadEdges($img, $el, $cx, $cy);
 
         $carriles = max(1, $this->integer($el['carriles'] ?? null, 1));
         for ($i = 1; $i < $carriles; $i++) {
             $radius = $inner + ($i * $this->number($el['anchoCarril'] ?? null, 24));
             $this->dashedArc($img, $cx, $cy, $radius, 0, 360);
         }
+    }
+
+    private function drawAttachedRoadEdges($img, array $el, float $cx, float $cy): void
+    {
+        $roadWidth = $this->totalRoadWidth($el);
+        $sides = [
+            ['type' => $el['bordeIzquierdo'] ?? null, 'sign' => -1],
+            ['type' => $el['bordeDerecho'] ?? null, 'sign' => 1],
+        ];
+
+        foreach ($sides as $side) {
+            $width = $this->attachedWidth($side['type']);
+            if ($width <= 0) {
+                continue;
+            }
+
+            $offset = $side['sign'] * (($roadWidth / 2) + ($width / 2));
+
+            if ($el['tipo'] === 'calle') {
+                $length = $this->number($el['largo'] ?? null, 260);
+                $this->strokeAttachedLine($img, $side['type'], $cx - ($length / 2), $cy + $offset, $cx + ($length / 2), $cy + $offset);
+            } elseif ($el['tipo'] === 'curva') {
+                $this->strokeAttachedPolyline($img, $side['type'], $this->curvePolyline($el, $offset), $cx, $cy);
+            } elseif ($el['tipo'] === 'cruce') {
+                $horizontal = $this->number($el['largoHorizontal'] ?? ($el['largo'] ?? null), 220);
+                $vertical = $this->number($el['largoVertical'] ?? ($el['largo'] ?? null), 220);
+                $this->strokeAttachedLine($img, $side['type'], $cx - ($horizontal / 2), $cy + $offset, $cx + ($horizontal / 2), $cy + $offset);
+                $this->strokeAttachedLine($img, $side['type'], $cx + $offset, $cy - ($vertical / 2), $cx + $offset, $cy + ($vertical / 2));
+            } elseif ($el['tipo'] === 'entronque') {
+                $base = $this->number($el['largoBase'] ?? null, 220);
+                $arm = $this->number($el['largoBrazo'] ?? null, 140);
+                $this->strokeAttachedLine($img, $side['type'], $cx - ($base / 2), $cy + $offset, $cx + ($base / 2), $cy + $offset);
+                $this->strokeAttachedLine($img, $side['type'], $cx + $offset, $cy - $arm, $cx + $offset, $cy);
+            } elseif ($el['tipo'] === 'glorieta') {
+                $inner = $this->number($el['radioIsla'] ?? null, 40);
+                $radius = $side['sign'] < 0
+                    ? max($width / 2, $inner - ($width / 2))
+                    : $inner + $roadWidth + ($width / 2);
+                $this->strokeAttachedEllipse($img, $side['type'], $cx, $cy, $radius);
+            }
+        }
+    }
+
+    private function strokeAttachedLine($img, ?string $type, float $x1, float $y1, float $x2, float $y2): void
+    {
+        $width = $this->attachedWidth($type);
+        $this->solidLine($img, $x1, $y1, $x2, $y2, $width + 2, $type === 'camellon' ? '#D7D7D7' : '#858585');
+        $this->solidLine($img, $x1, $y1, $x2, $y2, max(2, $width - ($type === 'camellon' ? 6 : 3)), $type === 'camellon' ? '#70A95B' : '#C9C9C9');
+    }
+
+    private function solidLine($img, float $x1, float $y1, float $x2, float $y2, int $width, string $hex): void
+    {
+        $color = $this->color($img, $hex);
+        imagesetthickness($img, $width);
+        imageline($img, (int) round($x1), (int) round($y1), (int) round($x2), (int) round($y2), $color);
+        imagefilledellipse($img, (int) round($x1), (int) round($y1), $width, $width, $color);
+        imagefilledellipse($img, (int) round($x2), (int) round($y2), $width, $width, $color);
+        imagesetthickness($img, 1);
+    }
+
+    private function strokeAttachedPolyline($img, ?string $type, array $points, float $cx, float $cy): void
+    {
+        $width = $this->attachedWidth($type);
+        $this->solidPolyline($img, $points, $cx, $cy, $width + 2, $type === 'camellon' ? '#D7D7D7' : '#858585');
+        $this->solidPolyline($img, $points, $cx, $cy, max(2, $width - ($type === 'camellon' ? 6 : 3)), $type === 'camellon' ? '#70A95B' : '#C9C9C9');
+    }
+
+    private function solidPolyline($img, array $points, float $cx, float $cy, int $width, string $hex): void
+    {
+        if (count($points) < 2) {
+            return;
+        }
+
+        $color = $this->color($img, $hex);
+        imagesetthickness($img, $width);
+        for ($i = 1; $i < count($points); $i++) {
+            imageline($img, (int) round($cx + $points[$i - 1]['x']), (int) round($cy + $points[$i - 1]['y']), (int) round($cx + $points[$i]['x']), (int) round($cy + $points[$i]['y']), $color);
+        }
+
+        foreach ($points as $point) {
+            imagefilledellipse($img, (int) round($cx + $point['x']), (int) round($cy + $point['y']), $width, $width, $color);
+        }
+        imagesetthickness($img, 1);
+    }
+
+    private function strokeAttachedEllipse($img, ?string $type, float $cx, float $cy, float $radius): void
+    {
+        $width = $this->attachedWidth($type);
+        $passes = [
+            [$width + 2, $type === 'camellon' ? '#D7D7D7' : '#858585'],
+            [max(2, $width - ($type === 'camellon' ? 6 : 3)), $type === 'camellon' ? '#70A95B' : '#C9C9C9'],
+        ];
+
+        foreach ($passes as [$lineWidth, $hex]) {
+            imagesetthickness($img, $lineWidth);
+            imageellipse($img, (int) round($cx), (int) round($cy), (int) round($radius * 2), (int) round($radius * 2), $this->color($img, $hex));
+        }
+        imagesetthickness($img, 1);
+    }
+
+    private function legacyCurvePoints(array $raw, float $anchoCarril, int $carriles): array
+    {
+        $inner = $this->number($raw['radioInterno'] ?? ($raw['radio'] ?? null), 45);
+        $angle = deg2rad($this->clamp($this->number($raw['angulo'] ?? null, 90), 5, 180));
+        $radius = $inner + (($anchoCarril * $carriles) / 2);
+        $tangent = (4 / 3) * tan($angle / 4) * $radius;
+        $endX = cos($angle) * $radius;
+        $endY = sin($angle) * $radius;
+
+        return [
+            'inicioX' => $radius,
+            'inicioY' => 0.0,
+            'control1X' => $radius,
+            'control1Y' => $tangent,
+            'control2X' => $endX + (sin($angle) * $tangent),
+            'control2Y' => $endY - (cos($angle) * $tangent),
+            'finX' => $endX,
+            'finY' => $endY,
+        ];
+    }
+
+    private function curvePoint(array $el, float $t, float $offset = 0): array
+    {
+        $u = 1 - $t;
+        $x = ($u ** 3 * $el['inicioX'])
+            + (3 * ($u ** 2) * $t * $el['control1X'])
+            + (3 * $u * ($t ** 2) * $el['control2X'])
+            + ($t ** 3 * $el['finX']);
+        $y = ($u ** 3 * $el['inicioY'])
+            + (3 * ($u ** 2) * $t * $el['control1Y'])
+            + (3 * $u * ($t ** 2) * $el['control2Y'])
+            + ($t ** 3 * $el['finY']);
+        $dx = (3 * ($u ** 2) * ($el['control1X'] - $el['inicioX']))
+            + (6 * $u * $t * ($el['control2X'] - $el['control1X']))
+            + (3 * ($t ** 2) * ($el['finX'] - $el['control2X']));
+        $dy = (3 * ($u ** 2) * ($el['control1Y'] - $el['inicioY']))
+            + (6 * $u * $t * ($el['control2Y'] - $el['control1Y']))
+            + (3 * ($t ** 2) * ($el['finY'] - $el['control2Y']));
+        $length = sqrt(($dx * $dx) + ($dy * $dy));
+        $length = $length > 0.0001 ? $length : 1;
+
+        return [
+            'x' => $x + ((-$dy / $length) * $offset),
+            'y' => $y + (($dx / $length) * $offset),
+        ];
+    }
+
+    private function curvePolyline(array $el, float $offset = 0, int $steps = 56): array
+    {
+        $points = [];
+        for ($i = 0; $i <= $steps; $i++) {
+            $points[] = $this->curvePoint($el, $i / $steps, $offset);
+        }
+
+        return $points;
+    }
+
+    private function dashedPolyline($img, array $points, float $cx, float $cy): void
+    {
+        $dash = 12.0;
+        $gap = 10.0;
+        $period = $dash + $gap;
+        $progress = 0.0;
+        $color = $this->color($img, '#FFFFFF');
+        imagesetthickness($img, 2);
+
+        for ($i = 1; $i < count($points); $i++) {
+            $start = $points[$i - 1];
+            $end = $points[$i];
+            $dx = $end['x'] - $start['x'];
+            $dy = $end['y'] - $start['y'];
+            $length = sqrt(($dx * $dx) + ($dy * $dy));
+            if ($length <= 0.0001) {
+                continue;
+            }
+
+            $position = 0.0;
+            while ($position < $length) {
+                $phase = fmod($progress, $period);
+                $drawing = $phase < $dash;
+                $remaining = $drawing ? $dash - $phase : $period - $phase;
+                $take = min($remaining, $length - $position);
+
+                if ($drawing && $take > 0) {
+                    $from = $position / $length;
+                    $to = ($position + $take) / $length;
+                    imageline(
+                        $img,
+                        (int) round($cx + $start['x'] + ($dx * $from)),
+                        (int) round($cy + $start['y'] + ($dy * $from)),
+                        (int) round($cx + $start['x'] + ($dx * $to)),
+                        (int) round($cy + $start['y'] + ($dy * $to)),
+                        $color
+                    );
+                }
+
+                $position += $take;
+                $progress += $take;
+            }
+        }
+
+        imagesetthickness($img, 1);
     }
 
     private function dashedLine($img, float $x1, float $y1, float $x2, float $y2): void
@@ -538,32 +806,54 @@ class CroquisPreviewService
         }
 
         if ($el['tipo'] === 'calle') {
-            return [$this->number($el['largo'] ?? null, 260), $this->totalRoadWidth($el)];
+            return [
+                $this->number($el['largo'] ?? null, 260) + 4,
+                $this->totalRoadWidth($el) + ($this->maxAttachedWidth($el) * 2),
+            ];
         }
 
         if ($el['tipo'] === 'curva') {
-            $outer = $this->number($el['radioInterno'] ?? null, 45) + $this->totalRoadWidth($el);
-            return [$outer * 2, $outer * 2];
+            $margin = ($this->totalRoadWidth($el) / 2) + $this->maxAttachedWidth($el) + 4;
+            $maxX = 0.0;
+            $maxY = 0.0;
+
+            foreach ($this->curvePolyline($el) as $point) {
+                $maxX = max($maxX, abs($point['x']));
+                $maxY = max($maxY, abs($point['y']));
+            }
+
+            return [($maxX + $margin) * 2, ($maxY + $margin) * 2];
+        }
+
+        if ($el['tipo'] === 'camellon' || $el['tipo'] === 'banqueta') {
+            return [
+                $this->number($el['largo'] ?? null, 240),
+                $this->number($el['ancho'] ?? null, $el['tipo'] === 'camellon' ? 34 : 26),
+            ];
         }
 
         if ($el['tipo'] === 'cruce') {
             $roadW = $this->totalRoadWidth($el);
+            $attached = $this->maxAttachedWidth($el) * 2;
             return [
-                max($this->number($el['largoHorizontal'] ?? ($el['largo'] ?? null), 220), $roadW),
-                max($this->number($el['largoVertical'] ?? ($el['largo'] ?? null), 220), $roadW),
+                max($this->number($el['largoHorizontal'] ?? ($el['largo'] ?? null), 220), $roadW) + $attached,
+                max($this->number($el['largoVertical'] ?? ($el['largo'] ?? null), 220), $roadW) + $attached,
             ];
         }
 
         if ($el['tipo'] === 'entronque') {
             $roadW = $this->totalRoadWidth($el);
+            $attached = $this->maxAttachedWidth($el) * 2;
             return [
-                max($this->number($el['largoBase'] ?? null, 220), $roadW),
-                $roadW + $this->number($el['largoBrazo'] ?? null, 140),
+                max($this->number($el['largoBase'] ?? null, 220), $roadW) + $attached,
+                $roadW + $this->number($el['largoBrazo'] ?? null, 140) + $attached,
             ];
         }
 
         if ($el['tipo'] === 'glorieta') {
-            $outer = $this->number($el['radioIsla'] ?? null, 40) + $this->totalRoadWidth($el);
+            $outer = $this->number($el['radioIsla'] ?? null, 40)
+                + $this->totalRoadWidth($el)
+                + $this->attachedWidth($el['bordeDerecho'] ?? null);
             return [$outer * 2, $outer * 2];
         }
 
@@ -588,6 +878,34 @@ class CroquisPreviewService
     private function totalRoadWidth(array $el): float
     {
         return max(1, $this->integer($el['carriles'] ?? null, 1)) * max(1, $this->number($el['anchoCarril'] ?? null, 1));
+    }
+
+    private function normalizeRoadEdge($value): ?string
+    {
+        $type = strtolower(trim((string) $value));
+
+        return in_array($type, ['banqueta', 'camellon'], true) ? $type : null;
+    }
+
+    private function attachedWidth(?string $type): int
+    {
+        if ($type === 'banqueta') {
+            return 26;
+        }
+
+        if ($type === 'camellon') {
+            return 34;
+        }
+
+        return 0;
+    }
+
+    private function maxAttachedWidth(array $el): int
+    {
+        return max(
+            $this->attachedWidth($el['bordeIzquierdo'] ?? null),
+            $this->attachedWidth($el['bordeDerecho'] ?? null)
+        );
     }
 
     private function transparentCanvas(int $width, int $height)

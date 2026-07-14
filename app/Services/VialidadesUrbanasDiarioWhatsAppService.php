@@ -34,6 +34,16 @@ class VialidadesUrbanasDiarioWhatsAppService
         'DISPOSITIVOS DE SEGURIDAD VIAL' => 'Dispositivos de Vialidad',
         'CAMPANAS' => 'Campañas',
         'PROXIMIDAD SOCIAL' => 'Proximidad social',
+        'OPERATIVOS' => 'Operativos',
+    ];
+
+    private const SUBCATEGORIES_AS_OTHER = [
+        'CARRETERAS',
+        'CASETAS',
+        'BLOQUEO CARRETERO',
+        'RESGUARDO DE VEHICULO POR OBSTRUCCION O ABANDONO',
+        'ALCOHOLIMETRIA',
+        'CONDUCE CON LEGALIDAD',
     ];
 
     private const SUBCATEGORY_LABELS = [
@@ -184,7 +194,11 @@ class VialidadesUrbanasDiarioWhatsAppService
             $this->categoriaResumenSimple($totales, 'ABANDERAMIENTOS'),
             $this->categoriaResumenSimple($totales, 'MONITOREOS'),
             $this->categoriaResumenSimple($totales, 'AUXILIO VIAL A CONDUCTORES'),
-            $this->categoriaResumenSimple($totales, 'DISPOSITIVOS DE SEGURIDAD VIAL'),
+            $this->categoriaResumenConOtros(
+                $totales,
+                'DISPOSITIVOS DE SEGURIDAD VIAL',
+                ['OPERATIVOS']
+            ),
             $this->categoriaResumenSimple($totales, 'CAMPAÑAS'),
             $this->categoriaResumenSimple($totales, 'PROXIMIDAD SOCIAL'),
         ];
@@ -371,6 +385,29 @@ class VialidadesUrbanasDiarioWhatsAppService
         return $this->pad($total) . ' - ' . $this->joinLabels($labels) . '.';
     }
 
+    protected function categoriaResumenConOtros(array $totales, string $categoriaKey, array $categoriasResiduales): string
+    {
+        $key = $this->norm($categoriaKey);
+        $categoria = $totales[$key] ?? [
+            'nombre' => $categoriaKey,
+            'total' => 0,
+            'subcategorias' => [],
+        ];
+
+        foreach ($categoriasResiduales as $categoriaResidual) {
+            $residual = $totales[$this->norm($categoriaResidual)] ?? null;
+
+            if (!$residual || (int) ($residual['total'] ?? 0) <= 0) {
+                continue;
+            }
+
+            $categoria['total'] = (int) ($categoria['total'] ?? 0) + (int) $residual['total'];
+            $categoria['subcategorias'][] = 'Otros';
+        }
+
+        return $this->categoriaResumenSimple([$key => $categoria], $categoriaKey);
+    }
+
     protected function joinLabels(array $labels): string
     {
         $labels = array_values(array_filter(array_map(fn ($label) => $this->cleanLabelForSentence((string) $label), $labels)));
@@ -477,6 +514,11 @@ class VialidadesUrbanasDiarioWhatsAppService
     protected function subcategoriaResumenLabel($item): string
     {
         $raw = trim((string) ($item->nombre ?? ''));
+
+        if (in_array($this->norm($raw), self::SUBCATEGORIES_AS_OTHER, true)) {
+            return 'Otros';
+        }
+
         $label = $this->subcategoryLabel($raw);
 
         if (!$this->esSubcategoriaOtros($raw)) {

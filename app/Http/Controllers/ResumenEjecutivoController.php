@@ -69,6 +69,7 @@ class ResumenEjecutivoController extends Controller
             ->map(function ($h) {
                 $fotoStorage = app(HechoFotoStorage::class);
                 $fotoLugar = $fotoStorage->url($h->foto_lugar);
+                $fotoLugar2 = $fotoStorage->url($h->foto_lugar_2);
                 $fotoSituacion = $fotoStorage->url($h->foto_situacion);
 
                 $ubicacionPartes = array_filter([
@@ -108,8 +109,9 @@ class ResumenEjecutivoController extends Controller
                     'lat' => $h->lat,
                     'lng' => $h->lng,
                     'foto_lugar' => $fotoLugar,
+                    'foto_lugar_2' => $fotoLugar2,
                     'foto_situacion' => $fotoSituacion,
-                    'foto_principal' => $fotoSituacion ?: $fotoLugar,
+                    'foto_principal' => $fotoSituacion ?: $fotoLugar ?: $fotoLugar2,
                     'lesionados_count' => $h->lesionados->count(),
                     'vehiculos_count' => $h->vehiculos->count(),
                     'creado_por' => optional($h->creator)->name,

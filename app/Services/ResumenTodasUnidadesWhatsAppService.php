@@ -61,6 +61,12 @@ class ResumenTodasUnidadesWhatsAppService
             'abanderamientos_cortes' => $this->actividadCount('ABANDERAMIENTOS', 'CORTES DE CIRCULACION', $inicio, $fin),
             'abanderamientos_accidentes' => $this->actividadCount('ABANDERAMIENTOS', 'ACCIDENTES', $inicio, $fin),
             'abanderamientos_obras' => $this->actividadCount('ABANDERAMIENTOS', 'OBRAS PUBLICAS', $inicio, $fin),
+            'abanderamientos_otros' => $this->actividadCountExcept(
+                'ABANDERAMIENTOS',
+                ['CORTES DE CIRCULACION', 'ACCIDENTES', 'OBRAS PUBLICAS'],
+                $inicio,
+                $fin
+            ),
 
             'monitoreos_vias_ferreas' => $this->actividadCount('MONITOREOS', 'VIAS FERREAS', $inicio, $fin),
             'monitoreos_perifericos' => $this->actividadCount('MONITOREOS', 'PERIFERICOS', $inicio, $fin),
@@ -70,6 +76,12 @@ class ResumenTodasUnidadesWhatsAppService
             'monitoreos_gasolineras' => $this->actividadCount('MONITOREOS', 'GASOLINERAS', $inicio, $fin),
             'monitoreos_oficinas' => $this->actividadCount('MONITOREOS', 'OFICINAS GUBERNAMENTALES', $inicio, $fin),
             'monitoreos_manifestaciones' => $this->actividadCount('MONITOREOS', 'MANIFESTACIONES', $inicio, $fin),
+            'monitoreos_otros' => $this->actividadCountExcept(
+                'MONITOREOS',
+                ['VIAS FERREAS', 'PERIFERICOS', 'AVENIDAS', 'TIENDAS DEPARTAMENTALES', 'BANCOS', 'GASOLINERAS', 'OFICINAS GUBERNAMENTALES', 'MANIFESTACIONES'],
+                $inicio,
+                $fin
+            ),
 
             'auxilio_fallas_mecanicas' => $this->actividadCount('AUXILIO VIAL A CONDUCTORES', 'FALLAS MECANICAS', $inicio, $fin),
 
@@ -77,6 +89,12 @@ class ResumenTodasUnidadesWhatsAppService
             'dsv_zonas_transeuntes' => $this->actividadCount('DISPOSITIVOS DE SEGURIDAD VIAL', 'ZONAS DE MAYOR PASE DE TRANSEUNTES', $inicio, $fin),
             'dsv_pasos_peatonales' => $this->actividadCount('DISPOSITIVOS DE SEGURIDAD VIAL', 'PASOS PEATONALES', $inicio, $fin),
             'dsv_patrullajes' => $this->actividadCount('DISPOSITIVOS DE SEGURIDAD VIAL', 'PATRULLAJES', $inicio, $fin),
+            'dsv_otros' => $this->actividadCountExcept(
+                'DISPOSITIVOS DE SEGURIDAD VIAL',
+                ['APOYO A LA VIALIDAD', 'ZONAS DE MAYOR PASE DE TRANSEUNTES', 'PASOS PEATONALES', 'PATRULLAJES'],
+                $inicio,
+                $fin
+            ),
 
             'concientizacion_talleres' => $this->actividadCount('CAPACITACIONES', 'TALLER EDUCACION SEGURIDAD VIAL', $inicio, $fin),
             'concientizacion_campanas' => $this->actividadCount('CAPACITACIONES', 'CAMPAÑA EDUCACION SEGURIDAD VIAL', $inicio, $fin),
@@ -230,6 +248,7 @@ class ResumenTodasUnidadesWhatsAppService
                 [$t['abanderamientos_cortes'], 'corte de circulación', 'cortes de circulación'],
                 [$t['abanderamientos_accidentes'], 'accidente', 'accidentes'],
                 [$t['abanderamientos_obras'], 'obra pública', 'obras públicas'],
+                [$t['abanderamientos_otros'], 'otro abanderamiento', 'otros abanderamientos'],
             ]),
             $this->formatItems([
                 [$t['monitoreos_vias_ferreas'], 'vía férrea', 'vías férreas'],
@@ -240,6 +259,7 @@ class ResumenTodasUnidadesWhatsAppService
                 [$t['monitoreos_gasolineras'], 'gasolinera', 'gasolineras'],
                 [$t['monitoreos_oficinas'], 'oficina gubernamental', 'oficinas gubernamentales'],
                 [$t['monitoreos_manifestaciones'], 'manifestación', 'manifestaciones'],
+                [$t['monitoreos_otros'], 'otro monitoreo', 'otros monitoreos'],
             ]),
             $this->formatItems([
                 [$t['auxilio_fallas_mecanicas'], 'falla mecánica', 'fallas mecánicas'],
@@ -249,6 +269,7 @@ class ResumenTodasUnidadesWhatsAppService
                 [$t['dsv_zonas_transeuntes'], 'zona de mayor pase de transeúntes', 'zonas de mayor pase de transeúntes'],
                 [$t['dsv_pasos_peatonales'], 'paso y/o cruce peatonal', 'pasos y/o cruces peatonales'],
                 [$t['dsv_patrullajes'], 'patrullaje', 'patrullajes'],
+                [$t['dsv_otros'], 'otro dispositivo', 'otros dispositivos'],
             ]),
             $this->formatItems([
                 [$t['concientizacion_talleres'], 'taller de educación en seguridad vial', 'talleres de educación en seguridad vial'],
@@ -287,6 +308,30 @@ class ResumenTodasUnidadesWhatsAppService
             ->join('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
             ->where('actividad_categorias.slug', $this->slug($categoria))
             ->where('actividad_subcategorias.slug', $this->slug($subcategoria));
+
+        $this->aplicarRango($query, 'actividades', 'actividades', $inicio, $fin);
+
+        return (int) $query->sum(DB::raw('COALESCE(actividades.cantidad, 0)'));
+    }
+
+    protected function actividadCountExcept(
+        string $categoria,
+        array $subcategoriasVisibles,
+        Carbon $inicio,
+        Carbon $fin
+    ): int {
+        if (!$this->tablaExiste('actividades') || !$this->tablaExiste('actividad_categorias') || !$this->tablaExiste('actividad_subcategorias')) {
+            return 0;
+        }
+
+        $query = DB::table('actividades')
+            ->join('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
+            ->join('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+            ->where('actividad_categorias.slug', $this->slug($categoria))
+            ->whereNotIn('actividad_subcategorias.slug', array_map(
+                fn (string $subcategoria) => $this->slug($subcategoria),
+                $subcategoriasVisibles
+            ));
 
         $this->aplicarRango($query, 'actividades', 'actividades', $inicio, $fin);
 
@@ -444,7 +489,11 @@ class ResumenTodasUnidadesWhatsAppService
         $items = [];
         $inspecciones = ['personas' => 0, 'vehiculos' => 0, 'motocicletas' => 0];
 
-        foreach ([$this->operativosTabla($inicio, $fin), $this->operativosDispositivosTabla($inicio, $fin)] as $rows) {
+        foreach ([
+            $this->operativosTabla($inicio, $fin),
+            $this->operativosDispositivosTabla($inicio, $fin),
+            $this->operativosActividadesTabla($inicio, $fin),
+        ] as $rows) {
             foreach ($rows as $row) {
                 $nombre = $this->nombreOperativo((string) ($row->nombre ?? 'OPERATIVO'));
                 $key = $this->norm($nombre);
@@ -519,6 +568,28 @@ class ResumenTodasUnidadesWhatsAppService
         }
 
         $this->aplicarRango($query, 'operativo_dispositivos', 'od', $inicio, $fin);
+
+        return $query->get();
+    }
+
+    protected function operativosActividadesTabla(Carbon $inicio, Carbon $fin)
+    {
+        if (!$this->tablaExiste('actividades') || !$this->tablaExiste('actividad_categorias')) {
+            return collect();
+        }
+
+        $query = DB::table('actividades as a')
+            ->join('actividad_categorias as c', 'c.id', '=', 'a.actividad_categoria_id')
+            ->selectRaw('"OTROS OPERATIVOS" as nombre')
+            ->selectRaw('SUM(COALESCE(a.cantidad, 0)) as cantidad')
+            ->selectRaw('SUM(COALESCE(a.personas_participantes, 0)) as guardias')
+            ->selectRaw('GROUP_CONCAT(NULLIF(TRIM(COALESCE(a.patrullas_participantes_texto, "")), "") SEPARATOR "|") as crps')
+            ->selectRaw('0 as personas_inspeccionadas')
+            ->selectRaw('0 as vehiculos_inspeccionados')
+            ->selectRaw('0 as motocicletas_inspeccionadas')
+            ->where('c.slug', $this->slug('OPERATIVOS'));
+
+        $this->aplicarRango($query, 'actividades', 'a', $inicio, $fin);
 
         return $query->get();
     }

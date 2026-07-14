@@ -90,7 +90,14 @@
     if ($fotoLugarUrl = $imageUrl($anexos['foto_lugar'] ?? null)) {
         $fijacionFotos->push([
             'src' => $fotoLugarUrl,
-            'alt' => 'Foto del lugar del hecho',
+            'alt' => 'Foto 1 del lugar del hecho',
+        ]);
+    }
+
+    if ($fotoLugar2Url = $imageUrl($anexos['foto_lugar_2'] ?? null)) {
+        $fijacionFotos->push([
+            'src' => $fotoLugar2Url,
+            'alt' => 'Foto 2 del lugar del hecho',
         ]);
     }
 

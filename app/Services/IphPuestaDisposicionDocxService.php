@@ -660,7 +660,11 @@ class IphPuestaDisposicionDocxService
         $fotos = [];
 
         if ($foto = $this->resolverImagen($anexos['foto_lugar'] ?? null)) {
-            $fotos[] = ['path' => $foto, 'caption' => 'Fijación fotográfica del lugar de intervención'];
+            $fotos[] = ['path' => $foto, 'caption' => 'Fijación fotográfica 1 del lugar de intervención'];
+        }
+
+        if ($foto = $this->resolverImagen($anexos['foto_lugar_2'] ?? null)) {
+            $fotos[] = ['path' => $foto, 'caption' => 'Fijación fotográfica 2 del lugar de intervención'];
         }
 
         foreach ($vehiculos as $i => $vehiculo) {

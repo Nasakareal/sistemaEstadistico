@@ -181,6 +181,7 @@ class HechosController extends Controller
             'ubicacion_formateada' => 'nullable|string|max:2000',
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_lugar_2' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
@@ -273,7 +274,7 @@ class HechosController extends Controller
             ->resolver($validated['lat'] ?? null, $validated['lng'] ?? null);
 
         $dictamenId = $puedeUsarDictamenes ? ($validated['dictamen_id'] ?? null) : null;
-        unset($validated['dictamen_id']);
+        unset($validated['dictamen_id'], $validated['foto_lugar'], $validated['foto_lugar_2'], $validated['foto_situacion']);
 
         $hecho = Hechos::create($validated);
 
@@ -287,6 +288,11 @@ class HechosController extends Controller
         if ($request->hasFile('foto_lugar')) {
             $path = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
             $updates['foto_lugar'] = $path;
+        }
+
+        if ($request->hasFile('foto_lugar_2')) {
+            $path = $fotoStorage->putUploadedFile($request->file('foto_lugar_2'), $hecho, 'lugar_2');
+            $updates['foto_lugar_2'] = $path;
         }
 
         if ($request->hasFile('foto_situacion')) {
@@ -488,6 +494,7 @@ class HechosController extends Controller
         $hechoAntes = clone $hecho;
 
         $quitarFotoLugar = (string) $request->input('quitar_foto_lugar', '0') === '1';
+        $quitarFotoLugar2 = (string) $request->input('quitar_foto_lugar_2', '0') === '1';
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario, $hecho);
@@ -549,6 +556,7 @@ class HechosController extends Controller
             'ubicacion_formateada' => 'nullable|string|max:2000',
             'place_id' => 'nullable|string|max:128',
             'foto_lugar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_lugar_2' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'foto_situacion' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
 
@@ -653,11 +661,17 @@ class HechosController extends Controller
 
         $fotoStorage = app(HechoFotoStorage::class);
         $oldFotoLugarParaEliminar = null;
+        $oldFotoLugar2ParaEliminar = null;
         $oldFotoSituacionParaEliminar = null;
 
         if ($quitarFotoLugar) {
             $fotoStorage->delete($hecho->foto_lugar);
             $validated['foto_lugar'] = null;
+        }
+
+        if ($quitarFotoLugar2) {
+            $fotoStorage->delete($hecho->foto_lugar_2);
+            $validated['foto_lugar_2'] = null;
         }
 
         if ($quitarFotoSituacion) {
@@ -668,6 +682,11 @@ class HechosController extends Controller
         if ($request->hasFile('foto_lugar')) {
             $oldFotoLugarParaEliminar = $hecho->foto_lugar;
             $validated['foto_lugar'] = $fotoStorage->putUploadedFile($request->file('foto_lugar'), $hecho, 'lugar');
+        }
+
+        if ($request->hasFile('foto_lugar_2')) {
+            $oldFotoLugar2ParaEliminar = $hecho->foto_lugar_2;
+            $validated['foto_lugar_2'] = $fotoStorage->putUploadedFile($request->file('foto_lugar_2'), $hecho, 'lugar_2');
         }
 
         if ($request->hasFile('foto_situacion')) {
@@ -682,6 +701,10 @@ class HechosController extends Controller
 
         if ($oldFotoLugarParaEliminar && $oldFotoLugarParaEliminar !== ($validated['foto_lugar'] ?? null)) {
             $fotoStorage->delete($oldFotoLugarParaEliminar);
+        }
+
+        if ($oldFotoLugar2ParaEliminar && $oldFotoLugar2ParaEliminar !== ($validated['foto_lugar_2'] ?? null)) {
+            $fotoStorage->delete($oldFotoLugar2ParaEliminar);
         }
 
         if ($oldFotoSituacionParaEliminar && $oldFotoSituacionParaEliminar !== ($validated['foto_situacion'] ?? null)) {
@@ -788,6 +811,7 @@ class HechosController extends Controller
         try {
             $fotoStorage = app(HechoFotoStorage::class);
             $fotoStorage->delete($hecho->foto_lugar);
+            $fotoStorage->delete($hecho->foto_lugar_2);
             $fotoStorage->delete($hecho->foto_situacion);
 
             $dictamenActual = $hecho->dictamen;
@@ -871,6 +895,10 @@ class HechosController extends Controller
 
         if (!empty($hecho->foto_lugar)) {
             $media[] = $fotoStorage->url($hecho->foto_lugar);
+        }
+
+        if (!empty($hecho->foto_lugar_2)) {
+            $media[] = $fotoStorage->url($hecho->foto_lugar_2);
         }
 
         if (!empty($hecho->foto_situacion)) {
@@ -1472,6 +1500,10 @@ class HechosController extends Controller
 
         if (!empty($hecho->foto_lugar)) {
             $fotos[] = $fotoStorage->url($hecho->foto_lugar);
+        }
+
+        if (!empty($hecho->foto_lugar_2)) {
+            $fotos[] = $fotoStorage->url($hecho->foto_lugar_2);
         }
 
         if (!empty($hecho->foto_situacion)) {

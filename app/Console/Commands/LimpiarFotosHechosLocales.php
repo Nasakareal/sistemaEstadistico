@@ -42,12 +42,13 @@ class LimpiarFotosHechosLocales extends Command
         Hechos::query()
             ->where(function ($query) {
                 $query->whereNotNull('foto_lugar')
+                    ->orWhereNotNull('foto_lugar_2')
                     ->orWhereNotNull('foto_situacion');
             })
             ->orderBy('id')
             ->chunkById(100, function ($hechos) use ($storage, $dryRun, $limit, &$procesados, &$stats) {
                 foreach ($hechos as $hecho) {
-                    foreach (['foto_lugar', 'foto_situacion'] as $campo) {
+                    foreach (['foto_lugar', 'foto_lugar_2', 'foto_situacion'] as $campo) {
                         foreach ($this->pathsFromValue($hecho->{$campo}) as $path) {
                             if ($limit > 0 && $procesados >= $limit) {
                                 return false;

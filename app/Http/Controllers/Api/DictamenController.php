@@ -95,9 +95,9 @@ class DictamenController extends Controller
 
         $area = $this->resolverAreaUsuario($usuario);
         $anio = $request->filled('anio') ? (int) $request->input('anio') : now()->year;
-        $numeroDictamen = $request->filled('numero_dictamen')
-            ? (int) $request->input('numero_dictamen')
-            : $this->siguienteNumeroPorAnio($anio);
+        $numeroDictamen = $anio === now()->year
+            ? $this->siguienteNumeroPorAnio($anio)
+            : ($request->filled('numero_dictamen') ? (int) $request->input('numero_dictamen') : null);
 
         $request->merge([
             'numero_dictamen' => $numeroDictamen,
@@ -121,6 +121,7 @@ class DictamenController extends Controller
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ], [
             'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
+            'numero_dictamen.required' => 'Capture el número que aparece en el dictamen histórico.',
             'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
         ]);
 
@@ -259,11 +260,7 @@ class DictamenController extends Controller
 
     private function siguienteNumeroPorAnio(int $anio): int
     {
-        $ultimo = Dictamen::where('anio', $anio)
-            ->orderBy('numero_dictamen', 'desc')
-            ->first();
-
-        return $ultimo ? ((int) $ultimo->numero_dictamen + 1) : 1;
+        return ((int) Dictamen::query()->where('anio', $anio)->max('numero_dictamen')) + 1;
     }
 
     private function resolverAreaUsuario($usuario): string

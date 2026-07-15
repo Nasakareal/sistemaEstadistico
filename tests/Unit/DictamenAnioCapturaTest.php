@@ -13,6 +13,8 @@ class DictamenAnioCapturaTest extends TestCase
         $this->assertStringContainsString('name="numero_dictamen"', $view);
         $this->assertStringContainsString('name="anio"', $view);
         $this->assertStringContainsString('min="{{ $anioMinimo }}"', $view);
+        $this->assertStringContainsString('numero.readOnly = esAnioActual;', $view);
+        $this->assertStringContainsString('El sistema asigna automáticamente el siguiente consecutivo', $view);
         $this->assertStringNotContainsString('value="{{ now()->year }}" readonly', $view);
     }
 
@@ -28,7 +30,11 @@ class DictamenAnioCapturaTest extends TestCase
             $this->assertStringContainsString("Rule::unique('dictamens', 'numero_dictamen')", $source);
             $this->assertStringContainsString("->where('anio'", $source);
             $this->assertStringContainsString("->where('area'", $source);
+            $this->assertStringContainsString('$anio === now()->year', $source);
+            $this->assertStringContainsString('siguienteNumeroPorAnio($anio)', $source);
         }
+
+        $this->assertStringContainsString('use Illuminate\\Validation\\Rule;', $web);
     }
 
     public function test_edicion_de_hecho_filtra_y_valida_dictamenes_del_mismo_anio(): void

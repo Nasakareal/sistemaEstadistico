@@ -54,7 +54,7 @@
 
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="perito">Perito<span style="color: red">*</span></label>
+                                    <label for="perito">Agente vial o nombre<span style="color: red">*</span></label>
                                     <input type="text" name="perito" id="perito"
                                            class="form-control @error('perito') is-invalid @enderror"
                                            value="{{ old('perito', $hecho->perito) }}"
@@ -65,6 +65,7 @@
                                 </div>
                             </div>
 
+                            @unless($ocultarCamposAdministrativosDelegaciones ?? false)
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="autorizacion_practico">N° Autorización de Práctico</label>
@@ -77,8 +78,9 @@
                                     @enderror
                                 </div>
                             </div>
+                            @endunless
 
-                            <div class="col-md-3">
+                            <div class="{{ ($ocultarCamposAdministrativosDelegaciones ?? false) ? 'col-md-6' : 'col-md-3' }}">
                                 <div class="form-group">
                                     <label for="unidad">Unidad<span style="color: red">*</span></label>
                                     <input type="text" name="unidad" id="unidad"
@@ -125,24 +127,19 @@
                                 </div>
                             @endif
 
-                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-3' : 'col-md-6' }}">
-                                <div class="form-group">
-                                    <label for="sector">Sector<span style="color: red">*</span></label>
-                                    <select name="sector" id="sector" class="form-control @error('sector') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione un sector</option>
-                                        <option value="REVOLUCIÓN" {{ old('sector', $hecho->sector) == 'REVOLUCIÓN' ? 'selected' : '' }}>REVOLUCIÓN</option>
-                                        <option value="NUEVA ESPAÑA" {{ old('sector', $hecho->sector) == 'NUEVA ESPAÑA' ? 'selected' : '' }}>NUEVA ESPAÑA</option>
-                                        <option value="INDEPENDENCIA" {{ old('sector', $hecho->sector) == 'INDEPENDENCIA' ? 'selected' : '' }}>INDEPENDENCIA</option>
-                                        <option value="REPÚBLICA" {{ old('sector', $hecho->sector) == 'REPÚBLICA' ? 'selected' : '' }}>REPÚBLICA</option>
-                                        <option value="CENTRO" {{ old('sector', $hecho->sector) == 'CENTRO' ? 'selected' : '' }}>CENTRO</option>
-                                    </select>
-                                    @error('sector')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
+                            @unless($usaReglasFlexibles ?? false)
+                                <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-3' : 'col-md-6' }}">
+                                    @include('hechos.partials.catalog_select', [
+                                        'nombre' => 'sector',
+                                        'etiqueta' => 'Sector',
+                                        'opciones' => config('hechos.catalogos.sectores'),
+                                        'valor' => $hecho->sector,
+                                        'placeholder' => 'Seleccione un sector',
+                                    ])
                                 </div>
-                            </div>
+                            @endunless
 
-                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? 'col-md-3' : 'col-md-6' }}">
+                            <div class="{{ ($puedeCapturarFechaHora ?? false) ? (($usaReglasFlexibles ?? false) ? 'col-md-6' : 'col-md-3') : (($usaReglasFlexibles ?? false) ? 'col-md-12' : 'col-md-6') }}">
                                 <div class="form-group">
                                     <label for="municipio">Municipio<span style="color: red">*</span></label>
                                     <input type="text" name="municipio" id="municipio"
@@ -247,110 +244,35 @@
 
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="tipo_hecho">Tipo de Hecho de Tránsito<span style="color: red">*</span></label>
-                                    <select name="tipo_hecho" id="tipo_hecho" class="form-control @error('tipo_hecho') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione el tipo de hecho</option>
-                                        <option value="VOLCADURA" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'VOLCADURA' ? 'selected' : '' }}>VOLCADURA</option>
-                                        <option value="SALIDA DE SUPERFICIE DE RODAMIENTO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'SALIDA DE SUPERFICIE DE RODAMIENTO' ? 'selected' : '' }}>SALIDA DE SUPERFICIE DE RODAMIENTO</option>
-                                        <option value="SUBIDA AL CAMELLÓN" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'SUBIDA AL CAMELLÓN' ? 'selected' : '' }}>SUBIDA AL CAMELLÓN</option>
-                                        <option value="CAIDA DE MOTOCICLETA" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'CAIDA DE MOTOCICLETA' ? 'selected' : '' }}>CAIDA DE MOTOCICLETA</option>
-                                        <option value="COLISIÓN CON PEATÓN" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN CON PEATÓN' ? 'selected' : '' }}>COLISIÓN CON PEATÓN</option>
-                                        <option value="COLISIÓN POR ALCANCE" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR ALCANCE' ? 'selected' : '' }}>COLISIÓN POR ALCANCE</option>
-                                        <option value="COLISIÓN POR NO RESPETAR SEMÁFORO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR NO RESPETAR SEMÁFORO' ? 'selected' : '' }}>COLISIÓN POR NO RESPETAR SEMÁFORO</option>
-                                        <option value="COLISIÓN POR INVASIÓN DE CARRIL" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR INVASIÓN DE CARRIL' ? 'selected' : '' }}>COLISIÓN POR INVASIÓN DE CARRIL</option>
-                                        <option value="COLISIÓN POR CAMBIO DE CARRIL" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR CAMBIO DE CARRIL' ? 'selected' : '' }}>COLISIÓN POR CAMBIO DE CARRIL</option>
-                                        <option value="COLISIÓN POR CORTE DE CIRCULACIÓN" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR CORTE DE CIRCULACIÓN' ? 'selected' : '' }}>COLISIÓN POR CORTE DE CIRCULACIÓN</option>
-                                        <option value="COLISIÓN CONTRA SEMOVIENTE" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN CONTRA SEMOVIENTE' ? 'selected' : '' }}>COLISIÓN CONTRA SEMOVIENTE</option>
-                                        <option value="COLISIÓN POR MANIOBRA DE REVERSA" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN POR MANIOBRA DE REVERSA' ? 'selected' : '' }}>COLISIÓN POR MANIOBRA DE REVERSA</option>
-                                        <option value="COLISIÓN CONTRA OBJETO FIJO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'COLISIÓN CONTRA OBJETO FIJO' ? 'selected' : '' }}>COLISIÓN CONTRA OBJETO FIJO</option>
-                                        <option value="CAIDA ACUATICA DE VEHÍCULO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'CAIDA ACUATICA DE VEHÍCULO' ? 'selected' : '' }}>CAIDA ACUATICA DE VEHÍCULO</option>
-                                        <option value="DESBARRANCAMIENTO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'DESBARRANCAMIENTO' ? 'selected' : '' }}>DESBARRANCAMIENTO</option>
-                                        <option value="INCENDIO" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'INCENDIO' ? 'selected' : '' }}>INCENDIO</option>
-                                        <option value="EXPLOSIÓN" {{ old('tipo_hecho', $hecho->tipo_hecho) == 'EXPLOSIÓN' ? 'selected' : '' }}>EXPLOSIÓN</option>
-                                    </select>
-                                    @error('tipo_hecho')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', [
+                                    'nombre' => 'tipo_hecho',
+                                    'etiqueta' => 'Tipo de Hecho de Tránsito',
+                                    'opciones' => config('hechos.catalogos.tipos_hecho'),
+                                    'valor' => $hecho->tipo_hecho,
+                                    'placeholder' => 'Seleccione el tipo de hecho',
+                                ])
                             </div>
 
                             <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="superficie_via">Superficie de la Vía<span style="color: red">*</span></label>
-                                    <input type="text" name="superficie_via" id="superficie_via"
-                                           class="form-control @error('superficie_via') is-invalid @enderror"
-                                           value="{{ old('superficie_via', $hecho->superficie_via) }}"
-                                           placeholder="Ingrese la superficie de la vía" required>
-                                    @error('superficie_via')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'superficie_via', 'etiqueta' => 'Superficie de la Vía', 'opciones' => config('hechos.catalogos.superficies_via'), 'valor' => $hecho->superficie_via])
                             </div>
 
                             <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="tiempo">Tiempo<span style="color: red">*</span></label>
-                                    <select name="tiempo" id="tiempo" class="form-control @error('tiempo') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione el tiempo</option>
-                                        <option value="Día" {{ old('tiempo', $hecho->tiempo) == 'Día' ? 'selected' : '' }}>DÍA</option>
-                                        <option value="Noche" {{ old('tiempo', $hecho->tiempo) == 'Noche' ? 'selected' : '' }}>NOCHE</option>
-                                        <option value="Amanecer" {{ old('tiempo', $hecho->tiempo) == 'Amanecer' ? 'selected' : '' }}>AMANECER</option>
-                                        <option value="Atardecer" {{ old('tiempo', $hecho->tiempo) == 'Atardecer' ? 'selected' : '' }}>ATARDECER</option>
-                                    </select>
-                                    @error('tiempo')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'tiempo', 'etiqueta' => 'Tiempo', 'opciones' => config('hechos.catalogos.tiempos'), 'valor' => $hecho->tiempo])
                             </div>
 
                             <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="clima">Clima<span style="color: red">*</span></label>
-                                    <select name="clima" id="clima" class="form-control @error('clima') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione el clima</option>
-                                        <option value="Bueno" {{ old('clima', $hecho->clima) == 'Bueno' ? 'selected' : '' }}>BUENO</option>
-                                        <option value="Malo" {{ old('clima', $hecho->clima) == 'Malo' ? 'selected' : '' }}>MALO</option>
-                                        <option value="Nublado" {{ old('clima', $hecho->clima) == 'Nublado' ? 'selected' : '' }}>NUBLADO</option>
-                                        <option value="Lluvioso" {{ old('clima', $hecho->clima) == 'Lluvioso' ? 'selected' : '' }}>LLUVIOSO</option>
-                                    </select>
-                                    @error('clima')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'clima', 'etiqueta' => 'Clima', 'opciones' => config('hechos.catalogos.climas'), 'valor' => $hecho->clima])
                             </div>
 
                             <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="condiciones">Condiciones<span style="color: red">*</span></label>
-                                    <select name="condiciones" id="condiciones" class="form-control @error('condiciones') is-invalid @enderror" required>
-                                        <option value="" disabled>Seleccione las condiciones</option>
-                                        <option value="Bueno" {{ old('condiciones', $hecho->condiciones) == 'Bueno' ? 'selected' : '' }}>BUENO</option>
-                                        <option value="Regular" {{ old('condiciones', $hecho->condiciones) == 'Regular' ? 'selected' : '' }}>REGULAR</option>
-                                        <option value="Malo" {{ old('condiciones', $hecho->condiciones) == 'Malo' ? 'selected' : '' }}>MALO</option>
-                                    </select>
-                                    @error('condiciones')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'condiciones', 'etiqueta' => 'Condiciones', 'opciones' => config('hechos.catalogos.condiciones'), 'valor' => $hecho->condiciones])
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="situacion">Situación<span style="color: red">*</span></label>
-                                    <select name="situacion" id="situacion" class="form-control @error('situacion') is-invalid @enderror" required>
-                                        <option value="" disabled {{ old('situacion', $hecho->situacion) ? '' : 'selected' }}>Seleccione la situación</option>
-                                        <option value="RESUELTO" {{ old('situacion', $hecho->situacion) == 'RESUELTO' ? 'selected' : '' }}>RESUELTO</option>
-                                        <option value="PENDIENTE" {{ old('situacion', $hecho->situacion) == 'PENDIENTE' ? 'selected' : '' }}>PENDIENTE</option>
-                                        <option value="TURNADO" {{ old('situacion', $hecho->situacion) == 'TURNADO' ? 'selected' : '' }}>TURNADO</option>
-                                        <option value="REPORTE" {{ old('situacion', $hecho->situacion) == 'REPORTE' ? 'selected' : '' }}>REPORTE</option>
-                                    </select>
-                                    @error('situacion')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'situacion', 'etiqueta' => 'Situación', 'opciones' => config('hechos.catalogos.situaciones'), 'valor' => $hecho->situacion])
                             </div>
 
                             @if($puedeUsarDictamenes)
@@ -388,31 +310,13 @@
                             @endif
 
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="control_transito">Control de Tránsito<span style="color: red">*</span></label>
-                                    <input type="text" name="control_transito" id="control_transito"
-                                           class="form-control @error('control_transito') is-invalid @enderror"
-                                           value="{{ old('control_transito', $hecho->control_transito) }}"
-                                           placeholder="Ingrese el control de tránsito" required>
-                                    @error('control_transito')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'control_transito', 'etiqueta' => 'Control de Tránsito', 'opciones' => config('hechos.catalogos.controles_transito'), 'valor' => $hecho->control_transito])
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="colision_camino">Colisión sobre el Camino<span style="color: red">*</span></label>
-                                    <input type="text" name="colision_camino" id="colision_camino"
-                                           class="form-control @error('colision_camino') is-invalid @enderror"
-                                           value="{{ old('colision_camino', $hecho->colision_camino) }}"
-                                           placeholder="Ingrese la colisión sobre el camino" required>
-                                    @error('colision_camino')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'colision_camino', 'etiqueta' => 'Colisión sobre el Camino', 'opciones' => config('hechos.catalogos.colisiones_camino'), 'valor' => $hecho->colision_camino])
                             </div>
 
                             <div class="col-md-2">
@@ -498,29 +402,11 @@
 
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="causas">Causas<span style="color: red">*</span></label>
-                                    <input type="text" name="causas" id="causas"
-                                           class="form-control @error('causas') is-invalid @enderror"
-                                           value="{{ old('causas', $hecho->causas) }}"
-                                           placeholder="Ingrese las causas" required>
-                                    @error('causas')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'causas', 'etiqueta' => 'Causas', 'opciones' => config('hechos.catalogos.causas'), 'valor' => $hecho->causas])
                             </div>
 
                             <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="responsable">Responsable<span style="color: red">*</span></label>
-                                    <input type="text" name="responsable" id="responsable"
-                                           class="form-control @error('responsable') is-invalid @enderror"
-                                           value="{{ old('responsable', $hecho->responsable) }}"
-                                           placeholder="Ingrese el responsable" required>
-                                    @error('responsable')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
+                                @include('hechos.partials.catalog_select', ['nombre' => 'responsable', 'etiqueta' => 'Responsable', 'opciones' => config('hechos.catalogos.responsables'), 'valor' => $hecho->responsable])
                             </div>
 
                             <div class="col-md-2" style="display:flex; align-items:end;">

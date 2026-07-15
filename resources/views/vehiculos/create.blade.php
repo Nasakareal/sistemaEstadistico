@@ -23,8 +23,12 @@
                                 <!-- Marca -->
                                 <div class="form-group">
                                     <label for="marca">Marca<span style="color: red">*</span></label>
-                                    <input type="text" name="marca" id="marca" class="form-control @error('marca') is-invalid @enderror" 
-                                           value="{{ old('marca') }}" placeholder="Ingrese la marca" required>
+                                    <select name="marca" id="marca" class="form-control @error('marca') is-invalid @enderror" required>
+                                        <option value="">-- Seleccione --</option>
+                                        @foreach ($vehiculoCatalogos['marcas'] as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('marca') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
                                     @error('marca')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -53,15 +57,9 @@
                                     <label for="tipo_general">Tipo de Vehículo<span style="color: red">*</span></label>
                                     <select name="tipo_general" id="tipo_general" class="form-control" required>
                                         <option value="">-- Seleccione --</option>
-                                        <option value="semoviente" {{ old('tipo_general') == 'semoviente' ? 'selected' : '' }}>Semoviente</option>
-                                        <option value="automovil" {{ old('tipo_general') == 'automovil' ? 'selected' : '' }}>Automóvil</option>
-                                        <option value="camion" {{ old('tipo_general') == 'camion' ? 'selected' : '' }}>Camión</option>
-                                        <option value="camioneta" {{ old('tipo_general') == 'camioneta' ? 'selected' : '' }}>Camioneta</option>
-                                        <option value="bicicleta" {{ old('tipo_general') == 'bicicleta' ? 'selected' : '' }}>Bicicleta</option>
-                                        <option value="motocicleta" {{ old('tipo_general') == 'motocicleta' ? 'selected' : '' }}>Motocicleta</option>
-                                        <option value="remolque" {{ old('tipo_general') == 'remolque' ? 'selected' : '' }}>Remolque</option>
-                                        <option value="maquinaria" {{ old('tipo_general') == 'maquinaria' ? 'selected' : '' }}>Maquinaria</option>
-                                        <option value="tren" {{ old('tipo_general') == 'tren' ? 'selected' : '' }}>Tren</option>
+                                        @foreach ($vehiculoCatalogos['tipos_generales'] as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('tipo_general') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
                                     </select>
                                 </div>
                             </div>
@@ -102,10 +100,12 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="aseguradora">Aseguradora</label>
-                                    <input type="text" name="aseguradora" id="aseguradora"
-                                       class="form-control @error('aseguradora') is-invalid @enderror"
-                                       value="{{ old('aseguradora') }}"
-                                       placeholder="Nombre de la aseguradora">
+                                    <select name="aseguradora" id="aseguradora" class="form-control @error('aseguradora') is-invalid @enderror">
+                                        <option value="">-- Sin aseguradora --</option>
+                                        @foreach ($vehiculoCatalogos['aseguradoras'] as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('aseguradora') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
                                     @error('aseguradora')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -121,8 +121,12 @@
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="color">Color<span style="color: red">*</span></label>
-                                    <input type="text" name="color" id="color" class="form-control @error('color') is-invalid @enderror" 
-                                           value="{{ old('color') }}" placeholder="Ingrese el color" required>
+                                    <select name="color" id="color" class="form-control @error('color') is-invalid @enderror" required>
+                                        <option value="">-- Seleccione --</option>
+                                        @foreach ($vehiculoCatalogos['colores'] as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('color') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
                                     @error('color')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -134,9 +138,9 @@
                             <!-- Placas -->
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="placas">Placas<span style="color: red">*</span></label>
+                                    <label for="placas">Placas (opcional)</label>
                                     <input type="text" name="placas" id="placas" class="form-control @error('placas') is-invalid @enderror" 
-                                           value="{{ old('placas') }}" placeholder="Ingrese las placas" required>
+                                           value="{{ old('placas') }}" placeholder="Ingrese las placas" maxlength="15">
                                     @error('placas')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -146,11 +150,15 @@
                             </div>
 
                             <!-- Estado de Placas -->
-                            <div class="col-md-5">
+                            <div class="col-md-5" id="estado_placas_grupo">
                                 <div class="form-group">
                                     <label for="estado_placas">Estado de Placas</label>
-                                    <input type="text" name="estado_placas" id="estado_placas" class="form-control @error('estado_placas') is-invalid @enderror" 
-                                           value="{{ old('estado_placas') }}" placeholder="Ingrese el estado de placas">
+                                    <select name="estado_placas" id="estado_placas" class="form-control @error('estado_placas') is-invalid @enderror">
+                                        <option value="">-- Seleccione --</option>
+                                        @foreach ($vehiculoCatalogos['estados_placas'] as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('estado_placas') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
                                     @error('estado_placas')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -159,6 +167,21 @@
                                 </div>
                             </div>
                          </div>
+
+                        <div class="row" id="permiso_circular_grupo">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="permiso_circular">Permiso para circular: estado o asociación</label>
+                                    <input type="text" name="permiso_circular" id="permiso_circular"
+                                           class="form-control @error('permiso_circular') is-invalid @enderror"
+                                           value="{{ old('permiso_circular') }}" maxlength="60"
+                                           placeholder="Ej. MICHOACÁN o UDC">
+                                    @error('permiso_circular')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Serie, Capacidad -->
                         <div class="row">
@@ -181,7 +204,7 @@
                                 <div class="form-group">
                                     <label for="capacidad_personas">Capacidad<span style="color: red">*</span></label>
                                     <input type="number" name="capacidad_personas" id="capacidad_personas" class="form-control @error('capacidad_personas') is-invalid @enderror" 
-                                           value="{{ old('capacidad_personas', 0) }}" min="0" required>
+                                           value="{{ old('capacidad_personas', 5) }}" min="0" required>
                                     @error('capacidad_personas')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
@@ -195,10 +218,9 @@
                                 <div class="form-group">
                                     <label for="tipo_servicio">Tipo de Servicio<span style="color: red">*</span></label>
                                     <select name="tipo_servicio" id="tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" required>
-                                        <option value="">-- Seleccione --</option>
-                                        <option value="Particular" {{ old('tipo_servicio') == 'Particular' ? 'selected' : '' }}>Particular</option>
-                                        <option value="Oficial" {{ old('tipo_servicio') == 'Oficial' ? 'selected' : '' }}>Oficial</option>
-                                        <option value="Público" {{ old('tipo_servicio') == 'Público' ? 'selected' : '' }}>Público</option>
+                                        @foreach ($vehiculoCatalogos['tipos_servicio'] as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('tipo_servicio', 'PARTICULAR') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
                                     </select>
                                     @error('tipo_servicio')
                                         <span class="invalid-feedback" role="alert">
@@ -752,7 +774,8 @@
                     'Torton',
                     'Rabón',
                     'Tracto',
-                    'Redilas'
+                    'Redilas',
+                    'Autobús'
                 ],
 
                 motocicleta: [
@@ -828,6 +851,29 @@
                 tipoGeneral.dispatchEvent(new Event('change'));
                 tipo.value = oldTipo;
             }
+
+            const placasInput = document.getElementById('placas');
+            const tipoServicioSelect = document.getElementById('tipo_servicio');
+            const estadoPlacasGrupo = document.getElementById('estado_placas_grupo');
+            const estadoPlacasSelect = document.getElementById('estado_placas');
+            const permisoCircularGrupo = document.getElementById('permiso_circular_grupo');
+
+            function sincronizarCamposPlacas() {
+                const tienePlacas = (placasInput?.value || '').trim() !== '';
+                const esFederal = tipoServicioSelect?.value === 'SERVICIO PÚBLICO FEDERAL';
+                const requiereEstado = tienePlacas && !esFederal;
+
+                if (estadoPlacasGrupo) estadoPlacasGrupo.style.display = requiereEstado ? '' : 'none';
+                if (estadoPlacasSelect) {
+                    estadoPlacasSelect.required = requiereEstado;
+                    if (!requiereEstado) estadoPlacasSelect.value = '';
+                }
+                if (permisoCircularGrupo) permisoCircularGrupo.style.display = tienePlacas ? 'none' : '';
+            }
+
+            placasInput?.addEventListener('input', sincronizarCamposPlacas);
+            tipoServicioSelect?.addEventListener('change', sincronizarCamposPlacas);
+            sincronizarCamposPlacas();
 
             const gruaSelect = document.getElementById('grua_id');
             const corralonSelect = document.getElementById('corralon');

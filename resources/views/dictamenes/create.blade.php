@@ -27,11 +27,12 @@
                     <label for="numero_dictamen">Número de dictamen</label>
                     <input type="number" name="numero_dictamen" id="numero_dictamen"
                            class="form-control @error('numero_dictamen') is-invalid @enderror"
-                           min="1" step="1" value="{{ old('numero_dictamen', $numeroSiguiente) }}" required>
+                           min="1" step="1" value="{{ old('numero_dictamen', $numeroSiguiente) }}"
+                           data-numero-actual="{{ $numeroSiguiente }}" required>
                     @error('numero_dictamen')
                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                     @enderror
-                    <small class="form-text text-muted">Para años anteriores, capture el número que aparece en el documento.</small>
+                    <small class="form-text text-muted" id="ayuda_numero_dictamen"></small>
                 </div>
 
                 <div class="form-group col-md-3">
@@ -79,4 +80,39 @@
         </form>
     </div>
 </div>
+@stop
+
+@section('js')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const anio = document.getElementById('anio');
+    const numero = document.getElementById('numero_dictamen');
+    const ayuda = document.getElementById('ayuda_numero_dictamen');
+    const anioActual = {{ (int) $anioActual }};
+    const numeroActual = numero.dataset.numeroActual;
+
+    function configurarNumero(esCambioDeAnio) {
+        const esAnioActual = Number(anio.value) === anioActual;
+
+        numero.readOnly = esAnioActual;
+
+        if (esAnioActual) {
+            numero.value = numeroActual;
+            ayuda.textContent = 'El sistema asigna automáticamente el siguiente consecutivo de ' + anioActual + '.';
+            return;
+        }
+
+        if (esCambioDeAnio && numero.value === numeroActual) {
+            numero.value = '';
+        }
+
+        ayuda.textContent = 'Para años anteriores, capture el número que aparece en el documento.';
+    }
+
+    configurarNumero(false);
+    anio.addEventListener('change', function () {
+        configurarNumero(true);
+    });
+});
+</script>
 @stop

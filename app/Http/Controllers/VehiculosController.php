@@ -12,6 +12,7 @@ use App\Services\Fotos\HechoFotoStorage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Support\GruaEditGuard;
+use Illuminate\Validation\Rule;
 
 class VehiculosController extends Controller
 {
@@ -66,26 +67,30 @@ class VehiculosController extends Controller
         $gruas = $queryGruas->get();
         $corralones = $this->corralonesDesdeGruas($gruas);
 
-        return view('vehiculos.create', compact('hecho', 'gruas', 'corralones'));
+        $vehiculoCatalogos = config('vehiculos.catalogos');
+
+        return view('vehiculos.create', compact('hecho', 'gruas', 'corralones', 'vehiculoCatalogos'));
     }
 
     public function store(Request $request, Hechos $hecho)
     {
         $validated = $request->validate([
-            'marca'                      => 'required|string|max:50',
+            'tipo_general'               => ['required', Rule::in(array_keys(config('vehiculos.catalogos.tipos_generales', [])))],
+            'marca'                      => ['required', 'string', 'max:50', Rule::in(array_keys(config('vehiculos.catalogos.marcas', [])))],
             'modelo'                     => 'nullable|string|max:10',
-            'tipo'                       => 'required|string|max:50',
+            'tipo'                       => ['required', 'string', 'max:50', Rule::in(config('vehiculos.catalogos.carrocerias.' . $request->input('tipo_general'), []))],
             'linea'                      => 'required|string|max:50',
-            'color'                      => 'required|string|max:30',
-            'placas'                     => 'required|string|max:15',
-            'estado_placas'              => 'nullable|string|max:15',
-            'serie'                      => 'nullable|string|max:17',
+            'color'                      => ['required', 'string', 'max:30', Rule::in(array_keys(config('vehiculos.catalogos.colores', [])))],
+            'placas'                     => ['nullable', 'string', 'max:15', 'regex:/^[A-Za-z0-9\s\-\._,]{5,20}$/'],
+            'estado_placas'              => ['nullable', 'string', 'max:30', Rule::in(array_merge(array_keys(config('vehiculos.catalogos.estados_placas', [])), ['FEDERAL']))],
+            'permiso_circular'           => 'nullable|string|max:60',
+            'serie'                      => ['nullable', 'string', 'max:17', 'regex:/^[A-Za-z0-9\s\-\._,]{6,22}$/'],
             'capacidad_personas'         => 'required|integer|min:0',
-            'tipo_servicio'              => 'required|string|max:50',
+            'tipo_servicio'              => ['required', 'string', 'max:50', Rule::in(array_keys(config('vehiculos.catalogos.tipos_servicio', [])))],
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
             'grua_id'                    => 'nullable|exists:gruas,id',
             'corralon'                   => 'nullable|string|max:255',
-            'aseguradora'                => 'nullable|string|max:100',
+            'aseguradora'                => ['nullable', 'string', 'max:100', Rule::in(array_keys(config('vehiculos.catalogos.aseguradoras', [])))],
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
             'antecedente_vehiculo'       => 'sometimes|boolean',
@@ -110,8 +115,8 @@ class VehiculosController extends Controller
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
-        $validated['placas'] = strtoupper(str_replace('-', '', $validated['placas']));
-        $validated['serie'] = strtoupper(str_replace('-', '', (string) ($validated['serie'] ?? '')));
+        $validated['placas'] = strtoupper(str_replace(['-', ' ', '.', ',', '_'], '', (string) ($validated['placas'] ?? '')));
+        $validated['serie'] = strtoupper(str_replace(['-', ' ', '.', ',', '_'], '', (string) ($validated['serie'] ?? '')));
         $validated['conductor_nombre'] = strtoupper((string) ($validated['conductor_nombre'] ?? ''));
         $validated['tarjeta_circulacion_nombre'] = (string) ($validated['tarjeta_circulacion_nombre'] ?? '');
         $validated['antecedente_vehiculo'] = $request->has('antecedente_vehiculo');
@@ -122,7 +127,15 @@ class VehiculosController extends Controller
         $validated['aliento_etilico'] = $request->has('aliento_etilico');
         $validated['permanente'] = $request->boolean('permanente');
 
-        $placaRepetida = $hecho->vehiculos()->where('placas', $validated['placas'])->exists();
+        if ($validated['placas'] !== '' && $validated['tipo_servicio'] !== 'SERVICIO PÚBLICO FEDERAL' && empty($validated['estado_placas'])) {
+            return back()->withErrors(['estado_placas' => 'El estado de placas es obligatorio cuando se capturan placas.'])->withInput();
+        }
+
+        if ($validated['placas'] !== '' && $validated['tipo_servicio'] === 'SERVICIO PÚBLICO FEDERAL') {
+            $validated['estado_placas'] = 'FEDERAL';
+        }
+
+        $placaRepetida = $validated['placas'] !== '' && $hecho->vehiculos()->where('placas', $validated['placas'])->exists();
         $serieRepetida = $validated['serie'] !== '' && $hecho->vehiculos()->where('serie', $validated['serie'])->exists();
         $conductorRepetido = $validated['conductor_nombre'] !== '' && $hecho->vehiculos()->whereHas('conductores', function ($q) use ($validated) {
             $q->where('nombre', $validated['conductor_nombre']);
@@ -142,11 +155,12 @@ class VehiculosController extends Controller
             return back()->withErrors($errors)->withInput();
         }
 
-        $validated['marca'] = ucfirst(strtolower($validated['marca']));
+        $validated['marca'] = strtoupper($validated['marca']);
         $validated['tipo'] = ucfirst(strtolower($validated['tipo']));
         $validated['linea'] = ucfirst(strtolower($validated['linea']));
         $validated['color'] = ucfirst(strtolower($validated['color']));
         $validated['estado_placas'] = strtoupper((string) ($validated['estado_placas'] ?? ''));
+        $validated['permiso_circular'] = strtoupper((string) ($validated['permiso_circular'] ?? ''));
         $validated['tipo_servicio'] = strtoupper($validated['tipo_servicio']);
         $validated['tarjeta_circulacion_nombre'] = strtoupper($validated['tarjeta_circulacion_nombre']);
         $validated['corralon'] = strtoupper((string) ($validated['corralon'] ?? ''));
@@ -176,6 +190,7 @@ class VehiculosController extends Controller
                 'color'                      => $validated['color'],
                 'placas'                     => $validated['placas'],
                 'estado_placas'              => $validated['estado_placas'],
+                'permiso_circular'           => $validated['permiso_circular'] !== '' ? $validated['permiso_circular'] : null,
                 'serie'                      => $validated['serie'],
                 'capacidad_personas'         => $validated['capacidad_personas'],
                 'tipo_servicio'              => $validated['tipo_servicio'],
@@ -331,6 +346,11 @@ class VehiculosController extends Controller
         }
 
         $corralones = $this->corralonesDesdeGruas($gruas, $vehiculo->corralon);
+        $vehiculoCatalogos = config('vehiculos.catalogos');
+        $tipoGeneralActual = collect($vehiculoCatalogos['carrocerias'] ?? [])
+            ->search(fn (array $carrocerias) => collect($carrocerias)->contains(
+                fn (string $carroceria) => strcasecmp($carroceria, (string) $vehiculo->tipo) === 0
+            ));
 
         return view('vehiculos.edit', compact(
             'hecho',
@@ -342,7 +362,9 @@ class VehiculosController extends Controller
             'gruaActualId',
             'gruaBloqueada',
             'gruaCampoBloqueado',
-            'corralonCampoBloqueado'
+            'corralonCampoBloqueado',
+            'vehiculoCatalogos',
+            'tipoGeneralActual'
         ));
     }
 
@@ -353,20 +375,22 @@ class VehiculosController extends Controller
         }
 
         $validated = $request->validate([
-            'marca'                      => 'required|string|max:50',
+            'tipo_general'               => ['required', Rule::in(array_keys(config('vehiculos.catalogos.tipos_generales', [])))],
+            'marca'                      => ['required', 'string', 'max:50', Rule::in(array_keys(config('vehiculos.catalogos.marcas', [])))],
             'modelo'                     => 'nullable|string|max:10',
-            'tipo'                       => 'required|string|max:50',
-            'linea'                      => 'nullable|string|max:50',
-            'color'                      => 'nullable|string|max:30',
-            'placas'                     => 'required|string|max:15',
-            'estado_placas'              => 'nullable|string|max:15',
-            'serie'                      => 'nullable|string|max:17',
+            'tipo'                       => ['required', 'string', 'max:50', Rule::in(config('vehiculos.catalogos.carrocerias.' . $request->input('tipo_general'), []))],
+            'linea'                      => 'required|string|max:50',
+            'color'                      => ['required', 'string', 'max:30', Rule::in(array_keys(config('vehiculos.catalogos.colores', [])))],
+            'placas'                     => ['nullable', 'string', 'max:15', 'regex:/^[A-Za-z0-9\s\-\._,]{5,20}$/'],
+            'estado_placas'              => ['nullable', 'string', 'max:30', Rule::in(array_merge(array_keys(config('vehiculos.catalogos.estados_placas', [])), ['FEDERAL']))],
+            'permiso_circular'           => 'nullable|string|max:60',
+            'serie'                      => ['nullable', 'string', 'max:17', 'regex:/^[A-Za-z0-9\s\-\._,]{6,22}$/'],
             'capacidad_personas'         => 'required|integer|min:0',
-            'tipo_servicio'              => 'required|string|max:50',
+            'tipo_servicio'              => ['required', 'string', 'max:50', Rule::in(array_keys(config('vehiculos.catalogos.tipos_servicio', [])))],
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
             'grua_id'                    => 'nullable|exists:gruas,id',
             'corralon'                   => 'nullable|string|max:255',
-            'aseguradora'                => 'nullable|string|max:100',
+            'aseguradora'                => ['nullable', 'string', 'max:100', Rule::in(array_keys(config('vehiculos.catalogos.aseguradoras', [])))],
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
             'antecedente_vehiculo'       => 'sometimes|boolean',
@@ -391,8 +415,8 @@ class VehiculosController extends Controller
             'monto_danos_patrimoniales'  => 'nullable|numeric|min:0',
         ]);
 
-        $validated['placas'] = strtoupper(str_replace('-', '', $validated['placas']));
-        $validated['serie'] = strtoupper(str_replace('-', '', (string)($validated['serie'] ?? '')));
+        $validated['placas'] = strtoupper(str_replace(['-', ' ', '.', ',', '_'], '', (string) ($validated['placas'] ?? '')));
+        $validated['serie'] = strtoupper(str_replace(['-', ' ', '.', ',', '_'], '', (string) ($validated['serie'] ?? '')));
         $validated['conductor_nombre'] = strtoupper((string)($validated['conductor_nombre'] ?? ''));
         $validated['antecedente_vehiculo'] = $request->has('antecedente_vehiculo');
         $validated['cinturon'] = $request->has('cinturon');
@@ -402,7 +426,15 @@ class VehiculosController extends Controller
         $validated['aliento_etilico'] = $request->has('aliento_etilico');
         $validated['permanente'] = $request->boolean('permanente');
 
-        $placaRepetida = $hecho->vehiculos()
+        if ($validated['placas'] !== '' && $validated['tipo_servicio'] !== 'SERVICIO PÚBLICO FEDERAL' && empty($validated['estado_placas'])) {
+            return back()->withErrors(['estado_placas' => 'El estado de placas es obligatorio cuando se capturan placas.'])->withInput();
+        }
+
+        if ($validated['placas'] !== '' && $validated['tipo_servicio'] === 'SERVICIO PÚBLICO FEDERAL') {
+            $validated['estado_placas'] = 'FEDERAL';
+        }
+
+        $placaRepetida = $validated['placas'] !== '' && $hecho->vehiculos()
             ->where('placas', $validated['placas'])
             ->where('vehiculos.id', '!=', $vehiculo->id)
             ->exists();
@@ -445,11 +477,12 @@ class VehiculosController extends Controller
             return back()->withErrors($erroresGruaBloqueada)->withInput();
         }
 
-        $validated['marca'] = ucfirst(strtolower($validated['marca']));
+        $validated['marca'] = strtoupper($validated['marca']);
         $validated['tipo'] = ucfirst(strtolower($validated['tipo']));
         $validated['linea'] = ucfirst(strtolower((string)($validated['linea'] ?? '')));
         $validated['color'] = ucfirst(strtolower((string)($validated['color'] ?? '')));
         $validated['estado_placas'] = strtoupper((string)($validated['estado_placas'] ?? ''));
+        $validated['permiso_circular'] = strtoupper((string) ($validated['permiso_circular'] ?? ''));
         $validated['tipo_servicio'] = strtoupper($validated['tipo_servicio']);
         $validated['tarjeta_circulacion_nombre'] = strtoupper((string)($validated['tarjeta_circulacion_nombre'] ?? ''));
         $validated['corralon'] = strtoupper((string)($validated['corralon'] ?? ''));
@@ -490,6 +523,7 @@ class VehiculosController extends Controller
                 'color'                      => $validated['color'],
                 'placas'                     => $validated['placas'],
                 'estado_placas'              => $validated['estado_placas'],
+                'permiso_circular'           => $validated['permiso_circular'] !== '' ? $validated['permiso_circular'] : null,
                 'serie'                      => $validated['serie'] !== '' ? $validated['serie'] : null,
                 'capacidad_personas'         => $validated['capacidad_personas'],
                 'tipo_servicio'              => $validated['tipo_servicio'],

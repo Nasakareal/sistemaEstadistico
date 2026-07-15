@@ -640,9 +640,9 @@ class VehiculoController extends Controller
             'estado_placas' => [
                 'nullable',
                 'string',
-                'max:15',
+                'max:30',
                 'required_with:placas',
-                'regex:/^[A-Z]{3,15}$/'
+                'regex:/^[A-Z]{3,30}$/'
             ],
             'permiso_circular' => 'nullable|string|max:60',
 

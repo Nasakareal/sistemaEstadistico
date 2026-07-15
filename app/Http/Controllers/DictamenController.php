@@ -7,6 +7,7 @@ use App\Models\Unidad;
 use App\Services\Documentos\DocumentoArchivoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class DictamenController extends Controller
 {
@@ -107,12 +108,7 @@ class DictamenController extends Controller
             $unidadNombre = Unidad::where('id', $usuario->unidad_id)->value('nombre');
         }
 
-        $ultimoDictamen = Dictamen::query()
-            ->where('anio', $anioActual)
-            ->orderBy('numero_dictamen', 'desc')
-            ->first();
-
-        $numeroSiguiente = $ultimoDictamen ? ($ultimoDictamen->numero_dictamen + 1) : 1;
+        $numeroSiguiente = $this->siguienteNumeroPorAnio($anioActual);
 
         return view('dictamenes.create', compact('numeroSiguiente', 'unidadNombre', 'anioActual', 'anioMinimo'));
     }
@@ -136,7 +132,14 @@ class DictamenController extends Controller
 
         $unidadNombre = strtoupper((string) $unidadNombre);
 
+        $anio = $request->filled('anio') ? (int) $request->input('anio') : now()->year;
+        $numeroDictamen = $anio === now()->year
+            ? $this->siguienteNumeroPorAnio($anio)
+            : ($request->filled('numero_dictamen') ? (int) $request->input('numero_dictamen') : null);
+
         $request->merge([
+            'anio' => $anio,
+            'numero_dictamen' => $numeroDictamen,
             'nombre_policia' => strtoupper((string) $request->input('nombre_policia')),
             'nombre_mp'      => $request->filled('nombre_mp') ? strtoupper((string) $request->input('nombre_mp')) : null,
         ]);
@@ -158,6 +161,7 @@ class DictamenController extends Controller
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
         ], [
             'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
+            'numero_dictamen.required' => 'Capture el número que aparece en el dictamen histórico.',
             'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
         ]);
 
@@ -334,6 +338,11 @@ class DictamenController extends Controller
         return $usuario
             && (int) ($usuario->unidad_id ?? 0) === 3
             && !$usuario->hasRole('Superadmin');
+    }
+
+    private function siguienteNumeroPorAnio(int $anio): int
+    {
+        return ((int) Dictamen::query()->where('anio', $anio)->max('numero_dictamen')) + 1;
     }
 
     private function documentos(): DocumentoArchivoStorage

@@ -112,6 +112,8 @@ class HechosController extends Controller
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
+        $ocultarCamposAdministrativosDelegaciones = $this->hideDelegacionesHechoAdminFields($usuario);
 
         $dictamenesDisponibles = $puedeUsarDictamenes
             ? Dictamen::query()
@@ -121,7 +123,7 @@ class HechosController extends Controller
                 ->get()
             : collect();
 
-        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora'));
+        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'usaReglasFlexibles', 'ocultarCamposAdministrativosDelegaciones'));
     }
 
     public function store(Request $request)
@@ -141,7 +143,7 @@ class HechosController extends Controller
 
         $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
-            : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
+            : ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.sectores', [])))];
 
         $rules = [
             'folio_c5i' => $reglaFolio,
@@ -155,17 +157,17 @@ class HechosController extends Controller
             'colonia' => 'required|string|max:255',
             'entre_calles' => 'nullable|string|max:255',
             'municipio' => 'required|string|max:100',
-            'tipo_hecho' => 'required|string|max:255',
-            'superficie_via' => 'required|string|max:50',
-            'tiempo' => 'required|string|in:Día,Noche,Amanecer,Atardecer',
-            'clima' => 'required|string|in:Bueno,Malo,Nublado,Lluvioso',
-            'condiciones' => 'required|string|in:Bueno,Regular,Malo',
-            'control_transito' => 'required|string|max:50',
+            'tipo_hecho' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.tipos_hecho', [])))],
+            'superficie_via' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.superficies_via', [])))],
+            'tiempo' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.tiempos', [])))],
+            'clima' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.climas', [])))],
+            'condiciones' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.condiciones', [])))],
+            'control_transito' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.controles_transito', [])))],
             'checaron_antecedentes' => 'nullable|boolean',
-            'causas' => 'required|string|max:255',
-            'responsable' => 'nullable|string|max:255',
-            'colision_camino' => 'required|string|max:255',
-            'situacion' => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
+            'causas' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.causas', [])))],
+            'responsable' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.responsables', [])))],
+            'colision_camino' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.colisiones_camino', [])))],
+            'situacion' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.situaciones', [])))],
             'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable|string|max:255',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
@@ -471,8 +473,10 @@ class HechosController extends Controller
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeEditarCoordenadasManual = $this->userCanEditCoordenadasManual($usuario);
+        $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario, $hecho);
+        $ocultarCamposAdministrativosDelegaciones = $this->hideDelegacionesHechoAdminFields($usuario, $hecho);
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual', 'usaReglasFlexibles', 'ocultarCamposAdministrativosDelegaciones'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -525,7 +529,7 @@ class HechosController extends Controller
 
         $reglaSector = $usaReglasFlexibles
             ? 'nullable|string|max:100'
-            : 'required|string|in:REVOLUCIÓN,NUEVA ESPAÑA,INDEPENDENCIA,REPÚBLICA,CENTRO';
+            : ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.sectores', [])))];
 
         $rules = [
             'folio_c5i' => $reglaFolio,
@@ -539,17 +543,17 @@ class HechosController extends Controller
             'colonia' => 'required|string|max:255',
             'entre_calles' => 'nullable|string|max:255',
             'municipio' => 'required|string|max:100',
-            'tipo_hecho' => 'required|string|max:255',
-            'superficie_via' => 'required|string|max:50',
-            'tiempo' => 'required|string|in:Día,Noche,Amanecer,Atardecer',
-            'clima' => 'required|string|in:Bueno,Malo,Nublado,Lluvioso',
-            'condiciones' => 'required|string|in:Bueno,Regular,Malo',
-            'control_transito' => 'required|string|max:50',
+            'tipo_hecho' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.tipos_hecho', [])))],
+            'superficie_via' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.superficies_via', [])))],
+            'tiempo' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.tiempos', [])))],
+            'clima' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.climas', [])))],
+            'condiciones' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.condiciones', [])))],
+            'control_transito' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.controles_transito', [])))],
             'checaron_antecedentes' => 'nullable|boolean',
-            'causas' => 'required|string|max:255',
-            'responsable' => 'nullable|string|max:255',
-            'colision_camino' => 'required|string|max:255',
-            'situacion' => 'required|string|in:RESUELTO,PENDIENTE,TURNADO,REPORTE',
+            'causas' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.causas', [])))],
+            'responsable' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.responsables', [])))],
+            'colision_camino' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.colisiones_camino', [])))],
+            'situacion' => ['required', 'string', Rule::in(array_keys(config('hechos.catalogos.situaciones', [])))],
             'oficio_mp' => $puedeUsarDictamenes ? 'nullable|string|max:255|required_if:situacion,TURNADO' : 'nullable|string|max:255',
             'vehiculos_mp' => 'required|integer|min:0',
             'personas_mp' => 'required|integer|min:0',
@@ -1589,6 +1593,20 @@ class HechosController extends Controller
             : HechoAccess::effectiveUnidadId($usuario);
 
         return in_array($unidadId, [2, 4], true);
+    }
+
+    private function hideDelegacionesHechoAdminFields($usuario, ?Hechos $hecho = null): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        $unidadId = $hecho
+            ? HechoAccess::effectiveUnidadIdForHecho($hecho)
+            : HechoAccess::effectiveUnidadId($usuario);
+
+        return $unidadId === 2
+            && !$usuario->hasAnyRole(['Superadmin', 'Administrador', 'Subdirector']);
     }
 
     private function sectorPredeterminadoHechos($usuario, ?Hechos $hecho = null): string

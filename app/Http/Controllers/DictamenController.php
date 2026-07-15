@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 class DictamenController extends Controller
 {
+    private const ANIO_MINIMO = 2017;
+
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
@@ -97,6 +99,7 @@ class DictamenController extends Controller
     public function create()
     {
         $anioActual = now()->year;
+        $anioMinimo = self::ANIO_MINIMO;
         $usuario = auth()->user();
 
         $unidadNombre = null;
@@ -111,7 +114,7 @@ class DictamenController extends Controller
 
         $numeroSiguiente = $ultimoDictamen ? ($ultimoDictamen->numero_dictamen + 1) : 1;
 
-        return view('dictamenes.create', compact('numeroSiguiente', 'unidadNombre'));
+        return view('dictamenes.create', compact('numeroSiguiente', 'unidadNombre', 'anioActual', 'anioMinimo'));
     }
 
     public function store(Request $request)
@@ -131,15 +134,31 @@ class DictamenController extends Controller
             $unidadNombre = 'SIN ASIGNAR';
         }
 
+        $unidadNombre = strtoupper((string) $unidadNombre);
+
         $request->merge([
             'nombre_policia' => strtoupper((string) $request->input('nombre_policia')),
             'nombre_mp'      => $request->filled('nombre_mp') ? strtoupper((string) $request->input('nombre_mp')) : null,
         ]);
 
         $request->validate([
+            'numero_dictamen' => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::unique('dictamens', 'numero_dictamen')->where(function ($query) use ($request, $unidadNombre) {
+                    return $query
+                        ->where('anio', (int) $request->input('anio'))
+                        ->where('area', $unidadNombre);
+                }),
+            ],
+            'anio'             => 'required|integer|between:' . self::ANIO_MINIMO . ',' . now()->year,
             'nombre_policia'   => 'required|string|max:100',
             'nombre_mp'        => 'nullable|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+        ], [
+            'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
+            'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
         ]);
 
         $archivoDictamen = null;
@@ -147,18 +166,9 @@ class DictamenController extends Controller
             $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
         }
 
-        $anioActual = now()->year;
-
-        $ultimoDictamen = Dictamen::query()
-            ->where('anio', $anioActual)
-            ->orderBy('numero_dictamen', 'desc')
-            ->first();
-
-        $numeroSiguiente = $ultimoDictamen ? ($ultimoDictamen->numero_dictamen + 1) : 1;
-
         Dictamen::create([
-            'numero_dictamen'  => $numeroSiguiente,
-            'anio'             => $anioActual,
+            'numero_dictamen'  => (int) $request->input('numero_dictamen'),
+            'anio'             => (int) $request->input('anio'),
             'nombre_policia'   => $request->input('nombre_policia'),
             'nombre_mp'        => $request->input('nombre_mp'),
             'area'             => $unidadNombre,
@@ -234,12 +244,26 @@ class DictamenController extends Controller
         ]);
 
         $request->validate([
-            'numero_dictamen'  => 'required|integer|unique:dictamens,numero_dictamen,' . $dictamen->id,
-            'anio'             => 'required|digits:4',
+            'numero_dictamen'  => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::unique('dictamens', 'numero_dictamen')
+                    ->ignore($dictamen->id)
+                    ->where(function ($query) use ($request) {
+                        return $query
+                            ->where('anio', (int) $request->input('anio'))
+                            ->where('area', strtoupper((string) $request->input('area')));
+                    }),
+            ],
+            'anio'             => 'required|integer|between:' . self::ANIO_MINIMO . ',' . now()->year,
             'nombre_policia'   => 'required|string|max:100',
             'nombre_mp'        => 'nullable|string|max:100',
             'area'             => 'required|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+        ], [
+            'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
+            'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
         ]);
 
         $archivoDictamen = $dictamen->archivo_dictamen;

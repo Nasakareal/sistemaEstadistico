@@ -678,6 +678,8 @@ Route::get('/servicios/grafico',[ServicioController::class,'grafico'])->name('se
 
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
     Route::get('/',[SettingsController::class,'index'])->name('settings.index');
+    Route::get('/reconstructor-transito', [SettingsController::class, 'reconstructorTransito'])
+        ->name('settings.reconstructor_transito.index');
 
     Route::get('/tutoriales', [TutorialController::class, 'index'])->name('settings.tutoriales.index');
     Route::get('/tutoriales/create', [TutorialController::class, 'create'])->name('settings.tutoriales.create');

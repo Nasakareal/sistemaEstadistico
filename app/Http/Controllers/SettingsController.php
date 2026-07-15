@@ -14,4 +14,12 @@ class SettingsController extends Controller
         $settings = [];
         return view('admin.settings.index', compact('settings'));
     }
+
+    /**
+     * Muestra el laboratorio inicial para reconstruir hechos de tránsito en 2D.
+     */
+    public function reconstructorTransito()
+    {
+        return view('admin.settings.reconstructor_transito.index');
+    }
 }

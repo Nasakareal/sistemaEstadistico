@@ -775,6 +775,13 @@ return [
                     'can'     => 'ver configuraciones',
                 ],
                 [
+                    'text'    => 'Reconstructor de Tránsito 2D',
+                    'icon'    => 'fa-solid fa-route',
+                    'classes' => 'text-white',
+                    'route'   => 'settings.reconstructor_transito.index',
+                    'can'     => 'ver configuraciones',
+                ],
+                [
                     'text'    => 'Listado de Usuarios',
                     'icon'    => 'fa-solid fa-user',
                     'classes' => 'text-white',

@@ -27,23 +27,34 @@
                 <div class="form-group col-md-3">
                     <label>Número de dictamen</label>
                     <input
-                        type="text"
+                        type="number"
                         name="numero_dictamen"
-                        class="form-control"
+                        class="form-control @error('numero_dictamen') is-invalid @enderror"
                         value="{{ old('numero_dictamen', $dictamen->numero_dictamen) }}"
-                        readonly
+                        min="1"
+                        step="1"
+                        required
                     >
+                    @error('numero_dictamen')
+                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                    @enderror
                 </div>
 
                 <div class="form-group col-md-3">
                     <label>Año</label>
                     <input
-                        type="text"
+                        type="number"
                         name="anio"
-                        class="form-control"
+                        class="form-control @error('anio') is-invalid @enderror"
                         value="{{ old('anio', $dictamen->anio) }}"
-                        readonly
+                        min="2017"
+                        max="{{ now()->year }}"
+                        step="1"
+                        required
                     >
+                    @error('anio')
+                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                    @enderror
                 </div>
 
                 <div class="form-group col-md-6">

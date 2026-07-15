@@ -633,6 +633,13 @@ class HechoController extends Controller
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($user, $hecho);
 
+        $anioParaDictamen = (int) (optional($hecho->fecha)->year ?: optional($hecho->created_at)->year ?: now()->year);
+        $fechaSolicitada = (string) $request->input('fecha', '');
+
+        if ($puedeCapturarFechaHora && preg_match('/^(\d{4})-\d{2}-\d{2}$/', $fechaSolicitada, $coincidencias)) {
+            $anioParaDictamen = (int) $coincidencias[1];
+        }
+
         $reglaFolio = [
             'sometimes',
             'nullable',
@@ -671,7 +678,14 @@ class HechoController extends Controller
             'oficio_mp' => $puedeUsarDictamenes ? 'sometimes|nullable|string|max:255|required_if:situacion,TURNADO' : 'sometimes|nullable',
             'vehiculos_mp' => 'sometimes|nullable|integer|min:0',
             'personas_mp' => 'sometimes|nullable|integer|min:0',
-            'dictamen_id' => $puedeUsarDictamenes ? 'sometimes|nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'sometimes|nullable',
+            'dictamen_id' => $puedeUsarDictamenes
+                ? [
+                    'sometimes',
+                    'nullable',
+                    'required_if:situacion,TURNADO',
+                    Rule::exists('dictamens', 'id')->where(fn ($query) => $query->where('anio', $anioParaDictamen)),
+                ]
+                : 'sometimes|nullable',
             'danos_patrimoniales' => 'sometimes|nullable|boolean',
             'propiedades_afectadas' => 'sometimes|nullable|string|max:2000',
             'monto_danos_patrimoniales' => 'sometimes|nullable|numeric|min:0',

@@ -380,7 +380,7 @@
                                         @error('dictamen_id')
                                             <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                         @enderror
-                                        <small class="help-muted">Solo aparecen dictámenes no usados en otros hechos y el actual si ya tiene.</small>
+                                        <small class="help-muted">Solo aparecen dictámenes {{ $anioHecho }} no usados en otros hechos y el actual si ya tiene.</small>
                                     </div>
                                 </div>
 

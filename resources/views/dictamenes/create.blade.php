@@ -24,13 +24,26 @@
 
             <div class="form-row">
                 <div class="form-group col-md-3">
-                    <label>Número de dictamen</label>
-                    <input type="text" class="form-control" value="{{ $numeroSiguiente }}" disabled>
+                    <label for="numero_dictamen">Número de dictamen</label>
+                    <input type="number" name="numero_dictamen" id="numero_dictamen"
+                           class="form-control @error('numero_dictamen') is-invalid @enderror"
+                           min="1" step="1" value="{{ old('numero_dictamen', $numeroSiguiente) }}" required>
+                    @error('numero_dictamen')
+                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                    @enderror
+                    <small class="form-text text-muted">Para años anteriores, capture el número que aparece en el documento.</small>
                 </div>
 
                 <div class="form-group col-md-3">
-                    <label>Año</label>
-                    <input type="text" class="form-control" value="{{ now()->year }}" readonly>
+                    <label for="anio">Año</label>
+                    <input type="number" name="anio" id="anio"
+                           class="form-control @error('anio') is-invalid @enderror"
+                           min="{{ $anioMinimo }}" max="{{ $anioActual }}" step="1"
+                           value="{{ old('anio', $anioActual) }}" required>
+                    @error('anio')
+                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                    @enderror
+                    <small class="form-text text-muted">Se permiten dictámenes de {{ $anioMinimo }} a {{ $anioActual }}.</small>
                 </div>
 
                 <div class="form-group col-md-6">

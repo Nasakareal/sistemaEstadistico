@@ -448,10 +448,12 @@ class HechosController extends Controller
         $dictamenActual = $hecho->dictamen;
 
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
+        $anioHecho = (int) (optional($hecho->fecha)->year ?: optional($hecho->created_at)->year ?: now()->year);
 
         $dictamenesDisponibles = $puedeUsarDictamenes
             ? Dictamen::query()
                 ->whereNull('hecho_id')
+                ->where('anio', $anioHecho)
                 ->orderByDesc('anio')
                 ->orderByDesc('numero_dictamen')
                 ->get()
@@ -470,7 +472,7 @@ class HechosController extends Controller
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeEditarCoordenadasManual = $this->userCanEditCoordenadasManual($usuario);
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -502,6 +504,13 @@ class HechosController extends Controller
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
         $puedeEditarCoordenadasManual = $this->userCanEditCoordenadasManual($usuario);
+
+        $anioParaDictamen = (int) (optional($hecho->fecha)->year ?: optional($hecho->created_at)->year ?: now()->year);
+        $fechaSolicitada = (string) $request->input('fecha', '');
+
+        if ($puedeCapturarFechaHora && preg_match('/^(\d{4})-\d{2}-\d{2}$/', $fechaSolicitada, $coincidencias)) {
+            $anioParaDictamen = (int) $coincidencias[1];
+        }
 
         if ($puedeEditarCoordenadasManual && $request->has('coordenadas_manual')) {
             $this->normalizarCoordenadasManualRequest($request, $hecho);
@@ -547,7 +556,13 @@ class HechosController extends Controller
             'danos_patrimoniales' => 'nullable|boolean',
             'propiedades_afectadas' => 'nullable|string|max:255',
             'monto_danos_patrimoniales' => 'nullable|numeric|min:0',
-            'dictamen_id' => $puedeUsarDictamenes ? 'nullable|required_if:situacion,TURNADO|exists:dictamens,id' : 'nullable',
+            'dictamen_id' => $puedeUsarDictamenes
+                ? [
+                    'nullable',
+                    'required_if:situacion,TURNADO',
+                    Rule::exists('dictamens', 'id')->where(fn ($query) => $query->where('anio', $anioParaDictamen)),
+                ]
+                : 'nullable',
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
             'calidad_geo' => 'nullable|string|max:20',

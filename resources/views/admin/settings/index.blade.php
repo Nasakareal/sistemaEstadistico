@@ -24,6 +24,24 @@
 @section('content')
     <div class="row">
 
+        {{-- RECONSTRUCTOR DE HECHOS DE TRÁNSITO 2D --}}
+        @can('ver configuraciones')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-danger">
+                        <i class="fa-solid fa-route"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Reconstructor de Tránsito 2D</div>
+                        <div class="sv-card__desc">Escenas animadas, trayectorias y puntos técnicos del hecho.</div>
+                        <a href="{{ route('settings.reconstructor_transito.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Abrir laboratorio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- USUARIOS --}}
         @can('ver usuarios')
             <div class="col-md-3 col-sm-6 col-12">

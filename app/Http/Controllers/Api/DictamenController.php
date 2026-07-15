@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class DictamenController extends Controller
 {
+    private const ANIO_MINIMO = 2017;
+
     public function index(Request $request)
     {
         $anioActual = now()->year;
@@ -91,31 +93,45 @@ class DictamenController extends Controller
             ], 403);
         }
 
+        $area = $this->resolverAreaUsuario($usuario);
+        $anio = $request->filled('anio') ? (int) $request->input('anio') : now()->year;
+        $numeroDictamen = $request->filled('numero_dictamen')
+            ? (int) $request->input('numero_dictamen')
+            : $this->siguienteNumeroPorAnio($anio);
+
         $request->merge([
+            'numero_dictamen' => $numeroDictamen,
+            'anio' => $anio,
             'nombre_policia' => strtoupper((string) $request->input('nombre_policia')),
             'nombre_mp'      => strtoupper((string) $request->input('nombre_mp')),
         ]);
 
         $request->validate([
+            'numero_dictamen' => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::unique('dictamens', 'numero_dictamen')->where(function ($query) use ($anio, $area) {
+                    return $query->where('anio', $anio)->where('area', $area);
+                }),
+            ],
+            'anio'             => 'required|integer|between:' . self::ANIO_MINIMO . ',' . now()->year,
             'nombre_policia'   => 'required|string|max:100',
             'nombre_mp'        => 'nullable|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+        ], [
+            'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
+            'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
         ]);
-
-        $area = $this->resolverAreaUsuario($usuario);
 
         $archivoDictamen = null;
         if ($request->hasFile('archivo_dictamen')) {
             $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
         }
 
-        $anioActual = now()->year;
-
-        $numeroSiguiente = $this->siguienteNumeroPorAnio($anioActual);
-
         $dictamen = Dictamen::create([
-            'numero_dictamen'  => $numeroSiguiente,
-            'anio'             => $anioActual,
+            'numero_dictamen'  => $numeroDictamen,
+            'anio'             => $anio,
             'nombre_policia'   => $request->input('nombre_policia'),
             'nombre_mp'        => $request->input('nombre_mp'),
             'area'             => $area,
@@ -152,19 +168,29 @@ class DictamenController extends Controller
             'nombre_mp'      => strtoupper((string) $request->input('nombre_mp')),
         ]);
 
+        $area = $this->resolverAreaUsuario($usuario);
+
         $request->validate([
             'numero_dictamen' => [
                 'required',
                 'integer',
-                Rule::unique('dictamens', 'numero_dictamen')->ignore($dictamen->id),
+                'min:1',
+                Rule::unique('dictamens', 'numero_dictamen')
+                    ->ignore($dictamen->id)
+                    ->where(function ($query) use ($request, $area) {
+                        return $query
+                            ->where('anio', (int) $request->input('anio'))
+                            ->where('area', $area);
+                    }),
             ],
-            'anio' => 'required|digits:4',
+            'anio' => 'required|integer|between:' . self::ANIO_MINIMO . ',' . now()->year,
             'nombre_policia' => 'required|string|max:100',
             'nombre_mp' => 'nullable|string|max:100',
             'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+        ], [
+            'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
+            'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
         ]);
-
-        $area = $this->resolverAreaUsuario($usuario);
 
         $archivoDictamen = $dictamen->archivo_dictamen;
 

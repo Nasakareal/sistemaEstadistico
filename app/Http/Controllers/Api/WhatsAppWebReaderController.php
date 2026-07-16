@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
+use App\Services\C5iSiniestrosRecommendationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -85,9 +86,15 @@ class WhatsAppWebReaderController extends Controller
             ]
         );
 
+        if ($message->wasRecentlyCreated
+            && (bool) config('services.whatsapp.c5i_recommendation.enabled', false)) {
+            app(C5iSiniestrosRecommendationService::class)->process($message);
+        }
+
         return response()->json([
             'ok' => true,
             'message_id' => $message->id,
+            'recommendation_status' => $message->recommendation_status,
         ]);
     }
 

@@ -16,15 +16,33 @@ class WhatsAppWebMessage extends Model
         'message_type',
         'has_media',
         'sent_at',
+        'incident_lat',
+        'incident_lng',
+        'recommended_patrulla_id',
+        'recommendation_distance_km',
+        'recommendation_status',
+        'recommendation_meta',
+        'recommendation_processed_at',
     ];
 
     protected $casts = [
         'has_media' => 'boolean',
         'sent_at' => 'datetime',
+        'incident_lat' => 'float',
+        'incident_lng' => 'float',
+        'recommended_patrulla_id' => 'integer',
+        'recommendation_distance_km' => 'float',
+        'recommendation_meta' => 'array',
+        'recommendation_processed_at' => 'datetime',
     ];
 
     public function group()
     {
         return $this->belongsTo(WhatsAppWebGroup::class, 'whatsapp_web_group_id');
+    }
+
+    public function recommendedPatrulla()
+    {
+        return $this->belongsTo(Patrulla::class, 'recommended_patrulla_id');
     }
 }

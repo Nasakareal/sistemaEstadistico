@@ -40,7 +40,7 @@ return [
     ],
 
     'whatsapp' => [
-        'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v19.0'),
+        'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v25.0'),
         'token' => env('WHATSAPP_ACCESS_TOKEN'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN', 'seguridadvial_token'),
@@ -48,6 +48,19 @@ return [
 
         'web_reader' => [
             'secret' => env('WHATSAPP_WEB_READER_SECRET'),
+        ],
+
+        'c5i_recommendation' => [
+            'enabled' => filter_var(env('WHATSAPP_C5I_RECOMMENDATION_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'dry_run' => filter_var(env('WHATSAPP_C5I_RECOMMENDATION_DRY_RUN', true), FILTER_VALIDATE_BOOLEAN),
+            'to' => env('WHATSAPP_C5I_RECOMMENDATION_TO', ''),
+            'group_ids' => env('WHATSAPP_C5I_RECOMMENDATION_GROUP_IDS', ''),
+            'source_author_ids' => env('WHATSAPP_C5I_RECOMMENDATION_SOURCE_AUTHOR_IDS', ''),
+            'template' => env('WHATSAPP_C5I_RECOMMENDATION_TEMPLATE', 'recomendacion_unidad_siniestros_c5i_v1'),
+            'template_language' => env('WHATSAPP_C5I_RECOMMENDATION_TEMPLATE_LANGUAGE', 'es_MX'),
+            'unit_slug' => env('WHATSAPP_C5I_RECOMMENDATION_UNIT_SLUG', 'siniestros'),
+            'location_max_age_minutes' => (int) env('WHATSAPP_C5I_RECOMMENDATION_LOCATION_MAX_AGE_MINUTES', 10),
+            'max_accuracy_meters' => (int) env('WHATSAPP_C5I_RECOMMENDATION_MAX_ACCURACY_METERS', 200),
         ],
 
         'conduce_legalidad' => [

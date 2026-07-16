@@ -118,3 +118,5 @@ En Windows Server registra `node index.js` como servicio con NSSM o el Programad
 5. Sólo después de confirmar lo anterior, detén el lector local para que la sesión activa quede únicamente en producción.
 
 El `index.js` sólo observa el grupo permitido, envía una copia del evento a Laravel y no descarga multimedia.
+
+La configuración de la recomendación a los dos contactos C5i está documentada en `C5I-RECOMENDACION-PRODUCCION.md`.

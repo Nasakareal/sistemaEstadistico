@@ -20,7 +20,11 @@ class WhatsAppWebReaderControllerTest extends TestCase
 
     public function test_rechaza_solicitudes_sin_secreto(): void
     {
-        config(['services.whatsapp.web_reader.secret' => 'reader-test-secret']);
+        config([
+            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000000@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214430000000@c.us',
+        ]);
 
         $this->postJson('http://localhost/api/whatsapp-web-reader/groups', [
             'groups' => [],
@@ -29,7 +33,11 @@ class WhatsAppWebReaderControllerTest extends TestCase
 
     public function test_sincroniza_grupos_y_guarda_mensajes_sin_enviar_respuestas(): void
     {
-        config(['services.whatsapp.web_reader.secret' => 'reader-test-secret']);
+        config([
+            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000000@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214430000000@c.us',
+        ]);
 
         $headers = ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'];
 
@@ -76,6 +84,8 @@ class WhatsAppWebReaderControllerTest extends TestCase
     {
         config([
             'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000001@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us,5214437938996@c.us',
             'services.whatsapp.c5i_recommendation.enabled' => false,
         ]);
 
@@ -119,6 +129,40 @@ class WhatsAppWebReaderControllerTest extends TestCase
                 'has_media' => false,
                 'timestamp' => 1784178001,
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+        ]);
+    }
+
+    public function test_ignora_mensajes_de_remitentes_no_autorizados(): void
+    {
+        config([
+            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000002@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us,5214437938996@c.us',
+        ]);
+
+        $this->postJson('http://localhost/api/whatsapp-web-reader/messages', [
+            'group' => [
+                'id' => '120363000000000002@g.us',
+                'name' => 'Grupo filtrado',
+            ],
+            'message' => [
+                'id' => 'MENSAJE_NO_AUTORIZADO',
+                'author_id' => '5214431111111@c.us',
+                'body' => 'Este mensaje no debe almacenarse',
+                'type' => 'chat',
+                'has_media' => false,
+                'timestamp' => 1784178002,
+            ],
+        ], ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'])
+            ->assertStatus(202)
+            ->assertJson([
+                'ok' => true,
+                'stored' => false,
+                'reason' => 'author_not_allowed',
+            ]);
+
+        $this->assertDatabaseMissing('whatsapp_web_messages', [
+            'whatsapp_message_id' => 'MENSAJE_NO_AUTORIZADO',
         ]);
     }
 }

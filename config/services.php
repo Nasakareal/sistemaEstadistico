@@ -48,6 +48,8 @@ return [
 
         'web_reader' => [
             'secret' => env('WHATSAPP_WEB_READER_SECRET'),
+            'allowed_group_ids' => env('WHATSAPP_WEB_READER_ALLOWED_GROUP_IDS', ''),
+            'allowed_author_ids' => env('WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS', ''),
         ],
 
         'c5i_recommendation' => [

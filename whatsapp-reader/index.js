@@ -22,15 +22,21 @@ const watchedGroupIds = new Set(
         .map((value) => value.trim())
         .filter(Boolean)
 );
+const allowedAuthorIds = new Set(
+    String(process.env.WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS || '')
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean)
+);
 const dataDirectory = path.join(__dirname, 'data');
 const spoolPath = path.join(dataDirectory, 'pending-events.jsonl');
 const qrImagePath = path.join(dataDirectory, 'whatsapp-reader-qr.png');
 const authPath = path.join(__dirname, '.wwebjs_auth');
 const headless = String(process.env.WHATSAPP_WEB_READER_HEADLESS || 'true') !== 'false';
 
-if (!apiBaseUrl || !apiSecret) {
+if (!apiBaseUrl || !apiSecret || watchedGroupIds.size === 0 || allowedAuthorIds.size === 0) {
     console.error(
-        'Falta LARAVEL_API_BASE_URL o WHATSAPP_WEB_READER_SECRET en whatsapp-reader/.env.'
+        'Falta LARAVEL_API_BASE_URL, WHATSAPP_WEB_READER_SECRET, WHATSAPP_WEB_READER_GROUP_IDS o WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS en whatsapp-reader/.env.'
     );
     process.exit(1);
 }
@@ -72,6 +78,33 @@ function errorDetails(error) {
     } catch (serializationError) {
         return String(error);
     }
+}
+
+function identifierAllowed(identifier, allowedIdentifiers) {
+    const normalized = String(identifier || '').trim().toLowerCase();
+
+    if (!normalized) {
+        return false;
+    }
+
+    if (allowedIdentifiers.has(normalized)) {
+        return true;
+    }
+
+    const digits = normalized.replace(/\D+/g, '');
+
+    return digits !== '' && [...allowedIdentifiers].some(
+        (allowed) => allowed.replace(/\D+/g, '') === digits
+    );
+}
+
+function eventAllowed(endpoint, payload) {
+    if (endpoint !== '/whatsapp-web-reader/messages') {
+        return true;
+    }
+
+    return watchedGroupIds.has(String(payload?.group?.id || '').trim())
+        && identifierAllowed(payload?.message?.author_id, allowedAuthorIds);
 }
 
 function fallbackMessageId(groupId, message) {
@@ -208,12 +241,18 @@ async function flushSpool() {
         .filter(Boolean)
         .map((line) => JSON.parse(line));
     const pending = [];
+    let discarded = 0;
 
     for (const event of events) {
         const normalizedEvent = {
             endpoint: event.endpoint,
             payload: normalizeEventPayload(event.endpoint, event.payload),
         };
+
+        if (!eventAllowed(normalizedEvent.endpoint, normalizedEvent.payload)) {
+            discarded += 1;
+            continue;
+        }
 
         try {
             await postJson(normalizedEvent.endpoint, normalizedEvent.payload, 1);
@@ -226,7 +265,11 @@ async function flushSpool() {
     fs.writeFileSync(spoolPath, contents ? `${contents}\n` : '', 'utf8');
 
     if (events.length > pending.length) {
-        console.log(`Eventos recuperados: ${events.length - pending.length}`);
+        console.log(`Eventos recuperados: ${events.length - pending.length - discarded}`);
+    }
+
+    if (discarded > 0) {
+        console.log(`Eventos descartados por filtros de grupo/remitente: ${discarded}`);
     }
 }
 
@@ -307,7 +350,9 @@ async function discoverGroups() {
         console.log(`- ${group.name || '(sin nombre)'}: ${group.id}`);
     }
 
-    await deliverOrSpool('/whatsapp-web-reader/groups', { groups });
+    await deliverOrSpool('/whatsapp-web-reader/groups', {
+        groups: groups.filter((group) => watchedGroupIds.has(group.id)),
+    });
     return groups;
 }
 
@@ -322,6 +367,13 @@ async function processIncomingMessage(message) {
         return;
     }
 
+    const authorId = String(message.author || '').trim();
+
+    if (!identifierAllowed(authorId, allowedAuthorIds)) {
+        console.log(`Mensaje ignorado por remitente no autorizado: ${authorId || '(sin autor)'}`);
+        return;
+    }
+
     const chat = await message.getChat();
     const messageId = liveMessageId(message, groupId);
     const timestamp = Number(message.timestamp);
@@ -332,7 +384,7 @@ async function processIncomingMessage(message) {
         },
         message: {
             id: messageId,
-            author_id: message.author || null,
+            author_id: authorId,
             body: message.body || null,
             type: message.type || 'unknown',
             has_media: Boolean(message.hasMedia),
@@ -344,7 +396,9 @@ async function processIncomingMessage(message) {
 
     const response = await deliverOrSpool('/whatsapp-web-reader/messages', payload);
 
-    if (response) {
+    if (response?.stored === false) {
+        console.log(`[${chat.name || groupId}] mensaje ignorado por Laravel (${response.reason || 'filtro'}): ${messageId}`);
+    } else if (response) {
         console.log(`[${chat.name || groupId}] mensaje almacenado: ${messageId}`);
     } else {
         console.log(`[${chat.name || groupId}] mensaje pendiente de reintento: ${messageId}`);
@@ -387,6 +441,7 @@ client.on('ready', () => {
                 );
             } else {
                 console.log(`Grupos autorizados para lectura: ${[...watchedGroupIds].join(', ')}`);
+                console.log(`Remitentes C5i autorizados: ${[...allowedAuthorIds].join(', ')}`);
             }
         })
         .catch((error) => console.error(`Error al iniciar el lector: ${errorDetails(error)}`));

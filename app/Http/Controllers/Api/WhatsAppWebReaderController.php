@@ -27,6 +27,13 @@ class WhatsAppWebReaderController extends Controller
         $stored = [];
 
         foreach ($data['groups'] as $groupData) {
+            if (!$this->identifierAllowed(
+                (string) $groupData['id'],
+                (string) config('services.whatsapp.web_reader.allowed_group_ids', '')
+            )) {
+                continue;
+            }
+
             $group = WhatsAppWebGroup::query()->updateOrCreate(
                 ['whatsapp_id' => $groupData['id']],
                 [
@@ -65,6 +72,28 @@ class WhatsAppWebReaderController extends Controller
             'message.has_media' => ['nullable', 'boolean'],
             'message.timestamp' => ['required', 'integer', 'min:1'],
         ]);
+
+        if (!$this->identifierAllowed(
+            (string) $data['group']['id'],
+            (string) config('services.whatsapp.web_reader.allowed_group_ids', '')
+        )) {
+            return response()->json([
+                'ok' => true,
+                'stored' => false,
+                'reason' => 'group_not_allowed',
+            ], 202);
+        }
+
+        if (!$this->identifierAllowed(
+            (string) ($data['message']['author_id'] ?? ''),
+            (string) config('services.whatsapp.web_reader.allowed_author_ids', '')
+        )) {
+            return response()->json([
+                'ok' => true,
+                'stored' => false,
+                'reason' => 'author_not_allowed',
+            ], 202);
+        }
 
         $group = WhatsAppWebGroup::query()->updateOrCreate(
             ['whatsapp_id' => $data['group']['id']],
@@ -122,5 +151,30 @@ class WhatsAppWebReaderController extends Controller
     protected function authorizationStatus(): int
     {
         return trim((string) config('services.whatsapp.web_reader.secret', '')) === '' ? 503 : 403;
+    }
+
+    protected function identifierAllowed(string $identifier, string $configured): bool
+    {
+        $identifier = mb_strtolower(trim($identifier), 'UTF-8');
+        $identifierDigits = preg_replace('/\D+/', '', $identifier) ?: '';
+        $allowed = preg_split('/[\s,;|]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($allowed ?: [] as $value) {
+            $value = mb_strtolower(trim((string) $value), 'UTF-8');
+
+            if ($identifier !== '' && hash_equals($value, $identifier)) {
+                return true;
+            }
+
+            $allowedDigits = preg_replace('/\D+/', '', $value) ?: '';
+
+            if ($identifierDigits !== ''
+                && $allowedDigits !== ''
+                && hash_equals($allowedDigits, $identifierDigits)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

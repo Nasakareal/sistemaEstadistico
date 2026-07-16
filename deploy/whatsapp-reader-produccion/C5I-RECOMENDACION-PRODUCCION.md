@@ -2,6 +2,8 @@
 
 El lector Web únicamente observa `SINIESTROS GC` y guarda mensajes. Laravel analiza los reportes C5i y el envío se realiza por separado mediante la API oficial de Meta.
 
+Dentro de ese grupo sólo se almacenan mensajes enviados por `5214437916890` y `5214437938996`. Los mensajes de cualquier otro participante se descartan tanto en el lector como en Laravel, incluida la cola de reintentos.
+
 El código se despliega desactivado y en simulación. No debe habilitarse el envío hasta que la plantilla esté aprobada, los remitentes estén verificados y una simulación haya elegido correctamente una patrulla de Siniestros.
 
 ## 1. Crear la plantilla en WhatsApp Manager
@@ -77,6 +79,8 @@ Inicialmente se usarán `5214437916890@c.us` y `5214437938996@c.us` como remiten
 Agrega al `.env` de Laravel:
 
 ```dotenv
+WHATSAPP_WEB_READER_ALLOWED_GROUP_IDS=120363424100430316@g.us
+WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS=5214437916890@c.us,5214437938996@c.us
 WHATSAPP_GRAPH_VERSION=v25.0
 WHATSAPP_C5I_RECOMMENDATION_ENABLED=true
 WHATSAPP_C5I_RECOMMENDATION_DRY_RUN=true
@@ -88,6 +92,12 @@ WHATSAPP_C5I_RECOMMENDATION_TEMPLATE_LANGUAGE=es_MX
 WHATSAPP_C5I_RECOMMENDATION_UNIT_SLUG=siniestros
 WHATSAPP_C5I_RECOMMENDATION_LOCATION_MAX_AGE_MINUTES=10
 WHATSAPP_C5I_RECOMMENDATION_MAX_ACCURACY_METERS=200
+```
+
+En `/home/nasaka/apps/whatsapp-reader-produccion/.env` agrega también:
+
+```dotenv
+WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS=5214437916890@c.us,5214437938996@c.us
 ```
 
 Conserva también los valores reales ya existentes de:

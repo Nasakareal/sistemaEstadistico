@@ -39,7 +39,7 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
             'services.whatsapp.c5i_recommendation.dry_run' => true,
             'services.whatsapp.c5i_recommendation.group_ids' => '120363424100430316@g.us',
             'services.whatsapp.c5i_recommendation.source_author_ids' => '5214437916890@c.us',
-            'services.whatsapp.c5i_recommendation.to' => '5214437916890,5214437938996',
+            'services.whatsapp.c5i_recommendation.to' => '5214438000001,5214438000002',
             'services.whatsapp.c5i_recommendation.location_max_age_minutes' => 10,
             'services.whatsapp.c5i_recommendation.max_accuracy_meters' => 200,
         ]);
@@ -65,7 +65,7 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
             'services.whatsapp.c5i_recommendation.dry_run' => false,
             'services.whatsapp.c5i_recommendation.group_ids' => '120363424100430316@g.us',
             'services.whatsapp.c5i_recommendation.source_author_ids' => '5214437916890@c.us',
-            'services.whatsapp.c5i_recommendation.to' => '5214437916890,5214437938996',
+            'services.whatsapp.c5i_recommendation.to' => '5214438000001,5214438000002',
             'services.whatsapp.c5i_recommendation.template' => 'recomendacion_unidad_siniestros_c5i_v1',
             'services.whatsapp.c5i_recommendation.template_language' => 'es_MX',
             'services.whatsapp.c5i_recommendation.location_max_age_minutes' => 10,
@@ -79,7 +79,7 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
         $cloud->expects($this->exactly(2))
             ->method('sendTemplate')
             ->with(
-                $this->callback(fn ($to) => in_array($to, ['5214437916890', '5214437938996'], true)),
+                $this->callback(fn ($to) => in_array($to, ['5214438000001', '5214438000002'], true)),
                 'recomendacion_unidad_siniestros_c5i_v1',
                 $this->callback(fn ($params) => count($params) === 7 && $params[2] === $siniestrosPatrulla->numero_economico),
                 'es_MX'

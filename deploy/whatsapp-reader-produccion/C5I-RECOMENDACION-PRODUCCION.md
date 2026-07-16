@@ -32,7 +32,7 @@ Mapa de la unidad: {{7}}
 Recomendación automática; validar disponibilidad y asignación por radio antes de despachar.
 ```
 
-Variables y ejemplos que debes capturar en Meta:
+Los campos de **Muestras de variables** solicitan valores ficticios de ejemplo, no nombres ni descripciones. Escribe exactamente estos ejemplos en las cajas de la derecha:
 
 | Variable | Nombre lógico | Ejemplo |
 |---|---|---|
@@ -56,13 +56,23 @@ git pull
 php artisan migrate --force
 ```
 
+Los reportes C5i se identifican por los remitentes `5214437916890` y `5214437938996`. Los destinatarios de la recomendación son números distintos y deben configurarse por separado en `WHATSAPP_C5I_RECOMMENDATION_TO`.
+
 Consulta cómo se guardó realmente el remitente de los reportes con coordenadas:
 
 ```bash
-php artisan tinker --execute="dump(App\Models\WhatsAppWebMessage::query()->where('body','like','%LATITUD:%')->latest('id')->limit(20)->pluck('author_whatsapp_id')->unique()->values()->all());"
+php artisan tinker --execute="dump(App\Models\WhatsAppWebMessage::query()->where('body','like','%LATITUD%')->where('body','like','%LONGITUD%')->latest('id')->limit(20)->pluck('author_whatsapp_id')->unique()->values()->all());"
 ```
 
-Si aparecen identificadores terminados en `@lid`, usa esos valores exactos en `WHATSAPP_C5I_RECOMMENDATION_SOURCE_AUTHOR_IDS`. Si aparecen los teléfonos terminados en `@c.us`, conserva los valores mostrados abajo.
+El lector sólo almacena mensajes recibidos después de quedar conectado; no importa el historial anterior. Si la consulta devuelve `[]`, espera al siguiente reporte C5i con coordenadas y vuelve a ejecutarla.
+
+Para confirmar si ya se guardó cualquier mensaje nuevo, sin filtrar por coordenadas:
+
+```bash
+php artisan tinker --execute="dump(['total' => App\Models\WhatsAppWebMessage::count(), 'ultimos' => App\Models\WhatsAppWebMessage::query()->latest('id')->limit(10)->get(['id','author_whatsapp_id','body','sent_at'])->toArray()]);"
+```
+
+Inicialmente se usarán `5214437916890@c.us` y `5214437938996@c.us` como remitentes. Si WhatsApp guarda esos contactos con identificadores terminados en `@lid`, sustituye los valores por los `@lid` exactos que aparezcan en la base.
 
 Agrega al `.env` de Laravel:
 
@@ -70,7 +80,7 @@ Agrega al `.env` de Laravel:
 WHATSAPP_GRAPH_VERSION=v25.0
 WHATSAPP_C5I_RECOMMENDATION_ENABLED=true
 WHATSAPP_C5I_RECOMMENDATION_DRY_RUN=true
-WHATSAPP_C5I_RECOMMENDATION_TO=5214437916890,5214437938996
+WHATSAPP_C5I_RECOMMENDATION_TO=NUMERO_DESTINO_1,NUMERO_DESTINO_2
 WHATSAPP_C5I_RECOMMENDATION_GROUP_IDS=120363424100430316@g.us
 WHATSAPP_C5I_RECOMMENDATION_SOURCE_AUTHOR_IDS=5214437916890@c.us,5214437938996@c.us
 WHATSAPP_C5I_RECOMMENDATION_TEMPLATE=recomendacion_unidad_siniestros_c5i_v1

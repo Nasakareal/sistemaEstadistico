@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const QRCode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
@@ -73,6 +74,75 @@ function errorDetails(error) {
     }
 }
 
+function fallbackMessageId(groupId, message) {
+    const signature = JSON.stringify({
+        group_id: String(groupId || ''),
+        author_id: String(message?.author_id || message?.author || ''),
+        body: String(message?.body || ''),
+        type: String(message?.type || 'unknown'),
+        has_media: Boolean(message?.has_media ?? message?.hasMedia),
+        timestamp: Number(message?.timestamp) || null,
+    });
+    const hash = crypto.createHash('sha256').update(signature).digest('hex');
+
+    return `fallback_${hash}`;
+}
+
+function liveMessageId(message, groupId) {
+    const serializedCandidates = [
+        message?.id?._serialized,
+        message?._data?.id?._serialized,
+        typeof message?.id === 'string' ? message.id : null,
+    ];
+
+    for (const candidate of serializedCandidates) {
+        const value = String(candidate || '').trim();
+
+        if (value && value !== 'undefined' && value !== 'null') {
+            return value.length <= 191
+                ? value
+                : fallbackMessageId(groupId, message);
+        }
+    }
+
+    const internalId = String(
+        message?.id?.id || message?._data?.id?.id || ''
+    ).trim();
+
+    if (internalId) {
+        const fromMe = Boolean(message?.id?.fromMe ?? message?._data?.id?.fromMe);
+        const combined = `${fromMe ? 'true' : 'false'}_${groupId}_${internalId}`;
+
+        return combined.length <= 191
+            ? combined
+            : fallbackMessageId(groupId, message);
+    }
+
+    return fallbackMessageId(groupId, message);
+}
+
+function normalizeEventPayload(endpoint, payload) {
+    if (endpoint !== '/whatsapp-web-reader/messages') {
+        return payload;
+    }
+
+    const group = { ...(payload?.group || {}) };
+    const message = { ...(payload?.message || {}) };
+    const currentId = String(message.id || '').trim();
+
+    if (!currentId || currentId === 'undefined' || currentId === 'null') {
+        message.id = fallbackMessageId(group.id, message);
+    }
+
+    const timestamp = Number(message.timestamp);
+
+    if (!Number.isInteger(timestamp) || timestamp < 1) {
+        message.timestamp = Math.floor(Date.now() / 1000);
+    }
+
+    return { ...payload, group, message };
+}
+
 async function postJson(endpoint, payload, attempts = 3) {
     let lastError;
 
@@ -116,10 +186,12 @@ function appendToSpool(endpoint, payload) {
 }
 
 async function deliverOrSpool(endpoint, payload) {
+    const normalizedPayload = normalizeEventPayload(endpoint, payload);
+
     try {
-        return await postJson(endpoint, payload);
+        return await postJson(endpoint, normalizedPayload);
     } catch (error) {
-        appendToSpool(endpoint, payload);
+        appendToSpool(endpoint, normalizedPayload);
         console.error(`Evento guardado para reintento: ${error.message}`);
         return null;
     }
@@ -138,10 +210,15 @@ async function flushSpool() {
     const pending = [];
 
     for (const event of events) {
+        const normalizedEvent = {
+            endpoint: event.endpoint,
+            payload: normalizeEventPayload(event.endpoint, event.payload),
+        };
+
         try {
-            await postJson(event.endpoint, event.payload, 1);
+            await postJson(normalizedEvent.endpoint, normalizedEvent.payload, 1);
         } catch (error) {
-            pending.push(event);
+            pending.push(normalizedEvent);
         }
     }
 
@@ -246,23 +323,32 @@ async function processIncomingMessage(message) {
     }
 
     const chat = await message.getChat();
+    const messageId = liveMessageId(message, groupId);
+    const timestamp = Number(message.timestamp);
     const payload = {
         group: {
             id: groupId,
             name: chat.name || null,
         },
         message: {
-            id: message.id._serialized,
+            id: messageId,
             author_id: message.author || null,
             body: message.body || null,
             type: message.type || 'unknown',
             has_media: Boolean(message.hasMedia),
-            timestamp: Number(message.timestamp),
+            timestamp: Number.isInteger(timestamp) && timestamp > 0
+                ? timestamp
+                : Math.floor(Date.now() / 1000),
         },
     };
 
-    await deliverOrSpool('/whatsapp-web-reader/messages', payload);
-    console.log(`[${chat.name || groupId}] mensaje almacenado: ${message.id._serialized}`);
+    const response = await deliverOrSpool('/whatsapp-web-reader/messages', payload);
+
+    if (response) {
+        console.log(`[${chat.name || groupId}] mensaje almacenado: ${messageId}`);
+    } else {
+        console.log(`[${chat.name || groupId}] mensaje pendiente de reintento: ${messageId}`);
+    }
 }
 
 client.on('qr', async (qr) => {

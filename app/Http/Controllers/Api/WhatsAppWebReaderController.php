@@ -58,7 +58,7 @@ class WhatsAppWebReaderController extends Controller
         $data = $request->validate([
             'group.id' => ['required', 'string', 'max:191'],
             'group.name' => ['nullable', 'string', 'max:255'],
-            'message.id' => ['required', 'string', 'max:191'],
+            'message.id' => ['nullable', 'string', 'max:191'],
             'message.author_id' => ['nullable', 'string', 'max:191'],
             'message.body' => ['nullable', 'string', 'max:65535'],
             'message.type' => ['nullable', 'string', 'max:50'],
@@ -74,8 +74,21 @@ class WhatsAppWebReaderController extends Controller
             ]
         );
 
+        $whatsappMessageId = trim((string) ($data['message']['id'] ?? ''));
+
+        if ($whatsappMessageId === '') {
+            $whatsappMessageId = 'fallback_' . hash('sha256', json_encode([
+                'group_id' => $data['group']['id'],
+                'author_id' => $data['message']['author_id'] ?? null,
+                'body' => $data['message']['body'] ?? null,
+                'type' => $data['message']['type'] ?? 'unknown',
+                'has_media' => (bool) ($data['message']['has_media'] ?? false),
+                'timestamp' => (int) $data['message']['timestamp'],
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+
         $message = WhatsAppWebMessage::query()->updateOrCreate(
-            ['whatsapp_message_id' => $data['message']['id']],
+            ['whatsapp_message_id' => $whatsappMessageId],
             [
                 'whatsapp_web_group_id' => $group->id,
                 'author_whatsapp_id' => $data['message']['author_id'] ?? null,

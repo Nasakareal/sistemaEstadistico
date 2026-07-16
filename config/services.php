@@ -46,6 +46,10 @@ return [
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN', 'seguridadvial_token'),
         'default_to' => env('WHATSAPP_DEFAULT_TO'),
 
+        'web_reader' => [
+            'secret' => env('WHATSAPP_WEB_READER_SECRET'),
+        ],
+
         'conduce_legalidad' => [
             'rnd_chatbot_to' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TO', '5214433163728'),
             'rnd_chatbot_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TEMPLATE', 'solicitud_rnd_faltas_administrativas'),

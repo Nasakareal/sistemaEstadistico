@@ -11,6 +11,9 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+/whatsapp-reader/.wwebjs_auth
+/whatsapp-reader/.wwebjs_cache
+/whatsapp-reader/data
 /.idea
 /.vscode
 /.vs

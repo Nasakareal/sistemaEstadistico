@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\DirectorioRedApoyoController;
 use App\Http\Controllers\Api\MapaIncidenciasController;
 use App\Http\Controllers\Api\PendientesCortesController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
+use App\Http\Controllers\Api\WhatsAppWebReaderController;
 use App\Http\Controllers\Api\C5IInboundController;
 use App\Http\Controllers\Api\BotC5IController;
 use App\Http\Controllers\Api\WabotIncomingController;
@@ -55,6 +56,10 @@ Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
 Route::post('/c5i/report',[C5IInboundController::class,'handle']);
 Route::get('/whatsapp/webhook',[WhatsAppWebhookController::class,'verify']);
 Route::post('/whatsapp/webhook',[WhatsAppWebhookController::class,'handle']);
+Route::prefix('whatsapp-web-reader')->group(function () {
+    Route::post('/groups', [WhatsAppWebReaderController::class, 'syncGroups']);
+    Route::post('/messages', [WhatsAppWebReaderController::class, 'storeMessage']);
+});
 
 Route::post('/login', [AuthController::class, 'login']);
 

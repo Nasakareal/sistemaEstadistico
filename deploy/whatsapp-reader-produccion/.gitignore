@@ -1,0 +1,8 @@
+.env
+.wwebjs_auth/
+.wwebjs_cache/
+data/
+node_modules/
+whatsapp-reader-qr.png
+npm-debug.log*
+

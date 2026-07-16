@@ -1,0 +1,19 @@
+{
+    "name": "sistema-estadistico-whatsapp-reader-production",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Lector de sólo lectura para el grupo SINIESTROS GC",
+    "main": "index.js",
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "dotenv": "17.4.2",
+        "qrcode": "1.5.4",
+        "qrcode-terminal": "0.12.0",
+        "whatsapp-web.js": "1.34.7"
+    }
+}

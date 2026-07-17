@@ -106,6 +106,43 @@ function identifierAllowed(identifier, allowedIdentifiers) {
     );
 }
 
+async function resolveAuthorIdentity(authorId) {
+    const originalId = String(authorId || '').trim().toLowerCase();
+    const identifiers = [originalId].filter(Boolean);
+
+    if (originalId.endsWith('@lid')) {
+        try {
+            const mappings = await client.getContactLidAndPhone([originalId]);
+            const mapping = Array.isArray(mappings) ? mappings[0] : null;
+
+            for (const identifier of [mapping?.lid, mapping?.pn]) {
+                const normalized = String(identifier || '').trim().toLowerCase();
+
+                if (normalized && !identifiers.includes(normalized)) {
+                    identifiers.push(normalized);
+                }
+            }
+        } catch (error) {
+            console.error(
+                `No se pudo resolver el remitente LID ${originalId}: ${errorDetails(error)}`
+            );
+        }
+    }
+
+    const allowed = identifiers.some(
+        (identifier) => identifierAllowed(identifier, allowedAuthorIds)
+    );
+    const phoneId = identifiers.find(
+        (identifier) => identifier.endsWith('@c.us') || identifier.endsWith('@s.whatsapp.net')
+    );
+
+    return {
+        allowed,
+        authorId: phoneId || originalId,
+        originalId,
+    };
+}
+
 function eventAllowed(endpoint, payload) {
     if (endpoint !== '/whatsapp-web-reader/messages') {
         return true;
@@ -330,11 +367,15 @@ async function processIncomingMessage(message) {
         return;
     }
 
-    const authorId = String(message.author || '').trim();
+    const author = await resolveAuthorIdentity(message.author);
 
-    if (!identifierAllowed(authorId, allowedAuthorIds)) {
-        console.log(`Mensaje ignorado por remitente no autorizado: ${authorId || '(sin autor)'}`);
+    if (!author.allowed) {
+        console.log(`Mensaje ignorado por remitente no autorizado: ${author.originalId || '(sin autor)'}`);
         return;
+    }
+
+    if (author.authorId !== author.originalId) {
+        console.log(`Remitente LID resuelto: ${author.originalId} -> ${author.authorId}`);
     }
 
     const messageId = liveMessageId(message, groupId);
@@ -346,7 +387,7 @@ async function processIncomingMessage(message) {
         },
         message: {
             id: messageId,
-            author_id: authorId,
+            author_id: author.authorId,
             body: message.body || null,
             type: message.type || 'unknown',
             has_media: Boolean(message.hasMedia),
@@ -361,7 +402,9 @@ async function processIncomingMessage(message) {
     if (response?.stored === false) {
         console.log(`Mensaje ignorado por Laravel (${response.reason || 'filtro'}): ${messageId}`);
     } else if (response) {
-        console.log(`Mensaje entrante almacenado: ${messageId}`);
+        console.log(
+            `Mensaje entrante almacenado: ${messageId}; recomendación: ${response.recommendation_status || 'sin estado'}`
+        );
     } else {
         console.log(`Mensaje entrante pendiente de reintento: ${messageId}`);
     }

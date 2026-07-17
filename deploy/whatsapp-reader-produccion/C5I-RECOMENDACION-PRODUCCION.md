@@ -74,7 +74,7 @@ Para confirmar si ya se guardó cualquier mensaje nuevo, sin filtrar por coorden
 php artisan tinker --execute="dump(['total' => App\Models\WhatsAppWebMessage::count(), 'ultimos' => App\Models\WhatsAppWebMessage::query()->latest('id')->limit(10)->get(['id','author_whatsapp_id','body','sent_at'])->toArray()]);"
 ```
 
-Inicialmente se usarán `5214437916890@c.us` y `5214437938996@c.us` como remitentes. Si WhatsApp guarda esos contactos con identificadores terminados en `@lid`, sustituye los valores por los `@lid` exactos que aparezcan en la base.
+Se usan `5214437916890@c.us` y `5214437938996@c.us` como remitentes. Cuando WhatsApp Web entrega un identificador terminado en `@lid`, el lector lo resuelve automáticamente al teléfono antes de autorizarlo y enviarlo a Laravel. No sustituyas estos teléfonos por valores `@lid` tomados al azar del registro.
 
 Agrega al `.env` de Laravel:
 
@@ -147,7 +147,7 @@ El estado debe ser `dry_run`. En `recommendation_meta.candidate` revisa que la u
 - precisión máxima de 200 metros cuando el dispositivo informa precisión;
 - una sola recomendación: la patrulla con menor distancia Haversine.
 
-Si el estado es `ignored` y la razón es `source_not_allowed`, corrige los identificadores `@c.us`/`@lid`. Si es `no_candidate`, no había una patrulla de Siniestros con ubicación suficientemente reciente.
+Si el estado es `ignored` y la razón es `source_not_allowed`, confirma que el lector desplegado sea la versión que resuelve automáticamente los identificadores `@lid` y que ambos `.env` conserven los teléfonos C5i indicados. Si es `no_candidate`, no había una patrulla de Siniestros con ubicación suficientemente reciente.
 
 ## 4. Activar los dos envíos oficiales
 

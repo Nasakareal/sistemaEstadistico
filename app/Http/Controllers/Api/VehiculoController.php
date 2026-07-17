@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class VehiculoController extends Controller
@@ -161,6 +162,8 @@ class VehiculoController extends Controller
                 ], 201);
             });
 
+        } catch (ValidationException $e) {
+            return $e->response ?? $this->validationFailed($e->errors());
         } catch (QueryException $e) {
             if ($this->isDuplicateKey($e)) {
                 return $this->fail('No se pudo guardar: ya existe un registro con esos datos (placas o NIV/serie).', 409);
@@ -318,6 +321,8 @@ class VehiculoController extends Controller
                 return $this->ok('Vehículo actualizado correctamente.', $vehiculo->fresh()->load('conductores'));
             });
 
+        } catch (ValidationException $e) {
+            return $e->response ?? $this->validationFailed($e->errors());
         } catch (QueryException $e) {
             if ($this->isDuplicateKey($e)) {
                 return $this->fail('No se pudo actualizar: ya existe un registro con esos datos (placas o NIV/serie).', 409);
@@ -589,7 +594,6 @@ class VehiculoController extends Controller
 
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
-        $esDelegaciones = HechoAccess::effectiveUnidadId($request->user()) === 2;
         $data = $this->sanitize($request->all());
         $dataForValidation = $data;
 
@@ -660,7 +664,10 @@ class VehiculoController extends Controller
             'partes_danadas' => 'required|string',
 
             'antecedente_vehiculo' => 'sometimes|boolean',
-            'reporte_robo' => $esDelegaciones ? 'required|boolean' : 'sometimes|boolean',
+            // La app actual obliga a elegir Sí/No. La API conserva
+            // compatibilidad con instalaciones anteriores que todavía no
+            // envían el campo; normalize() les asigna false de forma segura.
+            'reporte_robo' => 'sometimes|boolean',
 
             'conductor_nombre' => 'nullable|string|max:255',
             'telefono' => 'nullable|digits:10',
@@ -728,7 +735,10 @@ class VehiculoController extends Controller
         }
 
         $data['antecedente_vehiculo']    = $request->boolean('antecedente_vehiculo');
-        if (HechoAccess::effectiveUnidadId($request->user()) === 2) {
+        if (
+            HechoAccess::effectiveUnidadId($request->user()) === 2
+            && $request->exists('reporte_robo')
+        ) {
             $data['reporte_robo'] = $request->boolean('reporte_robo');
         } else {
             unset($data['reporte_robo']);

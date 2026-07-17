@@ -16,16 +16,32 @@ class VehiculoReporteRoboTest extends TestCase
         $this->assertSame('boolean', $vehiculo->getCasts()['reporte_robo']);
     }
 
-    public function test_api_y_backend_lo_exigen_para_usuarios_de_delegaciones(): void
+    public function test_web_lo_exige_y_api_movil_conserva_compatibilidad(): void
     {
         $web = file_get_contents(app_path('Http/Controllers/VehiculosController.php'));
         $api = file_get_contents(app_path('Http/Controllers/Api/VehiculoController.php'));
 
-        foreach ([$web, $api] as $source) {
-            $this->assertStringContainsString("'reporte_robo'", $source);
-            $this->assertStringContainsString("'required|boolean'", $source);
-            $this->assertStringContainsString("boolean('reporte_robo')", $source);
-        }
+        $this->assertStringContainsString("'reporte_robo'", $web);
+        $this->assertStringContainsString("'required|boolean'", $web);
+        $this->assertStringContainsString("boolean('reporte_robo')", $web);
+
+        $this->assertStringContainsString("'reporte_robo' => 'sometimes|boolean'", $api);
+        $this->assertStringContainsString("boolean('reporte_robo')", $api);
+        $this->assertStringContainsString("\$request->exists('reporte_robo')", $api);
+    }
+
+    public function test_api_no_convierte_errores_de_validacion_en_error_500(): void
+    {
+        $api = file_get_contents(app_path('Http/Controllers/Api/VehiculoController.php'));
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($api, 'catch (ValidationException $e)'),
+        );
+        $this->assertStringContainsString(
+            'return $e->response ?? $this->validationFailed($e->errors());',
+            $api,
+        );
     }
 
     public function test_show_calcula_si_algun_vehiculo_tiene_reporte(): void

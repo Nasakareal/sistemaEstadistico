@@ -276,6 +276,9 @@
                                     <input type="file" name="archivo_puesta" id="archivo_puesta"
                                            class="form-control @error('archivo_puesta') is-invalid @enderror"
                                            accept="application/pdf">
+                                    <small class="form-text text-muted">
+                                        Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB; se comprimirá automáticamente cuando sea posible.
+                                    </small>
                                     @error('archivo_puesta')
                                         <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -637,6 +640,7 @@
     @php
         $personasJs = old('personas', $puestaDisposicion->personas->map(function ($p) {
             return [
+                'id' => $p->id,
                 'nombre_completo' => $p->nombre_completo,
                 'alias' => $p->alias,
                 'edad' => $p->edad,
@@ -650,6 +654,10 @@
                 'orden_aprehension' => $p->orden_aprehension,
                 'mandamiento_judicial' => $p->mandamiento_judicial,
                 'observaciones' => $p->observaciones,
+                'tiene_archivo_uso_fuerza' => (bool) $p->archivo_uso_fuerza,
+                'archivo_uso_fuerza_url' => $p->archivo_uso_fuerza
+                    ? route('puestas_disposicion.personas.uso_fuerza', [$p->puesta_disposicion_id, $p->id])
+                    : null,
             ];
         })->values()->all());
 
@@ -719,8 +727,17 @@
 
             function agregarPersona(data = {}) {
                 const i = personaIndex++;
+                const tieneArchivoUsoFuerza = Boolean(Number(data.tiene_archivo_uso_fuerza ?? 0))
+                    || Boolean(data.archivo_uso_fuerza_url);
+                const archivoUsoFuerzaActual = data.archivo_uso_fuerza_url
+                    ? `<a href="${valor(data.archivo_uso_fuerza_url)}" target="_blank" rel="noopener" class="btn btn-outline-danger btn-sm mb-2">
+                           <i class="fas fa-file-pdf"></i> Ver PDF actual
+                       </a>`
+                    : (tieneArchivoUsoFuerza ? '<p class="text-success mb-2">El PDF actual se conservará.</p>' : '');
                 const html = `
                     <div class="bloque-dinamico">
+                        <input type="hidden" name="personas[${i}][id]" value="${valor(data.id)}">
+                        <input type="hidden" name="personas[${i}][tiene_archivo_uso_fuerza]" value="${tieneArchivoUsoFuerza ? '1' : '0'}">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">Persona</h5>
                             <button type="button" class="btn btn-danger btn-sm btn-eliminar-bloque">
@@ -814,6 +831,18 @@
                                 <div class="form-group">
                                     <label>Observaciones</label>
                                     <input type="text" name="personas[${i}][observaciones]" class="form-control" value="${valor(data.observaciones)}">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>${tieneArchivoUsoFuerza ? 'Reemplazar PDF de uso de fuerza' : 'PDF de uso de fuerza *'}</label>
+                                    ${archivoUsoFuerzaActual}
+                                    <input type="file" name="personas[${i}][archivo_uso_fuerza]"
+                                           class="form-control" accept="application/pdf" ${tieneArchivoUsoFuerza ? '' : 'required'}>
+                                    <small class="form-text text-muted">
+                                        ${tieneArchivoUsoFuerza ? 'Déjalo vacío para conservar el archivo actual.' : 'Obligatorio para esta persona.'}
+                                        Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB.
+                                    </small>
                                 </div>
                             </div>
                         </div>

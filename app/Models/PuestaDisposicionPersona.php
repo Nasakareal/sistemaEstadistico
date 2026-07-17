@@ -26,6 +26,7 @@ class PuestaDisposicionPersona extends Model
         'orden_aprehension',
         'mandamiento_judicial',
         'observaciones',
+        'archivo_uso_fuerza',
     ];
 
     protected $casts = [

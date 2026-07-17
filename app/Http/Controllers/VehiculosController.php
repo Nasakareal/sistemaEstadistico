@@ -12,6 +12,7 @@ use App\Services\Fotos\HechoFotoStorage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Support\GruaEditGuard;
+use App\Support\HechoAccess;
 use Illuminate\Validation\Rule;
 
 class VehiculosController extends Controller
@@ -68,12 +69,15 @@ class VehiculosController extends Controller
         $corralones = $this->corralonesDesdeGruas($gruas);
 
         $vehiculoCatalogos = config('vehiculos.catalogos');
+        $esDelegaciones = HechoAccess::effectiveUnidadId($usuario) === 2;
 
-        return view('vehiculos.create', compact('hecho', 'gruas', 'corralones', 'vehiculoCatalogos'));
+        return view('vehiculos.create', compact('hecho', 'gruas', 'corralones', 'vehiculoCatalogos', 'esDelegaciones'));
     }
 
     public function store(Request $request, Hechos $hecho)
     {
+        $esDelegaciones = HechoAccess::effectiveUnidadId($request->user()) === 2;
+
         $validated = $request->validate([
             'tipo_general'               => ['required', Rule::in(array_keys(config('vehiculos.catalogos.tipos_generales', [])))],
             'marca'                      => ['required', 'string', 'max:50', Rule::in(array_keys(config('vehiculos.catalogos.marcas', [])))],
@@ -94,6 +98,7 @@ class VehiculosController extends Controller
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
             'antecedente_vehiculo'       => 'sometimes|boolean',
+            'reporte_robo'               => $esDelegaciones ? 'required|boolean' : 'nullable|boolean',
             'conductor_nombre'           => 'nullable|string|max:255',
             'telefono'                   => 'nullable|digits:10',
             'domicilio'                  => 'nullable|string|max:255',
@@ -120,6 +125,9 @@ class VehiculosController extends Controller
         $validated['conductor_nombre'] = strtoupper((string) ($validated['conductor_nombre'] ?? ''));
         $validated['tarjeta_circulacion_nombre'] = (string) ($validated['tarjeta_circulacion_nombre'] ?? '');
         $validated['antecedente_vehiculo'] = $request->has('antecedente_vehiculo');
+        $validated['reporte_robo'] = $esDelegaciones
+            ? $request->boolean('reporte_robo')
+            : false;
         $validated['cinturon'] = $request->has('cinturon');
         $validated['antecedente_conductor'] = $request->has('antecedente_conductor');
         $validated['certificado_lesiones'] = $request->has('certificado_lesiones');
@@ -202,6 +210,7 @@ class VehiculosController extends Controller
                 'monto_danos'                => $validated['monto_danos'],
                 'partes_danadas'             => $validated['partes_danadas'],
                 'antecedente_vehiculo'       => $validated['antecedente_vehiculo'],
+                'reporte_robo'               => $validated['reporte_robo'],
             ]);
 
             $hecho->vehiculos()->attach($vehiculo->id);
@@ -351,6 +360,7 @@ class VehiculosController extends Controller
             ->search(fn (array $carrocerias) => collect($carrocerias)->contains(
                 fn (string $carroceria) => strcasecmp($carroceria, (string) $vehiculo->tipo) === 0
             ));
+        $esDelegaciones = HechoAccess::effectiveUnidadId($usuario) === 2;
 
         return view('vehiculos.edit', compact(
             'hecho',
@@ -364,7 +374,8 @@ class VehiculosController extends Controller
             'gruaCampoBloqueado',
             'corralonCampoBloqueado',
             'vehiculoCatalogos',
-            'tipoGeneralActual'
+            'tipoGeneralActual',
+            'esDelegaciones'
         ));
     }
 
@@ -373,6 +384,8 @@ class VehiculosController extends Controller
         if (!$hecho->vehiculos()->where('vehiculos.id', $vehiculo->id)->exists()) {
             abort(404, 'El vehículo no pertenece a este hecho.');
         }
+
+        $esDelegaciones = HechoAccess::effectiveUnidadId($request->user()) === 2;
 
         $validated = $request->validate([
             'tipo_general'               => ['required', Rule::in(array_keys(config('vehiculos.catalogos.tipos_generales', [])))],
@@ -394,6 +407,7 @@ class VehiculosController extends Controller
             'monto_danos'                => 'required|numeric|min:0',
             'partes_danadas'             => 'required|string',
             'antecedente_vehiculo'       => 'sometimes|boolean',
+            'reporte_robo'               => $esDelegaciones ? 'required|boolean' : 'nullable|boolean',
             'conductor_nombre'           => 'nullable|string|max:255',
             'telefono'                   => 'nullable|digits:10',
             'domicilio'                  => 'nullable|string|max:255',
@@ -419,6 +433,11 @@ class VehiculosController extends Controller
         $validated['serie'] = strtoupper(str_replace(['-', ' ', '.', ',', '_'], '', (string) ($validated['serie'] ?? '')));
         $validated['conductor_nombre'] = strtoupper((string)($validated['conductor_nombre'] ?? ''));
         $validated['antecedente_vehiculo'] = $request->has('antecedente_vehiculo');
+        if ($esDelegaciones) {
+            $validated['reporte_robo'] = $request->boolean('reporte_robo');
+        } else {
+            unset($validated['reporte_robo']);
+        }
         $validated['cinturon'] = $request->has('cinturon');
         $validated['antecedente_conductor'] = $request->has('antecedente_conductor');
         $validated['certificado_lesiones'] = $request->has('certificado_lesiones');
@@ -536,6 +555,10 @@ class VehiculosController extends Controller
                 'partes_danadas'             => $validated['partes_danadas'],
                 'antecedente_vehiculo'       => $validated['antecedente_vehiculo'],
             ];
+
+            if (array_key_exists('reporte_robo', $validated)) {
+                $vehiculoPayload['reporte_robo'] = $validated['reporte_robo'];
+            }
 
             if ($gruaCampoBloqueado) {
                 unset($vehiculoPayload['grua'], $vehiculoPayload['grua_id']);

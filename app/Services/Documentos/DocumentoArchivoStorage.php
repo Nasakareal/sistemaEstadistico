@@ -11,34 +11,65 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class DocumentoArchivoStorage
 {
     private $client;
+    private $pdfCompressor;
+
+    public function __construct(PdfCompressor $pdfCompressor)
+    {
+        $this->pdfCompressor = $pdfCompressor;
+    }
 
     public function putUploadedFile(UploadedFile $file, string $directory): string
     {
         $path = $this->makePath($file, $directory);
 
-        if ($this->usesAzure()) {
-            $stream = fopen($file->getRealPath(), 'rb');
+        $this->putSourcePath(
+            $path,
+            $file->getRealPath(),
+            $file->getMimeType() ?: 'application/octet-stream'
+        );
 
-            if ($stream === false) {
-                throw new RuntimeException('No se pudo abrir el archivo temporal del documento.');
+        return $path;
+    }
+
+    public function putUploadedPdf(UploadedFile $file, string $directory): string
+    {
+        $path = $this->makePath($file, $directory);
+        $compressedPath = $this->pdfCompressor->compress($file->getRealPath());
+        $sourcePath = $compressedPath ?: $file->getRealPath();
+
+        try {
+            $this->putSourcePath($path, $sourcePath, 'application/pdf');
+        } finally {
+            if ($compressedPath && is_file($compressedPath)) {
+                @unlink($compressedPath);
             }
-
-            try {
-                $this->putAzureStream($path, $stream, $file->getMimeType() ?: 'application/octet-stream');
-            } finally {
-                if (is_resource($stream)) {
-                    fclose($stream);
-                }
-            }
-
-            return $path;
-        }
-
-        if (!Storage::disk('public')->putFileAs(dirname($path), $file, basename($path))) {
-            throw new RuntimeException('No se pudo guardar el documento en storage publico.');
         }
 
         return $path;
+    }
+
+    private function putSourcePath(string $path, string $sourcePath, string $contentType): void
+    {
+        $stream = fopen($sourcePath, 'rb');
+
+        if ($stream === false) {
+            throw new RuntimeException('No se pudo abrir el archivo temporal del documento.');
+        }
+
+        try {
+            if ($this->usesAzure()) {
+                $this->putAzureStream($path, $stream, $contentType);
+                return;
+            }
+
+            if (!Storage::disk('public')->put($path, $stream)) {
+                throw new RuntimeException('No se pudo guardar el documento en storage publico.');
+            }
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
     }
 
     public function migratePublicFile(string $sourcePath, ?string $targetPath = null, bool $deleteSource = true): array

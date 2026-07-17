@@ -589,6 +589,7 @@ class VehiculoController extends Controller
 
     private function validateRequest(Request $request, ?int $vehiculoId = null): array
     {
+        $esDelegaciones = HechoAccess::effectiveUnidadId($request->user()) === 2;
         $data = $this->sanitize($request->all());
         $dataForValidation = $data;
 
@@ -659,6 +660,7 @@ class VehiculoController extends Controller
             'partes_danadas' => 'required|string',
 
             'antecedente_vehiculo' => 'sometimes|boolean',
+            'reporte_robo' => $esDelegaciones ? 'required|boolean' : 'sometimes|boolean',
 
             'conductor_nombre' => 'nullable|string|max:255',
             'telefono' => 'nullable|digits:10',
@@ -726,6 +728,11 @@ class VehiculoController extends Controller
         }
 
         $data['antecedente_vehiculo']    = $request->boolean('antecedente_vehiculo');
+        if (HechoAccess::effectiveUnidadId($request->user()) === 2) {
+            $data['reporte_robo'] = $request->boolean('reporte_robo');
+        } else {
+            unset($data['reporte_robo']);
+        }
         $data['permanente']              = $request->boolean('permanente');
         $data['cinturon']                = $request->boolean('cinturon');
         $data['antecedente_conductor']   = $request->boolean('antecedente_conductor');
@@ -824,13 +831,14 @@ class VehiculoController extends Controller
             'monto_danos'                => $v['monto_danos'] ?? 0,
             'partes_danadas'             => $v['partes_danadas'] ?? null,
             'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
+            'reporte_robo'               => $v['reporte_robo'] ?? false,
             'fotos'                      => $v['fotos'] ?? null,
         ];
     }
 
     private function onlyVehiculoForUpdate(array $v): array
     {
-        return [
+        $payload = [
             'marca'                      => $v['marca'] ?? null,
             'modelo'                     => $v['modelo'] ?? null,
             'tipo'                       => $v['tipo'] ?? null,
@@ -851,6 +859,12 @@ class VehiculoController extends Controller
             'partes_danadas'             => $v['partes_danadas'] ?? null,
             'antecedente_vehiculo'       => $v['antecedente_vehiculo'] ?? false,
         ];
+
+        if (array_key_exists('reporte_robo', $v)) {
+            $payload['reporte_robo'] = $v['reporte_robo'];
+        }
+
+        return $payload;
     }
 
     private function onlyConductor(array $v): array
@@ -987,6 +1001,7 @@ class VehiculoController extends Controller
             'aseguradora' => 'aseguradora',
             'monto_danos' => 'monto de daños',
             'partes_danadas' => 'partes dañadas',
+            'reporte_robo' => 'reporte de robo del vehículo',
             'conductor_nombre' => 'nombre del conductor',
             'telefono' => 'teléfono',
             'domicilio' => 'domicilio',

@@ -42,6 +42,11 @@ class Vehiculo extends Model
         'fotos',
         'aseguradora',
         'antecedente_vehiculo',
+        'reporte_robo',
+    ];
+
+    protected $casts = [
+        'reporte_robo' => 'boolean',
     ];
 
     public function getFotosUrlAttribute(): ?string

@@ -66,7 +66,10 @@
             <div class="form-group">
                 <label>Archivo de dictamen (PDF)</label>
                 <input type="file" name="archivo_dictamen" class="form-control-file" accept="application/pdf">
-                <small class="form-text text-muted">Opcional. Solo PDF, máximo 10 MB.</small>
+                <small class="form-text text-muted">
+                    Opcional. Solo PDF, máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB.
+                    El sistema reducirá su peso automáticamente cuando sea posible.
+                </small>
             </div>
 
             <div class="d-flex justify-content-between">

@@ -617,6 +617,25 @@
                                     </div>
                                 </div>
 
+                                @if($esDelegaciones)
+                                    @php
+                                        $reporteRoboValue = (string) old('reporte_robo', (int) ($vehiculo->reporte_robo ?? false));
+                                    @endphp
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>¿Este vehículo tiene reporte de robo? <span class="text-danger">*</span></label>
+                                            <select name="reporte_robo" class="form-control @error('reporte_robo') is-invalid @enderror" required>
+                                                <option value="">Seleccione una opción</option>
+                                                <option value="0" {{ $reporteRoboValue === '0' ? 'selected' : '' }}>No</option>
+                                                <option value="1" {{ $reporteRoboValue === '1' ? 'selected' : '' }}>Sí</option>
+                                            </select>
+                                            @error('reporte_robo')
+                                                <div class="text-danger small"><strong>{{ $message }}</strong></div>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                @endif
+
                                 <!-- Antecedentes del conductor -->
                                 <div class="col-md-2">
                                     <div class="form-group">

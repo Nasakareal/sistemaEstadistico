@@ -547,6 +547,7 @@ Route::prefix('puestas-disposicion')->middleware(['auth'])->group(function () {
     Route::get('/create', [PuestaDisposicionController::class, 'create'])->middleware('can:crear puestas a disposicion')->name('puestas_disposicion.create');
     Route::post('/', [PuestaDisposicionController::class, 'store'])->middleware('can:crear puestas a disposicion')->name('puestas_disposicion.store');
     Route::get('/{puestaDisposicion}/archivo', [PuestaDisposicionController::class, 'archivo'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.archivo');
+    Route::get('/{puestaDisposicion}/personas/{persona}/uso-fuerza', [PuestaDisposicionController::class, 'archivoUsoFuerza'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.personas.uso_fuerza');
     Route::get('/{puestaDisposicion}', [PuestaDisposicionController::class, 'show'])->middleware('can:ver puestas a disposicion')->name('puestas_disposicion.show');
     Route::get('/{puestaDisposicion}/edit', [PuestaDisposicionController::class, 'edit'])->middleware('can:editar puestas a disposicion')->name('puestas_disposicion.edit');
     Route::put('/{puestaDisposicion}', [PuestaDisposicionController::class, 'update'])->middleware('can:editar puestas a disposicion')->name('puestas_disposicion.update');

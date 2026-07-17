@@ -324,6 +324,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [PuestaDisposicionController::class, 'index'])->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.index');
         Route::post('/', [PuestaDisposicionController::class, 'store'])->middleware('can:crear puestas a disposicion')->name('api.puestas_disposicion.store');
         Route::get('/{puestaDisposicion}/archivo', [PuestaDisposicionController::class, 'archivo'])->whereNumber('puestaDisposicion')->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.archivo');
+        Route::get('/{puestaDisposicion}/personas/{persona}/uso-fuerza', [PuestaDisposicionController::class, 'archivoUsoFuerza'])->whereNumber('puestaDisposicion')->whereNumber('persona')->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.personas.uso_fuerza');
         Route::get('/{puestaDisposicion}', [PuestaDisposicionController::class, 'show'])->whereNumber('puestaDisposicion')->middleware('can:ver puestas a disposicion')->name('api.puestas_disposicion.show');
         Route::put('/{puestaDisposicion}', [PuestaDisposicionController::class, 'update'])->whereNumber('puestaDisposicion')->middleware('can:editar puestas a disposicion')->name('api.puestas_disposicion.update');
         Route::delete('/{puestaDisposicion}', [PuestaDisposicionController::class, 'destroy'])->whereNumber('puestaDisposicion')->middleware('can:eliminar puestas a disposicion')->name('api.puestas_disposicion.destroy');

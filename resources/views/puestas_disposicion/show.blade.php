@@ -249,6 +249,16 @@ readonly>
 <input type="text" class="form-control" value="{{ $persona->observaciones }}" readonly>
 </div>
 
+@if($persona->archivo_uso_fuerza)
+<div class="col-md-12 mt-2">
+<label>PDF de uso de fuerza</label><br>
+<a href="{{ route('puestas_disposicion.personas.uso_fuerza', [$puestaDisposicion->id, $persona->id]) }}"
+   class="btn btn-outline-danger" target="_blank" rel="noopener">
+    <i class="fas fa-file-pdf"></i> Ver PDF de uso de fuerza
+</a>
+</div>
+@endif
+
 </div>
 
 </div>

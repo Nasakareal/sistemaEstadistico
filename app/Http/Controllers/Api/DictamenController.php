@@ -118,7 +118,7 @@ class DictamenController extends Controller
             'anio'             => 'required|integer|between:' . self::ANIO_MINIMO . ',' . now()->year,
             'nombre_policia'   => 'required|string|max:100',
             'nombre_mp'        => 'nullable|string|max:100',
-            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
         ], [
             'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
             'numero_dictamen.required' => 'Capture el número que aparece en el dictamen histórico.',
@@ -127,7 +127,7 @@ class DictamenController extends Controller
 
         $archivoDictamen = null;
         if ($request->hasFile('archivo_dictamen')) {
-            $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
+            $archivoDictamen = $this->documentos()->putUploadedPdf($request->file('archivo_dictamen'), 'dictamenes');
         }
 
         $dictamen = Dictamen::create([
@@ -187,7 +187,7 @@ class DictamenController extends Controller
             'anio' => 'required|integer|between:' . self::ANIO_MINIMO . ',' . now()->year,
             'nombre_policia' => 'required|string|max:100',
             'nombre_mp' => 'nullable|string|max:100',
-            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:10240',
+            'archivo_dictamen' => 'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
         ], [
             'numero_dictamen.unique' => 'Ya existe ese número de dictamen para el año y área seleccionados.',
             'anio.between' => 'El año debe estar entre ' . self::ANIO_MINIMO . ' y ' . now()->year . '.',
@@ -198,7 +198,7 @@ class DictamenController extends Controller
         if ($request->hasFile('archivo_dictamen')) {
 
             $archivoAnterior = $archivoDictamen;
-            $archivoDictamen = $this->documentos()->putUploadedFile($request->file('archivo_dictamen'), 'dictamenes');
+            $archivoDictamen = $this->documentos()->putUploadedPdf($request->file('archivo_dictamen'), 'dictamenes');
 
             if ($archivoAnterior && $archivoAnterior !== $archivoDictamen) {
                 $this->documentos()->delete($archivoAnterior);

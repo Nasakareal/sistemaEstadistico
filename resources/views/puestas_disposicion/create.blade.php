@@ -304,6 +304,9 @@
                                     <input type="file" name="archivo_puesta" id="archivo_puesta"
                                            class="form-control @error('archivo_puesta') is-invalid @enderror"
                                            accept="application/pdf">
+                                    <small class="form-text text-muted">
+                                        Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB; se comprimirá automáticamente cuando sea posible.
+                                    </small>
                                     @error('archivo_puesta')
                                         <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
@@ -1021,6 +1024,16 @@
                                 <div class="form-group">
                                     <label>Observaciones</label>
                                     <input type="text" name="personas[${i}][observaciones]" class="form-control" value="${valor(data.observaciones)}">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>PDF de uso de fuerza <span class="text-danger">*</span></label>
+                                    <input type="file" name="personas[${i}][archivo_uso_fuerza]"
+                                           class="form-control" accept="application/pdf" required>
+                                    <small class="form-text text-muted">
+                                        Obligatorio para cada persona. Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB; se comprimirá automáticamente cuando sea posible.
+                                    </small>
                                 </div>
                             </div>
                         </div>

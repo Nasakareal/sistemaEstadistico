@@ -113,7 +113,8 @@
                     accept="application/pdf"
                 >
                 <small class="form-text text-muted">
-                    Si subes un archivo nuevo, reemplazará el anterior.
+                    Si subes un archivo nuevo, reemplazará el anterior. Máximo
+                    {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB; se comprimirá automáticamente cuando sea posible.
                 </small>
             </div>
 

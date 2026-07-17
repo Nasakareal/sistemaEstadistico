@@ -169,6 +169,8 @@
     $camposMP = ['oficio_mp', 'vehiculos_mp', 'personas_mp'];
     $iphDelegacionesPath = $hecho->iph_delegaciones_path;
     $mostrarAccionesTurnado = $esHechoDelegaciones && $soloTurnado && ($iphDelegacionesPath || $puestaHecho);
+    $hayVehiculoConReporteRobo = $esHechoDelegaciones
+        && $hecho->vehiculos->contains(fn ($vehiculo) => (bool) $vehiculo->reporte_robo);
     $puedeCrearPuestaTurnado = $soloTurnado
         && $esHechoDelegaciones
         && !$puestaHecho
@@ -194,6 +196,14 @@
                         <span class="badge {{ $estatusClass }}" style="font-size:.9rem; padding:.35rem .6rem;">
                             {{ $estatus }}
                         </span>
+
+                        @if($esHechoDelegaciones)
+                            <span class="badge {{ $hayVehiculoConReporteRobo ? 'badge-danger' : 'badge-success' }}"
+                                  style="font-size:.9rem; padding:.35rem .6rem;">
+                                <i class="fa-solid {{ $hayVehiculoConReporteRobo ? 'fa-triangle-exclamation' : 'fa-circle-check' }} mr-1"></i>
+                                Vehículo con reporte de robo: {{ $hayVehiculoConReporteRobo ? 'SÍ' : 'NO' }}
+                            </span>
+                        @endif
 
                         @if($mostrarAccionesTurnado)
                             <div class="sv-status-actions">
@@ -659,6 +669,12 @@
                                                 @endif
 
                                                 <div class="sv-veh-badges">
+                                                    @if($esHechoDelegaciones && $vehiculo->reporte_robo)
+                                                        <span class="badge badge-danger" style="padding:.45rem .65rem; font-size:.85rem;">
+                                                            <i class="fa-solid fa-triangle-exclamation"></i> REPORTE DE ROBO
+                                                        </span>
+                                                    @endif
+
                                                     <span class="badge {{ $tieneGrua ? 'badge-warning' : 'badge-secondary' }}" style="padding:.45rem .65rem; font-size:.85rem;">
                                                         <i class="fa-solid fa-truck-pickup"></i> GRÚA: {{ $tieneGrua ? 'SÍ' : 'NO' }}
                                                     </span>

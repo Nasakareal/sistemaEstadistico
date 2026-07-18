@@ -165,4 +165,40 @@ class WhatsAppWebReaderControllerTest extends TestCase
             'whatsapp_message_id' => 'MENSAJE_NO_AUTORIZADO',
         ]);
     }
+
+    public function test_acepta_arribo_operativo_sin_exigir_clave_86_ni_autorizacion_manual(): void
+    {
+        config([
+            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000003@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us',
+            'services.whatsapp.web_reader.allow_operational_authors' => true,
+            'services.whatsapp.c5i_recommendation.enabled' => false,
+            'services.whatsapp.c5i_response_time.enabled' => false,
+        ]);
+
+        $this->postJson('http://localhost/api/whatsapp-web-reader/messages', [
+            'group' => [
+                'id' => '120363000000000003@g.us',
+                'name' => 'Grupo operativo',
+            ],
+            'message' => [
+                'id' => 'ARRIBO_SIN_86',
+                'quoted_message_id' => 'REPORTE_C5I_CITADO',
+                'author_id' => '5214432222222@c.us',
+                'body' => 'ya en el K6 indicado',
+                'type' => 'chat',
+                'has_media' => false,
+                'timestamp' => 1784178003,
+            ],
+        ], ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'])
+            ->assertOk()
+            ->assertJsonPath('response_time_status', 'disabled');
+
+        $this->assertDatabaseHas('whatsapp_web_messages', [
+            'whatsapp_message_id' => 'ARRIBO_SIN_86',
+            'quoted_whatsapp_message_id' => 'REPORTE_C5I_CITADO',
+            'body' => 'ya en el K6 indicado',
+        ]);
+    }
 }

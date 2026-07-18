@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
 use App\Services\C5iSiniestrosRecommendationService;
+use App\Services\C5iResponseTimeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -56,7 +57,7 @@ class WhatsAppWebReaderController extends Controller
         ]);
     }
 
-    public function storeMessage(Request $request)
+    public function storeMessage(Request $request, C5iResponseTimeService $responseTime)
     {
         if (!$this->isAuthorized($request)) {
             return response()->json(['ok' => false], $this->authorizationStatus());
@@ -66,6 +67,7 @@ class WhatsAppWebReaderController extends Controller
             'group.id' => ['required', 'string', 'max:191'],
             'group.name' => ['nullable', 'string', 'max:255'],
             'message.id' => ['nullable', 'string', 'max:191'],
+            'message.quoted_message_id' => ['nullable', 'string', 'max:191'],
             'message.author_id' => ['nullable', 'string', 'max:191'],
             'message.body' => ['nullable', 'string', 'max:65535'],
             'message.type' => ['nullable', 'string', 'max:50'],
@@ -84,10 +86,16 @@ class WhatsAppWebReaderController extends Controller
             ], 202);
         }
 
-        if (!$this->identifierAllowed(
+        $authorAllowed = $this->identifierAllowed(
             (string) ($data['message']['author_id'] ?? ''),
             (string) config('services.whatsapp.web_reader.allowed_author_ids', '')
-        )) {
+        );
+        $operationalAuthorAllowed = (bool) config(
+            'services.whatsapp.web_reader.allow_operational_authors',
+            false
+        ) && $responseTime->isOperationalMessageCandidate($data['message']['body'] ?? null);
+
+        if (!$authorAllowed && !$operationalAuthorAllowed) {
             return response()->json([
                 'ok' => true,
                 'stored' => false,
@@ -106,20 +114,30 @@ class WhatsAppWebReaderController extends Controller
         $whatsappMessageId = trim((string) ($data['message']['id'] ?? ''));
 
         if ($whatsappMessageId === '') {
-            $whatsappMessageId = 'fallback_' . hash('sha256', json_encode([
+            $signature = [
                 'group_id' => $data['group']['id'],
                 'author_id' => $data['message']['author_id'] ?? null,
                 'body' => $data['message']['body'] ?? null,
                 'type' => $data['message']['type'] ?? 'unknown',
                 'has_media' => (bool) ($data['message']['has_media'] ?? false),
                 'timestamp' => (int) $data['message']['timestamp'],
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            ];
+
+            if (!empty($data['message']['quoted_message_id'])) {
+                $signature['quoted_message_id'] = $data['message']['quoted_message_id'];
+            }
+
+            $whatsappMessageId = 'fallback_' . hash('sha256', json_encode(
+                $signature,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ));
         }
 
         $message = WhatsAppWebMessage::query()->updateOrCreate(
             ['whatsapp_message_id' => $whatsappMessageId],
             [
                 'whatsapp_web_group_id' => $group->id,
+                'quoted_whatsapp_message_id' => $data['message']['quoted_message_id'] ?? null,
                 'author_whatsapp_id' => $data['message']['author_id'] ?? null,
                 'body' => $data['message']['body'] ?? null,
                 'message_type' => $data['message']['type'] ?? 'unknown',
@@ -133,10 +151,15 @@ class WhatsAppWebReaderController extends Controller
             app(C5iSiniestrosRecommendationService::class)->process($message);
         }
 
+        $responseTimeResult = $message->wasRecentlyCreated
+            ? $responseTime->processMessage($message)
+            : ['status' => 'duplicate'];
+
         return response()->json([
             'ok' => true,
             'message_id' => $message->id,
             'recommendation_status' => $message->recommendation_status,
+            'response_time_status' => $responseTimeResult['status'] ?? null,
         ]);
     }
 

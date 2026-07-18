@@ -28,17 +28,41 @@ const allowedAuthorIds = new Set(
         .map((value) => value.trim().toLowerCase())
         .filter(Boolean)
 );
+const allowOperationalAuthors = String(
+    process.env.WHATSAPP_WEB_READER_ALLOW_OPERATIONAL_AUTHORS || 'false'
+).trim().toLowerCase() === 'true';
 const dataDirectory = path.join(__dirname, 'data');
 const spoolPath = path.join(dataDirectory, 'pending-events.jsonl');
 const qrImagePath = path.join(dataDirectory, 'whatsapp-reader-qr.png');
 const authPath = path.join(__dirname, '.wwebjs_auth');
 const headless = String(process.env.WHATSAPP_WEB_READER_HEADLESS || 'true') !== 'false';
 
-if (!apiBaseUrl || !apiSecret || watchedGroupIds.size === 0 || allowedAuthorIds.size === 0) {
+if (!apiBaseUrl || !apiSecret || watchedGroupIds.size === 0
+    || (allowedAuthorIds.size === 0 && !allowOperationalAuthors)) {
     console.error(
         'Falta LARAVEL_API_BASE_URL, WHATSAPP_WEB_READER_SECRET, WHATSAPP_WEB_READER_GROUP_IDS o WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS en whatsapp-reader/.env.'
     );
     process.exit(1);
+}
+
+function operationalMessageCandidate(body) {
+    const text = String(body || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9\s]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!text) {
+        return false;
+    }
+
+    if (text.includes('LATITUD') && text.includes('LONGITUD')) {
+        return true;
+    }
+
+    return /(?:^|\s)86(?:\s|$)|\b(?:APROX|ACUDE|ATIENDE|DIRIGETE|DIRIJASE|ASIGNAD[AO]|ARRIB|LLEG|YA\s+(?:ESTAMOS\s+)?EN|EN\s+EL\s+LUGAR|EN\s+EL\s+PUNTO|EN\s+PUNTO|PRESENTES\s+EN|EN\s+(?:EL\s+)?40|EN\s+(?:EL\s+)?K\s*\d+)|\bK\s*\d+\b/.test(text);
 }
 
 fs.mkdirSync(dataDirectory, { recursive: true });
@@ -141,18 +165,26 @@ function eventAllowed(endpoint, payload) {
     }
 
     return watchedGroupIds.has(String(payload?.group?.id || '').trim())
-        && identifierAllowed(payload?.message?.author_id, allowedAuthorIds);
+        && (identifierAllowed(payload?.message?.author_id, allowedAuthorIds)
+            || (allowOperationalAuthors
+                && operationalMessageCandidate(payload?.message?.body)));
 }
 
 function fallbackMessageId(groupId, message) {
-    const signature = JSON.stringify({
+    const fields = {
         group_id: String(groupId || ''),
         author_id: String(message?.author_id || message?.author || ''),
         body: String(message?.body || ''),
         type: String(message?.type || 'unknown'),
         has_media: Boolean(message?.has_media ?? message?.hasMedia),
         timestamp: Number(message?.timestamp) || null,
-    });
+    };
+
+    if (message?.quoted_message_id) {
+        fields.quoted_message_id = String(message.quoted_message_id);
+    }
+
+    const signature = JSON.stringify(fields);
     const hash = crypto.createHash('sha256').update(signature).digest('hex');
 
     return `fallback_${hash}`;
@@ -406,7 +438,8 @@ async function processIncomingMessage(message) {
 
     const author = await resolveAuthorIdentity(message.author);
 
-    if (!author.allowed) {
+    if (!author.allowed
+        && !(allowOperationalAuthors && operationalMessageCandidate(message.body))) {
         console.log(`Mensaje ignorado por remitente no autorizado: ${author.originalId || '(sin autor)'}`);
         return;
     }
@@ -417,6 +450,16 @@ async function processIncomingMessage(message) {
 
     const chat = await message.getChat();
     const messageId = liveMessageId(message, groupId);
+    let quotedMessageId = null;
+
+    if (message.hasQuotedMsg) {
+        try {
+            const quotedMessage = await message.getQuotedMessage();
+            quotedMessageId = liveMessageId(quotedMessage, groupId);
+        } catch (error) {
+            console.error(`No se pudo resolver el mensaje citado: ${errorDetails(error)}`);
+        }
+    }
     const timestamp = Number(message.timestamp);
     const payload = {
         group: {
@@ -425,6 +468,7 @@ async function processIncomingMessage(message) {
         },
         message: {
             id: messageId,
+            quoted_message_id: quotedMessageId,
             author_id: author.authorId,
             body: message.body || null,
             type: message.type || 'unknown',

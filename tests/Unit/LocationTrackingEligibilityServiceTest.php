@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Turno;
 use App\Models\Unidad;
 use App\Models\User;
+use App\Models\Personal;
 use App\Services\LocationTrackingEligibilityService;
 use App\Services\TurnoService;
 use Carbon\Carbon;
@@ -49,6 +50,75 @@ class LocationTrackingEligibilityServiceTest extends TestCase
         $this->assertSame('rol_no_autorizado_vialidades', $status['reason']);
     }
 
+    public function test_siniestros_turno_franco_no_reporta_ubicacion(): void
+    {
+        $service = new LocationTrackingEligibilityService(new TurnoService());
+        $momento = Carbon::parse('2026-06-05 09:00:00', 'America/Mexico_City');
+        $turnoA = $this->turno('A', 'a', '2026-02-23 07:00:00');
+        $turnoB = $this->turno('B', 'b', '2026-02-24 07:00:00');
+
+        $status = $service->statusForUser($this->siniestrosUser($turnoB, $turnoA), $momento);
+
+        $this->assertFalse($status['allowed']);
+        $this->assertSame('turno_descanso', $status['reason']);
+        $this->assertSame('B', $status['turno_usuario']['nombre']);
+    }
+
+    public function test_siniestros_toma_el_turno_de_personal_antes_que_el_de_usuario(): void
+    {
+        $service = new LocationTrackingEligibilityService(new TurnoService());
+        $momento = Carbon::parse('2026-06-05 09:00:00', 'America/Mexico_City');
+        $turnoA = $this->turno('A', 'a', '2026-02-23 07:00:00');
+        $turnoB = $this->turno('B', 'b', '2026-02-24 07:00:00');
+
+        $status = $service->statusForUser($this->siniestrosUser($turnoA, $turnoB), $momento);
+
+        $this->assertTrue($status['allowed']);
+        $this->assertSame('A', $status['turno_usuario']['nombre']);
+    }
+
+    public function test_siniestros_sin_turno_asignado_no_reporta_ubicacion(): void
+    {
+        $service = new LocationTrackingEligibilityService(new TurnoService());
+        $momento = Carbon::parse('2026-06-05 09:00:00', 'America/Mexico_City');
+
+        $status = $service->statusForUser($this->siniestrosUser(), $momento);
+
+        $this->assertFalse($status['allowed']);
+        $this->assertSame('turno_sin_asignar', $status['reason']);
+    }
+
+    public function test_siniestros_cambia_de_turno_exactamente_a_las_siete(): void
+    {
+        $service = new LocationTrackingEligibilityService(new TurnoService());
+        $turnoB = $this->turno('B', 'b', '2026-02-24 07:00:00');
+        $user = $this->siniestrosUser($turnoB);
+
+        $antes = $service->statusForUser(
+            $user,
+            Carbon::parse('2026-06-06 06:59:59', 'America/Mexico_City')
+        );
+        $desdeLasSiete = $service->statusForUser(
+            $user,
+            Carbon::parse('2026-06-06 07:00:00', 'America/Mexico_City')
+        );
+
+        $this->assertFalse($antes['allowed']);
+        $this->assertTrue($desdeLasSiete['allowed']);
+    }
+
+    public function test_siniestros_usa_turno_del_usuario_si_no_hay_personal_vinculado(): void
+    {
+        $service = new LocationTrackingEligibilityService(new TurnoService());
+        $momento = Carbon::parse('2026-06-05 09:00:00', 'America/Mexico_City');
+        $turnoA = $this->turno('A', 'a', '2026-02-23 07:00:00');
+
+        $status = $service->statusForUser($this->siniestrosUser(null, $turnoA), $momento);
+
+        $this->assertTrue($status['allowed']);
+        $this->assertSame('A', $status['turno_usuario']['nombre']);
+    }
+
     private function agenteVial(Turno $turno): User
     {
         return $this->vialidadesUserConRol('Agente Vial', $turno);
@@ -70,6 +140,32 @@ class LocationTrackingEligibilityServiceTest extends TestCase
         $user->setRelation('roles', collect([
             new Role(['name' => $rol]),
         ]));
+
+        return $user;
+    }
+
+    private function siniestrosUser(?Turno $turnoPersonal = null, ?Turno $turnoUsuario = null): User
+    {
+        $user = new User([
+            'unidad_id' => 1,
+            'turno_id' => $turnoUsuario ? $turnoUsuario->id : null,
+            'compartir_ubicacion' => 1,
+        ]);
+        $user->setRelation('unidad', new Unidad([
+            'id' => 1,
+            'nombre' => 'SINIESTROS',
+            'slug' => 'siniestros',
+        ]));
+        $user->setRelation('turno', $turnoUsuario);
+        $user->setRelation('roles', collect());
+
+        if ($turnoPersonal) {
+            $personal = new Personal(['turno_id' => $turnoPersonal->id]);
+            $personal->setRelation('turno', $turnoPersonal);
+            $user->setRelation('personal', $personal);
+        } else {
+            $user->setRelation('personal', null);
+        }
 
         return $user;
     }

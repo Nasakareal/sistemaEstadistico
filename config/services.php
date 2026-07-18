@@ -50,6 +50,7 @@ return [
             'secret' => env('WHATSAPP_WEB_READER_SECRET'),
             'allowed_group_ids' => env('WHATSAPP_WEB_READER_ALLOWED_GROUP_IDS', ''),
             'allowed_author_ids' => env('WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS', ''),
+            'allow_operational_authors' => filter_var(env('WHATSAPP_WEB_READER_ALLOW_OPERATIONAL_AUTHORS', false), FILTER_VALIDATE_BOOLEAN),
         ],
 
         'c5i_recommendation' => [
@@ -63,6 +64,21 @@ return [
             'unit_slug' => env('WHATSAPP_C5I_RECOMMENDATION_UNIT_SLUG', 'siniestros'),
             'location_max_age_minutes' => (int) env('WHATSAPP_C5I_RECOMMENDATION_LOCATION_MAX_AGE_MINUTES', 10),
             'max_accuracy_meters' => (int) env('WHATSAPP_C5I_RECOMMENDATION_MAX_ACCURACY_METERS', 200),
+        ],
+
+        'c5i_response_time' => [
+            'enabled' => filter_var(env('WHATSAPP_C5I_RESPONSE_TIME_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'dry_run' => filter_var(env('WHATSAPP_C5I_RESPONSE_TIME_DRY_RUN', true), FILTER_VALIDATE_BOOLEAN),
+            'to' => env('WHATSAPP_C5I_RESPONSE_TIME_TO', ''),
+            'group_ids' => env('WHATSAPP_C5I_RESPONSE_TIME_GROUP_IDS', ''),
+            'source_author_ids' => env('WHATSAPP_C5I_RESPONSE_TIME_SOURCE_AUTHOR_IDS', env('WHATSAPP_C5I_RECOMMENDATION_SOURCE_AUTHOR_IDS', '')),
+            'dispatch_author_ids' => env('WHATSAPP_C5I_RESPONSE_TIME_DISPATCH_AUTHOR_IDS', ''),
+            'template' => env('WHATSAPP_C5I_RESPONSE_TIME_TEMPLATE', 'alerta_tiempo_reaccion_siniestros_v1'),
+            'template_language' => env('WHATSAPP_C5I_RESPONSE_TIME_TEMPLATE_LANGUAGE', 'es_MX'),
+            'unit_slug' => env('WHATSAPP_C5I_RESPONSE_TIME_UNIT_SLUG', 'siniestros'),
+            'arrival_radius_meters' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_ARRIVAL_RADIUS_METERS', 200),
+            'max_accuracy_meters' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_MAX_ACCURACY_METERS', 100),
+            'open_service_minutes' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_OPEN_SERVICE_MINUTES', 240),
         ],
 
         'conduce_legalidad' => [

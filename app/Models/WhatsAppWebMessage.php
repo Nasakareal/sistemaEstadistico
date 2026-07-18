@@ -11,6 +11,7 @@ class WhatsAppWebMessage extends Model
     protected $fillable = [
         'whatsapp_web_group_id',
         'whatsapp_message_id',
+        'quoted_whatsapp_message_id',
         'author_whatsapp_id',
         'body',
         'message_type',
@@ -44,5 +45,10 @@ class WhatsAppWebMessage extends Model
     public function recommendedPatrulla()
     {
         return $this->belongsTo(Patrulla::class, 'recommended_patrulla_id');
+    }
+
+    public function serviceResponse()
+    {
+        return $this->hasOne(C5iServiceResponse::class, 'incident_message_id');
     }
 }

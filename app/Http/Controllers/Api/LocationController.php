@@ -6,25 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserLocation;
 use App\Services\LocationTrackingEligibilityService;
+use App\Services\C5iResponseTimeService;
 use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
-    public function store(Request $request, LocationTrackingEligibilityService $trackingEligibility)
+    public function store(
+        Request $request,
+        LocationTrackingEligibilityService $trackingEligibility,
+        C5iResponseTimeService $responseTime
+    )
     {
         $user = $request->user();
 
         $trackingStatus = $trackingEligibility->statusForUser($user);
 
-        // Si está apagado por administración/jefe, o si su turno descansa, no se guarda.
+        // Si está apagado por administración/jefe, no tiene turno o su turno descansa, no se guarda.
         if (!$trackingStatus['allowed']) {
             return response()->json([
-                'message' => $trackingStatus['reason'] === 'turno_descanso'
-                    ? 'Ubicación desactivada: tu turno está en descanso.'
-                    : ($trackingStatus['reason'] === 'rol_no_autorizado_vialidades'
-                        ? 'Ubicación desactivada: rol no autorizado para Vialidades Urbanas.'
-                        : 'Ubicación desactivada (compartir_ubicacion=0). No se guardó.'),
+                'message' => $this->trackingBlockedMessage($trackingStatus['reason'] ?? null),
                 'user_id' => $user->id,
                 'compartir_ubicacion' => (int)($user->compartir_ubicacion ?? 0),
                 'location_tracking' => $trackingStatus,
@@ -58,6 +59,8 @@ class LocationController extends Controller
         $user->connection_status = 'connected';
         $user->disconnected_alert_sent_at = null;
         $user->save();
+
+        $responseTime->processLocation($user, $location);
 
         return response()->json([
             'message' => 'Ubicación guardada',
@@ -203,5 +206,17 @@ class LocationController extends Controller
         }
 
         return true;
+    }
+
+    private function trackingBlockedMessage(?string $reason): string
+    {
+        $messages = [
+            'turno_descanso' => 'Ubicación desactivada: tu turno está en descanso.',
+            'turno_sin_asignar' => 'Ubicación desactivada: no tienes un turno asignado.',
+            'rol_no_autorizado_vialidades' => 'Ubicación desactivada: rol no autorizado para Vialidades Urbanas.',
+        ];
+
+        return $messages[$reason]
+            ?? 'Ubicación desactivada (compartir_ubicacion=0). No se guardó.';
     }
 }

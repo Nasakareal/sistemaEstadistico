@@ -378,6 +378,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/hechos/{hecho}/croquis', [CroquisController::class, 'destroy']);
 
     Route::post('/location', [LocationController::class, 'store']);
+    Route::post('/suspicious-place-events', [LocationController::class, 'storeSuspiciousPlaceEvent']);
     Route::get('/location/last', [LocationController::class, 'last']);
     Route::get('/users/{user}/location/last', [LocationController::class, 'lastByUser']);
     Route::get('/locations', [LocationController::class, 'index']);

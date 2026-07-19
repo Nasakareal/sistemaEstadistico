@@ -7,15 +7,51 @@ use App\Models\User;
 use App\Models\UserLocation;
 use App\Services\LocationTrackingEligibilityService;
 use App\Services\C5iResponseTimeService;
+use App\Services\SuspiciousPlaceDwellService;
 use App\Support\MapaPatrullasAccess;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
+    public function storeSuspiciousPlaceEvent(
+        Request $request,
+        SuspiciousPlaceDwellService $suspiciousPlaceDwell
+    ) {
+        $validated = $request->validate([
+            'visit_id' => 'required|uuid',
+            'event_type' => 'required|in:dwell,exit',
+            'place_key' => 'required|string|max:80',
+            'entered_at' => 'required|date',
+            'occurred_at' => 'required|date',
+            'duration_seconds' => 'required|integer|min:0|max:86400',
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'accuracy' => 'required|numeric|min:0|max:1000',
+        ]);
+
+        $result = $suspiciousPlaceDwell->processClientEvent(
+            $request->user(),
+            $validated
+        );
+
+        $statusCode = in_array(
+            $result['status'] ?? null,
+            ['failed', 'notification_failed'],
+            true
+        ) ? 503 : 200;
+
+        return response()->json([
+            'message' => 'Evento local procesado',
+            'data' => $result,
+        ], $statusCode);
+    }
+
     public function store(
         Request $request,
         LocationTrackingEligibilityService $trackingEligibility,
-        C5iResponseTimeService $responseTime
+        C5iResponseTimeService $responseTime,
+        SuspiciousPlaceDwellService $suspiciousPlaceDwell
     )
     {
         $user = $request->user();
@@ -41,7 +77,25 @@ class LocationController extends Controller
             'captured_at' => 'nullable|date',
         ]);
 
-        $capturedAt = $validated['captured_at'] ?? now();
+        $capturedAt = isset($validated['captured_at'])
+            ? Carbon::parse($validated['captured_at'])
+            : now();
+
+        $currentLocation = UserLocation::query()
+            ->where('user_id', $user->id)
+            ->first();
+
+        // Las ubicaciones pueden llegar tarde desde la cola offline. No se permite
+        // que una muestra vieja reemplace la posición más reciente ni dispare eventos.
+        if ($currentLocation
+            && $currentLocation->captured_at
+            && $capturedAt->lte($currentLocation->captured_at)) {
+            return response()->json([
+                'message' => 'Ubicación anterior ignorada',
+                'data' => $currentLocation,
+                'location_tracking' => $trackingStatus,
+            ], 200);
+        }
 
         $location = UserLocation::updateOrCreate(
             ['user_id' => $user->id],
@@ -61,6 +115,7 @@ class LocationController extends Controller
         $user->save();
 
         $responseTime->processLocation($user, $location);
+        $suspiciousPlaceDwell->processLocation($user, $location);
 
         return response()->json([
             'message' => 'Ubicación guardada',

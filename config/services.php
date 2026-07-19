@@ -81,6 +81,27 @@ return [
             'open_service_minutes' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_OPEN_SERVICE_MINUTES', 240),
         ],
 
+        'suspicious_place' => [
+            'enabled' => filter_var(env('WHATSAPP_SUSPICIOUS_PLACE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'dry_run' => filter_var(env('WHATSAPP_SUSPICIOUS_PLACE_DRY_RUN', true), FILTER_VALIDATE_BOOLEAN),
+            'to' => env('WHATSAPP_SUSPICIOUS_PLACE_TO', env('WHATSAPP_SINIESTROS_RESUMEN_TO', '')),
+            'unit_id' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_UNIT_ID', 1),
+            'place_key' => env('WHATSAPP_SUSPICIOUS_PLACE_KEY', 'gruas-munoz'),
+            'place_name' => env('WHATSAPP_SUSPICIOUS_PLACE_NAME', 'Grúas Muñoz'),
+            'latitude' => (float) env('WHATSAPP_SUSPICIOUS_PLACE_LATITUDE', 19.6603522),
+            'longitude' => (float) env('WHATSAPP_SUSPICIOUS_PLACE_LONGITUDE', -101.2373983),
+            'entry_radius_meters' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_ENTRY_RADIUS_METERS', 120),
+            'exit_radius_meters' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_EXIT_RADIUS_METERS', 180),
+            'dwell_minutes' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_DWELL_MINUTES', 5),
+            'max_accuracy_meters' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_MAX_ACCURACY_METERS', 100),
+            'location_max_age_minutes' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_LOCATION_MAX_AGE_MINUTES', 3),
+            'max_sample_gap_minutes' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_MAX_SAMPLE_GAP_MINUTES', 3),
+            'client_event_max_age_hours' => (int) env('WHATSAPP_SUSPICIOUS_PLACE_CLIENT_EVENT_MAX_AGE_HOURS', 24),
+            'entry_template' => env('WHATSAPP_SUSPICIOUS_PLACE_ENTRY_TEMPLATE', 'alerta_permanencia_siniestros_v1'),
+            'exit_template' => env('WHATSAPP_SUSPICIOUS_PLACE_EXIT_TEMPLATE', 'alerta_salida_permanencia_siniestros_v1'),
+            'template_language' => env('WHATSAPP_SUSPICIOUS_PLACE_TEMPLATE_LANGUAGE', 'es_MX'),
+        ],
+
         'conduce_legalidad' => [
             'rnd_chatbot_to' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TO', '5214433163728'),
             'rnd_chatbot_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TEMPLATE', 'solicitud_rnd_faltas_administrativas'),

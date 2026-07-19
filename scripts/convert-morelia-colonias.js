@@ -10,8 +10,10 @@ const sepomexCatalogPath = path.join(root, 'storage', 'app', 'sepomex_michoacan_
 const coloniasInputPath = path.join(root, 'storage', 'app', 'morelia_colonias_overpass_full.json');
 const fallbackColoniasInputPath = path.join(root, 'storage', 'app', 'morelia_colonias_overpass.json');
 const roadsInputPath = path.join(root, 'storage', 'app', 'morelia_sector_roads_overpass.json');
+const libramientoInputPath = path.join(root, 'storage', 'app', 'morelia_libramiento_exact_overpass.json');
 const coloniasOutputPath = path.join(root, 'public', 'geo', 'morelia_colonias.geojson');
 const sectorOutputPath = path.join(root, 'public', 'geo', 'morelia_sector_lines.geojson');
+const libramientoOutputPath = path.join(root, 'public', 'geo', 'morelia_libramiento.geojson');
 
 const MORELIA_MUNICIPIO = 'MORELIA';
 const MADERO_ACUEDUCTO_START_LNG = -101.1865;
@@ -853,6 +855,61 @@ function buildSectorLinesGeojson() {
     };
 }
 
+function buildLibramientoGeojson() {
+    const roadData = fs.existsSync(libramientoInputPath)
+        ? JSON.parse(fs.readFileSync(libramientoInputPath, 'utf8'))
+        : { elements: [] };
+
+    const nombresCircuito = new Set([
+        'AVENIDA CAMELINAS',
+        'CIRCUITO PERIFERICO PASEO DE LA REPUBLICA',
+        'PERIFERICO INDEPENDENCIA',
+        'PERIFERICO ORIENTE',
+        'PERIFERICO PASE DE LA REPUBLICA',
+        'PERIFERICO REVOLUCION',
+    ]);
+    const jerarquiasViales = new Set(['trunk', 'secondary', 'tertiary']);
+    const lines = [];
+
+    for (const element of roadData.elements || []) {
+        const name = normalizeName(element.tags?.name || '');
+        const highway = String(element.tags?.highway || '').toLowerCase();
+        const coordinates = roadCoordinates(element);
+
+        if (!nombresCircuito.has(name) || !jerarquiasViales.has(highway) || !coordinates) {
+            continue;
+        }
+
+        lines.push(coordinates);
+    }
+
+    return {
+        type: 'FeatureCollection',
+        name: 'Libramiento urbano de Morelia',
+        metadata: {
+            source: 'OpenStreetMap Overpass API',
+            generated_at: new Date().toISOString(),
+            circuito_cerrado: true,
+        },
+        features: [
+            {
+                type: 'Feature',
+                geometry: {
+                    type: 'MultiLineString',
+                    coordinates: lines,
+                },
+                properties: {
+                    id: 'libramiento-morelia',
+                    nombre: 'Libramiento de Morelia',
+                    color: '#24272b',
+                    tipo: 'circuito_vial_cerrado',
+                    source: 'OpenStreetMap Overpass API',
+                },
+            },
+        ],
+    };
+}
+
 function writeJson(filePath, data) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
@@ -860,9 +917,15 @@ function writeJson(filePath, data) {
 
 const coloniasGeojson = buildColoniasGeojson();
 const sectorLinesGeojson = buildSectorLinesGeojson();
+const libramientoGeojson = buildLibramientoGeojson();
+const libramientoOnly = process.argv.includes('--libramiento-only');
 
-writeJson(coloniasOutputPath, coloniasGeojson);
-writeJson(sectorOutputPath, sectorLinesGeojson);
+if (!libramientoOnly) {
+    writeJson(coloniasOutputPath, coloniasGeojson);
+    writeJson(sectorOutputPath, sectorLinesGeojson);
+}
+
+writeJson(libramientoOutputPath, libramientoGeojson);
 
 const counts = coloniasGeojson.features.reduce((acc, feature) => {
     acc[feature.geometry.type] = (acc[feature.geometry.type] || 0) + 1;
@@ -872,6 +935,7 @@ const counts = coloniasGeojson.features.reduce((acc, feature) => {
 console.log(JSON.stringify({
     colonias_output: coloniasOutputPath,
     sector_lines_output: sectorOutputPath,
+    libramiento_output: libramientoOutputPath,
     colonias_total: coloniasGeojson.features.length,
     colonias_counts: counts,
     sector_lines: sectorLinesGeojson.features.map(feature => ({
@@ -879,4 +943,5 @@ console.log(JSON.stringify({
         geometry: feature.geometry.type,
         segments: feature.geometry.type === 'MultiLineString' ? feature.geometry.coordinates.length : 1,
     })),
+    libramiento_segments: libramientoGeojson.features[0].geometry.coordinates.length,
 }, null, 2));

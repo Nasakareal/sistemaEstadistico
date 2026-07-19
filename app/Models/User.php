@@ -51,6 +51,17 @@ class User extends Authenticatable
         static::saving(function (self $user) {
             $user->sincronizarNombreCompleto();
         });
+
+        static::saved(function (self $user) {
+            if (!$user->wasChanged('unidad_id') || empty($user->unidad_id)) {
+                return;
+            }
+
+            Personal::query()
+                ->where('user_id', $user->id)
+                ->where('unidad_id', '!=', $user->unidad_id)
+                ->update(['unidad_id' => $user->unidad_id]);
+        });
     }
 
     public static function nombreCompleto(?string $nombres, ?string $apellidoPaterno = null, ?string $apellidoMaterno = null): string

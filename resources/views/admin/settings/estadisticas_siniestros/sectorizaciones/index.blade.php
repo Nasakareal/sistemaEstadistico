@@ -15,7 +15,7 @@
             </div>
 
             <div class="sv-hero__subtitle">
-                Listado de sectorizaciones disponibles para gestionar y descargar
+                Listado de sectorizaciones disponibles para gestionar y descargar en PDF
             </div>
         </div>
     </div>
@@ -33,7 +33,7 @@
                 <div class="sv-panel__header">
                     <div>
                         <div class="sv-panel__title">Sectorizaciones generadas</div>
-                        <div class="sv-panel__desc">Selecciona una fecha para gestionar la sectorización o descargar su archivo.</div>
+                        <div class="sv-panel__desc">Selecciona una fecha para gestionar la sectorización o descargar su PDF.</div>
                     </div>
                 </div>
 
@@ -61,7 +61,7 @@
                                                 @endunless
 
                                                 <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.descargar', $corte['fecha']) }}" class="btn sv-btn">
-                                                    <i class="fas fa-download"></i> Descargar
+                                                    <i class="fas fa-file-pdf"></i> Descargar PDF
                                                 </a>
                                             </div>
                                         </td>

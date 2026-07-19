@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Models\PersonalAsignacion;
 
 
@@ -222,7 +223,8 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 preg_match('/sectorizacion_(\d{4}-\d{2}-\d{2})\.json$/', $nombre, $matches);
 
                 return [
-                    'archivo' => $nombre,
+                    // El JSON es persistencia interna; la salida que recibe el usuario es PDF.
+                    'archivo' => 'sectorizacion_' . ($matches[1] ?? '') . '.pdf',
                     'fecha' => $matches[1] ?? null,
                     'url_descarga' => route('settings.estadisticas_siniestros.sectorizaciones.descargar', $matches[1] ?? null),
                     'url_gestionar' => route('settings.estadisticas_siniestros.sectorizaciones.gestionar', $matches[1] ?? null),
@@ -237,11 +239,12 @@ class EstadisticasSiniestrosSettingsController extends Controller
 
     public function dataSectorizacion(string $fecha)
     {
-        $fechaHora = Carbon::parse($fecha . ' 00:00:00', 'America/Mexico_City');
+        $fechaHora = $this->momentoOperativoSectorizacion($fecha);
 
         $turnoActivo = $this->turnoService->turnoActivoEn($fechaHora);
         $personal = $this->obtenerPersonalSectorizacion($fechaHora, $turnoActivo ? (int) $turnoActivo->id : null);
         $asignaciones = $this->leerAsignacionSectorizacion($fecha);
+        $asignaciones['estado_fuerza'] = $this->obtenerEstadoFuerzaSectorizacion($fechaHora, $asignaciones);
 
         return response()->json([
             'ok' => true,
@@ -264,62 +267,38 @@ class EstadisticasSiniestrosSettingsController extends Controller
 
         $data = $request->validate([
             'fecha' => ['required', 'date'],
-            'sectores' => ['required', 'array'],
-            'sectores.I' => ['required', 'array'],
-            'sectores.II' => ['required', 'array'],
-            'sectores.III' => ['required', 'array'],
-            'sectores.IV' => ['required', 'array'],
-            'sectores.I.personal' => ['nullable', 'array'],
-            'sectores.II.personal' => ['nullable', 'array'],
-            'sectores.III.personal' => ['nullable', 'array'],
-            'sectores.IV.personal' => ['nullable', 'array'],
-            'sectores.I.personal.*' => ['integer'],
-            'sectores.II.personal.*' => ['integer'],
-            'sectores.III.personal.*' => ['integer'],
-            'sectores.IV.personal.*' => ['integer'],
+            'turno' => ['nullable', 'string', 'max:100'],
+            'estado_fuerza' => ['nullable', 'array'],
+            'elementos' => ['present', 'array'],
+            'elementos.*.personal_id' => ['required', 'integer', 'distinct'],
+            'elementos.*.sector' => ['required', 'in:I,II,III,IV'],
+            'elementos.*.grupo' => ['nullable', 'string', 'max:100'],
+            'elementos.*.x' => ['required', 'numeric', 'between:0,100'],
+            'elementos.*.y' => ['required', 'numeric', 'between:0,100'],
+            'elementos.*.lat' => ['required', 'numeric', 'between:-90,90'],
+            'elementos.*.lng' => ['required', 'numeric', 'between:-180,180'],
         ]);
 
         $fecha = $data['fecha'];
-        $ids = collect([
-            ...($data['sectores']['I']['personal'] ?? []),
-            ...($data['sectores']['II']['personal'] ?? []),
-            ...($data['sectores']['III']['personal'] ?? []),
-            ...($data['sectores']['IV']['personal'] ?? []),
-        ])->filter()->map(fn ($id) => (int) $id)->values();
-
-        if ($ids->count() !== $ids->unique()->count()) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Hay personal repetido en más de un sector.',
-            ], 422);
-        }
+        $turnoActivo = $this->turnoService->turnoActivoEn($this->momentoOperativoSectorizacion($fecha));
 
         $payload = [
             'fecha' => $fecha,
+            'turno' => trim((string) ($turnoActivo->nombre ?? ($data['turno'] ?? ''))),
             'capturado_en' => now('America/Mexico_City')->toDateTimeString(),
             'capturado_por' => optional(auth()->user())->id,
-            'sectores' => [
-                'I' => [
-                    'nombre' => 'Revolución',
-                    'romano' => 'I',
-                    'personal' => array_values(array_map('intval', $data['sectores']['I']['personal'] ?? [])),
-                ],
-                'II' => [
-                    'nombre' => 'Nueva España',
-                    'romano' => 'II',
-                    'personal' => array_values(array_map('intval', $data['sectores']['II']['personal'] ?? [])),
-                ],
-                'III' => [
-                    'nombre' => 'Independencia',
-                    'romano' => 'III',
-                    'personal' => array_values(array_map('intval', $data['sectores']['III']['personal'] ?? [])),
-                ],
-                'IV' => [
-                    'nombre' => 'República',
-                    'romano' => 'IV',
-                    'personal' => array_values(array_map('intval', $data['sectores']['IV']['personal'] ?? [])),
-                ],
-            ],
+            'estado_fuerza' => $data['estado_fuerza'] ?? [],
+            'elementos' => collect($data['elementos'])->map(function (array $elemento) {
+                return [
+                    'personal_id' => (int) $elemento['personal_id'],
+                    'sector' => $elemento['sector'],
+                    'grupo' => trim((string) ($elemento['grupo'] ?? '')) ?: null,
+                    'x' => round((float) $elemento['x'], 2),
+                    'y' => round((float) $elemento['y'], 2),
+                    'lat' => round((float) $elemento['lat'], 7),
+                    'lng' => round((float) $elemento['lng'], 7),
+                ];
+            })->values()->all(),
         ];
 
         $disk = Storage::disk('local');
@@ -336,7 +315,7 @@ class EstadisticasSiniestrosSettingsController extends Controller
             'ok' => true,
             'message' => 'Sectorización guardada correctamente.',
             'archivo' => $nombreArchivo,
-            'url_descarga' => route('settings.estadisticas_siniestros.sectorizaciones.descargar', $nombreArchivo),
+            'url_descarga' => route('settings.estadisticas_siniestros.sectorizaciones.descargar', $fecha),
         ]);
     }
 
@@ -345,12 +324,14 @@ class EstadisticasSiniestrosSettingsController extends Controller
         $q = Personal::query()
             ->with([
                 'turno:id,nombre,slug,tipo_rol',
-                'patrulla:id,numero_economico',
+                'patrulla:id,numero_economico,tipo',
+                'user:id,patrulla_id',
+                'user.patrulla:id,numero_economico,tipo',
                 'incidencias.tipo:id,nombre',
             ])
-            ->where(function ($query) {
+            ->where(function ($query) use ($fechaHora) {
                 $query->whereNull('fecha_baja')
-                    ->orWhereDate('fecha_baja', '>', now('America/Mexico_City')->toDateString());
+                    ->orWhereDate('fecha_baja', '>', $fechaHora->toDateString());
             })
             ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO']);
@@ -365,6 +346,9 @@ class EstadisticasSiniestrosSettingsController extends Controller
             ->get()
             ->map(function ($personal) use ($fechaHora) {
                 $estado = $this->estadoFuerzaService->estado($personal, $fechaHora);
+                // La sectorización refleja exclusivamente la asignación operativa
+                // capturada en el usuario vinculado.
+                $patrulla = optional($personal->user)->patrulla;
 
                 return [
                     'id' => (int) $personal->id,
@@ -376,11 +360,132 @@ class EstadisticasSiniestrosSettingsController extends Controller
                     'turno_id' => $personal->turno_id,
                     'turno' => optional($personal->turno)->nombre,
                     'tipo_rol' => optional($personal->turno)->tipo_rol,
-                    'patrulla_id' => $personal->patrulla_id,
-                    'patrulla' => optional($personal->patrulla)->numero_economico,
+                    'patrulla_id' => optional($patrulla)->id,
+                    'patrulla' => optional($patrulla)->numero_economico,
+                    'patrulla_tipo' => optional($patrulla)->tipo,
                     'estado_fuerza' => $estado,
                 ];
             })->values()->all();
+    }
+
+    protected function obtenerEstadoFuerzaSectorizacion(Carbon $fechaHora, array $asignaciones): array
+    {
+        $plantilla = Personal::query()
+            ->with([
+                'turno:id,nombre,slug,tipo_rol,ciclo_inicio,trabajo_horas,descanso_horas',
+                'user:id,patrulla_id,turno_id,estado',
+                'user.patrulla:id,numero_economico,tipo',
+                'user.turno:id,nombre,slug,tipo_rol,ciclo_inicio,trabajo_horas,descanso_horas',
+                'user.roles:id,name',
+                'incidencias.tipo:id,nombre',
+            ])
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereRaw('UPPER(TRIM(COALESCE(estatus, ""))) = ?', ['ACTIVO'])
+            ->where(function ($query) use ($fechaHora) {
+                $query->whereNull('fecha_baja')
+                    ->orWhereDate('fecha_baja', '>', $fechaHora->toDateString());
+            })
+            ->get();
+
+        $turnoActivo = $this->turnoService->turnoActivoEn($fechaHora);
+        $inicioJornada = $turnoActivo
+            ? $this->turnoService->inicioDeBloqueTrabajoActual($turnoActivo, $fechaHora)
+            : $fechaHora->copy()->startOfDay()->addHours(7);
+        $momentosRadio = [
+            $inicioJornada->copy()->addMinute(),
+            $inicioJornada->copy()->addHours(12)->addMinute(),
+        ];
+
+        $estados = $plantilla->mapWithKeys(function (Personal $personal) use ($fechaHora, $momentosRadio) {
+            $tipoRol = strtoupper(trim((string) optional($personal->turno)->tipo_rol));
+
+            if ($tipoRol !== 'RADIO_12X36') {
+                return [$personal->id => $this->estadoFuerzaService->estado($personal, $fechaHora)];
+            }
+
+            // El parte representa las 24 horas completas. Para radio se revisan
+            // ambos relevos de 12 horas, no sólo quién está activo al mediodía.
+            $estadosRelevo = collect($momentosRadio)
+                ->map(fn (Carbon $momento) => $this->estadoFuerzaService->estado($personal, $momento));
+            $estado = $estadosRelevo->contains('EN_SERVICIO')
+                ? 'EN_SERVICIO'
+                : ($estadosRelevo->first(fn ($actual) => $actual !== 'FRANCO') ?? 'FRANCO');
+
+            return [$personal->id => $estado];
+        });
+
+        $conteo = fn (string $estado): int => $estados
+            ->filter(fn ($actual) => $actual === $estado)
+            ->count();
+        $idsEnRecorrido = collect($asignaciones['elementos'] ?? [])
+            ->pluck('personal_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        $patrullasEnRecorrido = $plantilla
+            ->whereIn('id', $idsEnRecorrido)
+            ->map(fn (Personal $personal) => optional($personal->user)->patrulla)
+            ->filter()
+            ->unique('id')
+            ->values();
+        $usuariosLaborando = $plantilla->filter(function (Personal $personal) use ($fechaHora) {
+            return $personal->user
+                && Str::upper(Str::ascii(trim((string) $personal->user->estado))) === 'ACTIVO'
+                && $this->estadoUsuarioVinculado($personal, $fechaHora) === 'EN_SERVICIO';
+        });
+
+        return [
+            'estado_fuerza' => $plantilla->count(),
+            'laborando' => $conteo('EN_SERVICIO'),
+            'cmdt_turno' => $usuariosLaborando
+                ->filter(fn (Personal $personal) => $this->usuarioTieneRol($personal, 'Jefe de Grupo'))
+                ->count(),
+            'base_radio' => $plantilla->filter(function (Personal $personal) use ($estados) {
+                return strtoupper(trim((string) optional($personal->turno)->tipo_rol)) === 'RADIO_12X36'
+                    && $estados->get($personal->id) === 'EN_SERVICIO';
+            })->count(),
+            'elementos_recorrido' => $idsEnRecorrido->count(),
+            'modulo' => $usuariosLaborando
+                ->filter(fn (Personal $personal) => $this->usuarioTieneRol($personal, 'Evaluador Teórico'))
+                ->count(),
+            'curso' => $conteo('CURSOS'),
+            'permiso' => $conteo('PERMISO'),
+            'incapacidad' => $conteo('INCAPACIDAD'),
+            'francos' => $conteo('FRANCO'),
+            'vacaciones' => $conteo('VACACIONES'),
+            'faltando' => $conteo('FALTANDO'),
+            'comisionados' => $conteo('COMISIONADOS'),
+            'crp' => $patrullasEnRecorrido
+                ->reject(fn ($patrulla) => str_contains(strtoupper((string) $patrulla->tipo), 'MOTO'))
+                ->count(),
+            'motos' => $patrullasEnRecorrido
+                ->filter(fn ($patrulla) => str_contains(strtoupper((string) $patrulla->tipo), 'MOTO'))
+                ->count(),
+        ];
+    }
+
+    protected function estadoUsuarioVinculado(Personal $personal, Carbon $momento): string
+    {
+        $personalConTurnoUsuario = clone $personal;
+        $personalConTurnoUsuario->setRelation(
+            'turno',
+            optional($personal->user)->turno ?: $personal->turno
+        );
+
+        return $this->estadoFuerzaService->estado($personalConTurnoUsuario, $momento);
+    }
+
+    protected function usuarioTieneRol(Personal $personal, string $rol): bool
+    {
+        if (!$personal->user || !$personal->user->relationLoaded('roles')) {
+            return false;
+        }
+
+        $rolEsperado = Str::upper(Str::ascii(trim($rol)));
+
+        return $personal->user->roles->contains(function ($rolUsuario) use ($rolEsperado) {
+            return Str::upper(Str::ascii(trim((string) $rolUsuario->name))) === $rolEsperado;
+        });
     }
 
     protected function leerAsignacionSectorizacion(string $fecha): array
@@ -389,54 +494,85 @@ class EstadisticasSiniestrosSettingsController extends Controller
         $ruta = 'cortes/sectorizaciones/sectorizacion_' . $fecha . '.json';
 
         if (!$disk->exists($ruta)) {
-            return [
-                'fecha' => $fecha,
-                'sectores' => [
-                    'I' => ['nombre' => 'Revolución', 'romano' => 'I', 'personal' => []],
-                    'II' => ['nombre' => 'Nueva España', 'romano' => 'II', 'personal' => []],
-                    'III' => ['nombre' => 'Independencia', 'romano' => 'III', 'personal' => []],
-                    'IV' => ['nombre' => 'República', 'romano' => 'IV', 'personal' => []],
-                ],
-            ];
+            return $this->asignacionSectorizacionVacia($fecha);
         }
 
         $json = json_decode($disk->get($ruta), true);
 
-        return is_array($json) ? $json : [
+        if (!is_array($json)) {
+            return $this->asignacionSectorizacionVacia($fecha);
+        }
+
+        if (isset($json['elementos']) && is_array($json['elementos'])) {
+            $json['estado_fuerza'] = is_array($json['estado_fuerza'] ?? null) ? $json['estado_fuerza'] : [];
+
+            return $json;
+        }
+
+        // Compatibilidad con los primeros cortes, que guardaban únicamente IDs por sector.
+        $posiciones = [
+            'I' => ['x' => 72, 'y' => 28],
+            'II' => ['x' => 64, 'y' => 68],
+            'III' => ['x' => 28, 'y' => 66],
+            'IV' => ['x' => 28, 'y' => 26],
+        ];
+        $elementos = [];
+
+        foreach (['I', 'II', 'III', 'IV'] as $sector) {
+            foreach (($json['sectores'][$sector]['personal'] ?? []) as $indice => $personalId) {
+                $elementos[] = [
+                    'personal_id' => (int) $personalId,
+                    'sector' => $sector,
+                    'x' => max(4, min(96, $posiciones[$sector]['x'] + (($indice % 3) - 1) * 4)),
+                    'y' => max(4, min(96, $posiciones[$sector]['y'] + intdiv($indice, 3) * 5)),
+                ];
+            }
+        }
+
+        return array_merge($json, [
             'fecha' => $fecha,
-            'sectores' => [
-                'I' => ['nombre' => 'Revolución', 'romano' => 'I', 'personal' => []],
-                'II' => ['nombre' => 'Nueva España', 'romano' => 'II', 'personal' => []],
-                'III' => ['nombre' => 'Independencia', 'romano' => 'III', 'personal' => []],
-                'IV' => ['nombre' => 'República', 'romano' => 'IV', 'personal' => []],
-            ],
+            'turno' => $json['turno'] ?? '',
+            'estado_fuerza' => is_array($json['estado_fuerza'] ?? null) ? $json['estado_fuerza'] : [],
+            'elementos' => $elementos,
+        ]);
+    }
+
+    protected function asignacionSectorizacionVacia(string $fecha): array
+    {
+        return [
+            'fecha' => $fecha,
+            'turno' => '',
+            'estado_fuerza' => [],
+            'elementos' => [],
         ];
     }
 
     public function descargarSectorizacion(string $fecha)
     {
-        $nombreArchivo = 'sectorizacion_' . $fecha . '.json';
-        $ruta = storage_path('app/cortes/sectorizaciones/' . $nombreArchivo);
-
-        abort_unless(file_exists($ruta), 404);
-
-        return response()->download($ruta, $nombreArchivo);
+        return redirect()->route('settings.estadisticas_siniestros.sectorizaciones.gestionar', [
+            'fecha' => $fecha,
+            'descargar' => 'pdf',
+        ]);
     }
 
-    public function gestionarSectorizacion(string $fecha)
+    public function gestionarSectorizacion(Request $request, string $fecha)
     {
-        $this->abortIfSeguridadVialSoloLectura();
+        if ($request->query('descargar') !== 'pdf') {
+            $this->abortIfSeguridadVialSoloLectura();
+        }
 
-        $fechaHora = Carbon::parse($fecha . ' 00:00:00', 'America/Mexico_City');
+        $fechaHora = $this->momentoOperativoSectorizacion($fecha);
         $turnoActivo = $this->turnoService->turnoActivoEn($fechaHora);
         $personal = $this->obtenerPersonalSectorizacion($fechaHora, $turnoActivo ? (int) $turnoActivo->id : null);
         $asignaciones = $this->leerAsignacionSectorizacion($fecha);
+        $estadoFuerza = $this->obtenerEstadoFuerzaSectorizacion($fechaHora, $asignaciones);
 
         return view('admin.settings.estadisticas_siniestros.sectorizaciones.gestionar', [
             'fecha' => $fecha,
             'turnoActivo' => $turnoActivo,
             'personal' => $personal,
             'asignaciones' => $asignaciones,
+            'estadoFuerza' => $estadoFuerza,
             'sectores' => [
                 'I' => ['nombre' => 'Revolución', 'romano' => 'I'],
                 'II' => ['nombre' => 'Nueva España', 'romano' => 'II'],
@@ -444,6 +580,13 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 'IV' => ['nombre' => 'República', 'romano' => 'IV'],
             ],
         ]);
+    }
+
+    protected function momentoOperativoSectorizacion(string $fecha): Carbon
+    {
+        // La sectorización corresponde al turno que recibe la jornada por la mañana.
+        // Consultar a medianoche todavía puede devolver el turno del día anterior.
+        return Carbon::parse($fecha . ' 12:00:00', 'America/Mexico_City');
     }
 
     public function actividades(Request $request)

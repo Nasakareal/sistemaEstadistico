@@ -108,7 +108,7 @@ class PersonalController extends Controller
             ->get();
     }
 
-    private function usuariosDisponiblesParaActor(?int $userIdActual = null)
+    private function usuariosDisponiblesParaActor(?int $userIdActual = null, ?int $unidadId = null)
     {
         return User::query()
             ->when(!$this->actorEsSuperadmin(), function ($q) {
@@ -119,6 +119,15 @@ class PersonalController extends Controller
                 if (!$this->actorTieneVisibilidadGlobal()) {
                     $q->where('unidad_id', $this->unidadIdActor());
                 }
+            })
+            ->when(!empty($unidadId), function ($q) use ($unidadId, $userIdActual) {
+                $q->where(function ($subQ) use ($unidadId, $userIdActual) {
+                    $subQ->where('unidad_id', $unidadId);
+
+                    if ($userIdActual) {
+                        $subQ->orWhere('id', $userIdActual);
+                    }
+                });
             })
             ->where(function ($q) use ($userIdActual) {
                 $q->whereDoesntHave('personal');
@@ -159,9 +168,7 @@ class PersonalController extends Controller
             return true;
         }
 
-        $query = User::query()
-            ->where('id', $userId)
-            ->where('unidad_id', $unidadId);
+        $query = User::query()->where('id', $userId);
 
         if (!$this->actorEsSuperadmin()) {
             $query->whereDoesntHave('roles', function ($q) {
@@ -172,6 +179,16 @@ class PersonalController extends Controller
         $user = $query->first();
 
         if (!$user) {
+            return false;
+        }
+
+        $esUsuarioActual = $personalIdActual !== null
+            && Personal::query()
+                ->whereKey($personalIdActual)
+                ->where('user_id', $userId)
+                ->exists();
+
+        if ((int) $user->unidad_id !== (int) $unidadId && !$esUsuarioActual) {
             return false;
         }
 
@@ -205,7 +222,7 @@ class PersonalController extends Controller
         $unidades = $this->unidadesDisponiblesParaActor();
         $turnos = $this->turnosDisponiblesParaActor();
         $patrullas = $this->patrullasDisponiblesParaActor($unidadIdDefault);
-        $usuariosDisponibles = $this->usuariosDisponiblesParaActor();
+        $usuariosDisponibles = $this->usuariosDisponiblesParaActor(null, $unidadIdDefault);
         $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
 
         return view('admin.settings.personal.create', compact(
@@ -391,7 +408,8 @@ class PersonalController extends Controller
             $personal->id
         );
 
-        $usuariosDisponibles = $this->usuariosDisponiblesParaActor($personal->user_id);
+        $usuariosDisponibles = $this->usuariosDisponiblesParaActor($personal->user_id, (int) $personal->unidad_id);
+        $usuarioActual = $personal->user;
         $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
 
         return view('admin.settings.personal.edit', compact(
@@ -400,6 +418,7 @@ class PersonalController extends Controller
             'turnos',
             'patrullas',
             'usuariosDisponibles',
+            'usuarioActual',
             'categoriasPersonal'
         ));
     }

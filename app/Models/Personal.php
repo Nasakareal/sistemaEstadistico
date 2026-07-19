@@ -46,6 +46,23 @@ class Personal extends Model
         'fecha_baja' => 'date',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $personal) {
+            if (!$personal->user_id || !$personal->wasChanged(['unidad_id', 'user_id'])) {
+                return;
+            }
+
+            User::query()
+                ->whereKey($personal->user_id)
+                ->where(function ($query) use ($personal) {
+                    $query->whereNull('unidad_id')
+                        ->orWhere('unidad_id', '!=', $personal->unidad_id);
+                })
+                ->update(['unidad_id' => $personal->unidad_id]);
+        });
+    }
+
     public static function formarNombreCompleto($nombre, $apPaterno, $apMaterno): string
     {
         return trim(implode(' ', array_filter([

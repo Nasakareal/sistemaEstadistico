@@ -38,7 +38,7 @@ class TurnoService
             return $dow === 6 || $dow === 7;
         }
 
-        if ($tipoRol !== '24X24') {
+        if (!in_array($tipoRol, ['24X24', 'RADIO_24X24', 'RADIO_12X36'], true)) {
             return true;
         }
 

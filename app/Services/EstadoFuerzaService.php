@@ -91,7 +91,7 @@ class EstadoFuerzaService
             return ($dow === 6 || $dow === 7) ? 'EN_SERVICIO' : 'FRANCO';
         }
 
-        if ($tipoRol === '24X24') {
+        if (in_array($tipoRol, ['24X24', 'RADIO_24X24', 'RADIO_12X36'], true)) {
             if (!$turno->ciclo_inicio || !$turno->trabajo_horas || $turno->descanso_horas === null) {
                 return 'EN_SERVICIO';
             }

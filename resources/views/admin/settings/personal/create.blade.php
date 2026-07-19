@@ -25,7 +25,9 @@
                                             class="form-control @error('user_id') is-invalid @enderror">
                                         <option value="">Sin usuario</option>
                                         @foreach ($usuariosDisponibles as $u)
-                                            <option value="{{ $u->id }}" {{ old('user_id') == $u->id ? 'selected' : '' }}>
+                                            <option value="{{ $u->id }}"
+                                                    data-unidad="{{ (int) $u->unidad_id }}"
+                                                    {{ old('user_id') == $u->id ? 'selected' : '' }}>
                                                 {{ $u->name }}{{ $u->email ? ' — ' . $u->email : '' }}
                                             </option>
                                         @endforeach
@@ -427,10 +429,31 @@
         }
     }
 
+    function filterUsersByUnidad() {
+        const unidadSel = document.getElementById('unidad_id');
+        const userSel = document.getElementById('user_id');
+        if (!unidadSel || !userSel) return;
+
+        const unidadId = unidadSel.value;
+
+        for (const opt of userSel.options) {
+            if (!opt.value) continue;
+            opt.hidden = opt.dataset.unidad !== unidadId;
+        }
+
+        if (userSel.selectedOptions.length && userSel.selectedOptions[0].hidden) {
+            userSel.value = '';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const unidadSel = document.getElementById('unidad_id');
-        if (unidadSel) unidadSel.addEventListener('change', filterPatrullasByUnidad);
+        if (unidadSel) unidadSel.addEventListener('change', function () {
+            filterPatrullasByUnidad();
+            filterUsersByUnidad();
+        });
         filterPatrullasByUnidad();
+        filterUsersByUnidad();
     });
 
 })();

@@ -428,11 +428,7 @@ class EstadisticasSiniestrosSettingsController extends Controller
             ->filter()
             ->unique('id')
             ->values();
-        $usuariosLaborando = $plantilla->filter(function (Personal $personal) use ($fechaHora) {
-            return $personal->user
-                && Str::upper(Str::ascii(trim((string) $personal->user->estado))) === 'ACTIVO'
-                && $this->estadoUsuarioVinculado($personal, $fechaHora) === 'EN_SERVICIO';
-        });
+        $usuariosLaborando = $this->filtrarPersonalLaborando($plantilla, $estados);
 
         return [
             'estado_fuerza' => $plantilla->count(),
@@ -464,15 +460,16 @@ class EstadisticasSiniestrosSettingsController extends Controller
         ];
     }
 
-    protected function estadoUsuarioVinculado(Personal $personal, Carbon $momento): string
+    protected function filtrarPersonalLaborando($plantilla, $estados)
     {
-        $personalConTurnoUsuario = clone $personal;
-        $personalConTurnoUsuario->setRelation(
-            'turno',
-            optional($personal->user)->turno ?: $personal->turno
-        );
-
-        return $this->estadoFuerzaService->estado($personalConTurnoUsuario, $momento);
+        return $plantilla->filter(function (Personal $personal) use ($estados) {
+            return $personal->user
+                && Str::upper(Str::ascii(trim((string) $personal->user->estado))) === 'ACTIVO'
+                // El estado de fuerza se calcula desde el registro de Personal.
+                // Usar aquí el turno del usuario podía contradecir ese resultado
+                // y excluir evaluadores que sí están laborando según su jornada.
+                && $estados->get($personal->id) === 'EN_SERVICIO';
+        });
     }
 
     protected function usuarioTieneRol(Personal $personal, string $rol): bool

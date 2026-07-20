@@ -156,31 +156,19 @@ class WhatsAppWebhookAuthorizationTest extends TestCase
     public function test_telefono_operativo_no_autoriza_respuestas_del_bot(): void
     {
         $phone = '521443' . random_int(1000000, 9999999);
+        $secondaryPhone = '521444' . random_int(1000000, 9999999);
         $user = User::factory()->create([
             'telefono' => null,
             'telefono_whatsapp_operativo' => $phone,
+            'telefono_whatsapp_operativo_secundario' => $secondaryPhone,
         ]);
         $resolver = new WhatsAppUserResolverService();
 
         $this->assertNull($resolver->findAuthorizedUserByPhone($phone));
+        $this->assertNull($resolver->findAuthorizedUserByPhone($secondaryPhone));
 
         $user->update(['telefono' => $phone]);
         $authorized = $resolver->findAuthorizedUserByPhone($phone);
-
-        $this->assertNotNull($authorized);
-        $this->assertSame($user->id, $authorized->id);
-    }
-
-    public function test_telefono_secundario_si_autoriza_respuestas_del_bot(): void
-    {
-        $phone = '521443' . random_int(1000000, 9999999);
-        $user = User::factory()->create([
-            'telefono' => null,
-            'telefono_whatsapp_secundario' => $phone,
-            'telefono_whatsapp_operativo' => null,
-        ]);
-
-        $authorized = (new WhatsAppUserResolverService())->findAuthorizedUserByPhone($phone);
 
         $this->assertNotNull($authorized);
         $this->assertSame($user->id, $authorized->id);

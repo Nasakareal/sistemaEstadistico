@@ -57,7 +57,7 @@
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>WhatsApp autorizado principal</label>
+                                <label>WhatsApp autorizado para respuestas de la API</label>
                                 <p class="form-control-static">
                                     {{ $user->telefono ?: 'No autorizado' }}
                                 </p>
@@ -66,18 +66,18 @@
 
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>WhatsApp autorizado secundario</label>
+                                <label>WhatsApp operativo principal</label>
                                 <p class="form-control-static">
-                                    {{ $user->telefono_whatsapp_secundario ?: 'Sin número secundario' }}
+                                    {{ $user->telefono_whatsapp_operativo ?: 'Sin teléfono operativo' }}
                                 </p>
                             </div>
                         </div>
 
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>WhatsApp operativo para tiempo de reacción</label>
+                                <label>WhatsApp operativo secundario</label>
                                 <p class="form-control-static">
-                                    {{ $user->telefono_whatsapp_operativo ?: 'Sin teléfono operativo' }}
+                                    {{ $user->telefono_whatsapp_operativo_secundario ?: 'Sin teléfono operativo secundario' }}
                                 </p>
                             </div>
                         </div>

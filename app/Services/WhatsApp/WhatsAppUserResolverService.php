@@ -17,10 +17,7 @@ class WhatsAppUserResolverService
         foreach ($telefonos as $telefono) {
             $user = User::query()
                 ->with(['unidad', 'roles'])
-                ->where(function ($query) use ($telefono) {
-                    $query->where('telefono', $telefono)
-                        ->orWhere('telefono_whatsapp_secundario', $telefono);
-                })
+                ->where('telefono', $telefono)
                 ->first();
 
             if ($user) {

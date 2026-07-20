@@ -36,7 +36,7 @@ class C5iResponseTimeServiceTest extends TestCase
     public function test_informa_si_el_mensaje_de_arribo_se_envia_despues_del_arribo_gps(): void
     {
         $this->configure(true);
-        [$group, $patrulla, $user, $phone] = $this->operationalContext();
+        [$group, $patrulla, $user, $phone] = $this->operationalContext(true);
         $service = $this->service();
         $reportedAt = Carbon::parse('2026-07-17 16:00:00', 'America/Mexico_City');
 
@@ -206,7 +206,7 @@ class C5iResponseTimeServiceTest extends TestCase
         ]);
     }
 
-    private function operationalContext(): array
+    private function operationalContext(bool $useSecondaryPhone = false): array
     {
         $suffix = (string) random_int(100000, 999999);
         $unit = Unidad::query()->firstOrCreate(
@@ -223,7 +223,8 @@ class C5iResponseTimeServiceTest extends TestCase
             'unidad_id' => $unit->id,
             'patrulla_id' => $patrulla->id,
             'telefono' => null,
-            'telefono_whatsapp_operativo' => $phone,
+            'telefono_whatsapp_operativo' => $useSecondaryPhone ? null : $phone,
+            'telefono_whatsapp_operativo_secundario' => $useSecondaryPhone ? $phone : null,
             'compartir_ubicacion' => true,
         ]);
         $group = WhatsAppWebGroup::query()->firstOrCreate(

@@ -71,7 +71,7 @@
                             @role('Superadmin')
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="telefono">WhatsApp autorizado principal</label>
+                                    <label for="telefono">WhatsApp autorizado para respuestas de la API</label>
                                     <input type="text" name="telefono" id="telefono"
                                            class="form-control @error('telefono') is-invalid @enderror"
                                            value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
@@ -84,27 +84,27 @@
 
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="telefono_whatsapp_secundario">WhatsApp autorizado secundario</label>
-                                    <input type="text" name="telefono_whatsapp_secundario" id="telefono_whatsapp_secundario"
-                                           class="form-control @error('telefono_whatsapp_secundario') is-invalid @enderror"
-                                           value="{{ old('telefono_whatsapp_secundario') }}" placeholder="Opcional: segundo número">
-                                    @error('telefono_whatsapp_secundario')
-                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                    <small class="text-muted">El bot también responderá a este número.</small>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="telefono_whatsapp_operativo">WhatsApp operativo para tiempo de reacción</label>
+                                    <label for="telefono_whatsapp_operativo">WhatsApp operativo principal</label>
                                     <input type="text" name="telefono_whatsapp_operativo" id="telefono_whatsapp_operativo"
                                            class="form-control @error('telefono_whatsapp_operativo') is-invalid @enderror"
                                            value="{{ old('telefono_whatsapp_operativo') }}" placeholder="Ejemplo: 4434765057">
                                     @error('telefono_whatsapp_operativo')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
-                                    <small class="text-muted">Identifica al usuario y su patrulla cuando reporta asignación o arribo en el grupo.</small>
+                                    <small class="text-muted">Identifica al usuario y su patrulla en el grupo.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="telefono_whatsapp_operativo_secundario">WhatsApp operativo secundario</label>
+                                    <input type="text" name="telefono_whatsapp_operativo_secundario" id="telefono_whatsapp_operativo_secundario"
+                                           class="form-control @error('telefono_whatsapp_operativo_secundario') is-invalid @enderror"
+                                           value="{{ old('telefono_whatsapp_operativo_secundario') }}" placeholder="Opcional: segundo número">
+                                    @error('telefono_whatsapp_operativo_secundario')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="text-muted">También identifica al mismo usuario y patrulla; no autoriza respuestas del bot.</small>
                                 </div>
                             </div>
                             @endrole
@@ -481,7 +481,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const roleSel = document.getElementById('role_id');
                 const unidadSel = document.getElementById('unidad_id');
-                const telefonoInputs = document.querySelectorAll('#telefono, #telefono_whatsapp_secundario, #telefono_whatsapp_operativo');
+                const telefonoInputs = document.querySelectorAll('#telefono, #telefono_whatsapp_operativo, #telefono_whatsapp_operativo_secundario');
                 const form = document.querySelector('form');
                 const passwordButtons = document.querySelectorAll('.btn-password-toggle');
 

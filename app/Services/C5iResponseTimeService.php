@@ -416,13 +416,17 @@ class C5iResponseTimeService
         }
 
         $users = User::query()
-            ->whereNotNull('telefono_whatsapp_operativo')
+            ->where(function ($query) {
+                $query->whereNotNull('telefono_whatsapp_operativo')
+                    ->orWhereNotNull('telefono_whatsapp_operativo_secundario');
+            })
             ->whereNotNull('patrulla_id')
             ->with(['unidad', 'patrulla'])
             ->get();
 
         foreach ($users as $user) {
-            if ($this->samePhone($authorDigits, (string) $user->telefono_whatsapp_operativo)
+            if (($this->samePhone($authorDigits, (string) $user->telefono_whatsapp_operativo)
+                    || $this->samePhone($authorDigits, (string) $user->telefono_whatsapp_operativo_secundario))
                 && $this->isSiniestrosUser($user)) {
                 return $user->patrulla;
             }

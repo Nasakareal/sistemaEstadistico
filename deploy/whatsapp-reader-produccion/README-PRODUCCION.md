@@ -107,6 +107,27 @@ pm2 status
 pm2 logs sistema-estadistico-whatsapp-reader
 ```
 
+El lector sondea el grupo cada minuto además de escuchar el evento en vivo. Si
+WhatsApp Web deja de responder tres veces consecutivas, el proceso termina con
+error para que PM2 lo reinicie. El sondeo recupera mensajes de los últimos 15
+minutos y Laravel los deduplica por su identificador de WhatsApp.
+
+Para actualizar una instalación existente sin borrar `.env` ni la sesión
+vinculada:
+
+```bash
+cd /var/www/html/sistemaEstadistico
+cp deploy/whatsapp-reader-produccion/index.js /home/nasaka/apps/whatsapp-reader-produccion/index.js
+cp deploy/whatsapp-reader-produccion/ecosystem.config.cjs /home/nasaka/apps/whatsapp-reader-produccion/ecosystem.config.cjs
+cd /home/nasaka/apps/whatsapp-reader-produccion
+pm2 startOrReload ecosystem.config.cjs --update-env
+pm2 save
+```
+
+El log `Sondeo de salud correcto` se escribe una vez por hora. Si el evento en
+vivo omite mensajes, aparecerá `Sondeo recuperó ...`; si el navegador queda
+zombi, aparecerán tres fallos de salud seguidos y después el reinicio de PM2.
+
 En Windows Server registra `node index.js` como servicio con NSSM o el Programador de tareas y usa la carpeta del lector como directorio de trabajo.
 
 ## 5. Verificar y retirar localhost

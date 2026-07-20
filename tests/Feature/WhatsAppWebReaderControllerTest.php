@@ -78,6 +78,44 @@ class WhatsAppWebReaderControllerTest extends TestCase
             'body' => 'Mensaje de prueba',
             'has_media' => false,
         ]);
+        $this->assertSame(
+            1784178000,
+            \App\Models\WhatsAppWebMessage::query()
+                ->where('whatsapp_message_id', 'false_120363000000000000@g.us_TEST')
+                ->firstOrFail()
+                ->sent_at
+                ->timestamp
+        );
+    }
+
+    public function test_expone_la_razon_de_una_recomendacion_ignorada(): void
+    {
+        config([
+            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000004@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214437938996@c.us',
+            'services.whatsapp.c5i_recommendation.enabled' => true,
+            'services.whatsapp.c5i_recommendation.group_ids' => '120363000000000004@g.us',
+            'services.whatsapp.c5i_recommendation.source_author_ids' => '5214437938996@c.us',
+        ]);
+
+        $this->postJson('http://localhost/api/whatsapp-web-reader/messages', [
+            'group' => [
+                'id' => '120363000000000004@g.us',
+                'name' => 'Grupo con diagnóstico',
+            ],
+            'message' => [
+                'id' => 'MENSAJE_SIN_COORDENADAS',
+                'author_id' => '5214437938996@c.us',
+                'body' => 'R10 COMANDO',
+                'type' => 'chat',
+                'has_media' => false,
+                'timestamp' => 1784178004,
+            ],
+        ], ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'])
+            ->assertOk()
+            ->assertJsonPath('recommendation_status', 'ignored')
+            ->assertJsonPath('recommendation_reason', 'coordinates_not_found');
     }
 
     public function test_genera_id_estable_si_whatsapp_web_no_entrega_message_id(): void

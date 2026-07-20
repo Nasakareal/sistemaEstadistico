@@ -142,7 +142,10 @@ class WhatsAppWebReaderController extends Controller
                 'body' => $data['message']['body'] ?? null,
                 'message_type' => $data['message']['type'] ?? 'unknown',
                 'has_media' => (bool) ($data['message']['has_media'] ?? false),
-                'sent_at' => Carbon::createFromTimestampUTC((int) $data['message']['timestamp']),
+                'sent_at' => Carbon::createFromTimestamp(
+                    (int) $data['message']['timestamp'],
+                    (string) config('app.timezone', 'UTC')
+                ),
             ]
         );
 
@@ -159,6 +162,7 @@ class WhatsAppWebReaderController extends Controller
             'ok' => true,
             'message_id' => $message->id,
             'recommendation_status' => $message->recommendation_status,
+            'recommendation_reason' => data_get($message->recommendation_meta, 'reason'),
             'response_time_status' => $responseTimeResult['status'] ?? null,
         ]);
     }

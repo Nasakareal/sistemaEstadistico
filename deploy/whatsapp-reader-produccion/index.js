@@ -41,6 +41,16 @@ const spoolPath = path.join(dataDirectory, 'pending-events.jsonl');
 const qrImagePath = path.join(dataDirectory, 'whatsapp-reader-qr.png');
 const authPath = path.join(__dirname, '.wwebjs_auth');
 const headless = String(process.env.WHATSAPP_WEB_READER_HEADLESS || 'true') !== 'false';
+const pollIntervalMs = positiveIntegerEnv('WHATSAPP_WEB_READER_POLL_INTERVAL_MS', 60000, 15000);
+const pollBackfillMinutes = positiveIntegerEnv('WHATSAPP_WEB_READER_POLL_BACKFILL_MINUTES', 15, 1);
+const healthFailureLimit = positiveIntegerEnv('WHATSAPP_WEB_READER_HEALTH_FAILURE_LIMIT', 3, 1);
+const spoolRetryIntervalMs = positiveIntegerEnv('WHATSAPP_WEB_READER_SPOOL_RETRY_INTERVAL_MS', 60000, 15000);
+
+function positiveIntegerEnv(name, fallback, minimum) {
+    const parsed = Number.parseInt(String(process.env[name] || ''), 10);
+
+    return Number.isInteger(parsed) && parsed >= minimum ? parsed : fallback;
+}
 
 if (!apiBaseUrl || !apiSecret || watchedGroupIds.size === 0
     || (allowedAuthorIds.size === 0 && !allowOperationalAuthors)) {
@@ -103,9 +113,57 @@ const client = new Client({
 
 const knownGroupNames = new Map();
 let eventChain = Promise.resolve();
+let readerReady = false;
+let fatalExitScheduled = false;
+let consecutiveHealthFailures = 0;
+let pollInProgress = false;
+let lastHealthLogAt = 0;
+const seenMessageIds = new Set();
+const seenMessageOrder = [];
 
 function delay(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function withTimeout(promise, milliseconds, label) {
+    let timeout;
+
+    return Promise.race([
+        promise,
+        new Promise((resolve, reject) => {
+            timeout = setTimeout(
+                () => reject(new Error(`${label} excedió ${milliseconds} ms`)),
+                milliseconds
+            );
+        }),
+    ]).finally(() => clearTimeout(timeout));
+}
+
+function rememberMessageId(messageId) {
+    const normalized = String(messageId || '').trim();
+
+    if (!normalized || seenMessageIds.has(normalized)) {
+        return;
+    }
+
+    seenMessageIds.add(normalized);
+    seenMessageOrder.push(normalized);
+
+    while (seenMessageOrder.length > 2000) {
+        seenMessageIds.delete(seenMessageOrder.shift());
+    }
+}
+
+function scheduleFatalExit(reason) {
+    if (fatalExitScheduled) {
+        return;
+    }
+
+    fatalExitScheduled = true;
+    readerReady = false;
+    console.error(`Reinicio requerido del lector: ${reason}`);
+
+    setTimeout(() => process.exit(1), 1000);
 }
 
 function errorDetails(error) {
@@ -136,7 +194,11 @@ async function resolveAuthorIdentity(authorId) {
 
     if (originalId.endsWith('@lid')) {
         try {
-            const mappings = await client.getContactLidAndPhone([originalId]);
+            const mappings = await withTimeout(
+                client.getContactLidAndPhone([originalId]),
+                15000,
+                `Resolución del remitente ${originalId}`
+            );
             const mapping = Array.isArray(mappings) ? mappings[0] : null;
 
             for (const identifier of [mapping?.lid, mapping?.pn]) {
@@ -399,6 +461,9 @@ async function processIncomingMessage(message) {
         return;
     }
 
+    const messageId = liveMessageId(message, groupId);
+    rememberMessageId(messageId);
+
     const author = await resolveAuthorIdentity(message.author);
 
     if (!author.allowed
@@ -411,10 +476,9 @@ async function processIncomingMessage(message) {
         console.log(`Remitente LID resuelto: ${author.originalId} -> ${author.authorId}`);
     }
 
-    const messageId = liveMessageId(message, groupId);
-    let quotedMessageId = null;
+    let quotedMessageId = String(message.__polledQuotedMessageId || '').trim() || null;
 
-    if (message.hasQuotedMsg) {
+    if (!quotedMessageId && message.hasQuotedMsg) {
         try {
             const quotedMessage = await message.getQuotedMessage();
             quotedMessageId = liveMessageId(quotedMessage, groupId);
@@ -446,12 +510,133 @@ async function processIncomingMessage(message) {
     if (response?.stored === false) {
         console.log(`Mensaje ignorado por Laravel (${response.reason || 'filtro'}): ${messageId}`);
     } else if (response) {
+        const reason = response.recommendation_reason
+            ? ` (${response.recommendation_reason})`
+            : '';
         console.log(
-            `Mensaje entrante almacenado: ${messageId}; recomendación: ${response.recommendation_status || 'sin estado'}`
+            `Mensaje entrante almacenado: ${messageId}; recomendación: ${response.recommendation_status || 'sin estado'}${reason}`
         );
     } else {
         console.log(`Mensaje entrante pendiente de reintento: ${messageId}`);
     }
+}
+
+async function fetchRecentMessageSnapshots(groupId) {
+    return withTimeout(
+        client.pupPage.evaluate((targetGroupId, limit) => {
+            const chats = window.require('WAWebCollections').Chat;
+            const chat = chats.get(targetGroupId);
+
+            if (!chat || !chat.msgs?.getModelsArray) {
+                throw new Error(`El grupo ${targetGroupId} no está disponible en la colección de WhatsApp Web`);
+            }
+
+            return chat.msgs.getModelsArray().slice(-limit).map((message) => ({
+                from: targetGroupId,
+                author: message.author?._serialized
+                    || (typeof message.author === 'string' ? message.author : null)
+                    || message.id?.participant?._serialized
+                    || (typeof message.id?.participant === 'string' ? message.id.participant : null)
+                    || null,
+                body: message.body || message.caption || null,
+                type: message.type || 'unknown',
+                hasMedia: Boolean(message.mediaData || message.isMedia),
+                timestamp: Number(message.t) || Math.floor(Date.now() / 1000),
+                id: {
+                    _serialized: message.id?._serialized || null,
+                    id: message.id?.id || null,
+                    fromMe: Boolean(message.id?.fromMe),
+                },
+                __polledQuotedMessageId: message.quotedStanzaID?._serialized || null,
+            }));
+        }, groupId, 50),
+        20000,
+        `Sondeo de mensajes del grupo ${groupId}`
+    );
+}
+
+async function pollWatchedGroups() {
+    if (!readerReady || fatalExitScheduled || pollInProgress) {
+        return;
+    }
+
+    pollInProgress = true;
+    const minimumTimestamp = Math.floor(Date.now() / 1000) - (pollBackfillMinutes * 60);
+    let recovered = 0;
+    let newestMessageTimestamp = 0;
+
+    try {
+        const state = await withTimeout(client.getState(), 10000, 'Consulta del estado de WhatsApp Web');
+
+        if (state !== 'CONNECTED') {
+            throw new Error(`Estado de WhatsApp Web no saludable: ${state || 'desconocido'}`);
+        }
+
+        for (const groupId of watchedGroupIds) {
+            const messages = await fetchRecentMessageSnapshots(groupId);
+
+            for (const message of [...messages].sort(
+                (left, right) => Number(left.timestamp) - Number(right.timestamp)
+            )) {
+                newestMessageTimestamp = Math.max(
+                    newestMessageTimestamp,
+                    Number(message.timestamp) || 0
+                );
+                const messageId = liveMessageId(message, groupId);
+
+                if (seenMessageIds.has(messageId)) {
+                    continue;
+                }
+
+                if ((Number(message.timestamp) || 0) < minimumTimestamp) {
+                    rememberMessageId(messageId);
+                    continue;
+                }
+
+                await withTimeout(
+                    processIncomingMessage(message),
+                    45000,
+                    `Recuperación del mensaje ${messageId}`
+                );
+                recovered += 1;
+            }
+        }
+
+        consecutiveHealthFailures = 0;
+
+        if (recovered > 0) {
+            console.log(`Sondeo recuperó ${recovered} mensaje(s) que no llegaron por el evento en vivo.`);
+        }
+
+        if (Date.now() - lastHealthLogAt >= 3600000) {
+            const latest = newestMessageTimestamp > 0
+                ? new Date(newestMessageTimestamp * 1000).toISOString()
+                : 'sin mensajes en memoria';
+            console.log(`Sondeo de salud correcto; último mensaje visible: ${latest}.`);
+            lastHealthLogAt = Date.now();
+        }
+    } catch (error) {
+        consecutiveHealthFailures += 1;
+        console.error(
+            `Sondeo de salud falló (${consecutiveHealthFailures}/${healthFailureLimit}): ${errorDetails(error)}`
+        );
+
+        if (consecutiveHealthFailures >= healthFailureLimit) {
+            scheduleFatalExit('WhatsApp Web no respondió a los sondeos de salud');
+        }
+    } finally {
+        pollInProgress = false;
+    }
+}
+
+function queueSpoolFlush() {
+    if (!readerReady || fatalExitScheduled) {
+        return;
+    }
+
+    eventChain = eventChain
+        .then(() => withTimeout(flushSpool(), 45000, 'Reintento de eventos pendientes'))
+        .catch((error) => console.error(`Error reintentando eventos pendientes: ${errorDetails(error)}`));
 }
 
 client.on('qr', async (qr) => {
@@ -476,9 +661,12 @@ client.on('authenticated', () => {
 
 client.on('auth_failure', (message) => {
     console.error(`Falló la autenticación: ${message}`);
+    scheduleFatalExit('falló la autenticación de WhatsApp Web');
 });
 
 client.on('ready', () => {
+    readerReady = true;
+    consecutiveHealthFailures = 0;
     console.log('Lector listo en modo de sólo lectura.');
     eventChain = eventChain
         .then(flushSpool)
@@ -492,12 +680,13 @@ client.on('ready', () => {
 
 client.on('message', (message) => {
     eventChain = eventChain
-        .then(() => processIncomingMessage(message))
+        .then(() => withTimeout(processIncomingMessage(message), 45000, 'Procesamiento de mensaje en vivo'))
         .catch((error) => console.error(`Error al almacenar: ${errorDetails(error)}`));
 });
 
 client.on('disconnected', (reason) => {
     console.error(`WhatsApp se desconectó: ${reason}`);
+    scheduleFatalExit(`WhatsApp se desconectó (${reason})`);
 });
 
 async function shutdown(signal) {
@@ -508,6 +697,17 @@ async function shutdown(signal) {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('uncaughtException', (error) => {
+    console.error(`Excepción no controlada: ${errorDetails(error)}`);
+    scheduleFatalExit('excepción no controlada');
+});
+process.on('unhandledRejection', (error) => {
+    console.error(`Promesa rechazada sin manejar: ${errorDetails(error)}`);
+    scheduleFatalExit('promesa rechazada sin manejar');
+});
+
+setInterval(pollWatchedGroups, pollIntervalMs);
+setInterval(queueSpoolFlush, spoolRetryIntervalMs);
 
 console.log('Iniciando lector de producción sin capacidad de envío...');
 client.initialize().catch((error) => {

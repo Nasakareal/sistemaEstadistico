@@ -22,6 +22,7 @@ class User extends Authenticatable
         'nombres',
         'email',
         'telefono',
+        'telefono_whatsapp_secundario',
         'telefono_whatsapp_operativo',
         'password',
         'estado',
@@ -259,6 +260,11 @@ class User extends Authenticatable
     public function setTelefonoWhatsappOperativoAttribute($value)
     {
         $this->attributes['telefono_whatsapp_operativo'] = $this->normalizarTelefonoWhatsApp($value);
+    }
+
+    public function setTelefonoWhatsappSecundarioAttribute($value)
+    {
+        $this->attributes['telefono_whatsapp_secundario'] = $this->normalizarTelefonoWhatsApp($value);
     }
 
     private function normalizarTelefonoWhatsApp($value): ?string

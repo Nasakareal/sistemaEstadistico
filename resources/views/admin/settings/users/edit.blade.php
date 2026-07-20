@@ -73,7 +73,7 @@
                             @role('Superadmin')
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="telefono">WhatsApp autorizado para respuestas de la API</label>
+                                    <label for="telefono">WhatsApp autorizado principal</label>
                                     <input type="text" name="telefono" id="telefono"
                                            class="form-control @error('telefono') is-invalid @enderror"
                                            value="{{ old('telefono', $user->telefono) }}" placeholder="Ejemplo: 4434765057">
@@ -81,6 +81,19 @@
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                     <small class="text-muted">Si queda vacío, el bot oficial ignorará sus mensajes y no le responderá.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="telefono_whatsapp_secundario">WhatsApp autorizado secundario</label>
+                                    <input type="text" name="telefono_whatsapp_secundario" id="telefono_whatsapp_secundario"
+                                           class="form-control @error('telefono_whatsapp_secundario') is-invalid @enderror"
+                                           value="{{ old('telefono_whatsapp_secundario', $user->telefono_whatsapp_secundario) }}" placeholder="Opcional: segundo número">
+                                    @error('telefono_whatsapp_secundario')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="text-muted">El bot también responderá a este número.</small>
                                 </div>
                             </div>
 
@@ -463,7 +476,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const roleSel = document.getElementById('role_id');
                 const unidadSel = document.getElementById('unidad_id');
-                const telefonoInputs = document.querySelectorAll('#telefono, #telefono_whatsapp_operativo');
+                const telefonoInputs = document.querySelectorAll('#telefono, #telefono_whatsapp_secundario, #telefono_whatsapp_operativo');
                 const form = document.querySelector('form');
                 const passwordButtons = document.querySelectorAll('.btn-password-toggle');
 

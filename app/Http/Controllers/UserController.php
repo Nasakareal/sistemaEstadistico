@@ -75,6 +75,7 @@ class UserController extends Controller
             'nombres' => 'required_without:name|nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'telefono' => 'nullable|string|max:30',
+            'telefono_whatsapp_secundario' => 'nullable|string|max:30',
             'telefono_whatsapp_operativo' => 'nullable|string|max:30',
             'password' => 'required|min:6|confirmed',
             'area' => 'nullable|string|max:30',
@@ -151,6 +152,7 @@ class UserController extends Controller
                 'nombres' => $validatedData['nombres'],
                 'email' => $validatedData['email'],
                 'telefono' => $validatedData['telefono'],
+                'telefono_whatsapp_secundario' => $validatedData['telefono_whatsapp_secundario'],
                 'telefono_whatsapp_operativo' => $validatedData['telefono_whatsapp_operativo'],
                 'password' => bcrypt($validatedData['password']),
                 'estado' => 'Activo',
@@ -242,6 +244,7 @@ class UserController extends Controller
             'nombres' => 'required_without:name|nullable|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'telefono' => 'nullable|string|max:30',
+            'telefono_whatsapp_secundario' => 'nullable|string|max:30',
             'telefono_whatsapp_operativo' => 'nullable|string|max:30',
             'area' => 'nullable|string|max:30',
             'role_id' => 'required|integer|exists:roles,id',
@@ -328,6 +331,7 @@ class UserController extends Controller
                 'nombres' => $validatedData['nombres'],
                 'email' => $validatedData['email'],
                 'telefono' => $validatedData['telefono'],
+                'telefono_whatsapp_secundario' => $validatedData['telefono_whatsapp_secundario'],
                 'telefono_whatsapp_operativo' => $validatedData['telefono_whatsapp_operativo'],
                 'area' => $validatedData['area'] ?? null,
                 'unidad_id' => $validatedData['unidad_id'] ?? null,
@@ -449,6 +453,9 @@ class UserController extends Controller
     ): array {
         if (!$this->actorEsSuperadmin($actor)) {
             $validatedData['telefono'] = $user ? $user->telefono : null;
+            $validatedData['telefono_whatsapp_secundario'] = $user
+                ? $user->telefono_whatsapp_secundario
+                : null;
             $validatedData['telefono_whatsapp_operativo'] = $user
                 ? $user->telefono_whatsapp_operativo
                 : null;
@@ -458,6 +465,7 @@ class UserController extends Controller
 
         $campos = [
             'telefono' => 'El WhatsApp autorizado ya está registrado en otro usuario.',
+            'telefono_whatsapp_secundario' => 'El WhatsApp autorizado secundario ya está registrado en otro usuario.',
             'telefono_whatsapp_operativo' => 'El WhatsApp operativo ya está registrado en otro usuario.',
         ];
 
@@ -469,7 +477,11 @@ class UserController extends Controller
             }
 
             $exists = User::query()
-                ->where($campo, $validatedData[$campo])
+                ->where(function ($query) use ($validatedData, $campo) {
+                    $query->where('telefono', $validatedData[$campo])
+                        ->orWhere('telefono_whatsapp_secundario', $validatedData[$campo])
+                        ->orWhere('telefono_whatsapp_operativo', $validatedData[$campo]);
+                })
                 ->when($user, fn ($query) => $query->where('id', '!=', $user->id))
                 ->exists();
 
@@ -478,6 +490,13 @@ class UserController extends Controller
                     $campo => $mensaje,
                 ]);
             }
+        }
+
+        if (!is_null($validatedData['telefono'])
+            && $validatedData['telefono'] === $validatedData['telefono_whatsapp_secundario']) {
+            throw ValidationException::withMessages([
+                'telefono_whatsapp_secundario' => 'El WhatsApp secundario debe ser diferente del principal.',
+            ]);
         }
 
         return $validatedData;

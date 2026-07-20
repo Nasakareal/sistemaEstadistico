@@ -38,6 +38,7 @@ class UserController extends Controller
                         ->orWhere('apellido_materno', 'like', "%{$q}%")
                         ->orWhere('email', 'like', "%{$q}%")
                         ->orWhere('telefono', 'like', "%{$q}%")
+                        ->orWhere('telefono_whatsapp_secundario', 'like', "%{$q}%")
                         ->orWhere('telefono_whatsapp_operativo', 'like', "%{$q}%")
                         ->orWhere('area', 'like', "%{$q}%");
                 });
@@ -114,6 +115,7 @@ class UserController extends Controller
                 'nombres' => $validated['nombres'],
                 'email' => $validated['email'],
                 'telefono' => $validated['telefono'] ?? null,
+                'telefono_whatsapp_secundario' => $validated['telefono_whatsapp_secundario'] ?? null,
                 'telefono_whatsapp_operativo' => $validated['telefono_whatsapp_operativo'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'estado' => $validated['estado'] ?? 'Activo',
@@ -176,6 +178,7 @@ class UserController extends Controller
                 'nombres' => $validated['nombres'],
                 'email' => $validated['email'],
                 'telefono' => $validated['telefono'] ?? null,
+                'telefono_whatsapp_secundario' => $validated['telefono_whatsapp_secundario'] ?? null,
                 'telefono_whatsapp_operativo' => $validated['telefono_whatsapp_operativo'] ?? null,
                 'estado' => $validated['estado'] ?? $user->estado ?? 'Activo',
                 'area' => $validated['area'] ?? null,
@@ -221,6 +224,7 @@ class UserController extends Controller
                 $emailRule,
             ],
             'telefono' => ['nullable', 'string', 'max:30'],
+            'telefono_whatsapp_secundario' => ['nullable', 'string', 'max:30'],
             'telefono_whatsapp_operativo' => ['nullable', 'string', 'max:30'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:6', 'confirmed'],
             'estado' => ['nullable', 'string', 'max:11'],
@@ -344,6 +348,7 @@ class UserController extends Controller
             'nombres' => $user->nombres,
             'email' => $user->email,
             'telefono' => $user->telefono,
+            'telefono_whatsapp_secundario' => $user->telefono_whatsapp_secundario,
             'telefono_whatsapp_operativo' => $user->telefono_whatsapp_operativo,
             'estado' => $user->estado,
             'area' => $user->area,
@@ -533,6 +538,9 @@ class UserController extends Controller
     ): array {
         if (!$this->actorEsSuperadmin($actor)) {
             $validated['telefono'] = $user ? $user->telefono : null;
+            $validated['telefono_whatsapp_secundario'] = $user
+                ? $user->telefono_whatsapp_secundario
+                : null;
             $validated['telefono_whatsapp_operativo'] = $user
                 ? $user->telefono_whatsapp_operativo
                 : null;
@@ -542,6 +550,7 @@ class UserController extends Controller
 
         $campos = [
             'telefono' => 'El WhatsApp autorizado ya está registrado en otro usuario.',
+            'telefono_whatsapp_secundario' => 'El WhatsApp autorizado secundario ya está registrado en otro usuario.',
             'telefono_whatsapp_operativo' => 'El WhatsApp operativo ya está registrado en otro usuario.',
         ];
 
@@ -553,7 +562,11 @@ class UserController extends Controller
             }
 
             $exists = User::query()
-                ->where($campo, $validated[$campo])
+                ->where(function ($query) use ($validated, $campo) {
+                    $query->where('telefono', $validated[$campo])
+                        ->orWhere('telefono_whatsapp_secundario', $validated[$campo])
+                        ->orWhere('telefono_whatsapp_operativo', $validated[$campo]);
+                })
                 ->when($user, fn ($query) => $query->where('id', '!=', $user->id))
                 ->exists();
 
@@ -562,6 +575,13 @@ class UserController extends Controller
                     $campo => [$mensaje],
                 ]);
             }
+        }
+
+        if (!is_null($validated['telefono'])
+            && $validated['telefono'] === $validated['telefono_whatsapp_secundario']) {
+            throw ValidationException::withMessages([
+                'telefono_whatsapp_secundario' => ['El WhatsApp secundario debe ser diferente del principal.'],
+            ]);
         }
 
         return $validated;

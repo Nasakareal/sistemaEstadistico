@@ -22,6 +22,7 @@ class User extends Authenticatable
         'nombres',
         'email',
         'telefono',
+        'telefono_whatsapp_operativo',
         'password',
         'estado',
         'foto_perfil',
@@ -252,24 +253,34 @@ class User extends Authenticatable
 
     public function setTelefonoAttribute($value)
     {
+        $this->attributes['telefono'] = $this->normalizarTelefonoWhatsApp($value);
+    }
+
+    public function setTelefonoWhatsappOperativoAttribute($value)
+    {
+        $this->attributes['telefono_whatsapp_operativo'] = $this->normalizarTelefonoWhatsApp($value);
+    }
+
+    private function normalizarTelefonoWhatsApp($value): ?string
+    {
         if (!$value) {
-            $this->attributes['telefono'] = null;
-            return;
+            return null;
         }
 
         $numero = preg_replace('/\D/', '', $value);
 
         if ($numero === '') {
-            $this->attributes['telefono'] = null;
-            return;
+            return null;
         }
 
         if (strlen($numero) === 10) {
-            $numero = '521' . $numero;
-        } elseif (strlen($numero) === 12 && str_starts_with($numero, '52')) {
-            $numero = '521' . substr($numero, 2);
+            return '521' . $numero;
         }
 
-        $this->attributes['telefono'] = $numero;
+        if (strlen($numero) === 12 && str_starts_with($numero, '52')) {
+            return '521' . substr($numero, 2);
+        }
+
+        return $numero;
     }
 }

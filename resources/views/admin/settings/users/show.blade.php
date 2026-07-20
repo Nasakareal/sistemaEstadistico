@@ -57,13 +57,24 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Teléfono WhatsApp</label>
+                                <label>WhatsApp autorizado para respuestas de la API</label>
                                 <p class="form-control-static">
-                                    {{ $user->telefono ? '+52 '.$user->telefono : 'Sin teléfono' }}
+                                    {{ $user->telefono ?: 'No autorizado' }}
                                 </p>
                             </div>
                         </div>
 
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>WhatsApp operativo para tiempo de reacción</label>
+                                <p class="form-control-static">
+                                    {{ $user->telefono_whatsapp_operativo ?: 'Sin teléfono operativo' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Estado</label>

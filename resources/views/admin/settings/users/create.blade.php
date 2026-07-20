@@ -71,13 +71,27 @@
                             @role('Superadmin')
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="telefono">Teléfono WhatsApp</label>
+                                    <label for="telefono">WhatsApp autorizado para respuestas de la API</label>
                                     <input type="text" name="telefono" id="telefono"
                                            class="form-control @error('telefono') is-invalid @enderror"
                                            value="{{ old('telefono') }}" placeholder="Ejemplo: 4434765057">
                                     @error('telefono')
                                         <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
+                                    <small class="text-muted">Si queda vacío, el bot oficial ignorará sus mensajes y no le responderá.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="telefono_whatsapp_operativo">WhatsApp operativo para tiempo de reacción</label>
+                                    <input type="text" name="telefono_whatsapp_operativo" id="telefono_whatsapp_operativo"
+                                           class="form-control @error('telefono_whatsapp_operativo') is-invalid @enderror"
+                                           value="{{ old('telefono_whatsapp_operativo') }}" placeholder="Ejemplo: 4434765057">
+                                    @error('telefono_whatsapp_operativo')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="text-muted">Identifica al usuario y su patrulla cuando reporta asignación o arribo en el grupo.</small>
                                 </div>
                             </div>
                             @endrole
@@ -380,9 +394,8 @@
                 return roleSelect.options[roleSelect.selectedIndex] || null;
             }
 
-            function limpiarTelefonoInput() {
-                const telefonoInput = document.getElementById('telefono');
-                if (!telefonoInput) return;
+            function limpiarTelefonoInput(event) {
+                const telefonoInput = event.currentTarget;
                 telefonoInput.value = telefonoInput.value.replace(/\D+/g, '');
             }
 
@@ -455,7 +468,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const roleSel = document.getElementById('role_id');
                 const unidadSel = document.getElementById('unidad_id');
-                const telefonoInput = document.getElementById('telefono');
+                const telefonoInputs = document.querySelectorAll('#telefono, #telefono_whatsapp_operativo');
                 const form = document.querySelector('form');
                 const passwordButtons = document.querySelectorAll('.btn-password-toggle');
 
@@ -470,10 +483,10 @@
                     unidadSel.addEventListener('change', toggleUbicacionEspecial);
                 }
 
-                if (telefonoInput) {
+                telefonoInputs.forEach(function (telefonoInput) {
                     telefonoInput.addEventListener('input', limpiarTelefonoInput);
                     telefonoInput.addEventListener('blur', limpiarTelefonoInput);
-                }
+                });
 
                 passwordButtons.forEach(function (button) {
                     button.addEventListener('click', function () {

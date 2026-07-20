@@ -75,6 +75,7 @@ class UserController extends Controller
             'nombres' => 'required_without:name|nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'telefono' => 'nullable|string|max:30',
+            'telefono_whatsapp_operativo' => 'nullable|string|max:30',
             'password' => 'required|min:6|confirmed',
             'area' => 'nullable|string|max:30',
             'role_id' => 'required|integer|exists:roles,id',
@@ -86,17 +87,7 @@ class UserController extends Controller
         ]);
 
         $validatedData = $this->normalizarNombreUsuario($validatedData);
-        $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
-
-        if (!is_null($validatedData['telefono'])) {
-            $exists = User::query()->where('telefono', $validatedData['telefono'])->exists();
-
-            if ($exists) {
-                throw ValidationException::withMessages([
-                    'telefono' => 'El teléfono ya está registrado en otro usuario.',
-                ]);
-            }
-        }
+        $validatedData = $this->normalizarTelefonosWhatsAppParaActor($validatedData, $actor);
 
         $rol = $this->buscarRolAsignableParaActor($actor, (int) $validatedData['role_id']);
 
@@ -160,6 +151,7 @@ class UserController extends Controller
                 'nombres' => $validatedData['nombres'],
                 'email' => $validatedData['email'],
                 'telefono' => $validatedData['telefono'],
+                'telefono_whatsapp_operativo' => $validatedData['telefono_whatsapp_operativo'],
                 'password' => bcrypt($validatedData['password']),
                 'estado' => 'Activo',
                 'area' => $validatedData['area'] ?? null,
@@ -250,6 +242,7 @@ class UserController extends Controller
             'nombres' => 'required_without:name|nullable|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'telefono' => 'nullable|string|max:30',
+            'telefono_whatsapp_operativo' => 'nullable|string|max:30',
             'area' => 'nullable|string|max:30',
             'role_id' => 'required|integer|exists:roles,id',
             'password' => 'nullable|min:6|confirmed',
@@ -261,20 +254,7 @@ class UserController extends Controller
         ]);
 
         $validatedData = $this->normalizarNombreUsuario($validatedData);
-        $validatedData['telefono'] = $this->normalizarTelefonoMx($validatedData['telefono'] ?? null);
-
-        if (!is_null($validatedData['telefono'])) {
-            $exists = User::query()
-                ->where('telefono', $validatedData['telefono'])
-                ->where('id', '!=', $user->id)
-                ->exists();
-
-            if ($exists) {
-                throw ValidationException::withMessages([
-                    'telefono' => 'El teléfono ya está registrado en otro usuario.',
-                ]);
-            }
-        }
+        $validatedData = $this->normalizarTelefonosWhatsAppParaActor($validatedData, $actor, $user);
 
         $rol = $this->buscarRolAsignableParaActor($actor, (int) $validatedData['role_id']);
 
@@ -348,6 +328,7 @@ class UserController extends Controller
                 'nombres' => $validatedData['nombres'],
                 'email' => $validatedData['email'],
                 'telefono' => $validatedData['telefono'],
+                'telefono_whatsapp_operativo' => $validatedData['telefono_whatsapp_operativo'],
                 'area' => $validatedData['area'] ?? null,
                 'unidad_id' => $validatedData['unidad_id'] ?? null,
                 'turno_id' => $validatedData['turno_id'] ?? null,
@@ -459,6 +440,47 @@ class UserController extends Controller
     {
         $value = trim((string) $value);
         return $value === '' ? null : $value;
+    }
+
+    private function normalizarTelefonosWhatsAppParaActor(
+        array $validatedData,
+        User $actor,
+        ?User $user = null
+    ): array {
+        if (!$this->actorEsSuperadmin($actor)) {
+            $validatedData['telefono'] = $user ? $user->telefono : null;
+            $validatedData['telefono_whatsapp_operativo'] = $user
+                ? $user->telefono_whatsapp_operativo
+                : null;
+
+            return $validatedData;
+        }
+
+        $campos = [
+            'telefono' => 'El WhatsApp autorizado ya está registrado en otro usuario.',
+            'telefono_whatsapp_operativo' => 'El WhatsApp operativo ya está registrado en otro usuario.',
+        ];
+
+        foreach ($campos as $campo => $mensaje) {
+            $validatedData[$campo] = $this->normalizarTelefonoMx($validatedData[$campo] ?? null);
+
+            if (is_null($validatedData[$campo])) {
+                continue;
+            }
+
+            $exists = User::query()
+                ->where($campo, $validatedData[$campo])
+                ->when($user, fn ($query) => $query->where('id', '!=', $user->id))
+                ->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    $campo => $mensaje,
+                ]);
+            }
+        }
+
+        return $validatedData;
     }
 
     private function normalizarTelefonoMx(?string $telefono): ?string

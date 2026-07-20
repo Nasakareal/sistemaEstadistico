@@ -38,6 +38,7 @@ class UserController extends Controller
                         ->orWhere('apellido_materno', 'like', "%{$q}%")
                         ->orWhere('email', 'like', "%{$q}%")
                         ->orWhere('telefono', 'like', "%{$q}%")
+                        ->orWhere('telefono_whatsapp_operativo', 'like', "%{$q}%")
                         ->orWhere('area', 'like', "%{$q}%");
                 });
             })
@@ -113,6 +114,7 @@ class UserController extends Controller
                 'nombres' => $validated['nombres'],
                 'email' => $validated['email'],
                 'telefono' => $validated['telefono'] ?? null,
+                'telefono_whatsapp_operativo' => $validated['telefono_whatsapp_operativo'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'estado' => $validated['estado'] ?? 'Activo',
                 'area' => $validated['area'] ?? null,
@@ -174,6 +176,7 @@ class UserController extends Controller
                 'nombres' => $validated['nombres'],
                 'email' => $validated['email'],
                 'telefono' => $validated['telefono'] ?? null,
+                'telefono_whatsapp_operativo' => $validated['telefono_whatsapp_operativo'] ?? null,
                 'estado' => $validated['estado'] ?? $user->estado ?? 'Activo',
                 'area' => $validated['area'] ?? null,
                 'unidad_id' => $validated['unidad_id'] ?? null,
@@ -218,6 +221,7 @@ class UserController extends Controller
                 $emailRule,
             ],
             'telefono' => ['nullable', 'string', 'max:30'],
+            'telefono_whatsapp_operativo' => ['nullable', 'string', 'max:30'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:6', 'confirmed'],
             'estado' => ['nullable', 'string', 'max:11'],
             'area' => ['nullable', 'string', 'max:120'],
@@ -230,22 +234,7 @@ class UserController extends Controller
             'compartir_ubicacion' => ['nullable', 'boolean'],
         ]);
 
-        $validated['telefono'] = $this->normalizarTelefonoMx($validated['telefono'] ?? null);
-
-        if (!is_null($validated['telefono'])) {
-            $exists = User::query()
-                ->where('telefono', $validated['telefono'])
-                ->when($user, fn ($query) => $query->where('id', '!=', $user->id))
-                ->exists();
-
-            if ($exists) {
-                throw ValidationException::withMessages([
-                    'telefono' => ['El teléfono ya está registrado en otro usuario.'],
-                ]);
-            }
-        }
-
-        return $validated;
+        return $this->normalizarTelefonosWhatsAppParaActor($validated, $request->user(), $user);
     }
 
     private function normalizarNombreUsuario(array $validated): array
@@ -355,6 +344,7 @@ class UserController extends Controller
             'nombres' => $user->nombres,
             'email' => $user->email,
             'telefono' => $user->telefono,
+            'telefono_whatsapp_operativo' => $user->telefono_whatsapp_operativo,
             'estado' => $user->estado,
             'area' => $user->area,
             'unidad_id' => $user->unidad_id,
@@ -534,6 +524,47 @@ class UserController extends Controller
             })
             ->orderBy('nombre')
             ->get();
+    }
+
+    private function normalizarTelefonosWhatsAppParaActor(
+        array $validated,
+        User $actor,
+        ?User $user = null
+    ): array {
+        if (!$this->actorEsSuperadmin($actor)) {
+            $validated['telefono'] = $user ? $user->telefono : null;
+            $validated['telefono_whatsapp_operativo'] = $user
+                ? $user->telefono_whatsapp_operativo
+                : null;
+
+            return $validated;
+        }
+
+        $campos = [
+            'telefono' => 'El WhatsApp autorizado ya está registrado en otro usuario.',
+            'telefono_whatsapp_operativo' => 'El WhatsApp operativo ya está registrado en otro usuario.',
+        ];
+
+        foreach ($campos as $campo => $mensaje) {
+            $validated[$campo] = $this->normalizarTelefonoMx($validated[$campo] ?? null);
+
+            if (is_null($validated[$campo])) {
+                continue;
+            }
+
+            $exists = User::query()
+                ->where($campo, $validated[$campo])
+                ->when($user, fn ($query) => $query->where('id', '!=', $user->id))
+                ->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    $campo => [$mensaje],
+                ]);
+            }
+        }
+
+        return $validated;
     }
 
     private function normalizarTelefonoMx(?string $telefono): ?string

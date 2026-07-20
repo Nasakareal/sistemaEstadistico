@@ -222,7 +222,8 @@ class C5iResponseTimeServiceTest extends TestCase
         $user = User::factory()->create([
             'unidad_id' => $unit->id,
             'patrulla_id' => $patrulla->id,
-            'telefono' => $phone,
+            'telefono' => null,
+            'telefono_whatsapp_operativo' => $phone,
             'compartir_ubicacion' => true,
         ]);
         $group = WhatsAppWebGroup::query()->firstOrCreate(

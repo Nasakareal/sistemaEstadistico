@@ -10,11 +10,14 @@ use App\Services\WhatsApp\WhatsAppQueryService;
 use App\Services\WhatsApp\WhatsAppStateService;
 use App\Services\WhatsApp\WhatsAppUserResolverService;
 use App\Services\WhatsAppCloudService;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class WhatsAppWebhookAuthorizationTest extends TestCase
 {
+    use DatabaseTransactions;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -148,5 +151,23 @@ class WhatsAppWebhookAuthorizationTest extends TestCase
         $this->assertSame('5214431234567', $variants[0]);
         $this->assertContains('524431234567', $variants);
         $this->assertContains('4431234567', $variants);
+    }
+
+    public function test_telefono_operativo_no_autoriza_respuestas_del_bot(): void
+    {
+        $phone = '521443' . random_int(1000000, 9999999);
+        $user = User::factory()->create([
+            'telefono' => null,
+            'telefono_whatsapp_operativo' => $phone,
+        ]);
+        $resolver = new WhatsAppUserResolverService();
+
+        $this->assertNull($resolver->findAuthorizedUserByPhone($phone));
+
+        $user->update(['telefono' => $phone]);
+        $authorized = $resolver->findAuthorizedUserByPhone($phone);
+
+        $this->assertNotNull($authorized);
+        $this->assertSame($user->id, $authorized->id);
     }
 }

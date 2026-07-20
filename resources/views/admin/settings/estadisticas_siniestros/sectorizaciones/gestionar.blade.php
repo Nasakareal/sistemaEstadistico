@@ -82,7 +82,7 @@
                 <div class="sv-panel__header">
                     <div>
                         <div class="sv-panel__title">Acciones</div>
-                        <div class="sv-panel__desc">Arrastra elementos al mapa y guarda.</div>
+                        <div class="sv-panel__desc">Arrastra elementos al mapa, acomódalos y guarda.</div>
                     </div>
                 </div>
                 <div class="sv-panel__body">
@@ -106,7 +106,7 @@
                 <div class="sv-panel__header">
                     <div>
                         <div class="sv-panel__title">Elementos disponibles</div>
-                        <div class="sv-panel__desc">Arrastra al mapa. Doble clic para regresar.</div>
+                        <div class="sv-panel__desc">Arrastra y suelta dentro de un sector del mapa.</div>
                     </div>
                 </div>
                 <div class="sv-panel__body">
@@ -215,6 +215,9 @@
                                          data-lng="{{ $lng }}"
                                          data-patrulla="{{ $patrullaGrupo }}"
                                          style="left:{{ $sx }}%; top:{{ $sy }}%; --sector-color: {{ $color }};">
+                                        <button type="button" class="sv-canvas-card__remove" title="Quitar del mapa" aria-label="Quitar unidad del mapa">
+                                            <i class="fas fa-times"></i>
+                                        </button>
                                         <div class="sv-canvas-card__grip"><i class="fas fa-arrows-alt"></i></div>
                                         <div class="sv-canvas-card__body">
                                             <div class="sv-canvas-card__name">{{ $patrullaGrupo }}</div>
@@ -233,7 +236,7 @@
                     </div>
 
                     <div class="sv-help">
-                        Usa +/− o la rueda para acercar y alejar. Suelta un elemento sin patrulla encima de una tarjeta con unidad para unirlo como tripulante; haz doble clic para regresar todo el grupo a disponibles.
+                        Arrastra desde la lista y suelta dentro de un sector. Usa × para regresar una unidad o elemento a disponibles. También puedes soltar un elemento sin patrulla encima de una unidad para unirlo como tripulante.
                     </div>
                 </div>
             </div>
@@ -389,6 +392,36 @@
         backdrop-filter:blur(10px);
         cursor:grab;
         user-select:none;
+        transition:opacity .15s ease, transform .15s ease, border-color .15s ease;
+    }
+
+    .sv-card-personal.sv-drag-source{
+        opacity:.45;
+        transform:scale(.98);
+        border-color:rgba(45,168,255,.58);
+    }
+
+    .sv-pool-drag-preview{
+        position:fixed;
+        z-index:10050;
+        width:210px;
+        max-width:calc(100vw - 24px);
+        pointer-events:none;
+        opacity:.94;
+        transform:translate(14px, 14px) rotate(1deg);
+        box-shadow:0 16px 38px rgba(0,0,0,.35);
+        transition:border-color .12s ease, background .12s ease, opacity .12s ease;
+    }
+
+    .sv-pool-drag-preview.sv-over-canvas{
+        width:150px;
+        border-color:rgba(45,168,255,.72);
+        background:rgba(17,24,39,.94);
+    }
+
+    .sv-pool-drag-preview.sv-invalid-drop{
+        opacity:.68;
+        border-color:#ef4444;
     }
 
     .sv-card-personal__name{
@@ -420,6 +453,39 @@
         background:#ededed;
         overflow:hidden;
         box-shadow:0 22px 60px rgba(0,0,0,.28);
+    }
+
+    .sv-canvas::after{
+        position:absolute;
+        left:50%;
+        bottom:22px;
+        z-index:8;
+        transform:translateX(-50%) translateY(8px);
+        padding:8px 13px;
+        border-radius:999px;
+        background:rgba(15,23,42,.88);
+        color:#fff;
+        font-size:11px;
+        font-weight:900;
+        pointer-events:none;
+        opacity:0;
+        transition:opacity .12s ease, transform .12s ease, background .12s ease;
+    }
+
+    .sv-canvas.sv-drop-ready::after{
+        content:'Suelta dentro de un sector';
+        opacity:1;
+        transform:translateX(-50%) translateY(0);
+    }
+
+    .sv-canvas.sv-drop-valid::after{
+        content:'Suelta para colocar';
+        background:rgba(5,150,105,.92);
+    }
+
+    .sv-canvas.sv-drop-invalid::after{
+        content:'Muévelo dentro de un sector';
+        background:rgba(185,28,28,.92);
     }
 
     .sv-real-map{
@@ -574,9 +640,9 @@
 
     .sv-canvas-card{
         position:absolute;
-        min-width:82px;
-        max-width:112px;
-        border:1.5px dashed #222;
+        min-width:70px;
+        max-width:96px;
+        border:1px dashed #222;
         background:var(--sector-color, #ffffff);
         box-shadow:0 6px 16px rgba(0,0,0,.14);
         transform:translate(-50%, -50%);
@@ -587,35 +653,60 @@
 
     .sv-canvas-card__grip{
         position:absolute;
-        top:-9px;
-        right:-9px;
-        width:21px;
-        height:21px;
+        top:-8px;
+        right:-8px;
+        width:18px;
+        height:18px;
         border-radius:999px;
         display:grid;
         place-items:center;
         background:#111;
         color:#fff;
-        font-size:9px;
+        font-size:7.5px;
         box-shadow:0 4px 9px rgba(0,0,0,.18);
     }
 
+    .sv-canvas-card__remove{
+        position:absolute;
+        top:-8px;
+        left:-8px;
+        z-index:2;
+        display:grid;
+        place-items:center;
+        width:18px;
+        height:18px;
+        padding:0;
+        border:0;
+        border-radius:999px;
+        background:#b91c1c;
+        color:#fff;
+        font-size:8px;
+        line-height:1;
+        cursor:pointer;
+        box-shadow:0 4px 9px rgba(0,0,0,.22);
+    }
+
+    .sv-canvas-card__remove:hover{
+        background:#dc2626;
+        transform:scale(1.08);
+    }
+
     .sv-canvas-card__body{
-        padding:6px 5px 5px;
+        padding:5px 4px 4px;
         text-align:center;
         font-family:"Times New Roman", serif;
         color:#111;
     }
 
     .sv-canvas-card__name{
-        font-size:9.5px;
+        font-size:8.2px;
         font-weight:700;
         line-height:1.02;
     }
 
     .sv-canvas-card__person{
         margin-top:2px;
-        font-size:8.5px;
+        font-size:7.3px;
         line-height:1.04;
         font-weight:700;
         text-transform:uppercase;
@@ -634,7 +725,7 @@
         top:3px;
         padding:1px 4px;
         border-radius:999px;
-        font-size:7.5px;
+        font-size:6.8px;
         font-weight:900;
         background:rgba(0,0,0,.12);
         color:#111;
@@ -660,7 +751,8 @@
 
     .sv-canvas.sv-exporting .leaflet-control-zoom,
     .sv-canvas.sv-exporting .sv-fit-map-control,
-    .sv-canvas.sv-exporting .sv-canvas-card__grip{
+    .sv-canvas.sv-exporting .sv-canvas-card__grip,
+    .sv-canvas.sv-exporting .sv-canvas-card__remove{
         display:none !important;
     }
 </style>
@@ -679,6 +771,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const turno = document.getElementById('turnoSectorizacion').value || '';
     const autoDownloadPdf = new URLSearchParams(window.location.search).get('descargar') === 'pdf';
     let active = null;
+    let poolDrag = null;
     let offsetX = 0;
     let offsetY = 0;
 
@@ -914,6 +1007,92 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         return colors[sector] || '#ffffff';
+    }
+
+    function poolDropInfo(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const inside = clientX >= rect.left && clientX <= rect.right
+            && clientY >= rect.top && clientY <= rect.bottom;
+
+        if (!inside) {
+            return { inside: false, valid: false };
+        }
+
+        const left = clientX - rect.left;
+        const top = clientY - rect.top;
+        const latLng = map.containerPointToLatLng(L.point(left, top));
+        const sector = detectSectorLatLng(latLng);
+
+        return {
+            inside: true,
+            valid: sector !== '',
+            left: left,
+            top: top,
+            x: (left / Math.max(rect.width, 1)) * 100,
+            y: (top / Math.max(rect.height, 1)) * 100,
+            latLng: latLng,
+            sector: sector
+        };
+    }
+
+    function startPoolDrag(card, clientX, clientY) {
+        const preview = card.cloneNode(true);
+
+        preview.removeAttribute('id');
+        preview.classList.remove('sv-drag-source');
+        preview.classList.add('sv-pool-drag-preview');
+        preview.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(preview);
+
+        card.classList.add('sv-drag-source');
+        canvas.classList.add('sv-drop-ready');
+        poolDrag = {
+            card: card,
+            preview: preview,
+            drop: null
+        };
+
+        movePoolDrag(clientX, clientY);
+    }
+
+    function movePoolDrag(clientX, clientY) {
+        if (!poolDrag) {
+            return;
+        }
+
+        const drop = poolDropInfo(clientX, clientY);
+        poolDrag.drop = drop;
+        poolDrag.preview.style.left = clientX + 'px';
+        poolDrag.preview.style.top = clientY + 'px';
+        poolDrag.preview.classList.toggle('sv-over-canvas', drop.inside);
+        poolDrag.preview.classList.toggle('sv-invalid-drop', drop.inside && !drop.valid);
+        canvas.classList.toggle('sv-drop-valid', drop.valid);
+        canvas.classList.toggle('sv-drop-invalid', drop.inside && !drop.valid);
+    }
+
+    function finishPoolDrag() {
+        if (!poolDrag) {
+            return;
+        }
+
+        const source = poolDrag.card;
+        const drop = poolDrag.drop;
+
+        if (drop && drop.valid) {
+            const newCard = makeCanvasCardFromPool(source, drop.sector, drop.x, drop.y);
+            newCard.dataset.lat = drop.latLng.lat.toFixed(7);
+            newCard.dataset.lng = drop.latLng.lng.toFixed(7);
+            canvasCards.appendChild(newCard);
+            source.remove();
+            mergeOverlappingCard(newCard);
+            actualizarResumenMapa();
+        } else {
+            source.classList.remove('sv-drag-source');
+        }
+
+        poolDrag.preview.remove();
+        canvas.classList.remove('sv-drop-ready', 'sv-drop-valid', 'sv-drop-invalid');
+        poolDrag = null;
     }
 
     function anchorCardsWithoutCoordinates() {
@@ -1254,6 +1433,9 @@ document.addEventListener('DOMContentLoaded', function () {
         card.style.setProperty('--sector-color', sectorColor(sector));
 
         card.innerHTML = `
+            <button type="button" class="sv-canvas-card__remove" title="Quitar del mapa" aria-label="Quitar unidad del mapa">
+                <i class="fas fa-times"></i>
+            </button>
             <div class="sv-canvas-card__grip"><i class="fas fa-arrows-alt"></i></div>
             <div class="sv-canvas-card__body">
                 <div class="sv-canvas-card__name">${patrulla}</div>
@@ -1308,18 +1490,33 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             e.stopPropagation();
 
-            const newCard = makeCanvasCardFromPool(card, 'I', 50, 50);
-            canvasCards.appendChild(newCard);
-            card.remove();
-            actualizarResumenMapa();
-
-            startDrag(newCard, e.clientX, e.clientY);
-            moveDrag(e.clientX, e.clientY);
+            startPoolDrag(card, e.clientX, e.clientY);
         });
+    }
+
+    function returnCanvasCardToPool(card) {
+        readMembers(card).forEach(function (member) {
+            pool.appendChild(makePoolCardFromMember(member));
+        });
+        card.remove();
+        actualizarResumenMapa();
     }
 
     function bindCanvasCard(card) {
         renderCanvasCard(card);
+
+        const removeButton = card.querySelector('.sv-canvas-card__remove');
+        if (removeButton) {
+            removeButton.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            removeButton.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                returnCanvasCardToPool(card);
+            });
+        }
 
         card.addEventListener('mousedown', function (e) {
             if (e.button !== 0) {
@@ -1336,19 +1533,25 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             e.stopPropagation();
 
-            readMembers(card).forEach(function (member) {
-                pool.appendChild(makePoolCardFromMember(member));
-            });
-            card.remove();
-            actualizarResumenMapa();
+            returnCanvasCardToPool(card);
         });
     }
 
     document.addEventListener('mousemove', function (e) {
+        if (poolDrag) {
+            movePoolDrag(e.clientX, e.clientY);
+            return;
+        }
+
         moveDrag(e.clientX, e.clientY);
     });
 
     document.addEventListener('mouseup', function () {
+        if (poolDrag) {
+            finishPoolDrag();
+            return;
+        }
+
         endDrag();
     });
 

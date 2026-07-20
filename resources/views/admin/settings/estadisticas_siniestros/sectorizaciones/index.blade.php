@@ -87,6 +87,20 @@
                         <a href="{{ route('settings.estadisticas_siniestros.sectorizaciones.gestionar', now('America/Mexico_City')->addDay()->toDateString()) }}" class="btn sv-btn">
                             <i class="fas fa-calendar-plus"></i> Preparar sectorización de mañana
                         </a>
+
+                        <form class="sv-date-picker" id="formSectorizacionFecha">
+                            <label for="fechaNuevaSectorizacion">Otra fecha</label>
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="fechaNuevaSectorizacion"
+                                value="{{ now('America/Mexico_City')->addDays(2)->toDateString() }}"
+                                required
+                            >
+                            <button type="submit" class="btn sv-btn">
+                                <i class="fas fa-calendar-check"></i> Preparar
+                            </button>
+                        </form>
                     @endunless
                 </div>
             </div>
@@ -192,6 +206,41 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
+        align-items: flex-end;
+    }
+
+    .sv-date-picker{
+        display: flex;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    .sv-date-picker label{
+        width: 100%;
+        margin: 0;
+        color: var(--sv-muted);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .35px;
+    }
+
+    .sv-date-picker .form-control{
+        width: 170px;
+        height: 39px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(8,15,30,.58);
+        color: var(--sv-text);
+    }
+
+    @media (max-width: 767.98px){
+        .sv-date-picker{
+            width: 100%;
+            margin-left: 0;
+        }
     }
 
     .sv-table{
@@ -263,5 +312,26 @@
 @stop
 
 @section('js')
-    <script> console.log('Sectorizaciones'); </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('formSectorizacionFecha');
+
+            if (!form) {
+                return;
+            }
+
+            const input = document.getElementById('fechaNuevaSectorizacion');
+            const urlTemplate = @json(route('settings.estadisticas_siniestros.sectorizaciones.gestionar', '__FECHA__'));
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                if (!input.reportValidity()) {
+                    return;
+                }
+
+                window.location.assign(urlTemplate.replace('__FECHA__', encodeURIComponent(input.value)));
+            });
+        });
+    </script>
 @stop

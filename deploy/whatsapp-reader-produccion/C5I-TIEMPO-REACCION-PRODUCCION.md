@@ -62,6 +62,10 @@ WHATSAPP_C5I_RESPONSE_TIME_UNIT_SLUG=siniestros
 WHATSAPP_C5I_RESPONSE_TIME_ARRIVAL_RADIUS_METERS=200
 WHATSAPP_C5I_RESPONSE_TIME_MAX_ACCURACY_METERS=100
 WHATSAPP_C5I_RESPONSE_TIME_OPEN_SERVICE_MINUTES=240
+WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIBE_AUDIO=true
+WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
+WHATSAPP_C5I_RESPONSE_TIME_AUDIO_MAX_BYTES=5242880
+OPENAI_API_KEY=CLAVE_DEL_PROYECTO_OPENAI
 ```
 
 Cuando la plantilla esté aprobada, cambiar solamente:
@@ -94,6 +98,7 @@ WHATSAPP_WEB_READER_GROUP_IDS=120363424100430316@g.us
 WHATSAPP_WEB_READER_ALLOWED_AUTHOR_IDS=5214437916890@c.us,5214437938996@c.us,5214433284672@c.us
 WHATSAPP_WEB_READER_ALLOW_OPERATIONAL_AUTHORS=true
 WHATSAPP_WEB_READER_HEADLESS=true
+WHATSAPP_WEB_READER_AUDIO_MAX_BYTES=5242880
 ```
 
 Reiniciar el lector:
@@ -103,4 +108,4 @@ pm2 restart sistema-estadistico-whatsapp-reader
 pm2 logs sistema-estadistico-whatsapp-reader
 ```
 
-El modo de autores operativos sólo reenvía mensajes con estructura probable de reporte C5i, asignación o arribo. Los mensajes ordinarios del grupo siguen descartándose.
+El modo de autores operativos reenvía mensajes con estructura probable de reporte C5i, asignación o arribo. También descarga temporalmente notas de voz cuando existe un servicio asignado abierto. Laravel transcribe el audio, reconoce `unidad + 86` y usa la hora original del audio como llegada, aunque el audio o la tarjeta posterior los publique otro compañero. Los mensajes ordinarios del grupo siguen descartándose.

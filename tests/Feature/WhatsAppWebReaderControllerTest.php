@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Services\C5iAudioTranscriptionService;
+use App\Services\C5iResponseTimeService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Mockery;
 use Tests\TestCase;
 
 class WhatsAppWebReaderControllerTest extends TestCase
@@ -237,6 +240,63 @@ class WhatsAppWebReaderControllerTest extends TestCase
             'whatsapp_message_id' => 'ARRIBO_SIN_86',
             'quoted_whatsapp_message_id' => 'REPORTE_C5I_CITADO',
             'body' => 'ya en el K6 indicado',
+        ]);
+    }
+
+    public function test_acepta_y_transcribe_audio_operativo_de_cualquier_companero(): void
+    {
+        config([
+            'services.whatsapp.web_reader.secret' => 'reader-test-secret',
+            'services.whatsapp.web_reader.allowed_group_ids' => '120363000000000005@g.us',
+            'services.whatsapp.web_reader.allowed_author_ids' => '5214437916890@c.us',
+            'services.whatsapp.web_reader.allow_operational_authors' => true,
+            'services.whatsapp.c5i_recommendation.enabled' => false,
+            'services.whatsapp.c5i_response_time.audio_max_bytes' => 5242880,
+        ]);
+
+        $responseTime = Mockery::mock(C5iResponseTimeService::class);
+        $responseTime->shouldReceive('isOperationalMessageCandidate')->andReturn(false);
+        $responseTime->shouldReceive('isOperationalAudioCandidate')->andReturn(true);
+        $responseTime->shouldReceive('shouldTranscribeAudio')->once()->andReturn(true);
+        $responseTime->shouldReceive('processMessage')->once()->andReturn(['status' => 'complete']);
+        $this->app->instance(C5iResponseTimeService::class, $responseTime);
+
+        $transcription = Mockery::mock(C5iAudioTranscriptionService::class);
+        $transcription->shouldReceive('transcribe')
+            ->once()
+            ->andReturn([
+                'status' => 'transcribed',
+                'text' => 'Unidad 22-1110, 86 sobre el K6; se checa 13.',
+                'model' => 'gpt-4o-mini-transcribe',
+            ]);
+        $this->app->instance(C5iAudioTranscriptionService::class, $transcription);
+
+        $this->postJson('http://localhost/api/whatsapp-web-reader/messages', [
+            'group' => [
+                'id' => '120363000000000005@g.us',
+                'name' => 'Grupo operativo con audios',
+            ],
+            'message' => [
+                'id' => 'AUDIO_86_COMPANERO',
+                'author_id' => '5214439999999@c.us',
+                'body' => null,
+                'type' => 'ptt',
+                'has_media' => true,
+                'media_base64' => base64_encode('audio de prueba'),
+                'media_mimetype' => 'audio/ogg; codecs=opus',
+                'timestamp' => 1784590860,
+            ],
+        ], ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'])
+            ->assertOk()
+            ->assertJsonPath('response_time_status', 'complete')
+            ->assertJsonPath('transcription_status', 'transcribed');
+
+        $this->assertDatabaseHas('whatsapp_web_messages', [
+            'whatsapp_message_id' => 'AUDIO_86_COMPANERO',
+            'author_whatsapp_id' => '5214439999999@c.us',
+            'message_type' => 'ptt',
+            'transcription_status' => 'transcribed',
+            'transcription_text' => 'Unidad 22-1110, 86 sobre el K6; se checa 13.',
         ]);
     }
 }

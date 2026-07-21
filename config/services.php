@@ -79,6 +79,11 @@ return [
             'arrival_radius_meters' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_ARRIVAL_RADIUS_METERS', 200),
             'max_accuracy_meters' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_MAX_ACCURACY_METERS', 100),
             'open_service_minutes' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_OPEN_SERVICE_MINUTES', 240),
+            'transcribe_audio' => filter_var(env('WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIBE_AUDIO', true), FILTER_VALIDATE_BOOLEAN),
+            'transcription_model' => env('WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIPTION_MODEL', 'gpt-4o-mini-transcribe'),
+            'transcription_prompt' => env('WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIPTION_PROMPT', 'Radio policial en español. Transcribe literalmente números de unidad, claves, kilómetros y códigos usando dígitos y guiones.'),
+            'transcription_timeout' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIPTION_TIMEOUT', 60),
+            'audio_max_bytes' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_AUDIO_MAX_BYTES', 5242880),
         ],
 
         'suspicious_place' => [

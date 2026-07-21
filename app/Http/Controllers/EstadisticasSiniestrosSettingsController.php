@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Personal;
+use App\Models\User;
 use App\Services\EstadoFuerzaService;
 use App\Services\TurnoService;
 use App\Services\ActividadInformeService;
@@ -428,22 +429,39 @@ class EstadisticasSiniestrosSettingsController extends Controller
             ->filter()
             ->unique('id')
             ->values();
-        $usuariosLaborando = $this->filtrarPersonalLaborando($plantilla, $estados);
+        $usuariosOperativos = User::query()
+            ->with([
+                'turno:id,nombre,slug,tipo_rol,ciclo_inicio,trabajo_horas,descanso_horas',
+                'roles:id,name',
+            ])
+            ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
+            ->whereRaw('UPPER(TRIM(COALESCE(estado, ""))) = ?', ['ACTIVO'])
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('name', ['Evaluador Teórico', 'Jefe de Grupo']);
+            })
+            ->get();
 
         return [
             'estado_fuerza' => $plantilla->count(),
             'laborando' => $conteo('EN_SERVICIO'),
-            'cmdt_turno' => $usuariosLaborando
-                ->filter(fn (Personal $personal) => $this->usuarioTieneRol($personal, 'Jefe de Grupo'))
-                ->count(),
+            'cmdt_turno' => $this->contarUsuariosRolEnServicio(
+                $usuariosOperativos,
+                $plantilla,
+                $estados,
+                'Jefe de Grupo',
+                1
+            ),
             'base_radio' => $plantilla->filter(function (Personal $personal) use ($estados) {
                 return strtoupper(trim((string) optional($personal->turno)->tipo_rol)) === 'RADIO_12X36'
                     && $estados->get($personal->id) === 'EN_SERVICIO';
             })->count(),
             'elementos_recorrido' => $idsEnRecorrido->count(),
-            'modulo' => $usuariosLaborando
-                ->filter(fn (Personal $personal) => $this->usuarioTieneRol($personal, 'Evaluador Teórico'))
-                ->count(),
+            'modulo' => $this->contarUsuariosRolEnServicio(
+                $usuariosOperativos,
+                $plantilla,
+                $estados,
+                'Evaluador Teórico'
+            ),
             'curso' => $conteo('CURSOS'),
             'permiso' => $conteo('PERMISO'),
             'incapacidad' => $conteo('INCAPACIDAD'),
@@ -460,29 +478,87 @@ class EstadisticasSiniestrosSettingsController extends Controller
         ];
     }
 
-    protected function filtrarPersonalLaborando($plantilla, $estados)
+    protected function contarUsuariosRolEnServicio(
+        $usuarios,
+        $plantilla,
+        $estados,
+        string $rol,
+        ?int $maximo = null
+    ): int
     {
-        return $plantilla->filter(function (Personal $personal) use ($estados) {
-            return $personal->user
-                && Str::upper(Str::ascii(trim((string) $personal->user->estado))) === 'ACTIVO'
-                // El estado de fuerza se calcula desde el registro de Personal.
-                // Usar aquí el turno del usuario podía contradecir ese resultado
-                // y excluir evaluadores que sí están laborando según su jornada.
-                && $estados->get($personal->id) === 'EN_SERVICIO';
-        });
-    }
+        $rolEsperado = $this->normalizarTextoSectorizacion($rol);
+        $personalPorUsuario = $plantilla
+            ->filter(fn (Personal $personal) => !empty($personal->user_id))
+            ->keyBy(fn (Personal $personal) => (int) $personal->user_id);
+        $personalPorNombre = $plantilla->groupBy(
+            fn (Personal $personal) => $this->claveNombreSectorizacion($personal->nombre_completo)
+        );
+        $personalContado = [];
+        $total = 0;
 
-    protected function usuarioTieneRol(Personal $personal, string $rol): bool
-    {
-        if (!$personal->user || !$personal->user->relationLoaded('roles')) {
-            return false;
+        foreach ($usuarios as $usuario) {
+            if (!$usuario instanceof User || !$usuario->relationLoaded('roles')) {
+                continue;
+            }
+
+            $tieneRol = $usuario->roles->contains(function ($rolUsuario) use ($rolEsperado) {
+                return $this->normalizarTextoSectorizacion((string) $rolUsuario->name) === $rolEsperado;
+            });
+
+            if (!$tieneRol) {
+                continue;
+            }
+
+            $personal = $personalPorUsuario->get((int) $usuario->id);
+
+            if (!$personal) {
+                // Algunos registros históricos tienen el usuario y el Personal
+                // correctos, pero quedó vacío personals.user_id. Se admite el
+                // vínculo sólo cuando el nombre completo coincide de forma única.
+                $coincidencias = $personalPorNombre->get(
+                    $this->claveNombreSectorizacion((string) $usuario->name),
+                    collect()
+                );
+
+                if ($coincidencias->count() === 1) {
+                    $personal = $coincidencias->first();
+                }
+            }
+
+            if (!$personal
+                || isset($personalContado[$personal->id])
+                || $estados->get($personal->id) !== 'EN_SERVICIO') {
+                continue;
+            }
+
+            $personalContado[$personal->id] = true;
+            $total++;
+
+            if ($maximo !== null && $total >= $maximo) {
+                return $maximo;
+            }
         }
 
-        $rolEsperado = Str::upper(Str::ascii(trim($rol)));
+        return $total;
+    }
 
-        return $personal->user->roles->contains(function ($rolUsuario) use ($rolEsperado) {
-            return Str::upper(Str::ascii(trim((string) $rolUsuario->name))) === $rolEsperado;
-        });
+    protected function claveNombreSectorizacion(string $nombre): string
+    {
+        $partes = preg_split(
+            '/[^A-Z0-9]+/',
+            $this->normalizarTextoSectorizacion($nombre),
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        ) ?: [];
+
+        sort($partes, SORT_STRING);
+
+        return implode('|', $partes);
+    }
+
+    protected function normalizarTextoSectorizacion(string $texto): string
+    {
+        return Str::upper(Str::ascii(trim($texto)));
     }
 
     protected function leerAsignacionSectorizacion(string $fecha): array

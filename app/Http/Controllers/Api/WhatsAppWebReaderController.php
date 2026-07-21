@@ -7,8 +7,10 @@ use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
 use App\Services\C5iSiniestrosRecommendationService;
 use App\Services\C5iResponseTimeService;
+use App\Services\C5iAudioTranscriptionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WhatsAppWebReaderController extends Controller
 {
@@ -57,12 +59,21 @@ class WhatsAppWebReaderController extends Controller
         ]);
     }
 
-    public function storeMessage(Request $request, C5iResponseTimeService $responseTime)
+    public function storeMessage(
+        Request $request,
+        C5iResponseTimeService $responseTime,
+        C5iAudioTranscriptionService $audioTranscription
+    )
     {
         if (!$this->isAuthorized($request)) {
             return response()->json(['ok' => false], $this->authorizationStatus());
         }
 
+        $maxAudioBytes = max(1024, (int) config(
+            'services.whatsapp.c5i_response_time.audio_max_bytes',
+            5 * 1024 * 1024
+        ));
+        $maxBase64Characters = (int) ceil($maxAudioBytes / 3) * 4 + 16;
         $data = $request->validate([
             'group.id' => ['required', 'string', 'max:191'],
             'group.name' => ['nullable', 'string', 'max:255'],
@@ -72,6 +83,9 @@ class WhatsAppWebReaderController extends Controller
             'message.body' => ['nullable', 'string', 'max:65535'],
             'message.type' => ['nullable', 'string', 'max:50'],
             'message.has_media' => ['nullable', 'boolean'],
+            'message.media_base64' => ['nullable', 'string', 'max:' . $maxBase64Characters],
+            'message.media_mimetype' => ['nullable', 'string', 'max:100'],
+            'message.media_filename' => ['nullable', 'string', 'max:255'],
             'message.timestamp' => ['required', 'integer', 'min:1'],
         ]);
 
@@ -94,8 +108,15 @@ class WhatsAppWebReaderController extends Controller
             'services.whatsapp.web_reader.allow_operational_authors',
             false
         ) && $responseTime->isOperationalMessageCandidate($data['message']['body'] ?? null);
+        $operationalAudioAllowed = (bool) config(
+            'services.whatsapp.web_reader.allow_operational_authors',
+            false
+        ) && $responseTime->isOperationalAudioCandidate(
+            $data['message']['type'] ?? null,
+            (bool) ($data['message']['has_media'] ?? false)
+        );
 
-        if (!$authorAllowed && !$operationalAuthorAllowed) {
+        if (!$authorAllowed && !$operationalAuthorAllowed && !$operationalAudioAllowed) {
             return response()->json([
                 'ok' => true,
                 'stored' => false,
@@ -142,6 +163,8 @@ class WhatsAppWebReaderController extends Controller
                 'body' => $data['message']['body'] ?? null,
                 'message_type' => $data['message']['type'] ?? 'unknown',
                 'has_media' => (bool) ($data['message']['has_media'] ?? false),
+                'media_mime_type' => $data['message']['media_mimetype'] ?? null,
+                'media_filename' => $data['message']['media_filename'] ?? null,
                 'sent_at' => Carbon::createFromTimestamp(
                     (int) $data['message']['timestamp'],
                     (string) config('app.timezone', 'UTC')
@@ -149,14 +172,72 @@ class WhatsAppWebReaderController extends Controller
             ]
         );
 
+        $audioProcessedNow = false;
+        $isOperationalAudio = $responseTime->isOperationalAudioCandidate(
+            $message->message_type,
+            (bool) $message->has_media
+        );
+        $canAttemptAudio = $isOperationalAudio
+            && in_array($message->transcription_status, [null, 'media_unavailable'], true);
+
+        if ($canAttemptAudio && $responseTime->shouldTranscribeAudio($message)) {
+            $base64Audio = (string) ($data['message']['media_base64'] ?? '');
+
+            if ($base64Audio === '') {
+                $message->forceFill([
+                    'transcription_status' => 'media_unavailable',
+                    'transcription_meta' => ['reason' => 'reader_did_not_include_audio'],
+                    'transcription_processed_at' => now(),
+                ])->save();
+            } else {
+                $transcription = $audioTranscription->transcribe(
+                    $base64Audio,
+                    (string) ($data['message']['media_mimetype'] ?? 'audio/ogg'),
+                    $data['message']['media_filename'] ?? null
+                );
+                $transcriptionText = trim((string) ($transcription['text'] ?? ''));
+                $transcriptionMeta = $transcription;
+                unset($transcriptionMeta['text']);
+
+                $message->forceFill([
+                    'transcription_text' => $transcriptionText !== '' ? $transcriptionText : null,
+                    'transcription_status' => $transcription['status'] ?? 'failed',
+                    'transcription_meta' => $transcriptionMeta,
+                    'transcription_processed_at' => now(),
+                ])->save();
+                $audioProcessedNow = $transcriptionText !== '';
+
+                Log::info('Resultado transcripción audio C5i/Siniestros', [
+                    'whatsapp_web_message_id' => $message->id,
+                    'status' => $message->transcription_status,
+                    'reason' => data_get($transcriptionMeta, 'reason'),
+                ]);
+            }
+        } elseif ($canAttemptAudio) {
+            $message->forceFill([
+                'transcription_status' => 'not_needed',
+                'transcription_meta' => ['reason' => 'open_assigned_incident_not_found'],
+                'transcription_processed_at' => now(),
+            ])->save();
+        }
+
         if ($message->wasRecentlyCreated
+            && !$isOperationalAudio
             && (bool) config('services.whatsapp.c5i_recommendation.enabled', false)) {
             app(C5iSiniestrosRecommendationService::class)->process($message);
         }
 
-        $responseTimeResult = $message->wasRecentlyCreated
+        $responseTimeResult = ($message->wasRecentlyCreated || $audioProcessedNow)
             ? $responseTime->processMessage($message)
             : ['status' => 'duplicate'];
+
+        Log::info('Resultado tiempo de reacción C5i/Siniestros', [
+            'whatsapp_web_message_id' => $message->id,
+            'message_type' => $message->message_type,
+            'status' => $responseTimeResult['status'] ?? null,
+            'reason' => $responseTimeResult['reason'] ?? null,
+            'transcription_status' => $message->transcription_status,
+        ]);
 
         return response()->json([
             'ok' => true,
@@ -164,6 +245,8 @@ class WhatsAppWebReaderController extends Controller
             'recommendation_status' => $message->recommendation_status,
             'recommendation_reason' => data_get($message->recommendation_meta, 'reason'),
             'response_time_status' => $responseTimeResult['status'] ?? null,
+            'response_time_reason' => $responseTimeResult['reason'] ?? null,
+            'transcription_status' => $message->transcription_status,
         ]);
     }
 

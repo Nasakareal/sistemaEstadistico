@@ -1,8 +1,8 @@
 'use strict';
 
 // Este proceso no contiene ninguna operación que escriba en WhatsApp.
-// Sólo observa el grupo permitido y entrega una copia
-// de los metadatos y el texto al endpoint interno de Laravel.
+// Sólo observa el grupo permitido y entrega una copia de los metadatos y el texto.
+// Las notas de voz operativas se descargan temporalmente para transcripción en Laravel.
 
 const fs = require('fs');
 const path = require('path');
@@ -45,6 +45,7 @@ const pollIntervalMs = positiveIntegerEnv('WHATSAPP_WEB_READER_POLL_INTERVAL_MS'
 const pollBackfillMinutes = positiveIntegerEnv('WHATSAPP_WEB_READER_POLL_BACKFILL_MINUTES', 15, 1);
 const healthFailureLimit = positiveIntegerEnv('WHATSAPP_WEB_READER_HEALTH_FAILURE_LIMIT', 3, 1);
 const spoolRetryIntervalMs = positiveIntegerEnv('WHATSAPP_WEB_READER_SPOOL_RETRY_INTERVAL_MS', 60000, 15000);
+const audioMaxBytes = positiveIntegerEnv('WHATSAPP_WEB_READER_AUDIO_MAX_BYTES', 5 * 1024 * 1024, 1024);
 
 function positiveIntegerEnv(name, fallback, minimum) {
     const parsed = Number.parseInt(String(process.env[name] || ''), 10);
@@ -77,7 +78,14 @@ function operationalMessageCandidate(body) {
         return true;
     }
 
-    return /(?:^|\s)86(?:\s|$)|\b(?:APROX|ACUDE|ATIENDE|DIRIGETE|DIRIJASE|ASIGNAD[AO]|ARRIB|LLEG|YA\s+(?:ESTAMOS\s+)?EN|EN\s+EL\s+LUGAR|EN\s+EL\s+PUNTO|EN\s+PUNTO|PRESENTES\s+EN|EN\s+(?:EL\s+)?40|EN\s+(?:EL\s+)?K\s*\d+)|\bK\s*\d+\b/.test(text);
+    return /(?:^|\s)86(?:\s|$)|\b(?:APROX|ACUDE|ATIENDE|DIRIGETE|DIRIJASE|ASIGNAD[AO]|ARRIB|LLEG|YA\s+(?:ESTAMOS\s+)?EN|EN\s+EL\s+LUGAR|EN\s+EL\s+PUNTO|EN\s+PUNTO|PRESENTES\s+EN|EN\s+(?:EL\s+)?40|EN\s+(?:EL\s+)?K\s*\d+|INFORMA\s+UNIDAD)|\bK\s*\d+\b/.test(text);
+}
+
+function operationalAudioCandidate(message) {
+    const type = String(message?.type || '').trim().toLowerCase();
+    const hasMedia = Boolean(message?.has_media ?? message?.hasMedia);
+
+    return hasMedia && ['audio', 'ptt', 'voice'].includes(type);
 }
 
 let parsedApiUrl;
@@ -237,7 +245,58 @@ function eventAllowed(endpoint, payload) {
     return watchedGroupIds.has(String(payload?.group?.id || '').trim())
         && (identifierAllowed(payload?.message?.author_id, allowedAuthorIds)
             || (allowOperationalAuthors
-                && operationalMessageCandidate(payload?.message?.body)));
+                && (operationalMessageCandidate(payload?.message?.body)
+                    || operationalAudioCandidate(payload?.message))));
+}
+
+async function audioMediaPayload(message, messageId) {
+    if (!operationalAudioCandidate(message)) {
+        return {};
+    }
+
+    try {
+        let downloadable = message;
+
+        if (typeof downloadable?.downloadMedia !== 'function'
+            && messageId
+            && !String(messageId).startsWith('fallback_')) {
+            downloadable = await withTimeout(
+                client.getMessageById(messageId),
+                15000,
+                `Recuperación del audio ${messageId}`
+            );
+        }
+
+        if (!downloadable || typeof downloadable.downloadMedia !== 'function') {
+            throw new Error('WhatsApp Web no entregó una referencia descargable');
+        }
+
+        const media = await withTimeout(
+            downloadable.downloadMedia(),
+            30000,
+            `Descarga del audio ${messageId}`
+        );
+        const data = String(media?.data || '');
+
+        if (!data) {
+            throw new Error('WhatsApp Web devolvió el audio vacío');
+        }
+
+        const bytes = Buffer.byteLength(data, 'base64');
+
+        if (bytes > audioMaxBytes) {
+            throw new Error(`Audio de ${bytes} bytes excede el máximo de ${audioMaxBytes}`);
+        }
+
+        return {
+            media_base64: data,
+            media_mimetype: String(media?.mimetype || 'audio/ogg'),
+            media_filename: media?.filename ? String(media.filename) : null,
+        };
+    } catch (error) {
+        console.error(`No se pudo descargar el audio ${messageId}: ${errorDetails(error)}`);
+        return {};
+    }
 }
 
 function fallbackMessageId(groupId, message) {
@@ -465,9 +524,11 @@ async function processIncomingMessage(message) {
     rememberMessageId(messageId);
 
     const author = await resolveAuthorIdentity(message.author);
+    const isOperationalAudio = operationalAudioCandidate(message);
 
     if (!author.allowed
-        && !(allowOperationalAuthors && operationalMessageCandidate(message.body))) {
+        && !(allowOperationalAuthors
+            && (operationalMessageCandidate(message.body) || isOperationalAudio))) {
         console.log(`Mensaje ignorado por remitente no autorizado: ${author.originalId || '(sin autor)'}`);
         return;
     }
@@ -487,6 +548,7 @@ async function processIncomingMessage(message) {
         }
     }
     const timestamp = Number(message.timestamp);
+    const mediaPayload = await audioMediaPayload(message, messageId);
     const payload = {
         group: {
             id: groupId,
@@ -499,6 +561,7 @@ async function processIncomingMessage(message) {
             body: message.body || null,
             type: message.type || 'unknown',
             has_media: Boolean(message.hasMedia),
+            ...mediaPayload,
             timestamp: Number.isInteger(timestamp) && timestamp > 0
                 ? timestamp
                 : Math.floor(Date.now() / 1000),
@@ -514,7 +577,7 @@ async function processIncomingMessage(message) {
             ? ` (${response.recommendation_reason})`
             : '';
         console.log(
-            `Mensaje entrante almacenado: ${messageId}; recomendación: ${response.recommendation_status || 'sin estado'}${reason}`
+            `Mensaje entrante almacenado: ${messageId}; recomendación: ${response.recommendation_status || 'sin estado'}${reason}; reacción: ${response.response_time_status || 'sin estado'}; transcripción: ${response.transcription_status || 'no aplica'}`
         );
     } else {
         console.log(`Mensaje entrante pendiente de reintento: ${messageId}`);

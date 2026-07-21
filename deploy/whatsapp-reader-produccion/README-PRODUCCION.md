@@ -124,6 +124,10 @@ pm2 startOrReload ecosystem.config.cjs --update-env
 pm2 save
 ```
 
+Para transcribir arribos por nota de voz, agrega `WHATSAPP_WEB_READER_AUDIO_MAX_BYTES=5242880`
+al `.env` del lector. En el `.env` de Laravel configura `OPENAI_API_KEY` y las variables
+`WHATSAPP_C5I_RESPONSE_TIME_TRANSCRIBE_AUDIO` incluidas en `laravel.env.example`.
+
 El log `Sondeo de salud correcto` se escribe una vez por hora. Si el evento en
 vivo omite mensajes, aparecerá `Sondeo recuperó ...`; si el navegador queda
 zombi, aparecerán tres fallos de salud seguidos y después el reinicio de PM2.

@@ -16,6 +16,12 @@ class WhatsAppWebMessage extends Model
         'body',
         'message_type',
         'has_media',
+        'media_mime_type',
+        'media_filename',
+        'transcription_text',
+        'transcription_status',
+        'transcription_meta',
+        'transcription_processed_at',
         'sent_at',
         'incident_lat',
         'incident_lng',
@@ -28,6 +34,8 @@ class WhatsAppWebMessage extends Model
 
     protected $casts = [
         'has_media' => 'boolean',
+        'transcription_meta' => 'array',
+        'transcription_processed_at' => 'datetime',
         'sent_at' => 'datetime',
         'incident_lat' => 'float',
         'incident_lng' => 'float',

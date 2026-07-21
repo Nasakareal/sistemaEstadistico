@@ -29,6 +29,7 @@ class C5iResponseTimeServiceTest extends TestCase
         $this->assertTrue($service->isArrivalMessage('ya en el 40'));
         $this->assertTrue($service->isArrivalMessage('ya en el K6 indicado'));
         $this->assertTrue($service->isArrivalMessage('en el lugar, sin novedad'));
+        $this->assertTrue($service->isArrivalMessage('INFORMA UNIDAD 22-1110'));
         $this->assertFalse($service->isArrivalMessage('3252 aproxímate al 40'));
         $this->assertFalse($service->isArrivalMessage('3252 K5'));
     }
@@ -149,6 +150,100 @@ class C5iResponseTimeServiceTest extends TestCase
         $this->assertSame('sent', C5iServiceResponse::query()->firstOrFail()->notification_status);
     }
 
+    public function test_audio_transcrito_con_unidad_y_86_completa_sin_gps_y_sin_depender_del_autor(): void
+    {
+        $this->configure(true);
+        [$group, $patrulla] = $this->operationalContext();
+        $service = $this->service();
+        $reportedAt = Carbon::parse('2026-07-20 15:30:00', 'America/Mexico_City');
+
+        $incident = $this->message(
+            $group,
+            '5214437916890@c.us',
+            'FOLIO: AUDIO-86 AVENIDA MADERO LATITUD:19.7000000 LONGITUD:-101.2500000',
+            $reportedAt
+        );
+        $service->processMessage($incident);
+
+        $assignment = $this->message(
+            $group,
+            '5214433284672@c.us',
+            $patrulla->numero_economico . ' aproxímate al K6',
+            $reportedAt->copy()->addMinute(),
+            $incident->whatsapp_message_id
+        );
+        $service->processMessage($assignment);
+
+        $audio = $this->message(
+            $group,
+            '5214439999999@c.us',
+            null,
+            $reportedAt->copy()->addMinutes(8),
+            null,
+            'ptt',
+            'Unidad ' . $patrulla->numero_economico . ', 86 sobre el K6; se checa 13.'
+        );
+
+        $this->assertSame('complete', $service->processMessage($audio)['status']);
+
+        $response = C5iServiceResponse::query()
+            ->where('incident_message_id', $incident->id)
+            ->firstOrFail();
+
+        $this->assertSame($audio->id, $response->arrival_message_id);
+        $this->assertSame('audio_transcription', $response->arrival_source);
+        $this->assertNull($response->gps_arrived_at);
+        $this->assertSame('complete', $response->status);
+        $this->assertSame('dry_run', $response->notification_status);
+        $this->assertSame('Sin lectura GPS', $response->notification_meta['template_params'][5]);
+        $this->assertSame('Sin lectura GPS', $response->notification_meta['template_params'][7]);
+        $this->assertStringContainsString(
+            'audio transcrito',
+            $response->notification_meta['template_params'][9]
+        );
+        $this->assertStringContainsString(
+            'C5i → audio: 8 minutos',
+            $response->notification_meta['template_params'][9]
+        );
+    }
+
+    public function test_tarjeta_informa_unidad_es_respaldo_de_arribo_aunque_la_suba_otro_numero(): void
+    {
+        $this->configure(true);
+        [$group, $patrulla] = $this->operationalContext();
+        $service = $this->service();
+        $reportedAt = Carbon::parse('2026-07-20 16:00:00', 'America/Mexico_City');
+
+        $incident = $this->message(
+            $group,
+            '5214437916890@c.us',
+            'FOLIO: TARJETA-86 LATITUD:19.7000000 LONGITUD:-101.2500000',
+            $reportedAt
+        );
+        $service->processMessage($incident);
+        $service->processMessage($this->message(
+            $group,
+            '5214433284672@c.us',
+            $patrulla->numero_economico . ' aproxímate al K6',
+            $reportedAt->copy()->addMinute(),
+            $incident->whatsapp_message_id
+        ));
+
+        $card = $this->message(
+            $group,
+            '5214439999999@c.us',
+            'Ubicación: 19.7156484, -101.1676426 INFORMA UNIDAD '
+                . $patrulla->numero_economico,
+            $reportedAt->copy()->addMinutes(20)
+        );
+
+        $this->assertSame('complete', $service->processMessage($card)['status']);
+        $response = C5iServiceResponse::query()->where('incident_message_id', $incident->id)->firstOrFail();
+        $this->assertSame($card->id, $response->arrival_message_id);
+        $this->assertSame('text_message', $response->arrival_source);
+        $this->assertSame('dry_run', $response->notification_status);
+    }
+
     public function test_mensaje_citado_identifica_el_servicio_correcto_si_hay_dos_reportes(): void
     {
         $this->configure(true);
@@ -238,9 +333,11 @@ class C5iResponseTimeServiceTest extends TestCase
     private function message(
         WhatsAppWebGroup $group,
         string $author,
-        string $body,
+        ?string $body,
         Carbon $sentAt,
-        ?string $quotedMessageId = null
+        ?string $quotedMessageId = null,
+        string $messageType = 'chat',
+        ?string $transcriptionText = null
     ): WhatsAppWebMessage {
         return WhatsAppWebMessage::query()->create([
             'whatsapp_web_group_id' => $group->id,
@@ -248,8 +345,10 @@ class C5iResponseTimeServiceTest extends TestCase
             'quoted_whatsapp_message_id' => $quotedMessageId,
             'author_whatsapp_id' => $author,
             'body' => $body,
-            'message_type' => 'chat',
-            'has_media' => false,
+            'message_type' => $messageType,
+            'has_media' => in_array($messageType, ['audio', 'ptt', 'voice'], true),
+            'transcription_text' => $transcriptionText,
+            'transcription_status' => $transcriptionText !== null ? 'transcribed' : null,
             'sent_at' => $sentAt,
         ]);
     }

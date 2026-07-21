@@ -99,6 +99,44 @@ class C5iResponseTimeService
             || $this->hasLooseAssignmentCue($text);
     }
 
+    public function isOperationalAudioCandidate(?string $messageType, bool $hasMedia): bool
+    {
+        return $hasMedia && in_array(
+            mb_strtolower(trim((string) $messageType), 'UTF-8'),
+            ['audio', 'ptt', 'voice'],
+            true
+        );
+    }
+
+    public function shouldTranscribeAudio(WhatsAppWebMessage $message): bool
+    {
+        if (!(bool) config('services.whatsapp.c5i_response_time.enabled', false)
+            || !(bool) config('services.whatsapp.c5i_response_time.transcribe_audio', true)
+            || !$this->isOperationalAudioCandidate($message->message_type, (bool) $message->has_media)) {
+            return false;
+        }
+
+        $message->loadMissing('group');
+
+        if (!$this->groupAllowed((string) optional($message->group)->whatsapp_id)) {
+            return false;
+        }
+
+        $at = $message->sent_at ?: now();
+        $lookbackMinutes = max(30, (int) config(
+            'services.whatsapp.c5i_response_time.open_service_minutes',
+            240
+        ));
+
+        return C5iServiceResponse::query()
+            ->where('whatsapp_web_group_id', $message->whatsapp_web_group_id)
+            ->whereNotNull('assignment_message_id')
+            ->whereNull('arrival_message_id')
+            ->where('reported_at', '<=', $at)
+            ->where('reported_at', '>=', $at->copy()->subMinutes($lookbackMinutes))
+            ->exists();
+    }
+
     public function isArrivalMessage(?string $body): bool
     {
         return $this->hasArrivalCue($this->normalizedText((string) $body));
@@ -112,16 +150,23 @@ class C5iResponseTimeService
             return ['status' => 'ignored', 'reason' => 'group_not_allowed'];
         }
 
-        $body = (string) $message->body;
+        $body = $this->operationalText($message);
         $author = (string) $message->author_whatsapp_id;
         $incident = $this->recommendations->parseIncident($body);
+        $normalized = $this->normalizedText($body);
+        $patrulla = $this->resolvePatrulla($body, $author);
+
+        if ($this->hasUnitReportCue($normalized) && $patrulla) {
+            $arrivalResult = $this->recordArrival($message, $patrulla);
+
+            if (($arrivalResult['status'] ?? 'ignored') !== 'ignored') {
+                return $arrivalResult;
+            }
+        }
 
         if ($incident !== null && $this->sourceAllowed($author)) {
             return $this->recordIncident($message, $incident);
         }
-
-        $normalized = $this->normalizedText($body);
-        $patrulla = $this->resolvePatrulla($body, $author);
 
         if ($this->dispatchAllowed($author)
             && $patrulla
@@ -203,16 +248,20 @@ class C5iResponseTimeService
         $response->forceFill([
             'arrival_message_id' => $message->id,
             'arrival_reported_at' => $arrivalAt,
+            'arrival_source' => $this->isOperationalAudioCandidate(
+                $message->message_type,
+                (bool) $message->has_media
+            ) ? 'audio_transcription' : 'text_message',
             'arrival_message_delay_seconds' => $gpsAt
                 ? $gpsAt->diffInSeconds($arrivalAt, false)
                 : null,
-            'status' => $gpsAt ? 'complete' : 'arrival_reported',
+            'status' => 'complete',
         ])->save();
 
         $this->notifyIfComplete($response->fresh(['patrulla']));
 
         return [
-            'status' => $gpsAt ? 'complete' : 'arrival_reported',
+            'status' => 'complete',
             'response_id' => $response->id,
             'patrulla_id' => $patrulla->id,
         ];
@@ -456,7 +505,7 @@ class C5iResponseTimeService
 
     private function notifyIfComplete(C5iServiceResponse $response): void
     {
-        if (!$response->gps_arrived_at || !$response->arrival_reported_at) {
+        if (!$response->arrival_reported_at) {
             return;
         }
 
@@ -565,23 +614,53 @@ class C5iResponseTimeService
         $accuracy = $response->gps_accuracy_meters !== null
             ? number_format((float) $response->gps_accuracy_meters, 0, '.', '') . ' m'
             : 'sin dato';
+        $reportedAt = $response->reported_at->copy()->timezone($timezone);
+        $arrivalAt = $response->arrival_reported_at->copy()->timezone($timezone);
+        $gpsAt = $response->gps_arrived_at
+            ? $response->gps_arrived_at->copy()->timezone($timezone)
+            : null;
+        $reactionSeconds = max(0, $reportedAt->diffInSeconds($arrivalAt, false));
+        $assignmentReactionSeconds = $response->assigned_at
+            ? max(0, $response->assigned_at->copy()->timezone($timezone)
+                ->diffInSeconds($arrivalAt, false))
+            : null;
+        $arrivalSource = $response->arrival_source === 'audio_transcription'
+            ? 'audio transcrito'
+            : 'mensaje de llegada';
+        $gpsDetail = $gpsAt
+            ? $this->delayDescription((int) $response->arrival_message_delay_seconds)
+                . '; GPS a ' . number_format((float) $response->gps_distance_meters, 0, '.', '')
+                . ' m del punto; precisión ' . $accuracy
+            : 'Llegada confirmada por ' . $arrivalSource
+                . '; C5i → audio: ' . $this->humanDuration($reactionSeconds)
+                . '; asignación → audio: ' . ($assignmentReactionSeconds !== null
+                    ? $this->humanDuration($assignmentReactionSeconds)
+                    : 'sin hora de asignación')
+                . '; sin lectura GPS disponible';
 
         return [
             $response->incident_reference ?: ('C5i #' . $response->id),
             $patrulla,
             $this->limitText((string) $response->incident_location, 400),
-            $response->reported_at->copy()->timezone($timezone)->format('d/m/Y H:i:s'),
+            $reportedAt->format('d/m/Y H:i:s'),
             $assignment,
-            $response->gps_arrived_at->copy()->timezone($timezone)->format('d/m/Y H:i:s'),
-            $response->arrival_reported_at->copy()->timezone($timezone)->format('d/m/Y H:i:s'),
-            $this->humanDuration((int) $response->report_to_gps_seconds),
-            $response->assignment_to_gps_seconds !== null
+            $gpsAt ? $gpsAt->format('d/m/Y H:i:s') : 'Sin lectura GPS',
+            $arrivalAt->format('d/m/Y H:i:s'),
+            $gpsAt && $response->report_to_gps_seconds !== null
+                ? $this->humanDuration((int) $response->report_to_gps_seconds)
+                : 'Sin lectura GPS',
+            $gpsAt && $response->assignment_to_gps_seconds !== null
                 ? $this->humanDuration((int) $response->assignment_to_gps_seconds)
-                : 'Sin hora de asignación',
-            $this->delayDescription((int) $response->arrival_message_delay_seconds)
-                . '; GPS a ' . number_format((float) $response->gps_distance_meters, 0, '.', '')
-                . ' m del punto; precisión ' . $accuracy,
+                : 'Sin lectura GPS',
+            $gpsDetail,
         ];
+    }
+
+    private function operationalText(WhatsAppWebMessage $message): string
+    {
+        $transcription = trim((string) $message->transcription_text);
+
+        return $transcription !== '' ? $transcription : (string) $message->body;
     }
 
     private function delayDescription(int $seconds): string
@@ -631,9 +710,14 @@ class C5iResponseTimeService
     private function hasArrivalCue(string $text): bool
     {
         return (bool) preg_match(
-            '/(?:^|\s)86(?:\s|$)|\b(ARRIB(?:O|AMOS|ANDO|A)|LLEG(?:O|AMOS|ANDO|ADA)|YA\s+(?:ESTAMOS\s+)?EN|EN\s+EL\s+LUGAR|EN\s+EL\s+PUNTO|EN\s+PUNTO|PRESENTES\s+EN|EN\s+(?:EL\s+)?40|EN\s+(?:EL\s+)?K\s*\d+[A-Z]?)\b/u',
+            '/(?:^|\s)86(?:\s|$)|\b(ARRIB(?:O|AMOS|ANDO|A)|LLEG(?:O|AMOS|ANDO|ADA)|YA\s+(?:ESTAMOS\s+)?EN|EN\s+EL\s+LUGAR|EN\s+EL\s+PUNTO|EN\s+PUNTO|PRESENTES\s+EN|EN\s+(?:EL\s+)?40|EN\s+(?:EL\s+)?K\s*\d+[A-Z]?|INFORMA\s+UNIDAD)\b/u',
             $text
         );
+    }
+
+    private function hasUnitReportCue(string $text): bool
+    {
+        return (bool) preg_match('/\bINFORMA\s+UNIDAD\b/u', $text);
     }
 
     private function normalizedText(string $text): string

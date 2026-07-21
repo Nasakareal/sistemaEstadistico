@@ -22,6 +22,7 @@ class C5iServiceResponse extends Model
         'assigned_at',
         'gps_arrived_at',
         'arrival_reported_at',
+        'arrival_source',
         'report_to_gps_seconds',
         'assignment_to_gps_seconds',
         'arrival_message_delay_seconds',

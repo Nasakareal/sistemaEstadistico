@@ -258,6 +258,8 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 'II' => ['nombre' => 'Nueva España', 'romano' => 'II'],
                 'III' => ['nombre' => 'Independencia', 'romano' => 'III'],
                 'IV' => ['nombre' => 'República', 'romano' => 'IV'],
+                'V' => ['nombre' => 'Centro', 'romano' => 'V'],
+                'VI' => ['nombre' => 'Salida Quiroga', 'romano' => 'VI'],
             ],
         ]);
     }
@@ -272,7 +274,7 @@ class EstadisticasSiniestrosSettingsController extends Controller
             'estado_fuerza' => ['nullable', 'array'],
             'elementos' => ['present', 'array'],
             'elementos.*.personal_id' => ['required', 'integer', 'distinct'],
-            'elementos.*.sector' => ['required', 'in:I,II,III,IV'],
+            'elementos.*.sector' => ['required', 'in:I,II,III,IV,V,VI'],
             'elementos.*.grupo' => ['nullable', 'string', 'max:100'],
             'elementos.*.x' => ['required', 'numeric', 'between:0,100'],
             'elementos.*.y' => ['required', 'numeric', 'between:0,100'],
@@ -604,10 +606,12 @@ class EstadisticasSiniestrosSettingsController extends Controller
             'II' => ['x' => 64, 'y' => 68],
             'III' => ['x' => 28, 'y' => 66],
             'IV' => ['x' => 28, 'y' => 26],
+            'V' => ['x' => 50, 'y' => 48],
+            'VI' => ['x' => 8, 'y' => 48],
         ];
         $elementos = [];
 
-        foreach (['I', 'II', 'III', 'IV'] as $sector) {
+        foreach (['I', 'II', 'III', 'IV', 'V', 'VI'] as $sector) {
             foreach (($json['sectores'][$sector]['personal'] ?? []) as $indice => $personalId) {
                 $elementos[] = [
                     'personal_id' => (int) $personalId,
@@ -667,6 +671,8 @@ class EstadisticasSiniestrosSettingsController extends Controller
                 'II' => ['nombre' => 'Nueva España', 'romano' => 'II'],
                 'III' => ['nombre' => 'Independencia', 'romano' => 'III'],
                 'IV' => ['nombre' => 'República', 'romano' => 'IV'],
+                'V' => ['nombre' => 'Centro', 'romano' => 'V'],
+                'VI' => ['nombre' => 'Salida Quiroga', 'romano' => 'VI'],
             ],
         ]);
     }

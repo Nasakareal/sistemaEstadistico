@@ -28,6 +28,8 @@
             'II' => ['nombre' => 'Nueva España', 'romano' => 'II', 'color' => '#8fd3f4'],
             'III' => ['nombre' => 'Independencia', 'romano' => 'III', 'color' => '#eadfa6'],
             'IV' => ['nombre' => 'República', 'romano' => 'IV', 'color' => '#b9ef3a'],
+            'V' => ['nombre' => 'Centro', 'romano' => 'V', 'color' => '#ff9f43'],
+            'VI' => ['nombre' => 'Salida Quiroga', 'romano' => 'VI', 'color' => '#c7a4ff'],
         ];
 
         $defaultPositions = [
@@ -35,6 +37,8 @@
             'II' => ['x' => 64, 'y' => 68],
             'III' => ['x' => 28, 'y' => 66],
             'IV' => ['x' => 28, 'y' => 26],
+            'V' => ['x' => 50, 'y' => 48],
+            'VI' => ['x' => 8, 'y' => 48],
         ];
 
         $guardados = $asignaciones['elementos'] ?? [];
@@ -178,6 +182,8 @@
                                 <div class="sv-legend-line"><span>2.- Nueva España</span><i style="background:#8fd3f4"></i></div>
                                 <div class="sv-legend-line"><span>3.- Independencia</span><i style="background:#eadfa6"></i></div>
                                 <div class="sv-legend-line"><span>4.- República</span><i style="background:#b9ef3a"></i></div>
+                                <div class="sv-legend-line"><span>5.- Centro</span><i style="background:#ff9f43"></i></div>
+                                <div class="sv-legend-line"><span>6.- Salida Quiroga</span><i style="background:#c7a4ff"></i></div>
                             </div>
 
                             <div class="sv-real-map" id="sectorMap" aria-label="Mapa real de Morelia con el libramiento resaltado"></div>
@@ -845,7 +851,22 @@ document.addEventListener('DOMContentLoaded', function () {
         I: 'Revolución',
         II: 'Nueva España',
         III: 'Independencia',
-        IV: 'República'
+        IV: 'República',
+        V: 'Centro',
+        VI: 'Salida Quiroga'
+    };
+    const sectorCircles = {
+        V: {
+            center: [19.70275, -101.19175],
+            radius: 450
+        }
+    };
+    const sectorPills = {
+        VI: {
+            start: [19.70235, -101.24380],
+            end: [19.70170, -101.25120],
+            radius: 330
+        }
     };
 
     const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -907,6 +928,77 @@ document.addEventListener('DOMContentLoaded', function () {
             opacity: .68,
             fillColor: sectorColor(sector),
             fillOpacity: .34,
+            interactive: false
+        }).addTo(map);
+
+        layer.bindTooltip('Sector ' + sectorNames[sector], {
+            permanent: true,
+            direction: 'center',
+            className: 'sv-sector-label'
+        });
+    });
+
+    Object.entries(sectorCircles).forEach(function ([sector, definition]) {
+        const layer = L.circle(definition.center, {
+            radius: definition.radius,
+            color: '#20242a',
+            weight: 3,
+            opacity: .9,
+            fillColor: sectorColor(sector),
+            fillOpacity: .62,
+            interactive: false
+        }).addTo(map);
+
+        layer.bindTooltip('Sector ' + sectorNames[sector], {
+            permanent: true,
+            direction: 'center',
+            className: 'sv-sector-label'
+        });
+    });
+
+    function pillPolygonCoordinates(definition, steps = 14) {
+        const originLat = (definition.start[0] + definition.end[0]) / 2;
+        const metersPerLat = 110540;
+        const metersPerLng = 111320 * Math.cos(originLat * Math.PI / 180);
+        const start = { x: 0, y: 0 };
+        const end = {
+            x: (definition.end[1] - definition.start[1]) * metersPerLng,
+            y: (definition.end[0] - definition.start[0]) * metersPerLat
+        };
+        const angle = Math.atan2(end.y - start.y, end.x - start.x);
+        const points = [];
+
+        for (let index = 0; index <= steps; index++) {
+            const currentAngle = angle + (Math.PI / 2) + (Math.PI * index / steps);
+            points.push({
+                x: start.x + Math.cos(currentAngle) * definition.radius,
+                y: start.y + Math.sin(currentAngle) * definition.radius
+            });
+        }
+
+        for (let index = 0; index <= steps; index++) {
+            const currentAngle = angle - (Math.PI / 2) + (Math.PI * index / steps);
+            points.push({
+                x: end.x + Math.cos(currentAngle) * definition.radius,
+                y: end.y + Math.sin(currentAngle) * definition.radius
+            });
+        }
+
+        return points.map(function (point) {
+            return [
+                definition.start[0] + (point.y / metersPerLat),
+                definition.start[1] + (point.x / metersPerLng)
+            ];
+        });
+    }
+
+    Object.entries(sectorPills).forEach(function ([sector, definition]) {
+        const layer = L.polygon(pillPolygonCoordinates(definition), {
+            color: '#20242a',
+            weight: 3,
+            opacity: .9,
+            fillColor: sectorColor(sector),
+            fillOpacity: .62,
             interactive: false
         }).addTo(map);
 
@@ -985,6 +1077,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function detectSectorLatLng(latLng) {
+        for (const sector in sectorCircles) {
+            const definition = sectorCircles[sector];
+
+            if (map.distance(latLng, L.latLng(definition.center)) <= definition.radius) {
+                return sector;
+            }
+        }
+
+        for (const sector in sectorPills) {
+            if (distanceToPillMeters(latLng, sectorPills[sector]) <= sectorPills[sector].radius) {
+                return sector;
+            }
+        }
+
         for (const sector in sectorPolygons) {
             const polygon = sectorPolygons[sector].map(function (coordinate) {
                 return [coordinate[1], coordinate[0]];
@@ -998,12 +1104,38 @@ document.addEventListener('DOMContentLoaded', function () {
         return '';
     }
 
+    function distanceToPillMeters(latLng, definition) {
+        const originLat = (definition.start[0] + definition.end[0] + latLng.lat) / 3;
+        const metersPerLat = 110540;
+        const metersPerLng = 111320 * Math.cos(originLat * Math.PI / 180);
+        const point = {
+            x: (latLng.lng - definition.start[1]) * metersPerLng,
+            y: (latLng.lat - definition.start[0]) * metersPerLat
+        };
+        const end = {
+            x: (definition.end[1] - definition.start[1]) * metersPerLng,
+            y: (definition.end[0] - definition.start[0]) * metersPerLat
+        };
+        const lengthSquared = (end.x * end.x) + (end.y * end.y);
+        const projection = lengthSquared > 0
+            ? Math.max(0, Math.min(1, ((point.x * end.x) + (point.y * end.y)) / lengthSquared))
+            : 0;
+        const closest = {
+            x: end.x * projection,
+            y: end.y * projection
+        };
+
+        return Math.hypot(point.x - closest.x, point.y - closest.y);
+    }
+
     function sectorColor(sector) {
         const colors = {
             I: '#f2a9c2',
             II: '#8fd3f4',
             III: '#eadfa6',
-            IV: '#b9ef3a'
+            IV: '#b9ef3a',
+            V: '#ff9f43',
+            VI: '#c7a4ff'
         };
 
         return colors[sector] || '#ffffff';
@@ -1117,13 +1249,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Los cortes anteriores solo tenían porcentajes de pantalla. Si ese
             // porcentaje ya no cae en su sector, lo recuperamos dentro del sector guardado.
-            if (expectedSector && sectorPolygons[expectedSector]
+            const expectedGeometry = sectorPolygons[expectedSector]
+                || sectorCircles[expectedSector]
+                || sectorPills[expectedSector];
+
+            if (expectedSector && expectedGeometry
                 && detectSectorLatLng(latLng) !== expectedSector) {
                 const sectorCards = cards.filter(function (candidate) {
                     return candidate.dataset.sector === expectedSector;
                 });
                 const sectorIndex = sectorCards.indexOf(card);
-                const sectorCenter = L.latLngBounds(sectorPolygons[expectedSector]).getCenter();
+                const sectorCenter = sectorCircles[expectedSector]
+                    ? L.latLng(sectorCircles[expectedSector].center)
+                    : (sectorPills[expectedSector]
+                        ? L.latLng([
+                            (sectorPills[expectedSector].start[0] + sectorPills[expectedSector].end[0]) / 2,
+                            (sectorPills[expectedSector].start[1] + sectorPills[expectedSector].end[1]) / 2
+                        ])
+                        : L.latLngBounds(sectorPolygons[expectedSector]).getCenter());
                 const centerPoint = map.latLngToContainerPoint(sectorCenter);
                 const column = (sectorIndex % 3) - 1;
                 const row = Math.floor(sectorIndex / 3);

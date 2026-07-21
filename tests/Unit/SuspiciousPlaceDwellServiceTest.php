@@ -74,11 +74,11 @@ class SuspiciousPlaceDwellServiceTest extends TestCase
         $this->assertNotNull($visit->dwell_alerted_at);
         $this->assertNotNull($visit->exit_alerted_at);
         $this->assertSame(
-            [$patrulla->numero_economico, '5', 'Grúas Muñoz'],
+            [$patrulla->numero_economico . ' - ' . $user->nombre_completo, '5', 'Grúas Muñoz'],
             $visit->notification_meta['entry']['parameters']
         );
         $this->assertSame(
-            [$patrulla->numero_economico, '35', 'Grúas Muñoz'],
+            [$patrulla->numero_economico . ' - ' . $user->nombre_completo, '35', 'Grúas Muñoz'],
             $visit->notification_meta['exit']['parameters']
         );
     }
@@ -125,13 +125,13 @@ class SuspiciousPlaceDwellServiceTest extends TestCase
                 [
                     '5214434765057',
                     'alerta_permanencia_siniestros_v1',
-                    [$patrulla->numero_economico, '5', 'Grúas Muñoz'],
+                    [$patrulla->numero_economico . ' - ' . $user->nombre_completo, '5', 'Grúas Muñoz'],
                     'es_MX',
                 ],
                 [
                     '5214434765057',
                     'alerta_salida_permanencia_siniestros_v1',
-                    [$patrulla->numero_economico, '7', 'Grúas Muñoz'],
+                    [$patrulla->numero_economico . ' - ' . $user->nombre_completo, '7', 'Grúas Muñoz'],
                     'es_MX',
                 ]
             )

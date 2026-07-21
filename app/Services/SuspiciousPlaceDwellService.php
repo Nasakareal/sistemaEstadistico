@@ -225,7 +225,7 @@ class SuspiciousPlaceDwellService
                 'services.whatsapp.suspicious_place.entry_template',
                 'alerta_permanencia_siniestros_v1'
             ),
-            [(string) $patrulla->numero_economico, (string) $dwellMinutes, $this->placeName()]
+            [$this->patrolUserLabel($patrulla, $user), (string) $dwellMinutes, $this->placeName()]
         );
 
         $visit->forceFill([
@@ -415,7 +415,7 @@ class SuspiciousPlaceDwellService
                 'alerta_permanencia_siniestros_v1'
             ),
             [
-                (string) $patrulla->numero_economico,
+                $this->patrolUserLabel($patrulla, $user),
                 (string) $dwellMinutes,
                 $this->placeName(),
             ]
@@ -508,6 +508,7 @@ class SuspiciousPlaceDwellService
 
     private function notifyExit(SuspiciousPlaceVisit $visit, Patrulla $patrulla): array
     {
+        $visit->loadMissing('user');
         $minutes = max(1, (int) floor(((int) $visit->duration_seconds) / 60));
         $notification = $this->notify(
             self::EXIT_CONTEXT,
@@ -517,7 +518,7 @@ class SuspiciousPlaceDwellService
                 'alerta_salida_permanencia_siniestros_v1'
             ),
             [
-                (string) $patrulla->numero_economico,
+                $this->patrolUserLabel($patrulla, $visit->user),
                 (string) $minutes,
                 $this->placeName(),
             ]
@@ -649,6 +650,20 @@ class SuspiciousPlaceDwellService
     private function activeKey(Patrulla $patrulla): string
     {
         return 'patrulla:' . $patrulla->id . ':' . $this->placeKey();
+    }
+
+    private function patrolUserLabel(Patrulla $patrulla, ?User $user): string
+    {
+        $patrolNumber = trim((string) $patrulla->numero_economico);
+        $userName = preg_replace(
+            '/\s+/',
+            ' ',
+            trim((string) ($user ? $user->nombre_completo : ''))
+        ) ?: '';
+
+        return $userName === ''
+            ? $patrolNumber
+            : $patrolNumber . ' - ' . $userName;
     }
 
     private function placeKey(): string

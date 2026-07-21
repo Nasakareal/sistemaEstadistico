@@ -14,6 +14,7 @@ class ConduceLegalidadOperativo extends Model
     protected $fillable = [
         'client_uuid',
         'nombre',
+        'tipo_operativo',
         'fecha',
         'hora_inicio',
         'hora_cierre',

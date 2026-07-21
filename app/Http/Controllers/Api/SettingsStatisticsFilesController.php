@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Patrulla;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -177,12 +178,69 @@ class SettingsStatisticsFilesController extends Controller
             ->map(fn (array $report, string $reportId) => $this->reportPayload($moduleId, $reportId, $report))
             ->values();
 
-        return [
+        $payload = [
             'id' => $moduleId,
             'title' => $module['title'],
             'subtitle' => $module['subtitle'],
             'reports' => $reports,
         ];
+
+        if ($moduleId === 'siniestros') {
+            $payload['patrullas'] = $this->siniestrosPatrolAssignments();
+        }
+
+        return $payload;
+    }
+
+    private function siniestrosPatrolAssignments(): array
+    {
+        return Patrulla::query()
+            ->whereIn('unidad_id', self::MODULES['siniestros']['unit_ids'])
+            ->with(['usuarios' => function ($query) {
+                $query->whereIn('unidad_id', self::MODULES['siniestros']['unit_ids'])
+                    ->with('turno:id,nombre')
+                    ->orderBy('name');
+            }])
+            ->get()
+            ->sort(function (Patrulla $left, Patrulla $right) {
+                return strnatcasecmp(
+                    (string) $left->numero_economico,
+                    (string) $right->numero_economico
+                );
+            })
+            ->values()
+            ->map(function (Patrulla $patrulla) {
+                return [
+                    'id' => $patrulla->id,
+                    'numero_economico' => $patrulla->numero_economico,
+                    'activa' => (bool) $patrulla->activa,
+                    'tipo' => $patrulla->tipo,
+                    'marca' => $patrulla->marca,
+                    'linea' => $patrulla->linea,
+                    'modelo' => $patrulla->modelo,
+                    'placas' => $patrulla->placas,
+                    'usuarios' => $patrulla->usuarios
+                        ->sortBy(function ($user) {
+                            return sprintf(
+                                '%s|%s',
+                                optional($user->turno)->nombre ?: 'ZZZ',
+                                $user->nombre_completo
+                            );
+                        }, SORT_NATURAL | SORT_FLAG_CASE)
+                        ->values()
+                        ->map(function ($user) {
+                            return [
+                                'id' => $user->id,
+                                'nombre' => $user->nombre_completo,
+                                'estado' => $user->estado,
+                                'turno_id' => $user->turno_id,
+                                'turno' => optional($user->turno)->nombre,
+                            ];
+                        })
+                        ->all(),
+                ];
+            })
+            ->all();
     }
 
     private function reportPayload(string $moduleId, string $reportId, array $report): array

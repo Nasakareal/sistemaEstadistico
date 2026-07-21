@@ -29,7 +29,9 @@ class ConduceLegalidadController extends Controller
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
     private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo Alcoholimetría';
+    private const TIPOS_OPERATIVO = ['conduce_legalidad', 'alcoholimetria'];
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
+    private const ESTADOS_CIVILES = ['SOLTERO(A)', 'CASADO(A)', 'VIUDO(A)', 'DIVORCIADO(A)'];
     private const FORMATO_IPH_BARANDILLAS = 'barandillas';
     private const FORMATO_IPH_ANTERIOR = 'anterior';
     private const TICKET_SUPERVISOR_NOMBRE = 'Luis Eduardo Lugo Ordorica';
@@ -118,6 +120,27 @@ class ConduceLegalidadController extends Controller
             ->orderByDesc('fecha')
             ->orderByDesc('id');
 
+        if ($request->filled('tipo_operativo')) {
+            $tipoOperativo = trim((string) $request->query('tipo_operativo'));
+            if (!in_array($tipoOperativo, self::TIPOS_OPERATIVO, true)) {
+                throw ValidationException::withMessages([
+                    'tipo_operativo' => 'El tipo de operativo no es válido.',
+                ]);
+            }
+            $query->where('tipo_operativo', $tipoOperativo);
+        }
+
+        if ($request->filled('mes')) {
+            $mes = trim((string) $request->query('mes'));
+            if (!preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $mes, $matches)) {
+                throw ValidationException::withMessages([
+                    'mes' => 'El mes debe tener el formato AAAA-MM.',
+                ]);
+            }
+            $query->whereYear('fecha', (int) $matches[1])
+                ->whereMonth('fecha', (int) $matches[2]);
+        }
+
         if ($request->filled('estado') && in_array($request->query('estado'), self::ESTADOS, true)) {
             $query->where('estado', $request->query('estado'));
         } elseif (!$this->canManage($user) || !$request->boolean('incluir_cerrados')) {
@@ -166,10 +189,16 @@ class ConduceLegalidadController extends Controller
         $validated = $request->validate($this->operativoRules());
         $now = now();
         $codigoPostal = $this->resolverCodigoPostalOperativo($validated['lat'] ?? null, $validated['lng'] ?? null);
+        $tipoOperativo = $this->tipoOperativo(
+            $validated['tipo_operativo'] ?? null,
+            $validated['nombre'] ?? null,
+            $validated['objetivo'] ?? null
+        );
 
         $operativo = ConduceLegalidadOperativo::create([
             'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
-            'nombre' => $this->nombreOperativo($validated['nombre'] ?? null),
+            'nombre' => $this->nombreOperativo($tipoOperativo),
+            'tipo_operativo' => $tipoOperativo,
             'fecha' => $validated['fecha'] ?? $now->toDateString(),
             'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
             'municipio' => $this->nullableString($validated['municipio'] ?? null),
@@ -224,6 +253,13 @@ class ConduceLegalidadController extends Controller
 
         $validated = $request->validate($this->operativoRules($operativo));
         $oldEstado = $operativo->estado;
+        $tipoOperativo = array_key_exists('tipo_operativo', $validated)
+            ? $this->tipoOperativo(
+                $validated['tipo_operativo'],
+                $validated['nombre'] ?? $operativo->nombre,
+                $validated['objetivo'] ?? $operativo->objetivo
+            )
+            : ($operativo->tipo_operativo ?: $this->tipoOperativo(null, $operativo->nombre, $operativo->objetivo));
         $latCodigoPostal = array_key_exists('lat', $validated) ? $validated['lat'] : $operativo->lat;
         $lngCodigoPostal = array_key_exists('lng', $validated) ? $validated['lng'] : $operativo->lng;
         $actualizarCodigoPostal = array_key_exists('lat', $validated)
@@ -234,7 +270,8 @@ class ConduceLegalidadController extends Controller
             : $operativo->codigo_postal;
 
         $operativo->fill([
-            'nombre' => array_key_exists('nombre', $validated) ? $this->nombreOperativo($validated['nombre']) : $operativo->nombre,
+            'nombre' => $this->nombreOperativo($tipoOperativo),
+            'tipo_operativo' => $tipoOperativo,
             'fecha' => $validated['fecha'] ?? $operativo->fecha,
             'hora_inicio' => array_key_exists('hora_inicio', $validated) ? $validated['hora_inicio'] : $operativo->hora_inicio,
             'hora_cierre' => array_key_exists('hora_cierre', $validated) ? $validated['hora_cierre'] : $operativo->hora_cierre,
@@ -329,7 +366,11 @@ class ConduceLegalidadController extends Controller
             ]);
 
             $this->replaceVehiculos($captura, $validated['vehiculos'] ?? []);
-            $this->replacePersonas($captura, $validated['personas'] ?? []);
+            $this->replacePersonas(
+                $captura,
+                $validated['personas'] ?? [],
+                $this->esOperativoAlcoholimetria($operativo)
+            );
             $this->storeFotos($captura, $request, $user);
 
             return $captura;
@@ -353,7 +394,7 @@ class ConduceLegalidadController extends Controller
         $validated = $request->validate($this->capturaRules());
         $this->assertCapturaHasContent($validated, $request, $captura);
 
-        DB::transaction(function () use ($captura, $validated, $request, $user) {
+        DB::transaction(function () use ($captura, $operativo, $validated, $request, $user) {
             $captura->fill([
                 'fecha' => $validated['fecha'] ?? $captura->fecha,
                 'hora' => $validated['hora'] ?? $captura->hora,
@@ -371,7 +412,11 @@ class ConduceLegalidadController extends Controller
             $captura->save();
 
             $this->replaceVehiculos($captura, $validated['vehiculos'] ?? []);
-            $this->replacePersonas($captura, $validated['personas'] ?? []);
+            $this->replacePersonas(
+                $captura,
+                $validated['personas'] ?? [],
+                $this->esOperativoAlcoholimetria($operativo)
+            );
             $this->storeFotos($captura, $request, $user);
         });
 
@@ -1391,14 +1436,24 @@ class ConduceLegalidadController extends Controller
         return $text === '' ? 'SIN DATO' : Str::upper($text);
     }
 
-    private function nombreOperativo($value): string
+    private function nombreOperativo(string $tipoOperativo): string
     {
-        $text = $this->nullableString($value);
-        $normalized = $text === null ? '' : Str::upper(Str::ascii($text));
-
-        return Str::contains($normalized, 'ALCOHOL')
+        return $tipoOperativo === 'alcoholimetria'
             ? self::NOMBRE_OPERATIVO_ALCOHOLIMETRIA
             : self::NOMBRE_OPERATIVO;
+    }
+
+    private function tipoOperativo($value, ...$fallbackValues): string
+    {
+        $tipo = $this->nullableString($value);
+        if ($tipo !== null && in_array($tipo, self::TIPOS_OPERATIVO, true)) {
+            return $tipo;
+        }
+
+        $text = Str::upper(Str::ascii(implode(' ', array_filter($fallbackValues))));
+        return Str::contains($text, 'ALCOHOL')
+            ? 'alcoholimetria'
+            : 'conduce_legalidad';
     }
 
     private function operativoRules(?ConduceLegalidadOperativo $operativo = null): array
@@ -1409,6 +1464,7 @@ class ConduceLegalidadController extends Controller
         return [
             'client_uuid' => ['nullable', 'string', 'max:80', Rule::unique('conduce_legalidad_operativos', 'client_uuid')->ignore($ignoreId)],
             'nombre' => ['nullable', 'string', 'max:120'],
+            'tipo_operativo' => ['nullable', Rule::in(self::TIPOS_OPERATIVO)],
             'objetivo' => ['nullable', 'string'],
             'fecha' => ['nullable', 'date'],
             'hora_inicio' => ['nullable', 'date_format:H:i'],
@@ -1472,12 +1528,17 @@ class ConduceLegalidadController extends Controller
             'personas' => ['nullable', 'array', 'max:100'],
             'personas.*' => ['array'],
             'personas.*.nombre' => ['nullable', 'string', 'max:255'],
+            'personas.*.nombres' => ['nullable', 'string', 'max:120'],
+            'personas.*.apellido_paterno' => ['nullable', 'string', 'max:100'],
+            'personas.*.apellido_materno' => ['nullable', 'string', 'max:100'],
             'personas.*.telefono' => ['nullable', 'string', 'max:30'],
             'personas.*.domicilio' => ['nullable', 'string', 'max:255'],
             'personas.*.sexo' => ['nullable', 'string', 'max:30'],
             'personas.*.nacionalidad' => ['nullable', 'string', 'max:80'],
             'personas.*.ocupacion' => ['nullable', 'string', 'max:255'],
             'personas.*.edad' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'personas.*.edad_texto' => ['nullable', 'string', 'max:40'],
+            'personas.*.estado_civil' => ['nullable', 'string', Rule::in(self::ESTADOS_CIVILES)],
             'personas.*.edad_aproximada' => ['nullable', 'string', 'max:40'],
             'personas.*.complexion' => ['nullable', 'string', 'max:80'],
             'personas.*.estatura' => ['nullable', 'string', 'max:80'],
@@ -1640,7 +1701,11 @@ class ConduceLegalidadController extends Controller
         return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
-    private function replacePersonas(ConduceLegalidadCaptura $captura, array $personas): void
+    private function replacePersonas(
+        ConduceLegalidadCaptura $captura,
+        array $personas,
+        bool $esAlcoholimetria
+    ): void
     {
         $captura->personas()->delete();
 
@@ -1649,12 +1714,17 @@ class ConduceLegalidadController extends Controller
 
             $captura->personas()->create([
                 'nombre' => $this->nullableString($row['nombre'] ?? null),
+                'nombres' => $esAlcoholimetria ? $this->nullableString($row['nombres'] ?? null) : null,
+                'apellido_paterno' => $esAlcoholimetria ? $this->nullableString($row['apellido_paterno'] ?? null) : null,
+                'apellido_materno' => $esAlcoholimetria ? $this->nullableString($row['apellido_materno'] ?? null) : null,
                 'telefono' => $this->nullableString($row['telefono'] ?? null),
                 'domicilio' => $this->nullableString($row['domicilio'] ?? null),
                 'sexo' => $this->nullableString($row['sexo'] ?? null),
                 'nacionalidad' => $this->nullableString($row['nacionalidad'] ?? null),
                 'ocupacion' => $this->nullableString($row['ocupacion'] ?? null),
                 'edad' => $row['edad'] ?? null,
+                'edad_texto' => $esAlcoholimetria ? $this->nullableString($row['edad_texto'] ?? null) : null,
+                'estado_civil' => $esAlcoholimetria ? $this->nullableString($row['estado_civil'] ?? null) : null,
                 'edad_aproximada' => $this->nullableString($row['edad_aproximada'] ?? null),
                 'complexion' => $this->nullableString($row['complexion'] ?? null),
                 'estatura' => $this->nullableString($row['estatura'] ?? null),
@@ -1679,6 +1749,22 @@ class ConduceLegalidadController extends Controller
                 'observaciones' => $this->nullableString($row['observaciones'] ?? null),
             ]);
         }
+    }
+
+    private function esOperativoAlcoholimetria(ConduceLegalidadOperativo $operativo): bool
+    {
+        if (in_array($operativo->tipo_operativo, self::TIPOS_OPERATIVO, true)) {
+            return $operativo->tipo_operativo === 'alcoholimetria';
+        }
+
+        $texto = Str::upper(Str::ascii(implode(' ', array_filter([
+            $operativo->nombre,
+            $operativo->objetivo,
+            $operativo->narrativa,
+            $operativo->observaciones,
+        ]))));
+
+        return str_contains($texto, 'ALCOHOL');
     }
 
     private function retencionInfraccion($id): ?LicenciaPuntoInfraccion
@@ -1847,6 +1933,7 @@ class ConduceLegalidadController extends Controller
             'id' => $operativo->id,
             'client_uuid' => $operativo->client_uuid,
             'nombre' => $operativo->nombre,
+            'tipo_operativo' => $operativo->tipo_operativo,
             'fecha' => optional($operativo->fecha)->toDateString(),
             'hora_inicio' => $operativo->hora_inicio,
             'hora_cierre' => $operativo->hora_cierre,
@@ -1998,12 +2085,17 @@ class ConduceLegalidadController extends Controller
         return [
             'id' => $persona->id,
             'nombre' => $persona->nombre,
+            'nombres' => $persona->nombres,
+            'apellido_paterno' => $persona->apellido_paterno,
+            'apellido_materno' => $persona->apellido_materno,
             'telefono' => $persona->telefono,
             'domicilio' => $persona->domicilio,
             'sexo' => $persona->sexo,
             'nacionalidad' => $persona->nacionalidad,
             'ocupacion' => $persona->ocupacion,
             'edad' => $persona->edad,
+            'edad_texto' => $persona->edad_texto,
+            'estado_civil' => $persona->estado_civil,
             'edad_aproximada' => $persona->edad_aproximada,
             'complexion' => $persona->complexion,
             'estatura' => $persona->estatura,

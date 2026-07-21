@@ -431,13 +431,12 @@ class EstadisticasSiniestrosSettingsController extends Controller
             ->values();
         $usuariosOperativos = User::query()
             ->with([
-                'turno:id,nombre,slug,tipo_rol,ciclo_inicio,trabajo_horas,descanso_horas',
                 'roles:id,name',
             ])
             ->where('unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->whereRaw('UPPER(TRIM(COALESCE(estado, ""))) = ?', ['ACTIVO'])
             ->whereHas('roles', function ($query) {
-                $query->whereIn('name', ['Evaluador Teórico', 'Jefe de Grupo']);
+                $query->where('name', 'Jefe de Grupo');
             })
             ->get();
 
@@ -456,11 +455,9 @@ class EstadisticasSiniestrosSettingsController extends Controller
                     && $estados->get($personal->id) === 'EN_SERVICIO';
             })->count(),
             'elementos_recorrido' => $idsEnRecorrido->count(),
-            'modulo' => $this->contarUsuariosRolEnServicio(
-                $usuariosOperativos,
+            'modulo' => $this->contarPersonalModuloEnServicio(
                 $plantilla,
-                $estados,
-                'Evaluador Teórico'
+                $estados
             ),
             'curso' => $conteo('CURSOS'),
             'permiso' => $conteo('PERMISO'),
@@ -540,6 +537,25 @@ class EstadisticasSiniestrosSettingsController extends Controller
         }
 
         return $total;
+    }
+
+    protected function contarPersonalModuloEnServicio($plantilla, $estados): int
+    {
+        return $plantilla->filter(function (Personal $personal) use ($estados) {
+            if ($estados->get($personal->id) !== 'EN_SERVICIO') {
+                return false;
+            }
+
+            $nombreTurno = $this->normalizarTextoSectorizacion(
+                (string) optional($personal->turno)->nombre
+            );
+            $slugTurno = $this->normalizarTextoSectorizacion(
+                (string) optional($personal->turno)->slug
+            );
+
+            return str_contains($nombreTurno, 'LICENCIAS')
+                || str_contains($slugTurno, 'LICENCIAS');
+        })->count();
     }
 
     protected function claveNombreSectorizacion(string $nombre): string

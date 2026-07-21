@@ -364,6 +364,10 @@ class PuestaDisposicionController extends Controller
             ->where('anio',$anio)
             ->orderByDesc('numero_puesta');
 
+        if ($request->filled('unidad_id')) {
+            $unidadId=(int)$request->get('unidad_id');
+            if ($unidadId>0) $query->where('unidad_id',$unidadId);
+        }
         if ($request->filled('motivo')) $query->where('motivo',strtoupper(trim($request->motivo)));
         if ($request->filled('tipo_puesta')) $query->where('tipo_puesta',strtoupper(trim($request->tipo_puesta)));
 

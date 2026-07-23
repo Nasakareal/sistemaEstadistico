@@ -46,6 +46,11 @@ class ImageThumbnailService
             $disk->makeDirectory($targetDirectory);
         }
 
+        // Apache y el scheduler pueden ejecutarse con usuarios distintos.
+        // El bit setgid conserva el grupo y g+w permite que el proceso
+        // programado elimine la copia local después de respaldarla en Blob.
+        @chmod($disk->path($targetDirectory), 02775);
+
         $baseName = pathinfo($sourcePath, PATHINFO_FILENAME);
         $baseName = $this->sanitizeFileName($baseName !== '' ? $baseName : 'foto');
         $prefix = $this->sanitizeFileName($prefix !== '' ? $prefix : 'thumb');
@@ -72,6 +77,7 @@ class ImageThumbnailService
         }
 
         $disk->put($targetPath, $content);
+        @chmod($disk->path($targetPath), 0664);
 
         return $targetPath;
     }

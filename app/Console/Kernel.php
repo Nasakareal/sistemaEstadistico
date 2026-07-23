@@ -66,6 +66,14 @@ class Kernel extends ConsoleKernel
             ->dailyAt('05:00')
             ->withoutOverlapping();
 
+        // Se ejecuta después de la migración porque el scheduler procesa en orden
+        // los eventos que no usan runInBackground. Cada archivo se borra únicamente
+        // cuando el comando confirma que su Blob correspondiente existe.
+        $schedule->command('actividades:fotos-limpiar-locales-blob --force --limpiar-zips --limpiar-cache-pdf')
+            ->timezone($timezone)
+            ->dailyAt('05:00')
+            ->withoutOverlapping();
+
         $schedule->command('delegaciones:generar-excel-diario')
             ->timezone($timezone)
             ->dailyAt(substr(config('cortes.hora_corte_delegaciones', '17:00:00'), 0, 5))

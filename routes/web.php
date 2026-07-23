@@ -99,6 +99,7 @@ use App\Http\Controllers\ActividadCategoriaController;
 use App\Http\Controllers\ActividadSubcategoriaController;
 use App\Http\Controllers\FomentoCulturaVialProgramaController;
 use App\Http\Controllers\TutorialController;
+use App\Http\Controllers\BoquillaDotacionController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
@@ -681,6 +682,13 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::get('/',[SettingsController::class,'index'])->name('settings.index');
     Route::get('/reconstructor-transito', [SettingsController::class, 'reconstructorTransito'])
         ->name('settings.reconstructor_transito.index');
+
+    Route::prefix('boquillas')->middleware('auth')->group(function () {
+        Route::get('/', [BoquillaDotacionController::class, 'index'])->name('settings.boquillas.index');
+        Route::post('/', [BoquillaDotacionController::class, 'store'])->name('settings.boquillas.store');
+        Route::put('/{dotacion}', [BoquillaDotacionController::class, 'update'])->name('settings.boquillas.update');
+        Route::delete('/{dotacion}', [BoquillaDotacionController::class, 'destroy'])->name('settings.boquillas.destroy');
+    });
 
     Route::get('/tutoriales', [TutorialController::class, 'index'])->name('settings.tutoriales.index');
     Route::get('/tutoriales/create', [TutorialController::class, 'create'])->name('settings.tutoriales.create');

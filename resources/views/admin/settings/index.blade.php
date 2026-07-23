@@ -42,6 +42,24 @@
             </div>
         @endcan
 
+        {{-- DOTACIÓN DE BOQUILLAS --}}
+        @can('ver configuraciones')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-info">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Dotación de Boquillas</div>
+                        <div class="sv-card__desc">Registro por fecha de las entregas recibidas para alcoholimetría.</div>
+                        <a href="{{ route('settings.boquillas.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- USUARIOS --}}
         @can('ver usuarios')
             <div class="col-md-3 col-sm-6 col-12">

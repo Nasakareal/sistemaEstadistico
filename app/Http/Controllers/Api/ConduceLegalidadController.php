@@ -29,6 +29,7 @@ class ConduceLegalidadController extends Controller
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
     private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo Alcoholimetría';
+    private const ALCOHOLIMETRIA_HORAS_ALIMENTACION = 8;
     private const TIPOS_OPERATIVO = ['conduce_legalidad', 'alcoholimetria'];
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
     private const ESTADOS_CIVILES = ['SOLTERO(A)', 'CASADO(A)', 'VIUDO(A)', 'DIVORCIADO(A)'];
@@ -321,12 +322,6 @@ class ConduceLegalidadController extends Controller
         $user = $request->user();
         abort_unless($user, 403);
 
-        if ($operativo->estado !== 'activo') {
-            throw ValidationException::withMessages([
-                'operativo' => 'El operativo no esta activo.',
-            ]);
-        }
-
         $validated = $request->validate($this->capturaRules());
         $clientUuid = $this->nullableString($validated['client_uuid'] ?? null);
         if ($clientUuid !== null) {
@@ -344,9 +339,13 @@ class ConduceLegalidadController extends Controller
             }
         }
 
+        $this->assertPuedeAlimentarOperativo($operativo, $user);
+
         $this->assertCapturaHasContent($validated, $request);
 
         $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request) {
+            $operativo->refresh();
+            $this->assertPuedeAlimentarOperativo($operativo, $user);
             $now = now();
             $captura = $operativo->capturas()->create([
                 'client_uuid' => $clientUuid,
@@ -390,11 +389,14 @@ class ConduceLegalidadController extends Controller
         $user = $request->user();
         abort_unless($captura->operativo_id === $operativo->id, 404);
         abort_unless($this->canEditCaptura($user, $captura), 403);
+        $this->assertPuedeAlimentarOperativo($operativo, $user);
 
         $validated = $request->validate($this->capturaRules());
         $this->assertCapturaHasContent($validated, $request, $captura);
 
         DB::transaction(function () use ($captura, $operativo, $validated, $request, $user) {
+            $operativo->refresh();
+            $this->assertPuedeAlimentarOperativo($operativo, $user);
             $captura->fill([
                 'fecha' => $validated['fecha'] ?? $captura->fecha,
                 'hora' => $validated['hora'] ?? $captura->hora,
@@ -434,6 +436,7 @@ class ConduceLegalidadController extends Controller
         $user = $request->user();
         abort_unless($captura->operativo_id === $operativo->id, 404);
         abort_unless($this->canDeleteCaptura($user), 403);
+        $this->assertPuedeAlimentarOperativo($operativo, $user);
 
         $captura->delete();
 
@@ -470,6 +473,7 @@ class ConduceLegalidadController extends Controller
             $captura = $operativo->capturas()->whereKey($capturaId)->first();
             abort_unless($captura, 404);
             abort_unless($this->canEditCaptura($user, $captura), 403);
+            $this->assertPuedeAlimentarOperativo($operativo, $user);
 
             $captura->rnd_data = $rndData;
             $captura->save();
@@ -1767,6 +1771,53 @@ class ConduceLegalidadController extends Controller
         return str_contains($texto, 'ALCOHOL');
     }
 
+    private function alimentacionAlcoholimetriaCierraEn(ConduceLegalidadOperativo $operativo)
+    {
+        if (!$this->esOperativoAlcoholimetria($operativo) || !$operativo->created_at) {
+            return null;
+        }
+
+        return $operativo->created_at->copy()->addHours(self::ALCOHOLIMETRIA_HORAS_ALIMENTACION);
+    }
+
+    private function alimentacionAlcoholimetriaCerrada(ConduceLegalidadOperativo $operativo, $instant = null): bool
+    {
+        $cierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
+        if ($cierraEn === null) {
+            return false;
+        }
+
+        return ($instant ?: now())->greaterThanOrEqualTo($cierraEn);
+    }
+
+    private function puedeAlimentarOperativo(ConduceLegalidadOperativo $operativo, $user): bool
+    {
+        if (!$user || $operativo->estado !== 'activo') {
+            return false;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        return !$this->alimentacionAlcoholimetriaCerrada($operativo);
+    }
+
+    private function assertPuedeAlimentarOperativo(ConduceLegalidadOperativo $operativo, $user): void
+    {
+        if ($operativo->estado !== 'activo') {
+            throw ValidationException::withMessages([
+                'operativo' => 'El operativo no esta activo.',
+            ]);
+        }
+
+        if (!$this->puedeAlimentarOperativo($operativo, $user)) {
+            throw ValidationException::withMessages([
+                'operativo' => 'El operativo de alcoholimetria cumplio 8 horas y quedo cerrado para captura. Solo Superadmin puede continuar alimentandolo.',
+            ]);
+        }
+    }
+
     private function retencionInfraccion($id): ?LicenciaPuntoInfraccion
     {
         $id = (int) ($id ?? 0);
@@ -1921,6 +1972,7 @@ class ConduceLegalidadController extends Controller
     private function operativoPayload(ConduceLegalidadOperativo $operativo, $user, $capturas = null): array
     {
         $isManager = $this->canManage($user);
+        $alimentacionCierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
         $misCapturas = $operativo->mis_capturas_count;
         if ($misCapturas === null && $user) {
             $misCapturas = $operativo->capturas()->where('created_by', $user->id)->count();
@@ -1949,6 +2001,9 @@ class ConduceLegalidadController extends Controller
             'narrativa' => $operativo->narrativa,
             'observaciones' => $operativo->observaciones,
             'estado' => $operativo->estado,
+            'can_feed' => $this->puedeAlimentarOperativo($operativo, $user),
+            'alimentacion_cierra_en' => optional($alimentacionCierraEn)->toISOString(),
+            'alimentacion_cerrada' => $this->alimentacionAlcoholimetriaCerrada($operativo),
             'can_edit' => $this->canManage($user),
             'can_delete' => $this->canDeleteOperativo($user),
             'created_by' => $operativo->created_by,

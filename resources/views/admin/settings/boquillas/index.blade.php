@@ -1,0 +1,212 @@
+@extends('adminlte::page')
+
+@section('title', 'Dotación de boquillas')
+
+@section('content_header')
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+        <div>
+            <h1 class="mb-1"><i class="fa-solid fa-boxes-stacked mr-2 text-info"></i>Dotación de boquillas</h1>
+            <p class="text-muted mb-0">Registra por separado cada entrega recibida de la Secretaría de Salud.</p>
+        </div>
+        <a href="{{ route('settings.index') }}" class="btn btn-outline-light mt-3 mt-md-0">
+            <i class="fas fa-arrow-left mr-1"></i> Configuraciones
+        </a>
+    </div>
+@stop
+
+@section('content')
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="fas fa-check-circle mr-1"></i> {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span>&times;</span></button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger">
+            <strong>No se pudo guardar el registro.</strong>
+            <ul class="mb-0 mt-2">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card card-outline card-info shadow-sm">
+                <div class="card-header border-0">
+                    <h3 class="card-title font-weight-bold"><i class="fas fa-plus-circle mr-1"></i> Nueva entrega</h3>
+                </div>
+                <form method="POST" action="{{ route('settings.boquillas.store') }}">
+                    @csrf
+                    <div class="card-body pt-2">
+                        <div class="form-group">
+                            <label for="fecha_recepcion">Fecha de recepción</label>
+                            <input type="date" id="fecha_recepcion" name="fecha_recepcion"
+                                   class="form-control @error('fecha_recepcion') is-invalid @enderror"
+                                   value="{{ old('fecha_recepcion', now()->toDateString()) }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cantidad">Cantidad recibida</label>
+                            <div class="input-group">
+                                <input type="number" id="cantidad" name="cantidad" min="1" max="1000000" step="1"
+                                       class="form-control @error('cantidad') is-invalid @enderror"
+                                       value="{{ old('cantidad') }}" placeholder="Ej. 500" required>
+                                <div class="input-group-append"><span class="input-group-text">boquillas</span></div>
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="observaciones">Observaciones <small class="text-muted">(opcional)</small></label>
+                            <textarea id="observaciones" name="observaciones" rows="3" maxlength="500"
+                                      class="form-control @error('observaciones') is-invalid @enderror"
+                                      placeholder="Ej. Entrega semanal, oficio o folio">{{ old('observaciones') }}</textarea>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <button type="submit" class="btn btn-info btn-block font-weight-bold">
+                            <i class="fas fa-save mr-1"></i> Registrar dotación
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="callout callout-info">
+                <h5 class="font-weight-bold">¿Cómo se captura?</h5>
+                <p class="mb-0">Registra una entrada cada vez que reciban boquillas. Si llegan en semanas distintas, cada entrega conserva su propia fecha y cantidad.</p>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="row mb-3">
+                <div class="col-md-5">
+                    <div class="small-box bg-info mb-0">
+                        <div class="inner">
+                            <h3>{{ number_format($totalRecibidasMes) }}</h3>
+                            <p>Recibidas en {{ $tituloMes }}</p>
+                        </div>
+                        <div class="icon"><i class="fa-solid fa-box-open"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-7 mt-3 mt-md-0">
+                    <div class="card h-100 mb-0 shadow-sm">
+                        <div class="card-body d-flex align-items-center justify-content-between py-3">
+                            <a href="{{ route('settings.boquillas.index', ['mes' => $mesAnterior]) }}" class="btn btn-outline-info" title="Mes anterior">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <div class="text-center px-2">
+                                <small class="text-muted text-uppercase font-weight-bold">Mes consultado</small>
+                                <div class="h5 mb-0 font-weight-bold">{{ $tituloMes }}</div>
+                            </div>
+                            <a href="{{ route('settings.boquillas.index', ['mes' => $mesSiguiente]) }}" class="btn btn-outline-info" title="Mes siguiente">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-outline card-secondary shadow-sm">
+                <div class="card-header border-0">
+                    <h3 class="card-title font-weight-bold"><i class="fas fa-list mr-1"></i> Entregas registradas</h3>
+                    <div class="card-tools">
+                        <form method="GET" action="{{ route('settings.boquillas.index') }}" class="form-inline">
+                            <input type="month" name="mes" value="{{ $mes }}" class="form-control form-control-sm mr-1" aria-label="Mes a consultar">
+                            <button class="btn btn-sm btn-secondary" type="submit">Consultar</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Fecha</th>
+                                    <th style="min-width: 150px;">Cantidad</th>
+                                    <th style="min-width: 220px;">Observaciones</th>
+                                    <th>Registró</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($dotaciones as $dotacion)
+                                    @php $formId = 'editar-dotacion-' . $dotacion->id; @endphp
+                                    <tr>
+                                        <td>
+                                            <form id="{{ $formId }}" method="POST" action="{{ route('settings.boquillas.update', $dotacion) }}">
+                                                @csrf
+                                                @method('PUT')
+                                            </form>
+                                            <input form="{{ $formId }}" type="date" name="fecha_recepcion"
+                                                   value="{{ $dotacion->fecha_recepcion->toDateString() }}"
+                                                   class="form-control form-control-sm" required>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <input form="{{ $formId }}" type="number" name="cantidad" min="1" max="1000000"
+                                                       value="{{ $dotacion->cantidad }}" class="form-control" required>
+                                                <div class="input-group-append"><span class="input-group-text">pzas.</span></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input form="{{ $formId }}" type="text" name="observaciones" maxlength="500"
+                                                   value="{{ $dotacion->observaciones }}" class="form-control form-control-sm"
+                                                   placeholder="Sin observaciones">
+                                        </td>
+                                        <td class="align-middle">
+                                            <small>{{ optional($dotacion->creador)->name ?: 'Usuario no disponible' }}</small>
+                                        </td>
+                                        <td class="align-middle text-right text-nowrap">
+                                            <button form="{{ $formId }}" type="submit" class="btn btn-sm btn-outline-info" title="Guardar cambios">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                            <form method="POST" action="{{ route('settings.boquillas.destroy', $dotacion) }}" class="d-inline"
+                                                  onsubmit="return confirm('¿Eliminar esta entrega del cálculo mensual?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <i class="fa-regular fa-folder-open fa-2x mb-2 d-block"></i>
+                                            No hay entregas registradas en {{ $tituloMes }}.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                            <tfoot>
+                                <tr class="font-weight-bold">
+                                    <td>Total recibido en el mes</td>
+                                    <td>{{ number_format($totalRecibidasMes) }} boquillas</td>
+                                    <td colspan="3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-secondary">
+                <i class="fas fa-circle-info mr-1"></i>
+                Este módulo controla por ahora las <strong>boquillas recibidas</strong>. Existencia inicial, utilizadas y existencia final se incorporarán cuando se defina cómo conciliarlas con los operativos de alcoholimetría.
+            </div>
+        </div>
+    </div>
+@stop
+
+@section('css')
+    <style>
+        .small-box .icon > i { font-size: 64px; top: 12px; }
+        .table td, .table th { vertical-align: middle; }
+        @media (max-width: 767.98px) {
+            .card-tools { float: none; margin-top: 12px; }
+            .card-tools .form-inline { flex-wrap: nowrap; }
+        }
+    </style>
+@stop

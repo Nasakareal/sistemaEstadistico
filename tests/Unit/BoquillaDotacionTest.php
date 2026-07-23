@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\BoquillaDotacion;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class BoquillaDotacionTest extends TestCase
@@ -29,5 +30,15 @@ class BoquillaDotacionTest extends TestCase
 
         $this->assertSame('Segunda entrega semanal', $dotacion->observaciones);
         $this->assertSame(275, $dotacion->cantidad);
+    }
+
+    public function test_configuraciones_enlaza_boquillas_sin_depender_de_la_cache_de_rutas(): void
+    {
+        $this->assertTrue(Route::has('settings.boquillas.index'));
+
+        $vista = file_get_contents(resource_path('views/admin/settings/index.blade.php'));
+
+        $this->assertStringContainsString("url('/admin/settings/boquillas')", $vista);
+        $this->assertStringNotContainsString("route('settings.boquillas.index')", $vista);
     }
 }

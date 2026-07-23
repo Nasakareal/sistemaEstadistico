@@ -52,7 +52,7 @@
                     <div class="sv-card__body">
                         <div class="sv-card__title">Dotación de Boquillas</div>
                         <div class="sv-card__desc">Registro por fecha de las entregas recibidas para alcoholimetría.</div>
-                        <a href="{{ route('settings.boquillas.index') }}" class="btn sv-btn">
+                        <a href="{{ url('/admin/settings/boquillas') }}" class="btn sv-btn">
                             <i class="fas fa-arrow-right"></i> Acceder
                         </a>
                     </div>

@@ -25,10 +25,25 @@
 
     <div class="card">
         <div class="card-header">
-            <form method="GET" action="{{ route('puestas_disposicion.index') }}" class="form-inline">
+            <form method="GET" action="{{ route('puestas_disposicion.index') }}" class="form-inline align-items-end">
+                @if($puedeFiltrarUnidad)
+                    <div class="form-group mr-3 mb-2 mb-md-0">
+                        <label for="unidad_id" class="mr-2 mb-0">Unidad</label>
+                        <select id="unidad_id" name="unidad_id" class="form-control form-control-sm">
+                            <option value="">Todas las unidades</option>
+                            @foreach($unidadesFiltro as $unidad)
+                                <option value="{{ $unidad->id }}"
+                                    {{ (int)$unidadSeleccionadaId === (int)$unidad->id ? 'selected' : '' }}>
+                                    {{ $unidad->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+
                 <label class="mr-2 mb-0">Año</label>
 
-                <select name="anio" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                <select name="anio" class="form-control form-control-sm mr-2">
                     @foreach($anios as $anio)
                         <option value="{{ $anio }}" {{ request('anio', $anioActual) == $anio ? 'selected' : '' }}>
                             {{ $anio }}
@@ -36,9 +51,15 @@
                     @endforeach
                 </select>
 
-                <noscript>
-                    <button class="btn btn-sm btn-secondary">Filtrar</button>
-                </noscript>
+                <button type="submit" class="btn btn-sm btn-primary mr-2">
+                    <i class="fas fa-filter"></i> Filtrar
+                </button>
+
+                @if(request()->filled('unidad_id') || request()->filled('anio'))
+                    <a href="{{ route('puestas_disposicion.index') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times"></i> Limpiar
+                    </a>
+                @endif
             </form>
         </div>
 
@@ -126,7 +147,7 @@
                         @empty
                             <tr>
                                 <td colspan="11" class="text-center text-muted py-4">
-                                    No hay puestas a disposición para el año seleccionado.
+                                    No hay puestas a disposición para los filtros seleccionados.
                                 </td>
                             </tr>
                         @endforelse

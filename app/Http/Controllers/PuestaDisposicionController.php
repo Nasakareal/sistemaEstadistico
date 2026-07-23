@@ -402,10 +402,18 @@ class PuestaDisposicionController extends Controller
 
         $anioActual = now()->year;
         $anioSeleccionado = $request->get('anio', $anioActual);
+        $puedeFiltrarUnidad = $this->puedeVerTodasLasUnidades($usuario);
+        $unidadSeleccionadaId = $puedeFiltrarUnidad && $request->filled('unidad_id')
+            ? (int)$request->input('unidad_id')
+            : null;
 
         $query = $this->queryVisibleByUser($usuario)
             ->where('anio', $anioSeleccionado)
             ->orderByDesc('numero_puesta');
+
+        if ($unidadSeleccionadaId) {
+            $query->where('unidad_id', $unidadSeleccionadaId);
+        }
 
         if ($request->filled('motivo')) {
             $query->where('motivo', strtoupper(trim($request->motivo)));
@@ -423,11 +431,18 @@ class PuestaDisposicionController extends Controller
             ->orderBy('anio', 'desc')
             ->pluck('anio');
 
+        $unidadesFiltro = $puedeFiltrarUnidad
+            ? $this->obtenerUnidadesActivas()->sortBy('nombre')->values()
+            : collect();
+
         return view('puestas_disposicion.index', compact(
             'puestas',
             'anios',
             'anioActual',
-            'anioSeleccionado'
+            'anioSeleccionado',
+            'unidadesFiltro',
+            'puedeFiltrarUnidad',
+            'unidadSeleccionadaId'
         ));
     }
 

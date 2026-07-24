@@ -14,6 +14,7 @@ use App\Models\Vehiculo;
 use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
+use App\Support\ActividadSubcategoriaCaptura;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Carbon\Carbon;
@@ -248,8 +249,13 @@ class ActividadController extends Controller
             );
 
             if (!$ok) {
+                $mensaje = $this->mensajeSubcategoriaNoPermitida(
+                    (int) $validated['actividad_subcategoria_id'],
+                    $user
+                );
+
                 return back()->withErrors([
-                    'actividad_subcategoria_id' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
+                    'actividad_subcategoria_id' => $mensaje,
                 ])->withInput();
             }
         }
@@ -506,8 +512,13 @@ class ActividadController extends Controller
             );
 
             if (!$ok) {
+                $mensaje = $this->mensajeSubcategoriaNoPermitida(
+                    (int) $validated['actividad_subcategoria_id'],
+                    $usuario
+                );
+
                 return back()->withErrors([
-                    'actividad_subcategoria_id' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
+                    'actividad_subcategoria_id' => $mensaje,
                 ])->withInput();
             }
         }
@@ -709,7 +720,10 @@ class ActividadController extends Controller
             });
         }
 
-        $items = $query->orderBy('nombre')->get();
+        $items = ActividadSubcategoriaCaptura::filtrarParaUsuario(
+            $query->orderBy('nombre')->get(),
+            $usuario
+        );
 
         if (!$this->debePriorizarSubcategoriasFomento($categoriaId, $usuario)) {
             return $items;
@@ -836,7 +850,29 @@ class ActividadController extends Controller
             });
         }
 
-        return $query->exists();
+        $subcategoria = $query->first(['id', 'nombre']);
+
+        return $subcategoria !== null
+            && ActividadSubcategoriaCaptura::permitidaParaUsuario($subcategoria, $usuario);
+    }
+
+    private function mensajeSubcategoriaNoPermitida(int $subcategoriaId, $usuario): string
+    {
+        $subcategoria = ActividadSubcategoria::query()
+            ->find($subcategoriaId, ['id', 'nombre']);
+
+        if ($subcategoria) {
+            $mensaje = ActividadSubcategoriaCaptura::mensajeRechazoParaUsuario(
+                $subcategoria,
+                $usuario
+            );
+
+            if ($mensaje !== null) {
+                return $mensaje;
+            }
+        }
+
+        return 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.';
     }
 
     private function buildQuery(Request $request, Carbon $inicioDia, Carbon $finDia)

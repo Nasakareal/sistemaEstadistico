@@ -17,6 +17,7 @@ use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\ImageThumbnailService;
 use App\Services\VialidadesUrbanasSiniestrosAlertService;
+use App\Support\ActividadSubcategoriaCaptura;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
@@ -289,11 +290,16 @@ class ActividadController extends Controller
                 (int) $validated['actividad_subcategoria_id'],
                 $user
             )) {
+                $mensaje = $this->mensajeSubcategoriaNoPermitida(
+                    (int) $validated['actividad_subcategoria_id'],
+                    $user
+                );
+
                 return response()->json([
                     'ok' => false,
-                    'message' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
+                    'message' => $mensaje,
                     'errors' => [
-                        'actividad_subcategoria_id' => ['La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.'],
+                        'actividad_subcategoria_id' => [$mensaje],
                     ],
                 ], 422);
             }
@@ -569,11 +575,16 @@ class ActividadController extends Controller
                 (int) $validated['actividad_subcategoria_id'],
                 $user
             )) {
+                $mensaje = $this->mensajeSubcategoriaNoPermitida(
+                    (int) $validated['actividad_subcategoria_id'],
+                    $user
+                );
+
                 return response()->json([
                     'ok' => false,
-                    'message' => 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.',
+                    'message' => $mensaje,
                     'errors' => [
-                        'actividad_subcategoria_id' => ['La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.'],
+                        'actividad_subcategoria_id' => [$mensaje],
                     ],
                 ], 422);
             }
@@ -916,7 +927,10 @@ class ActividadController extends Controller
             });
         }
 
-        return $query->orderBy('nombre')->get(['id', 'nombre', 'unidad_id']);
+        return ActividadSubcategoriaCaptura::filtrarParaUsuario(
+            $query->orderBy('nombre')->get(['id', 'nombre', 'unidad_id']),
+            $usuario
+        );
     }
 
     private function subcategoriaPermitidaParaUsuario(int $categoriaId, int $subcategoriaId, $usuario): bool
@@ -937,7 +951,29 @@ class ActividadController extends Controller
             });
         }
 
-        return $query->exists();
+        $subcategoria = $query->first(['id', 'nombre']);
+
+        return $subcategoria !== null
+            && ActividadSubcategoriaCaptura::permitidaParaUsuario($subcategoria, $usuario);
+    }
+
+    private function mensajeSubcategoriaNoPermitida(int $subcategoriaId, $usuario): string
+    {
+        $subcategoria = ActividadSubcategoria::query()
+            ->find($subcategoriaId, ['id', 'nombre']);
+
+        if ($subcategoria) {
+            $mensaje = ActividadSubcategoriaCaptura::mensajeRechazoParaUsuario(
+                $subcategoria,
+                $usuario
+            );
+
+            if ($mensaje !== null) {
+                return $mensaje;
+            }
+        }
+
+        return 'La subcategoría no pertenece a la categoría seleccionada o no está permitida para tu unidad.';
     }
 
     public function compartir(Actividad $actividad)

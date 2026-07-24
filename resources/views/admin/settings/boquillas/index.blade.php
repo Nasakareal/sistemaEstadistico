@@ -1,12 +1,12 @@
 @extends('adminlte::page')
 
-@section('title', 'Dotación de boquillas')
+@section('title', 'Control de boquillas')
 
 @section('content_header')
     <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
         <div>
-            <h1 class="mb-1"><i class="fa-solid fa-boxes-stacked mr-2 text-info"></i>Dotación de boquillas</h1>
-            <p class="text-muted mb-0">Registra por separado cada entrega recibida de la Secretaría de Salud.</p>
+            <h1 class="mb-1"><i class="fa-solid fa-boxes-stacked mr-2 text-info"></i>Control de boquillas</h1>
+            <p class="text-muted mb-0">Registra las entregas recibidas y cualquier boquilla perdida durante los operativos de alcoholimetría.</p>
         </div>
         <a href="{{ route('settings.index') }}" class="btn btn-outline-light mt-3 mt-md-0">
             <i class="fas fa-arrow-left mr-1"></i> Configuraciones
@@ -76,11 +76,53 @@
                 <h5 class="font-weight-bold">¿Cómo se captura?</h5>
                 <p class="mb-0">Registra una entrada cada vez que reciban boquillas. Si llegan en semanas distintas, cada entrega conserva su propia fecha y cantidad.</p>
             </div>
+
+            <div class="card card-outline card-warning shadow-sm">
+                <div class="card-header border-0">
+                    <h3 class="card-title font-weight-bold"><i class="fas fa-triangle-exclamation mr-1"></i> Boquillas perdidas</h3>
+                </div>
+                <form method="POST" action="{{ route('settings.boquillas.perdidas.store') }}">
+                    @csrf
+                    <div class="card-body pt-2">
+                        <div class="form-group">
+                            <label for="fecha_perdida">Fecha de la pérdida</label>
+                            <input type="date" id="fecha_perdida" name="fecha_perdida"
+                                   class="form-control @error('fecha_perdida') is-invalid @enderror"
+                                   value="{{ old('fecha_perdida', now()->toDateString()) }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cantidad_perdida">Cantidad perdida</label>
+                            <div class="input-group">
+                                <input type="number" id="cantidad_perdida" name="cantidad" min="1" max="1000000" step="1"
+                                       class="form-control" value="{{ old('fecha_perdida') ? old('cantidad') : '' }}"
+                                       placeholder="Ej. 3" required>
+                                <div class="input-group-append"><span class="input-group-text">boquillas</span></div>
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="observaciones_perdida">Motivo u observaciones <small class="text-muted">(opcional)</small></label>
+                            <textarea id="observaciones_perdida" name="observaciones" rows="3" maxlength="500"
+                                      class="form-control"
+                                      placeholder="Ej. Extravío durante el operativo">{{ old('fecha_perdida') ? old('observaciones') : '' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <button type="submit" class="btn btn-warning btn-block font-weight-bold">
+                            <i class="fas fa-save mr-1"></i> Registrar pérdida
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="callout callout-warning">
+                <h5 class="font-weight-bold">Conciliación mensual</h5>
+                <p class="mb-0">Las pérdidas quedan separadas y auditables. En el formato mensual se suman al total conciliado de pruebas aptas para que coincida con las salidas de boquillas.</p>
+            </div>
         </div>
 
         <div class="col-lg-8">
             <div class="row mb-3">
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <div class="small-box bg-info mb-0">
                         <div class="inner">
                             <h3>{{ number_format($totalRecibidasMes) }}</h3>
@@ -89,7 +131,16 @@
                         <div class="icon"><i class="fa-solid fa-box-open"></i></div>
                     </div>
                 </div>
-                <div class="col-md-7 mt-3 mt-md-0">
+                <div class="col-md-4 mt-3 mt-md-0">
+                    <div class="small-box bg-warning mb-0">
+                        <div class="inner">
+                            <h3>{{ number_format($resumenMensual['boquillas']['perdidas']) }}</h3>
+                            <p>Perdidas en {{ $tituloMes }}</p>
+                        </div>
+                        <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-4 mt-3 mt-md-0">
                     <div class="card h-100 mb-0 shadow-sm">
                         <div class="card-body d-flex align-items-center justify-content-between py-3">
                             <a href="{{ route('settings.boquillas.index', ['mes' => $mesAnterior]) }}" class="btn btn-outline-info" title="Mes anterior">
@@ -102,6 +153,37 @@
                             <a href="{{ route('settings.boquillas.index', ['mes' => $mesSiguiente]) }}" class="btn btn-outline-info" title="Mes siguiente">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="info-box mb-0">
+                        <span class="info-box-icon bg-secondary"><i class="fas fa-boxes-stacked"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Existencia inicial</span>
+                            <span class="info-box-number">{{ number_format($resumenMensual['boquillas']['existencia_inicial']) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mt-3 mt-md-0">
+                    <div class="info-box mb-0">
+                        <span class="info-box-icon bg-primary"><i class="fas fa-vial"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Salidas totales</span>
+                            <span class="info-box-number">{{ number_format($resumenMensual['boquillas']['salidas_totales']) }}</span>
+                            <small>{{ number_format($resumenMensual['pruebas_reales']) }} pruebas + {{ number_format($resumenMensual['boquillas']['perdidas']) }} pérdidas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mt-3 mt-md-0">
+                    <div class="info-box mb-0">
+                        <span class="info-box-icon {{ $resumenMensual['boquillas']['existencia_final'] < 0 ? 'bg-danger' : 'bg-success' }}"><i class="fas fa-warehouse"></i></span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Existencia final</span>
+                            <span class="info-box-number">{{ number_format($resumenMensual['boquillas']['existencia_final']) }}</span>
                         </div>
                     </div>
                 </div>
@@ -192,9 +274,88 @@
                 </div>
             </div>
 
+            <div class="card card-outline card-warning shadow-sm">
+                <div class="card-header border-0">
+                    <h3 class="card-title font-weight-bold"><i class="fas fa-list mr-1"></i> Pérdidas registradas</h3>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Fecha</th>
+                                    <th style="min-width: 150px;">Cantidad</th>
+                                    <th style="min-width: 220px;">Motivo u observaciones</th>
+                                    <th>Registró</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($perdidas as $perdida)
+                                    @php $formId = 'editar-perdida-' . $perdida->id; @endphp
+                                    <tr>
+                                        <td>
+                                            <form id="{{ $formId }}" method="POST" action="{{ route('settings.boquillas.perdidas.update', $perdida) }}">
+                                                @csrf
+                                                @method('PUT')
+                                            </form>
+                                            <input form="{{ $formId }}" type="date" name="fecha_perdida"
+                                                   value="{{ $perdida->fecha_perdida->toDateString() }}"
+                                                   class="form-control form-control-sm" required>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <input form="{{ $formId }}" type="number" name="cantidad" min="1" max="1000000"
+                                                       value="{{ $perdida->cantidad }}" class="form-control" required>
+                                                <div class="input-group-append"><span class="input-group-text">pzas.</span></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input form="{{ $formId }}" type="text" name="observaciones" maxlength="500"
+                                                   value="{{ $perdida->observaciones }}" class="form-control form-control-sm"
+                                                   placeholder="Sin observaciones">
+                                        </td>
+                                        <td class="align-middle">
+                                            <small>{{ optional($perdida->creador)->name ?: 'Usuario no disponible' }}</small>
+                                        </td>
+                                        <td class="align-middle text-right text-nowrap">
+                                            <button form="{{ $formId }}" type="submit" class="btn btn-sm btn-outline-warning" title="Guardar cambios">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                            <form method="POST" action="{{ route('settings.boquillas.perdidas.destroy', $perdida) }}" class="d-inline"
+                                                  onsubmit="return confirm('¿Eliminar esta pérdida del cálculo mensual?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">
+                                            No hay boquillas perdidas registradas en {{ $tituloMes }}.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                            <tfoot>
+                                <tr class="font-weight-bold">
+                                    <td>Total perdido en el mes</td>
+                                    <td>{{ number_format($resumenMensual['boquillas']['perdidas']) }} boquillas</td>
+                                    <td colspan="3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="alert alert-secondary">
                 <i class="fas fa-circle-info mr-1"></i>
-                Este módulo controla por ahora las <strong>boquillas recibidas</strong>. Existencia inicial, utilizadas y existencia final se incorporarán cuando se defina cómo conciliarlas con los operativos de alcoholimetría.
+                La existencia final se calcula como <strong>existencia inicial + recibidas − pruebas registradas − pérdidas</strong>.
+                Las pérdidas no se eliminan ni se confunden con pruebas reales dentro del sistema.
             </div>
         </div>
     </div>

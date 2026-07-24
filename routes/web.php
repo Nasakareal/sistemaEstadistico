@@ -686,6 +686,9 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::prefix('boquillas')->middleware('auth')->group(function () {
         Route::get('/', [BoquillaDotacionController::class, 'index'])->name('settings.boquillas.index');
         Route::post('/', [BoquillaDotacionController::class, 'store'])->name('settings.boquillas.store');
+        Route::post('/perdidas', [BoquillaDotacionController::class, 'storePerdida'])->name('settings.boquillas.perdidas.store');
+        Route::put('/perdidas/{perdida}', [BoquillaDotacionController::class, 'updatePerdida'])->name('settings.boquillas.perdidas.update');
+        Route::delete('/perdidas/{perdida}', [BoquillaDotacionController::class, 'destroyPerdida'])->name('settings.boquillas.perdidas.destroy');
         Route::put('/{dotacion}', [BoquillaDotacionController::class, 'update'])->name('settings.boquillas.update');
         Route::delete('/{dotacion}', [BoquillaDotacionController::class, 'destroy'])->name('settings.boquillas.destroy');
     });

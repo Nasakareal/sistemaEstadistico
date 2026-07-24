@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\BoquillaDotacion;
+use App\Models\BoquillaPerdida;
+use App\Services\Alcoholimetria\AlcoholimetriaMensualService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class BoquillaDotacionController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, AlcoholimetriaMensualService $mensualService)
     {
         $mes = $this->mesSeleccionado($request->input('mes'));
         $inicioMes = $mes->copy()->startOfMonth();
@@ -25,14 +27,26 @@ class BoquillaDotacionController extends Controller
             ->get();
 
         $totalRecibidasMes = (int) $dotaciones->sum('cantidad');
+        $perdidas = BoquillaPerdida::query()
+            ->with('creador:id,name')
+            ->whereBetween('fecha_perdida', [
+                $inicioMes->toDateString(),
+                $finMes->toDateString(),
+            ])
+            ->orderByDesc('fecha_perdida')
+            ->orderByDesc('id')
+            ->get();
+        $resumenMensual = $mensualService->resumen($inicioMes);
 
         return view('admin.settings.boquillas.index', [
             'dotaciones' => $dotaciones,
+            'perdidas' => $perdidas,
             'mes' => $inicioMes->format('Y-m'),
             'mesAnterior' => $inicioMes->copy()->subMonth()->format('Y-m'),
             'mesSiguiente' => $inicioMes->copy()->addMonth()->format('Y-m'),
             'tituloMes' => ucfirst($inicioMes->locale('es')->translatedFormat('F Y')),
             'totalRecibidasMes' => $totalRecibidasMes,
+            'resumenMensual' => $resumenMensual,
         ]);
     }
 
@@ -73,6 +87,46 @@ class BoquillaDotacionController extends Controller
             ->with('success', 'La dotación se eliminó del cálculo mensual.');
     }
 
+    public function storePerdida(Request $request)
+    {
+        $data = $this->validarPerdida($request);
+        $data['created_by'] = $request->user()->id;
+        $data['updated_by'] = $request->user()->id;
+
+        BoquillaPerdida::create($data);
+
+        return redirect()
+            ->route('settings.boquillas.index', [
+                'mes' => Carbon::parse($data['fecha_perdida'])->format('Y-m'),
+            ])
+            ->with('success', 'Las boquillas perdidas se registraron correctamente.');
+    }
+
+    public function updatePerdida(Request $request, BoquillaPerdida $perdida)
+    {
+        $data = $this->validarPerdida($request);
+        $data['updated_by'] = $request->user()->id;
+        $perdida->update($data);
+
+        return redirect()
+            ->route('settings.boquillas.index', [
+                'mes' => Carbon::parse($data['fecha_perdida'])->format('Y-m'),
+            ])
+            ->with('success', 'El registro de boquillas perdidas se actualizó correctamente.');
+    }
+
+    public function destroyPerdida(Request $request, BoquillaPerdida $perdida)
+    {
+        $mes = $perdida->fecha_perdida->format('Y-m');
+        $perdida->updated_by = $request->user()->id;
+        $perdida->save();
+        $perdida->delete();
+
+        return redirect()
+            ->route('settings.boquillas.index', ['mes' => $mes])
+            ->with('success', 'Las boquillas perdidas se eliminaron del cálculo mensual.');
+    }
+
     private function validar(Request $request): array
     {
         return $request->validate([
@@ -85,6 +139,23 @@ class BoquillaDotacionController extends Controller
             'cantidad.required' => 'Indica cuántas boquillas se recibieron.',
             'cantidad.integer' => 'La cantidad debe ser un número entero.',
             'cantidad.min' => 'La cantidad debe ser mayor a cero.',
+            'cantidad.max' => 'La cantidad capturada es demasiado grande.',
+            'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
+        ]);
+    }
+
+    private function validarPerdida(Request $request): array
+    {
+        return $request->validate([
+            'fecha_perdida' => ['required', 'date'],
+            'cantidad' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'observaciones' => ['nullable', 'string', 'max:500'],
+        ], [
+            'fecha_perdida.required' => 'Indica la fecha de la pérdida.',
+            'fecha_perdida.date' => 'La fecha de la pérdida no es válida.',
+            'cantidad.required' => 'Indica cuántas boquillas se perdieron.',
+            'cantidad.integer' => 'La cantidad perdida debe ser un número entero.',
+            'cantidad.min' => 'La cantidad perdida debe ser mayor a cero.',
             'cantidad.max' => 'La cantidad capturada es demasiado grande.',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
         ]);

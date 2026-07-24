@@ -26,6 +26,18 @@ return [
         'template_path' => env('INEGI_CHOQUES_TEMPLATE_PATH', ''),
     ],
 
+    'alcoholimetria_mensual' => [
+        'required_mail_to' => [
+            'michpreviene@gmail.com',
+            'dr.bernier26@hotmail.com',
+        ],
+        'mail_to' => env('ALCOHOLIMETRIA_MENSUAL_MAIL_TO', ''),
+        'start_month' => env('ALCOHOLIMETRIA_MENSUAL_START_MONTH', '2026-07'),
+        'schedule_time' => env('ALCOHOLIMETRIA_MENSUAL_SCHEDULE_TIME', '05:00'),
+        'template_path' => env('ALCOHOLIMETRIA_MENSUAL_TEMPLATE_PATH', ''),
+        'municipio_sin_registros' => env('ALCOHOLIMETRIA_MUNICIPIO_SIN_REGISTROS', 'MORELIA'),
+    ],
+
     'waze' => [
         'feed_url' => env('WAZE_FEED_URL'),
         'morelia_user_ids' => array_values(array_filter(array_map('intval', explode(',', env('WAZE_MORELIA_USER_IDS', ''))))),

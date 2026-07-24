@@ -41,6 +41,13 @@ class Kernel extends ConsoleKernel
             ->monthlyOn(1, (string) config('services.inegi_choques.schedule_time', '04:30'))
             ->withoutOverlapping();
 
+        // Se intenta diariamente durante el mes. El comando omite los periodos ya
+        // enviados, por lo que una falla temporal de correo se reintenta al día siguiente.
+        $schedule->command('alcoholimetria:enviar-reporte-mensual')
+            ->timezone($timezone)
+            ->dailyAt((string) config('services.alcoholimetria_mensual.schedule_time', '05:00'))
+            ->withoutOverlapping();
+
         $schedule->command('siniestros:generar-parte-novedades-diario')
             ->timezone($timezone)
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))

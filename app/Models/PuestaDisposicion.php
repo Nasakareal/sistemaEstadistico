@@ -13,6 +13,7 @@ class PuestaDisposicion extends Model
 
     protected $fillable = [
         'hecho_id',
+        'actividad_id',
         'numero_puesta',
         'anio',
         'tipo_puesta',
@@ -43,6 +44,7 @@ class PuestaDisposicion extends Model
         'anio' => 'integer',
         'numero_puesta' => 'integer',
         'hecho_id' => 'integer',
+        'actividad_id' => 'integer',
         'unidad_id' => 'integer',
         'delegacion_id' => 'integer',
         'destacamento_id' => 'integer',
@@ -53,6 +55,11 @@ class PuestaDisposicion extends Model
     public function hecho()
     {
         return $this->belongsTo(Hechos::class, 'hecho_id');
+    }
+
+    public function actividad()
+    {
+        return $this->belongsTo(Actividad::class, 'actividad_id');
     }
 
     public function unidad()

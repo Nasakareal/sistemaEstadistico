@@ -486,6 +486,7 @@ class ActividadController extends Controller
             'fotos',
             'vehiculos',
             'fomentoCulturaVialDetalle',
+            'puestaDisposicion',
         ]);
 
         return response()->json([

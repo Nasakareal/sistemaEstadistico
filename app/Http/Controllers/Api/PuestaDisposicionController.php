@@ -10,6 +10,7 @@ use App\Models\PuestaDisposicionObjeto;
 use App\Models\PuestaDisposicionFoto;
 use App\Models\Unidad;
 use App\Models\Hechos;
+use App\Models\Actividad;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Services\Fotos\HechoFotoStorage;
@@ -109,6 +110,14 @@ class PuestaDisposicionController extends Controller
         return $unidadId>0 ? $unidadId : null;
     }
 
+    private function unidadIdDesdeActividad(?Actividad $actividad): ?int
+    {
+        if (!$actividad) return null;
+
+        $unidadId=(int)($actividad->unidad_org_id ?: optional($actividad->creador)->unidad_id);
+        return $unidadId>0 ? $unidadId : null;
+    }
+
     private function resolverHechoOrigen(Request $request,$usuario): ?Hechos
     {
         $hechoId=(int)$request->input('hecho_id');
@@ -136,12 +145,71 @@ class PuestaDisposicionController extends Controller
         return $hecho;
     }
 
-    private function resolverVehiculoRelacionadoId(?Hechos $hecho,array $vehiculo): ?int
+    private function resolverActividadOrigen(Request $request,$usuario): ?Actividad
     {
-        if (!$hecho) return null;
+        $actividadId=(int)$request->input('actividad_id');
+        if ($actividadId<=0) return null;
 
-        $hecho->loadMissing('vehiculos');
-        $vehiculos=$hecho->vehiculos;
+        $query=Actividad::query()
+            ->with(['creador','vehiculos'])
+            ->whereKey($actividadId);
+
+        $this->applyActividadVisibilityScope($query,$usuario);
+        $actividad=$query->first();
+
+        if (!$actividad) {
+            throw ValidationException::withMessages([
+                'actividad_id'=>'No se encontró una actividad válida para vincular la puesta a disposición.',
+            ]);
+        }
+
+        return $actividad;
+    }
+
+    private function applyActividadVisibilityScope($query,$usuario): void
+    {
+        $unidadId=(int)($usuario->unidad_id ?? 0);
+
+        if ($usuario->hasRole('Superadmin') || $usuario->hasRole('Coordinador') || $unidadId===3) {
+            return;
+        }
+
+        if ($unidadId<=0) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $query->where(function ($unidadQuery) use ($unidadId) {
+            $unidadQuery->where('unidad_org_id',$unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_org_id')
+                        ->whereHas('creador',fn ($creador) => $creador->where('unidad_id',$unidadId));
+                });
+        });
+
+        if ($unidadId!==PuestaDisposicionRules::UNIDAD_DELEGACIONES_ID) {
+            return;
+        }
+
+        if ($usuario->hasRole('Administrador') || $usuario->hasRole('Administrativo') || $usuario->hasRole('Subdirector')) {
+            return;
+        }
+
+        $delegacionIds=HechoAccess::delegacionIdsVisiblesParaUsuario($usuario);
+        if (empty($delegacionIds)) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $query->whereIn('delegacion_id',$delegacionIds);
+    }
+
+    private function resolverVehiculoRelacionadoId($origen,array $vehiculo): ?int
+    {
+        if (!$origen) return null;
+
+        $origen->loadMissing('vehiculos');
+        $vehiculos=$origen->vehiculos;
         $vehiculoId=(int)($vehiculo['vehiculo_id'] ?? 0);
 
         if ($vehiculoId>0 && $vehiculos->contains('id',$vehiculoId)) {
@@ -200,6 +268,7 @@ class PuestaDisposicionController extends Controller
         $request->validate([
             'hecho_id'=>'nullable|integer|exists:hechos,id',
             'hecho_client_uuid'=>'nullable|string|max:100',
+            'actividad_id'=>'nullable|integer|exists:actividades,id',
             'tipo_puesta'=>'required|string|max:100',
             'motivo'=>'required|string|max:150',
             'estatus'=>'nullable|string|max:100',
@@ -274,9 +343,11 @@ class PuestaDisposicionController extends Controller
 
     private function guardarDetalles(PuestaDisposicion $puesta, Request $request, array &$documentPaths): void
     {
-        $hechoOrigen=$puesta->hecho_id
+        $origen=$puesta->hecho_id
             ? $puesta->hecho()->with('vehiculos')->first()
-            : null;
+            : ($puesta->actividad_id
+                ? $puesta->actividad()->with('vehiculos')->first()
+                : null);
 
         foreach ($request->input('personas', []) as $index => $persona) {
             if (empty(trim((string)($persona['nombre_completo'] ?? '')))) continue;
@@ -320,7 +391,7 @@ class PuestaDisposicionController extends Controller
 
             PuestaDisposicionVehiculo::create([
                 'puesta_disposicion_id'=>$puesta->id,
-                'vehiculo_id'=>$this->resolverVehiculoRelacionadoId($hechoOrigen,$vehiculo),
+                'vehiculo_id'=>$this->resolverVehiculoRelacionadoId($origen,$vehiculo),
                 'tipo'=>$this->normalizarTextoNullable($vehiculo['tipo'] ?? null),
                 'marca'=>$this->normalizarTextoNullable($vehiculo['marca'] ?? null),
                 'submarca'=>$this->normalizarTextoNullable($vehiculo['submarca'] ?? null),
@@ -379,16 +450,36 @@ class PuestaDisposicionController extends Controller
     public function store(Request $request)
     {
         $usuario=Auth::user();
+
+        if (
+            ((int)$request->input('actividad_id')>0)
+            && (((int)$request->input('hecho_id')>0) || trim((string)$request->input('hecho_client_uuid',''))!=='')
+        ) {
+            throw ValidationException::withMessages([
+                'actividad_id'=>'La puesta sólo puede vincularse con un hecho o con una actividad, no con ambos.',
+            ]);
+        }
+
         $hechoOrigen=$this->resolverHechoOrigen($request,$usuario);
+        $actividadOrigen=$this->resolverActividadOrigen($request,$usuario);
         if ($hechoOrigen && PuestaDisposicion::query()->where('hecho_id',$hechoOrigen->id)->exists()) {
             throw ValidationException::withMessages([
                 'hecho_id'=>'Este hecho ya tiene una puesta a disposición vinculada.',
             ]);
         }
+        if ($actividadOrigen && PuestaDisposicion::query()->where('actividad_id',$actividadOrigen->id)->exists()) {
+            throw ValidationException::withMessages([
+                'actividad_id'=>'Esta actividad ya tiene una puesta a disposición vinculada.',
+            ]);
+        }
 
         $unidadRegistroId=$this->unidadIdDesdeHecho($hechoOrigen)
+            ?: $this->unidadIdDesdeActividad($actividadOrigen)
             ?: $this->resolverUnidadRegistro($request,$usuario);
-        $request->merge(['hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null]);
+        $request->merge([
+            'hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null,
+            'actividad_id'=>$actividadOrigen ? $actividadOrigen->id : null,
+        ]);
         $this->prepararRequestStore($request,$unidadRegistroId);
 
         if (PuestaDisposicionRules::requiereHechoVinculadoDelegaciones(
@@ -407,6 +498,8 @@ class PuestaDisposicionController extends Controller
             'user_id'=>$usuario ? $usuario->id : null,
             'unidad_id'=>$unidadRegistroId,
             'tipo_puesta'=>$request->input('tipo_puesta'),
+            'hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null,
+            'actividad_id'=>$actividadOrigen ? $actividadOrigen->id : null,
             'personas'=>count($request->input('personas', [])),
             'vehiculos'=>count($request->input('vehiculos', [])),
             'objetos'=>count($request->input('objetos', [])),
@@ -437,6 +530,7 @@ class PuestaDisposicionController extends Controller
 
             $puesta=PuestaDisposicion::create([
                 'hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null,
+                'actividad_id'=>$actividadOrigen ? $actividadOrigen->id : null,
                 'numero_puesta'=>$numero,
                 'anio'=>$anioActual,
                 'tipo_puesta'=>$request->input('tipo_puesta'),
@@ -455,8 +549,14 @@ class PuestaDisposicionController extends Controller
                 'observaciones'=>$request->input('observaciones'),
                 'archivo_puesta'=>$archivo,
                 'unidad_id'=>$unidadRegistroId,
-                'delegacion_id'=>$hechoOrigen ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id) : $usuario->delegacion_id,
-                'destacamento_id'=>$usuario->destacamento_id,
+                'delegacion_id'=>$hechoOrigen
+                    ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id)
+                    : ($actividadOrigen
+                        ? ($actividadOrigen->delegacion_id ?: $usuario->delegacion_id)
+                        : $usuario->delegacion_id),
+                'destacamento_id'=>$actividadOrigen
+                    ? ($actividadOrigen->destacamento_id ?: $usuario->destacamento_id)
+                    : $usuario->destacamento_id,
                 'created_by'=>$usuario->id,
             ]);
 

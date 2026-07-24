@@ -10,6 +10,7 @@ use App\Support\MapaPatrullasAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -98,6 +99,7 @@ class AuthController extends Controller
             'destacamento',
             'turno',
             'patrulla',
+            'personal.fotoPrincipal',
             'roles.permissions',
             'permissions',
         ]);
@@ -135,6 +137,7 @@ class AuthController extends Controller
             'id' => $user->patrulla->id,
             'numero_economico' => $user->patrulla->numero_economico,
         ] : null;
+        $fotoPersonalUrl = $this->fotoPersonalUrl($user->personal);
 
         $isSubdirector = $this->userHasRole($user, 'Subdirector');
         $isJefeGrupo = MapaPatrullasAccess::isSiniestrosGroupLead($user);
@@ -144,6 +147,7 @@ class AuthController extends Controller
             ->statusForUser($user);
 
         $legacyUser = $user->toArray();
+        unset($legacyUser['personal']);
         $legacyUser['role'] = $primaryRole ? $primaryRole->name : null;
         $legacyUser['role_id'] = $primaryRole ? $primaryRole->id : null;
         $legacyUser['permissions'] = $permissions->all();
@@ -152,6 +156,7 @@ class AuthController extends Controller
         $legacyUser['licencias_puntos_turno'] = $licenciasPuntosTurno;
         $legacyUser['licencias_puntos_turno_permitido'] = (bool)($licenciasPuntosTurno['allowed'] ?? false);
         $legacyUser['turno_en_servicio'] = $licenciasPuntosTurno['turno_en_servicio'] ?? null;
+        $legacyUser['foto_personal_url'] = $fotoPersonalUrl;
 
         $response = [
             // Duplicate the most-used identity keys at the root for older clients.
@@ -171,6 +176,7 @@ class AuthController extends Controller
             'location_tracking_allowed' => (bool)($locationTracking['allowed'] ?? false),
             'licencias_puntos_turno' => $licenciasPuntosTurno,
             'licencias_puntos_turno_permitido' => (bool)($licenciasPuntosTurno['allowed'] ?? false),
+            'foto_personal_url' => $fotoPersonalUrl,
             // Keep the legacy string shape so existing clients don't hide modules.
             'role' => $primaryRole ? $primaryRole->name : null,
             'role_id' => $primaryRole ? $primaryRole->id : null,
@@ -210,6 +216,7 @@ class AuthController extends Controller
                 'licencias_puntos_turno' => $licenciasPuntosTurno,
                 'licencias_puntos_turno_permitido' => (bool)($licenciasPuntosTurno['allowed'] ?? false),
                 'turno_en_servicio' => $licenciasPuntosTurno['turno_en_servicio'] ?? null,
+                'foto_personal_url' => $fotoPersonalUrl,
                 'role' => $primaryRole ? $primaryRole->name : null,
                 'role_id' => $primaryRole ? $primaryRole->id : null,
                 'role_meta' => $primaryRole ? [
@@ -232,6 +239,32 @@ class AuthController extends Controller
         }
 
         return $response;
+    }
+
+    private function fotoPersonalUrl($personal): ?string
+    {
+        if (!$personal) {
+            return null;
+        }
+
+        $foto = $personal->fotoPrincipal;
+        if ($foto && $foto->id && $foto->ruta) {
+            return URL::temporarySignedRoute(
+                'personal.fotos.signed',
+                now()->addMinutes(30),
+                ['foto' => $foto->id]
+            );
+        }
+
+        if ($personal->foto) {
+            return URL::temporarySignedRoute(
+                'personal.fotos.principal.signed',
+                now()->addMinutes(30),
+                ['personal' => $personal->id]
+            );
+        }
+
+        return null;
     }
 
     private function permissionsForUser($user)

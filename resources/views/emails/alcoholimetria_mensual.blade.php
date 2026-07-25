@@ -23,6 +23,10 @@
             por boquillas perdidas).
         </li>
         <li>Boquillas perdidas: <strong>{{ number_format($resumen['boquillas']['perdidas']) }}</strong>.</li>
+        <li>
+            Salidas cubiertas con boquillas externas no controladas:
+            <strong>{{ number_format($resumen['boquillas']['externas_no_controladas']) }}</strong>.
+        </li>
         <li>Total conciliado presentado en el formato: <strong>{{ number_format($resumen['pruebas_reportadas']) }}</strong>.</li>
     </ul>
 
@@ -30,7 +34,7 @@
         Conciliación de boquillas:
         {{ number_format($resumen['boquillas']['existencia_inicial']) }} iniciales +
         {{ number_format($resumen['boquillas']['recibidas']) }} recibidas −
-        {{ number_format($resumen['boquillas']['salidas_totales']) }} salidas =
+        {{ number_format($resumen['boquillas']['salidas_inventario_controlado']) }} salidas del inventario controlado =
         <strong>{{ number_format($resumen['boquillas']['existencia_final']) }} finales</strong>.
     </p>
 

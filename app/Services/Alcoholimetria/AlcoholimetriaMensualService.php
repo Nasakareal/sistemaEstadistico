@@ -51,25 +51,12 @@ class AlcoholimetriaMensualService
             ->orderBy('fecha_perdida')
             ->get(['fecha_perdida', 'cantidad']);
 
-        $recibidasMes = (int) BoquillaDotacion::query()
+        $dotaciones = BoquillaDotacion::query()
             ->whereBetween('fecha_recepcion', [$inicio, $fin])
-            ->sum('cantidad');
-
-        $recibidasAntes = (int) BoquillaDotacion::query()
-            ->where('fecha_recepcion', '<', $inicio)
-            ->sum('cantidad');
-
-        $perdidasAntes = (int) BoquillaPerdida::query()
-            ->where('fecha_perdida', '<', $inicio)
-            ->sum('cantidad');
-
-        $pruebasAntes = (int) DB::table('conduce_legalidad_capturas as c')
-            ->join('conduce_legalidad_operativos as o', 'o.id', '=', 'c.operativo_id')
-            ->where('o.tipo_operativo', 'alcoholimetria')
-            ->whereRaw('COALESCE(c.fecha, o.fecha) < ?', [$inicio])
-            ->count('c.id');
-
-        $existenciaInicial = $recibidasAntes - $pruebasAntes - $perdidasAntes;
+            ->orderBy('fecha_recepcion')
+            ->get(['fecha_recepcion', 'cantidad']);
+        $recibidasMes = (int) $dotaciones->sum('cantidad');
+        $existenciaInicial = $this->existenciaControladaAntesDe($inicio);
         $municipio = $this->municipioDelMes($mes, $capturas);
 
         return $this->construirResumen(
@@ -78,7 +65,8 @@ class AlcoholimetriaMensualService
             $perdidas,
             $existenciaInicial,
             $recibidasMes,
-            $municipio
+            $municipio,
+            $dotaciones
         );
     }
 
@@ -88,7 +76,8 @@ class AlcoholimetriaMensualService
         Collection $perdidas,
         int $existenciaInicial,
         int $recibidasMes,
-        string $municipio
+        string $municipio,
+        ?Collection $dotaciones = null
     ): array {
         $mes = $mes->copy()->startOfMonth();
         $pruebasRealesSemana = array_fill(1, 5, 0);
@@ -123,7 +112,14 @@ class AlcoholimetriaMensualService
         $pruebasReales = array_sum($pruebasRealesSemana);
         $boquillasPerdidas = array_sum($perdidasSemana);
         $boquillasUtilizadas = $pruebasReales + $boquillasPerdidas;
-        $existenciaFinal = $existenciaInicial + $recibidasMes - $boquillasUtilizadas;
+        $conciliacion = $this->conciliarInventarioDelPeriodo(
+            $existenciaInicial,
+            $recibidasMes,
+            $capturas,
+            $perdidas,
+            $dotaciones
+        );
+        $existenciaFinal = $conciliacion['existencia_final'];
         $variables = $this->variables(
             $mes,
             $municipio,
@@ -155,6 +151,8 @@ class AlcoholimetriaMensualService
                 'utilizadas_en_pruebas' => $pruebasReales,
                 'perdidas' => $boquillasPerdidas,
                 'salidas_totales' => $boquillasUtilizadas,
+                'salidas_inventario_controlado' => $conciliacion['salidas_inventario_controlado'],
+                'externas_no_controladas' => $conciliacion['externas_no_controladas'],
                 'existencia_final' => $existenciaFinal,
             ],
             'variables' => $variables,
@@ -221,6 +219,140 @@ class AlcoholimetriaMensualService
         $variables['tcna'] = (string) ((int) $variables['thm'] + (int) $variables['tmm']);
 
         return $variables;
+    }
+
+    private function existenciaControladaAntesDe(string $fechaLimite): int
+    {
+        $movimientos = [];
+
+        BoquillaDotacion::query()
+            ->where('fecha_recepcion', '<', $fechaLimite)
+            ->get(['fecha_recepcion', 'cantidad'])
+            ->each(function (BoquillaDotacion $dotacion) use (&$movimientos) {
+                $this->agregarMovimiento(
+                    $movimientos,
+                    $dotacion->fecha_recepcion,
+                    (int) $dotacion->cantidad,
+                    0
+                );
+            });
+
+        BoquillaPerdida::query()
+            ->where('fecha_perdida', '<', $fechaLimite)
+            ->get(['fecha_perdida', 'cantidad'])
+            ->each(function (BoquillaPerdida $perdida) use (&$movimientos) {
+                $this->agregarMovimiento(
+                    $movimientos,
+                    $perdida->fecha_perdida,
+                    0,
+                    (int) $perdida->cantidad
+                );
+            });
+
+        DB::table('conduce_legalidad_capturas as c')
+            ->join('conduce_legalidad_operativos as o', 'o.id', '=', 'c.operativo_id')
+            ->where('o.tipo_operativo', 'alcoholimetria')
+            ->whereRaw('COALESCE(c.fecha, o.fecha) < ?', [$fechaLimite])
+            ->selectRaw('COALESCE(c.fecha, o.fecha) as fecha_consumo, COUNT(c.id) as cantidad')
+            ->groupByRaw('COALESCE(c.fecha, o.fecha)')
+            ->get()
+            ->each(function ($consumo) use (&$movimientos) {
+                $this->agregarMovimiento(
+                    $movimientos,
+                    $consumo->fecha_consumo,
+                    0,
+                    (int) $consumo->cantidad
+                );
+            });
+
+        return $this->conciliarMovimientos(0, $movimientos)['existencia_final'];
+    }
+
+    private function conciliarInventarioDelPeriodo(
+        int $existenciaInicial,
+        int $recibidasMes,
+        Collection $capturas,
+        Collection $perdidas,
+        ?Collection $dotaciones
+    ): array {
+        $existenciaInicial = max(0, $existenciaInicial);
+
+        if ($dotaciones === null) {
+            $salidas = $capturas->count() + (int) $perdidas->sum('cantidad');
+            $disponibles = $existenciaInicial + max(0, $recibidasMes);
+            $controladas = min($disponibles, $salidas);
+
+            return [
+                'salidas_inventario_controlado' => $controladas,
+                'externas_no_controladas' => $salidas - $controladas,
+                'existencia_final' => $disponibles - $controladas,
+            ];
+        }
+
+        $movimientos = [];
+
+        foreach ($dotaciones as $dotacion) {
+            $this->agregarMovimiento(
+                $movimientos,
+                $dotacion->fecha_recepcion,
+                (int) $dotacion->cantidad,
+                0
+            );
+        }
+
+        foreach ($capturas as $captura) {
+            $fecha = $captura->fecha ?: optional($captura->operativo)->fecha;
+            $this->agregarMovimiento($movimientos, $fecha, 0, 1);
+        }
+
+        foreach ($perdidas as $perdida) {
+            $this->agregarMovimiento(
+                $movimientos,
+                $perdida->fecha_perdida,
+                0,
+                max(0, (int) $perdida->cantidad)
+            );
+        }
+
+        return $this->conciliarMovimientos($existenciaInicial, $movimientos);
+    }
+
+    private function agregarMovimiento(
+        array &$movimientos,
+        $fecha,
+        int $entradas,
+        int $salidas
+    ): void {
+        if (!$fecha) {
+            return;
+        }
+
+        $fecha = Carbon::parse($fecha)->toDateString();
+        $movimientos[$fecha] ??= ['entradas' => 0, 'salidas' => 0];
+        $movimientos[$fecha]['entradas'] += max(0, $entradas);
+        $movimientos[$fecha]['salidas'] += max(0, $salidas);
+    }
+
+    private function conciliarMovimientos(int $existenciaInicial, array $movimientos): array
+    {
+        ksort($movimientos);
+        $existencia = max(0, $existenciaInicial);
+        $salidasControladas = 0;
+        $externasNoControladas = 0;
+
+        foreach ($movimientos as $movimiento) {
+            $existencia += $movimiento['entradas'];
+            $cubiertas = min($existencia, $movimiento['salidas']);
+            $existencia -= $cubiertas;
+            $salidasControladas += $cubiertas;
+            $externasNoControladas += $movimiento['salidas'] - $cubiertas;
+        }
+
+        return [
+            'salidas_inventario_controlado' => $salidasControladas,
+            'externas_no_controladas' => $externasNoControladas,
+            'existencia_final' => $existencia,
+        ];
     }
 
     private function matrizConductoresVacia(): array

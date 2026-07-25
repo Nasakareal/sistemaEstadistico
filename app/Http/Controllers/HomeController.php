@@ -42,6 +42,7 @@ class HomeController extends Controller
             'feed_unidad_id' => $unidadFiltro,
             'feed_puede_filtrar_unidades' => $this->puedeFiltrarUnidades($usuario),
             'feed_unidades' => $this->obtenerUnidadesFiltro($usuario),
+            'home_unidad_branding_asset' => $this->unidadBrandingAsset($usuario),
         ]);
     }
 
@@ -322,6 +323,18 @@ class HomeController extends Controller
         }
 
         return (int) ($usuario->unidad_id ?? 0) === 3;
+    }
+
+    private function unidadBrandingAsset($usuario): ?string
+    {
+        $assets = [
+            1 => 'img/unidades/siniestros.png',
+            2 => 'img/unidades/delegaciones.png',
+            5 => 'img/unidades/vialidades.png',
+            6 => 'img/unidades/fomento.png',
+        ];
+
+        return $assets[(int) ($usuario->unidad_id ?? 0)] ?? null;
     }
 
     private function applyDelegacionesScope($query, $usuario, string $delegacionSql): void

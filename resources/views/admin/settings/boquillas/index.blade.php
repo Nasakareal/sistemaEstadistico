@@ -176,12 +176,16 @@
                             <span class="info-box-text">Salidas totales</span>
                             <span class="info-box-number">{{ number_format($resumenMensual['boquillas']['salidas_totales']) }}</span>
                             <small>{{ number_format($resumenMensual['pruebas_reales']) }} pruebas + {{ number_format($resumenMensual['boquillas']['perdidas']) }} pérdidas</small>
+                            <small class="d-block">
+                                {{ number_format($resumenMensual['boquillas']['salidas_inventario_controlado']) }} controladas +
+                                {{ number_format($resumenMensual['boquillas']['externas_no_controladas']) }} externas
+                            </small>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4 mt-3 mt-md-0">
                     <div class="info-box mb-0">
-                        <span class="info-box-icon {{ $resumenMensual['boquillas']['existencia_final'] < 0 ? 'bg-danger' : 'bg-success' }}"><i class="fas fa-warehouse"></i></span>
+                        <span class="info-box-icon bg-success"><i class="fas fa-warehouse"></i></span>
                         <div class="info-box-content">
                             <span class="info-box-text">Existencia final</span>
                             <span class="info-box-number">{{ number_format($resumenMensual['boquillas']['existencia_final']) }}</span>
@@ -189,6 +193,15 @@
                     </div>
                 </div>
             </div>
+
+            @if($resumenMensual['boquillas']['externas_no_controladas'] > 0)
+                <div class="alert alert-info">
+                    <i class="fas fa-circle-info mr-1"></i>
+                    Se registraron <strong>{{ number_format($resumenMensual['boquillas']['externas_no_controladas']) }}</strong>
+                    salidas adicionales después de agotarse las boquillas proporcionadas. Los recuentos se conservaron
+                    completos, sin generar saldo negativo ni consumir retroactivamente entregas posteriores.
+                </div>
+            @endif
 
             <div class="card card-outline card-secondary shadow-sm">
                 <div class="card-header border-0">
@@ -357,8 +370,8 @@
 
             <div class="alert alert-secondary">
                 <i class="fas fa-circle-info mr-1"></i>
-                La existencia final se calcula como <strong>existencia inicial + recibidas − pruebas registradas − pérdidas</strong>.
-                Las pérdidas no se eliminan ni se confunden con pruebas reales dentro del sistema.
+                La existencia final controla únicamente las boquillas proporcionadas y nunca baja de cero.
+                Los recuentos adicionales se conservan como consumo externo no controlado, sin necesidad de registrar las boquillas compradas.
             </div>
         </div>
     </div>

@@ -3,9 +3,17 @@
 @section('title', 'Sistema Estadistico')
 
 @section('content')
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="sv-feed">
+    <div class="sv-home">
+        @if(!empty($home_unidad_branding_asset))
+            <div class="sv-home__watermark" aria-hidden="true">
+                <img src="{{ asset($home_unidad_branding_asset) }}" alt="" role="presentation">
+            </div>
+        @endif
+
+        <div class="sv-home__content">
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="sv-feed">
                 <div class="sv-feed__header">
                     <div>
                         <div class="sv-feed__title">Feed</div>
@@ -80,6 +88,8 @@
                 <div id="svFeedLoading" class="sv-feed__loading" style="display:none;">Cargando...</div>
                 <div id="svFeedEnd" class="sv-feed__end" style="display:none;">No hay más elementos.</div>
                 <div id="svFeedSentinel" style="height:1px;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -95,6 +105,41 @@
         --sv-card2: rgba(255,255,255,.05);
         --sv-shadow: 0 18px 55px rgba(0,0,0,.35);
         --sv-radius: 22px;
+    }
+
+    .sv-home{
+        position: relative;
+        isolation: isolate;
+        min-height: calc(100vh - 130px);
+    }
+
+    .sv-home__watermark{
+        position: sticky;
+        top: 0;
+        z-index: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: calc(100vh - 130px);
+        margin-bottom: calc(-100vh + 130px);
+        overflow: hidden;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .sv-home__watermark img{
+        display: block;
+        width: 68%;
+        max-width: 900px;
+        max-height: 92%;
+        object-fit: contain;
+        opacity: .032;
+        transform: translateY(-2%);
+    }
+
+    .sv-home__content{
+        position: relative;
+        z-index: 1;
     }
 
     .sv-feed{
@@ -323,6 +368,22 @@
 
     .sv-post__delegacion i{
         font-size: 11px;
+    }
+
+    @media (max-width: 767.98px){
+        .sv-home{
+            min-height: calc(100vh - 105px);
+        }
+
+        .sv-home__watermark img{
+            width: 68%;
+            max-height: 78vh;
+        }
+
+        .sv-home__watermark{
+            height: calc(100vh - 105px);
+            margin-bottom: calc(-100vh + 105px);
+        }
     }
 </style>
 @stop

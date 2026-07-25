@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\BoquillaDotacion;
 use App\Models\BoquillaPerdida;
 use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadOperativo;
@@ -44,6 +45,8 @@ class AlcoholimetriaMensualServiceTest extends TestCase
         $this->assertSame(2, $resumen['conductores_aptos_reportados']);
         $this->assertSame(2, $resumen['ajuste_aptos_por_boquillas_perdidas']);
         $this->assertSame(115, $resumen['boquillas']['existencia_final']);
+        $this->assertSame(5, $resumen['boquillas']['salidas_inventario_controlado']);
+        $this->assertSame(0, $resumen['boquillas']['externas_no_controladas']);
         $this->assertSame('1', $resumen['variables']['ts1']);
         $this->assertSame('3', $resumen['variables']['ts2']);
         $this->assertSame('1', $resumen['variables']['ts5']);
@@ -51,6 +54,62 @@ class AlcoholimetriaMensualServiceTest extends TestCase
         $this->assertSame('1', $resumen['variables']['mms2']);
         $this->assertSame('1', $resumen['variables']['tpihs5']);
         $this->assertSame('3', $resumen['variables']['tcna']);
+    }
+
+    public function test_sigue_contando_pruebas_al_agotarse_las_boquillas_proporcionadas(): void
+    {
+        $capturas = new Collection([
+            $this->captura('2026-07-03', 'MASCULINO', 'automovil', 'PARTICULAR'),
+            $this->captura('2026-07-04', 'MASCULINO', 'automovil', 'PARTICULAR'),
+            $this->captura('2026-07-05', 'MASCULINO', 'automovil', 'PARTICULAR'),
+            $this->captura('2026-07-06', 'MASCULINO', 'automovil', 'PARTICULAR'),
+            $this->captura('2026-07-07', 'MASCULINO', 'automovil', 'PARTICULAR'),
+        ]);
+
+        $resumen = (new AlcoholimetriaMensualService())->construirResumen(
+            Carbon::parse('2026-07-01'),
+            $capturas,
+            new Collection(),
+            1,
+            0,
+            'Morelia'
+        );
+
+        $this->assertSame(5, $resumen['pruebas_reales']);
+        $this->assertSame(1, $resumen['boquillas']['salidas_inventario_controlado']);
+        $this->assertSame(4, $resumen['boquillas']['externas_no_controladas']);
+        $this->assertSame(0, $resumen['boquillas']['existencia_final']);
+        $this->assertSame('5', $resumen['variables']['um']);
+        $this->assertSame('0', $resumen['variables']['efm']);
+    }
+
+    public function test_una_entrega_futura_no_cubre_recuentos_anteriores(): void
+    {
+        $capturas = new Collection([
+            $this->captura('2026-07-03', 'MASCULINO', 'automovil', 'PARTICULAR'),
+            $this->captura('2026-07-04', 'MASCULINO', 'automovil', 'PARTICULAR'),
+        ]);
+        $dotaciones = new Collection([
+            new BoquillaDotacion([
+                'fecha_recepcion' => '2026-07-10',
+                'cantidad' => 3,
+            ]),
+        ]);
+
+        $resumen = (new AlcoholimetriaMensualService())->construirResumen(
+            Carbon::parse('2026-07-01'),
+            $capturas,
+            new Collection(),
+            0,
+            3,
+            'Morelia',
+            $dotaciones
+        );
+
+        $this->assertSame(2, $resumen['pruebas_reales']);
+        $this->assertSame(0, $resumen['boquillas']['salidas_inventario_controlado']);
+        $this->assertSame(2, $resumen['boquillas']['externas_no_controladas']);
+        $this->assertSame(3, $resumen['boquillas']['existencia_final']);
     }
 
     private function captura(

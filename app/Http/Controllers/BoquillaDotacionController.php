@@ -52,6 +52,20 @@ class BoquillaDotacionController extends Controller
 
     public function store(Request $request)
     {
+        $operacionPerdida = $request->input('operacion_perdida');
+
+        if ($operacionPerdida === 'crear') {
+            return $this->storePerdida($request);
+        }
+
+        if (in_array($operacionPerdida, ['actualizar', 'eliminar'], true)) {
+            $perdida = $this->buscarPerdida($request->input('perdida_id'));
+
+            return $operacionPerdida === 'actualizar'
+                ? $this->updatePerdida($request, $perdida)
+                : $this->destroyPerdida($request, $perdida);
+        }
+
         $data = $this->validar($request);
         $data['created_by'] = $request->user()->id;
         $data['updated_by'] = $request->user()->id;
@@ -159,6 +173,11 @@ class BoquillaDotacionController extends Controller
             'cantidad.max' => 'La cantidad capturada es demasiado grande.',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
         ]);
+    }
+
+    protected function buscarPerdida($id): BoquillaPerdida
+    {
+        return BoquillaPerdida::query()->findOrFail($id);
     }
 
     private function mesSeleccionado(?string $mes): Carbon

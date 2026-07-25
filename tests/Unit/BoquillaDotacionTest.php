@@ -2,7 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\BoquillaDotacionController;
 use App\Models\BoquillaDotacion;
+use App\Models\BoquillaPerdida;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -40,5 +43,66 @@ class BoquillaDotacionTest extends TestCase
 
         $this->assertStringContainsString("url('/admin/settings/boquillas')", $vista);
         $this->assertStringNotContainsString("route('settings.boquillas.index')", $vista);
+    }
+
+    public function test_perdidas_usa_la_ruta_estable_de_boquillas_si_la_cache_no_tiene_las_rutas_nuevas(): void
+    {
+        $vista = file_get_contents(resource_path('views/admin/settings/boquillas/index.blade.php'));
+
+        $this->assertStringNotContainsString("route('settings.boquillas.perdidas.", $vista);
+        $this->assertSame(3, substr_count($vista, "action=\"{{ url('/admin/settings/boquillas') }}\""));
+        $this->assertStringContainsString('name="operacion_perdida" value="crear"', $vista);
+        $this->assertStringContainsString('name="operacion_perdida" value="actualizar"', $vista);
+        $this->assertStringContainsString('name="operacion_perdida" value="eliminar"', $vista);
+    }
+
+    public function test_la_ruta_estable_despacha_las_tres_operaciones_de_perdidas(): void
+    {
+        $controller = new class extends BoquillaDotacionController
+        {
+            public array $acciones = [];
+
+            public function storePerdida(Request $request)
+            {
+                $this->acciones[] = ['crear', null];
+
+                return $request;
+            }
+
+            public function updatePerdida(Request $request, BoquillaPerdida $perdida)
+            {
+                $this->acciones[] = ['actualizar', $perdida->id];
+
+                return $request;
+            }
+
+            public function destroyPerdida(Request $request, BoquillaPerdida $perdida)
+            {
+                $this->acciones[] = ['eliminar', $perdida->id];
+
+                return $request;
+            }
+
+            protected function buscarPerdida($id): BoquillaPerdida
+            {
+                return (new BoquillaPerdida())->forceFill(['id' => (int) $id]);
+            }
+        };
+
+        $controller->store(Request::create('/', 'POST', ['operacion_perdida' => 'crear']));
+        $controller->store(Request::create('/', 'POST', [
+            'operacion_perdida' => 'actualizar',
+            'perdida_id' => 17,
+        ]));
+        $controller->store(Request::create('/', 'POST', [
+            'operacion_perdida' => 'eliminar',
+            'perdida_id' => 23,
+        ]));
+
+        $this->assertSame([
+            ['crear', null],
+            ['actualizar', 17],
+            ['eliminar', 23],
+        ], $controller->acciones);
     }
 }

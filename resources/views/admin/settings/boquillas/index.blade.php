@@ -81,8 +81,9 @@
                 <div class="card-header border-0">
                     <h3 class="card-title font-weight-bold"><i class="fas fa-triangle-exclamation mr-1"></i> Boquillas perdidas</h3>
                 </div>
-                <form method="POST" action="{{ route('settings.boquillas.perdidas.store') }}">
+                <form method="POST" action="{{ url('/admin/settings/boquillas') }}">
                     @csrf
+                    <input type="hidden" name="operacion_perdida" value="crear">
                     <div class="card-body pt-2">
                         <div class="form-group">
                             <label for="fecha_perdida">Fecha de la pérdida</label>
@@ -295,9 +296,10 @@
                                     @php $formId = 'editar-perdida-' . $perdida->id; @endphp
                                     <tr>
                                         <td>
-                                            <form id="{{ $formId }}" method="POST" action="{{ route('settings.boquillas.perdidas.update', $perdida) }}">
+                                            <form id="{{ $formId }}" method="POST" action="{{ url('/admin/settings/boquillas') }}">
                                                 @csrf
-                                                @method('PUT')
+                                                <input type="hidden" name="operacion_perdida" value="actualizar">
+                                                <input type="hidden" name="perdida_id" value="{{ $perdida->id }}">
                                             </form>
                                             <input form="{{ $formId }}" type="date" name="fecha_perdida"
                                                    value="{{ $perdida->fecha_perdida->toDateString() }}"
@@ -322,10 +324,11 @@
                                             <button form="{{ $formId }}" type="submit" class="btn btn-sm btn-outline-warning" title="Guardar cambios">
                                                 <i class="fas fa-save"></i>
                                             </button>
-                                            <form method="POST" action="{{ route('settings.boquillas.perdidas.destroy', $perdida) }}" class="d-inline"
+                                            <form method="POST" action="{{ url('/admin/settings/boquillas') }}" class="d-inline"
                                                   onsubmit="return confirm('¿Eliminar esta pérdida del cálculo mensual?');">
                                                 @csrf
-                                                @method('DELETE')
+                                                <input type="hidden" name="operacion_perdida" value="eliminar">
+                                                <input type="hidden" name="perdida_id" value="{{ $perdida->id }}">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
                                                     <i class="fas fa-trash"></i>
                                                 </button>

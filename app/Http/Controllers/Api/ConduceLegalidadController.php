@@ -182,6 +182,107 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
+    public function buscar(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+
+        $q = trim((string) $request->query('q', ''));
+        $perPage = max(1, min((int) $request->query('per_page', 20), 50));
+
+        if ($q === '' || mb_strlen($q) < 2) {
+            return response()->json([
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'per_page' => $perPage,
+                    'total' => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
+        $like = '%' . addcslashes($q, "%_\\") . '%';
+        $folio = $this->parseFolioBusqueda($q);
+
+        $query = ConduceLegalidadCaptura::query()
+            ->with([
+                'operativo',
+                'creador',
+                'personas',
+                'vehiculos',
+            ]);
+
+        $this->scopeCapturas($query, $user);
+
+        $query->where(function ($capturas) use ($q, $like, $folio) {
+            if (ctype_digit($q)) {
+                $capturas->orWhere('conduce_legalidad_capturas.id', (int) $q)
+                    ->orWhere('conduce_legalidad_capturas.operativo_id', (int) $q);
+            }
+
+            if ($folio !== null) {
+                $capturas->orWhere(function ($porFolio) use ($folio) {
+                    $porFolio->where('conduce_legalidad_capturas.operativo_id', $folio['operativo_id'])
+                        ->where('conduce_legalidad_capturas.id', $folio['captura_id'])
+                        ->whereHas('operativo', function ($operativos) use ($folio) {
+                            $operativos->where('tipo_operativo', $folio['tipo_operativo']);
+                        });
+                });
+            }
+
+            $capturas
+                ->orWhere('conduce_legalidad_capturas.municipio', 'like', $like)
+                ->orWhere('conduce_legalidad_capturas.lugar', 'like', $like)
+                ->orWhere('conduce_legalidad_capturas.narrativa', 'like', $like)
+                ->orWhere('conduce_legalidad_capturas.observaciones', 'like', $like)
+                ->orWhereHas('operativo', function ($operativos) use ($like) {
+                    $operativos->where('nombre', 'like', $like)
+                        ->orWhere('municipio', 'like', $like)
+                        ->orWhere('lugar', 'like', $like)
+                        ->orWhere('numero', 'like', $like)
+                        ->orWhere('colonia', 'like', $like)
+                        ->orWhere('codigo_postal', 'like', $like);
+                })
+                ->orWhereHas('personas', function ($personas) use ($like) {
+                    $personas->where('nombre', 'like', $like)
+                        ->orWhere('nombres', 'like', $like)
+                        ->orWhere('apellido_paterno', 'like', $like)
+                        ->orWhere('apellido_materno', 'like', $like)
+                        ->orWhere('telefono', 'like', $like)
+                        ->orWhere('domicilio', 'like', $like)
+                        ->orWhere('numero_licencia', 'like', $like)
+                        ->orWhereRaw(
+                            "CONCAT_WS(' ', nombres, apellido_paterno, apellido_materno) LIKE ?",
+                            [$like]
+                        );
+                })
+                ->orWhereHas('vehiculos', function ($vehiculos) use ($like) {
+                    $vehiculos->where('placas', 'like', $like)
+                        ->orWhere('serie', 'like', $like)
+                        ->orWhere('marca', 'like', $like)
+                        ->orWhere('modelo', 'like', $like)
+                        ->orWhere('linea', 'like', $like);
+                });
+        })
+            ->orderByDesc('fecha')
+            ->orderByDesc('id');
+
+        $results = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => $results->getCollection()
+                ->map(fn (ConduceLegalidadCaptura $captura) => $this->capturaBusquedaPayload($captura))
+                ->values(),
+            'meta' => [
+                'current_page' => $results->currentPage(),
+                'per_page' => $results->perPage(),
+                'total' => $results->total(),
+                'last_page' => $results->lastPage(),
+            ],
+        ]);
+    }
+
     public function storeOperativo(Request $request)
     {
         $user = $request->user();
@@ -836,7 +937,83 @@ class ConduceLegalidadController extends Controller
 
     private function folioCaptura(ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura): string
     {
-        return 'CL-' . $operativo->id . '-' . $captura->id;
+        return $this->prefijoFolioOperativo($operativo) . '-' . $operativo->id . '-' . $captura->id;
+    }
+
+    private function parseFolioBusqueda(string $value): ?array
+    {
+        $folio = Str::upper(trim($value));
+        if (!preg_match('/^(CL|PA)-(\d+)-(\d+)(?:-(\d+))?$/', $folio, $matches)) {
+            return null;
+        }
+
+        return [
+            'tipo_operativo' => $matches[1] === 'PA' ? 'alcoholimetria' : 'conduce_legalidad',
+            'operativo_id' => (int) $matches[2],
+            'captura_id' => (int) $matches[3],
+            'ticket_index' => isset($matches[4]) ? (int) $matches[4] : null,
+        ];
+    }
+
+    private function prefijoFolioOperativo(ConduceLegalidadOperativo $operativo): string
+    {
+        return $this->esOperativoAlcoholimetria($operativo) ? 'PA' : 'CL';
+    }
+
+    private function capturaBusquedaPayload(ConduceLegalidadCaptura $captura): array
+    {
+        $operativo = $captura->operativo;
+        $tipoOperativo = $this->esOperativoAlcoholimetria($operativo)
+            ? 'alcoholimetria'
+            : 'conduce_legalidad';
+        $folioBase = $this->folioCaptura($operativo, $captura);
+        $numeroTickets = max(1, $captura->vehiculos->count());
+        $folios = $numeroTickets === 1
+            ? [$folioBase]
+            : collect(range(1, $numeroTickets))
+                ->map(fn (int $index) => $folioBase . '-' . $index)
+                ->values()
+                ->all();
+
+        return [
+            'result_type' => 'operativo',
+            'module' => $tipoOperativo,
+            'module_label' => $tipoOperativo === 'alcoholimetria'
+                ? 'Prevención de Accidentes'
+                : 'Conduce con Legalidad',
+            'operativo_id' => (int) $operativo->id,
+            'captura_id' => (int) $captura->id,
+            'folio' => $folioBase,
+            'folios' => $folios,
+            'fecha' => optional($captura->fecha ?: $operativo->fecha)->toDateString(),
+            'hora' => $this->horaCorta($captura->hora ?: $operativo->hora_inicio),
+            'municipio' => $this->nullableString($captura->municipio)
+                ?: $this->nullableString($operativo->municipio),
+            'lugar' => $this->nullableString($captura->lugar)
+                ?: $this->lugarConNumero($operativo->lugar, $operativo->numero),
+            'colonia' => $operativo->colonia,
+            'creador' => $this->nullableString(optional($captura->creador)->name),
+            'personas' => $captura->personas->map(function (ConduceLegalidadPersona $persona) {
+                $nombre = collect([
+                    $persona->nombres,
+                    $persona->apellido_paterno,
+                    $persona->apellido_materno,
+                ])->filter(fn ($value) => $this->nullableString($value) !== null)->implode(' ');
+
+                return [
+                    'nombre' => $this->nullableString($nombre) ?: $this->nullableString($persona->nombre),
+                    'telefono' => $persona->telefono,
+                    'numero_licencia' => $persona->numero_licencia,
+                ];
+            })->values(),
+            'vehiculos' => $captura->vehiculos->map(fn (ConduceLegalidadVehiculo $vehiculo) => [
+                'marca' => $vehiculo->marca,
+                'modelo' => $vehiculo->modelo,
+                'linea' => $vehiculo->linea,
+                'placas' => $vehiculo->placas,
+                'serie' => $vehiculo->serie,
+            ])->values(),
+        ];
     }
 
     private function vehiculosIphCaptura(ConduceLegalidadCaptura $captura): array

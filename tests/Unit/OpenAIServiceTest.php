@@ -35,6 +35,39 @@ class OpenAIServiceTest extends TestCase
         $this->assertSame('Juan Pérez', $resultado['persona']);
     }
 
+    public function test_interpreta_tarjeta_de_elemento_localmente(): void
+    {
+        $service = new OpenAIService();
+
+        $resultado = $service->interpretar('Mándame la tarjeta del elemento Juan Pérez');
+
+        $this->assertSame('detalle_personal', $resultado['accion']);
+        $this->assertSame('Juan Pérez', $resultado['persona']);
+    }
+
+    public function test_interpreta_top_de_elementos_por_puestas_localmente(): void
+    {
+        Carbon::setTestNow('2026-07-27 10:30:00');
+
+        $service = new OpenAIService();
+
+        $resultado = $service->interpretar('Dame el top de elementos con más puestas a disposición este mes');
+
+        $this->assertSame('top_puestas_elementos', $resultado['accion']);
+        $this->assertSame('2026-07-01', $resultado['filtros']['fecha_inicio']);
+        $this->assertSame('2026-07-31', $resultado['filtros']['fecha_fin']);
+    }
+
+    public function test_interpreta_tarjeta_de_una_posicion_del_top_localmente(): void
+    {
+        $service = new OpenAIService();
+
+        $resultado = $service->interpretar('Mándame la tarjeta del segundo lugar del top de puestas');
+
+        $this->assertSame('tarjeta_top_puestas', $resultado['accion']);
+        $this->assertSame(2, $resultado['posicion']);
+    }
+
     public function test_interpreta_lesionados_como_estadistica_rapida(): void
     {
         Carbon::setTestNow('2026-04-23 10:30:00');

@@ -54,6 +54,12 @@ class WhatsAppQueryService
             case 'detalle_personal':
                 return $this->detallePersonalOpenAI($user, $context, $json);
 
+            case 'top_puestas_elementos':
+                return $this->topPuestasElementosOpenAI($user, $context, $json);
+
+            case 'tarjeta_top_puestas':
+                return $this->tarjetaTopPuestasOpenAI($user, $context, $json);
+
             case 'estadistica_resumen_general':
             case 'estadistica_motocicletas':
             case 'estadistica_lesionados':
@@ -167,6 +173,10 @@ class WhatsAppQueryService
             return $this->puestasHoy($user, $context, $module);
         }
 
+        if ($action === 'top_puestas_elementos') {
+            return $this->topPuestasElementosPorModulo($user, $context, $module);
+        }
+
         if ($action === 'operativos_tipo') {
             return [
                 'text' => "Escribe el tipo de operativo.\n\nEjemplo:\nCASCO",
@@ -206,6 +216,10 @@ class WhatsAppQueryService
 
         if ($action === 'expediente_personal') {
             return $this->detallePersonalPorBusqueda($user, $context, $module, $value);
+        }
+
+        if ($action === 'tarjeta_top_puestas') {
+            return $this->tarjetaTopPuestasPorModulo($user, $context, $module, $value);
         }
 
         return [
@@ -425,6 +439,21 @@ class WhatsAppQueryService
         return $this->detallePersonalReporte($unidadId, $busqueda);
     }
 
+    protected function topPuestasElementosOpenAI($user, array $context, array $json): array
+    {
+        $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
+
+        return $this->topPuestasElementosReporte($unidadId, $this->filtros($json));
+    }
+
+    protected function tarjetaTopPuestasOpenAI($user, array $context, array $json): array
+    {
+        $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
+        $posicion = (int) ($json['posicion'] ?? 1);
+
+        return $this->tarjetaTopPuestasReporte($unidadId, $this->filtros($json), $posicion);
+    }
+
     protected function quickStatOpenAI($user, array $context, array $json): array
     {
         return $this->buildQuickStatPacket(
@@ -576,22 +605,7 @@ class WhatsAppQueryService
     {
         $unidadId = $this->resolveUnitIdForJson($user, $context, $json);
         $filtros = $this->filtros($json);
-        $query = PuestaDisposicion::query();
-
-        $this->applyUnitFilter($query, 'unidad_id', $unidadId);
-        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha_puesta', 'hora_puesta');
-
-        if (!empty($filtros['tipo_puesta'])) {
-            $this->whereUpperEquals($query, 'tipo_puesta', (string) $filtros['tipo_puesta']);
-        }
-
-        if (!empty($filtros['estatus'])) {
-            $this->whereUpperEquals($query, 'estatus', (string) $filtros['estatus']);
-        }
-
-        if (!empty($filtros['delegacion_id'])) {
-            $query->where('delegacion_id', (int) $filtros['delegacion_id']);
-        }
+        $query = $this->puestasBaseQuery($unidadId, $filtros);
 
         if ($lista) {
             $rows = (clone $query)
@@ -824,6 +838,148 @@ class WhatsAppQueryService
         $unidadId = $this->resolveUnitIdFromModule($user, $context, $module);
 
         return $this->detallePersonalReporte($unidadId, $value);
+    }
+
+    protected function topPuestasElementosPorModulo($user, array $context, string $module): array
+    {
+        $unidadId = $this->resolveUnitIdFromModule($user, $context, $module);
+
+        return $this->topPuestasElementosReporte($unidadId, $this->filtros([]));
+    }
+
+    protected function tarjetaTopPuestasPorModulo(
+        $user,
+        array $context,
+        string $module,
+        string $value
+    ): array {
+        $unidadId = $this->resolveUnitIdFromModule($user, $context, $module);
+        $posicion = (int) trim($value);
+
+        return $this->tarjetaTopPuestasReporte($unidadId, $this->filtros([]), $posicion);
+    }
+
+    protected function topPuestasElementosReporte(?int $unidadId, array $filtros): array
+    {
+        $ranking = $this->rankingPuestasElementos($unidadId, $filtros, 10);
+        $lineas = [];
+
+        if ($ranking->isEmpty()) {
+            $lineas[] = 'No se encontraron puestas a disposición con elemento responsable.';
+        }
+
+        foreach ($ranking as $index => $row) {
+            $lineas[] = '#' . ($index + 1)
+                . ' ' . $row->elemento
+                . ' | Puestas: ' . $this->formatNumber((int) $row->total);
+        }
+
+        return [
+            'text' => $this->renderService->renderReporte(
+                $unidadId,
+                'Top de elementos por puestas a disposición',
+                $this->periodoTexto($filtros),
+                $lineas
+            ),
+        ];
+    }
+
+    protected function tarjetaTopPuestasReporte(?int $unidadId, array $filtros, int $posicion): array
+    {
+        if ($posicion < 1 || $posicion > 20) {
+            return [
+                'text' => 'Indica una posición del top entre 1 y 20.',
+            ];
+        }
+
+        $ranking = $this->rankingPuestasElementos($unidadId, $filtros, 20);
+        $row = $ranking->get($posicion - 1);
+
+        if (!$row) {
+            return [
+                'text' => 'No existe la posición ' . $posicion
+                    . ' en el top de puestas para ' . $this->periodoTexto($filtros) . '.',
+            ];
+        }
+
+        $puestas = $this->puestasBaseQuery($unidadId, $filtros)
+            ->whereRaw('UPPER(TRIM(nombre_policia)) = ?', [$row->elemento])
+            ->orderByDesc('fecha_puesta')
+            ->orderByDesc('hora_puesta')
+            ->limit(5)
+            ->get();
+
+        $lineas = [
+            'Posición en el top: #' . $posicion,
+            'Puestas a disposición: ' . $this->formatNumber((int) $row->total),
+            'Periodo: ' . $this->periodoTexto($filtros),
+        ];
+
+        foreach ($puestas as $puesta) {
+            $lineas[] = implode(' | ', array_filter([
+                'No. ' . ($puesta->numero_puesta ?: 'S/N') . '/' . ($puesta->anio ?: 'S/A'),
+                $this->formatDate($puesta->fecha_puesta),
+                $puesta->motivo ?: null,
+            ]));
+        }
+
+        $coincidencias = $this->buscarCoincidenciasPersonal($unidadId, (string) $row->elemento);
+
+        if ($coincidencias->isEmpty()) {
+            return [
+                'text' => $this->renderService->renderReporte(
+                    $unidadId,
+                    'Tarjeta de desempeño del elemento',
+                    $this->periodoTexto($filtros),
+                    array_merge([
+                        'Elemento: ' . $row->elemento,
+                    ], $lineas, [
+                        'No se encontró un expediente de personal vinculado con este nombre.',
+                    ])
+                ),
+            ];
+        }
+
+        $packet = $this->renderService->renderDetallePersonal($coincidencias->first());
+        $packet['text'] .= "\n\nDESEMPEÑO EN PUESTAS A DISPOSICIÓN\n"
+            . implode("\n", array_map(fn ($linea) => '* ' . $linea, $lineas));
+
+        return $packet;
+    }
+
+    protected function rankingPuestasElementos(?int $unidadId, array $filtros, int $limite)
+    {
+        return $this->puestasBaseQuery($unidadId, $filtros)
+            ->whereNotNull('nombre_policia')
+            ->whereRaw("TRIM(nombre_policia) <> ''")
+            ->selectRaw('UPPER(TRIM(nombre_policia)) as elemento, COUNT(id) as total')
+            ->groupBy('elemento')
+            ->orderByDesc('total')
+            ->orderBy('elemento')
+            ->limit($limite)
+            ->get();
+    }
+
+    protected function puestasBaseQuery(?int $unidadId, array $filtros): Builder
+    {
+        $query = PuestaDisposicion::query();
+
+        $this->applyUnitFilter($query, 'unidad_id', $unidadId);
+        $this->aplicarFiltrosFechaHora($query, $filtros, 'fecha_puesta', 'hora_puesta');
+
+        if (!empty($filtros['tipo_puesta'])) {
+            $this->whereUpperEquals($query, 'tipo_puesta', (string) $filtros['tipo_puesta']);
+        }
+
+        if (!empty($filtros['estatus'])) {
+            $this->whereUpperEquals($query, 'estatus', (string) $filtros['estatus']);
+        }
+
+        if (!empty($filtros['delegacion_id'])) {
+            $query->where('delegacion_id', (int) $filtros['delegacion_id']);
+        }
+
+        return $query;
     }
 
     protected function personalArmadoReporte(?int $unidadId): array
@@ -1285,6 +1441,12 @@ class WhatsAppQueryService
         $json['persona'] = isset($json['persona']) && trim((string) $json['persona']) !== ''
             ? trim((string) $json['persona'])
             : null;
+        $json['posicion'] = isset($json['posicion'])
+            && is_numeric($json['posicion'])
+            && (int) $json['posicion'] >= 1
+            && (int) $json['posicion'] <= 20
+                ? (int) $json['posicion']
+                : null;
 
         if (isset($json['unidad_id']) && $json['unidad_id'] !== null && $json['unidad_id'] !== '') {
             $json['unidad_id'] = (int) $json['unidad_id'];
@@ -1531,7 +1693,7 @@ class WhatsAppQueryService
         $terminoUpper = $this->upper($termino);
         $terminoNormalizado = $this->normalizarTextoBusqueda($termino);
         $tokens = array_values(array_filter(preg_split('/\s+/', $terminoUpper)));
-        $tokensNormalizados = $this->tokensBusquedaPersonal($terminoNormalizado);
+        $tokensNormalizados = $this->tokensBusquedaPersonal($termino);
         $tokensSql = array_values(array_unique(array_filter(array_merge(
             $tokens,
             array_map(fn ($token) => $this->upper($token), $tokensNormalizados)
@@ -1580,7 +1742,7 @@ class WhatsAppQueryService
             ->get()
             ->map(fn (Personal $personal) => [
                 'personal' => $personal,
-                'puntaje' => $this->puntajeCoincidenciaPersonal($personal, $terminoNormalizado),
+                'puntaje' => $this->puntajeCoincidenciaPersonal($personal, $termino),
             ])
             ->filter(function (array $row) use ($tokensNormalizados) {
                 $minimo = count($tokensNormalizados) > 1 ? 80 : 1;
@@ -1595,11 +1757,12 @@ class WhatsAppQueryService
             ->values();
     }
 
-    protected function puntajeCoincidenciaPersonal(Personal $personal, string $busquedaNormalizada): int
+    protected function puntajeCoincidenciaPersonal(Personal $personal, string $busqueda): int
     {
+        $busquedaNormalizada = $this->normalizarTextoBusqueda($busqueda);
         $puntaje = 0;
         $variantesNombre = $this->variantesNombrePersonal($personal);
-        $tokensBusqueda = $this->tokensBusquedaPersonal($busquedaNormalizada);
+        $tokensBusqueda = $this->tokensBusquedaPersonal($busqueda);
         $tokensNombre = $this->tokensNombrePersonal($personal);
         $mejorNombre = 0;
 
@@ -1676,9 +1839,9 @@ class WhatsAppQueryService
             return false;
         }
 
-        $puntajePrimero = $this->puntajeCoincidenciaPersonal($coincidencias[0], $this->normalizarTextoBusqueda($busqueda));
-        $puntajeSegundo = $this->puntajeCoincidenciaPersonal($coincidencias[1], $this->normalizarTextoBusqueda($busqueda));
-        $tokensBusqueda = $this->tokensBusquedaPersonal($this->normalizarTextoBusqueda($busqueda));
+        $puntajePrimero = $this->puntajeCoincidenciaPersonal($coincidencias[0], $busqueda);
+        $puntajeSegundo = $this->puntajeCoincidenciaPersonal($coincidencias[1], $busqueda);
+        $tokensBusqueda = $this->tokensBusquedaPersonal($busqueda);
 
         if (count($tokensBusqueda) >= 2 && $puntajePrimero >= 320 && ($puntajePrimero - $puntajeSegundo) >= 20) {
             return false;
@@ -1712,8 +1875,17 @@ class WhatsAppQueryService
 
     protected function tokensBusquedaPersonal(string $valor): array
     {
+        $valor = $this->upper($valor);
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $valor);
+
+        if ($ascii !== false) {
+            $valor = $ascii;
+        }
+
+        $valor = preg_replace('/[^A-Z0-9]+/', ' ', $valor) ?: '';
+
         return collect(preg_split('/\s+/', trim($valor)) ?: [])
-            ->map(fn ($token) => trim((string) $token))
+            ->map(fn ($token) => $this->normalizarTextoBusqueda((string) $token))
             ->filter(fn ($token) => $token !== '')
             ->unique()
             ->values()

@@ -236,8 +236,46 @@
         <div class="col-12">
             <div class="sv-panel">
                 <div class="sv-panel__title d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-ranking-star"></i> Elementos con más puestas a disposición</span>
+                    <span class="text-muted small">Seleccione un elemento para consultar sus puestas</span>
+                </div>
+
+                <div class="sv-panel__body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Lugar</th>
+                                    <th>Elemento</th>
+                                    <th style="width: 130px;" class="text-center">Puestas</th>
+                                    <th style="width: 170px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tb_elementos">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Sin datos…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="sv-panel">
+                <div class="sv-panel__title d-flex justify-content-between align-items-center">
                     <span><i class="fa-solid fa-list"></i> Drilldown</span>
-                    <span id="drilldown_title" class="text-muted small">Listado de Operativos</span>
+                    <div class="d-flex align-items-center">
+                        <span id="drilldown_title" class="text-muted small">Listado de Operativos</span>
+                        <button
+                            id="btn_limpiar_elemento"
+                            class="btn btn-sm sv-btn sv-btn--ghost ml-2 d-none"
+                            type="button"
+                        >
+                            <i class="fa-solid fa-xmark"></i> Ver todos
+                        </button>
+                    </div>
                 </div>
 
                 <div class="sv-panel__body">
@@ -285,6 +323,7 @@
     const base = "{{ url('estadisticas-carreteras') }}";
     let page = 1;
     let lastPage = 1;
+    let selectedElemento = '';
 
     const el = (id) => document.getElementById(id);
     const val = (id) => {
@@ -429,6 +468,11 @@
         const title = el('drilldown_title');
         if (!th) return;
 
+        const clearButton = el('btn_limpiar_elemento');
+        if (clearButton) {
+            clearButton.classList.toggle('d-none', mode !== 'puestas-disposicion' || !selectedElemento);
+        }
+
         if (mode === 'operativos'){
             th.innerHTML = `
                 <tr>
@@ -448,6 +492,7 @@
             <tr>
                 <th>No.</th>
                 <th>Fecha</th>
+                <th>Elemento</th>
                 <th>Motivo</th>
                 <th>Personas</th>
                 <th>Vehículos</th>
@@ -455,7 +500,11 @@
                 <th></th>
             </tr>
         `;
-        if (title) title.textContent = 'Listado de Puestas a Disposición';
+        if (title) {
+            title.textContent = selectedElemento
+                ? `Puestas de ${selectedElemento}`
+                : 'Listado de Puestas a Disposición';
+        }
     }
 
     function renderOperativosTable(paginated){
@@ -500,7 +549,7 @@
         if (!tb) return;
 
         if (!paginated || !paginated.data || paginated.data.length === 0){
-            tb.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Sin datos…</td></tr>`;
+            tb.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Sin datos…</td></tr>`;
             if (el('pg_info')) el('pg_info').textContent = '—';
             lastPage = 1;
             return;
@@ -513,6 +562,7 @@
                 <tr>
                     <td>${escapeHtml(r.numero_puesta ?? '')}</td>
                     <td>${escapeHtml(r.fecha_puesta ?? '')}</td>
+                    <td>${escapeHtml(r.nombre_policia ?? '')}</td>
                     <td>${escapeHtml(r.motivo ?? '')}</td>
                     <td>${escapeHtml(r.total_personas ?? 0)}</td>
                     <td>${escapeHtml(r.total_vehiculos ?? 0)}</td>
@@ -543,8 +593,46 @@
             return;
         }
 
-        const data = await getJson('puestas-disposicion', { page });
+        const data = await getJson('puestas-disposicion', {
+            page,
+            elemento: selectedElemento
+        });
         renderPuestasTable(data);
+    }
+
+    function renderElementosRanking(rows){
+        const tb = el('tb_elementos');
+        if (!tb) return;
+
+        if (!rows || rows.length === 0){
+            tb.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No hay puestas a disposición para los filtros seleccionados.</td></tr>`;
+            return;
+        }
+
+        tb.innerHTML = rows.map((r, index) => {
+            const elemento = String(r.label ?? '');
+            const encodedElemento = encodeURIComponent(elemento);
+            const icon = index === 0
+                ? '<i class="fa-solid fa-trophy text-warning"></i>'
+                : `<span class="text-muted">${index + 1}</span>`;
+
+            return `
+                <tr>
+                    <td class="text-center">${icon}</td>
+                    <td><strong>${escapeHtml(elemento)}</strong></td>
+                    <td class="text-center"><span class="badge badge-info px-3 py-2">${escapeHtml(r.total ?? 0)}</span></td>
+                    <td class="text-right">
+                        <button
+                            type="button"
+                            class="btn btn-sm sv-btn js-ver-puestas-elemento"
+                            data-elemento="${encodedElemento}"
+                        >
+                            <i class="fa-solid fa-eye"></i> Ver puestas
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async function loadAll(){
@@ -557,6 +645,7 @@
         if (el('k_personas')) el('k_personas').textContent = (k.totales?.personas ?? 0);
         if (el('k_vehiculos')) el('k_vehiculos').textContent = (k.totales?.vehiculos ?? 0);
         if (el('k_objetos')) el('k_objetos').textContent = (k.totales?.objetos ?? 0);
+        renderElementosRanking((k.top?.elemento || []).slice(0, 20));
 
         const operativosTime = await getJson('series/operativos');
         chOperativos = mountOrUpdateChart(
@@ -620,6 +709,7 @@
         btnAplicar.addEventListener('click', async function(e){
             e.preventDefault();
             page = 1;
+            selectedElemento = '';
             await loadAll();
         });
     }
@@ -628,8 +718,34 @@
     if (listado){
         listado.addEventListener('change', async function(){
             page = 1;
+            selectedElemento = '';
             await loadDrilldown();
             setExportLinks();
+        });
+    }
+
+    const elementosTable = el('tb_elementos');
+    if (elementosTable){
+        elementosTable.addEventListener('click', async function(e){
+            const button = e.target.closest('.js-ver-puestas-elemento');
+            if (!button) return;
+
+            selectedElemento = decodeURIComponent(button.dataset.elemento || '');
+            page = 1;
+
+            if (el('f_listado')) el('f_listado').value = 'puestas-disposicion';
+
+            await loadDrilldown();
+            el('drilldown_title')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+
+    const btnLimpiarElemento = el('btn_limpiar_elemento');
+    if (btnLimpiarElemento){
+        btnLimpiarElemento.addEventListener('click', async function(){
+            selectedElemento = '';
+            page = 1;
+            await loadDrilldown();
         });
     }
 

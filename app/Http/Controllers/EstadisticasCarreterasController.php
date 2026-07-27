@@ -77,6 +77,16 @@ class EstadisticasCarreterasController extends Controller
                 ->limit(20)
                 ->get();
 
+            $porElemento = (clone $puestas)
+                ->whereNotNull('puestas_disposicion.nombre_policia')
+                ->whereRaw("TRIM(puestas_disposicion.nombre_policia) <> ''")
+                ->selectRaw('UPPER(TRIM(puestas_disposicion.nombre_policia)) as label, COUNT(puestas_disposicion.id) as total')
+                ->groupBy('label')
+                ->orderByDesc('total')
+                ->orderBy('label')
+                ->limit(20)
+                ->get();
+
             return [
                 'totales' => [
                     'actividades' => 0,
@@ -91,6 +101,7 @@ class EstadisticasCarreterasController extends Controller
                     'motivo' => $porMotivo,
                     'calidad_persona' => $porCalidadPersona,
                     'tipo_objeto' => $porTipoObjeto,
+                    'elemento' => $porElemento,
                 ],
             ];
         });
@@ -539,6 +550,11 @@ class EstadisticasCarreterasController extends Controller
 
         if ($request->filled('tipo_puesta')) {
             $q->where('puestas_disposicion.tipo_puesta', strtoupper(trim((string) $request->query('tipo_puesta'))));
+        }
+
+        if ($request->filled('elemento')) {
+            $elemento = strtoupper(trim((string) $request->query('elemento')));
+            $q->whereRaw('UPPER(TRIM(puestas_disposicion.nombre_policia)) = ?', [$elemento]);
         }
 
         return $q;

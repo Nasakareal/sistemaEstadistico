@@ -96,6 +96,21 @@ class OpenAIService
             return $this->respuestaLocal('personal_activo', $unidadId, null, $filtros);
         }
 
+        if ($this->esConsultaTopPuestasElementos($texto)) {
+            $accion = $this->esConsultaTarjetaTopPuestas($texto)
+                ? 'tarjeta_top_puestas'
+                : 'top_puestas_elementos';
+
+            return $this->normalizarRespuesta([
+                'accion' => $accion,
+                'unidad_id' => $unidadId,
+                'id' => null,
+                'persona' => null,
+                'posicion' => $this->resolverPosicionTopLocal($texto),
+                'filtros' => $filtros,
+            ]);
+        }
+
         if ($this->contieneAlguno($texto, ['lesionados', 'lesionado'])) {
             return $this->respuestaLocal('estadistica_lesionados', $unidadId, null, $filtros);
         }
@@ -232,6 +247,8 @@ ACCIONES VÁLIDAS:
 - personal_armado
 - personal_activo
 - detalle_personal
+- top_puestas_elementos
+- tarjeta_top_puestas
 - estadistica_resumen_general
 - estadistica_motocicletas
 - estadistica_lesionados
@@ -252,6 +269,7 @@ ESTRUCTURA OBLIGATORIA:
   "unidad_id": null,
   "id": null,
   "persona": null,
+  "posicion": null,
   "filtros": {
     "fecha": null,
     "fecha_inicio": null,
@@ -283,7 +301,9 @@ REGLAS DE ACCIÓN:
 - Si pide estadística, resumen o desglose de hechos, usa estadistica_hechos o resumen_hechos.
 - Si pide personal armado, relación de armamento o lista de elementos armados, usa personal_armado.
 - Si pide personal activo, usa personal_activo.
-- Si pide expediente, ficha, perfil, foto, patrulla o información de un elemento, usa detalle_personal y llena persona con el nombre, número de empleado, CUP, CUIP, CURP o RFC.
+- Si pide expediente, ficha, perfil, tarjeta, foto, patrulla o información de un elemento, usa detalle_personal y llena persona con el nombre, número de empleado, CUP, CUIP, CURP o RFC.
+- Si pide el top, ranking o elementos con más puestas a disposición, usa top_puestas_elementos.
+- Si pide la tarjeta, ficha o expediente de una posición del top de puestas a disposición, usa tarjeta_top_puestas y llena posicion con un número del 1 al 20.
 - Si pide resumen general de hechos, usa estadistica_resumen_general.
 - Si pide lesionados, usa estadistica_lesionados.
 - Si pide fallecidos, usa estadistica_fallecidos.
@@ -355,6 +375,12 @@ Respuesta: {"accion":"puestas_disposicion","unidad_id":null,"id":null,"persona":
 
 Usuario: dame el expediente del elemento Juan Pérez
 Respuesta: {"accion":"detalle_personal","unidad_id":null,"id":null,"persona":"Juan Pérez","filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+
+Usuario: dame el top de elementos con más puestas a disposición este mes
+Respuesta: {"accion":"top_puestas_elementos","unidad_id":null,"id":null,"persona":null,"posicion":null,"filtros":{"fecha":null,"fecha_inicio":"{$inicioMes->toDateString()}","fecha_fin":"{$finMes->toDateString()}","hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
+
+Usuario: mándame la tarjeta del segundo lugar del top de puestas
+Respuesta: {"accion":"tarjeta_top_puestas","unidad_id":null,"id":null,"persona":null,"posicion":2,"filtros":{"fecha":null,"fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
 
 Usuario: cuantos lesionados hubo hoy
 Respuesta: {"accion":"estadistica_lesionados","unidad_id":null,"id":null,"persona":null,"filtros":{"fecha":"{$hoy->toDateString()}","fecha_inicio":null,"fecha_fin":null,"hora_inicio":null,"hora_fin":null,"tipo_hecho":null,"situacion":null,"tipo_operativo":null,"tipo_puesta":null,"estatus":null,"municipio":null,"delegacion_id":null}}
@@ -434,6 +460,8 @@ PROMPT;
             'personal_armado',
             'personal_activo',
             'detalle_personal',
+            'top_puestas_elementos',
+            'tarjeta_top_puestas',
             'estadistica_resumen_general',
             'estadistica_motocicletas',
             'estadistica_lesionados',
@@ -490,6 +518,12 @@ PROMPT;
             'persona' => isset($decoded['persona']) && trim((string) $decoded['persona']) !== ''
                 ? trim((string) $decoded['persona'])
                 : null,
+            'posicion' => isset($decoded['posicion'])
+                && is_numeric($decoded['posicion'])
+                && (int) $decoded['posicion'] >= 1
+                && (int) $decoded['posicion'] <= 20
+                    ? (int) $decoded['posicion']
+                    : null,
             'filtros' => $filtros,
         ];
     }
@@ -804,6 +838,11 @@ PROMPT;
             'expediente',
             'ficha',
             'perfil',
+            'tarjeta del elemento',
+            'tarjeta de personal',
+            'tarjeta del policia',
+            'tarjeta del oficial',
+            'tarjeta del agente',
             'detalle del elemento',
             'detalle de personal',
             'datos del elemento',
@@ -817,9 +856,69 @@ PROMPT;
         }
 
         return (bool) preg_match(
-            '/\b(?:expediente|ficha|perfil|detalle|datos|informacion|info|foto|patrulla|asignacion)\s+(?:de|del|de la)\s+/u',
+            '/\b(?:expediente|ficha|perfil|tarjeta|detalle|datos|informacion|info|foto|patrulla|asignacion)\s+(?:de|del|de la)\s+/u',
             $texto
         );
+    }
+
+    protected function esConsultaTopPuestasElementos(string $texto): bool
+    {
+        $mencionaPuestas = $this->contieneAlguno($texto, [
+            'puesta a disposicion',
+            'puestas a disposicion',
+            'puesta disposicion',
+            'puestas disposicion',
+            'puestas',
+        ]);
+
+        $mencionaRanking = $this->contieneAlguno($texto, [
+            'top',
+            'ranking',
+            'primer lugar',
+            'primero lugar',
+            'segundo lugar',
+            'tercer lugar',
+            'mas puestas',
+            'mayor numero de puestas',
+        ]);
+
+        return $mencionaPuestas && $mencionaRanking;
+    }
+
+    protected function esConsultaTarjetaTopPuestas(string $texto): bool
+    {
+        return $this->contieneAlguno($texto, [
+            'tarjeta',
+            'ficha',
+            'expediente',
+            'perfil',
+            'foto',
+            'datos del',
+            'informacion del',
+        ]);
+    }
+
+    protected function resolverPosicionTopLocal(string $texto): ?int
+    {
+        $ordinales = [
+            1 => ['primer lugar', 'primero lugar', 'primera posicion', 'primero', 'primera'],
+            2 => ['segundo lugar', 'segunda posicion', 'segundo', 'segunda'],
+            3 => ['tercer lugar', 'tercero lugar', 'tercera posicion', 'tercero', 'tercera'],
+        ];
+
+        foreach ($ordinales as $posicion => $terminos) {
+            if ($this->contieneAlguno($texto, $terminos)) {
+                return $posicion;
+            }
+        }
+
+        if (preg_match('/\b(?:top|lugar|posicion|numero|no)\s*#?\s*(\d{1,2})\b/u', $texto, $matches)) {
+            $posicion = (int) $matches[1];
+
+            return $posicion >= 1 && $posicion <= 20 ? $posicion : null;
+        }
+
+        return $this->esConsultaTarjetaTopPuestas($texto) ? 1 : null;
     }
 
     protected function resolverBusquedaPersonalLocal(string $mensaje): ?string
@@ -831,7 +930,7 @@ PROMPT;
         }
 
         if (preg_match(
-            '/(?:expediente|ficha|perfil|detalle|datos|informaci[oó]n|info|foto|patrulla|asignaci[oó]n)\s+(?:de|del|de la)\s+(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)?\s*(.+)$/iu',
+            '/(?:expediente|ficha|perfil|tarjeta|detalle|datos|informaci[oó]n|info|foto|patrulla|asignaci[oó]n)\s+(?:de|del|de la)\s+(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)?\s*(.+)$/iu',
             $mensaje,
             $matches
         )) {
@@ -839,7 +938,7 @@ PROMPT;
         }
 
         if (preg_match(
-            '/(?:expediente|ficha|perfil|detalle|datos|informaci[oó]n|info|foto|patrulla|asignaci[oó]n)\s+(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)?\s*(.+)$/iu',
+            '/(?:expediente|ficha|perfil|tarjeta|detalle|datos|informaci[oó]n|info|foto|patrulla|asignaci[oó]n)\s+(?:elemento|personal|polic[ií]a|oficial|agente|comandante|subdirector)?\s*(.+)$/iu',
             $mensaje,
             $matches
         )) {

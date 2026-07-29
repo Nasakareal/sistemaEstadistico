@@ -91,6 +91,14 @@ class ActividadController extends Controller
             }
         }
 
+        if ($request->filled('delegacion_id')) {
+            $delegacionId = (int) $request->query('delegacion_id');
+
+            if ($delegacionId > 0) {
+                $query->where('delegacion_id', $delegacionId);
+            }
+        }
+
         if ($request->filled('actividad_categoria_id')) {
             $query->where('actividad_categoria_id', (int) $request->actividad_categoria_id);
         }

@@ -30,6 +30,8 @@ class ConduceLegalidadOperativo extends Model
         'narrativa',
         'observaciones',
         'estado',
+        'unidad_id',
+        'delegacion_id',
         'created_by',
         'updated_by',
         'closed_by',
@@ -44,6 +46,16 @@ class ConduceLegalidadOperativo extends Model
     public function capturas()
     {
         return $this->hasMany(ConduceLegalidadCaptura::class, 'operativo_id');
+    }
+
+    public function unidad()
+    {
+        return $this->belongsTo(Unidad::class, 'unidad_id');
+    }
+
+    public function delegacion()
+    {
+        return $this->belongsTo(Delegacion::class, 'delegacion_id');
     }
 
     public function creador()

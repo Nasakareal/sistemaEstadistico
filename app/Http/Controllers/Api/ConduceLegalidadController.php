@@ -8,9 +8,12 @@ use App\Models\ConduceLegalidadFoto;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadPersona;
 use App\Models\ConduceLegalidadVehiculo;
+use App\Models\Delegacion;
 use App\Models\Grua;
 use App\Models\Hechos;
 use App\Models\LicenciaPuntoInfraccion;
+use App\Models\Unidad;
+use App\Models\User;
 use App\Services\CodigoPostalGeoService;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
@@ -28,7 +31,7 @@ class ConduceLegalidadController extends Controller
     private const UNIDAD_SEGURIDAD_VIAL = 3;
     private const UNIDAD_VIALIDADES_URBANAS = 5;
     private const NOMBRE_OPERATIVO = 'Operativo conduce con legalidad';
-    private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo Alcoholimetría';
+    private const NOMBRE_OPERATIVO_ALCOHOLIMETRIA = 'Operativo de Alcoholimetría';
     private const ALCOHOLIMETRIA_HORAS_ALIMENTACION = 8;
     private const TIPOS_OPERATIVO = ['conduce_legalidad', 'alcoholimetria'];
     private const ESTADOS = ['activo', 'cerrado', 'cancelado'];
@@ -68,6 +71,7 @@ class ConduceLegalidadController extends Controller
     public function meta(Request $request)
     {
         $user = $request->user();
+        $canAssignScope = $this->canAssignOperativoScope($user);
 
         return response()->json([
             'ok' => true,
@@ -82,6 +86,18 @@ class ConduceLegalidadController extends Controller
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
                 'fundamentos_persona' => $this->fundamentosPersonaPayload(),
                 'formatos_impresion' => $this->formatosImpresionPayload(),
+                'unidades' => $canAssignScope
+                    ? Unidad::query()
+                        ->where('activa', true)
+                        ->orderBy('nombre')
+                        ->get(['id', 'nombre'])
+                    : [],
+                'delegaciones' => $canAssignScope
+                    ? Delegacion::query()
+                        ->where('activa', true)
+                        ->orderBy('nombre')
+                        ->get(['id', 'nombre'])
+                    : [],
             ],
         ]);
     }
@@ -110,6 +126,12 @@ class ConduceLegalidadController extends Controller
         $user = $request->user();
         abort_unless($user, 403);
 
+        $dateFilters = $request->validate([
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_desde' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:fecha_desde'],
+        ]);
+
         $query = ConduceLegalidadOperativo::query()
             ->with('creador')
             ->withCount([
@@ -120,6 +142,8 @@ class ConduceLegalidadController extends Controller
             ])
             ->orderByDesc('fecha')
             ->orderByDesc('id');
+
+        $this->scopeOperativos($query, $user);
 
         if ($request->filled('tipo_operativo')) {
             $tipoOperativo = trim((string) $request->query('tipo_operativo'));
@@ -142,14 +166,24 @@ class ConduceLegalidadController extends Controller
                 ->whereMonth('fecha', (int) $matches[2]);
         }
 
-        if ($request->filled('estado') && in_array($request->query('estado'), self::ESTADOS, true)) {
+        if (!$this->canCreateOperativo($user)) {
+            $query->where('estado', 'activo');
+        } elseif ($request->filled('estado') && in_array($request->query('estado'), self::ESTADOS, true)) {
             $query->where('estado', $request->query('estado'));
-        } elseif (!$this->canManage($user) || !$request->boolean('incluir_cerrados')) {
+        } elseif (!$request->boolean('incluir_cerrados')) {
             $query->where('estado', 'activo');
         }
 
-        if ($request->filled('fecha')) {
-            $query->whereDate('fecha', $request->query('fecha'));
+        if (!empty($dateFilters['fecha'])) {
+            $query->whereDate('fecha', $dateFilters['fecha']);
+        } else {
+            if (!empty($dateFilters['fecha_desde'])) {
+                $query->whereDate('fecha', '>=', $dateFilters['fecha_desde']);
+            }
+
+            if (!empty($dateFilters['fecha_hasta'])) {
+                $query->whereDate('fecha', '<=', $dateFilters['fecha_hasta']);
+            }
         }
 
         if ($request->filled('buscar')) {
@@ -288,8 +322,10 @@ class ConduceLegalidadController extends Controller
         $user = $request->user();
         abort_unless($this->canCreateOperativo($user), 403);
 
-        $validated = $request->validate($this->operativoRules());
+        $validated = $request->validate($this->operativoRulesForUser($user));
         $now = now();
+        $schedule = $this->resolveOperativoSchedule($user, $validated, $now);
+        $scope = $this->resolveOperativoScope($user, $validated);
         $codigoPostal = $this->resolverCodigoPostalOperativo($validated['lat'] ?? null, $validated['lng'] ?? null);
         $tipoOperativo = $this->tipoOperativo(
             $validated['tipo_operativo'] ?? null,
@@ -301,8 +337,8 @@ class ConduceLegalidadController extends Controller
             'client_uuid' => $this->nullableString($validated['client_uuid'] ?? null),
             'nombre' => $this->nombreOperativo($tipoOperativo),
             'tipo_operativo' => $tipoOperativo,
-            'fecha' => $validated['fecha'] ?? $now->toDateString(),
-            'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
+            'fecha' => $schedule['fecha'],
+            'hora_inicio' => $schedule['hora_inicio'],
             'municipio' => $this->nullableString($validated['municipio'] ?? null),
             'lugar' => $this->nullableString($validated['lugar'] ?? null),
             'numero' => $this->nullableString($validated['numero'] ?? null),
@@ -313,6 +349,8 @@ class ConduceLegalidadController extends Controller
             'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
             'objetivo' => $this->nullableString($validated['objetivo'] ?? null),
             'estado' => $validated['estado'] ?? 'activo',
+            'unidad_id' => $scope['unidad_id'],
+            'delegacion_id' => $scope['delegacion_id'],
             'created_by' => $user->id,
             'updated_by' => $user->id,
         ]);
@@ -330,6 +368,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
 
         $operativo->loadMissing(['creador', 'actualizador', 'cerrador']);
 
@@ -352,9 +391,11 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($this->canManage($user), 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
 
-        $validated = $request->validate($this->operativoRules($operativo));
+        $validated = $request->validate($this->operativoRulesForUser($user, $operativo));
         $oldEstado = $operativo->estado;
+        $scope = $this->resolveOperativoScope($user, $validated, $operativo);
         $tipoOperativo = array_key_exists('tipo_operativo', $validated)
             ? $this->tipoOperativo(
                 $validated['tipo_operativo'],
@@ -374,8 +415,12 @@ class ConduceLegalidadController extends Controller
         $operativo->fill([
             'nombre' => $this->nombreOperativo($tipoOperativo),
             'tipo_operativo' => $tipoOperativo,
-            'fecha' => $validated['fecha'] ?? $operativo->fecha,
-            'hora_inicio' => array_key_exists('hora_inicio', $validated) ? $validated['hora_inicio'] : $operativo->hora_inicio,
+            'fecha' => $this->canSetOperativoSchedule($user)
+                ? ($validated['fecha'] ?? $operativo->fecha)
+                : $operativo->fecha,
+            'hora_inicio' => $this->canSetOperativoSchedule($user) && array_key_exists('hora_inicio', $validated)
+                ? $validated['hora_inicio']
+                : $operativo->hora_inicio,
             'hora_cierre' => array_key_exists('hora_cierre', $validated) ? $validated['hora_cierre'] : $operativo->hora_cierre,
             'municipio' => array_key_exists('municipio', $validated) ? $this->nullableString($validated['municipio']) : $operativo->municipio,
             'lugar' => array_key_exists('lugar', $validated) ? $this->nullableString($validated['lugar']) : $operativo->lugar,
@@ -387,6 +432,8 @@ class ConduceLegalidadController extends Controller
             'coordenadas_texto' => array_key_exists('coordenadas_texto', $validated) ? $this->nullableString($validated['coordenadas_texto']) : $operativo->coordenadas_texto,
             'objetivo' => array_key_exists('objetivo', $validated) ? $this->nullableString($validated['objetivo']) : $operativo->objetivo,
             'estado' => $validated['estado'] ?? $operativo->estado,
+            'unidad_id' => $scope['unidad_id'],
+            'delegacion_id' => $scope['delegacion_id'],
             'updated_by' => $user->id,
         ]);
 
@@ -409,6 +456,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($this->canDeleteOperativo($user), 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
 
         $operativo->delete();
 
@@ -422,6 +470,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
 
         $validated = $request->validate($this->capturaRules());
         $clientUuid = $this->nullableString($validated['client_uuid'] ?? null);
@@ -502,6 +551,7 @@ class ConduceLegalidadController extends Controller
     public function updateCaptura(Request $request, ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura)
     {
         $user = $request->user();
+        $this->assertPuedeVerOperativo($operativo, $user);
         abort_unless($captura->operativo_id === $operativo->id, 404);
         abort_unless($this->canEditCaptura($user, $captura), 403);
         $this->assertPuedeAlimentarOperativo($operativo, $user);
@@ -576,6 +626,7 @@ class ConduceLegalidadController extends Controller
     public function destroyCaptura(Request $request, ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura)
     {
         $user = $request->user();
+        $this->assertPuedeVerOperativo($operativo, $user);
         abort_unless($captura->operativo_id === $operativo->id, 404);
         abort_unless($this->canDeleteCaptura($user), 403);
         $this->assertPuedeAlimentarOperativo($operativo, $user);
@@ -592,6 +643,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($this->canUseRnd($user), 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
 
         $validated = $request->validate([
             'captura_id' => ['nullable', 'integer'],
@@ -665,6 +717,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($this->canManage($user), 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
 
         $operativo->loadMissing(['creador']);
 
@@ -680,7 +733,7 @@ class ConduceLegalidadController extends Controller
         return response()->json([
             'ok' => true,
             'data' => [
-                'title' => 'Resumen ' . ($operativo->nombre ?: self::NOMBRE_OPERATIVO),
+                'title' => 'Resumen ' . $this->nombreTicketOperativo($operativo),
                 'texto' => trim($texto),
                 'message' => trim($texto),
                 'media' => [],
@@ -695,6 +748,7 @@ class ConduceLegalidadController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
         abort_unless($captura->operativo_id === $operativo->id, 404);
 
         $query = $operativo->capturas()->whereKey($captura->id);
@@ -736,6 +790,7 @@ class ConduceLegalidadController extends Controller
     ) {
         $user = $request->user();
         abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
         abort_unless($captura->operativo_id === $operativo->id, 404);
 
         $query = $operativo->capturas()->whereKey($captura->id);
@@ -1021,7 +1076,7 @@ class ConduceLegalidadController extends Controller
             'result_type' => 'operativo',
             'module' => $tipoOperativo,
             'module_label' => $tipoOperativo === 'alcoholimetria'
-                ? 'Prevención de Accidentes'
+                ? 'Alcoholimetría'
                 : 'Conduce con Legalidad',
             'operativo_id' => (int) $operativo->id,
             'captura_id' => (int) $captura->id,
@@ -1343,9 +1398,12 @@ class ConduceLegalidadController extends Controller
             fn (array $pair) => $this->vehiculoResguardado($pair[1])
         ));
 
-        $lines = $this->tarjetaHeaderLines((int) ($user->unidad_id ?? 0), $user->delegacion_id ?? null);
+        $adscripcion = $this->adscripcionTicket($operativo, $user);
+        $unidadId = $adscripcion['unidad_id'];
+        $delegacionId = $adscripcion['delegacion_id'];
+        $lines = $this->tarjetaHeaderLines($unidadId, $delegacionId);
         $lines[] = 'TEMA: RESUMEN DE VEHICULOS RESGUARDADOS';
-        $lines[] = $operativo->nombre ?: self::NOMBRE_OPERATIVO;
+        $lines[] = $this->nombreTicketOperativo($operativo);
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
         $lines[] = 'PUNTO: ' . $this->upper($puntoOperativo ?: 'SIN DATO');
@@ -1381,8 +1439,8 @@ class ConduceLegalidadController extends Controller
         }
 
         $lines[] = '';
-        $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto((int) ($user->unidad_id ?? 0)));
-        $this->appendSupervisorTicket($lines);
+        $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto($unidadId));
+        $this->appendSupervisorTicket($lines, $unidadId, $delegacionId);
 
         return implode("\n", $lines);
     }
@@ -1393,8 +1451,9 @@ class ConduceLegalidadController extends Controller
         $user
     ): string
     {
-        $unidadId = (int) ($captura->unidad_id ?: ($user->unidad_id ?? 0));
-        $delegacionId = $captura->delegacion_id ?: ($user->delegacion_id ?? null);
+        $adscripcion = $this->adscripcionTicket($operativo, $user, $captura);
+        $unidadId = $adscripcion['unidad_id'];
+        $delegacionId = $adscripcion['delegacion_id'];
         $puntoOperativo = $this->lugarConNumero($operativo->lugar, $operativo->numero);
         $lugarCaptura = $this->lugarConNumero(
             $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
@@ -1404,7 +1463,7 @@ class ConduceLegalidadController extends Controller
 
         $lines = $this->tarjetaHeaderLines($unidadId, $delegacionId);
         $lines[] = 'TEMA: CAPTURA INDIVIDUAL';
-        $lines[] = $operativo->nombre ?: self::NOMBRE_OPERATIVO;
+        $lines[] = $this->nombreTicketOperativo($operativo);
         $lines[] = '';
         $lines[] = 'OPERATIVO ID: ' . $operativo->id;
         $lines[] = 'CAPTURA ID: ' . $captura->id;
@@ -1455,16 +1514,106 @@ class ConduceLegalidadController extends Controller
 
         $lines[] = '';
         $lines[] = 'INFORMA ' . $this->upper($this->unidadOperativaTexto($unidadId));
-        $this->appendSupervisorTicket($lines);
+        $this->appendSupervisorTicket($lines, $unidadId, $delegacionId);
 
         return implode("\n", $lines);
     }
 
-    private function appendSupervisorTicket(array &$lines): void
-    {
+    private function adscripcionTicket(
+        ConduceLegalidadOperativo $operativo,
+        $user,
+        ?ConduceLegalidadCaptura $captura = null
+    ): array {
+        $unidadId = (int) (
+            $operativo->unidad_id
+            ?: ($captura ? $captura->unidad_id : null)
+            ?: ($user->unidad_id ?? 0)
+        );
+        $delegacionId = $unidadId === self::UNIDAD_DELEGACIONES
+            ? ((int) (
+                $operativo->delegacion_id
+                ?: ($captura ? $captura->delegacion_id : null)
+                ?: ($user->delegacion_id ?? 0)
+            ) ?: null)
+            : null;
+
+        return [
+            'unidad_id' => $unidadId,
+            'delegacion_id' => $delegacionId,
+        ];
+    }
+
+    private function appendSupervisorTicket(
+        array &$lines,
+        int $unidadId,
+        $delegacionId = null
+    ): void {
+        $supervisor = $this->supervisorTicket($unidadId, $delegacionId);
+
         $lines[] = '';
-        $lines[] = 'Supervisó: ' . self::TICKET_SUPERVISOR_NOMBRE;
-        $lines[] = self::TICKET_SUPERVISOR_CARGO;
+        $lines[] = 'Supervisó: ' . $supervisor['nombre'];
+        $lines[] = $supervisor['cargo'];
+    }
+
+    private function supervisorTicket(int $unidadId, $delegacionId = null): array
+    {
+        if ($unidadId !== self::UNIDAD_DELEGACIONES) {
+            return [
+                'nombre' => self::TICKET_SUPERVISOR_NOMBRE,
+                'cargo' => self::TICKET_SUPERVISOR_CARGO,
+            ];
+        }
+
+        $delegacionId = (int) $delegacionId;
+        $delegado = $this->delegadoSupervisor($delegacionId);
+        $delegacionNombre = $this->nombreDelegacionTicket($delegacionId);
+
+        return [
+            'nombre' => $delegado
+                ? $this->nombreUsuario($delegado)
+                : 'Delegado no asignado',
+            'cargo' => $delegacionNombre
+                ? 'Delegado de la Delegación de ' . $delegacionNombre
+                : 'Delegado',
+        ];
+    }
+
+    protected function delegadoSupervisor(int $delegacionId): ?User
+    {
+        if ($delegacionId <= 0) {
+            return null;
+        }
+
+        return User::query()
+            ->where(function ($query) use ($delegacionId) {
+                $query->where('delegacion_id', $delegacionId)
+                    ->orWhereIn('id', function ($subQuery) use ($delegacionId) {
+                        $subQuery->select('user_id')
+                            ->from('delegacion_user')
+                            ->where('delegacion_id', $delegacionId);
+                    });
+            })
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Delegado');
+            })
+            ->where(function ($query) {
+                $query->whereNull('estado')
+                    ->orWhereRaw('UPPER(TRIM(estado)) <> ?', ['INACTIVO']);
+            })
+            ->orderByRaw('CASE WHEN delegacion_id = ? THEN 0 ELSE 1 END', [$delegacionId])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function nombreDelegacionTicket(int $delegacionId): ?string
+    {
+        if ($delegacionId <= 0) {
+            return null;
+        }
+
+        return $this->nullableString(
+            Delegacion::query()->whereKey($delegacionId)->value('nombre')
+        );
     }
 
     private function tarjetaHeaderLines(int $unidadId, $delegacionId = null): array
@@ -1675,6 +1824,13 @@ class ConduceLegalidadController extends Controller
             : self::NOMBRE_OPERATIVO;
     }
 
+    private function nombreTicketOperativo(ConduceLegalidadOperativo $operativo): string
+    {
+        return $this->esOperativoAlcoholimetria($operativo)
+            ? self::NOMBRE_OPERATIVO_ALCOHOLIMETRIA
+            : self::NOMBRE_OPERATIVO;
+    }
+
     private function tipoOperativo($value, ...$fallbackValues): string
     {
         $tipo = $this->nullableString($value);
@@ -1683,7 +1839,7 @@ class ConduceLegalidadController extends Controller
         }
 
         $text = Str::upper(Str::ascii(implode(' ', array_filter($fallbackValues))));
-        return Str::contains($text, 'ALCOHOL')
+        return Str::contains($text, ['ALCOHOL', 'PREVENCION DE ACCIDENTES'])
             ? 'alcoholimetria'
             : 'conduce_legalidad';
     }
@@ -2018,7 +2174,7 @@ class ConduceLegalidadController extends Controller
             $operativo->observaciones,
         ]))));
 
-        return str_contains($texto, 'ALCOHOL');
+        return Str::contains($texto, ['ALCOHOL', 'PREVENCION DE ACCIDENTES']);
     }
 
     private function alimentacionAlcoholimetriaCierraEn(ConduceLegalidadOperativo $operativo)
@@ -2326,6 +2482,8 @@ class ConduceLegalidadController extends Controller
             'nombre' => $operativo->nombre,
             'tipo_operativo' => $operativo->tipo_operativo,
             'fecha' => optional($operativo->fecha)->toDateString(),
+            'unidad_id' => $operativo->unidad_id,
+            'delegacion_id' => $operativo->delegacion_id,
             'hora_inicio' => $operativo->hora_inicio,
             'hora_cierre' => $operativo->hora_cierre,
             'municipio' => $operativo->municipio,
@@ -2650,6 +2808,8 @@ class ConduceLegalidadController extends Controller
         return [
             'can_feed' => (bool) $user,
             'can_create_operativo' => $this->canCreateOperativo($user),
+            'can_set_schedule' => $this->canSetOperativoSchedule($user),
+            'can_assign_scope' => $this->canAssignOperativoScope($user),
             'can_manage_operativos' => $this->canManage($user),
             'can_view_all_capturas' => $this->canManage($user),
             'can_use_rnd' => $this->canUseRnd($user),
@@ -2657,8 +2817,92 @@ class ConduceLegalidadController extends Controller
         ];
     }
 
+    private function scopeOperativos($query, $user): void
+    {
+        if (!$user) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return;
+        }
+
+        $unidadId = (int) ($user->unidad_id ?? 0);
+        if ($unidadId <= 0) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $query->where(function ($unidades) use ($unidadId) {
+            $unidades->where('unidad_id', $unidadId)
+                ->orWhere(function ($legacy) use ($unidadId) {
+                    $legacy->whereNull('unidad_id')
+                        ->whereHas('creador', function ($creador) use ($unidadId) {
+                            $creador->where('unidad_id', $unidadId);
+                        });
+                });
+        });
+
+        if ($unidadId !== self::UNIDAD_DELEGACIONES) {
+            return;
+        }
+
+        $delegacionId = (int) ($user->delegacion_id ?? 0);
+        if ($delegacionId <= 0) {
+            $query->whereRaw('1=0');
+            return;
+        }
+
+        $query->where(function ($delegaciones) use ($delegacionId) {
+            $delegaciones->where('delegacion_id', $delegacionId)
+                ->orWhere(function ($legacy) use ($delegacionId) {
+                    $legacy->whereNull('delegacion_id')
+                        ->whereHas('creador', function ($creador) use ($delegacionId) {
+                            $creador->where('delegacion_id', $delegacionId);
+                        });
+                });
+        });
+    }
+
+    private function canViewOperativo($user, ConduceLegalidadOperativo $operativo): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        $operativo->loadMissing('creador');
+        $unidadId = (int) ($user->unidad_id ?? 0);
+        $unidadOperativo = (int) ($operativo->unidad_id ?? optional($operativo->creador)->unidad_id ?? 0);
+        if ($unidadId <= 0 || $unidadOperativo !== $unidadId) {
+            return false;
+        }
+
+        if ($unidadId !== self::UNIDAD_DELEGACIONES) {
+            return true;
+        }
+
+        $delegacionId = (int) ($user->delegacion_id ?? 0);
+        $delegacionOperativo = (int) ($operativo->delegacion_id ?? optional($operativo->creador)->delegacion_id ?? 0);
+
+        return $delegacionId > 0 && $delegacionOperativo === $delegacionId;
+    }
+
+    private function assertPuedeVerOperativo(ConduceLegalidadOperativo $operativo, $user): void
+    {
+        abort_unless($this->canViewOperativo($user, $operativo), 404);
+    }
+
     private function scopeCapturas($query, $user): void
     {
+        $query->whereHas('operativo', function ($operativos) use ($user) {
+            $this->scopeOperativos($operativos, $user);
+        });
+
         if ($this->canManage($user)) {
             return;
         }
@@ -2779,8 +3023,120 @@ class ConduceLegalidadController extends Controller
             return false;
         }
 
+        if ($this->isDelegacionesUser($user) && $user->hasRole('Delegado')) {
+            return true;
+        }
+
         return $this->canManage($user)
             || ($this->isVialidadesUser($user) && $user->can('crear conduce legalidad'));
+    }
+
+    private function operativoRulesForUser($user, ?ConduceLegalidadOperativo $operativo = null): array
+    {
+        $rules = $this->operativoRules($operativo);
+        if (!$this->canSetOperativoSchedule($user)) {
+            unset($rules['fecha'], $rules['hora_inicio']);
+        }
+
+        if ($this->canAssignOperativoScope($user)) {
+            $rules['unidad_id'] = [
+                $operativo ? 'sometimes' : 'required',
+                'integer',
+                Rule::exists('unidades', 'id')->where(
+                    fn ($query) => $query->where('activa', true)
+                ),
+            ];
+            $rules['delegacion_id'] = [
+                'nullable',
+                'integer',
+                'required_if:unidad_id,' . self::UNIDAD_DELEGACIONES,
+                'prohibited_unless:unidad_id,' . self::UNIDAD_DELEGACIONES,
+                Rule::exists('delegaciones', 'id')->where(
+                    fn ($query) => $query->where('activa', true)
+                ),
+            ];
+        }
+
+        return $rules;
+    }
+
+    private function canSetOperativoSchedule($user): bool
+    {
+        return $user
+            && $user->hasAnyRole(['Superadmin', 'Administrador', 'Subdirector']);
+    }
+
+    private function canAssignOperativoScope($user): bool
+    {
+        return $user
+            && $user->hasRole('Superadmin');
+    }
+
+    private function resolveOperativoSchedule($user, array $validated, $now): array
+    {
+        if (!$this->canSetOperativoSchedule($user)) {
+            return [
+                'fecha' => $now->toDateString(),
+                'hora_inicio' => $now->format('H:i:s'),
+            ];
+        }
+
+        return [
+            'fecha' => $validated['fecha'] ?? $now->toDateString(),
+            'hora_inicio' => $validated['hora_inicio'] ?? $now->format('H:i:s'),
+        ];
+    }
+
+    private function resolveOperativoScope(
+        $user,
+        array $validated,
+        ?ConduceLegalidadOperativo $operativo = null
+    ): array {
+        if (!$this->canAssignOperativoScope($user)) {
+            if ($operativo) {
+                return [
+                    'unidad_id' => (int) ($operativo->unidad_id ?? 0) ?: null,
+                    'delegacion_id' => (int) ($operativo->delegacion_id ?? 0) ?: null,
+                ];
+            }
+
+            $unidadId = (int) ($user->unidad_id ?? 0);
+            if ($unidadId <= 0) {
+                throw ValidationException::withMessages([
+                    'unidad_id' => ['Tu usuario no tiene una unidad asignada.'],
+                ]);
+            }
+
+            $delegacionId = (int) ($user->delegacion_id ?? 0);
+            if ($unidadId === self::UNIDAD_DELEGACIONES && $delegacionId <= 0) {
+                throw ValidationException::withMessages([
+                    'delegacion_id' => ['Tu usuario no tiene una delegación asignada.'],
+                ]);
+            }
+
+            return [
+                'unidad_id' => $unidadId,
+                'delegacion_id' => $unidadId === self::UNIDAD_DELEGACIONES
+                    ? $delegacionId
+                    : null,
+            ];
+        }
+
+        if ($operativo && !array_key_exists('unidad_id', $validated)) {
+            return [
+                'unidad_id' => (int) ($operativo->unidad_id ?? 0) ?: null,
+                'delegacion_id' => (int) ($operativo->delegacion_id ?? 0) ?: null,
+            ];
+        }
+
+        $unidadId = (int) ($validated['unidad_id'] ?? 0);
+
+        return [
+            'unidad_id' => $unidadId ?: null,
+            'delegacion_id' => $unidadId === self::UNIDAD_DELEGACIONES
+                ? ((int) ($validated['delegacion_id'] ?? 0) ?: null)
+                : null,
+        ];
     }
 
     private function canManage($user): bool
@@ -2846,6 +3202,12 @@ class ConduceLegalidadController extends Controller
     {
         return $this->isVialidadesUser($user)
             && $user->hasRole('Subdirector');
+    }
+
+    private function isDelegacionesUser($user): bool
+    {
+        return (int) ($user->unidad_id ?? 0) === self::UNIDAD_DELEGACIONES
+            || optional($user->unidad)->slug === 'delegaciones';
     }
 
     private function isVialidadesUser($user): bool

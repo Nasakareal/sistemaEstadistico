@@ -44,6 +44,7 @@
                                 <th><center>Clave</center></th>
                                 <th><center>Nombre</center></th>
                                 <th><center>Municipio</center></th>
+                                <th><center>Dirección completa</center></th>
                                 <th><center>Padre</center></th>
                                 <th><center>Hijas</center></th>
                                 <th><center>Estado</center></th>
@@ -61,6 +62,8 @@
                                     <td>{{ $delegacion->nombre }}</td>
 
                                     <td>{{ $delegacion->municipio }}</td>
+
+                                    <td>{{ $delegacion->direccion_completa ?: '—' }}</td>
 
                                     <td>
                                         {{ $delegacion->padre ? $delegacion->padre->nombre : '—' }}

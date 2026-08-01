@@ -268,6 +268,13 @@
 <body>
 <div class="print-actions">
     <button type="button" onclick="window.print()">Imprimir</button>
+    @if(!empty($loteUuid))
+        @auth
+            @can('crear modulo examenes')
+                <a href="{{ route('constancias_manejo.lotes.descargar', $loteUuid) }}">Descargar lote en PDF</a>
+            @endcan
+        @endauth
+    @endif
     @auth
         @can('editar modulo examenes')
             @php

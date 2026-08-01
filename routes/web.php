@@ -143,6 +143,10 @@ Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes
     Route::get('/pendientes-activar', [ConstanciaManejoController::class, 'pendientesActivar'])->name('constancias_manejo.pendientes_activar');
     Route::get('/inactivas-vencidas', [ConstanciaManejoController::class, 'inactivasVencidas'])->name('constancias_manejo.inactivas_vencidas');
     Route::get('/imprimir-lote', [ConstanciaManejoController::class, 'imprimirLote'])->middleware('can:crear modulo examenes')->name('constancias_manejo.imprimir_lote');
+    Route::get('/lotes/{lote}/descargar', [ConstanciaManejoController::class, 'descargarLote'])
+        ->where('lote', '[0-9a-fA-F-]{36}')
+        ->middleware('can:crear modulo examenes')
+        ->name('constancias_manejo.lotes.descargar');
     Route::get('/activar-manual', [ConstanciaManejoController::class, 'activarManualForm'])->middleware('can:editar modulo examenes')->name('constancias_manejo.activar_manual');
     Route::post('/activar-manual', [ConstanciaManejoController::class, 'activarManual'])->middleware('can:editar modulo examenes')->name('constancias_manejo.activar_manual.store');
 

@@ -7,6 +7,7 @@ use App\Models\ConstanciaExamen;
 use App\Models\ConstanciaFolio;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaModulo;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -105,6 +106,8 @@ class ConstanciaManejoController extends Controller
             ->with(['modulo', 'usuario', 'peritoActivador', 'examen'])
             ->orderByDesc('id');
 
+        $this->aplicarFiltrosModulo($query, $request);
+
         if ($request->filled('estatus')) {
             $query->where('estatus', $request->estatus);
         }
@@ -119,9 +122,49 @@ class ConstanciaManejoController extends Controller
             });
         }
 
-        $constancias = $query->paginate(25);
+        $constancias = $query
+            ->paginate(25, ['*'], 'pagina_constancias')
+            ->appends($request->query());
 
-        return view('constancias_manejo.index', compact('constancias'));
+        $lotesQuery = $this->queryConstanciasDisponibles()
+            ->with(['modulo:id,nombre,tipo', 'usuario:id,name'])
+            ->whereNotNull('lote_uuid');
+
+        $this->aplicarFiltrosModulo($lotesQuery, $request);
+
+        $lotes = $lotesQuery
+            ->selectRaw('MIN(id) as id, lote_uuid, modulo_id, user_id, COUNT(*) as cantidad, MIN(folio) as folio_inicial, MAX(folio) as folio_final, MIN(COALESCE(fecha_impresion, created_at)) as fecha_generacion')
+            ->groupBy(['lote_uuid', 'modulo_id', 'user_id'])
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'pagina_lotes')
+            ->appends($request->query());
+
+        $modulosFiltro = $this->queryModulosDisponibles()->get(['id', 'nombre', 'tipo']);
+        $tipoModulo = in_array($request->query('tipo_modulo'), ['SINIESTROS', 'DELEGACION'], true)
+            ? $request->query('tipo_modulo')
+            : null;
+        $isSuperadmin = (bool) optional(auth()->user())->hasRole('Superadmin');
+
+        return view('constancias_manejo.index', compact(
+            'constancias',
+            'lotes',
+            'modulosFiltro',
+            'tipoModulo',
+            'isSuperadmin'
+        ));
+    }
+
+    private function aplicarFiltrosModulo($query, Request $request): void
+    {
+        $tipoModulo = $request->query('tipo_modulo');
+
+        if (in_array($tipoModulo, ['SINIESTROS', 'DELEGACION'], true)) {
+            $query->whereHas('modulo', fn ($modulo) => $modulo->where('tipo', $tipoModulo));
+        }
+
+        if ($request->filled('modulo_id')) {
+            $query->where('modulo_id', (int) $request->query('modulo_id'));
+        }
     }
 
     public function create()
@@ -146,8 +189,9 @@ class ConstanciaManejoController extends Controller
             return redirect()->route('constancias_manejo.create')->with('error', 'No tienes permiso para generar constancias en este modulo.');
         }
 
-        $constancias = DB::transaction(function () use ($request) {
-            return $this->crearConstancias((int) $request->modulo_id, (int) $request->cantidad);
+        $loteUuid = (string) Str::uuid();
+        $constancias = DB::transaction(function () use ($request, $loteUuid) {
+            return $this->crearConstancias((int) $request->modulo_id, (int) $request->cantidad, $loteUuid);
         });
 
         return redirect()
@@ -155,7 +199,7 @@ class ConstanciaManejoController extends Controller
             ->with('success', count($constancias) . ' constancias generadas como inactivas.');
     }
 
-    private function crearConstancias(int $moduloId, int $cantidad): array
+    private function crearConstancias(int $moduloId, int $cantidad, string $loteUuid): array
     {
         $modulo = ConstanciaModulo::findOrFail($moduloId);
         $origen = $modulo->tipo === 'SINIESTROS' ? 'SINIESTROS' : 'DELEGACIONES';
@@ -190,6 +234,7 @@ class ConstanciaManejoController extends Controller
                 'fecha_activacion' => null,
                 'fecha_expiracion' => null,
                 'pdf_path' => null,
+                'lote_uuid' => $loteUuid,
                 'qr_token' => Str::uuid()->toString(),
                 'acceso_examen_token' => null,
                 'acceso_examen_expira' => null,
@@ -310,11 +355,52 @@ class ConstanciaManejoController extends Controller
 
         abort_if($constancias->count() !== count($ids), 403, 'No tienes permiso para imprimir una o mas constancias del lote.');
 
+        $loteUuids = $constancias->pluck('lote_uuid')->filter()->unique()->values();
+
         return view('constancias_manejo.imprimir', [
             'constancias' => $constancias,
             'autoPrint' => true,
             'loteIds' => $ids,
+            'loteUuid' => $loteUuids->count() === 1 ? $loteUuids->first() : null,
         ]);
+    }
+
+    public function descargarLote(string $lote)
+    {
+        $constancias = $this->queryConstanciasDisponibles()
+            ->with(['modulo', 'examen'])
+            ->where('lote_uuid', $lote)
+            ->orderBy('id')
+            ->get();
+
+        abort_if($constancias->isEmpty(), 404, 'No se encontró el lote o no tienes permiso para descargarlo.');
+
+        $logoDataUri = $this->imagenDataUri(public_path('img/michoacan_vertical.png'));
+        $primera = $constancias->first();
+        $ultima = $constancias->last();
+        $nombreModulo = optional($primera->modulo)->nombre ?: 'modulo';
+        $nombreArchivo = sprintf(
+            'lote_constancias_%s_%s_a_%s.pdf',
+            Str::slug($nombreModulo, '_'),
+            Str::slug($primera->folio, '_'),
+            Str::slug($ultima->folio, '_')
+        );
+
+        return Pdf::loadView('constancias_manejo.lote_pdf', compact('constancias', 'logoDataUri'))
+            ->setPaper('letter', 'portrait')
+            ->download($nombreArchivo);
+    }
+
+    private function imagenDataUri(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = $extension === 'jpg' || $extension === 'jpeg' ? 'image/jpeg' : 'image/png';
+
+        return 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($path));
     }
 
     public function imprimirLoteFirmado(Request $request)

@@ -73,6 +73,11 @@
                             </div>
                         </div>
 
+                        <div class="col-md-12 mt-3">
+                            <div class="small text-muted">Dirección completa</div>
+                            <div class="font-weight-bold">{{ $delegacion->direccion_completa ?: '—' }}</div>
+                        </div>
+
                         <div class="col-md-3 mt-3">
                             <div class="small text-muted">Latitud</div>
                             <div class="font-weight-bold">{{ $delegacion->lat ?: '—' }}</div>
@@ -133,6 +138,7 @@
                                         <th>Clave</th>
                                         <th>Nombre</th>
                                         <th>Municipio</th>
+                                        <th>Dirección completa</th>
                                         <th>Latitud</th>
                                         <th>Longitud</th>
                                         <th>Estado</th>
@@ -146,6 +152,7 @@
                                             <td>{{ $hija->clave ?: '—' }}</td>
                                             <td>{{ $hija->nombre }}</td>
                                             <td>{{ $hija->municipio ?: '—' }}</td>
+                                            <td>{{ $hija->direccion_completa ?: '—' }}</td>
                                             <td>{{ $hija->lat ?: '—' }}</td>
                                             <td>{{ $hija->lng ?: '—' }}</td>
                                             <td>
@@ -251,9 +258,22 @@
 
             L.marker([latDelegacion, lngDelegacion])
                 .addTo(mapaDelegacion)
-                .bindPopup(`{{ $delegacion->nombre }}<br>{{ $delegacion->municipio ?: '' }}`)
+                .bindPopup([
+                    @json($delegacion->nombre),
+                    @json($delegacion->municipio),
+                    @json($delegacion->direccion_completa)
+                ].filter(Boolean).map(escaparHtmlDelegacion).join('<br>'))
                 .openPopup();
         @endif
+
+        function escaparHtmlDelegacion(valor) {
+            return String(valor || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         @if (session('success'))
             Swal.fire({

@@ -57,6 +57,7 @@ class MapaDelegacionesController extends Controller
                 'clave' => $delegacion->clave,
                 'nombre' => $delegacion->nombre,
                 'municipio' => $delegacion->municipio,
+                'direccion_completa' => $delegacion->direccion_completa,
                 'lat' => $delegacion->lat,
                 'lng' => $delegacion->lng,
                 'color' => $colorPorPadre[$padreId] ?? '#64748b',

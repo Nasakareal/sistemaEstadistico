@@ -23,6 +23,7 @@ class DelegacionController extends Controller
                 $query->where(function ($w) use ($q) {
                     $w->where('nombre', 'like', "%{$q}%")
                       ->orWhere('municipio', 'like', "%{$q}%")
+                      ->orWhere('direccion_completa', 'like', "%{$q}%")
                       ->orWhere('clave', 'like', "%{$q}%");
                 });
             })
@@ -52,6 +53,7 @@ class DelegacionController extends Controller
             'clave' => ['nullable', 'string', 'max:50'],
             'nombre' => ['required', 'string', 'max:255'],
             'municipio' => ['nullable', 'string', 'max:255'],
+            'direccion_completa' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric'],
             'lng' => ['nullable', 'numeric'],
             'activa' => ['nullable', 'boolean'],
@@ -68,6 +70,7 @@ class DelegacionController extends Controller
             'hijas.*.clave' => ['nullable', 'string', 'max:50'],
             'hijas.*.nombre' => ['required_with:hijas', 'nullable', 'string', 'max:255'],
             'hijas.*.municipio' => ['nullable', 'string', 'max:255'],
+            'hijas.*.direccion_completa' => ['nullable', 'string', 'max:500'],
             'hijas.*.lat' => ['nullable', 'numeric'],
             'hijas.*.lng' => ['nullable', 'numeric'],
             'hijas.*.activa' => ['nullable', 'boolean'],
@@ -78,6 +81,7 @@ class DelegacionController extends Controller
                 'clave' => $data['clave'] ?? null,
                 'nombre' => $data['nombre'],
                 'municipio' => $data['municipio'] ?? null,
+                'direccion_completa' => $data['direccion_completa'] ?? null,
                 'lat' => $data['lat'] ?? null,
                 'lng' => $data['lng'] ?? null,
                 'activa' => (bool) ($data['activa'] ?? true),
@@ -93,6 +97,7 @@ class DelegacionController extends Controller
                     'clave' => $h['clave'] ?? null,
                     'nombre' => $nombreHija,
                     'municipio' => $h['municipio'] ?? null,
+                    'direccion_completa' => $h['direccion_completa'] ?? null,
                     'lat' => $h['lat'] ?? null,
                     'lng' => $h['lng'] ?? null,
                     'activa' => (bool) ($h['activa'] ?? true),
@@ -143,6 +148,7 @@ class DelegacionController extends Controller
             'clave' => ['nullable', 'string', 'max:50'],
             'nombre' => ['required', 'string', 'max:255'],
             'municipio' => ['nullable', 'string', 'max:255'],
+            'direccion_completa' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric'],
             'lng' => ['nullable', 'numeric'],
             'activa' => ['nullable', 'boolean'],
@@ -161,6 +167,7 @@ class DelegacionController extends Controller
             'hijas.*.clave' => ['nullable', 'string', 'max:50'],
             'hijas.*.nombre' => ['required_with:hijas', 'nullable', 'string', 'max:255'],
             'hijas.*.municipio' => ['nullable', 'string', 'max:255'],
+            'hijas.*.direccion_completa' => ['nullable', 'string', 'max:500'],
             'hijas.*.lat' => ['nullable', 'numeric'],
             'hijas.*.lng' => ['nullable', 'numeric'],
             'hijas.*.activa' => ['nullable', 'boolean'],
@@ -186,6 +193,7 @@ class DelegacionController extends Controller
                 'clave' => $data['clave'] ?? null,
                 'nombre' => $data['nombre'],
                 'municipio' => $data['municipio'] ?? null,
+                'direccion_completa' => $data['direccion_completa'] ?? null,
                 'lat' => $data['lat'] ?? null,
                 'lng' => $data['lng'] ?? null,
                 'activa' => (bool) ($data['activa'] ?? true),
@@ -218,6 +226,7 @@ class DelegacionController extends Controller
                             'clave' => $h['clave'] ?? null,
                             'nombre' => $nombreHija,
                             'municipio' => $h['municipio'] ?? null,
+                            'direccion_completa' => $h['direccion_completa'] ?? null,
                             'lat' => $h['lat'] ?? null,
                             'lng' => $h['lng'] ?? null,
                             'activa' => (bool) ($h['activa'] ?? true),
@@ -228,6 +237,7 @@ class DelegacionController extends Controller
                         'clave' => $h['clave'] ?? null,
                         'nombre' => $nombreHija,
                         'municipio' => $h['municipio'] ?? null,
+                        'direccion_completa' => $h['direccion_completa'] ?? null,
                         'lat' => $h['lat'] ?? null,
                         'lng' => $h['lng'] ?? null,
                         'activa' => (bool) ($h['activa'] ?? true),
@@ -263,7 +273,7 @@ class DelegacionController extends Controller
         $hijas = $delegacion->hijas()
             ->where('activa', 1)
             ->orderBy('nombre')
-            ->get(['id', 'delegacion_padre_id', 'clave', 'nombre', 'municipio', 'lat', 'lng', 'activa']);
+            ->get(['id', 'delegacion_padre_id', 'clave', 'nombre', 'municipio', 'direccion_completa', 'lat', 'lng', 'activa']);
 
         return response()->json(['ok' => true, 'data' => $hijas]);
     }

@@ -85,6 +85,18 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>Dirección completa</label>
+                                    <textarea name="direccion_completa"
+                                              rows="2"
+                                              maxlength="500"
+                                              class="form-control @error('direccion_completa') is-invalid @enderror"
+                                              placeholder="Calle, número, colonia, código postal y referencias">{{ old('direccion_completa', $delegacion->direccion_completa) }}</textarea>
+                                    @error('direccion_completa') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Latitud</label>
@@ -161,14 +173,15 @@
                             <table class="table table-bordered table-hover table-sm" id="tabla_hijas">
                                 <thead>
                                     <tr>
-                                        <th style="width: 10%">Clave</th>
-                                        <th style="width: 22%">Nombre</th>
-                                        <th style="width: 20%">Municipio</th>
-                                        <th style="width: 14%">Latitud</th>
-                                        <th style="width: 14%">Longitud</th>
-                                        <th style="width: 7%; text-align:center">Activa</th>
-                                        <th style="width: 7%; text-align:center">Desactivar</th>
-                                        <th style="width: 6%; text-align:center">Quitar fila</th>
+                                        <th>Clave</th>
+                                        <th>Nombre</th>
+                                        <th>Municipio</th>
+                                        <th>Dirección completa</th>
+                                        <th>Latitud</th>
+                                        <th>Longitud</th>
+                                        <th style="text-align:center">Activa</th>
+                                        <th style="text-align:center">Desactivar</th>
+                                        <th style="text-align:center">Quitar fila</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -181,6 +194,7 @@
                                                 'clave' => $h->clave,
                                                 'nombre' => $h->nombre,
                                                 'municipio' => $h->municipio,
+                                                'direccion_completa' => $h->direccion_completa,
                                                 'lat' => $h->lat,
                                                 'lng' => $h->lng,
                                                 'activa' => $h->activa ? 1 : 0,
@@ -225,6 +239,16 @@
                                                        class="form-control"
                                                        value="{{ $h['municipio'] ?? '' }}"
                                                        placeholder="Municipio"
+                                                       {{ $isDeleted ? 'disabled' : '' }}>
+                                            </td>
+
+                                            <td>
+                                                <input type="text"
+                                                       name="hijas[{{ $i }}][direccion_completa]"
+                                                       class="form-control"
+                                                       maxlength="500"
+                                                       value="{{ $h['direccion_completa'] ?? '' }}"
+                                                       placeholder="Dirección completa"
                                                        {{ $isDeleted ? 'disabled' : '' }}>
                                             </td>
 
@@ -363,6 +387,9 @@
                         </td>
                         <td>
                             <input type="text" name="hijas[${i}][municipio]" class="form-control" placeholder="Municipio">
+                        </td>
+                        <td>
+                            <input type="text" name="hijas[${i}][direccion_completa]" class="form-control" maxlength="500" placeholder="Dirección completa">
                         </td>
                         <td>
                             <input type="text" name="hijas[${i}][lat]" class="form-control" placeholder="19.7033333">

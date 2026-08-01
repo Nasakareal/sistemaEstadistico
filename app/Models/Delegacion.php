@@ -15,6 +15,7 @@ class Delegacion extends Model
         'clave',
         'nombre',
         'municipio',
+        'direccion_completa',
         'lat',
         'lng',
         'activa',

@@ -462,6 +462,9 @@
         const municipioRegistrado = delegacion.municipio ? escaparHtml(delegacion.municipio) : '';
         const municipioDetectado = municipioMapa ? escaparHtml(municipioMapa) : '';
         const municipio = municipioDetectado || municipioRegistrado || 'Sin municipio registrado';
+        const direccion = delegacion.direccion_completa
+            ? escaparHtml(delegacion.direccion_completa)
+            : 'Sin dirección registrada';
         const muestraRegistro = municipioDetectado &&
             municipioRegistrado &&
             normalizar(municipioMapa) !== normalizar(delegacion.municipio);
@@ -473,6 +476,7 @@
                 <div class="delegacion-popup__titulo">${nombre}</div>
                 <div class="delegacion-popup__dato"><strong>Clave:</strong> ${clave}</div>
                 <div class="delegacion-popup__dato"><strong>Municipio:</strong> ${municipio}</div>
+                <div class="delegacion-popup__dato"><strong>Dirección:</strong> ${direccion}</div>
                 ${muestraRegistro ? `<div class="delegacion-popup__dato"><strong>Registro:</strong> ${municipioRegistrado}</div>` : ''}
                 <div class="delegacion-popup__dato"><strong>Tipo:</strong> ${tipo}</div>
                 <a class="btn btn-primary btn-sm delegacion-popup__maps"

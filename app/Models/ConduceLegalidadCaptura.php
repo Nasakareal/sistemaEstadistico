@@ -13,6 +13,7 @@ class ConduceLegalidadCaptura extends Model
 
     protected $fillable = [
         'operativo_id',
+        'actividad_id',
         'licencia_punto_infraccion_id',
         'infraccion_codigo',
         'fundamento_legal',
@@ -44,9 +45,21 @@ class ConduceLegalidadCaptura extends Model
         return $this->belongsTo(ConduceLegalidadOperativo::class, 'operativo_id');
     }
 
+    public function actividad()
+    {
+        return $this->belongsTo(Actividad::class, 'actividad_id');
+    }
+
     public function infraccion()
     {
         return $this->belongsTo(LicenciaPuntoInfraccion::class, 'licencia_punto_infraccion_id');
+    }
+
+    public function fundamentos()
+    {
+        return $this->hasMany(ConduceLegalidadCapturaFundamento::class, 'captura_id')
+            ->orderBy('orden')
+            ->orderBy('id');
     }
 
     public function creador()

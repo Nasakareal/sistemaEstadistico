@@ -12,6 +12,7 @@ use App\Models\Delegacion;
 use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
 use App\Models\Vehiculo;
+use App\Services\ActividadConduceLegalidadSyncService;
 use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
@@ -174,6 +175,10 @@ class ActividadController extends Controller
             'fotos' => 'nullable|array|min:1',
             'fotos.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
             'vehiculos' => 'nullable|array',
+            'conduce_legalidad_fundamentos' => 'nullable|array|max:20',
+            'conduce_legalidad_fundamentos.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
+            'conduce_legalidad_fundamentos.*.infraccion_codigo' => 'nullable|string|max:80',
+            'conduce_legalidad_fundamentos.*.fundamento_legal' => 'nullable|string|max:2000',
             'vehiculos.*.marca' => 'required|string|max:50',
             'vehiculos.*.modelo' => 'nullable|string|max:10',
             'vehiculos.*.tipo' => 'required|string|max:50',
@@ -289,6 +294,15 @@ class ActividadController extends Controller
         $delegacionId = (int) ($user->delegacion_id ?? 0);
         $delegacionId = $delegacionId > 0 ? $delegacionId : null;
 
+        $conduceSync = app(ActividadConduceLegalidadSyncService::class);
+        $conduceSync->assertCanSync(
+            (int) $validated['actividad_subcategoria_id'],
+            $unidadOrg,
+            $delegacionId,
+            $validated['conduce_legalidad_fundamentos'] ?? [],
+            count($validated['vehiculos'] ?? [])
+        );
+
         $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $cantidad = 1;
 
@@ -345,7 +359,7 @@ class ActividadController extends Controller
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager) {
+        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync) {
             $actividad = Actividad::create([
                 'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
                 'sync_status' => 'local',
@@ -442,6 +456,11 @@ class ActividadController extends Controller
             foreach (($validated['vehiculos'] ?? []) as $vehiculoData) {
                 $this->crearVehiculoParaActividad($actividad, $vehiculoData);
             }
+
+            $conduceSync->sync(
+                $actividad,
+                $validated['conduce_legalidad_fundamentos'] ?? []
+            );
 
             if ((int) ($actividad->personas_detenidas ?? 0) > 0) {
                 DB::afterCommit(function () use ($actividad) {
@@ -557,6 +576,10 @@ class ActividadController extends Controller
             'fotos.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
             'eliminar_fotos' => 'nullable|array',
             'eliminar_fotos.*' => 'integer',
+            'conduce_legalidad_fundamentos' => 'nullable|array|max:20',
+            'conduce_legalidad_fundamentos.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
+            'conduce_legalidad_fundamentos.*.infraccion_codigo' => 'nullable|string|max:80',
+            'conduce_legalidad_fundamentos.*.fundamento_legal' => 'nullable|string|max:2000',
         ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
@@ -598,11 +621,25 @@ class ActividadController extends Controller
             }
         }
 
+        $conduceSync = app(ActividadConduceLegalidadSyncService::class);
+        if ($conduceSync->isConduceLegalidadSubcategoriaId(
+            (int) $validated['actividad_subcategoria_id']
+        )) {
+            $actividad->loadMissing('vehiculos');
+            $conduceSync->assertCanSync(
+                (int) $validated['actividad_subcategoria_id'],
+                (int) $actividad->unidad_org_id,
+                $actividad->delegacion_id ? (int) $actividad->delegacion_id : null,
+                $validated['conduce_legalidad_fundamentos'] ?? [],
+                $actividad->vehiculos->count()
+            );
+        }
+
         $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager, $conduceSync) {
             $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
                 ->map(function ($id) {
                     return (int) $id;
@@ -785,6 +822,11 @@ class ActividadController extends Controller
             }
 
             $this->sincronizarFotoPrincipal($actividad);
+
+            $conduceSync->sync(
+                $actividad,
+                $validated['conduce_legalidad_fundamentos'] ?? []
+            );
 
             $alertService = app(DelegacionesWhatsAppAlertService::class);
 
@@ -1238,6 +1280,8 @@ class ActividadController extends Controller
 
     private function withFotoUrls(Actividad $actividad): array
     {
+        $actividad->loadMissing('conduceLegalidadCaptura.operativo', 'conduceLegalidadCaptura.fundamentos.infraccion');
+
         $data = $actividad->toArray();
         $actividadArchivada = !empty($actividad->foto_archivo_zip_path) || !empty($actividad->foto_archivada_at);
         $fotoDisplayPath = !$actividadArchivada && (!empty($actividad->foto_path) || !empty($actividad->foto_blob_path))
@@ -1267,6 +1311,33 @@ class ActividadController extends Controller
                 return $foto;
             }, $data['fotos']);
         }
+
+        $captura = $actividad->conduceLegalidadCaptura;
+        $data['conduce_legalidad_operativo_id'] = $captura ? (int) $captura->operativo_id : null;
+        $data['conduce_legalidad_captura_id'] = $captura ? (int) $captura->id : null;
+        $data['conduce_legalidad_fundamentos'] = $captura
+            ? $captura->fundamentos->map(function ($item) {
+                $infraccion = $item->infraccion;
+                if (!$infraccion) {
+                    return [
+                        'id' => (int) $item->licencia_punto_infraccion_id,
+                        'codigo' => $item->infraccion_codigo,
+                        'nombre' => $item->infraccion_codigo ?: 'Fundamento legal',
+                        'fundamento_legal' => $item->fundamento_legal,
+                        'retencion_vehiculo' => true,
+                    ];
+                }
+
+                $payload = $infraccion->toArray();
+                $payload['id'] = (int) $infraccion->id;
+                $payload['codigo'] = $item->infraccion_codigo ?: $infraccion->codigo;
+                $payload['fundamento_legal'] = $item->fundamento_legal ?: $infraccion->fundamento_legal;
+                $payload['referencia_legal_corta'] = $infraccion->referencia_legal_corta;
+                $payload['resumen_sanciones'] = $infraccion->resumen_sanciones;
+                $payload['ambito_vehiculo_texto'] = $infraccion->ambito_vehiculo_texto;
+                return $payload;
+            })->values()->all()
+            : [];
 
         return $data;
     }
@@ -1375,6 +1446,16 @@ class ActividadController extends Controller
             ], 403);
         }
 
+        $conduceSync = app(ActividadConduceLegalidadSyncService::class);
+        if ($conduceSync->isConduceLegalidadSubcategoriaId($actividad->actividad_subcategoria_id)
+            && $actividad->vehiculos()->count() >= 1) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Cada alimentación de Conduce con Legalidad admite únicamente un vehículo.',
+                'errors' => ['vehiculos' => ['Solo puedes agregar un vehículo.']],
+            ], 422);
+        }
+
         $validated = $this->validarVehiculoRequest($request);
 
         if (!$this->gruaPermitidaParaUsuario($validated['grua_id'] ?? null, $usuario)) {
@@ -1387,8 +1468,10 @@ class ActividadController extends Controller
             ], 422);
         }
 
-        return DB::transaction(function () use ($actividad, $validated) {
+        return DB::transaction(function () use ($actividad, $validated, $conduceSync) {
             $vehiculo = $this->crearVehiculoParaActividad($actividad, $validated);
+            $actividad->unsetRelation('vehiculos');
+            $conduceSync->sync($actividad);
 
             $actividad->load([
                 'categoria',
@@ -1455,6 +1538,9 @@ class ActividadController extends Controller
             if (!$tieneOtroOrigen) {
                 DB::table('servicios')->where('vehiculo_id', $vehiculoId)->delete();
             }
+
+            $actividad->unsetRelation('vehiculos');
+            app(ActividadConduceLegalidadSyncService::class)->sync($actividad);
         });
 
         $actividad->load([

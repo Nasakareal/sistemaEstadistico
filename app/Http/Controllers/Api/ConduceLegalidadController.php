@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ConduceLegalidadCaptura;
+use App\Models\ConduceLegalidadCapturaFundamento;
 use App\Models\ConduceLegalidadFoto;
 use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadPersona;
@@ -373,7 +374,7 @@ class ConduceLegalidadController extends Controller
         $operativo->loadMissing(['creador', 'actualizador', 'cerrador']);
 
         $capturasQuery = $operativo->capturas()
-            ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
+            ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -477,7 +478,7 @@ class ConduceLegalidadController extends Controller
         if ($clientUuid !== null) {
             $existing = $operativo->capturas()
                 ->where('client_uuid', $clientUuid)
-                ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
+                ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
                 ->first();
 
             if ($existing) {
@@ -496,10 +497,13 @@ class ConduceLegalidadController extends Controller
         $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request) {
             $operativo->refresh();
             $this->assertPuedeAlimentarOperativo($operativo, $user);
-            $usaFundamentoUnificado = array_key_exists('licencia_punto_infraccion_id', $validated);
-            $infraccion = $usaFundamentoUnificado
-                ? $this->capturaInfraccion($validated['licencia_punto_infraccion_id'] ?? null, $operativo)
-                : null;
+            $usaFundamentoUnificado = array_key_exists('fundamentos', $validated)
+                || array_key_exists('fundamento_ids', $validated)
+                || array_key_exists('licencia_punto_infraccion_id', $validated);
+            $fundamentos = $usaFundamentoUnificado
+                ? $this->capturaInfracciones($validated, $operativo)
+                : [];
+            $infraccion = $fundamentos[0] ?? null;
             $infraccionSnapshot = $this->capturaInfraccionSnapshot($validated, $infraccion);
             $now = now();
             $captura = $operativo->capturas()->create([
@@ -522,10 +526,11 @@ class ConduceLegalidadController extends Controller
                 'rnd_data' => $this->canUseRnd($user) ? $this->normalizeRndData($validated['rnd_data'] ?? null) : null,
             ]);
 
+            $this->replaceFundamentosCaptura($captura, $fundamentos, $validated);
             $this->replaceVehiculos(
                 $captura,
                 $validated['vehiculos'] ?? [],
-                $infraccion,
+                $fundamentos,
                 $usaFundamentoUnificado
             );
             $this->replacePersonas(
@@ -539,7 +544,7 @@ class ConduceLegalidadController extends Controller
             return $captura;
         });
 
-        $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
+        $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return response()->json([
             'ok' => true,
@@ -562,18 +567,21 @@ class ConduceLegalidadController extends Controller
         DB::transaction(function () use ($captura, $operativo, $validated, $request, $user) {
             $operativo->refresh();
             $this->assertPuedeAlimentarOperativo($operativo, $user);
-            $campoFundamentoPresente = array_key_exists('licencia_punto_infraccion_id', $validated);
-            $infraccion = $campoFundamentoPresente
-                ? $this->capturaInfraccion($validated['licencia_punto_infraccion_id'] ?? null, $operativo)
-                : $captura->infraccion;
+            $campoFundamentoPresente = array_key_exists('fundamentos', $validated)
+                || array_key_exists('fundamento_ids', $validated)
+                || array_key_exists('licencia_punto_infraccion_id', $validated);
+            $captura->loadMissing(['fundamentos.infraccion', 'infraccion']);
+            $fundamentos = $campoFundamentoPresente
+                ? $this->capturaInfracciones($validated, $operativo)
+                : $this->fundamentosCapturaActuales($captura);
+            $infraccion = $fundamentos[0] ?? null;
             $infraccionSnapshot = $campoFundamentoPresente
                 ? $this->capturaInfraccionSnapshot($validated, $infraccion)
                 : [
                     'codigo' => $captura->infraccion_codigo,
                     'fundamento_legal' => $captura->fundamento_legal,
                 ];
-            $usaFundamentoUnificado = $campoFundamentoPresente
-                || $captura->licencia_punto_infraccion_id !== null;
+            $usaFundamentoUnificado = $campoFundamentoPresente || count($fundamentos) > 0;
             $captura->fill([
                 'licencia_punto_infraccion_id' => $campoFundamentoPresente
                     ? ($infraccion ? $infraccion->id : null)
@@ -599,10 +607,14 @@ class ConduceLegalidadController extends Controller
             ]);
             $captura->save();
 
+            if ($campoFundamentoPresente) {
+                $this->replaceFundamentosCaptura($captura, $fundamentos, $validated);
+            }
+
             $this->replaceVehiculos(
                 $captura,
                 $validated['vehiculos'] ?? [],
-                $infraccion,
+                $fundamentos,
                 $usaFundamentoUnificado
             );
             $this->replacePersonas(
@@ -614,7 +626,7 @@ class ConduceLegalidadController extends Controller
             $this->storeFotos($captura, $request, $user);
         });
 
-        $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
+        $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return response()->json([
             'ok' => true,
@@ -722,7 +734,7 @@ class ConduceLegalidadController extends Controller
         $operativo->loadMissing(['creador']);
 
         $capturas = $operativo->capturas()
-            ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
+            ->with(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos'])
             ->orderBy('fecha')
             ->orderBy('hora')
             ->orderBy('id')
@@ -756,7 +768,7 @@ class ConduceLegalidadController extends Controller
         abort_unless($query->exists(), 404);
 
         $operativo->loadMissing(['creador']);
-        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
+        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         $texto = $this->tarjetaCapturaOperativo($operativo, $captura, $user);
         $fotos = $captura->fotos
@@ -1315,11 +1327,31 @@ class ConduceLegalidadController extends Controller
 
     private function fundamentosIphCaptura(ConduceLegalidadCaptura $captura): string
     {
+        $captura->loadMissing('fundamentos.infraccion');
+        $fundamentosMultiples = $captura->fundamentos
+            ->map(function (ConduceLegalidadCapturaFundamento $fundamento) {
+                return $this->joinText([
+                    $fundamento->infraccion
+                        ? $this->nullableString($fundamento->infraccion->referencia_legal_corta)
+                        : null,
+                    $this->nullableString($fundamento->fundamento_legal),
+                    $fundamento->infraccion
+                        ? $this->nullableString($fundamento->infraccion->fundamento_legal)
+                        : null,
+                ], ' - ');
+            })
+            ->filter()
+            ->unique()
+            ->implode('; ');
+        if ($fundamentosMultiples !== '') {
+            return $fundamentosMultiples;
+        }
+
         $fundamentoCaptura = $this->joinText([
             $captura->infraccion ? $this->nullableString($captura->infraccion->referencia_legal_corta) : null,
             $this->nullableString($captura->fundamento_legal),
             $captura->infraccion ? $this->nullableString($captura->infraccion->fundamento_legal) : null,
-        ]);
+        ], ' - ');
         if ($fundamentoCaptura !== '') {
             return $fundamentoCaptura;
         }
@@ -1881,6 +1913,13 @@ class ConduceLegalidadController extends Controller
             'coordenadas_texto' => ['nullable', 'string', 'max:255'],
             'narrativa' => ['nullable', 'string'],
             'observaciones' => ['nullable', 'string'],
+            'fundamentos' => ['sometimes', 'array', 'max:20'],
+            'fundamentos.*' => ['required', 'array'],
+            'fundamentos.*.licencia_punto_infraccion_id' => ['required', 'integer', 'exists:licencia_punto_infracciones,id'],
+            'fundamentos.*.infraccion_codigo' => ['nullable', 'string', 'max:80'],
+            'fundamentos.*.fundamento_legal' => ['nullable', 'string', 'max:2000'],
+            'fundamento_ids' => ['sometimes', 'array', 'max:20'],
+            'fundamento_ids.*' => ['required', 'integer', 'distinct', 'exists:licencia_punto_infracciones,id'],
             'licencia_punto_infraccion_id' => ['nullable', 'integer', 'exists:licencia_punto_infracciones,id'],
             'infraccion_codigo' => ['nullable', 'string', 'max:80'],
             'fundamento_legal' => ['nullable', 'string', 'max:2000'],
@@ -1888,7 +1927,7 @@ class ConduceLegalidadController extends Controller
             'rnd_data.*' => ['nullable', 'string', 'max:2000'],
             'fotos' => ['nullable', 'array', 'max:25'],
             'fotos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'vehiculos' => ['nullable', 'array', 'max:100'],
+            'vehiculos' => ['nullable', 'array', 'max:1'],
             'vehiculos.*' => ['array'],
             'vehiculos.*.marca' => ['nullable', 'string', 'max:80'],
             'vehiculos.*.modelo' => ['nullable', 'string', 'max:20'],
@@ -2027,33 +2066,50 @@ class ConduceLegalidadController extends Controller
     private function replaceVehiculos(
         ConduceLegalidadCaptura $captura,
         array $vehiculos,
-        ?LicenciaPuntoInfraccion $fundamentoCaptura = null,
+        array $fundamentosCaptura = [],
         bool $usaFundamentoUnificado = false
     ): void
     {
         $captura->vehiculos()->delete();
 
         foreach ($vehiculos as $row) {
-            $infraccion = $usaFundamentoUnificado
-                ? $fundamentoCaptura
-                : $this->retencionInfraccion($row['licencia_punto_infraccion_id'] ?? null);
+            $infracciones = $usaFundamentoUnificado
+                ? $fundamentosCaptura
+                : array_filter([
+                    $this->retencionInfraccion($row['licencia_punto_infraccion_id'] ?? null),
+                ]);
+            $infraccion = $infracciones[0] ?? null;
             $personaHabilitadaResguardo = $this->booleanRow($row, 'persona_habilitada_resguardo', 'responsable_habilitado_presente');
-            $retencionCondicional = $infraccion
-                && (bool) $infraccion->deposito_si_sin_persona_habilitada
-                && !$personaHabilitadaResguardo;
-            $retencionVehiculo = $infraccion
-                ? ((bool) $infraccion->retencion_vehiculo || $retencionCondicional)
-                : false;
+            $retenciones = [];
+            foreach ($infracciones as $fundamento) {
+                $retencionCondicional = (bool) $fundamento->deposito_si_sin_persona_habilitada
+                    && !$personaHabilitadaResguardo;
+                if ((bool) $fundamento->retencion_vehiculo || $retencionCondicional) {
+                    $retenciones[] = [
+                        'fundamento' => $fundamento,
+                        'condicional' => $retencionCondicional,
+                    ];
+                }
+            }
+            $retencionVehiculo = count($retenciones) > 0;
+            $motivoSugerido = collect($retenciones)
+                ->map(fn (array $retencion) => $this->motivoRetencionPorInfraccion(
+                    $retencion['fundamento'],
+                    $retencion['condicional']
+                ))
+                ->filter()
+                ->unique()
+                ->implode('; ');
             $motivoRetencion = $usaFundamentoUnificado
                 ? ($retencionVehiculo
                     ? (
                         $this->nullableString($row['motivo_retencion'] ?? null)
-                        ?: ($infraccion ? $this->motivoRetencionPorInfraccion($infraccion, $retencionCondicional) : null)
+                        ?: ($motivoSugerido !== '' ? $motivoSugerido : null)
                     )
                     : null)
                 : (
                     $this->nullableString($row['motivo_retencion'] ?? null)
-                    ?: ($retencionVehiculo && $infraccion ? $this->motivoRetencionPorInfraccion($infraccion, $retencionCondicional) : null)
+                    ?: ($retencionVehiculo && $motivoSugerido !== '' ? $motivoSugerido : null)
                 );
             $tieneServicioGrua = $this->tieneServicioGrua($row);
 
@@ -2260,6 +2316,91 @@ class ConduceLegalidadController extends Controller
         }
 
         return $infraccion;
+    }
+
+    /**
+     * @return array<int, LicenciaPuntoInfraccion>
+     */
+    private function capturaInfracciones(
+        array $validated,
+        ConduceLegalidadOperativo $operativo
+    ): array
+    {
+        $ids = array_key_exists('fundamentos', $validated)
+            ? array_map(
+                fn (array $item) => $item['licencia_punto_infraccion_id'] ?? null,
+                $validated['fundamentos'] ?? []
+            )
+            : (array_key_exists('fundamento_ids', $validated)
+            ? ($validated['fundamento_ids'] ?? [])
+            : [$validated['licencia_punto_infraccion_id'] ?? null]);
+
+        $fundamentos = [];
+        $selecciones = [];
+        foreach ($ids as $orden => $id) {
+            $infraccion = $this->capturaInfraccion($id, $operativo);
+            if ($infraccion) {
+                $seleccion = $validated['fundamentos'][$orden] ?? [];
+                $snapshot = $this->capturaInfraccionSnapshot(
+                    is_array($seleccion) ? $seleccion : [],
+                    $infraccion
+                );
+                $key = $infraccion->id . '|' . ($snapshot['codigo'] ?? '');
+                if (isset($selecciones[$key])) {
+                    throw ValidationException::withMessages([
+                        'fundamentos' => 'No puedes seleccionar dos veces el mismo fundamento.',
+                    ]);
+                }
+
+                $selecciones[$key] = true;
+                $fundamentos[] = $infraccion;
+            }
+        }
+
+        return $fundamentos;
+    }
+
+    /**
+     * @return array<int, LicenciaPuntoInfraccion>
+     */
+    private function fundamentosCapturaActuales(
+        ConduceLegalidadCaptura $captura
+    ): array
+    {
+        $fundamentos = $captura->fundamentos
+            ->map(fn (ConduceLegalidadCapturaFundamento $item) => $item->infraccion)
+            ->filter()
+            ->values()
+            ->all();
+
+        if (count($fundamentos) === 0 && $captura->infraccion) {
+            $fundamentos[] = $captura->infraccion;
+        }
+
+        return $fundamentos;
+    }
+
+    private function replaceFundamentosCaptura(
+        ConduceLegalidadCaptura $captura,
+        array $fundamentos,
+        array $validated
+    ): void
+    {
+        $captura->fundamentos()->delete();
+
+        foreach (array_values($fundamentos) as $orden => $infraccion) {
+            $seleccion = $validated['fundamentos'][$orden] ?? null;
+            $snapshot = $this->capturaInfraccionSnapshot(
+                is_array($seleccion) ? $seleccion : ($orden === 0 ? $validated : []),
+                $infraccion
+            );
+            $captura->fundamentos()->create([
+                'licencia_punto_infraccion_id' => $infraccion->id,
+                'orden' => $orden,
+                'infraccion_codigo' => $snapshot['codigo'],
+                'fundamento_legal' => $snapshot['fundamento_legal'],
+            ]);
+        }
     }
 
     private function capturaInfraccion(
@@ -2522,7 +2663,7 @@ class ConduceLegalidadController extends Controller
 
     private function capturaPayload(ConduceLegalidadCaptura $captura, $user): array
     {
-        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
+        $captura->loadMissing(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         return [
             'id' => $captura->id,
@@ -2534,6 +2675,9 @@ class ConduceLegalidadController extends Controller
             'infraccion' => $captura->infraccion
                 ? $this->fundamentoInfraccionPayload($captura->infraccion)
                 : null,
+            'fundamentos' => $captura->fundamentos
+                ->map(fn (ConduceLegalidadCapturaFundamento $fundamento) => $this->capturaFundamentoPayload($fundamento))
+                ->values(),
             'created_by' => $captura->created_by,
             'creador' => $this->userPayload($captura->creador),
             'unidad' => $this->refPayload($captura->unidad),
@@ -2556,6 +2700,26 @@ class ConduceLegalidadController extends Controller
             'created_at' => optional($captura->created_at)->toISOString(),
             'updated_at' => optional($captura->updated_at)->toISOString(),
         ];
+    }
+
+    private function capturaFundamentoPayload(
+        ConduceLegalidadCapturaFundamento $fundamento
+    ): array
+    {
+        $payload = $fundamento->infraccion
+            ? $this->fundamentoInfraccionPayload($fundamento->infraccion)
+            : [
+                'id' => $fundamento->licencia_punto_infraccion_id ?: 0,
+                'codigo' => $fundamento->infraccion_codigo,
+                'nombre' => $fundamento->infraccion_codigo,
+            ];
+
+        $payload['infraccion_codigo'] = $fundamento->infraccion_codigo
+            ?: ($payload['codigo'] ?? null);
+        $payload['fundamento_legal_guardado'] = $fundamento->fundamento_legal
+            ?: ($payload['fundamento_legal'] ?? null);
+
+        return $payload;
     }
 
     private function fotoPayload(ConduceLegalidadFoto $foto): array

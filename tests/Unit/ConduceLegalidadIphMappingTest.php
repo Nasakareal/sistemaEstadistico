@@ -41,6 +41,7 @@ class ConduceLegalidadIphMappingTest extends TestCase
             'observaciones' => null,
         ]);
         $captura->setRelation('vehiculos', new Collection());
+        $captura->setRelation('fundamentos', new Collection());
         $captura->setRelation('personas', new Collection());
         $captura->setRelation('fotos', new Collection());
         $captura->setRelation('unidad', null);

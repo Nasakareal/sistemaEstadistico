@@ -30,6 +30,7 @@ class ConstanciaManejo extends Model
         'fecha_activacion',
         'fecha_expiracion',
         'pdf_path',
+        'lote_uuid',
         'qr_token',
         'acceso_examen_token',
         'acceso_examen_expira',
@@ -39,6 +40,7 @@ class ConstanciaManejo extends Model
         'fecha_impresion' => 'datetime',
         'fecha_activacion' => 'datetime',
         'fecha_expiracion' => 'datetime',
+        'fecha_generacion' => 'datetime',
         'acceso_examen_expira' => 'datetime',
     ];
 

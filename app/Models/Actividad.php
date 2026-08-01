@@ -176,6 +176,11 @@ class Actividad extends Model
         return $this->belongsToMany(\App\Models\Vehiculo::class, 'actividad_vehiculo', 'actividad_id', 'vehiculo_id')->withTimestamps();
     }
 
+    public function conduceLegalidadCaptura()
+    {
+        return $this->hasOne(ConduceLegalidadCaptura::class, 'actividad_id');
+    }
+
     public function puestaDisposicion()
     {
         return $this->hasOne(PuestaDisposicion::class, 'actividad_id')->latestOfMany();

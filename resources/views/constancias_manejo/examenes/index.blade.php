@@ -12,7 +12,7 @@
             <h3 class="card-title">Exámenes generados</h3>
             <div class="card-tools">
                 @can('crear modulo examenes')
-                    <a href="{{ route('constancias_manejo.examenes.create') }}" class="btn btn-primary btn-sm">
+                    <a href="{{ route('constancias_manejo.examenes.create', request('modalidad') ? ['modalidad' => request('modalidad')] : []) }}" class="btn btn-primary btn-sm">
                         <i class="fa-solid fa-plus"></i> Nuevo examen
                     </a>
                 @endcan

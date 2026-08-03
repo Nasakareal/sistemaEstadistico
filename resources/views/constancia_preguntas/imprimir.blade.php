@@ -17,8 +17,8 @@
             font-family: Arial, Helvetica, sans-serif;
             color: #000;
             margin: 0;
-            font-size: 11pt;
-            line-height: 1.3;
+            font-size: 10pt;
+            line-height: 1.25;
         }
 
         .actions {
@@ -108,39 +108,57 @@
         .instructions {
             margin: 6px 0 24px;
             text-align: justify;
-            font-size: 11pt;
-            line-height: 1.45;
+            font-size: 10pt;
+            line-height: 1.35;
         }
 
-        .question {
-            margin-bottom: 16px;
+        .question-table {
+            border-collapse: collapse;
+            margin-bottom: 9px;
+            page-break-inside: avoid;
+            width: 100%;
+        }
+
+        .question-table tr {
+            page-break-inside: avoid;
+        }
+
+        .question-cell,
+        .answer-marker,
+        .answer-text {
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .question-cell {
+            text-align: left;
         }
 
         .question-title {
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
-        .answers {
-            line-height: 1.35;
-            list-style-type: upper-alpha;
-            margin: 0 0 0 50px;
-            padding-left: 18px;
+        .answer-marker {
+            padding-right: 8px;
+            text-align: right;
+            width: 64px;
         }
 
-        .answers li {
-            margin: 0 0 2px 0;
-            padding-left: 2px;
+        .answer-text {
+            line-height: 1.25;
+        }
+
+        .first-answer {
+            border-collapse: collapse;
+            font-weight: 400;
+            width: 100%;
         }
 
         .empty {
             margin-top: 30px;
             text-align: center;
             font-weight: 700;
-        }
-
-        .page-break {
-            page-break-before: always;
         }
 
         @media print {
@@ -196,20 +214,31 @@
         @endif
 
         @forelse($preguntas as $index => $pregunta)
-            @if(in_array($index, [3, 7, 11, 15], true))
-                <div class="page-break"></div>
-            @endif
-            <div class="question">
-                <div class="question-title">
-                    {{ $index + 1 }}.- {{ $pregunta->pregunta }}
-                </div>
-
-                <ol class="answers" type="A">
-                    @foreach($pregunta->respuestas as $respuesta)
-                        <li>{{ $respuesta->respuesta }}</li>
+            <table class="question-table">
+                <tbody>
+                    <tr>
+                        <td class="question-cell" colspan="2">
+                            <div class="question-title">
+                                {{ $index + 1 }}.- {{ $pregunta->texto_impresion }}
+                            </div>
+                            @if($pregunta->respuestas->isNotEmpty())
+                                <table class="first-answer">
+                                    <tr>
+                                        <td class="answer-marker">A.</td>
+                                        <td class="answer-text">{{ $pregunta->respuestas->first()->texto_impresion }}</td>
+                                    </tr>
+                                </table>
+                            @endif
+                        </td>
+                    </tr>
+                    @foreach($pregunta->respuestas->slice(1)->values() as $respuestaIndex => $respuesta)
+                        <tr>
+                            <td class="answer-marker">{{ chr(66 + $respuestaIndex) }}.</td>
+                            <td class="answer-text">{{ $respuesta->texto_impresion }}</td>
+                        </tr>
                     @endforeach
-                </ol>
-            </div>
+                </tbody>
+            </table>
         @empty
             <div class="empty">
                 No hay preguntas activas para este tipo de licencia.

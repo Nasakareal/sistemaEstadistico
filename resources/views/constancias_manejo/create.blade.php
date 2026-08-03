@@ -12,6 +12,8 @@
 @section('content')
 @php
     $moduloUnico = $modulos->count() === 1 ? $modulos->first() : null;
+    $tipoUnico = $tiposModuloDisponibles->count() === 1 ? $tiposModuloDisponibles->first() : null;
+    $tipoSeleccionado = old('tipo_modulo', $tipoUnico);
 @endphp
 <div class="constancia-wrapper">
     <div class="constancia-card">
@@ -29,19 +31,38 @@
 
             <div class="constancia-card-body">
 
+                @if($tipoUnico)
+                    <input type="hidden" name="tipo_modulo" value="{{ $tipoUnico }}">
+                @else
+                    <div class="form-group">
+                        <label for="tipo_modulo">Origen de las constancias</label>
+                        <select name="tipo_modulo" id="tipo_modulo" class="form-control" required>
+                            <option value="">Seleccione Siniestros o Delegaciones</option>
+                            @if($tiposModuloDisponibles->contains('SINIESTROS'))
+                                <option value="SINIESTROS" {{ $tipoSeleccionado === 'SINIESTROS' ? 'selected' : '' }}>
+                                    Siniestros
+                                </option>
+                            @endif
+                            @if($tiposModuloDisponibles->contains('DELEGACION'))
+                                <option value="DELEGACION" {{ $tipoSeleccionado === 'DELEGACION' ? 'selected' : '' }}>
+                                    Delegaciones
+                                </option>
+                            @endif
+                        </select>
+                        @error('tipo_modulo')
+                            <small class="text-danger">{{ $message }}</small>
+                        @enderror
+                    </div>
+                @endif
+
                 <div class="form-group">
-                    <label>Módulo que imprimirá las constancias</label>
+                    <label for="modulo_id">Módulo que imprimirá las constancias</label>
                     @if($moduloUnico)
                         <input type="hidden" name="modulo_id" value="{{ $moduloUnico->id }}">
                         <input type="text" class="form-control" value="{{ $moduloUnico->nombre }} - {{ $moduloUnico->tipo }}" readonly>
                     @else
                         <select name="modulo_id" id="modulo_id" class="form-control select2" required>
-                            <option value="">Seleccione un módulo</option>
-                            @foreach($modulos as $m)
-                                <option value="{{ $m->id }}" {{ old('modulo_id') == $m->id ? 'selected' : '' }}>
-                                    {{ $m->nombre }} - {{ $m->tipo }}
-                                </option>
-                            @endforeach
+                            <option value="">Seleccione primero el origen</option>
                         </select>
                     @endif
                     @error('modulo_id')
@@ -316,11 +337,53 @@ span.select2-container span.select2-dropdown {
 @section('js')
 <script>
 $(function () {
-    $('#modulo_id').select2({
+    const modulos = @json($modulos->map(fn ($modulo) => [
+        'id' => $modulo->id,
+        'nombre' => $modulo->nombre,
+        'tipo' => $modulo->tipo,
+    ])->values());
+    const moduloAnterior = @json((string) old('modulo_id', ''));
+    const $tipoModulo = $('#tipo_modulo');
+    const $modulo = $('#modulo_id');
+
+    $modulo.select2({
         width: '100%',
         placeholder: 'Seleccione un módulo',
         allowClear: true
     });
+
+    function cargarModulos(tipo, seleccionado = '') {
+        $modulo.empty();
+
+        if (!tipo) {
+            $modulo.append(new Option('Seleccione primero el origen', '', true, false));
+            $modulo.prop('disabled', true).trigger('change.select2');
+            return;
+        }
+
+        $modulo.append(new Option('Seleccione un módulo', '', true, false));
+
+        modulos
+            .filter(modulo => modulo.tipo === tipo)
+            .forEach(modulo => {
+                const opcion = new Option(modulo.nombre, modulo.id, false, String(modulo.id) === String(seleccionado));
+                $modulo.append(opcion);
+            });
+
+        $modulo.prop('disabled', false).trigger('change.select2');
+    }
+
+    @if(!$moduloUnico)
+        const tipoInicial = $tipoModulo.length
+            ? $tipoModulo.val()
+            : @json($tipoUnico);
+
+        cargarModulos(tipoInicial, moduloAnterior);
+
+        $tipoModulo.on('change', function () {
+            cargarModulos(this.value);
+        });
+    @endif
 });
 </script>
 @stop

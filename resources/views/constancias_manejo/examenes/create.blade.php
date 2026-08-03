@@ -52,8 +52,8 @@
                                 <div class="form-group">
                                     <label>Modalidad</label>
                                     <select name="modalidad" class="form-control @error('modalidad') is-invalid @enderror" required>
-                                        <option value="LINEA" {{ old('modalidad', 'LINEA') === 'LINEA' ? 'selected' : '' }}>En línea</option>
-                                        <option value="IMPRESO" {{ old('modalidad') === 'IMPRESO' ? 'selected' : '' }}>Impreso</option>
+                                        <option value="LINEA" {{ old('modalidad', request('modalidad', 'LINEA')) === 'LINEA' ? 'selected' : '' }}>En línea</option>
+                                        <option value="IMPRESO" {{ old('modalidad', request('modalidad')) === 'IMPRESO' ? 'selected' : '' }}>Impreso</option>
                                     </select>
                                     @error('modalidad')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>

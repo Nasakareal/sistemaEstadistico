@@ -158,9 +158,15 @@ Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes
     Route::post('/examenes/{solicitud}/capturar-impreso', [ConstanciaExamenSolicitudController::class, 'capturarImpreso'])->middleware('can:editar modulo examenes')->name('constancias_manejo.examenes.capturar_impreso');
     Route::post('/examenes/{solicitud}/activar', [ConstanciaExamenSolicitudController::class, 'activar'])->middleware('can:editar modulo examenes')->name('constancias_manejo.examenes.activar');
 
-    Route::get('/preguntas/{path?}', function () {
-        return redirect()->route('constancias_manejo.preguntas.index');
-    })->where('path', '.*');
+    Route::prefix('preguntas')->group(function () {
+        Route::get('/', [ConstanciaPreguntaController::class, 'index'])->name('constancias_manejo.preguntas.index');
+        Route::get('/create', [ConstanciaPreguntaController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.create');
+        Route::post('/', [ConstanciaPreguntaController::class, 'store'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.store');
+        Route::get('/imprimir', [ConstanciaPreguntaController::class, 'imprimir'])->name('constancias_manejo.preguntas.imprimir');
+        Route::get('/{pregunta}/edit', [ConstanciaPreguntaController::class, 'edit'])->middleware('can:editar modulo examenes')->name('constancias_manejo.preguntas.edit');
+        Route::put('/{pregunta}', [ConstanciaPreguntaController::class, 'update'])->middleware('can:editar modulo examenes')->name('constancias_manejo.preguntas.update');
+        Route::delete('/{pregunta}', [ConstanciaPreguntaController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('constancias_manejo.preguntas.destroy');
+    });
 
     Route::get('/{constancia}', [ConstanciaManejoController::class, 'show'])->name('constancias_manejo.show');
     Route::get('/{constancia}/edit', [ConstanciaManejoController::class, 'edit'])->middleware('can:editar modulo examenes')->name('constancias_manejo.edit');
@@ -683,6 +689,16 @@ Route::prefix('modulo-constancias-examenes')->middleware(['auth','can:ver modulo
 
 Route::get('/servicios/grafico',[ServicioController::class,'grafico'])->name('servicios.grafico');
 
+Route::get('/admin/settings/constancias/preguntas/{path?}', function ($path = null) {
+    $destino = '/constancias-manejo/preguntas';
+
+    if ($path) {
+        $destino .= '/' . ltrim($path, '/');
+    }
+
+    return redirect($destino);
+})->where('path', '.*')->middleware(['auth', 'can:ver modulo examenes']);
+
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
     Route::get('/',[SettingsController::class,'index'])->name('settings.index');
     Route::get('/reconstructor-transito', [SettingsController::class, 'reconstructorTransito'])
@@ -704,16 +720,6 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::get('/tutoriales/{tutorial}/edit', [TutorialController::class, 'edit'])->name('settings.tutoriales.edit');
     Route::put('/tutoriales/{tutorial}', [TutorialController::class, 'update'])->name('settings.tutoriales.update');
     Route::delete('/tutoriales/{tutorial}', [TutorialController::class, 'destroy'])->name('settings.tutoriales.destroy');
-
-    Route::prefix('constancias/preguntas')->middleware('can:ver modulo examenes')->group(function () {
-        Route::get('/', [ConstanciaPreguntaController::class, 'index'])->name('constancias_manejo.preguntas.index');
-        Route::get('/create', [ConstanciaPreguntaController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.create');
-        Route::post('/', [ConstanciaPreguntaController::class, 'store'])->middleware('can:crear modulo examenes')->name('constancias_manejo.preguntas.store');
-        Route::get('/imprimir', [ConstanciaPreguntaController::class, 'imprimir'])->name('constancias_manejo.preguntas.imprimir');
-        Route::get('/{pregunta}/edit', [ConstanciaPreguntaController::class, 'edit'])->middleware('can:editar modulo examenes')->name('constancias_manejo.preguntas.edit');
-        Route::put('/{pregunta}', [ConstanciaPreguntaController::class, 'update'])->middleware('can:editar modulo examenes')->name('constancias_manejo.preguntas.update');
-        Route::delete('/{pregunta}', [ConstanciaPreguntaController::class, 'destroy'])->middleware('can:eliminar modulo examenes')->name('constancias_manejo.preguntas.destroy');
-    });
 
     Route::prefix('patrullas')->middleware('can:ver patrullas')->group(function () {
         Route::get('/',[PatrullaController::class,'index'])->name('patrullas.index');

@@ -170,23 +170,38 @@ class ConstanciaManejoController extends Controller
     public function create()
     {
         $modulos = $this->queryModulosDisponibles()->get();
+        $tiposModuloDisponibles = $modulos
+            ->pluck('tipo')
+            ->unique()
+            ->values();
 
-        return view('constancias_manejo.create', compact('modulos'));
+        return view('constancias_manejo.create', compact('modulos', 'tiposModuloDisponibles'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
+            'tipo_modulo' => ['required', 'in:SINIESTROS,DELEGACION'],
             'modulo_id' => ['required', 'exists:constancia_modulos,id'],
             'cantidad' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
         $moduloPermitido = $this->queryModulosDisponibles()
             ->where('id', $request->modulo_id)
-            ->exists();
+            ->first();
 
         if (!$moduloPermitido) {
-            return redirect()->route('constancias_manejo.create')->with('error', 'No tienes permiso para generar constancias en este modulo.');
+            return redirect()
+                ->route('constancias_manejo.create')
+                ->withInput()
+                ->withErrors(['modulo_id' => 'No tienes permiso para generar constancias en este módulo.']);
+        }
+
+        if ($moduloPermitido->tipo !== $request->tipo_modulo) {
+            return redirect()
+                ->route('constancias_manejo.create')
+                ->withInput()
+                ->withErrors(['modulo_id' => 'El módulo seleccionado no pertenece al origen indicado.']);
         }
 
         $loteUuid = (string) Str::uuid();

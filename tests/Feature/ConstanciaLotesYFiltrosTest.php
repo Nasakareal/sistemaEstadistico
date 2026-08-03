@@ -120,6 +120,36 @@ class ConstanciaLotesYFiltrosTest extends TestCase
         $this->assertSame('11111111-1111-4111-8111-111111111111', $data['lotes']->first()->lote_uuid);
     }
 
+    public function test_superadmin_recibe_los_origenes_separados_al_generar_un_lote(): void
+    {
+        $view = $this->app->make(ConstanciaManejoController::class)->create();
+        $data = $view->getData();
+
+        $this->assertEqualsCanonicalizing(
+            ['SINIESTROS', 'DELEGACION'],
+            $data['tiposModuloDisponibles']->all()
+        );
+        $this->assertCount(2, $data['modulos']);
+    }
+
+    public function test_superadmin_no_puede_mezclar_el_origen_con_otro_tipo_de_modulo(): void
+    {
+        $request = Request::create('/constancias-manejo', 'POST', [
+            'tipo_modulo' => 'SINIESTROS',
+            'modulo_id' => 2,
+            'cantidad' => 1,
+        ]);
+        $request->setLaravelSession($this->app['session.store']);
+        $this->app->instance('request', $request);
+
+        $response = $this->app->make(ConstanciaManejoController::class)->store($request);
+
+        $this->assertSame(route('constancias_manejo.create'), $response->getTargetUrl());
+        $this->assertTrue($this->app['session.store']->get('errors')->has('modulo_id'));
+
+        $this->assertDatabaseCount('constancias_manejo', 2);
+    }
+
     public function test_descarga_el_lote_completo_como_pdf(): void
     {
         $response = $this->app->make(ConstanciaManejoController::class)

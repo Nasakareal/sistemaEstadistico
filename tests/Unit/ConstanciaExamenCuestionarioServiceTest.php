@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Models\ConstanciaPregunta;
+use App\Models\ConstanciaRespuesta;
 use App\Services\ConstanciaExamenCuestionarioService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +70,17 @@ class ConstanciaExamenCuestionarioServiceTest extends TestCase
         $this->assertNotSame($primera->pluck('id')->all(), $otroExamen->pluck('id')->all());
         $this->assertFalse($primera->contains('pregunta', 'Pregunta inactiva'));
         $this->assertTrue($primera->every(fn ($pregunta) => $pregunta->respuestas->count() === 3));
+    }
+
+    public function test_limpia_numeros_y_letras_duplicados_solo_para_impresion(): void
+    {
+        $pregunta = new ConstanciaPregunta(['pregunta' => '12.- En una glorieta, ¿qué debes hacer?']);
+        $respuesta = new ConstanciaRespuesta(['respuesta' => 'A) Ceder el paso']);
+
+        $this->assertSame('En una glorieta, ¿qué debes hacer?', $pregunta->texto_impresion);
+        $this->assertSame('Ceder el paso', $respuesta->texto_impresion);
+        $this->assertSame('12.- En una glorieta, ¿qué debes hacer?', $pregunta->pregunta);
+        $this->assertSame('A) Ceder el paso', $respuesta->respuesta);
     }
 
     private function crearPregunta(string $tipoLicencia, string $texto): void

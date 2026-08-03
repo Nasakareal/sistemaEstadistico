@@ -27,4 +27,11 @@ class ConstanciaPregunta extends Model
     {
         return $this->hasMany(ConstanciaExamenRespuesta::class, 'pregunta_id');
     }
+
+    public function getTextoImpresionAttribute(): string
+    {
+        $texto = (string) $this->pregunta;
+
+        return preg_replace('/^\s*\d+\s*[\.\)\-:]+\s*/u', '', $texto) ?? $texto;
+    }
 }

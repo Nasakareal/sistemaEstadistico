@@ -741,7 +741,14 @@ return [
                     'text'    => 'Exámenes en Línea',
                     'icon'    => 'fa-solid fa-qrcode',
                     'classes' => 'text-white',
-                    'url'     => 'constancias-manejo/examenes',
+                    'url'     => 'constancias-manejo/examenes?modalidad=LINEA',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+                [
+                    'text'    => 'Exámenes Escritos',
+                    'icon'    => 'fa-solid fa-file-pen',
+                    'classes' => 'text-white',
+                    'url'     => 'constancias-manejo/examenes?modalidad=IMPRESO',
                     'can'     => 'menu-modulo-examenes',
                 ],
                 [
@@ -756,6 +763,13 @@ return [
                     'icon'    => 'fa-solid fa-clock',
                     'classes' => 'text-warning',
                     'url'     => 'constancias-manejo/examenes?estatus=APROBADO&sin_constancia=1',
+                    'can'     => 'menu-modulo-examenes',
+                ],
+                [
+                    'text'    => 'Banco de Preguntas',
+                    'icon'    => 'fa-solid fa-circle-question',
+                    'classes' => 'text-white',
+                    'url'     => 'constancias-manejo/preguntas',
                     'can'     => 'menu-modulo-examenes',
                 ],
             ],
@@ -794,13 +808,6 @@ return [
                     'classes' => 'text-white',
                     'url'     => 'admin/settings/roles',
                     'can'     => 'ver roles',
-                ],
-                [
-                    'text'    => 'Banco de Preguntas',
-                    'icon'    => 'fa-solid fa-circle-question',
-                    'classes' => 'text-white',
-                    'url'     => 'admin/settings/constancias/preguntas',
-                    'can'     => 'menu-modulo-examenes',
                 ],
                 [
                     'text'    => 'Oficios',

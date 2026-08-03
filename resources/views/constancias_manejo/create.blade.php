@@ -1,5 +1,7 @@
 @extends('adminlte::page')
 
+@section('plugins.Select2', true)
+
 @section('title', 'Generar Constancias de Manejo')
 
 @section('content_header')
@@ -62,7 +64,18 @@
                         <input type="text" class="form-control" value="{{ $moduloUnico->nombre }} - {{ $moduloUnico->tipo }}" readonly>
                     @else
                         <select name="modulo_id" id="modulo_id" class="form-control select2" required>
-                            <option value="">Seleccione primero el origen</option>
+                            <option value="">Seleccione un módulo</option>
+                            @foreach($modulos->groupBy('tipo') as $tipo => $modulosDelTipo)
+                                <optgroup label="{{ $tipo === 'SINIESTROS' ? 'Siniestros' : 'Delegaciones' }}">
+                                    @foreach($modulosDelTipo as $modulo)
+                                        <option value="{{ $modulo->id }}"
+                                                data-tipo="{{ $modulo->tipo }}"
+                                                {{ (string) old('modulo_id') === (string) $modulo->id ? 'selected' : '' }}>
+                                            {{ $modulo->nombre }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            @endforeach
                         </select>
                     @endif
                     @error('modulo_id')
@@ -350,19 +363,29 @@ $(function () {
     const moduloAnterior = @json((string) old('modulo_id', ''));
     const $tipoModulo = $('#tipo_modulo');
     const $modulo = $('#modulo_id');
+    const select2Disponible = typeof $.fn.select2 === 'function';
 
-    $modulo.select2({
-        width: '100%',
-        placeholder: 'Seleccione un módulo',
-        allowClear: true
-    });
+    if (select2Disponible) {
+        $modulo.select2({
+            width: '100%',
+            placeholder: 'Seleccione un módulo',
+            allowClear: true
+        });
+    }
+
+    function refrescarSelectorModulo() {
+        if (select2Disponible) {
+            $modulo.trigger('change.select2');
+        }
+    }
 
     function cargarModulos(tipo, seleccionado = '') {
         $modulo.empty();
 
         if (!tipo) {
             $modulo.append(new Option('Seleccione primero el origen', '', true, false));
-            $modulo.prop('disabled', true).trigger('change.select2');
+            $modulo.prop('disabled', true);
+            refrescarSelectorModulo();
             return;
         }
 
@@ -375,7 +398,8 @@ $(function () {
                 $modulo.append(opcion);
             });
 
-        $modulo.prop('disabled', false).trigger('change.select2');
+        $modulo.prop('disabled', false);
+        refrescarSelectorModulo();
     }
 
     @if(!$moduloUnico)

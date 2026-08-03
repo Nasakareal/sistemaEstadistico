@@ -132,6 +132,17 @@ class ConstanciaLotesYFiltrosTest extends TestCase
         $this->assertCount(2, $data['modulos']);
     }
 
+    public function test_selector_de_modulos_funciona_con_select2_y_con_respaldo_nativo(): void
+    {
+        $source = file_get_contents(resource_path('views/constancias_manejo/create.blade.php'));
+
+        $this->assertStringContainsString("@section('plugins.Select2', true)", $source);
+        $this->assertStringContainsString("typeof $.fn.select2 === 'function'", $source);
+        $this->assertStringContainsString("cargarModulos(this.value)", $source);
+        $this->assertStringContainsString("\$modulos->groupBy('tipo')", $source);
+        $this->assertStringContainsString('data-tipo="{{ $modulo->tipo }}"', $source);
+    }
+
     public function test_superadmin_no_puede_mezclar_el_origen_con_otro_tipo_de_modulo(): void
     {
         $request = Request::create('/constancias-manejo', 'POST', [

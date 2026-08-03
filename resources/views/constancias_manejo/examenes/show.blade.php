@@ -189,6 +189,12 @@
                     <h3 class="card-title">Acceso al examen</h3>
                 </div>
                 <div class="card-body text-center">
+                    @if($solicitud->modalidad === 'IMPRESO')
+                        <a href="{{ url('/constancias-manejo/examenes/' . $solicitud->getRouteKey() . '/descargar-pdf') }}" class="btn btn-success btn-lg btn-block mb-3">
+                            <i class="fa-solid fa-file-pdf"></i> Descargar examen PDF
+                        </a>
+                    @endif
+
                     @if($tokenVigente && $qrBase64)
                         <img src="{{ $qrBase64 }}" alt="QR examen" class="img-fluid mb-3" style="max-width: 230px;">
                         <input type="text" class="form-control mb-2" value="{{ $urlExamen }}" readonly>
@@ -196,7 +202,7 @@
                             <i class="fa-regular fa-copy"></i> Copiar enlace
                         </button>
                         <a href="{{ $urlExamen }}" target="_blank" class="btn btn-dark">
-                            <i class="fa-solid fa-up-right-from-square"></i> Abrir
+                            <i class="fa-solid fa-up-right-from-square"></i> Vista para imprimir
                         </a>
                         <div class="text-muted mt-3">
                             Expira: {{ $solicitud->token_expira ? $solicitud->token_expira->format('d-m-Y H:i') : 'N/A' }}

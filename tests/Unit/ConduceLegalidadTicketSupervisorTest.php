@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\ConduceLegalidadController;
 use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadOperativo;
+use App\Models\Delegacion;
 use App\Models\User;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -78,6 +79,30 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
 
         $this->assertSame('Operativo de Alcoholimetría', $nombre);
         $this->assertStringNotContainsString('Prevención', $nombre);
+    }
+
+    public function test_delegation_reference_exposes_its_full_address_for_tickets(): void
+    {
+        $delegacion = new Delegacion();
+        $delegacion->forceFill([
+            'id' => 6,
+            'nombre' => 'Pátzcuaro',
+            'direccion_completa' => 'Av. Lázaro Cárdenas 120, Centro, Pátzcuaro, Mich.',
+        ]);
+
+        $method = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'refPayload'
+        );
+        $method->setAccessible(true);
+        $payload = $method->invoke(
+            new ConduceLegalidadController(),
+            $delegacion
+        );
+
+        $this->assertSame(6, $payload['id']);
+        $this->assertSame('Pátzcuaro', $payload['nombre']);
+        $this->assertSame($delegacion->direccion_completa, $payload['direccion_completa']);
     }
 
     private function appendSupervisor(

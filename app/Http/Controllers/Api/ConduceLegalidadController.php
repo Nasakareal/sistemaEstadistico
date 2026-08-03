@@ -134,7 +134,7 @@ class ConduceLegalidadController extends Controller
         ]);
 
         $query = ConduceLegalidadOperativo::query()
-            ->with('creador')
+            ->with(['creador', 'delegacion'])
             ->withCount([
                 'capturas',
                 'capturas as mis_capturas_count' => function ($capturas) use ($user) {
@@ -2607,6 +2607,8 @@ class ConduceLegalidadController extends Controller
 
     private function operativoPayload(ConduceLegalidadOperativo $operativo, $user, $capturas = null): array
     {
+        $operativo->loadMissing('delegacion');
+
         $isManager = $this->canManage($user);
         $alimentacionCierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
         $misCapturas = $operativo->mis_capturas_count;
@@ -2625,6 +2627,7 @@ class ConduceLegalidadController extends Controller
             'fecha' => optional($operativo->fecha)->toDateString(),
             'unidad_id' => $operativo->unidad_id,
             'delegacion_id' => $operativo->delegacion_id,
+            'delegacion' => $this->refPayload($operativo->delegacion),
             'hora_inicio' => $operativo->hora_inicio,
             'hora_cierre' => $operativo->hora_cierre,
             'municipio' => $operativo->municipio,
@@ -2880,6 +2883,7 @@ class ConduceLegalidadController extends Controller
         return [
             'id' => $model->id,
             'nombre' => $model->nombre ?? $model->name ?? null,
+            'direccion_completa' => $model->direccion_completa ?? null,
         ];
     }
 

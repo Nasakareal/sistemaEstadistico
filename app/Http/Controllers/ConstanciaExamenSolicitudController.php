@@ -7,6 +7,8 @@ use App\Models\ConstanciaExamen;
 use App\Models\ConstanciaExamenSolicitud;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaModulo;
+use App\Services\ConstanciaExamenCuestionarioService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
@@ -25,6 +27,13 @@ class ConstanciaExamenSolicitudController extends Controller
         'MOTOCICLISTA' => 'Motociclista',
         'PERMISO' => 'Permiso',
     ];
+
+    private $cuestionarios;
+
+    public function __construct(ConstanciaExamenCuestionarioService $cuestionarios)
+    {
+        $this->cuestionarios = $cuestionarios;
+    }
 
     public function index(Request $request)
     {
@@ -149,6 +158,38 @@ class ConstanciaExamenSolicitudController extends Controller
             'qrBase64' => $tokenVigente ? $this->qrDataUri($urlExamen) : null,
             'tokenVigente' => $tokenVigente,
         ]);
+    }
+
+    public function descargarPdf(ConstanciaExamenSolicitud $solicitud)
+    {
+        $this->authorizeSolicitud($solicitud);
+
+        abort_unless($solicitud->modalidad === 'IMPRESO', 404);
+
+        $solicitud->load(['modulo', 'constancia']);
+        $preguntas = $this->cuestionarios->generar($solicitud->tipo_licencia, $solicitud->token);
+
+        if ($preguntas->count() < ConstanciaExamenCuestionarioService::TOTAL_PREGUNTAS) {
+            return redirect()
+                ->route('constancias_manejo.examenes.show', $solicitud)
+                ->with('error', 'No hay 20 preguntas activas para este tipo de licencia.');
+        }
+
+        $qrUrl = $this->examenSolicitudUrl($solicitud);
+        $nombreArchivo = 'examen-' . $solicitud->folio_examen . '.pdf';
+
+        return Pdf::loadView('constancia_preguntas.imprimir', [
+                'preguntas' => $preguntas,
+                'tipoLicencia' => $solicitud->tipo_licencia,
+                'tipoLicenciaLabel' => self::TIPOS_LICENCIA[$solicitud->tipo_licencia] ?? str_replace('_', ' ', $solicitud->tipo_licencia),
+                'logoSrc' => $this->imageDataUri(public_path('img/blanco.png')) ?? asset('img/blanco.png'),
+                'constancia' => $solicitud,
+                'qrUrl' => $qrUrl,
+                'qrBase64' => $this->qrDataUri($qrUrl),
+                'modoPdf' => true,
+            ])
+            ->setPaper('letter')
+            ->download($nombreArchivo);
     }
 
     public function capturarImpreso(Request $request, ConstanciaExamenSolicitud $solicitud)
@@ -417,6 +458,22 @@ class ConstanciaExamenSolicitudController extends Controller
             ->setBackgroundColor(new Color(255, 255, 255));
 
         return 'data:image/png;base64,' . base64_encode((new PngWriter())->write($qrCode)->getString());
+    }
+
+    private function imageDataUri(string $path): ?string
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            return null;
+        }
+
+        $mime = mime_content_type($path) ?: 'image/png';
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            return null;
+        }
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 
     private function cleanQrToken(string $raw): string

@@ -153,6 +153,7 @@ Route::prefix('constancias-manejo')->middleware(['auth','can:ver modulo examenes
     Route::get('/examenes', [ConstanciaExamenSolicitudController::class, 'index'])->name('constancias_manejo.examenes.index');
     Route::get('/examenes/create', [ConstanciaExamenSolicitudController::class, 'create'])->middleware('can:crear modulo examenes')->name('constancias_manejo.examenes.create');
     Route::post('/examenes', [ConstanciaExamenSolicitudController::class, 'store'])->middleware('can:crear modulo examenes')->name('constancias_manejo.examenes.store');
+    Route::get('/examenes/{solicitud}/descargar-pdf', [ConstanciaExamenSolicitudController::class, 'descargarPdf'])->name('constancias_manejo.examenes.descargar_pdf');
     Route::get('/examenes/{solicitud}', [ConstanciaExamenSolicitudController::class, 'show'])->name('constancias_manejo.examenes.show');
     Route::post('/examenes/{solicitud}/capturar-impreso', [ConstanciaExamenSolicitudController::class, 'capturarImpreso'])->middleware('can:editar modulo examenes')->name('constancias_manejo.examenes.capturar_impreso');
     Route::post('/examenes/{solicitud}/activar', [ConstanciaExamenSolicitudController::class, 'activar'])->middleware('can:editar modulo examenes')->name('constancias_manejo.examenes.activar');

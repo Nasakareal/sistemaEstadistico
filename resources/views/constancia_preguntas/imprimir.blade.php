@@ -40,15 +40,22 @@
         }
 
         .header {
-            position: relative;
-            min-height: 96px;
             margin-bottom: 8px;
         }
 
+        .header-table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .logo-cell {
+            text-align: center;
+            vertical-align: middle;
+            width: 92px;
+        }
+
         .logo {
-            position: absolute;
-            top: 0;
-            left: 8mm;
             width: 76px;
             height: 76px;
             object-fit: contain;
@@ -58,19 +65,22 @@
             text-align: center;
             font-weight: 700;
             font-size: 12pt;
-            padding-top: 54px;
+            padding: 0 92px 0 0;
             text-transform: uppercase;
+            vertical-align: middle;
         }
 
         .exam-meta {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
-            align-items: start;
+            border-collapse: collapse;
             border: 1px solid #111827;
-            padding: 8px 10px;
             margin: 6px 0 12px;
             font-size: 9.5pt;
+            width: 100%;
+        }
+
+        .exam-data {
+            padding: 8px 10px;
+            vertical-align: top;
         }
 
         .exam-meta strong {
@@ -79,10 +89,12 @@
         }
 
         .exam-qr {
+            padding: 6px 8px;
             width: 84px;
             text-align: center;
             font-size: 7pt;
             overflow-wrap: anywhere;
+            vertical-align: top;
         }
 
         .exam-qr img {
@@ -101,33 +113,34 @@
         }
 
         .question {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .question-title {
             font-weight: 700;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .answers {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            column-gap: 18px;
-            row-gap: 7px;
-            padding-left: 48px;
+            line-height: 1.35;
+            list-style-type: upper-alpha;
+            margin: 0 0 0 50px;
+            padding-left: 18px;
         }
 
-        .answer {
-            min-width: 0;
-            white-space: normal;
+        .answers li {
+            margin: 0 0 2px 0;
+            padding-left: 2px;
         }
 
         .empty {
             margin-top: 30px;
             text-align: center;
             font-weight: 700;
+        }
+
+        .page-break {
+            page-break-before: always;
         }
 
         @media print {
@@ -138,54 +151,65 @@
     </style>
 </head>
 <body>
-    <div class="actions">
-        <button type="button" onclick="window.print()">Imprimir</button>
-    </div>
+    @unless($modoPdf ?? false)
+        <div class="actions">
+            <button type="button" onclick="window.print()">Imprimir</button>
+        </div>
+    @endunless
 
     <main class="sheet">
         <div class="header">
-            @if(!empty($logoSrc))
-                <img src="{{ $logoSrc }}" class="logo" alt="Guardia Civil">
-            @endif
-            <div class="title">
-                EXAMEN TEORICO PARA OBTENER LICENCIA DE CONDUCIR TIPO {{ strtoupper($tipoLicenciaLabel) }}
-            </div>
+            <table class="header-table">
+                <tr>
+                    <td class="logo-cell">
+                        @if(!empty($logoSrc))
+                            <img src="{{ $logoSrc }}" class="logo" alt="Guardia Civil">
+                        @endif
+                    </td>
+                    <td class="title">
+                        EXAMEN TEORICO PARA OBTENER LICENCIA DE CONDUCIR TIPO {{ strtoupper($tipoLicenciaLabel) }}
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <div class="instructions">
-            <strong>INSTRUCCIONES:</strong> conteste lo que se indica, en las preguntas de opción múltiple no deberá contestar más de dos opciones o será anulada, Para aprobar deberá obtener mínimo 16 aciertos (80%).
+            <strong>INSTRUCCIONES:</strong> Conteste lo que se indica. En las preguntas de opción múltiple no deberá marcar más de una opción o la respuesta será anulada. Para aprobar deberá obtener mínimo 16 aciertos (80%).
         </div>
 
         @if(!empty($constancia) && !empty($qrBase64))
-            <section class="exam-meta">
-                <div>
-                    <div><strong>Folio:</strong> {{ $constancia->folio }}</div>
-                    <div><strong>Solicitante:</strong> {{ $constancia->nombre_solicitante }}</div>
-                    <div><strong>Sexo:</strong> {{ $constancia->sexo ?? 'N/D' }}</div>
-                    <div><strong>Licencia:</strong> {{ str_replace('_', ' ', $constancia->tipo_licencia) }}</div>
-                    <div><strong>Módulo:</strong> {{ optional($constancia->modulo)->nombre ?? 'N/D' }}</div>
-                </div>
-                <div class="exam-qr">
-                    <img src="{{ $qrBase64 }}" alt="QR del examen escrito">
-                    <div>Escanear para validar</div>
-                </div>
-            </section>
+            <table class="exam-meta">
+                <tr>
+                    <td class="exam-data">
+                        <div><strong>Folio:</strong> {{ $constancia->folio }}</div>
+                        <div><strong>Solicitante:</strong> {{ $constancia->nombre_solicitante }}</div>
+                        <div><strong>Sexo:</strong> {{ $constancia->sexo ?? 'N/D' }}</div>
+                        <div><strong>Licencia:</strong> {{ str_replace('_', ' ', $constancia->tipo_licencia) }}</div>
+                        <div><strong>Módulo:</strong> {{ optional($constancia->modulo)->nombre ?? 'N/D' }}</div>
+                    </td>
+                    <td class="exam-qr">
+                        <img src="{{ $qrBase64 }}" alt="QR del examen escrito">
+                        <div>Escanear para validar</div>
+                    </td>
+                </tr>
+            </table>
         @endif
 
         @forelse($preguntas as $index => $pregunta)
-            <section class="question">
+            @if(in_array($index, [3, 7, 11, 15], true))
+                <div class="page-break"></div>
+            @endif
+            <div class="question">
                 <div class="question-title">
                     {{ $index + 1 }}.- {{ $pregunta->pregunta }}
                 </div>
 
-                <div class="answers">
-                    @foreach($pregunta->respuestas as $respuestaIndex => $respuesta)
-                        <div class="answer">
-                            {{ chr(65 + $respuestaIndex) }}) {{ $respuesta->respuesta }}
-                        </div>
+                <ol class="answers" type="A">
+                    @foreach($pregunta->respuestas as $respuesta)
+                        <li>{{ $respuesta->respuesta }}</li>
                     @endforeach
-                </div>
-            </section>
+                </ol>
+            </div>
         @empty
             <div class="empty">
                 No hay preguntas activas para este tipo de licencia.

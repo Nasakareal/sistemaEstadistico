@@ -8,6 +8,7 @@ use App\Models\ConstanciaExamenSolicitud;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaPregunta;
 use App\Models\ConstanciaRespuesta;
+use App\Services\ConstanciaExamenCuestionarioService;
 use Carbon\Carbon;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
@@ -19,7 +20,14 @@ use Illuminate\Validation\ValidationException;
 
 class ConstanciaExamenPublicoController extends Controller
 {
-    private const TOTAL_PREGUNTAS = 20;
+    private const TOTAL_PREGUNTAS = ConstanciaExamenCuestionarioService::TOTAL_PREGUNTAS;
+
+    private $cuestionarios;
+
+    public function __construct(ConstanciaExamenCuestionarioService $cuestionarios)
+    {
+        $this->cuestionarios = $cuestionarios;
+    }
 
     public function escrito($token)
     {
@@ -54,17 +62,7 @@ class ConstanciaExamenPublicoController extends Controller
             ]);
         }
 
-        $preguntas = ConstanciaPregunta::with(['respuestas' => function ($query) {
-                $query->orderBy('id');
-            }])
-            ->where('activo', true)
-            ->where(function ($query) use ($constancia) {
-                $query->where('tipo_licencia', $constancia->tipo_licencia)
-                    ->orWhere('tipo_licencia', 'GENERAL');
-            })
-            ->inRandomOrder()
-            ->limit(self::TOTAL_PREGUNTAS)
-            ->get();
+        $preguntas = $this->preguntasPara($constancia->tipo_licencia, $token);
 
         if ($preguntas->count() < self::TOTAL_PREGUNTAS) {
             return view('constancias_manejo.examen.bloqueado', [
@@ -295,7 +293,7 @@ class ConstanciaExamenPublicoController extends Controller
             ]);
         }
 
-        $preguntas = $this->preguntasPara($solicitud->tipo_licencia);
+        $preguntas = $this->preguntasPara($solicitud->tipo_licencia, $token);
 
         if ($preguntas->count() < self::TOTAL_PREGUNTAS) {
             return view('constancias_manejo.examen.bloqueado', [
@@ -348,7 +346,7 @@ class ConstanciaExamenPublicoController extends Controller
             ]);
         }
 
-        $preguntas = $this->preguntasPara($solicitud->tipo_licencia);
+        $preguntas = $this->preguntasPara($solicitud->tipo_licencia, $token);
 
         if ($preguntas->count() < self::TOTAL_PREGUNTAS) {
             return view('constancias_manejo.examen.bloqueado', [
@@ -465,19 +463,9 @@ class ConstanciaExamenPublicoController extends Controller
         ]);
     }
 
-    private function preguntasPara(string $tipoLicencia)
+    private function preguntasPara(string $tipoLicencia, string $semilla)
     {
-        return ConstanciaPregunta::with(['respuestas' => function ($query) {
-                $query->orderBy('id');
-            }])
-            ->where('activo', true)
-            ->where(function ($query) use ($tipoLicencia) {
-                $query->where('tipo_licencia', $tipoLicencia)
-                    ->orWhere('tipo_licencia', 'GENERAL');
-            })
-            ->inRandomOrder()
-            ->limit(self::TOTAL_PREGUNTAS)
-            ->get();
+        return $this->cuestionarios->generar($tipoLicencia, $semilla);
     }
 
     private function qrDataUri(string $url): string

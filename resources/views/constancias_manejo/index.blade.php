@@ -76,7 +76,7 @@
                                     <td>{{ optional($lote->usuario)->name ?? '—' }}</td>
                                     <td>
                                         @can('crear modulo examenes')
-                                            <a href="{{ route('constancias_manejo.lotes.descargar', $lote->lote_uuid) }}"
+                                            <a href="{{ url('/constancias-manejo/lotes/' . rawurlencode($lote->lote_uuid) . '/descargar') }}"
                                                class="btn btn-success btn-sm"
                                                title="Descargar lote completo en PDF">
                                                 <i class="fa-solid fa-file-pdf"></i> Descargar PDF

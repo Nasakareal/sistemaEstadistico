@@ -64,7 +64,7 @@
                             <th>Resultado</th>
                             <th>Constancia</th>
                             <th>Fecha examen</th>
-                            <th style="width: 110px;">Acciones</th>
+                            <th style="width: 150px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -109,6 +109,11 @@
                                     <a href="{{ route('constancias_manejo.examenes.show', $solicitud) }}" class="btn btn-info btn-sm">
                                         <i class="fa-regular fa-eye"></i>
                                     </a>
+                                    @if($solicitud->modalidad === 'IMPRESO')
+                                        <a href="{{ url('/constancias-manejo/examenes/' . $solicitud->getRouteKey() . '/descargar-pdf') }}" class="btn btn-success btn-sm" title="Descargar examen PDF">
+                                            <i class="fa-solid fa-file-pdf"></i>
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

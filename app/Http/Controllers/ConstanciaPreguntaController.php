@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConstanciaPregunta;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +20,62 @@ class ConstanciaPreguntaController extends Controller
         'SERVICIO_PUBLICO' => 'Servicio Público',
         'PERMISO' => 'Permiso',
     ];
+
+    public const TIPOS_EXAMEN_DESCARGABLES = [
+        'MOTOCICLISTA' => 'Motociclista',
+        'AUTOMOVILISTA' => 'Automovilista',
+        'CHOFER' => 'Chofer',
+        'SERVICIO_PUBLICO' => 'Servicio Público',
+        'PERMISO' => 'Permiso',
+    ];
+
+    public function descargas()
+    {
+        $conteosPorTipo = ConstanciaPregunta::query()
+            ->where('activo', true)
+            ->selectRaw('tipo_licencia, COUNT(*) as total')
+            ->groupBy('tipo_licencia')
+            ->pluck('total', 'tipo_licencia');
+
+        $preguntasGenerales = (int) $conteosPorTipo->get('GENERAL', 0);
+        $tiposExamen = collect(self::TIPOS_EXAMEN_DESCARGABLES)
+            ->map(fn ($label, $tipo) => [
+                'tipo' => $tipo,
+                'label' => $label,
+                'total' => $preguntasGenerales + (int) $conteosPorTipo->get($tipo, 0),
+            ])
+            ->values();
+
+        return view('constancia_preguntas.descargas', compact('tiposExamen'));
+    }
+
+    public function descargar(string $tipoLicencia)
+    {
+        abort_unless(array_key_exists($tipoLicencia, self::TIPOS_EXAMEN_DESCARGABLES), 404);
+
+        $preguntas = $this->preguntasParaTipo($tipoLicencia);
+
+        if ($preguntas->count() < 20) {
+            return redirect()
+                ->route('constancias_manejo.preguntas.descargas')
+                ->with('error', 'No se puede descargar el examen de '
+                    . self::TIPOS_EXAMEN_DESCARGABLES[$tipoLicencia]
+                    . ': sólo hay ' . $preguntas->count() . ' preguntas activas de las 20 necesarias.');
+        }
+
+        $tipoLicenciaLabel = self::TIPOS_EXAMEN_DESCARGABLES[$tipoLicencia];
+        $logoSrc = $this->imageDataUri(public_path('img/blanco.png')) ?? asset('img/blanco.png');
+
+        return Pdf::loadView('constancia_preguntas.imprimir', [
+                'preguntas' => $preguntas,
+                'tipoLicencia' => $tipoLicencia,
+                'tipoLicenciaLabel' => $tipoLicenciaLabel,
+                'logoSrc' => $logoSrc,
+                'modoPdf' => true,
+            ])
+            ->setPaper('letter')
+            ->download('examen_' . Str::slug($tipoLicenciaLabel, '_') . '.pdf');
+    }
 
     public function index(Request $request)
     {
@@ -147,7 +205,21 @@ class ConstanciaPreguntaController extends Controller
 
         $tipoLicencia = $validated['tipo_licencia'];
 
-        $preguntas = ConstanciaPregunta::with(['respuestas' => function ($query) {
+        $preguntas = $this->preguntasParaTipo($tipoLicencia);
+
+        $logoSrc = $this->imageDataUri(public_path('img/blanco.png')) ?? asset('img/blanco.png');
+
+        return view('constancia_preguntas.imprimir', [
+            'preguntas' => $preguntas,
+            'tipoLicencia' => $tipoLicencia,
+            'tipoLicenciaLabel' => self::TIPOS_LICENCIA[$tipoLicencia],
+            'logoSrc' => $logoSrc,
+        ]);
+    }
+
+    private function preguntasParaTipo(string $tipoLicencia)
+    {
+        return ConstanciaPregunta::with(['respuestas' => function ($query) {
                 $query->orderBy('id');
             }])
             ->where('activo', true)
@@ -158,15 +230,6 @@ class ConstanciaPreguntaController extends Controller
             ->inRandomOrder()
             ->limit(20)
             ->get();
-
-        $logoSrc = $this->imageDataUri(public_path('img/blanco.png')) ?? asset('img/blanco.png');
-
-        return view('constancia_preguntas.imprimir', [
-            'preguntas' => $preguntas,
-            'tipoLicencia' => $tipoLicencia,
-            'tipoLicenciaLabel' => self::TIPOS_LICENCIA[$tipoLicencia],
-            'logoSrc' => $logoSrc,
-        ]);
     }
 
     private function imageDataUri(string $path): ?string

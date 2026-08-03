@@ -766,10 +766,10 @@ return [
                     'can'     => 'menu-modulo-examenes',
                 ],
                 [
-                    'text'    => 'Banco de Preguntas',
-                    'icon'    => 'fa-solid fa-circle-question',
+                    'text'    => 'Descargar Exámenes',
+                    'icon'    => 'fa-solid fa-file-arrow-down',
                     'classes' => 'text-white',
-                    'url'     => 'constancias-manejo/preguntas',
+                    'url'     => 'constancias-manejo/descargar-examenes',
                     'can'     => 'menu-modulo-examenes',
                 ],
             ],
@@ -786,6 +786,13 @@ return [
                     'icon'    => 'fas fa-fw fa-gear',
                     'classes' => 'text-white',
                     'url'     => 'admin/settings',
+                    'can'     => 'ver configuraciones',
+                ],
+                [
+                    'text'    => 'Banco de Preguntas',
+                    'icon'    => 'fa-solid fa-circle-question',
+                    'classes' => 'text-white',
+                    'url'     => 'constancias-manejo/preguntas',
                     'can'     => 'ver configuraciones',
                 ],
                 [

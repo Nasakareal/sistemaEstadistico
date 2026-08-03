@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Http\Controllers\ConstanciaPreguntaController;
 use App\Models\ConstanciaPregunta;
 use App\Models\ConstanciaRespuesta;
 use App\Services\ConstanciaExamenCuestionarioService;
@@ -81,6 +82,29 @@ class ConstanciaExamenCuestionarioServiceTest extends TestCase
         $this->assertSame('Ceder el paso', $respuesta->texto_impresion);
         $this->assertSame('12.- En una glorieta, ¿qué debes hacer?', $pregunta->pregunta);
         $this->assertSame('A) Ceder el paso', $respuesta->respuesta);
+    }
+
+    public function test_pagina_de_descargas_muestra_solo_tipos_de_examen_y_suma_preguntas_generales(): void
+    {
+        $view = app(ConstanciaPreguntaController::class)->descargas();
+        $tipos = $view->getData()['tiposExamen']->keyBy('tipo');
+
+        $this->assertCount(5, $tipos);
+        $this->assertFalse($tipos->has('GENERAL'));
+        $this->assertSame(30, $tipos->get('AUTOMOVILISTA')['total']);
+        $this->assertSame(5, $tipos->get('CHOFER')['total']);
+    }
+
+    public function test_descarga_directamente_el_examen_como_pdf(): void
+    {
+        $response = app(ConstanciaPreguntaController::class)->descargar('AUTOMOVILISTA');
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+        $this->assertStringContainsString(
+            'attachment; filename="examen_automovilista.pdf"',
+            $response->headers->get('content-disposition')
+        );
     }
 
     private function crearPregunta(string $tipoLicencia, string $texto): void

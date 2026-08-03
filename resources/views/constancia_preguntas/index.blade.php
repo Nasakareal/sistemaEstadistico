@@ -20,8 +20,8 @@
                         </a>
                     @endcan
 
-                    <a href="{{ route('constancias_manejo.examenes.index') }}" class="btn btn-secondary">
-                        <i class="fa-solid fa-arrow-left"></i> Módulos de Exámenes
+                    <a href="{{ route('settings.index') }}" class="btn btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Configuraciones
                     </a>
                 </div>
             </div>

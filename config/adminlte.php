@@ -573,6 +573,13 @@ return [
                             'can'     => 'menu-estadisticas-delegaciones',
                         ],
                         [
+                            'text'    => 'Control envío INEGI',
+                            'icon'    => 'fa-solid fa-file-circle-check',
+                            'classes' => 'text-info',
+                            'route'   => 'estadisticas_delegaciones.control_inegi',
+                            'can'     => 'menu-estadisticas-delegaciones',
+                        ],
+                        [
                             'text'    => 'Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',

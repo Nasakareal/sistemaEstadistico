@@ -15,6 +15,13 @@ class InegiChoquesExcelGenerator
 
     private int $ultimoTotal = 0;
 
+    private InegiChoquesSelectionService $selectionService;
+
+    public function __construct(?InegiChoquesSelectionService $selectionService = null)
+    {
+        $this->selectionService = $selectionService ?: new InegiChoquesSelectionService();
+    }
+
     public function generarAdjunto(Carbon $fecha): array
     {
         return $this->generarAdjuntoRango($fecha, $fecha);
@@ -82,6 +89,7 @@ class InegiChoquesExcelGenerator
             'name' => $nombreArchivo,
             'contents' => $this->exportarContenido($writer),
             'total' => $this->ultimoTotal,
+            'hecho_ids' => $hechos->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
         ];
     }
 
@@ -268,18 +276,9 @@ class InegiChoquesExcelGenerator
     private function queryHechos()
     {
         $query = DB::table('hechos as h')
-            ->leftJoin('users as creator', 'creator.id', '=', 'h.created_by')
-            ->where(function ($query) {
-                $query->whereRaw('COALESCE(h.unidad_org_id, creator.unidad_id) IS NULL')
-                    ->orWhereRaw('COALESCE(h.unidad_org_id, creator.unidad_id) <> ?', [2])
-                    ->orWhere('h.captura_completa', 1)
-                    ->orWhere(function ($completaPorConteo) {
-                        $completaPorConteo
-                            ->whereColumn('h.vehiculos_capturados', '>=', 'h.vehiculos_esperados')
-                            ->whereColumn('h.conductores_capturados', '>=', 'h.conductores_esperados')
-                            ->whereColumn('h.lesionados_capturados', '>=', 'h.lesionados_esperados');
-                    });
-            });
+            ->leftJoin('users as creator', 'creator.id', '=', 'h.created_by');
+
+        $this->selectionService->aplicarFiltroIncluidos($query);
 
         if ($this->legacyAccidentestDisponible()) {
             if ($this->legacyMapDisponible()) {

@@ -3,10 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Mail\FormatoInegiChoquesMail;
+use App\Models\InegiChoquesEnvio;
 use App\Services\Inegi\InegiChoquesExcelGenerator;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Throwable;
 
 class EnviarFormatoInegiChoques extends Command
 {
@@ -87,16 +91,68 @@ class EnviarFormatoInegiChoques extends Command
     {
         $adjunto = $generator->generarAdjuntoRango($desde, $hasta);
 
-        Mail::to($to)
-            ->cc($cc)
-            ->bcc($bcc)
-            ->send(new FormatoInegiChoquesMail(
-                $desde,
-                $adjunto['name'],
-                $adjunto['contents'],
-                (int) $adjunto['total'],
-                $hasta
-            ));
+        $auditoria = InegiChoquesEnvio::query()->firstOrNew([
+            'fecha_inicio' => $desde->toDateString(),
+            'fecha_fin' => $hasta->toDateString(),
+        ]);
+
+        $auditoria->estado = 'procesando';
+        $auditoria->intentos = (int) $auditoria->intentos + 1;
+        $auditoria->destinatarios = [
+            'to' => array_values($to),
+            'cc' => array_values($cc),
+            'bcc' => array_values($bcc),
+        ];
+        $auditoria->archivo_nombre = $adjunto['name'];
+        $auditoria->archivo_sha256 = hash('sha256', $adjunto['contents']);
+        $auditoria->total_registros = (int) $adjunto['total'];
+        $auditoria->ultimo_error = null;
+        $auditoria->save();
+
+        try {
+            Mail::to($to)
+                ->cc($cc)
+                ->bcc($bcc)
+                ->send(new FormatoInegiChoquesMail(
+                    $desde,
+                    $adjunto['name'],
+                    $adjunto['contents'],
+                    (int) $adjunto['total'],
+                    $hasta
+                ));
+
+            DB::transaction(function () use ($auditoria, $adjunto) {
+                $auditoria->update([
+                    'estado' => 'enviado',
+                    'enviado_at' => now(),
+                    'ultimo_error' => null,
+                ]);
+
+                DB::table('inegi_choques_envio_hechos')
+                    ->where('envio_id', $auditoria->id)
+                    ->delete();
+
+                $rows = collect($adjunto['hecho_ids'] ?? [])
+                    ->unique()
+                    ->map(fn ($hechoId) => [
+                        'envio_id' => $auditoria->id,
+                        'hecho_id' => (int) $hechoId,
+                    ])
+                    ->values()
+                    ->all();
+
+                foreach (array_chunk($rows, 500) as $chunk) {
+                    DB::table('inegi_choques_envio_hechos')->insert($chunk);
+                }
+            });
+        } catch (Throwable $e) {
+            $auditoria->update([
+                'estado' => 'fallido',
+                'ultimo_error' => Str::limit($e->getMessage(), 60000, ''),
+            ]);
+
+            throw $e;
+        }
 
         $this->info('Periodo reportado: ' . $desde->toDateString() . ' a ' . $hasta->toDateString());
         $this->info('Choques incluidos: ' . (int) $adjunto['total']);

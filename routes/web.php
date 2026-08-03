@@ -993,6 +993,10 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
 });
 
+Route::get('/estadisticas-delegaciones/control-inegi', [EstadisticasDelegacionesSettingsController::class, 'controlInegi'])
+    ->middleware(['auth', 'can:menu-estadisticas-delegaciones'])
+    ->name('estadisticas_delegaciones.control_inegi');
+
 Route::prefix('admin/settings/estadisticas-vialidad')->middleware(['auth'])->group(function () {
     Route::get('/', [EstadisticasVialidadSettingsController::class, 'index'])->name('settings.estadisticas_vialidad.index');
     Route::get('/excel-diario', [EstadisticasVialidadSettingsController::class, 'excelDiario'])->name('settings.estadisticas_vialidad.excel_diario');

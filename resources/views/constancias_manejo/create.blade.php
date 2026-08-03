@@ -335,13 +335,18 @@ span.select2-container span.select2-dropdown {
 @stop
 
 @section('js')
+@php
+    $modulosParaJavascript = $modulos->map(function ($modulo) {
+        return [
+            'id' => $modulo->id,
+            'nombre' => $modulo->nombre,
+            'tipo' => $modulo->tipo,
+        ];
+    })->values();
+@endphp
 <script>
 $(function () {
-    const modulos = @json($modulos->map(fn ($modulo) => [
-        'id' => $modulo->id,
-        'nombre' => $modulo->nombre,
-        'tipo' => $modulo->tipo,
-    ])->values());
+    const modulos = @json($modulosParaJavascript);
     const moduloAnterior = @json((string) old('modulo_id', ''));
     const $tipoModulo = $('#tipo_modulo');
     const $modulo = $('#modulo_id');

@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Delegacion;
 use App\Models\DelegacionActividadFisica;
 use App\Models\Hechos;
+use App\Models\InegiChoquesEnvio;
+use App\Services\Inegi\InegiChoquesSelectionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -422,6 +425,114 @@ class EstadisticasDelegacionesSettingsController extends Controller
         return view('admin.settings.estadisticas_delegaciones.excel_mensual.index', compact('cortes'));
     }
 
+    public function controlInegi(Request $request, InegiChoquesSelectionService $selectionService)
+    {
+        $this->ensureCanViewDelegacionesStats($request);
+
+        $tz = (string) config('app.schedule_timezone', config('app.timezone', 'America/Mexico_City'));
+        $ahora = now($tz);
+        $buscar = trim((string) $request->input('buscar', ''));
+        $seccion = (string) $request->input('seccion', 'proximos');
+        if (!in_array($seccion, ['enviados', 'proximos', 'pendientes'], true)) {
+            $seccion = 'proximos';
+        }
+
+        $envios = Schema::hasTable('inegi_choques_envios')
+            ? InegiChoquesEnvio::query()
+                ->where('estado', 'enviado')
+                ->orderByDesc('fecha_fin')
+                ->orderByDesc('enviado_at')
+                ->limit(18)
+                ->get()
+            : collect();
+
+        $envioSeleccionado = null;
+        $envioId = (int) $request->input('envio_id', 0);
+
+        if ($envioId > 0) {
+            $envioSeleccionado = $envios->firstWhere('id', $envioId);
+        }
+
+        if (!$envioSeleccionado) {
+            $envioSeleccionado = $envios->first();
+        }
+
+        if ($envioSeleccionado) {
+            $hechoIds = DB::table('inegi_choques_envio_hechos')
+                ->where('envio_id', $envioSeleccionado->id)
+                ->pluck('hecho_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $queryEnviados = $selectionService->queryDelegacionesManifestadas($hechoIds);
+            $enviadosDesde = Carbon::parse($envioSeleccionado->fecha_inicio->toDateString(), $tz)->startOfDay();
+            $enviadosHasta = Carbon::parse($envioSeleccionado->fecha_fin->toDateString(), $tz)->endOfDay();
+            $evidenciaExacta = true;
+        } else {
+            // Antes de esta actualización no se conservaba el manifiesto del correo.
+            // Se reconstruye el último mes con la misma regla del generador y se etiqueta como tal.
+            $enviadosDesde = $ahora->copy()->subMonthNoOverflow()->startOfMonth();
+            $enviadosHasta = $enviadosDesde->copy()->endOfMonth();
+            $queryEnviados = $selectionService->queryDelegacionesIncluidas($enviadosDesde, $enviadosHasta);
+            $evidenciaExacta = false;
+        }
+
+        $proximoDesde = $ahora->copy()->startOfMonth();
+        $proximoHasta = $ahora->copy()->endOfMonth();
+        $proximoEnvioAt = $ahora->copy()
+            ->addMonthNoOverflow()
+            ->startOfMonth()
+            ->setTimeFromTimeString((string) config('services.inegi_choques.schedule_time', '04:30'));
+
+        $queryProximos = $selectionService->queryDelegacionesIncluidas($proximoDesde, $proximoHasta);
+        $queryPendientes = $selectionService->queryDelegacionesPendientes($proximoDesde, $proximoHasta);
+
+        $resumen = [
+            'enviados_delegaciones' => (clone $queryEnviados)->count(),
+            'enviados_total_archivo' => $envioSeleccionado ? (int) $envioSeleccionado->total_registros : null,
+            'proximos' => (clone $queryProximos)->count(),
+            'pendientes' => (clone $queryPendientes)->count(),
+        ];
+
+        $this->aplicarBusquedaControlInegi($queryEnviados, $buscar);
+        $this->aplicarBusquedaControlInegi($queryProximos, $buscar);
+        $this->aplicarBusquedaControlInegi($queryPendientes, $buscar);
+
+        $ordenar = function ($query) {
+            return $query
+                ->orderByDesc('h.fecha')
+                ->orderByDesc('h.hora')
+                ->orderByDesc('h.id');
+        };
+
+        $enviados = $ordenar($queryEnviados)
+            ->paginate(20, ['*'], 'pagina_enviados')
+            ->appends($request->query());
+        $proximos = $ordenar($queryProximos)
+            ->paginate(20, ['*'], 'pagina_proximos')
+            ->appends($request->query());
+        $pendientes = $ordenar($queryPendientes)
+            ->paginate(20, ['*'], 'pagina_pendientes')
+            ->appends($request->query());
+
+        return view('admin.settings.estadisticas_delegaciones.control_inegi.index', compact(
+            'envios',
+            'envioSeleccionado',
+            'enviados',
+            'proximos',
+            'pendientes',
+            'enviadosDesde',
+            'enviadosHasta',
+            'proximoDesde',
+            'proximoHasta',
+            'proximoEnvioAt',
+            'evidenciaExacta',
+            'buscar',
+            'seccion',
+            'resumen'
+        ));
+    }
+
     public function descargarExcelMensual(string $fecha)
     {
         $this->ensureCanViewDelegacionesStats(request());
@@ -436,6 +547,24 @@ class EstadisticasDelegacionesSettingsController extends Controller
             $nombreArchivo,
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
         );
+    }
+
+    private function aplicarBusquedaControlInegi($query, string $buscar): void
+    {
+        if ($buscar === '') {
+            return;
+        }
+
+        $query->where(function ($filtro) use ($buscar) {
+            $filtro
+                ->where('h.id', $buscar)
+                ->orWhere('h.folio_c5i', 'like', '%' . $buscar . '%')
+                ->orWhere('h.tipo_hecho', 'like', '%' . $buscar . '%')
+                ->orWhere('h.municipio', 'like', '%' . $buscar . '%')
+                ->orWhere('h.calle', 'like', '%' . $buscar . '%')
+                ->orWhere('delegacion_inegi.nombre', 'like', '%' . $buscar . '%')
+                ->orWhere('regional_inegi.nombre', 'like', '%' . $buscar . '%');
+        });
     }
 
     private function obtenerGruasPorDelegacion(Request $request): array
@@ -665,6 +794,10 @@ class EstadisticasDelegacionesSettingsController extends Controller
         }
 
         if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        if ($user->can('menu-estadisticas-delegaciones')) {
             return true;
         }
 

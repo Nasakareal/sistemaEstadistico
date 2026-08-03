@@ -142,27 +142,34 @@ class BackupsSqlController extends Controller
         $inicio = Carbon::createFromFormat('Y-m-d', $fechaInicio, $tz)->startOfDay();
         $fin = Carbon::createFromFormat('Y-m-d', $fechaFin, $tz)->endOfDay();
 
-        $actividades = Actividad::query()
+        $actividadesBase = Actividad::query()
+            ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
+            ->whereDate('fecha', '>=', $inicio->toDateString())
+            ->whereDate('fecha', '<=', $fin->toDateString());
+
+        $hechosBase = Hechos::query()
+            ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
+            ->whereDate('fecha', '>=', $inicio->toDateString())
+            ->whereDate('fecha', '<=', $fin->toDateString());
+
+        $actividadesTotal = (clone $actividadesBase)->count();
+        $hechosTotal = (clone $hechosBase)->count();
+
+        $actividades = (clone $actividadesBase)
             ->with(['categoria', 'subcategoria', 'delegacion.padre', 'creador'])
             ->withCount('vehiculos')
-            ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
-            ->whereDate('fecha', '>=', $inicio->toDateString())
-            ->whereDate('fecha', '<=', $fin->toDateString())
             ->orderBy('fecha')
             ->orderBy('hora')
             ->orderBy('id')
-            ->get();
+            ->lazy(200);
 
-        $hechos = Hechos::query()
+        $hechos = (clone $hechosBase)
             ->with(['delegacion.padre', 'creator'])
             ->withCount(['vehiculos', 'lesionados'])
-            ->where('unidad_org_id', self::UNIDAD_DELEGACIONES_ID)
-            ->whereDate('fecha', '>=', $inicio->toDateString())
-            ->whereDate('fecha', '<=', $fin->toDateString())
             ->orderBy('fecha')
             ->orderBy('hora')
             ->orderBy('id')
-            ->get();
+            ->lazy(200);
 
         return [
             'fechaInicio' => $fechaInicio,
@@ -173,17 +180,19 @@ class BackupsSqlController extends Controller
             'actividades' => $actividades,
             'hechos' => $hechos,
             'resumen' => [
-                'actividades_total' => $actividades->count(),
-                'hechos_total' => $hechos->count(),
-                'hechos_pendientes' => $hechos->where('situacion', 'PENDIENTE')->count(),
-                'hechos_turnados' => $hechos->where('situacion', 'TURNADO')->count(),
-                'hechos_resueltos' => $hechos->where('situacion', 'RESUELTO')->count(),
+                'actividades_total' => $actividadesTotal,
+                'hechos_total' => $hechosTotal,
+                'hechos_pendientes' => (clone $hechosBase)->where('situacion', 'PENDIENTE')->count(),
+                'hechos_turnados' => (clone $hechosBase)->where('situacion', 'TURNADO')->count(),
+                'hechos_resueltos' => (clone $hechosBase)->where('situacion', 'RESUELTO')->count(),
             ],
         ];
     }
 
     private function downloadDelegacionesExcelFile(array $reporte)
     {
+        $this->prepareDelegacionesExcelRuntime();
+
         $spreadsheet = new Spreadsheet();
         $spreadsheet->getProperties()
             ->setCreator('Sistema Estadistico')
@@ -206,13 +215,53 @@ class BackupsSqlController extends Controller
             mkdir(dirname($tempPath), 0775, true);
         }
 
-        (new Xlsx($spreadsheet))->save($tempPath);
+        $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
+        $writer->save($tempPath);
+        $spreadsheet->disconnectWorksheets();
 
         return response()
             ->download($tempPath, $filename, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ])
             ->deleteFileAfterSend(true);
+    }
+
+    private function prepareDelegacionesExcelRuntime(): void
+    {
+        @set_time_limit(0);
+
+        $currentLimit = (string) ini_get('memory_limit');
+
+        if ($currentLimit !== '-1' && $this->phpIniSizeToBytes($currentLimit) < 256 * 1024 * 1024) {
+            @ini_set('memory_limit', '256M');
+        }
+    }
+
+    private function phpIniSizeToBytes(string $value): int
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return 0;
+        }
+
+        $unit = strtolower(substr($value, -1));
+        $number = (int) $value;
+
+        if ($unit === 'g') {
+            return $number * 1024 * 1024 * 1024;
+        }
+
+        if ($unit === 'm') {
+            return $number * 1024 * 1024;
+        }
+
+        if ($unit === 'k') {
+            return $number * 1024;
+        }
+
+        return $number;
     }
 
     private function fillDelegacionesActividadesSheet($sheet, array $reporte): void
@@ -262,7 +311,9 @@ class BackupsSqlController extends Controller
             $row++;
         }
 
-        $this->finishReportSheet($sheet, $row - 1, count($headers));
+        $this->finishReportSheet($sheet, $row - 1, [
+            10, 12, 10, 22, 22, 20, 22, 22, 30, 28, 50, 20, 20, 20, 18, 24,
+        ]);
     }
 
     private function fillDelegacionesHechosSheet($sheet, array $reporte): void
@@ -314,7 +365,9 @@ class BackupsSqlController extends Controller
             $row++;
         }
 
-        $this->finishReportSheet($sheet, $row - 1, count($headers));
+        $this->finishReportSheet($sheet, $row - 1, [
+            10, 12, 10, 18, 22, 22, 20, 24, 16, 28, 24, 30, 18, 12, 12, 18, 24,
+        ]);
     }
 
     private function writeReportHeader($sheet, array $reporte, string $title, int $columnCount): void
@@ -342,11 +395,16 @@ class BackupsSqlController extends Controller
 
         $sheet->getStyle($range)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
         $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1F4F82');
-        $sheet->getStyle($range)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($range)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $sheet->getRowDimension($row)->setRowHeight(34);
     }
 
-    private function finishReportSheet($sheet, int $lastRow, int $columnCount): void
+    private function finishReportSheet($sheet, int $lastRow, array $columnWidths): void
     {
+        $columnCount = count($columnWidths);
         $lastColumn = $this->columnLetter($columnCount);
 
         if ($lastRow < 7) {
@@ -370,8 +428,8 @@ class BackupsSqlController extends Controller
         $sheet->freezePane('A7');
         $sheet->setAutoFilter('A6:' . $lastColumn . $lastRow);
 
-        for ($i = 1; $i <= $columnCount; $i++) {
-            $sheet->getColumnDimension($this->columnLetter($i))->setAutoSize(true);
+        foreach ($columnWidths as $index => $width) {
+            $sheet->getColumnDimension($this->columnLetter($index + 1))->setWidth($width);
         }
     }
 

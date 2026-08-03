@@ -14,6 +14,18 @@
         <strong>{{ $hasta->format('d/m/Y') }}</strong>.
     </p>
 
+    @if ($motivoReenvio)
+        <p>
+            Este correo corresponde a un reenvío corregido. El motivo es:
+            <strong>{{ $motivoReenvio }}</strong>
+        </p>
+
+        <p>
+            Ofrecemos una disculpa por el inconveniente y agradecemos que se considere este archivo
+            en sustitución del enviado anteriormente.
+        </p>
+    @endif
+
     <p>Total de choques incluidos: <strong>{{ $totalChoques }}</strong>.</p>
 
     <p>Saludos.</p>

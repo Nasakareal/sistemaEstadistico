@@ -19,7 +19,8 @@ class EnviarFormatoInegiChoques extends Command
         {--desde= : Fecha inicial del rango de choques a enviar (YYYY-MM-DD).}
         {--hasta= : Fecha final del rango de choques a enviar (YYYY-MM-DD).}
         {--mes-actual : Envia del dia 1 del mes actual hasta hoy menos dos dias.}
-        {--mes-anterior : Envia todo el mes calendario anterior. Es el comportamiento por default.}';
+        {--mes-anterior : Envia todo el mes calendario anterior. Es el comportamiento por default.}
+        {--motivo-reenvio= : Motivo que aparecera en el correo junto con una disculpa.}';
     protected $description = 'Genera el formato INEGI de choques y lo envia por correo en un solo adjunto.';
 
     public function handle(InegiChoquesExcelGenerator $generator): int
@@ -42,7 +43,9 @@ class EnviarFormatoInegiChoques extends Command
             return self::SUCCESS;
         }
 
-        $this->enviarRango($generator, $desde, $hasta, $to, $cc, $bcc);
+        $motivoReenvio = trim((string) $this->option('motivo-reenvio')) ?: null;
+
+        $this->enviarRango($generator, $desde, $hasta, $to, $cc, $bcc, $motivoReenvio);
 
         $this->info('Envio INEGI completado.');
 
@@ -87,7 +90,15 @@ class EnviarFormatoInegiChoques extends Command
         ];
     }
 
-    protected function enviarRango(InegiChoquesExcelGenerator $generator, Carbon $desde, Carbon $hasta, array $to, array $cc, array $bcc): void
+    protected function enviarRango(
+        InegiChoquesExcelGenerator $generator,
+        Carbon $desde,
+        Carbon $hasta,
+        array $to,
+        array $cc,
+        array $bcc,
+        ?string $motivoReenvio = null
+    ): void
     {
         $adjunto = $generator->generarAdjuntoRango($desde, $hasta);
 
@@ -118,7 +129,8 @@ class EnviarFormatoInegiChoques extends Command
                     $adjunto['name'],
                     $adjunto['contents'],
                     (int) $adjunto['total'],
-                    $hasta
+                    $hasta,
+                    $motivoReenvio
                 ));
 
             DB::transaction(function () use ($auditoria, $adjunto) {

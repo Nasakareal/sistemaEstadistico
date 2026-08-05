@@ -236,6 +236,10 @@
                         <label class="rt-field"><span>Color de ruta</span><input id="rtActorColor" type="color" class="form-control form-control-sm"></label>
                         <label class="rt-field"><span>Velocidad inicial</span><div class="input-group input-group-sm"><input id="rtActorSpeed" type="number" class="form-control" min="0" max="300" step="1"><div class="input-group-append"><span class="input-group-text">km/h</span></div></div></label>
                     </div>
+                    <div class="rt-field-row">
+                        <label class="rt-field"><span>Largo</span><div class="input-group input-group-sm"><input id="rtActorLength" type="number" class="form-control" min="40" max="400" step="5"><div class="input-group-append"><span class="input-group-text">%</span></div></div></label>
+                        <label class="rt-field"><span>Ancho</span><div class="input-group input-group-sm"><input id="rtActorWidth" type="number" class="form-control" min="40" max="400" step="5"><div class="input-group-append"><span class="input-group-text">%</span></div></div></label>
+                    </div>
                     <div class="rt-rotation-control">
                         <div class="rt-rotation-control__head">
                             <span>Orientación en el tiempo actual</span>
@@ -249,9 +253,10 @@
                             <input id="rtActorRotationRange" type="range" min="-180" max="180" step="1" value="0">
                             <button type="button" data-rotate-actor="15" title="Girar 15° a la derecha">15° <i class="fas fa-redo"></i></button>
                         </div>
-                        <small>También puedes arrastrar el manejador circular sobre la imagen.</small>
+                        <small>Usa los cuadros laterales para alargar o ensanchar; las esquinas ajustan ambas dimensiones. El círculo sirve para girar.</small>
                     </div>
                     <button id="rtStartPath" type="button" class="btn btn-sm btn-block btn-outline-info"><i class="fas fa-route mr-1"></i> Trazar trayectoria</button>
+                    <small class="d-block mt-2 text-muted">También puedes hacer clic sobre una trayectoria existente y arrastrar sus puntos numerados para corregirla.</small>
                     <div class="rt-subhead"><span>Fotogramas clave</span><button id="rtAddKeyframe" type="button"><i class="fas fa-plus"></i> En tiempo actual</button></div>
                     <div id="rtKeyframeList" class="rt-keyframes"></div>
                 </div>

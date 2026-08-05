@@ -69,6 +69,16 @@ class C5iSiniestrosRecommendationService
         ];
     }
 
+    public function isExcludedIncident(string $body): bool
+    {
+        $header = mb_substr(trim($body), 0, 160, 'UTF-8');
+
+        return preg_match(
+            '/^\s*(?:[^\p{L}\p{N}]+\s*)?(?:UBICACI[ÓO]N\s*:\s*)?(L4)(?:\s+\1)?\s+LLEGA\b/iu',
+            $header
+        ) === 1;
+    }
+
     private function processSafely(WhatsAppWebMessage $message): array
     {
         if (!(bool) config('services.whatsapp.c5i_recommendation.enabled', false)) {
@@ -83,6 +93,10 @@ class C5iSiniestrosRecommendationService
 
         if (!$this->sourceAllowed((string) $message->author_whatsapp_id)) {
             return $this->ignored($message, 'source_not_allowed');
+        }
+
+        if ($this->isExcludedIncident((string) $message->body)) {
+            return $this->ignored($message, 'arrival_code_not_relevant');
         }
 
         $incident = $this->parseIncident((string) $message->body);

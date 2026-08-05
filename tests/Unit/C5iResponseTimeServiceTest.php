@@ -34,6 +34,44 @@ class C5iResponseTimeServiceTest extends TestCase
         $this->assertFalse($service->isArrivalMessage('3252 K5'));
     }
 
+    public function test_no_registra_para_seguimiento_solo_reportes_llega_l4(): void
+    {
+        $this->configure(true);
+        $group = WhatsAppWebGroup::query()->firstOrCreate(
+            ['whatsapp_id' => '120363424100430316@g.us'],
+            ['name' => 'SINIESTROS GC', 'participant_count' => 57, 'last_seen_at' => now()]
+        );
+        $service = $this->service();
+
+        foreach (['L4', 'L4 L4'] as $code) {
+            $message = $this->message(
+                $group,
+                '5214437916890@c.us',
+                "📍Ubicación: {$code} LLEGA 13 DE BLOQUEO "
+                    . 'LATITUD:19.7000000 LONGITUD:-101.2500000',
+                now()
+            );
+
+            $result = $service->processMessage($message);
+
+            $this->assertSame('ignored', $result['status']);
+            $this->assertSame('arrival_code_not_relevant', $result['reason']);
+        }
+
+        $this->assertSame(0, C5iServiceResponse::query()->count());
+
+        $r4 = $this->message(
+            $group,
+            '5214437916890@c.us',
+            '📍Ubicación: R4 R4 LLEGA 13 DE BLOQUEO '
+                . 'LATITUD:19.7000000 LONGITUD:-101.2500000',
+            now()
+        );
+
+        $this->assertSame('incident_recorded', $service->processMessage($r4)['status']);
+        $this->assertSame(1, C5iServiceResponse::query()->count());
+    }
+
     public function test_informa_si_el_mensaje_de_arribo_se_envia_despues_del_arribo_gps(): void
     {
         $this->configure(true);

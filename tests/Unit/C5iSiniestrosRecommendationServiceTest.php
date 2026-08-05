@@ -102,6 +102,46 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
         $this->assertSame('sent', $message->fresh()->recommendation_status);
     }
 
+    public function test_ignora_solo_reportes_llega_con_clave_l4(): void
+    {
+        config([
+            'services.whatsapp.c5i_recommendation.enabled' => true,
+            'services.whatsapp.c5i_recommendation.dry_run' => false,
+            'services.whatsapp.c5i_recommendation.group_ids' => '120363424100430316@g.us',
+            'services.whatsapp.c5i_recommendation.source_author_ids' => '5214437916890@c.us',
+            'services.whatsapp.c5i_recommendation.to' => '5214438000001',
+            'services.whatsapp.c5i_recommendation.template' => 'recomendacion_unidad_siniestros_c5i_v1',
+        ]);
+
+        $cloud = $this->createMock(WhatsAppCloudService::class);
+        $cloud->expects($this->never())->method('sendTemplate');
+        $guard = $this->createMock(WhatsAppSendGuard::class);
+        $guard->expects($this->never())->method('reserve');
+        $service = new C5iSiniestrosRecommendationService($cloud, $guard);
+
+        foreach (['L4', 'L4 L4'] as $code) {
+            $message = $this->message(
+                "📍Ubicación: {$code} LLEGA 13 DE PORTACION DE ARMAS "
+                . 'LATITUD:19.696922181965796 LONGITUD:-101.25839301230336'
+            );
+
+            $result = $service->process($message);
+
+            $this->assertSame('ignored', $result['status']);
+            $this->assertSame('arrival_code_not_relevant', $result['reason']);
+            $this->assertSame('ignored', $message->fresh()->recommendation_status);
+            $this->assertSame(
+                'arrival_code_not_relevant',
+                $message->fresh()->recommendation_meta['reason']
+            );
+        }
+
+        $this->assertFalse($service->isExcludedIncident(
+            '📍Ubicación: R4 R4 LLEGA 13 DE PORTACION DE ARMAS '
+            . 'LATITUD:19.696922181965796 LONGITUD:-101.25839301230336'
+        ));
+    }
+
     private function patrullasConUbicacion(): array
     {
         $suffix = bin2hex(random_bytes(4));
@@ -155,7 +195,7 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
         return [$siniestrosPatrulla, $otherPatrulla];
     }
 
-    private function message(): WhatsAppWebMessage
+    private function message(?string $body = null): WhatsAppWebMessage
     {
         $group = WhatsAppWebGroup::query()->firstOrCreate(
             ['whatsapp_id' => '120363424100430316@g.us'],
@@ -170,7 +210,7 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
             'whatsapp_web_group_id' => $group->id,
             'whatsapp_message_id' => 'C5I-' . bin2hex(random_bytes(8)),
             'author_whatsapp_id' => '5214437916890@c.us',
-            'body' => 'AVENIDA FRANCISCO I. MADERO P #S/N POR CALLE PUERTO COATZACOALCOS '
+            'body' => $body ?: 'AVENIDA FRANCISCO I. MADERO P #S/N POR CALLE PUERTO COATZACOALCOS '
                 . 'LOCALIDAD: MORELIA COL.TINÍJARO MUNICIPIO:MORELIA KILOMETRO: SIN INFORMACIÓN '
                 . 'LATITUD:19.696922181965796 LONGITUD:-101.25839301230336',
             'message_type' => 'chat',

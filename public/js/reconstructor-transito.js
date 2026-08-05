@@ -38,6 +38,7 @@
         'rtPlaybackSpeed', 'rtTimeline', 'rtCurrentTime', 'rtDurationLabel',
         'rtEventTicks', 'rtNoSelection', 'rtActorInspector', 'rtEventInspector',
         'rtActorSwatch', 'rtActorTitle', 'rtActorName', 'rtActorColor', 'rtActorSpeed',
+        'rtActorLength', 'rtActorWidth',
         'rtActorRotation', 'rtActorRotationRange',
         'rtStartPath', 'rtAddKeyframe', 'rtKeyframeList', 'rtEventCode', 'rtEventTitle',
         'rtEventTime', 'rtEventDescription', 'rtActorCount', 'rtActorList',
@@ -80,6 +81,12 @@
     function normalizeAngle(value) {
         const angle = Number(value) || 0;
         return ((angle + 180) % 360 + 360) % 360 - 180;
+    }
+
+    function actorScale(actor, axis) {
+        const legacyScale = Number(actor && actor.scale) || 1;
+        const value = axis === 'x' ? actor && actor.scaleX : actor && actor.scaleY;
+        return clamp(value || legacyScale, .4, 4);
     }
 
     function deepClone(value) {
@@ -202,7 +209,10 @@
                 name: String(actor.name || (meta.label + ' ' + (index + 1))).slice(0, 80),
                 image: actor.image || (config.actorImages || {})[type] || '',
                 color: /^#[0-9a-f]{6}$/i.test(actor.color || '') ? actor.color : meta.color,
-                speedKmh: clamp(actor.speedKmh, 0, 300), keyframes: frames
+                speedKmh: clamp(actor.speedKmh, 0, 300),
+                scaleX: actorScale(actor, 'x'),
+                scaleY: actorScale(actor, 'y'),
+                keyframes: frames
             };
         }) : [];
         normalized.events = Array.isArray(raw.events) ? raw.events.filter(function (event) {
@@ -829,17 +839,25 @@
         const frames = actor.keyframes;
         if (frames.length < 2) return;
         const splitTime = impactTime();
+        const active = selected && selected.kind === 'actor' && selected.id === actor.id;
         ctx.save();
-        ctx.lineWidth = selected && selected.kind === 'actor' && selected.id === actor.id ? 4 : 3;
+        ctx.lineWidth = active ? 4 : 3;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         for (let i = 0; i < frames.length - 1; i++) {
             const from = frames[i];
             const to = frames[i + 1];
             const posterior = from.time >= splitTime;
+            ctx.setLineDash(posterior ? [10, 7] : []);
+            if (active) {
+                ctx.strokeStyle = 'rgba(255,255,255,.72)';
+                ctx.globalAlpha = 1;
+                ctx.lineWidth = 8;
+                ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+            }
             ctx.strokeStyle = actor.color;
             ctx.globalAlpha = posterior ? .7 : .9;
-            ctx.setLineDash(posterior ? [10, 7] : []);
+            ctx.lineWidth = active ? 4 : 3;
             ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
             drawArrow(from, to, actor.color, posterior ? .72 : .95);
         }
@@ -847,12 +865,12 @@
             ctx.setLineDash([]);
             ctx.globalAlpha = 1;
             ctx.fillStyle = '#0d1725';
-            ctx.strokeStyle = actor.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(frame.x, frame.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            if (selected && selected.kind === 'actor' && selected.id === actor.id) {
+            ctx.strokeStyle = active ? '#fff' : actor.color;
+            ctx.lineWidth = active ? 3 : 2;
+            ctx.beginPath(); ctx.arc(frame.x, frame.y, active ? 8 : 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            if (active) {
                 ctx.fillStyle = '#f8fafc'; ctx.font = '700 9px Arial';
-                ctx.fillText(index + 1, frame.x + 8, frame.y - 8);
+                ctx.fillText(index + 1, frame.x + 11, frame.y - 10);
             }
         });
         if (frames.length) {
@@ -893,6 +911,8 @@
         const position = actorPosition(actor, currentTime);
         if (!position) return;
         const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
+        const width = meta.width * actorScale(actor, 'x');
+        const height = meta.height * actorScale(actor, 'y');
         const image = getImage(actor.image);
         const active = selected && selected.kind === 'actor' && selected.id === actor.id;
         ctx.save();
@@ -904,34 +924,79 @@
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 4]);
-            ctx.strokeRect(-meta.width / 2 - 7, -meta.height / 2 - 7, meta.width + 14, meta.height + 14);
+            ctx.strokeRect(-width / 2 - 7, -height / 2 - 7, width + 14, height + 14);
             ctx.setLineDash([]);
         }
         if (image && image.complete && image.naturalWidth) {
-            ctx.drawImage(image, -meta.width / 2, -meta.height / 2, meta.width, meta.height);
+            ctx.drawImage(image, -width / 2, -height / 2, width, height);
         } else {
             ctx.fillStyle = actor.color;
-            ctx.fillRect(-meta.width / 2, -meta.height / 2, meta.width, meta.height);
+            ctx.fillRect(-width / 2, -height / 2, width, height);
             ctx.fillStyle = '#e5e7eb';
-            ctx.fillRect(-meta.width * .2, -meta.height * .38, meta.width * .38, meta.height * .76);
+            ctx.fillRect(-width * .2, -height * .38, width * .38, height * .76);
         }
         ctx.restore();
         ctx.save();
         ctx.font = '700 10px Arial';
         const labelWidth = ctx.measureText(actor.name).width + 12;
         ctx.fillStyle = 'rgba(4, 10, 18, .82)';
-        ctx.fillRect(position.x - labelWidth / 2, position.y + meta.height / 2 + 9, labelWidth, 17);
+        ctx.fillRect(position.x - labelWidth / 2, position.y + height / 2 + 9, labelWidth, 17);
         ctx.fillStyle = '#f8fafc';
         ctx.textAlign = 'center';
-        ctx.fillText(actor.name, position.x, position.y + meta.height / 2 + 21);
+        ctx.fillText(actor.name, position.x, position.y + height / 2 + 21);
         ctx.restore();
-        if (active && !playing) drawRotationHandle(actor, position);
+        if (active && !playing) {
+            drawResizeHandles(actor, position);
+            drawRotationHandle(actor, position);
+        }
+    }
+
+    function actorResizeHandles(actor, position) {
+        if (!actor || !position) return [];
+        const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
+        const halfWidth = (meta.width * actorScale(actor, 'x') / 2) + 7;
+        const halfHeight = (meta.height * actorScale(actor, 'y') / 2) + 7;
+        const angle = position.rotation * Math.PI / 180;
+        const cosine = Math.cos(angle);
+        const sine = Math.sin(angle);
+        return [
+            { name: 'nw', localX: -halfWidth, localY: -halfHeight },
+            { name: 'n', localX: 0, localY: -halfHeight },
+            { name: 'ne', localX: halfWidth, localY: -halfHeight },
+            { name: 'e', localX: halfWidth, localY: 0 },
+            { name: 'se', localX: halfWidth, localY: halfHeight },
+            { name: 's', localX: 0, localY: halfHeight },
+            { name: 'sw', localX: -halfWidth, localY: halfHeight },
+            { name: 'w', localX: -halfWidth, localY: 0 }
+        ].map(function (handle) {
+            return {
+                name: handle.name,
+                x: position.x + (handle.localX * cosine) - (handle.localY * sine),
+                y: position.y + (handle.localX * sine) + (handle.localY * cosine)
+            };
+        });
+    }
+
+    function drawResizeHandles(actor, position) {
+        ctx.save();
+        ctx.fillStyle = '#f8fafc';
+        ctx.strokeStyle = actor.color;
+        ctx.lineWidth = 2;
+        actorResizeHandles(actor, position).forEach(function (handle) {
+            ctx.beginPath();
+            ctx.rect(handle.x - 6, handle.y - 6, 12, 12);
+            ctx.fill();
+            ctx.stroke();
+        });
+        ctx.restore();
     }
 
     function rotationHandle(actor, position) {
         if (!actor || !position) return null;
         const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-        const distanceFromCenter = (Math.max(meta.width, meta.height) / 2) + 28;
+        const width = meta.width * actorScale(actor, 'x');
+        const height = meta.height * actorScale(actor, 'y');
+        const distanceFromCenter = (Math.max(width, height) / 2) + 28;
         const angle = (position.rotation - 90) * Math.PI / 180;
         return {
             x: position.x + (Math.cos(angle) * distanceFromCenter),
@@ -1086,7 +1151,13 @@
                 ].forEach(function (point) { include(roadWorldPoint(road, point.x, point.y), 20); });
             }
         });
-        project.actors.forEach(function (actor) { actor.keyframes.forEach(function (frame) { include(frame, 55); }); });
+        project.actors.forEach(function (actor) {
+            const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
+            const width = meta.width * actorScale(actor, 'x');
+            const height = meta.height * actorScale(actor, 'y');
+            const padding = (Math.max(width, height) / 2) + 35;
+            actor.keyframes.forEach(function (frame) { include(frame, padding); });
+        });
         project.events.forEach(function (event) { include(event, 35); });
         if (!Number.isFinite(bounds.minX)) return { minX: 0, minY: 0, maxX: canvas.width, maxY: canvas.height };
         return bounds;
@@ -1141,7 +1212,15 @@
                 const actor = project.actors[i];
                 const position = actorPosition(actor, currentTime);
                 const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-                if (position && Math.abs(point.x - position.x) <= meta.width / 2 + 12 && Math.abs(point.y - position.y) <= meta.height / 2 + 12) {
+                if (!position) continue;
+                const angle = -position.rotation * Math.PI / 180;
+                const dx = point.x - position.x;
+                const dy = point.y - position.y;
+                const localX = (dx * Math.cos(angle)) - (dy * Math.sin(angle));
+                const localY = (dx * Math.sin(angle)) + (dy * Math.cos(angle));
+                const scaleX = actorScale(actor, 'x');
+                const scaleY = actorScale(actor, 'y');
+                if (Math.abs(localX) <= (meta.width * scaleX / 2) + 12 && Math.abs(localY) <= (meta.height * scaleY / 2) + 12) {
                     return { kind: 'actor', id: actor.id };
                 }
             }
@@ -1180,12 +1259,48 @@
     }
 
     function distanceToSegment(point, start, end) {
+        return segmentProjection(point, start, end).distance;
+    }
+
+    function segmentProjection(point, start, end) {
         const dx = end.x - start.x;
         const dy = end.y - start.y;
         const lengthSquared = (dx * dx) + (dy * dy);
-        if (!lengthSquared) return distance(point, start);
+        if (!lengthSquared) return { distance: distance(point, start), progress: 0 };
         const progress = Math.max(0, Math.min(1, (((point.x - start.x) * dx) + ((point.y - start.y) * dy)) / lengthSquared));
-        return distance(point, { x: start.x + (progress * dx), y: start.y + (progress * dy) });
+        const closest = { x: start.x + (progress * dx), y: start.y + (progress * dy) };
+        return { distance: distance(point, closest), progress: progress };
+    }
+
+    function actorPathHit(point) {
+        if (project.layers.paths === false) return null;
+        const tolerance = clamp(12 / camera.zoom, 8, 22);
+        for (let actorIndex = project.actors.length - 1; actorIndex >= 0; actorIndex--) {
+            const actor = project.actors[actorIndex];
+            for (let frameIndex = actor.keyframes.length - 1; frameIndex >= 0; frameIndex--) {
+                const frame = actor.keyframes[frameIndex];
+                if (distance(point, frame) <= tolerance + 3) {
+                    return { actorId: actor.id, frameIndex: frameIndex, time: frame.time, node: true };
+                }
+            }
+        }
+        for (let actorIndex = project.actors.length - 1; actorIndex >= 0; actorIndex--) {
+            const actor = project.actors[actorIndex];
+            for (let frameIndex = actor.keyframes.length - 2; frameIndex >= 0; frameIndex--) {
+                const from = actor.keyframes[frameIndex];
+                const to = actor.keyframes[frameIndex + 1];
+                const projection = segmentProjection(point, from, to);
+                if (projection.distance <= tolerance) {
+                    return {
+                        actorId: actor.id,
+                        frameIndex: frameIndex,
+                        time: from.time + ((to.time - from.time) * projection.progress),
+                        node: false
+                    };
+                }
+            }
+        }
+        return null;
     }
 
     function curveRoadHandleHit(point, road) {
@@ -1194,6 +1309,14 @@
         const names = ['start', 'control1', 'control2', 'end'];
         for (let index = 0; index < names.length; index++) {
             if (distance(point, handles[names[index]]) <= 16) return names[index];
+        }
+        return null;
+    }
+
+    function actorResizeHandleHit(point, actor, position) {
+        const handles = actorResizeHandles(actor, position);
+        for (let index = 0; index < handles.length; index++) {
+            if (distance(point, handles[index]) <= 16) return handles[index];
         }
         return null;
     }
@@ -1281,6 +1404,7 @@
         const actor = {
             id: uid('actor'), type: type, name: meta.label + ' ' + (sameType + 1),
             image: (config.actorImages || {})[type] || '', color: meta.color, speedKmh: 0,
+            scaleX: 1, scaleY: 1,
             keyframes: [{ time: currentTime, x: center.x + offset, y: center.y + (offset % 180), rotation: 0 }]
         };
         project.actors.push(actor);
@@ -1403,6 +1527,8 @@
             el.rtActorName.value = actor.name;
             el.rtActorColor.value = actor.color;
             el.rtActorSpeed.value = actor.speedKmh;
+            el.rtActorLength.value = Math.round(actorScale(actor, 'x') * 100);
+            el.rtActorWidth.value = Math.round(actorScale(actor, 'y') * 100);
             updateActorRotationControls();
             renderKeyframes();
         }
@@ -1507,6 +1633,7 @@
         document.querySelectorAll('[data-tool]').forEach(function (button) { button.classList.toggle('active', button.dataset.tool === tool); });
         canvas.classList.toggle('is-path', tool === 'path');
         canvas.classList.toggle('is-pan', tool === 'pan');
+        canvas.classList.remove('is-path-hover', 'is-keyframe-hover');
         el.rtModeHelp.innerHTML = tool === 'path'
             ? '<i class="fas fa-route"></i> Sitúa la línea de tiempo y haz clic para añadir cada posición de la trayectoria.'
             : (tool === 'pan'
@@ -1608,6 +1735,19 @@
         }
         if (pendingEvent) { addEvent(pendingEvent, point); return; }
         if (tool === 'path') { addPathPoint(point); return; }
+        const pathHit = actorPathHit(point);
+        if (pathHit) {
+            selected = { kind: 'actor', id: pathHit.actorId };
+            setCurrentTime(pathHit.time);
+            if (pathHit.node) {
+                pushHistory();
+                dragging = { kind: 'keyframe', id: pathHit.actorId, frameIndex: pathHit.frameIndex };
+                canvas.setPointerCapture(event.pointerId);
+                canvas.classList.add('is-dragging');
+            }
+            renderAll();
+            return;
+        }
         const activeRoad = selectedRoad();
         const curveHandle = curveRoadHandleHit(point, activeRoad);
         if (curveHandle) {
@@ -1627,6 +1767,17 @@
         }
         const activeActor = selectedActor();
         const activePosition = activeActor ? actorPosition(activeActor, currentTime) : null;
+        const resizeHandle = activeActor && activePosition ? actorResizeHandleHit(point, activeActor, activePosition) : null;
+        if (resizeHandle) {
+            pushHistory();
+            dragging = {
+                kind: 'resize-actor', id: activeActor.id,
+                handle: resizeHandle.name
+            };
+            canvas.setPointerCapture(event.pointerId);
+            canvas.classList.add('is-dragging');
+            return;
+        }
         const handle = activeActor && activePosition ? rotationHandle(activeActor, activePosition) : null;
         if (handle && distance(point, handle) <= 16) {
             pushHistory();
@@ -1650,7 +1801,12 @@
         const screenPoint = canvasScreenPoint(event);
         const point = canvasPoint(event);
         el.rtCoordinate.textContent = 'x: ' + Math.round(point.x) + ' · y: ' + Math.round(point.y) + ' · ' + (point.x / project.metadata.pixelsPerMeter).toFixed(1) + ' m, ' + (point.y / project.metadata.pixelsPerMeter).toFixed(1) + ' m';
-        if (!dragging) return;
+        if (!dragging) {
+            const pathHover = tool === 'select' ? actorPathHit(point) : null;
+            canvas.classList.toggle('is-path-hover', Boolean(pathHover && !pathHover.node));
+            canvas.classList.toggle('is-keyframe-hover', Boolean(pathHover && pathHover.node));
+            return;
+        }
         if (dragging.kind === 'camera') {
             camera.panX = dragging.panX + (screenPoint.x - dragging.startX);
             camera.panY = dragging.panY + (screenPoint.y - dragging.startY);
@@ -1666,6 +1822,14 @@
                 const fields = roadCurveHandles(road)[dragging.handle].fields;
                 road.curve[fields[0]] = clamp(localX, -200, 200);
                 road.curve[fields[1]] = clamp(localY, -200, 200);
+            }
+        } else if (dragging.kind === 'keyframe') {
+            const actor = project.actors.find(function (item) { return item.id === dragging.id; });
+            const frame = actor && actor.keyframes[dragging.frameIndex];
+            if (actor && frame) {
+                frame.x = point.x;
+                frame.y = point.y;
+                recalculateRotations(actor);
             }
         } else if (dragging.kind === 'rotate-road') {
             const road = project.scene.roads.find(function (item) { return item.id === dragging.id; });
@@ -1683,6 +1847,25 @@
                 const rotation = (Math.atan2(point.y - position.y, point.x - position.x) * 180 / Math.PI) + 90;
                 upsertKeyframe(actor, currentTime, position.x, position.y, normalizeAngle(rotation), { manualRotation: true });
                 updateActorRotationControls();
+            }
+        } else if (dragging.kind === 'resize-actor') {
+            const actor = project.actors.find(function (item) { return item.id === dragging.id; });
+            const position = actor ? actorPosition(actor, currentTime) : null;
+            if (actor && position) {
+                const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
+                const angle = -position.rotation * Math.PI / 180;
+                const dx = point.x - position.x;
+                const dy = point.y - position.y;
+                const localX = (dx * Math.cos(angle)) - (dy * Math.sin(angle));
+                const localY = (dx * Math.sin(angle)) + (dy * Math.cos(angle));
+                if (/[ew]/.test(dragging.handle)) {
+                    actor.scaleX = clamp((Math.abs(localX) - 7) / (meta.width / 2), .4, 4);
+                }
+                if (/[ns]/.test(dragging.handle)) {
+                    actor.scaleY = clamp((Math.abs(localY) - 7) / (meta.height / 2), .4, 4);
+                }
+                el.rtActorLength.value = Math.round(actorScale(actor, 'x') * 100);
+                el.rtActorWidth.value = Math.round(actorScale(actor, 'y') * 100);
             }
         } else if (dragging.kind === 'actor') {
             const actor = project.actors.find(function (item) { return item.id === dragging.id; });
@@ -1708,7 +1891,10 @@
     }
     canvas.addEventListener('pointerup', endDrag);
     canvas.addEventListener('pointercancel', endDrag);
-    canvas.addEventListener('pointerleave', function () { el.rtCoordinate.textContent = 'x: — · y: —'; });
+    canvas.addEventListener('pointerleave', function () {
+        el.rtCoordinate.textContent = 'x: — · y: —';
+        canvas.classList.remove('is-path-hover', 'is-keyframe-hover');
+    });
     canvas.addEventListener('contextmenu', function (event) { event.preventDefault(); });
     canvas.addEventListener('wheel', function (event) {
         event.preventDefault();
@@ -1807,6 +1993,14 @@
     el.rtActorName.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.name = (el.rtActorName.value || ACTOR_META[actor.type].label).trim(); renderAll(); markDirty(); });
     el.rtActorColor.addEventListener('input', function () { const actor = selectedActor(); if (!actor) return; actor.color = el.rtActorColor.value; renderAll(); markDirty(); });
     el.rtActorSpeed.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.speedKmh = clamp(el.rtActorSpeed.value, 0, 300); renderAll(); markDirty(); });
+    el.rtActorLength.addEventListener('change', function () {
+        const actor = selectedActor(); if (!actor) return;
+        pushHistory(); actor.scaleX = clamp(Number(el.rtActorLength.value) / 100, .4, 4); renderAll(); markDirty();
+    });
+    el.rtActorWidth.addEventListener('change', function () {
+        const actor = selectedActor(); if (!actor) return;
+        pushHistory(); actor.scaleY = clamp(Number(el.rtActorWidth.value) / 100, .4, 4); renderAll(); markDirty();
+    });
     el.rtActorRotation.addEventListener('change', function () { if (!selectedActor()) return; pushHistory(); setActorRotation(el.rtActorRotation.value); });
     el.rtActorRotationRange.addEventListener('pointerdown', function () { if (selectedActor()) pushHistory(); });
     el.rtActorRotationRange.addEventListener('input', function () { setActorRotation(el.rtActorRotationRange.value); });

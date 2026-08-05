@@ -151,6 +151,11 @@ class C5iResponseTimeService
         }
 
         $body = $this->operationalText($message);
+
+        if ($this->recommendations->isExcludedIncident($body)) {
+            return ['status' => 'ignored', 'reason' => 'arrival_code_not_relevant'];
+        }
+
         $author = (string) $message->author_whatsapp_id;
         $incident = $this->recommendations->parseIncident($body);
         $normalized = $this->normalizedText($body);

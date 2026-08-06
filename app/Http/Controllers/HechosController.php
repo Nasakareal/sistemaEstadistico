@@ -130,6 +130,8 @@ class HechosController extends Controller
     {
         $usuario = auth()->user();
 
+        $this->normalizarLongitudRequest($request);
+
         if ($this->userCannotCreateHecho($usuario)) {
             return redirect()->route('hechos.index')->with('error', 'No tienes permiso para crear hechos.');
         }
@@ -519,6 +521,8 @@ class HechosController extends Controller
         if ($puedeEditarCoordenadasManual && $request->has('coordenadas_manual')) {
             $this->normalizarCoordenadasManualRequest($request, $hecho);
         }
+
+        $this->normalizarLongitudRequest($request);
 
         $reglaFolio = [
             'nullable',
@@ -960,6 +964,15 @@ class HechosController extends Controller
                 }
             },
         ];
+    }
+
+    private function normalizarLongitudRequest(Request $request): void
+    {
+        if ($request->has('lng') && is_numeric($request->input('lng'))) {
+            $request->merge([
+                'lng' => Hechos::normalizarLongitud($request->input('lng')),
+            ]);
+        }
     }
 
     private function normalizarCoordenadasManualRequest(Request $request, ?Hechos $hecho = null): void

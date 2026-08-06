@@ -22,18 +22,26 @@ class Personal extends Model
         'nombre',
         'ap_paterno',
         'ap_materno',
+        'fecha_nacimiento',
+        'tipo_sangre',
         'curp',
         'rfc',
+        'numero_seguro_social',
+        'correo_electronico',
         'cuip',
         'cup',
         'grado',
         'puesto',
         'adscripcion',
         'area',
+        'ultimo_grado_estudios',
+        'alergias_estado',
+        'alergias',
         'categoria',
         'foto',
         'estatus',
         'fecha_ingreso',
+        'fecha_ingreso_unidad',
         'fecha_baja',
     ];
 
@@ -42,9 +50,56 @@ class Personal extends Model
         'turno_id' => 'integer',
         'patrulla_id' => 'integer',
         'user_id' => 'integer',
+        'fecha_nacimiento' => 'date',
         'fecha_ingreso' => 'date',
+        'fecha_ingreso_unidad' => 'date',
         'fecha_baja' => 'date',
     ];
+
+    public const TIPOS_SANGRE = [
+        'A_POSITIVO' => 'A+',
+        'A_NEGATIVO' => 'A-',
+        'B_POSITIVO' => 'B+',
+        'B_NEGATIVO' => 'B-',
+        'AB_POSITIVO' => 'AB+',
+        'AB_NEGATIVO' => 'AB-',
+        'O_POSITIVO' => 'O+',
+        'O_NEGATIVO' => 'O-',
+        'DESCONOCIDO' => 'Desconocido',
+    ];
+
+    public const GRADOS_ESTUDIO = [
+        'SIN_ESTUDIOS' => 'Sin estudios',
+        'PRIMARIA' => 'Primaria',
+        'SECUNDARIA' => 'Secundaria',
+        'BACHILLERATO' => 'Bachillerato / preparatoria',
+        'CARRERA_TECNICA' => 'Carrera técnica',
+        'LICENCIATURA' => 'Licenciatura',
+        'ESPECIALIDAD' => 'Especialidad',
+        'MAESTRIA' => 'Maestría',
+        'DOCTORADO' => 'Doctorado',
+    ];
+
+    public const ESTADOS_ALERGIAS = [
+        'NINGUNA' => 'Ninguna conocida',
+        'SI' => 'Sí presenta alergias',
+        'DESCONOCIDAS' => 'Se desconoce',
+    ];
+
+    public function tipoSangreLabel(): ?string
+    {
+        return self::TIPOS_SANGRE[$this->tipo_sangre] ?? $this->tipo_sangre;
+    }
+
+    public function ultimoGradoEstudiosLabel(): ?string
+    {
+        return self::GRADOS_ESTUDIO[$this->ultimo_grado_estudios] ?? $this->ultimo_grado_estudios;
+    }
+
+    public function alergiasEstadoLabel(): ?string
+    {
+        return self::ESTADOS_ALERGIAS[$this->alergias_estado] ?? $this->alergias_estado;
+    }
 
     protected static function booted(): void
     {

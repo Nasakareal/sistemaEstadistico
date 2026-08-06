@@ -14,6 +14,9 @@
                     <h3 class="card-title">Personal Registrado</h3>
                     <div class="card-tools">
                         @can('crear personal')
+                            <button type="button" class="btn btn-success mr-2" data-toggle="modal" data-target="#modalImportarPersonal">
+                                <i class="fa-solid fa-file-excel"></i> Cargar archivo
+                            </button>
                             <a href="{{ url('/admin/settings/personal/create') }}" class="btn btn-primary">
                                 <i class="fa-solid fa-plus"></i> Crear Nuevo Personal
                             </a>
@@ -82,6 +85,57 @@
             </div>
         </div>
     </div>
+
+    @can('crear personal')
+        <div class="modal fade" id="modalImportarPersonal" tabindex="-1" role="dialog" aria-labelledby="tituloImportarPersonal" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <form action="{{ route('personal.importar') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="tituloImportarPersonal">Carga masiva de personal</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <strong>Unidad de destino:</strong>
+                                {{ $unidadImportacion->nombre ?? 'Sin unidad asignada' }}
+                                <br>
+                                <small>Todos los registros se guardarán en esta unidad. La unidad indicada dentro del Excel, si existiera, será ignorada.</small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="archivo_personal">Archivo Excel</label>
+                                <input type="file" name="archivo_personal" id="archivo_personal"
+                                       class="form-control-file @error('archivo_personal') is-invalid @enderror"
+                                       accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                                       required>
+                                <small class="form-text text-muted">Tamaño máximo: 50 MB.</small>
+                                @error('archivo_personal')
+                                    <span class="invalid-feedback d-block"><strong>{{ $message }}</strong></span>
+                                @enderror
+                            </div>
+
+                            <ul class="small text-muted mb-0 pl-3">
+                                <li>Se leerá la hoja <strong>BASE DE DATOS</strong> y la columna <strong>NOMBRE COMPLETO</strong>.</li>
+                                <li>La foto, armas, referencias, cursos y columnas no soportadas se ignorarán.</li>
+                                <li>Valores como <strong>A POSITIVO</strong>, <strong>O NEGATIVO</strong> o <strong>AB+</strong> se normalizarán automáticamente.</li>
+                                <li>El sistema omitirá personal ya registrado y nunca cambiará su unidad por medio de esta carga.</li>
+                            </ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-success" {{ $unidadImportacion ? '' : 'disabled' }}>
+                                <i class="fa-solid fa-upload"></i> Importar personal
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
 @stop
 
 @section('css')
@@ -143,6 +197,34 @@
                 showConfirmButton: false,
                 timer: 15000
             });
+        @endif
+
+        @if (session('import_result'))
+            @php($importResult = session('import_result'))
+            Swal.fire({
+                icon: {{ ($importResult['omitidos'] ?? 0) > 0 ? "'warning'" : "'success'" }},
+                title: 'Carga de personal terminada',
+                html: {!! json_encode(
+                    '<div class="text-left">' .
+                    '<p><strong>Unidad:</strong> ' . e($importResult['unidad'] ?? '') . '</p>' .
+                    '<p><strong>Importados:</strong> ' . (int) ($importResult['importados'] ?? 0) .
+                    '<br><strong>Omitidos:</strong> ' . (int) ($importResult['omitidos'] ?? 0) . '</p>' .
+                    (count($importResult['errores'] ?? [])
+                        ? '<hr><strong>Filas omitidas:</strong><ul>' . collect($importResult['errores'])->take(20)->map(fn ($error) => '<li>' . e($error) . '</li>')->implode('') . '</ul>'
+                        : '') .
+                    (count($importResult['advertencias'] ?? [])
+                        ? '<hr><strong>Advertencias:</strong><ul>' . collect($importResult['advertencias'])->take(20)->map(fn ($aviso) => '<li>' . e($aviso) . '</li>')->implode('') . '</ul>'
+                        : '') .
+                    '</div>',
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ) !!},
+                confirmButtonText: 'Aceptar',
+                width: 700
+            });
+        @endif
+
+        @if ($errors->has('archivo_personal'))
+            $('#modalImportarPersonal').modal('show');
         @endif
 
         $(document).on('click', '.delete-btn', function (e) {

@@ -20,6 +20,8 @@
             : ($fotoActual ? route('personal.fotos.principal', $personal->id) : null);
         $asignacionesActivas = $personal->asignaciones ? $personal->asignaciones->whereNull('fecha_fin') : collect();
         $documentosPersonal = $personal->documentos ?? collect();
+        $comprobanteEstudios = $documentosPersonal
+            ->first(fn ($documento) => optional($documento->documentoTipo)->clave === 'COMPROBANTE_ESTUDIOS');
         $licenciasPersonal = $personal->licencias ?? collect();
         $documentoTipos = $documentoTipos ?? collect();
         $documentoTipoSeleccionadoId = old('documento_tipo_id');
@@ -152,9 +154,57 @@
                                     {{ $personal->rfc ?? 'N/A' }}
                                 </div>
 
+                                <div class="col-md-3 mb-3">
+                                    <strong>Fecha de nacimiento:</strong><br>
+                                    {{ $personal->fecha_nacimiento ? $personal->fecha_nacimiento->format('d-m-Y') : 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Tipo de sangre:</strong><br>
+                                    {{ $personal->tipoSangreLabel() ?: 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Número de Seguro Social:</strong><br>
+                                    {{ $personal->numero_seguro_social ?? 'N/A' }}
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Correo electrónico:</strong><br>
+                                    @if($personal->correo_electronico)
+                                        <a href="mailto:{{ $personal->correo_electronico }}">{{ $personal->correo_electronico }}</a>
+                                    @else
+                                        N/A
+                                    @endif
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <strong>Último grado de estudios:</strong><br>
+                                    {{ $personal->ultimoGradoEstudiosLabel() ?: 'N/A' }}
+                                    @if($comprobanteEstudios && $comprobanteEstudios->archivo_path)
+                                        <br>
+                                        <a href="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('personal.documentos.signed', now()->addMinutes(30), ['documento' => $comprobanteEstudios->id, 'archivo' => 'general']) }}">
+                                            <i class="fa-solid fa-file-pdf"></i> Descargar comprobante
+                                        </a>
+                                    @endif
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <strong>Alergias:</strong><br>
+                                    {{ $personal->alergiasEstadoLabel() ?: 'N/A' }}
+                                    @if($personal->alergias_estado === 'SI' && $personal->alergias)
+                                        — {{ $personal->alergias }}
+                                    @endif
+                                </div>
+
                                 <div class="col-md-2 mb-3">
-                                    <strong>Ingreso:</strong><br>
+                                    <strong>Ingreso a SSP:</strong><br>
                                     {{ $personal->fecha_ingreso ? \Carbon\Carbon::parse($personal->fecha_ingreso)->format('d-m-Y') : 'N/A' }}
+                                </div>
+
+                                <div class="col-md-2 mb-3">
+                                    <strong>Ingreso a unidad / subdirección:</strong><br>
+                                    {{ $personal->fecha_ingreso_unidad ? $personal->fecha_ingreso_unidad->format('d-m-Y') : 'N/A' }}
                                 </div>
 
                                 <div class="col-md-2 mb-3">
@@ -610,7 +660,7 @@
                                             <td>{{ $doc->fecha_vencimiento ? $doc->fecha_vencimiento->format('d-m-Y') : 'N/A' }}</td>
                                             <td>
                                                 @if($doc->archivo_path)
-                                                    <a href="{{ asset('storage/' . $doc->archivo_path) }}" target="_blank">
+                                                    <a href="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('personal.documentos.signed', now()->addMinutes(30), ['documento' => $doc->id, 'archivo' => 'general']) }}" target="_blank">
                                                         {{ $doc->archivo_nombre ?: 'Ver archivo' }}
                                                     </a>
                                                 @else
@@ -626,7 +676,7 @@
                                                                 <span class="text-muted">({{ $doc->fecha_oficio->format('d-m-Y') }})</span>
                                                             @endif
                                                             @if($doc->archivo_oficio_comision)
-                                                                <a href="{{ asset('storage/' . $doc->archivo_oficio_comision) }}" target="_blank" class="ml-1">Archivo</a>
+                                                                <a href="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('personal.documentos.signed', now()->addMinutes(30), ['documento' => $doc->id, 'archivo' => 'comision']) }}" target="_blank" class="ml-1">Archivo</a>
                                                             @endif
                                                         </div>
                                                     @endif
@@ -640,7 +690,7 @@
                                                                 <span class="text-muted">({{ $doc->fecha_asignacion->format('d-m-Y') }})</span>
                                                             @endif
                                                             @if($doc->archivo_oficio_asignacion)
-                                                                <a href="{{ asset('storage/' . $doc->archivo_oficio_asignacion) }}" target="_blank" class="ml-1">Archivo</a>
+                                                                <a href="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('personal.documentos.signed', now()->addMinutes(30), ['documento' => $doc->id, 'archivo' => 'asignacion']) }}" target="_blank" class="ml-1">Archivo</a>
                                                             @endif
                                                         </div>
                                                     @endif

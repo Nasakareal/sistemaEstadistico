@@ -46,6 +46,8 @@ class SettingsPersonalController extends Controller
                         ->orWhere('ap_materno', 'like', "%{$q}%")
                         ->orWhere('numero_empleado', 'like', "%{$q}%")
                         ->orWhere('numero_placa', 'like', "%{$q}%")
+                        ->orWhere('numero_seguro_social', 'like', "%{$q}%")
+                        ->orWhere('correo_electronico', 'like', "%{$q}%")
                         ->orWhere('curp', 'like', "%{$q}%")
                         ->orWhere('cuip', 'like', "%{$q}%")
                         ->orWhere('cup', 'like', "%{$q}%")
@@ -236,17 +238,28 @@ class SettingsPersonalController extends Controller
             'ap_paterno' => $personal->ap_paterno,
             'ap_materno' => $personal->ap_materno,
             'nombre_completo' => $personal->nombre_completo,
+            'fecha_nacimiento' => optional($personal->fecha_nacimiento)->toDateString(),
+            'tipo_sangre' => $personal->tipo_sangre,
+            'tipo_sangre_label' => $personal->tipoSangreLabel(),
             'curp' => $personal->curp,
             'rfc' => $personal->rfc,
+            'numero_seguro_social' => $personal->numero_seguro_social,
+            'correo_electronico' => $personal->correo_electronico,
             'cuip' => $personal->cuip,
             'cup' => $personal->cup,
             'grado' => $personal->grado,
             'puesto' => $personal->puesto,
             'adscripcion' => $personal->adscripcion,
             'area' => $personal->area,
+            'ultimo_grado_estudios' => $personal->ultimo_grado_estudios,
+            'ultimo_grado_estudios_label' => $personal->ultimoGradoEstudiosLabel(),
+            'alergias_estado' => $personal->alergias_estado,
+            'alergias_estado_label' => $personal->alergiasEstadoLabel(),
+            'alergias' => $personal->alergias,
             'categoria' => $personal->categoria,
             'estatus' => $personal->estatus,
             'fecha_ingreso' => optional($personal->fecha_ingreso)->toDateString(),
+            'fecha_ingreso_unidad' => optional($personal->fecha_ingreso_unidad)->toDateString(),
             'fecha_baja' => optional($personal->fecha_baja)->toDateString(),
             'unidad_id' => $personal->unidad_id,
             'turno_id' => $personal->turno_id,

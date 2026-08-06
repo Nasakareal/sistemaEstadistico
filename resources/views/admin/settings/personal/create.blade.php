@@ -44,6 +44,38 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
+                                    <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                                    <input type="date" name="fecha_nacimiento" id="fecha_nacimiento"
+                                           class="form-control @error('fecha_nacimiento') is-invalid @enderror"
+                                           value="{{ old('fecha_nacimiento') }}">
+                                    @error('fecha_nacimiento')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tipo_sangre">Tipo de sangre</label>
+                                    <select name="tipo_sangre" id="tipo_sangre"
+                                            class="form-control @error('tipo_sangre') is-invalid @enderror">
+                                        <option value="">Seleccione</option>
+                                        @foreach($tiposSangre as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('tipo_sangre') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('tipo_sangre')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
                                     <label for="numero_empleado">Número de empleado</label>
                                     <input type="text" name="numero_empleado" id="numero_empleado"
                                            class="form-control @error('numero_empleado') is-invalid @enderror"
@@ -84,6 +116,35 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
+                                    <label for="numero_seguro_social">Número de Seguro Social (NSS)</label>
+                                    <input type="text" name="numero_seguro_social" id="numero_seguro_social"
+                                           class="form-control @error('numero_seguro_social') is-invalid @enderror"
+                                           value="{{ old('numero_seguro_social') }}" maxlength="20">
+                                    @error('numero_seguro_social')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="correo_electronico">Correo electrónico</label>
+                                    <input type="email" name="correo_electronico" id="correo_electronico"
+                                           class="form-control @error('correo_electronico') is-invalid @enderror"
+                                           value="{{ old('correo_electronico') }}" maxlength="255"
+                                           autocomplete="email">
+                                    @error('correo_electronico')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
                                     <label for="nombre">Nombre(s)</label>
                                     <input type="text" name="nombre" id="nombre"
                                            class="form-control @error('nombre') is-invalid @enderror"
@@ -113,6 +174,67 @@
                                            class="form-control @error('ap_materno') is-invalid @enderror"
                                            value="{{ old('ap_materno') }}">
                                     @error('ap_materno')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="ultimo_grado_estudios">Último grado de estudios</label>
+                                    <select name="ultimo_grado_estudios" id="ultimo_grado_estudios"
+                                            class="form-control @error('ultimo_grado_estudios') is-invalid @enderror">
+                                        <option value="">Seleccione</option>
+                                        @foreach($gradosEstudio as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('ultimo_grado_estudios') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('ultimo_grado_estudios')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="comprobante_estudios">Certificado o constancia (PDF)</label>
+                                    <input type="file" name="comprobante_estudios" id="comprobante_estudios"
+                                           class="form-control-file @error('comprobante_estudios') is-invalid @enderror"
+                                           accept="application/pdf,.pdf">
+                                    <small class="form-text text-muted">Máximo 10 MB.</small>
+                                    @error('comprobante_estudios')
+                                        <span class="invalid-feedback d-block"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="alergias_estado">Alergias</label>
+                                    <select name="alergias_estado" id="alergias_estado"
+                                            class="form-control @error('alergias_estado') is-invalid @enderror">
+                                        <option value="">Seleccione</option>
+                                        @foreach($estadosAlergias as $valor => $etiqueta)
+                                            <option value="{{ $valor }}" {{ old('alergias_estado') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('alergias_estado')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 js-alergias-detalle {{ old('alergias_estado') === 'SI' ? '' : 'd-none' }}">
+                                <div class="form-group">
+                                    <label for="alergias">Detalle de alergias</label>
+                                    <textarea name="alergias" id="alergias" rows="2"
+                                              class="form-control @error('alergias') is-invalid @enderror"
+                                              placeholder="Medicamentos, alimentos, sustancias o reacciones conocidas">{{ old('alergias') }}</textarea>
+                                    @error('alergias')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
@@ -326,11 +448,23 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="fecha_ingreso">Fecha de Ingreso</label>
+                                    <label for="fecha_ingreso">Ingreso a la corporación SSP</label>
                                     <input type="date" name="fecha_ingreso" id="fecha_ingreso"
                                            class="form-control @error('fecha_ingreso') is-invalid @enderror"
                                            value="{{ old('fecha_ingreso') }}">
                                     @error('fecha_ingreso')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="fecha_ingreso_unidad">Ingreso a unidad o subdirección actual</label>
+                                    <input type="date" name="fecha_ingreso_unidad" id="fecha_ingreso_unidad"
+                                           class="form-control @error('fecha_ingreso_unidad') is-invalid @enderror"
+                                           value="{{ old('fecha_ingreso_unidad') }}">
+                                    @error('fecha_ingreso_unidad')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
@@ -448,10 +582,22 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         const unidadSel = document.getElementById('unidad_id');
+        const alergiasSel = document.getElementById('alergias_estado');
+        const alergiasDetalle = document.querySelector('.js-alergias-detalle');
+
         if (unidadSel) unidadSel.addEventListener('change', function () {
             filterPatrullasByUnidad();
             filterUsersByUnidad();
         });
+
+        if (alergiasSel && alergiasDetalle) {
+            const syncAlergias = function () {
+                alergiasDetalle.classList.toggle('d-none', alergiasSel.value !== 'SI');
+            };
+            alergiasSel.addEventListener('change', syncAlergias);
+            syncAlergias();
+        }
+
         filterPatrullasByUnidad();
         filterUsersByUnidad();
     });

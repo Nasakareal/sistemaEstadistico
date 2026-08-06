@@ -785,6 +785,7 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::prefix('personal')->middleware('can:ver personal')->group(function () {
         Route::get('/', [PersonalController::class, 'index'])->name('personal.index');
         Route::get('/create', [PersonalController::class, 'create'])->middleware('can:crear personal')->name('personal.create');
+        Route::post('/importar', [PersonalController::class, 'importar'])->middleware('can:crear personal')->name('personal.importar');
         Route::post('/', [PersonalController::class, 'store'])->middleware('can:crear personal')->name('personal.store');
         Route::get('/{personal}', [PersonalController::class, 'show'])->name('personal.show');
         Route::get('/{personal}/edit', [PersonalController::class, 'edit'])->middleware('can:editar personal')->name('personal.edit');

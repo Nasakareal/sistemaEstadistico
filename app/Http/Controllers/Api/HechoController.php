@@ -312,6 +312,8 @@ class HechoController extends Controller
     {
         $user = $request->user();
 
+        $this->normalizarLongitudRequest($request);
+
         if ($this->userCannotCreateHecho($user)) {
             return response()->json([
                 'message' => 'No tienes permiso para crear hechos.',
@@ -617,6 +619,8 @@ class HechoController extends Controller
     public function update(Request $request, Hechos $hecho)
     {
         $user = $request->user();
+
+        $this->normalizarLongitudRequest($request);
 
         if (!HechoAccess::canEdit($user, $hecho)) {
             return response()->json([
@@ -1368,6 +1372,15 @@ class HechoController extends Controller
         return $unidadId === 4
             ? 'PROTECCION A CARRETERAS'
             : 'DELEGACIONES';
+    }
+
+    private function normalizarLongitudRequest(Request $request): void
+    {
+        if ($request->has('lng') && is_numeric($request->input('lng'))) {
+            $request->merge([
+                'lng' => Hechos::normalizarLongitud($request->input('lng')),
+            ]);
+        }
     }
 
     private function messages(): array

@@ -105,6 +105,20 @@ class Hechos extends Model
         'captura_completa_at' => 'datetime',
     ];
 
+    public static function normalizarLongitud($valor)
+    {
+        if ($valor === null || $valor === '' || !is_numeric($valor)) {
+            return $valor;
+        }
+
+        return -abs((float) $valor);
+    }
+
+    public function setLngAttribute($valor): void
+    {
+        $this->attributes['lng'] = self::normalizarLongitud($valor);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Hechos $hecho): void {

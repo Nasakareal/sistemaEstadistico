@@ -12,6 +12,7 @@ use App\Models\Patrulla;
 use App\Models\Armamento;
 use App\Models\PersonalAsignacion;
 use App\Models\User;
+use App\Models\Destacamento;
 use App\Services\Fotos\PersonalFotoStorage;
 use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Services\Personal\PersonalExcelImportService;
@@ -167,6 +168,56 @@ class PersonalController extends Controller
             ->exists();
     }
 
+    private function unidadCarreterasId(): ?int
+    {
+        $id = Unidad::query()->where('slug', 'carreteras')->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    private function destacamentosDisponiblesParaActor()
+    {
+        $carreterasId = $this->unidadCarreterasId();
+
+        if (!$carreterasId || (!$this->actorTieneVisibilidadGlobal()
+            && (int) $this->unidadIdActor() !== $carreterasId)) {
+            return Destacamento::query()->whereRaw('1 = 0')->get();
+        }
+
+        return Destacamento::query()
+            ->where('unidad_id', $carreterasId)
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function normalizarDestacamentoParaUnidad(?int $destacamentoId, ?int $unidadId): ?int
+    {
+        $carreterasId = $this->unidadCarreterasId();
+
+        if (!$carreterasId || (int) $unidadId !== $carreterasId) {
+            return null;
+        }
+
+        if (!$destacamentoId) {
+            return null;
+        }
+
+        $valido = Destacamento::query()
+            ->whereKey($destacamentoId)
+            ->where('unidad_id', $carreterasId)
+            ->where('activo', 1)
+            ->exists();
+
+        if (!$valido) {
+            throw ValidationException::withMessages([
+                'destacamento_id' => 'El destacamento seleccionado no pertenece a Protección a Carreteras o está inactivo.',
+            ]);
+        }
+
+        return $destacamentoId;
+    }
+
     private function usuarioPerteneceAUnidadPermitida(?int $userId, ?int $unidadId, ?int $personalIdActual = null): bool
     {
         if (empty($userId)) {
@@ -210,7 +261,7 @@ class PersonalController extends Controller
     public function index()
     {
         $personals = $this->queryPersonalVisibleParaActor()
-            ->with(['unidad', 'turno', 'patrulla', 'user'])
+            ->with(['unidad', 'destacamento', 'turno', 'patrulla', 'user'])
             ->orderByDesc('estatus')
             ->orderBy('ap_paterno')
             ->orderBy('ap_materno')
@@ -259,6 +310,8 @@ class PersonalController extends Controller
                 'omitidos' => $resultado['omitidos'] ?? 0,
                 'contactos_importados' => $resultado['contactos_importados'] ?? 0,
                 'emergencias_importadas' => $resultado['emergencias_importadas'] ?? 0,
+                'domicilios_importados' => $resultado['domicilios_importados'] ?? 0,
+                'destacamentos_asignados' => $resultado['destacamentos_asignados'] ?? 0,
                 'advertencias' => count($resultado['advertencias'] ?? []),
             ]);
 
@@ -290,6 +343,8 @@ class PersonalController extends Controller
         $turnos = $this->turnosDisponiblesParaActor();
         $patrullas = $this->patrullasDisponiblesParaActor($unidadIdDefault);
         $usuariosDisponibles = $this->usuariosDisponiblesParaActor(null, $unidadIdDefault);
+        $destacamentos = $this->destacamentosDisponiblesParaActor();
+        $unidadCarreterasId = $this->unidadCarreterasId();
         $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
         $tiposSangre = Personal::TIPOS_SANGRE;
         $gradosEstudio = Personal::GRADOS_ESTUDIO;
@@ -300,6 +355,8 @@ class PersonalController extends Controller
             'turnos',
             'patrullas',
             'usuariosDisponibles',
+            'destacamentos',
+            'unidadCarreterasId',
             'categoriasPersonal',
             'tiposSangre',
             'gradosEstudio',
@@ -312,6 +369,7 @@ class PersonalController extends Controller
     {
         $validated = $request->validate([
             'unidad_id' => 'required|exists:unidades,id',
+            'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'user_id' => 'nullable|exists:users,id|unique:personals,user_id',
@@ -353,6 +411,10 @@ class PersonalController extends Controller
         ]);
 
         $validated['unidad_id'] = $this->normalizarUnidadParaActor($validated['unidad_id'] ?? null);
+        $validated['destacamento_id'] = $this->normalizarDestacamentoParaUnidad(
+            isset($validated['destacamento_id']) ? (int) $validated['destacamento_id'] : null,
+            $validated['unidad_id']
+        );
 
         try {
             if (!empty($validated['patrulla_id'])) {
@@ -437,6 +499,7 @@ class PersonalController extends Controller
         $personal->load([
             'user',
             'unidad',
+            'destacamento',
             'turno',
             'patrulla',
             'rolesServicio',
@@ -502,6 +565,8 @@ class PersonalController extends Controller
         );
 
         $usuariosDisponibles = $this->usuariosDisponiblesParaActor($personal->user_id, (int) $personal->unidad_id);
+        $destacamentos = $this->destacamentosDisponiblesParaActor();
+        $unidadCarreterasId = $this->unidadCarreterasId();
         $usuarioActual = $personal->user;
         $categoriasPersonal = ['OPERATIVO', 'ADMINISTRATIVO'];
         $tiposSangre = Personal::TIPOS_SANGRE;
@@ -516,6 +581,8 @@ class PersonalController extends Controller
             'turnos',
             'patrullas',
             'usuariosDisponibles',
+            'destacamentos',
+            'unidadCarreterasId',
             'usuarioActual',
             'categoriasPersonal',
             'tiposSangre',
@@ -531,6 +598,7 @@ class PersonalController extends Controller
 
         $validated = $request->validate([
             'unidad_id' => 'required|exists:unidades,id',
+            'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'user_id' => 'nullable|exists:users,id|unique:personals,user_id,' . $personal->id,
@@ -572,6 +640,10 @@ class PersonalController extends Controller
         ]);
 
         $validated['unidad_id'] = $this->normalizarUnidadParaActor($validated['unidad_id'] ?? null);
+        $validated['destacamento_id'] = $this->normalizarDestacamentoParaUnidad(
+            isset($validated['destacamento_id']) ? (int) $validated['destacamento_id'] : null,
+            $validated['unidad_id']
+        );
 
         try {
             if (!empty($validated['patrulla_id'])) {

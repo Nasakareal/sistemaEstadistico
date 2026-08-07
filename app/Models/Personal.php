@@ -14,6 +14,7 @@ class Personal extends Model
 
     protected $fillable = [
         'unidad_id',
+        'destacamento_id',
         'turno_id',
         'patrulla_id',
         'user_id',
@@ -47,6 +48,7 @@ class Personal extends Model
 
     protected $casts = [
         'unidad_id' => 'integer',
+        'destacamento_id' => 'integer',
         'turno_id' => 'integer',
         'patrulla_id' => 'integer',
         'user_id' => 'integer',
@@ -197,6 +199,11 @@ class Personal extends Model
     public function contactos()
     {
         return $this->hasMany(PersonalContacto::class, 'personal_id');
+    }
+
+    public function destacamento()
+    {
+        return $this->belongsTo(Destacamento::class, 'destacamento_id');
     }
 
     public function emergencias()

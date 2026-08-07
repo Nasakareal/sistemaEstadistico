@@ -3,6 +3,8 @@
 namespace App\Services\Personal;
 
 use App\Models\Personal;
+use App\Models\Destacamento;
+use App\Models\Unidad;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\QueryException;
@@ -18,6 +20,10 @@ use RuntimeException;
 class PersonalExcelImportService
 {
     private const MAX_FILAS = 5000;
+
+    private $unidadCarreterasCache = [];
+
+    private $destacamentosCache = [];
 
     private const ENCABEZADOS = [
         'nombre_completo' => ['NOMBRE COMPLETO'],
@@ -36,6 +42,17 @@ class PersonalExcelImportService
             'CORREO ELECTRONICO PERSONA',
             'CORREO ELECTRONICO PERSONAL',
             'CORREO ELECTRONICO',
+        ],
+        'destacamento' => [
+            'DESTACAMENTO',
+            'DESTACAMENTO DE ADSCRIPCION',
+            'DESTACAMENTO ADSCRIPCION',
+        ],
+        'domicilio' => [
+            'DOMICILIO',
+            'DOMICILIO PARTICULAR',
+            'DIRECCION',
+            'DIRECCION PARTICULAR',
         ],
         'telefono_particular' => [
             'TELEFONO PARTICULAR',
@@ -64,6 +81,8 @@ class PersonalExcelImportService
             'omitidos' => 0,
             'contactos_importados' => 0,
             'emergencias_importadas' => 0,
+            'domicilios_importados' => 0,
+            'destacamentos_asignados' => 0,
             'errores' => [],
             'advertencias' => $analisis['advertencias'],
         ];
@@ -96,6 +115,7 @@ class PersonalExcelImportService
                         });
 
                         $resultado['restaurados']++;
+                        $resultado['destacamentos_asignados'] += !empty($atributos['destacamento_id']) ? 1 : 0;
                         $relaciones = $this->guardarRelaciones(
                             $existente,
                             $registro,
@@ -104,6 +124,7 @@ class PersonalExcelImportService
                         );
                         $resultado['contactos_importados'] += $relaciones['contactos'];
                         $resultado['emergencias_importadas'] += $relaciones['emergencias'];
+                        $resultado['domicilios_importados'] += $relaciones['domicilios'];
                         continue;
                     }
 
@@ -114,10 +135,21 @@ class PersonalExcelImportService
                         $resultado['advertencias']
                     );
 
-                    if (($relaciones['contactos'] + $relaciones['emergencias']) > 0) {
+                    $destacamentoAsignado = 0;
+
+                    if (empty($existente->destacamento_id)
+                        && !empty($atributos['destacamento_id'])
+                        && (int) $existente->unidad_id === (int) $atributos['unidad_id']) {
+                        $existente->update(['destacamento_id' => $atributos['destacamento_id']]);
+                        $destacamentoAsignado = 1;
+                        $resultado['destacamentos_asignados']++;
+                    }
+
+                    if (($relaciones['contactos'] + $relaciones['emergencias'] + $relaciones['domicilios'] + $destacamentoAsignado) > 0) {
                         $resultado['complementados']++;
                         $resultado['contactos_importados'] += $relaciones['contactos'];
                         $resultado['emergencias_importadas'] += $relaciones['emergencias'];
+                        $resultado['domicilios_importados'] += $relaciones['domicilios'];
                     } else {
                         $resultado['omitidos']++;
                         $resultado['errores'][] = "Fila {$fila}: el personal ya está registrado; no se modificó su unidad.";
@@ -128,6 +160,7 @@ class PersonalExcelImportService
 
                 $personal = Personal::query()->create($atributos);
                 $resultado['importados']++;
+                $resultado['destacamentos_asignados'] += !empty($atributos['destacamento_id']) ? 1 : 0;
                 $relaciones = $this->guardarRelaciones(
                     $personal,
                     $registro,
@@ -136,6 +169,7 @@ class PersonalExcelImportService
                 );
                 $resultado['contactos_importados'] += $relaciones['contactos'];
                 $resultado['emergencias_importadas'] += $relaciones['emergencias'];
+                $resultado['domicilios_importados'] += $relaciones['domicilios'];
             } catch (QueryException $e) {
                 $resultado['omitidos']++;
                 $resultado['errores'][] = "Fila {$fila}: no se pudo guardar por datos duplicados o inválidos.";
@@ -357,7 +391,69 @@ class PersonalExcelImportService
             'cuip' => $this->identificador($this->valorCampo($sheet, $fila, $columnas, 'cuip'), 30),
             'cup' => $this->identificador($this->valorCampo($sheet, $fila, $columnas, 'cup'), 100),
             'correo_electronico' => $correo !== '' ? $correo : null,
+            'destacamento_id' => $this->resolverDestacamentoId(
+                $this->textoCampo($sheet, $fila, $columnas, 'destacamento', 160),
+                $unidadId,
+                $fila,
+                $advertencias
+            ),
         ]);
+    }
+
+    private function resolverDestacamentoId(
+        ?string $value,
+        int $unidadId,
+        int $fila,
+        array &$advertencias
+    ): ?int {
+        if (!$value || !$this->esUnidadCarreteras($unidadId)) {
+            return null;
+        }
+
+        if (!isset($this->destacamentosCache[$unidadId])) {
+            $this->destacamentosCache[$unidadId] = Destacamento::query()
+                ->where('unidad_id', $unidadId)
+                ->where('activo', 1)
+                ->get(['id', 'clave', 'nombre']);
+        }
+
+        $buscado = $this->normalizarTexto($value);
+        $sinPrefijo = trim(preg_replace('/^DESTACAMENTO\s+/', '', $buscado) ?? $buscado);
+
+        foreach ($this->destacamentosCache[$unidadId] as $destacamento) {
+            $nombre = $this->normalizarTexto($destacamento->nombre);
+            $clave = $this->normalizarTexto($destacamento->clave);
+            $claveNumerica = ctype_digit($clave) ? (string) ((int) $clave) : $clave;
+            $candidatos = array_filter([
+                $nombre,
+                $clave,
+                $claveNumerica,
+                trim($clave . ' ' . $nombre),
+                trim($claveNumerica . ' ' . $nombre),
+                trim($nombre . ' ' . $clave),
+                trim($nombre . ' ' . $claveNumerica),
+            ]);
+
+            if (in_array($buscado, $candidatos, true) || in_array($sinPrefijo, $candidatos, true)) {
+                return (int) $destacamento->id;
+            }
+        }
+
+        $advertencias[] = "Fila {$fila}: destacamento '{$value}' no reconocido para Protección a Carreteras; se dejó vacío.";
+
+        return null;
+    }
+
+    private function esUnidadCarreteras(int $unidadId): bool
+    {
+        if (!array_key_exists($unidadId, $this->unidadCarreterasCache)) {
+            $this->unidadCarreterasCache[$unidadId] = Unidad::query()
+                ->whereKey($unidadId)
+                ->where('slug', 'carreteras')
+                ->exists();
+        }
+
+        return $this->unidadCarreterasCache[$unidadId];
     }
 
     private function construirRelaciones(
@@ -368,6 +464,7 @@ class PersonalExcelImportService
     ): array {
         $contactos = [];
         $emergencias = [];
+        $domicilios = [];
         $telefonoRaw = $this->textoCampo($sheet, $fila, $columnas, 'telefono_particular', 80);
         $telefono = $this->normalizarTelefono($telefonoRaw);
 
@@ -401,7 +498,52 @@ class PersonalExcelImportService
             $emergencias[] = $referencia;
         }
 
-        return compact('contactos', 'emergencias');
+        $domicilioRaw = $this->textoCampo($sheet, $fila, $columnas, 'domicilio', 1000);
+
+        if ($domicilioRaw) {
+            $domicilios[] = $this->construirDomicilio($domicilioRaw);
+        }
+
+        return compact('contactos', 'emergencias', 'domicilios');
+    }
+
+    private function construirDomicilio(string $value): array
+    {
+        $texto = Str::upper($this->texto($value) ?? '');
+        $segmentos = array_values(array_filter(array_map('trim', preg_split('/[,;]+/u', $texto) ?: [])));
+        $calle = $segmentos[0] ?? $texto;
+        $municipio = null;
+        $estado = null;
+        $colonia = null;
+        $cp = null;
+
+        if (preg_match('/\bMUNICIPIO\s+(?:DE\s+)?(.+?)(?=\s+(?:EDO|ESTADO)\b|$)/u', $texto, $coincidencia)) {
+            $municipio = trim($coincidencia[1], " \t\n\r\0\x0B,.;");
+        }
+
+        if (preg_match('/\b(?:EDO|ESTADO)\.?\s*(?:DE\s+)?(.+?)(?=\s+(?:C\.?P\.?|CODIGO POSTAL)\b|$)/u', $texto, $coincidencia)) {
+            $estado = trim($coincidencia[1], " \t\n\r\0\x0B,.;");
+        }
+
+        if (preg_match('/\bCOL(?:ONIA)?\.?\s+(.+?)(?=\s+MUNICIPIO\b|[,;]|$)/u', $texto, $coincidencia)) {
+            $colonia = trim($coincidencia[1], " \t\n\r\0\x0B,.;");
+        }
+
+        if (preg_match('/\b(?:C\.?P\.?|CODIGO POSTAL)\s*:?-?\s*(\d{5})\b/u', $texto, $coincidencia)) {
+            $cp = $coincidencia[1];
+        }
+
+        return [
+            'calle' => Str::substr($calle !== '' ? $calle : 'NO ESPECIFICADA', 0, 191),
+            'numero_ext' => 'S/N',
+            'numero_int' => null,
+            'colonia' => Str::substr($colonia ?: 'NO ESPECIFICADA', 0, 191),
+            'municipio' => Str::substr($municipio ?: 'NO ESPECIFICADO', 0, 191),
+            'estado' => Str::substr($estado ?: 'NO ESPECIFICADO', 0, 191),
+            'cp' => $cp ?: 'S/C',
+            'referencias' => Str::substr($texto, 0, 255),
+            'es_actual' => true,
+        ];
     }
 
     private function separarReferenciaFamiliar(string $value): ?array
@@ -467,7 +609,7 @@ class PersonalExcelImportService
         array &$advertencias
     ): array
     {
-        $guardados = ['contactos' => 0, 'emergencias' => 0];
+        $guardados = ['contactos' => 0, 'emergencias' => 0, 'domicilios' => 0];
 
         foreach ($registro['contactos'] ?? [] as $contacto) {
             if ($this->contactoExiste($personal, $contacto['valor'])) {
@@ -515,6 +657,28 @@ class PersonalExcelImportService
             }
         }
 
+        foreach ($registro['domicilios'] ?? [] as $domicilio) {
+            if ($this->domicilioExiste($personal, $domicilio)) {
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use ($personal, $domicilio) {
+                    $personal->domicilios()->update(['es_actual' => false]);
+                    $personal->domicilios()->create($domicilio);
+                });
+                $guardados['domicilios']++;
+            } catch (QueryException $e) {
+                $advertencias[] = "Fila {$fila}: el personal se importó, pero no se pudo guardar su domicilio.";
+                Log::warning('No se pudo guardar domicilio durante la importación de personal.', [
+                    'fila' => $fila,
+                    'personal_id' => $personal->id,
+                    'sql_state' => $e->errorInfo[0] ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $guardados;
     }
 
@@ -551,6 +715,29 @@ class PersonalExcelImportService
                 );
 
                 return $telefonoExistente === $telefono && $nombreExistente === $nombre;
+            });
+    }
+
+    private function domicilioExiste(Personal $personal, array $domicilio): bool
+    {
+        $referencia = $this->normalizarTexto($domicilio['referencias'] ?? null);
+
+        return $personal->domicilios()
+            ->get(['calle', 'numero_ext', 'colonia', 'municipio', 'estado', 'cp', 'referencias'])
+            ->contains(function ($existente) use ($referencia, $domicilio) {
+                if ($referencia !== ''
+                    && $this->normalizarTexto($existente->referencias) === $referencia) {
+                    return true;
+                }
+
+                foreach (['calle', 'numero_ext', 'colonia', 'municipio', 'estado', 'cp'] as $campo) {
+                    if ($this->normalizarTexto($existente->{$campo})
+                        !== $this->normalizarTexto($domicilio[$campo] ?? null)) {
+                        return false;
+                    }
+                }
+
+                return true;
             });
     }
 

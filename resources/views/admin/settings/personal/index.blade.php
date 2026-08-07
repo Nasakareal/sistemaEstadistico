@@ -23,7 +23,9 @@
             {{ (int) ($resumenImportacion['restaurados'] ?? 0) }} personas restauradas,
             {{ (int) ($resumenImportacion['complementados'] ?? 0) }} personas complementadas,
             {{ (int) ($resumenImportacion['contactos_importados'] ?? 0) }} teléfonos y
-            {{ (int) ($resumenImportacion['emergencias_importadas'] ?? 0) }} contactos de emergencia.
+            {{ (int) ($resumenImportacion['emergencias_importadas'] ?? 0) }} contactos de emergencia,
+            {{ (int) ($resumenImportacion['domicilios_importados'] ?? 0) }} domicilios,
+            {{ (int) ($resumenImportacion['destacamentos_asignados'] ?? 0) }} destacamentos asignados.
 
             @if (($resumenImportacion['omitidos'] ?? 0) > 0)
                 <br><strong>Omitidos:</strong> {{ (int) $resumenImportacion['omitidos'] }}.
@@ -62,6 +64,7 @@
                                 <th><center>No.</center></th>
                                 <th><center>Nombre</center></th>
                                 <th><center>Unidad</center></th>
+                                <th><center>Destacamento</center></th>
                                 <th><center>No. placa</center></th>
                                 <th><center>CUIP</center></th>
                                 <th><center>CURP</center></th>
@@ -78,6 +81,7 @@
                                         {{ $personal->nombre_completo }}
                                     </td>
                                     <td>{{ $personal->unidad->nombre ?? 'N/A' }}</td>
+                                    <td>{{ optional($personal->destacamento)->nombre ?? '—' }}</td>
                                     <td>{{ $personal->numero_placa ?? 'N/A' }}</td>
                                     <td>{{ $personal->cuip ?? 'N/A' }}</td>
                                     <td>{{ $personal->curp ?? 'N/A' }}</td>
@@ -153,6 +157,8 @@
                             <ul class="small text-muted mb-0 pl-3">
                                 <li>Se leerá la hoja <strong>BASE DE DATOS</strong> y la columna <strong>NOMBRE COMPLETO</strong>.</li>
                                 <li>Se importarán el <strong>TELÉFONO PARTICULAR</strong> y hasta dos <strong>REFERENCIAS FAMILIARES</strong> como contactos de emergencia.</li>
+                                <li>Para Protección a Carreteras también se importará la columna <strong>DESTACAMENTO</strong>.</li>
+                                <li>La columna <strong>DOMICILIO</strong> se conservará completa y se registrará como domicilio actual.</li>
                                 <li>La foto, armas, cursos y columnas no soportadas se ignorarán.</li>
                                 <li>Valores como <strong>A POSITIVO</strong>, <strong>O NEGATIVO</strong> o <strong>AB+</strong> se normalizarán automáticamente.</li>
                                 <li>El personal ya registrado conservará su unidad y sus datos; únicamente se agregarán contactos faltantes sin duplicarlos.</li>
@@ -289,6 +295,8 @@
                     '<br><strong>Personal complementado:</strong> ' . (int) ($importResult['complementados'] ?? 0) .
                     '<br><strong>Teléfonos importados:</strong> ' . (int) ($importResult['contactos_importados'] ?? 0) .
                     '<br><strong>Contactos de emergencia importados:</strong> ' . (int) ($importResult['emergencias_importadas'] ?? 0) .
+                    '<br><strong>Domicilios importados:</strong> ' . (int) ($importResult['domicilios_importados'] ?? 0) .
+                    '<br><strong>Destacamentos asignados:</strong> ' . (int) ($importResult['destacamentos_asignados'] ?? 0) .
                     '<br><strong>Omitidos:</strong> ' . (int) ($importResult['omitidos'] ?? 0) . '</p>' .
                     (count($importResult['errores'] ?? [])
                         ? '<hr><strong>Filas omitidas:</strong><ul>' . collect($importResult['errores'])->take(20)->map(fn ($error) => '<li>' . e($error) . '</li>')->implode('') . '</ul>'

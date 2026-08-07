@@ -93,6 +93,11 @@
                                 </div>
 
                                 <div class="col-md-4 mb-3">
+                                    <strong>Destacamento:</strong><br>
+                                    {{ optional($personal->destacamento)->nombre ?? 'Sin asignar' }}
+                                </div>
+
+                                <div class="col-md-4 mb-3">
                                     <strong>Turno:</strong><br>
                                     {{ $personal->turno->nombre ?? 'N/A' }}
                                 </div>

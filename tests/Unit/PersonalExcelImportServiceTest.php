@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Personal;
+use App\Models\Destacamento;
 use App\Models\Unidad;
 use App\Services\Personal\PersonalExcelImportService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -177,6 +178,61 @@ class PersonalExcelImportServiceTest extends TestCase
         $this->assertSame(2, $restaurado->emergencias()->count());
     }
 
+    public function test_importa_destacamento_solo_para_proteccion_a_carreteras(): void
+    {
+        $carreteras = Unidad::query()->firstOrCreate(
+            ['slug' => 'carreteras'],
+            ['nombre' => 'PROTECCIÓN A CARRETERAS', 'activa' => true]
+        );
+        $destacamento = Destacamento::query()->firstOrCreate([
+            'unidad_id' => $carreteras->id,
+            'nombre' => 'MORELIA',
+        ], [
+            'clave' => '01',
+            'activo' => true,
+        ]);
+        $archivo = $this->crearPlantillaConContactos('DESTACAMENTO MORELIA');
+        $servicio = new PersonalExcelImportService();
+        $analisis = $servicio->analizarArchivo($archivo, $carreteras->id);
+
+        $this->assertSame($destacamento->id, $analisis['registros'][0]['atributos']['destacamento_id']);
+
+        $resultado = $servicio->importar($archivo, $carreteras->id);
+        $personal = Personal::query()->where('curp', 'TSTX880111MMNNGN01')->firstOrFail();
+
+        $this->assertSame(1, $resultado['destacamentos_asignados']);
+        $this->assertSame($destacamento->id, $personal->destacamento_id);
+    }
+
+    public function test_importa_domicilio_de_celda_libre_y_no_lo_duplica(): void
+    {
+        $unidad = Unidad::query()->create([
+            'nombre' => 'Unidad domicilio importado ' . uniqid(),
+            'slug' => 'unidad-domicilio-importado-' . uniqid(),
+            'activa' => true,
+        ]);
+        $domicilio = 'CALLE SAN LUIS MZ5 LT13 C14-3, RESIDENCIAL DALIAS, MUNICIPIO DE CUACALCO DE BERRIOZABAL, EDO DE MEXICO';
+        $archivo = $this->crearPlantillaConContactos(null, $domicilio);
+        $servicio = new PersonalExcelImportService();
+
+        $resultado = $servicio->importar($archivo, $unidad->id);
+        $personal = Personal::query()->where('curp', 'TSTX880111MMNNGN01')->firstOrFail();
+        $repeticion = $servicio->importar($archivo, $unidad->id);
+
+        $this->assertSame(1, $resultado['domicilios_importados']);
+        $this->assertDatabaseHas('personal_domicilios', [
+            'personal_id' => $personal->id,
+            'calle' => 'CALLE SAN LUIS MZ5 LT13 C14-3',
+            'numero_ext' => 'S/N',
+            'municipio' => 'CUACALCO DE BERRIOZABAL',
+            'estado' => 'MEXICO',
+            'cp' => 'S/C',
+            'es_actual' => 1,
+        ]);
+        $this->assertSame(0, $repeticion['domicilios_importados']);
+        $this->assertSame(1, $personal->domicilios()->count());
+    }
+
     private function crearPlantilla(): string
     {
         $spreadsheet = new Spreadsheet();
@@ -231,7 +287,7 @@ class PersonalExcelImportServiceTest extends TestCase
         return $archivo;
     }
 
-    private function crearPlantillaConContactos(): string
+    private function crearPlantillaConContactos(?string $destacamento = null, ?string $domicilio = null): string
     {
         $archivo = $this->crearPlantilla();
         $spreadsheet = IOFactory::load($archivo);
@@ -244,6 +300,17 @@ class PersonalExcelImportServiceTest extends TestCase
         $sheet->setCellValue('R12', '4436068835');
         $sheet->setCellValue('S12', "LOURDES VEGA\n(MAMÁ)\n4531382845");
         $sheet->setCellValue('T12', "JONATHAN GARCIA (ESPOSO)\n4433685592");
+
+        if ($destacamento !== null) {
+            $sheet->setCellValue('U10', 'DESTACAMENTO');
+            $sheet->setCellValue('U12', $destacamento);
+        }
+
+        if ($domicilio !== null) {
+            $sheet->setCellValue('V10', 'DOMICILIO');
+            $sheet->setCellValue('V12', $domicilio);
+        }
+
         (new Xlsx($spreadsheet))->save($archivo);
         $spreadsheet->disconnectWorksheets();
 

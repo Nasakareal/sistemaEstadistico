@@ -41,6 +41,11 @@ class Destacamento extends Model
         return $this->hasMany(User::class, 'destacamento_id');
     }
 
+    public function personals()
+    {
+        return $this->hasMany(Personal::class, 'destacamento_id');
+    }
+
     public function operativos()
     {
         return $this->hasMany(Operativo::class, 'destacamento_id');

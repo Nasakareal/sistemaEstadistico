@@ -389,6 +389,26 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-3 {{ (string) old('unidad_id', $personal->unidad_id) === (string) ($unidadCarreterasId ?? null) ? '' : 'd-none' }}"
+                                 id="destacamento_group">
+                                <div class="form-group">
+                                    <label for="destacamento_id">Destacamento</label>
+                                    <select name="destacamento_id" id="destacamento_id"
+                                            class="form-control @error('destacamento_id') is-invalid @enderror">
+                                        <option value="">Sin destacamento</option>
+                                        @foreach ($destacamentos as $destacamento)
+                                            <option value="{{ $destacamento->id }}"
+                                                {{ (string) old('destacamento_id', $personal->destacamento_id) === (string) $destacamento->id ? 'selected' : '' }}>
+                                                {{ $destacamento->nombre }}{{ $destacamento->clave ? ' (' . $destacamento->clave . ')' : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('destacamento_id')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="turno_id">Turno</label>
@@ -604,6 +624,20 @@
         }
     }
 
+    function syncDestacamentoByUnidad() {
+        const unidadSel = document.getElementById('unidad_id');
+        const group = document.getElementById('destacamento_group');
+        const destacamentoSel = document.getElementById('destacamento_id');
+        const carreterasId = @json($unidadCarreterasId);
+        if (!unidadSel || !group || !destacamentoSel) return;
+
+        const visible = carreterasId !== null && unidadSel.value === String(carreterasId);
+        group.classList.toggle('d-none', !visible);
+        destacamentoSel.disabled = !visible;
+
+        if (!visible) destacamentoSel.value = '';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const unidadSel = document.getElementById('unidad_id');
         const alergiasSel = document.getElementById('alergias_estado');
@@ -612,6 +646,7 @@
         if (unidadSel) unidadSel.addEventListener('change', function () {
             filterPatrullasByUnidad();
             filterUsersByUnidad();
+            syncDestacamentoByUnidad();
         });
 
         if (alergiasSel && alergiasDetalle) {
@@ -624,6 +659,7 @@
 
         filterPatrullasByUnidad();
         filterUsersByUnidad();
+        syncDestacamentoByUnidad();
     });
 
 })();

@@ -7,6 +7,37 @@
 @stop
 
 @section('content')
+    @if ($errors->has('archivo_personal'))
+        <div class="alert alert-danger" role="alert">
+            <strong>No se pudo procesar el archivo.</strong>
+            {{ $errors->first('archivo_personal') }}
+        </div>
+    @endif
+
+    @if (session('import_result'))
+        @php($resumenImportacion = session('import_result'))
+        <div class="alert {{ ($resumenImportacion['omitidos'] ?? 0) > 0 || count($resumenImportacion['advertencias'] ?? []) ? 'alert-warning' : 'alert-success' }}"
+             role="status">
+            <strong>Resultado de la carga:</strong>
+            {{ (int) ($resumenImportacion['importados'] ?? 0) }} personas nuevas,
+            {{ (int) ($resumenImportacion['complementados'] ?? 0) }} personas complementadas,
+            {{ (int) ($resumenImportacion['contactos_importados'] ?? 0) }} teléfonos y
+            {{ (int) ($resumenImportacion['emergencias_importadas'] ?? 0) }} contactos de emergencia.
+
+            @if (($resumenImportacion['omitidos'] ?? 0) > 0)
+                <br><strong>Omitidos:</strong> {{ (int) $resumenImportacion['omitidos'] }}.
+            @endif
+
+            @foreach (collect($resumenImportacion['errores'] ?? [])->take(5) as $errorImportacion)
+                <br><small>{{ $errorImportacion }}</small>
+            @endforeach
+
+            @foreach (collect($resumenImportacion['advertencias'] ?? [])->take(5) as $advertenciaImportacion)
+                <br><small>{{ $advertenciaImportacion }}</small>
+            @endforeach
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-md-12">
             <div class="card card-outline card-primary">
@@ -274,6 +305,11 @@
         @if ($errors->has('archivo_personal'))
             $('#modalImportarPersonal').modal('show');
         @endif
+
+        $('#modalImportarPersonal form').on('submit', function () {
+            const submitButton = $(this).find('button[type="submit"]');
+            submitButton.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Procesando archivo...');
+        });
 
         $(document).on('click', '.delete-btn', function (e) {
             e.preventDefault();

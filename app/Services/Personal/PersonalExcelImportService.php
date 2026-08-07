@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -86,7 +87,12 @@ class PersonalExcelImportService
                 $existente = $this->buscarExistente($atributos);
 
                 if ($existente) {
-                    $relaciones = DB::transaction(fn () => $this->guardarRelaciones($existente, $registro));
+                    $relaciones = $this->guardarRelaciones(
+                        $existente,
+                        $registro,
+                        $fila,
+                        $resultado['advertencias']
+                    );
 
                     if (($relaciones['contactos'] + $relaciones['emergencias']) > 0) {
                         $resultado['complementados']++;
@@ -100,13 +106,14 @@ class PersonalExcelImportService
                     continue;
                 }
 
-                $relaciones = DB::transaction(function () use ($atributos, $registro) {
-                    $personal = Personal::query()->create($atributos);
-
-                    return $this->guardarRelaciones($personal, $registro);
-                });
-
+                $personal = Personal::query()->create($atributos);
                 $resultado['importados']++;
+                $relaciones = $this->guardarRelaciones(
+                    $personal,
+                    $registro,
+                    $fila,
+                    $resultado['advertencias']
+                );
                 $resultado['contactos_importados'] += $relaciones['contactos'];
                 $resultado['emergencias_importadas'] += $relaciones['emergencias'];
             } catch (QueryException $e) {
@@ -433,7 +440,12 @@ class PersonalExcelImportService
         return $longitud >= 7 && $longitud <= 15 ? $digitos : null;
     }
 
-    private function guardarRelaciones(Personal $personal, array $registro): array
+    private function guardarRelaciones(
+        Personal $personal,
+        array $registro,
+        int $fila,
+        array &$advertencias
+    ): array
     {
         $guardados = ['contactos' => 0, 'emergencias' => 0];
 
@@ -442,21 +454,45 @@ class PersonalExcelImportService
                 continue;
             }
 
-            if (!empty($contacto['es_principal'])) {
-                $personal->contactos()->update(['es_principal' => false]);
-            }
+            try {
+                DB::transaction(function () use ($personal, $contacto) {
+                    if (!empty($contacto['es_principal'])) {
+                        $personal->contactos()->update(['es_principal' => false]);
+                    }
 
-            $personal->contactos()->create($contacto);
-            $guardados['contactos']++;
+                    $personal->contactos()->create($contacto);
+                });
+                $guardados['contactos']++;
+            } catch (QueryException $e) {
+                $advertencias[] = "Fila {$fila}: el personal se importó, pero no se pudo guardar su teléfono particular.";
+                Log::warning('No se pudo guardar teléfono durante la importación de personal.', [
+                    'fila' => $fila,
+                    'personal_id' => $personal->id,
+                    'sql_state' => $e->errorInfo[0] ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
-        foreach ($registro['emergencias'] ?? [] as $emergencia) {
+        foreach ($registro['emergencias'] ?? [] as $indice => $emergencia) {
             if ($this->emergenciaExiste($personal, $emergencia)) {
                 continue;
             }
 
-            $personal->emergencias()->create($emergencia);
-            $guardados['emergencias']++;
+            try {
+                $personal->emergencias()->create($emergencia);
+                $guardados['emergencias']++;
+            } catch (QueryException $e) {
+                $numero = $indice + 1;
+                $advertencias[] = "Fila {$fila}: el personal se importó, pero no se pudo guardar la referencia familiar {$numero}.";
+                Log::warning('No se pudo guardar referencia familiar durante la importación de personal.', [
+                    'fila' => $fila,
+                    'referencia' => $numero,
+                    'personal_id' => $personal->id,
+                    'sql_state' => $e->errorInfo[0] ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $guardados;

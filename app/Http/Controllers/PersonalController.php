@@ -249,6 +249,17 @@ class PersonalController extends Controller
             );
 
             $resultado['unidad'] = $unidad->nombre;
+            Log::info('Importación de personal finalizada.', [
+                'user_id' => optional($actor)->id,
+                'unidad_id' => $unidad->id,
+                'total' => $resultado['total'] ?? 0,
+                'importados' => $resultado['importados'] ?? 0,
+                'complementados' => $resultado['complementados'] ?? 0,
+                'omitidos' => $resultado['omitidos'] ?? 0,
+                'contactos_importados' => $resultado['contactos_importados'] ?? 0,
+                'emergencias_importadas' => $resultado['emergencias_importadas'] ?? 0,
+                'advertencias' => count($resultado['advertencias'] ?? []),
+            ]);
 
             return redirect()
                 ->route('personal.index')

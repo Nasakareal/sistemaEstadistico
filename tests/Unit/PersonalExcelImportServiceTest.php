@@ -6,6 +6,7 @@ use App\Models\Personal;
 use App\Models\Unidad;
 use App\Services\Personal\PersonalExcelImportService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -79,6 +80,72 @@ class PersonalExcelImportServiceTest extends TestCase
         ]);
     }
 
+    public function test_importa_telefono_particular_y_referencias_familiares_combinadas(): void
+    {
+        $unidad = Unidad::query()->create([
+            'nombre' => 'Unidad contactos importados ' . uniqid(),
+            'slug' => 'unidad-contactos-importados-' . uniqid(),
+            'activa' => true,
+        ]);
+        $archivo = $this->crearPlantillaConContactos();
+        $servicio = new PersonalExcelImportService();
+        $analisis = $servicio->analizarArchivo($archivo, $unidad->id);
+
+        $this->assertSame('4436068835', $analisis['registros'][0]['contactos'][0]['telefono_personal']);
+        $this->assertCount(2, $analisis['registros'][0]['emergencias']);
+        $this->assertSame('LOURDES VEGA', $analisis['registros'][0]['emergencias'][0]['nombre_contacto']);
+        $this->assertSame('MAMÁ', $analisis['registros'][0]['emergencias'][0]['parentesco']);
+        $this->assertSame('4531382845', $analisis['registros'][0]['emergencias'][0]['telefono_emergencia']);
+
+        $resultado = $servicio->importar($archivo, $unidad->id);
+        $personal = Personal::query()->where('curp', 'TSTX880111MMNNGN01')->firstOrFail();
+
+        $this->assertSame(1, $resultado['importados']);
+        $this->assertSame(1, $resultado['contactos_importados']);
+        $this->assertSame(2, $resultado['emergencias_importadas']);
+        $this->assertDatabaseHas('personal_contactos', [
+            'personal_id' => $personal->id,
+            'telefono_personal' => '4436068835',
+        ]);
+        $this->assertDatabaseHas('personal_emergencias', [
+            'personal_id' => $personal->id,
+            'nombre_contacto' => 'JONATHAN GARCIA',
+            'parentesco' => 'ESPOSO',
+            'telefono_emergencia' => '4433685592',
+        ]);
+    }
+
+    public function test_reimportar_complementa_contactos_sin_mover_personal_ni_duplicarlos(): void
+    {
+        $origen = Unidad::query()->create([
+            'nombre' => 'Unidad contactos origen ' . uniqid(),
+            'slug' => 'unidad-contactos-origen-' . uniqid(),
+            'activa' => true,
+        ]);
+        $otra = Unidad::query()->create([
+            'nombre' => 'Unidad contactos destino ' . uniqid(),
+            'slug' => 'unidad-contactos-destino-' . uniqid(),
+            'activa' => true,
+        ]);
+        $servicio = new PersonalExcelImportService();
+
+        $servicio->importar($this->crearPlantilla(), $origen->id);
+        $complemento = $servicio->importar($this->crearPlantillaConContactos(), $otra->id);
+        $repeticion = $servicio->importar($this->crearPlantillaConContactos(), $otra->id);
+        $personal = Personal::query()->where('curp', 'TSTX880111MMNNGN01')->firstOrFail();
+
+        $this->assertSame(0, $complemento['importados']);
+        $this->assertSame(1, $complemento['complementados']);
+        $this->assertSame(0, $complemento['omitidos']);
+        $this->assertSame($origen->id, $personal->unidad_id);
+        $this->assertSame(1, $personal->contactos()->count());
+        $this->assertSame(2, $personal->emergencias()->count());
+        $this->assertSame(0, $repeticion['complementados']);
+        $this->assertSame(1, $repeticion['omitidos']);
+        $this->assertSame(1, $personal->contactos()->count());
+        $this->assertSame(2, $personal->emergencias()->count());
+    }
+
     private function crearPlantilla(): string
     {
         $spreadsheet = new Spreadsheet();
@@ -129,6 +196,25 @@ class PersonalExcelImportServiceTest extends TestCase
         (new Xlsx($spreadsheet))->save($archivo);
         $spreadsheet->disconnectWorksheets();
         $this->archivos[] = $archivo;
+
+        return $archivo;
+    }
+
+    private function crearPlantillaConContactos(): string
+    {
+        $archivo = $this->crearPlantilla();
+        $spreadsheet = IOFactory::load($archivo);
+        $sheet = $spreadsheet->getSheetByName('BASE DE DATOS');
+        $sheet->setCellValue('R10', 'TELEFONO PARTICULAR');
+        $sheet->setCellValue('S10', 'REFERENCIAS FAMILIARES');
+        $sheet->mergeCells('S10:T10');
+        $sheet->setCellValue('S11', '1');
+        $sheet->setCellValue('T11', '2');
+        $sheet->setCellValue('R12', '4436068835');
+        $sheet->setCellValue('S12', "LOURDES VEGA\n(MAMÁ)\n4531382845");
+        $sheet->setCellValue('T12', "JONATHAN GARCIA (ESPOSO)\n4433685592");
+        (new Xlsx($spreadsheet))->save($archivo);
+        $spreadsheet->disconnectWorksheets();
 
         return $archivo;
     }

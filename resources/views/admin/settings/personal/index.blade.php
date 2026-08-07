@@ -120,9 +120,10 @@
 
                             <ul class="small text-muted mb-0 pl-3">
                                 <li>Se leerá la hoja <strong>BASE DE DATOS</strong> y la columna <strong>NOMBRE COMPLETO</strong>.</li>
-                                <li>La foto, armas, referencias, cursos y columnas no soportadas se ignorarán.</li>
+                                <li>Se importarán el <strong>TELÉFONO PARTICULAR</strong> y hasta dos <strong>REFERENCIAS FAMILIARES</strong> como contactos de emergencia.</li>
+                                <li>La foto, armas, cursos y columnas no soportadas se ignorarán.</li>
                                 <li>Valores como <strong>A POSITIVO</strong>, <strong>O NEGATIVO</strong> o <strong>AB+</strong> se normalizarán automáticamente.</li>
-                                <li>El sistema omitirá personal ya registrado y nunca cambiará su unidad por medio de esta carga.</li>
+                                <li>El personal ya registrado conservará su unidad y sus datos; únicamente se agregarán contactos faltantes sin duplicarlos.</li>
                             </ul>
                         </div>
                         <div class="modal-footer">
@@ -143,6 +144,50 @@
         .table th, .table td {
             text-align: center;
             vertical-align: middle;
+        }
+
+        #modalImportarPersonal .modal-content {
+            color: #eaf0ff;
+            background: #111827 !important;
+            border: 1px solid rgba(255, 255, 255, .22) !important;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .72) !important;
+            opacity: 1 !important;
+            overflow: hidden;
+        }
+
+        #modalImportarPersonal .modal-header,
+        #modalImportarPersonal .modal-footer {
+            background: #0b1220 !important;
+            border-color: rgba(255, 255, 255, .14) !important;
+        }
+
+        #modalImportarPersonal .modal-body {
+            background: #111827 !important;
+        }
+
+        #modalImportarPersonal .modal-title,
+        #modalImportarPersonal label {
+            color: #f8fafc !important;
+        }
+
+        #modalImportarPersonal .close {
+            color: #f8fafc;
+            opacity: .85;
+            text-shadow: none;
+        }
+
+        #modalImportarPersonal .alert-info {
+            color: #e0f2fe !important;
+            background: #123047 !important;
+            border-color: #2a789d !important;
+        }
+
+        #modalImportarPersonal .text-muted {
+            color: #cbd5e1 !important;
+        }
+
+        #modalImportarPersonal input[type="file"] {
+            color: #e2e8f0;
         }
     </style>
 @stop
@@ -208,6 +253,9 @@
                     '<div class="text-left">' .
                     '<p><strong>Unidad:</strong> ' . e($importResult['unidad'] ?? '') . '</p>' .
                     '<p><strong>Importados:</strong> ' . (int) ($importResult['importados'] ?? 0) .
+                    '<br><strong>Personal complementado:</strong> ' . (int) ($importResult['complementados'] ?? 0) .
+                    '<br><strong>Teléfonos importados:</strong> ' . (int) ($importResult['contactos_importados'] ?? 0) .
+                    '<br><strong>Contactos de emergencia importados:</strong> ' . (int) ($importResult['emergencias_importadas'] ?? 0) .
                     '<br><strong>Omitidos:</strong> ' . (int) ($importResult['omitidos'] ?? 0) . '</p>' .
                     (count($importResult['errores'] ?? [])
                         ? '<hr><strong>Filas omitidas:</strong><ul>' . collect($importResult['errores'])->take(20)->map(fn ($error) => '<li>' . e($error) . '</li>')->implode('') . '</ul>'

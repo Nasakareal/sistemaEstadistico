@@ -254,6 +254,7 @@ class PersonalController extends Controller
                 'unidad_id' => $unidad->id,
                 'total' => $resultado['total'] ?? 0,
                 'importados' => $resultado['importados'] ?? 0,
+                'restaurados' => $resultado['restaurados'] ?? 0,
                 'complementados' => $resultado['complementados'] ?? 0,
                 'omitidos' => $resultado['omitidos'] ?? 0,
                 'contactos_importados' => $resultado['contactos_importados'] ?? 0,

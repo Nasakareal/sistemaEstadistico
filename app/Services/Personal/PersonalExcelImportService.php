@@ -59,6 +59,7 @@ class PersonalExcelImportService
         $resultado = [
             'total' => count($analisis['registros']),
             'importados' => 0,
+            'restaurados' => 0,
             'complementados' => 0,
             'omitidos' => 0,
             'contactos_importados' => 0,
@@ -87,6 +88,25 @@ class PersonalExcelImportService
                 $existente = $this->buscarExistente($atributos);
 
                 if ($existente) {
+                    if ($existente->trashed()) {
+                        DB::transaction(function () use ($existente, $atributos) {
+                            $existente->fill($atributos);
+                            $existente->deleted_at = null;
+                            $existente->save();
+                        });
+
+                        $resultado['restaurados']++;
+                        $relaciones = $this->guardarRelaciones(
+                            $existente,
+                            $registro,
+                            $fila,
+                            $resultado['advertencias']
+                        );
+                        $resultado['contactos_importados'] += $relaciones['contactos'];
+                        $resultado['emergencias_importadas'] += $relaciones['emergencias'];
+                        continue;
+                    }
+
                     $relaciones = $this->guardarRelaciones(
                         $existente,
                         $registro,
@@ -744,6 +764,7 @@ class PersonalExcelImportService
 
         if (!empty($identificadores)) {
             return Personal::query()
+                ->withTrashed()
                 ->where(function ($query) use ($identificadores) {
                     foreach ($identificadores as $campo => $valor) {
                         $query->orWhere($campo, $valor);
@@ -753,6 +774,7 @@ class PersonalExcelImportService
         }
 
         return Personal::query()
+            ->withTrashed()
             ->where('unidad_id', $atributos['unidad_id'])
             ->where('nombre', $atributos['nombre'])
             ->where('ap_paterno', $atributos['ap_paterno'])

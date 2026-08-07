@@ -146,6 +146,37 @@ class PersonalExcelImportServiceTest extends TestCase
         $this->assertSame(2, $personal->emergencias()->count());
     }
 
+    public function test_reimportar_restaura_personal_eliminado_logicamente(): void
+    {
+        $origen = Unidad::query()->create([
+            'nombre' => 'Unidad restauración origen ' . uniqid(),
+            'slug' => 'unidad-restauracion-origen-' . uniqid(),
+            'activa' => true,
+        ]);
+        $destino = Unidad::query()->create([
+            'nombre' => 'Unidad restauración destino ' . uniqid(),
+            'slug' => 'unidad-restauracion-destino-' . uniqid(),
+            'activa' => true,
+        ]);
+        $servicio = new PersonalExcelImportService();
+
+        $servicio->importar($this->crearPlantilla(), $origen->id);
+        $personal = Personal::query()->where('curp', 'TSTX880111MMNNGN01')->firstOrFail();
+        $idOriginal = $personal->id;
+        $personal->delete();
+
+        $resultado = $servicio->importar($this->crearPlantillaConContactos(), $destino->id);
+        $restaurado = Personal::query()->whereKey($idOriginal)->firstOrFail();
+
+        $this->assertSame(0, $resultado['importados']);
+        $this->assertSame(1, $resultado['restaurados']);
+        $this->assertSame(0, $resultado['omitidos']);
+        $this->assertSame($destino->id, $restaurado->unidad_id);
+        $this->assertNull($restaurado->deleted_at);
+        $this->assertSame(1, $restaurado->contactos()->count());
+        $this->assertSame(2, $restaurado->emergencias()->count());
+    }
+
     private function crearPlantilla(): string
     {
         $spreadsheet = new Spreadsheet();

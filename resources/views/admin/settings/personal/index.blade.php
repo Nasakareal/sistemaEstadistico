@@ -20,6 +20,7 @@
              role="status">
             <strong>Resultado de la carga:</strong>
             {{ (int) ($resumenImportacion['importados'] ?? 0) }} personas nuevas,
+            {{ (int) ($resumenImportacion['restaurados'] ?? 0) }} personas restauradas,
             {{ (int) ($resumenImportacion['complementados'] ?? 0) }} personas complementadas,
             {{ (int) ($resumenImportacion['contactos_importados'] ?? 0) }} teléfonos y
             {{ (int) ($resumenImportacion['emergencias_importadas'] ?? 0) }} contactos de emergencia.
@@ -284,6 +285,7 @@
                     '<div class="text-left">' .
                     '<p><strong>Unidad:</strong> ' . e($importResult['unidad'] ?? '') . '</p>' .
                     '<p><strong>Importados:</strong> ' . (int) ($importResult['importados'] ?? 0) .
+                    '<br><strong>Restaurados:</strong> ' . (int) ($importResult['restaurados'] ?? 0) .
                     '<br><strong>Personal complementado:</strong> ' . (int) ($importResult['complementados'] ?? 0) .
                     '<br><strong>Teléfonos importados:</strong> ' . (int) ($importResult['contactos_importados'] ?? 0) .
                     '<br><strong>Contactos de emergencia importados:</strong> ' . (int) ($importResult['emergencias_importadas'] ?? 0) .

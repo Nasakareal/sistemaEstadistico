@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
-use App\Services\C5iSiniestrosRecommendationService;
 use App\Services\C5iResponseTimeService;
 use App\Services\C5iAudioTranscriptionService;
 use Carbon\Carbon;
@@ -219,12 +218,6 @@ class WhatsAppWebReaderController extends Controller
                 'transcription_meta' => ['reason' => 'open_assigned_incident_not_found'],
                 'transcription_processed_at' => now(),
             ])->save();
-        }
-
-        if ($message->wasRecentlyCreated
-            && !$isOperationalAudio
-            && (bool) config('services.whatsapp.c5i_recommendation.enabled', false)) {
-            app(C5iSiniestrosRecommendationService::class)->process($message);
         }
 
         $responseTimeResult = ($message->wasRecentlyCreated || $audioProcessedNow)

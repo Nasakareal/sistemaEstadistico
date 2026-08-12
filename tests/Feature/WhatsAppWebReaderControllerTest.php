@@ -91,7 +91,7 @@ class WhatsAppWebReaderControllerTest extends TestCase
         );
     }
 
-    public function test_expone_la_razon_de_una_recomendacion_ignorada(): void
+    public function test_no_procesa_recomendaciones_aunque_la_configuracion_anterior_siga_activa(): void
     {
         config([
             'services.whatsapp.web_reader.secret' => 'reader-test-secret',
@@ -117,8 +117,14 @@ class WhatsAppWebReaderControllerTest extends TestCase
             ],
         ], ['X-WhatsApp-Reader-Secret' => 'reader-test-secret'])
             ->assertOk()
-            ->assertJsonPath('recommendation_status', 'ignored')
-            ->assertJsonPath('recommendation_reason', 'coordinates_not_found');
+            ->assertJsonPath('recommendation_status', null)
+            ->assertJsonPath('recommendation_reason', null);
+
+        $this->assertDatabaseHas('whatsapp_web_messages', [
+            'whatsapp_message_id' => 'MENSAJE_SIN_COORDENADAS',
+            'recommendation_status' => null,
+            'recommendation_processed_at' => null,
+        ]);
     }
 
     public function test_genera_id_estable_si_whatsapp_web_no_entrega_message_id(): void

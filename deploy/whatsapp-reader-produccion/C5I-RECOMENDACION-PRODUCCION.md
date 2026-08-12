@@ -1,5 +1,7 @@
 # Recomendación automática de unidad de Siniestros para C5i
 
+> **Retirada:** el sistema ya no procesa ni envía estas recomendaciones automáticas. La recepción y almacenamiento de mensajes del grupo continúa funcionando. Mantén `WHATSAPP_C5I_RECOMMENDATION_ENABLED=false`; el controlador ignora la configuración anterior aunque permanezca activa en un `.env` de producción.
+
 El lector Web únicamente observa `SINIESTROS GC` y guarda mensajes. Laravel analiza los reportes C5i y el envío se realiza por separado mediante la API oficial de Meta.
 
 Dentro de ese grupo sólo se almacenan mensajes enviados por `5214437916890` y `5214437938996`. Los mensajes de cualquier otro participante se descartan tanto en el lector como en Laravel, incluida la cola de reintentos.

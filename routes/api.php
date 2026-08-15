@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\SettingsStatisticsFilesController;
 use App\Http\Controllers\Api\TutorialController;
 use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
 use App\Http\Controllers\Api\ConduceLegalidadController as ApiConduceLegalidadController;
+use App\Http\Controllers\Api\UserNoteController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -95,6 +96,13 @@ Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPunto
     ->name('api.licencias_puntos.public.numero.show');
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::prefix('notes')->group(function () {
+        Route::get('/', [UserNoteController::class, 'index'])->name('api.notes.index');
+        Route::post('/', [UserNoteController::class, 'store'])->name('api.notes.store');
+        Route::put('/{note}', [UserNoteController::class, 'update'])->whereNumber('note')->name('api.notes.update');
+        Route::delete('/{note}', [UserNoteController::class, 'destroy'])->whereNumber('note')->name('api.notes.destroy');
+    });
 
     Route::prefix('perito-home')->middleware(['role:Perito', 'unidad:siniestros'])->group(function () {
         Route::get('/mapa', [PeritoHomeController::class, 'mapa'])->name('api.perito_home.mapa');

@@ -142,6 +142,11 @@ class User extends Authenticatable
         )->withPivot(['verified_at', 'last_accessed_at'])->withTimestamps();
     }
 
+    public function notes()
+    {
+        return $this->hasMany(UserNote::class);
+    }
+
     public function isSuperadmin(): bool
     {
         return $this->hasRole('Superadmin');

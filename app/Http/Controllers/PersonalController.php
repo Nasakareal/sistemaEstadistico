@@ -406,7 +406,7 @@ class PersonalController extends Controller
             'fecha_ingreso_unidad' => 'nullable|date|after_or_equal:fecha_ingreso',
             'fecha_baja' => 'nullable|date',
 
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto' => 'nullable|file|mimes:jpg,jpeg,png,webp,heic,heif,avif,bmp,gif,tif,tiff|max:10240',
             'comprobante_estudios' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
@@ -635,7 +635,7 @@ class PersonalController extends Controller
             'fecha_ingreso_unidad' => 'nullable|date|after_or_equal:fecha_ingreso',
             'fecha_baja' => 'nullable|date',
 
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto' => 'nullable|file|mimes:jpg,jpeg,png,webp,heic,heif,avif,bmp,gif,tif,tiff|max:10240',
             'comprobante_estudios' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 

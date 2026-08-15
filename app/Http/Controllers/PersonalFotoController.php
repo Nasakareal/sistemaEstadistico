@@ -65,9 +65,9 @@ class PersonalFotoController extends Controller
         $this->abortUnlessCanView($personal);
 
         $request->validate([
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto' => 'nullable|file|mimes:jpg,jpeg,png,webp,heic,heif,avif,bmp,gif,tif,tiff|max:10240',
             'fotos' => 'nullable|array',
-            'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
+            'fotos.*' => 'file|mimes:jpg,jpeg,png,webp,heic,heif,avif,bmp,gif,tif,tiff|max:10240',
         ]);
 
         $archivos = [];

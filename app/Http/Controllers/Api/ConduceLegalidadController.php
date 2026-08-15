@@ -2607,7 +2607,16 @@ class ConduceLegalidadController extends Controller
 
     private function operativoPayload(ConduceLegalidadOperativo $operativo, $user, $capturas = null): array
     {
-        $operativo->loadMissing('delegacion');
+        $operativo->loadMissing(['delegacion', 'creador']);
+
+        $adscripcion = $this->adscripcionTicket(
+            $operativo,
+            $operativo->creador ?: $user
+        );
+        $delegacion = $operativo->delegacion;
+        if (!$delegacion && $adscripcion['delegacion_id']) {
+            $delegacion = Delegacion::query()->find($adscripcion['delegacion_id']);
+        }
 
         $isManager = $this->canManage($user);
         $alimentacionCierraEn = $this->alimentacionAlcoholimetriaCierraEn($operativo);
@@ -2625,9 +2634,13 @@ class ConduceLegalidadController extends Controller
             'nombre' => $operativo->nombre,
             'tipo_operativo' => $operativo->tipo_operativo,
             'fecha' => optional($operativo->fecha)->toDateString(),
-            'unidad_id' => $operativo->unidad_id,
-            'delegacion_id' => $operativo->delegacion_id,
-            'delegacion' => $this->refPayload($operativo->delegacion),
+            'unidad_id' => $adscripcion['unidad_id'] ?: null,
+            'delegacion_id' => $adscripcion['delegacion_id'],
+            'delegacion' => $this->refPayload($delegacion),
+            'supervisor' => $this->supervisorTicket(
+                $adscripcion['unidad_id'],
+                $adscripcion['delegacion_id']
+            ),
             'hora_inicio' => $operativo->hora_inicio,
             'hora_cierre' => $operativo->hora_cierre,
             'municipio' => $operativo->municipio,

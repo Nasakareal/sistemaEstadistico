@@ -891,7 +891,7 @@
                     <div class="modal-body">
                         <div class="form-group mb-0">
                             <label>Fotos</label>
-                            <input type="file" name="fotos[]" class="form-control-file" accept="image/jpeg,image/png,image/webp" multiple required>
+                            <input type="file" name="fotos[]" class="form-control-file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.bmp,.gif,.tif,.tiff,image/*" multiple required>
                         </div>
                     </div>
                     <div class="modal-footer">

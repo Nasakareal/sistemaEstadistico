@@ -31,6 +31,19 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
         $this->assertContains('Subdirector de Vialidades Urbanas', $lines);
     }
 
+    public function test_supervisor_payload_uses_delegate_from_specific_delegation(): void
+    {
+        $controller = $this->controllerWithDelegate();
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'supervisorTicket');
+        $method->setAccessible(true);
+
+        $supervisor = $method->invoke($controller, 2, 6);
+
+        $this->assertSame('Ángel Peralta Hernández', $supervisor['nombre']);
+        $this->assertSame('Delegado de la Delegación de Pátzcuaro', $supervisor['cargo']);
+        $this->assertStringNotContainsString('Lugo', $supervisor['nombre']);
+    }
+
     public function test_ticket_uses_operativo_scope_before_sharing_user_or_capture(): void
     {
         $operativo = new ConduceLegalidadOperativo();

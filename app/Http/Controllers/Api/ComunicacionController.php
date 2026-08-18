@@ -8,6 +8,8 @@ use App\Models\ComunicacionAdjunto;
 use App\Models\ComunicacionDestinatario;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Turno;
+use App\Models\Unidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;

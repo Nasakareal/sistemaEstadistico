@@ -99,14 +99,12 @@ Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPunto
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('comunicaciones')->group(function () {
-        Route::get('/', [ApiComunicacionController::class, 'index'])
-            ->name('api.comunicaciones.index');
+        Route::get('/', [ApiComunicacionController::class, 'index'])->name('api.comunicaciones.index');
+        Route::post('/', [ApiComunicacionController::class, 'store'])->name('api.comunicaciones.store');
+        Route::get('/destinatarios', [ApiComunicacionController::class, 'destinatarios'])->name('api.comunicaciones.destinatarios');
 
-        Route::post('/', [ApiComunicacionController::class, 'store'])
-            ->name('api.comunicaciones.store');
-
-        Route::get('/destinatarios', [ApiComunicacionController::class, 'destinatarios'])
-            ->name('api.comunicaciones.destinatarios');
+        Route::get('/catalogos', [ApiComunicacionController::class, 'catalogos'])
+            ->name('api.comunicaciones.catalogos');
 
         Route::get('/no-leidas/count', [ApiComunicacionController::class, 'countNoLeidas'])
             ->name('api.comunicaciones.no_leidas.count');

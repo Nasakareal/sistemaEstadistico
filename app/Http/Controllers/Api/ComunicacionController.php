@@ -509,6 +509,69 @@ class ComunicacionController extends Controller
         ]);
     }
 
+    public function catalogos(Request $request)
+    {
+        $actor = $request->user();
+
+        $capacidades = $this->capacidadesActor($actor);
+
+        if ($this->actorTieneAlcanceGlobal($actor)) {
+            $unidades = Unidad::query()
+                ->orderBy('nombre')
+                ->get(['id', 'nombre']);
+        } elseif ($actor->unidad_id) {
+            $unidades = Unidad::query()
+                ->whereKey($actor->unidad_id)
+                ->orderBy('nombre')
+                ->get(['id', 'nombre']);
+        } else {
+            $unidades = collect();
+        }
+
+        $turnos = Turno::query()
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+
+        $roles = collect();
+
+        if ($capacidades['rol'] ?? false) {
+            $roles = Role::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(function (Role $role) {
+                    return [
+                        'id' => $role->id,
+                        'nombre' => $role->name,
+                    ];
+                })
+                ->values();
+        }
+
+        return response()->json([
+            'capacidades' => $capacidades,
+
+            'unidades' => $unidades
+                ->map(function ($unidad) {
+                    return [
+                        'id' => $unidad->id,
+                        'nombre' => $unidad->nombre,
+                    ];
+                })
+                ->values(),
+
+            'turnos' => $turnos
+                ->map(function ($turno) {
+                    return [
+                        'id' => $turno->id,
+                        'nombre' => $turno->nombre,
+                    ];
+                })
+                ->values(),
+
+            'roles' => $roles,
+        ]);
+    }
+
     public function countNoLeidas(Request $request)
     {
         $actor = $request->user();

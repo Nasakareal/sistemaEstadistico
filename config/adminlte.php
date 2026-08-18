@@ -113,12 +113,12 @@ return [
 
         [
             'type' => 'link',
-            'text' => 'Waze',
-            'route' => 'waze.alerts.index',
+            'text' => 'Mensajes',
+            'route' => 'comunicaciones.index',
             'topnav_right' => true,
-            'icon' => 'fas fa-bell',
-            'id'   => 'wazeBellLink',
-            'waze_badge' => true,
+            'icon' => 'fas fa-comments',
+            'id' => 'comunicacionesBell',
+            'comunicaciones_badge' => true,
         ],
         [
             'type' => 'link',
@@ -852,7 +852,7 @@ return [
         JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,
-        App\AdminLte\Filters\WazeBellBadgeFilter::class,
+        App\AdminLte\Filters\ComunicacionesBellBadgeFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,

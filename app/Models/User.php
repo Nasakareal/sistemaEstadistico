@@ -294,4 +294,34 @@ class User extends Authenticatable
 
         return $numero;
     }
+
+    public function comunicacionesEnviadas()
+    {
+        return $this->hasMany(Comunicacion::class, 'remitente_user_id');
+    }
+
+    public function comunicacionesDirectas()
+    {
+        return $this->hasMany(Comunicacion::class, 'destinatario_user_id');
+    }
+
+    public function comunicacionDestinatarios()
+    {
+        return $this->hasMany(ComunicacionDestinatario::class, 'user_id');
+    }
+
+    public function comunicacionesRecibidas()
+    {
+        return $this->belongsToMany(
+            Comunicacion::class,
+            'comunicacion_destinatarios',
+            'user_id',
+            'comunicacion_id'
+        )
+        ->withPivot([
+            'leido_at',
+            'enterado_at',
+        ])
+        ->withTimestamps();
+    }
 }

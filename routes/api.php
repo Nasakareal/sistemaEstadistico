@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\TutorialController;
 use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
 use App\Http\Controllers\Api\ConduceLegalidadController as ApiConduceLegalidadController;
 use App\Http\Controllers\Api\UserNoteController;
+use App\Http\Controllers\Api\ComunicacionController as ApiComunicacionController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -96,6 +97,40 @@ Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPunto
     ->name('api.licencias_puntos.public.numero.show');
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::prefix('comunicaciones')->group(function () {
+        Route::get('/', [ApiComunicacionController::class, 'index'])
+            ->name('api.comunicaciones.index');
+
+        Route::post('/', [ApiComunicacionController::class, 'store'])
+            ->name('api.comunicaciones.store');
+
+        Route::get('/destinatarios', [ApiComunicacionController::class, 'destinatarios'])
+            ->name('api.comunicaciones.destinatarios');
+
+        Route::get('/no-leidas/count', [ApiComunicacionController::class, 'countNoLeidas'])
+            ->name('api.comunicaciones.no_leidas.count');
+
+        Route::get('/conversacion/{user}', [ApiComunicacionController::class, 'conversacion'])
+            ->whereNumber('user')
+            ->name('api.comunicaciones.conversacion');
+
+        Route::get('/adjuntos/{adjunto}', [ApiComunicacionController::class, 'verAdjunto'])
+            ->whereNumber('adjunto')
+            ->name('api.comunicaciones.adjuntos.show');
+
+        Route::get('/{comunicacion}', [ApiComunicacionController::class, 'show'])
+            ->whereNumber('comunicacion')
+            ->name('api.comunicaciones.show');
+
+        Route::post('/{comunicacion}/leer', [ApiComunicacionController::class, 'marcarLeido'])
+            ->whereNumber('comunicacion')
+            ->name('api.comunicaciones.leer');
+
+        Route::post('/{comunicacion}/enterado', [ApiComunicacionController::class, 'marcarEnterado'])
+            ->whereNumber('comunicacion')
+            ->name('api.comunicaciones.enterado');
+    });
 
     Route::prefix('notes')->group(function () {
         Route::get('/', [UserNoteController::class, 'index'])->name('api.notes.index');

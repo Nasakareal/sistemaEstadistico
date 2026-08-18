@@ -101,6 +101,8 @@ use App\Http\Controllers\FomentoCulturaVialProgramaController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\BoquillaDotacionController;
 
+use App\Http\Controllers\ComunicacionController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 Route::prefix('constancias-manejo')->group(function () {
@@ -256,9 +258,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/liberacion/{vehiculo}/acuse',[LiberacionController::class,'generarAcuse'])->name('liberacion.descargar');
 });
 
-Route::get('/busqueda',[BusquedaController::class,'index'])
-    ->middleware(['auth', 'can:ver hechos'])
-    ->name('busqueda.index');
+Route::get('/busqueda',[BusquedaController::class,'index'])->middleware(['auth', 'can:ver hechos'])->name('busqueda.index');
 Route::get('/campanas',[CampanaController::class,'index'])->name('campanas.index');
 Route::get('/apoyo',[ApoyoController::class,'index'])->name('apoyo.index');
 
@@ -268,31 +268,18 @@ Route::prefix('licencias')->group(function () {
     Route::get('/ubicaciones',[LicenciaController::class,'ubicaciones'])->name('licencias.ubicaciones');
 });
 
-Route::match(['get', 'post'], '/consulta-puntos-licencia', [LicenciaPuntosController::class, 'consulta'])
-    ->name('licencias_puntos.consulta');
+Route::match(['get', 'post'], '/consulta-puntos-licencia', [LicenciaPuntosController::class, 'consulta'])->name('licencias_puntos.consulta');
 
-Route::prefix('mis-puntos-licencia')
-    ->middleware(['auth', 'can:ver portal ciudadano puntos licencias'])
-    ->group(function () {
+Route::prefix('mis-puntos-licencia')->middleware(['auth', 'can:ver portal ciudadano puntos licencias'])->group(function () {
         Route::get('/', [CiudadanoLicenciaPuntosController::class, 'index'])->name('ciudadano.licencias_puntos.index');
-        Route::post('/licencias', [CiudadanoLicenciaPuntosController::class, 'storeLicencia'])
-            ->middleware('throttle:6,1')
-            ->name('ciudadano.licencias_puntos.licencias.store');
+        Route::post('/licencias', [CiudadanoLicenciaPuntosController::class, 'storeLicencia'])->middleware('throttle:6,1')->name('ciudadano.licencias_puntos.licencias.store');
         Route::get('/cursos', [CiudadanoLicenciaPuntosController::class, 'cursos'])->name('ciudadano.licencias_puntos.cursos');
-        Route::get('/cursos/participantes/{participante}/aula', [CiudadanoLicenciaPuntosController::class, 'aula'])
-            ->whereNumber('participante')
-            ->name('ciudadano.licencias_puntos.cursos.aula');
-        Route::get('/licencias/{cuenta}', [CiudadanoLicenciaPuntosController::class, 'show'])
-            ->whereNumber('cuenta')
-            ->name('ciudadano.licencias_puntos.show');
-        Route::delete('/licencias/{cuenta}', [CiudadanoLicenciaPuntosController::class, 'destroyLicencia'])
-            ->whereNumber('cuenta')
-            ->name('ciudadano.licencias_puntos.licencias.destroy');
-    });
+        Route::get('/cursos/participantes/{participante}/aula', [CiudadanoLicenciaPuntosController::class, 'aula'])->whereNumber('participante')->name('ciudadano.licencias_puntos.cursos.aula');
+        Route::get('/licencias/{cuenta}', [CiudadanoLicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('ciudadano.licencias_puntos.show');
+        Route::delete('/licencias/{cuenta}', [CiudadanoLicenciaPuntosController::class, 'destroyLicencia'])->whereNumber('cuenta')->name('ciudadano.licencias_puntos.licencias.destroy');
+});
 
-Route::get('/licencias-puntos/cursos/{curso}/participantes/{participante}/aula', [LicenciaPuntoCursoController::class, 'entrarClaseEnVivo'])
-    ->middleware('signed')
-    ->name('licencias_puntos.cursos.aula.participante');
+Route::get('/licencias-puntos/cursos/{curso}/participantes/{participante}/aula', [LicenciaPuntoCursoController::class, 'entrarClaseEnVivo'])->middleware('signed')->name('licencias_puntos.cursos.aula.participante');
 
 Route::prefix('licencias-puntos')->middleware(['auth', 'can:ver puntos licencias'])->group(function () {
     Route::get('/', [LicenciaPuntosController::class, 'index'])->name('licencias_puntos.index');
@@ -317,48 +304,36 @@ Route::prefix('licencias-puntos')->middleware(['auth', 'can:ver puntos licencias
     Route::post('/{cuenta}/capacitacion', [LicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('licencias_puntos.capacitacion.store');
 });
 
-Route::prefix('admin/settings/licencias-puntos/infracciones')
-    ->middleware(['auth', 'can:ver configuraciones', 'can:ver catalogo infracciones puntos licencias'])
-    ->group(function () {
-        Route::get('/', [LicenciaPuntoInfraccionCatalogoController::class, 'index'])
-            ->name('settings.licencias_puntos.infracciones.index');
-        Route::post('/', [LicenciaPuntoInfraccionCatalogoController::class, 'store'])
-            ->middleware('can:crear catalogo infracciones puntos licencias')
-            ->name('settings.licencias_puntos.infracciones.store');
-        Route::put('/{infraccion}', [LicenciaPuntoInfraccionCatalogoController::class, 'update'])
-            ->middleware('can:editar catalogo infracciones puntos licencias')
-            ->name('settings.licencias_puntos.infracciones.update');
-    });
+Route::prefix('admin/settings/licencias-puntos/infracciones')->middleware(['auth', 'can:ver configuraciones', 'can:ver catalogo infracciones puntos licencias'])->group(function () {
+        Route::get('/', [LicenciaPuntoInfraccionCatalogoController::class, 'index'])->name('settings.licencias_puntos.infracciones.index');
+        Route::post('/', [LicenciaPuntoInfraccionCatalogoController::class, 'store'])->middleware('can:crear catalogo infracciones puntos licencias')->name('settings.licencias_puntos.infracciones.store');
+        Route::put('/{infraccion}', [LicenciaPuntoInfraccionCatalogoController::class, 'update'])->middleware('can:editar catalogo infracciones puntos licencias')->name('settings.licencias_puntos.infracciones.update');
+});
 
 Auth::routes();
 
-Route::get('/personal-fotos/{foto}/archivo-temporal', [PersonalFotoController::class, 'showSigned'])
-    ->middleware('signed')
-    ->name('personal.fotos.signed');
+Route::prefix('comunicaciones')->middleware(['auth'])->group(function () {
+    Route::get('/', [ComunicacionController::class, 'index'])->name('comunicaciones.index');
+    Route::get('/create', [ComunicacionController::class, 'create'])->name('comunicaciones.create');
+    Route::post('/', [ComunicacionController::class, 'store'])->name('comunicaciones.store');
+    Route::get('/destinatarios', [ComunicacionController::class, 'destinatarios'])->name('comunicaciones.destinatarios');
+    Route::get('/no-leidas/count', [ComunicacionController::class, 'countNoLeidas'])->name('comunicaciones.no_leidas.count');
+    Route::get('/adjuntos/{adjunto}', [ComunicacionController::class, 'verAdjunto'])->whereNumber('adjunto')->name('comunicaciones.adjuntos.show');
+    Route::get('/{comunicacion}', [ComunicacionController::class, 'show'])->whereNumber('comunicacion')->name('comunicaciones.show');
+    Route::post('/{comunicacion}/leer', [ComunicacionController::class, 'marcarLeido'])->whereNumber('comunicacion')->name('comunicaciones.leer');
+    Route::post('/{comunicacion}/enterado', [ComunicacionController::class, 'marcarEnterado'])->whereNumber('comunicacion')->name('comunicaciones.enterado');
+});
 
-Route::get('/personal/{personal}/foto-principal-temporal', [PersonalFotoController::class, 'showPrincipalSigned'])
-    ->middleware('signed')
-    ->name('personal.fotos.principal.signed');
+Route::get('/personal-fotos/{foto}/archivo-temporal', [PersonalFotoController::class, 'showSigned'])->middleware('signed')->name('personal.fotos.signed');
+Route::get('/personal/{personal}/foto-principal-temporal', [PersonalFotoController::class, 'showPrincipalSigned'])->middleware('signed')->name('personal.fotos.principal.signed');
 
-Route::get('/personal-documentos/{documento}/{archivo}/archivo-temporal', [PersonalDocumentoController::class, 'showSigned'])
-    ->middleware('signed')
-    ->where('archivo', 'general|comision|asignacion')
-    ->name('personal.documentos.signed');
+Route::get('/personal-documentos/{documento}/{archivo}/archivo-temporal', [PersonalDocumentoController::class, 'showSigned'])->middleware('signed')->where('archivo', 'general|comision|asignacion')->name('personal.documentos.signed');
 
-Route::get('/hechos-fotos/archivo-temporal/{path}', [HechoFotoArchivoController::class, 'showSigned'])
-    ->middleware('signed')
-    ->where('path', '.*')
-    ->name('hechos.fotos.signed');
+Route::get('/hechos-fotos/archivo-temporal/{path}', [HechoFotoArchivoController::class, 'showSigned'])->middleware('signed')->where('path', '.*')->name('hechos.fotos.signed');
 
-Route::get('/actividad-fotos/{foto}/{tipo?}', [ActividadFotoArchivoController::class, 'show'])
-    ->whereNumber('foto')
-    ->where('tipo', 'original|thumbnail')
-    ->name('actividades.fotos.archivo');
+Route::get('/actividad-fotos/{foto}/{tipo?}', [ActividadFotoArchivoController::class, 'show'])->whereNumber('foto')->where('tipo', 'original|thumbnail')->name('actividades.fotos.archivo');
 
-Route::get('/actividad-fotos-principal/{actividad}/{tipo?}', [ActividadFotoArchivoController::class, 'principal'])
-    ->whereNumber('actividad')
-    ->where('tipo', 'original|thumbnail')
-    ->name('actividades.fotos.principal_archivo');
+Route::get('/actividad-fotos-principal/{actividad}/{tipo?}', [ActividadFotoArchivoController::class, 'principal'])->whereNumber('actividad')->where('tipo', 'original|thumbnail')->name('actividades.fotos.principal_archivo');
 
 Route::get('/home',[HomeController::class,'index'])->name('home');
 Route::get('/home/feed',[HomeController::class,'feed'])->name('home.feed');

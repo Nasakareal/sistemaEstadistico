@@ -50,6 +50,8 @@
         @endif
 
     </div>
+
+    @include('comunicaciones.partials.messenger')
 @stop
 
 @section('adminlte_js')

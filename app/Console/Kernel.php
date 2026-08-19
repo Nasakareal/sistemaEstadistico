@@ -53,6 +53,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))
             ->withoutOverlapping();
 
+        $schedule->command('siniestros:generar-excel-diario')
+            ->timezone($timezone)
+            ->dailyAt(substr(config('cortes.hora_corte_siniestros', '18:00:00'), 0, 5))
+            ->withoutOverlapping();
+
         $schedule->command('siniestros:generar-bitacora-diaria')
             ->timezone($timezone)
             ->dailyAt(substr(config('cortes.hora_corte', '18:00:00'), 0, 5))

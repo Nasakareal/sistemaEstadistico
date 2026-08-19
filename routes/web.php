@@ -907,6 +907,13 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::get('/mini-parte/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarMiniParte'])->name('settings.estadisticas_siniestros.mini_parte.descargar');
         Route::get('/excel-novedades', [EstadisticasSiniestrosSettingsController::class, 'excelNovedades'])->name('settings.estadisticas_siniestros.excel_novedades');
         Route::get('/excel-novedades/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarExcelNovedades'])->name('settings.estadisticas_siniestros.excel_novedades.descargar');
+
+        Route::get('/excel-diario', [EstadisticasSiniestrosSettingsController::class, 'excelDiario'])
+            ->name('settings.estadisticas_siniestros.excel_diario');
+
+        Route::get('/excel-diario/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarExcelDiario'])
+            ->name('settings.estadisticas_siniestros.excel_diario.descargar');
+
         Route::get('/actividades', [EstadisticasSiniestrosSettingsController::class, 'actividades'])->name('settings.estadisticas_siniestros.actividades');
         Route::get('/actividades/descargar/{fecha}', [EstadisticasSiniestrosSettingsController::class, 'descargarActividades'])->name('settings.estadisticas_siniestros.actividades.descargar');
         Route::get('/sectorizaciones', [EstadisticasSiniestrosSettingsController::class, 'sectorizaciones'])->name('settings.estadisticas_siniestros.sectorizaciones');
@@ -921,19 +928,12 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
 
     Route::prefix('estadisticas-delegaciones')->group(function () {
         Route::get('/', [EstadisticasDelegacionesSettingsController::class, 'index'])->name('settings.estadisticas_delegaciones.index');
-        Route::get('/control-hechos', [EstadisticasDelegacionesSettingsController::class, 'controlHechos'])
-            ->name('settings.estadisticas_delegaciones.control_hechos');
-        Route::post('/control-hechos/{hecho}/mover-corte', [EstadisticasDelegacionesSettingsController::class, 'moverHechoCorte'])
-            ->name('settings.estadisticas_delegaciones.control_hechos.mover_corte');
-        Route::get('/gruas', [EstadisticasDelegacionesSettingsController::class, 'gruasDelegaciones'])
-            ->name('settings.estadisticas_delegaciones.gruas');
-        Route::get('/gruas/exportar/{formato}', [EstadisticasDelegacionesSettingsController::class, 'exportarGruasDelegaciones'])
-            ->where('formato', 'excel|pdf')
-            ->name('settings.estadisticas_delegaciones.gruas.exportar');
-        Route::get('/actividades-fisicas', [EstadisticasDelegacionesSettingsController::class, 'actividadesFisicas'])
-            ->name('settings.estadisticas_delegaciones.actividades_fisicas');
-        Route::post('/actividades-fisicas', [EstadisticasDelegacionesSettingsController::class, 'guardarActividadFisica'])
-            ->name('settings.estadisticas_delegaciones.actividades_fisicas.store');
+        Route::get('/control-hechos', [EstadisticasDelegacionesSettingsController::class, 'controlHechos'])->name('settings.estadisticas_delegaciones.control_hechos');
+        Route::post('/control-hechos/{hecho}/mover-corte', [EstadisticasDelegacionesSettingsController::class, 'moverHechoCorte'])->name('settings.estadisticas_delegaciones.control_hechos.mover_corte');
+        Route::get('/gruas', [EstadisticasDelegacionesSettingsController::class, 'gruasDelegaciones'])->name('settings.estadisticas_delegaciones.gruas');
+        Route::get('/gruas/exportar/{formato}', [EstadisticasDelegacionesSettingsController::class, 'exportarGruasDelegaciones'])->where('formato', 'excel|pdf')->name('settings.estadisticas_delegaciones.gruas.exportar');
+        Route::get('/actividades-fisicas', [EstadisticasDelegacionesSettingsController::class, 'actividadesFisicas'])->name('settings.estadisticas_delegaciones.actividades_fisicas');
+        Route::post('/actividades-fisicas', [EstadisticasDelegacionesSettingsController::class, 'guardarActividadFisica'])->name('settings.estadisticas_delegaciones.actividades_fisicas.store');
         Route::get('/excel-diario', [EstadisticasDelegacionesSettingsController::class, 'excelDiario'])->name('settings.estadisticas_delegaciones.excel_diario');
         Route::get('/excel-diario/descargar/{fecha}', [EstadisticasDelegacionesSettingsController::class, 'descargarExcelDiario'])->name('settings.estadisticas_delegaciones.excel_diario.descargar');
 

@@ -183,14 +183,17 @@ class RegionalSheetService
         if ($scope === 'TOTAL') {
             return DB::table('delegaciones')
                 ->where('activa', 1)
+                ->where('clave', '!=', 666)
                 ->pluck('id')
                 ->toArray();
         }
 
         $scopeNormalizado = $this->normalizarTextoComparacion($scope);
+
         $region = DB::table('delegaciones')
             ->whereNull('delegacion_padre_id')
             ->where('activa', 1)
+            ->where('clave', '!=', 666)
             ->get()
             ->first(function ($delegacion) use ($scopeNormalizado) {
                 return $this->normalizarTextoComparacion($delegacion->nombre) === $scopeNormalizado;
@@ -202,6 +205,7 @@ class RegionalSheetService
 
         $hijas = DB::table('delegaciones')
             ->where('delegacion_padre_id', $region->id)
+            ->where('clave', '!=', 666)
             ->pluck('id')
             ->toArray();
 

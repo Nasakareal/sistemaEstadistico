@@ -877,4 +877,63 @@ class EstadisticasSiniestrosSettingsController extends Controller
             abort(403);
         }
     }
+
+    public function excelDiario()
+    {
+        $disk = Storage::disk('local');
+        $directorio = 'cortes/excel_diario_siniestros';
+
+        if (!$disk->exists($directorio)) {
+            $disk->makeDirectory($directorio);
+        }
+
+        $cortes = collect($disk->files($directorio))
+            ->filter(function ($file) {
+                return preg_match('/excel_diario_siniestros_\d{4}-\d{2}-\d{2}\.xlsx$/', basename($file));
+            })
+            ->map(function ($file) {
+                $nombre = basename($file);
+
+                preg_match('/excel_diario_siniestros_(\d{4}-\d{2}-\d{2})\.xlsx$/', $nombre, $matches);
+
+                return [
+                    'archivo' => $nombre,
+                    'ruta' => $file,
+                    'fecha' => $matches[1] ?? null,
+                    'url_descarga' => route(
+                        'settings.estadisticas_siniestros.excel_diario.descargar',
+                        $matches[1] ?? null
+                    ),
+                ];
+            })
+            ->filter(fn ($item) => !empty($item['fecha']))
+            ->sortByDesc('fecha')
+            ->values();
+
+        return view(
+            'admin.settings.estadisticas_siniestros.excel_diario.index',
+            compact('cortes')
+        );
+    }
+
+    public function descargarExcelDiario(string $fecha)
+    {
+        abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha), 404);
+
+        $nombreArchivo = 'excel_diario_siniestros_' . $fecha . '.xlsx';
+        $ruta = storage_path(
+            'app/cortes/excel_diario_siniestros/' . $nombreArchivo
+        );
+
+        abort_unless(file_exists($ruta), 404);
+
+        return response()->download(
+            $ruta,
+            $nombreArchivo,
+            [
+                'Content-Type' =>
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        );
+    }
 }

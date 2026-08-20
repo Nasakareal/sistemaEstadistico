@@ -840,26 +840,21 @@ class TotalSheetService extends BaseSiniestrosSheetService
         $sheet->getStyle($colNo . $totalRow . ':' . $colTotal . $totalRow)->applyFromArray($this->estiloTotalControl());
         $sheet->getStyle($colTotal . $totalRow)->getNumberFormat()->setFormatCode($totalFormat);
     }
+
     private function llenarTablasFinales(Worksheet $sheet, int $filaInicio): void
     {
         $datos = $this->obtenerClasificacionVehiculos();
 
         $clasificacionVehiculos = [
-            1 => 'SERVICIO PÚBLICO FED',
-            2 => 'TRANSPORTE PÚBLICO',
-            3 => 'AUTOMÓVIL',
-            4 => 'CAMIONETA',
-            5 => 'MICROBUS',
-            6 => 'CAMIÓN URBANO DE PASAJEROS',
-            7 => 'OMNIBUS',
-            8 => 'CAMIONETA DE CARGA',
-            9 => 'CAMION DE CARGA',
-            10 => 'TRACTOR',
-            11 => 'FERROCARRIL',
-            12 => 'MOTOCICLETA',
-            13 => 'BICICLETA',
-            14 => 'OTRO',
-            15 => 'SEMOVIENTE',
+            1 => 'AUTOMÓVIL',
+            2 => 'CAMIONETA',
+            3 => 'CAMIÓN',
+            4 => 'MOTOCICLETA',
+            5 => 'BICICLETA',
+            6 => 'REMOLQUE',
+            7 => 'MAQUINARIA',
+            8 => 'TREN',
+            9 => 'SEMOVIENTE',
         ];
 
         $this->llenarTablaSinTotal(
@@ -898,10 +893,25 @@ class TotalSheetService extends BaseSiniestrosSheetService
             $vehiculosInvolucrados
         );
 
-        $sheet->setCellValue('H' . ($filaInicio + 1), $this->numeroVisible($datos['resumen']['particulares']));
-        $sheet->setCellValue('H' . ($filaInicio + 2), $this->numeroVisible($datos['resumen']['publicos']));
-        $sheet->setCellValue('H' . ($filaInicio + 3), $this->numeroVisible($datos['resumen']['motos']));
-        $sheet->setCellValue('H' . ($filaInicio + 4), $this->numeroVisible($datos['resumen']['oficiales']));
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 1),
+            $this->numeroVisible($datos['resumen']['particulares'])
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 2),
+            $this->numeroVisible($datos['resumen']['publicos'])
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 3),
+            $this->numeroVisible($datos['resumen']['motos'])
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 4),
+            $this->numeroVisible($datos['resumen']['oficiales'])
+        );
 
         $liberaciones = [
             1 => 'LIBERACIÓN MOTOCICLETAS',
@@ -923,10 +933,25 @@ class TotalSheetService extends BaseSiniestrosSheetService
             '00B0F0'
         );
 
-        $sheet->setCellValue('H' . ($filaInicio + 7), $this->numeroVisible($datos['liberaciones']['motos']));
-        $sheet->setCellValue('H' . ($filaInicio + 8), $this->numeroVisible($datos['liberaciones']['vehiculos']));
-        $sheet->setCellValue('H' . ($filaInicio + 9), $this->numeroVisible($datos['liberaciones']['camiones']));
-        $sheet->setCellValue('H' . ($filaInicio + 10), $this->numeroVisible($datos['liberaciones']['remolques']));
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 7),
+            $this->numeroVisible($datos['liberaciones']['motos'])
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 8),
+            $this->numeroVisible($datos['liberaciones']['vehiculos'])
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 9),
+            $this->numeroVisible($datos['liberaciones']['camiones'])
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 10),
+            $this->numeroVisible($datos['liberaciones']['remolques'])
+        );
 
         $this->llenarTablaSinTotal(
             $sheet,
@@ -1115,8 +1140,21 @@ class TotalSheetService extends BaseSiniestrosSheetService
     {
         return DB::table('hechos as h')
             ->where('h.unidad_org_id', 1)
-            ->where('h.created_at', '>=', $this->inicioCorte->toDateTimeString())
-            ->where('h.created_at', '<', $this->finCorte->toDateTimeString());
+            ->whereRaw(
+                "TIMESTAMP(
+                    DATE(h.fecha),
+                    COALESCE(h.hora, '00:00:00')
+                ) >= ?
+                AND
+                TIMESTAMP(
+                    DATE(h.fecha),
+                    COALESCE(h.hora, '00:00:00')
+                ) < ?",
+                [
+                    $this->inicioCorte->toDateTimeString(),
+                    $this->finCorte->toDateTimeString(),
+                ]
+            );
     }
 
     private function obtenerResumenControlVehicular(): array
@@ -1150,6 +1188,7 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 ->select([
                     'hv.hecho_id',
                     'v.tipo',
+                    'v.capacidad_personas',
                     'v.corralon',
                     'v.grua_id',
                 ])
@@ -1162,7 +1201,13 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 $vehiculosPorHecho[$vehiculo->hecho_id][] = $vehiculo;
 
                 if ($this->vehiculoTieneCorralon($vehiculo)) {
-                    $this->incrementarControlVehicular($datos, 5, $vehiculo->tipo);
+                    $this->incrementarControlVehicular(
+                        $datos,
+                        5,
+                        $vehiculo->tipo,
+                        1,
+                        $vehiculo->capacidad_personas
+                    );
                 }
             }
         }
@@ -1183,7 +1228,14 @@ class TotalSheetService extends BaseSiniestrosSheetService
                         break;
                     }
 
-                    $this->incrementarControlVehicular($datos, 6, $vehiculo->tipo);
+                    $this->incrementarControlVehicular(
+                        $datos,
+                        6,
+                        $vehiculo->tipo,
+                        1,
+                        $vehiculo->capacidad_personas
+                    );
+
                     $clasificados++;
                 }
 
@@ -1196,16 +1248,29 @@ class TotalSheetService extends BaseSiniestrosSheetService
         $vehiculosActividad = DB::table('actividades as a')
             ->join('actividad_vehiculo as av', 'a.id', '=', 'av.actividad_id')
             ->join('vehiculos as v', 'av.vehiculo_id', '=', 'v.id')
-            ->leftJoin('actividad_subcategorias as s', 'a.actividad_subcategoria_id', '=', 's.id')
+            ->leftJoin(
+                'actividad_subcategorias as s',
+                'a.actividad_subcategoria_id',
+                '=',
+                's.id'
+            )
             ->select([
                 'v.tipo',
+                'v.capacidad_personas',
                 'v.corralon',
                 'v.grua_id',
                 's.nombre as subcategoria',
             ])
             ->where('a.unidad_org_id', 1)
             ->whereRaw(
-                "TIMESTAMP(DATE(a.fecha), COALESCE(a.hora, '00:00:00')) >= ? AND TIMESTAMP(DATE(a.fecha), COALESCE(a.hora, '00:00:00')) < ?",
+                "TIMESTAMP(
+                    DATE(a.fecha),
+                    COALESCE(a.hora, '00:00:00')
+                ) >= ?
+                AND TIMESTAMP(
+                    DATE(a.fecha),
+                    COALESCE(a.hora, '00:00:00')
+                ) < ?",
                 [
                     $this->inicioCorte->toDateTimeString(),
                     $this->finCorte->toDateTimeString(),
@@ -1218,12 +1283,26 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 continue;
             }
 
-            $fila = $this->filaControlVehicularPorActividad($vehiculo->subcategoria);
-            $this->incrementarControlVehicular($datos, $fila, $vehiculo->tipo);
+            $fila = $this->filaControlVehicularPorActividad(
+                $vehiculo->subcategoria
+            );
+
+            $this->incrementarControlVehicular(
+                $datos,
+                $fila,
+                $vehiculo->tipo,
+                1,
+                $vehiculo->capacidad_personas
+            );
         }
 
         $puestas = DB::table('puestas_disposicion as p')
-            ->join('puestas_disposicion_vehiculos as pv', 'p.id', '=', 'pv.puesta_disposicion_id')
+            ->join(
+                'puestas_disposicion_vehiculos as pv',
+                'p.id',
+                '=',
+                'pv.puesta_disposicion_id'
+            )
             ->select([
                 'p.motivo',
                 'pv.tipo',
@@ -1232,7 +1311,14 @@ class TotalSheetService extends BaseSiniestrosSheetService
             ])
             ->where('p.unidad_id', 1)
             ->whereRaw(
-                "TIMESTAMP(DATE(p.fecha_puesta), COALESCE(p.hora_puesta, '00:00:00')) >= ? AND TIMESTAMP(DATE(p.fecha_puesta), COALESCE(p.hora_puesta, '00:00:00')) < ?",
+                "TIMESTAMP(
+                    DATE(p.fecha_puesta),
+                    COALESCE(p.hora_puesta, '00:00:00')
+                ) >= ?
+                AND TIMESTAMP(
+                    DATE(p.fecha_puesta),
+                    COALESCE(p.hora_puesta, '00:00:00')
+                ) < ?",
                 [
                     $this->inicioCorte->toDateTimeString(),
                     $this->finCorte->toDateTimeString(),
@@ -1241,9 +1327,17 @@ class TotalSheetService extends BaseSiniestrosSheetService
             ->get();
 
         foreach ($puestas as $puesta) {
-            $columna = $this->clasificarTipoVehiculoControl($puesta->tipo);
-            $motivo = $this->normalizarTextoComparacion($puesta->motivo ?? '');
-            $calidad = $this->normalizarTextoComparacion($puesta->calidad ?? '');
+            $columna = $this->clasificarTipoVehiculoControl(
+                $puesta->tipo
+            );
+
+            $motivo = $this->normalizarTextoComparacion(
+                $puesta->motivo ?? ''
+            );
+
+            $calidad = $this->normalizarTextoComparacion(
+                $puesta->calidad ?? ''
+            );
 
             if ($this->contieneAlguno($motivo, ['HECHO DE TRANSITO'])) {
                 $datos[6][$columna]++;
@@ -1267,9 +1361,18 @@ class TotalSheetService extends BaseSiniestrosSheetService
         return $datos;
     }
 
-    private function incrementarControlVehicular(array &$datos, int $fila, ?string $tipo, int $cantidad = 1): void
-    {
-        $columna = $this->clasificarTipoVehiculoControl($tipo);
+    private function incrementarControlVehicular(
+        array &$datos,
+        int $fila,
+        ?string $tipo,
+        int $cantidad = 1,
+        $capacidadPersonas = null
+    ): void {
+        $columna = $this->clasificarTipoVehiculoControl(
+            $tipo,
+            $capacidadPersonas
+        );
+
         $datos[$fila][$columna] += $cantidad;
     }
 
@@ -1323,27 +1426,181 @@ class TotalSheetService extends BaseSiniestrosSheetService
         return 4;
     }
 
-    private function clasificarTipoVehiculoControl(?string $tipo): string
+    private function tipoGeneralDesdeCarroceria(?string $tipo, $capacidadPersonas = null): ?string
     {
         $tipo = $this->normalizarTextoComparacion($tipo);
 
         if ($this->tipoVehiculoNoEspecificado($tipo)) {
-            return 'otros';
+            return null;
         }
 
-        if ($this->esMotocicletaTipo($tipo) || $this->esBicicletaTipo($tipo)) {
-            return 'motocicletas';
+        $directos = [
+            'AUTOMOVIL' => 'automovil',
+            'CAMIONETA' => 'camioneta',
+            'CAMION' => 'camion',
+            'MOTOCICLETA' => 'motocicleta',
+            'BICICLETA' => 'bicicleta',
+            'REMOLQUE' => 'remolque',
+            'MAQUINARIA' => 'maquinaria',
+            'TREN' => 'tren',
+            'SEMOVIENTE' => 'semoviente',
+        ];
+
+        if (isset($directos[$tipo])) {
+            return $directos[$tipo];
         }
 
-        if ($this->esCamionTipo($tipo)) {
-            return 'camiones';
+        if (in_array($tipo, [
+            'SEDAN',
+            'HATCHBACK',
+            'COUPE',
+            'SUV',
+            'CONVERTIBLE',
+            'WAGON',
+            'CROSSOVER',
+        ], true)) {
+            return 'automovil';
         }
 
-        if ($this->esOtroTipoVehiculo($tipo)) {
-            return 'otros';
+        if (in_array($tipo, [
+            'PICK-UP',
+            'PICKUP',
+            'PANEL',
+            'VAGONETA',
+            'FURGONETA',
+            'VAN',
+            'MINIVAN',
+            'DOBLE CABINA',
+            'CABINA SENCILLA',
+        ], true)) {
+            return 'camioneta';
         }
 
-        return 'vehiculos';
+        if (in_array($tipo, [
+            'TRABAJO',
+            'CRUISER',
+            'CRUISIER',
+            'DOBLE PROPOSITO',
+            'SCOOTER',
+            'ENDURO',
+            'NAKED',
+            'PISTA',
+            'CHOPPER',
+            'CUATRIMOTO',
+            'MOTOCICLISTA',
+        ], true)) {
+            return 'motocicleta';
+        }
+
+        if (in_array($tipo, [
+            'MONTANA',
+            'RUTA',
+            'BMX',
+            'URBANA',
+            'PLEGABLE',
+        ], true)) {
+            return 'bicicleta';
+        }
+
+        if (in_array($tipo, [
+            'CAJA ABIERTA',
+            'CISTERNA',
+            'PIPA',
+            'GRUA',
+            'TORTON',
+            'RABON',
+            'TRACTO',
+            'TRACTOCAMION',
+            'TRACTOCAMIÓN',
+            'REDILAS',
+            'AUTOBUS',
+        ], true)) {
+            return 'camion';
+        }
+
+        if (in_array($tipo, [
+            'CAMA BAJA',
+            'GONDOLA',
+            'DOLLY',
+            'PORTACONTENEDOR',
+        ], true)) {
+            return 'remolque';
+        }
+
+        if (in_array($tipo, [
+            'PLATAFORMA',
+            'CAJA CERRADA',
+            'CAJA SECA',
+            'REFRIGERADO',
+            'VOLTEO',
+        ], true)) {
+            if (is_numeric($capacidadPersonas) && (int) $capacidadPersonas > 0) {
+                return 'camion';
+            }
+
+            return 'remolque';
+        }
+
+        if (in_array($tipo, [
+            'RETROEXCAVADORA',
+            'EXCAVADORA',
+            'CARGADOR FRONTAL',
+            'MOTOCONFORMADORA',
+            'BULLDOZER',
+            'RODILLO COMPACTADOR',
+            'GRUA INDUSTRIAL',
+            'MONTACARGAS',
+            'TRACTOR AGRICOLA',
+            'PAVIMENTADORA',
+            'COMPACTADORA',
+        ], true)) {
+            return 'maquinaria';
+        }
+
+        if (in_array($tipo, [
+            'LOCOMOTORA',
+            'VAGON',
+            'TREN DE CARGA',
+            'TREN DE PASAJEROS',
+            'TRANVIA',
+            'METRO',
+            'FERROCARRIL',
+        ], true)) {
+            return 'tren';
+        }
+
+        if (in_array($tipo, [
+            'CABALLO',
+            'BURRO',
+            'VACA',
+            'MULA',
+            'OTRO ANIMAL DE TIRO',
+        ], true)) {
+            return 'semoviente';
+        }
+
+        return null;
+    }
+
+    private function clasificarTipoVehiculoControl(
+        ?string $tipo,
+        $capacidadPersonas = null
+    ): string {
+        $tipoGeneral = $this->tipoGeneralDesdeCarroceria(
+            $tipo,
+            $capacidadPersonas
+        );
+
+        return match ($tipoGeneral) {
+            'automovil',
+            'camioneta' => 'vehiculos',
+
+            'motocicleta' => 'motocicletas',
+
+            'camion' => 'camiones',
+
+            default => 'otros',
+        };
     }
 
     private function obtenerResumenControlAseguramientos(): array
@@ -1807,6 +2064,7 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 ->select([
                     'hv.hecho_id',
                     'v.tipo',
+                    'v.capacidad_personas',
                     'v.monto_danos',
                 ])
                 ->whereIn('hv.hecho_id', $hechoIds)
@@ -1816,17 +2074,21 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 $vehiculosPorHecho[$vehiculo->hecho_id][] = $vehiculo;
 
                 if (is_numeric($vehiculo->monto_danos ?? null)) {
-                    $datos['monto_vehiculos'] += (float) $vehiculo->monto_danos;
+                    $datos['monto_vehiculos'] +=
+                        (float) $vehiculo->monto_danos;
                 }
             }
         }
 
         foreach ($hechos as $hecho) {
             if (is_numeric($hecho->monto_danos_patrimoniales ?? null)) {
-                $datos['monto_otros'] += (float) $hecho->monto_danos_patrimoniales;
+                $datos['monto_otros'] +=
+                    (float) $hecho->monto_danos_patrimoniales;
             }
 
-            $tipoHecho = $this->normalizarTextoComparacion($hecho->tipo_hecho ?? '');
+            $tipoHecho = $this->normalizarTextoComparacion(
+                $hecho->tipo_hecho ?? ''
+            );
 
             if ($this->contieneAlguno($tipoHecho, ['PEATON', 'ATROPELLO'])) {
                 $datos['tipos']['CHOQUE ENTRE VEHÍCULO Y PEATÓN']++;
@@ -1838,12 +2100,16 @@ class TotalSheetService extends BaseSiniestrosSheetService
             }
 
             $vehiculos = $vehiculosPorHecho[$hecho->id] ?? [];
+
             $camiones = 0;
             $motocicletas = 0;
             $vehiculosNormales = 0;
 
             foreach ($vehiculos as $vehiculo) {
-                $tipo = $this->clasificarVehiculoChoque($vehiculo->tipo);
+                $tipo = $this->clasificarVehiculoChoque(
+                    $vehiculo->tipo,
+                    $vehiculo->capacidad_personas
+                );
 
                 if ($tipo === 'camion') {
                     $camiones++;
@@ -1854,7 +2120,10 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 }
             }
 
-            $totalVehiculos = $camiones + $motocicletas + $vehiculosNormales;
+            $totalVehiculos =
+                $camiones
+                + $motocicletas
+                + $vehiculosNormales;
 
             if ($totalVehiculos <= 1) {
                 $datos['tipos']['CHOQUE DE VEHÍCULO UNICO']++;
@@ -1862,35 +2131,49 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 $datos['tipos']['CHOQUE ENTRE CAMIÓN Y MOTOCICLETA']++;
             } elseif ($camiones > 0 && $vehiculosNormales > 0) {
                 $datos['tipos']['CHOQUE ENTRE CAMIÓN Y VEHÍCULO']++;
-            } elseif ($motocicletas >= 2 && $vehiculosNormales === 0 && $camiones === 0) {
+            } elseif (
+                $motocicletas >= 2
+                && $vehiculosNormales === 0
+                && $camiones === 0
+            ) {
                 $datos['tipos']['CHOQUE ENTRE MOTOCICLETAS']++;
-            } elseif ($vehiculosNormales >= 2 && $motocicletas === 0 && $camiones === 0) {
+            } elseif (
+                $vehiculosNormales >= 2
+                && $motocicletas === 0
+                && $camiones === 0
+            ) {
                 $datos['tipos']['CHOQUE ENTRE VEHÍCULOS']++;
-            } elseif ($motocicletas > 0 && $vehiculosNormales > 0) {
+            } elseif (
+                $motocicletas > 0
+                && $vehiculosNormales > 0
+            ) {
                 $datos['tipos']['CHOQUE ENTRE MOTOCICLETA Y VEHÍCULO']++;
             } else {
                 $datos['tipos']['CHOQUE DE VEHÍCULO UNICO']++;
             }
         }
 
-        $datos['monto_total'] = $datos['monto_vehiculos'] + $datos['monto_otros'];
+        $datos['monto_total'] =
+            $datos['monto_vehiculos']
+            + $datos['monto_otros'];
 
         return $datos;
     }
 
-    private function clasificarVehiculoChoque(?string $tipo): string
-    {
-        $tipo = $this->normalizarTextoComparacion($tipo);
+    private function clasificarVehiculoChoque(
+        ?string $tipo,
+        $capacidadPersonas = null
+    ): string {
+        $tipoGeneral = $this->tipoGeneralDesdeCarroceria(
+            $tipo,
+            $capacidadPersonas
+        );
 
-        if ($this->esCamionTipo($tipo)) {
-            return 'camion';
-        }
-
-        if ($this->esMotocicletaTipo($tipo) || $this->esBicicletaTipo($tipo)) {
-            return 'motocicleta';
-        }
-
-        return 'vehiculo';
+        return match ($tipoGeneral) {
+            'camion' => 'camion',
+            'motocicleta' => 'motocicleta',
+            default => 'vehiculo',
+        };
     }
 
     private function obtenerClasificacionVehiculos(): array
@@ -1912,63 +2195,127 @@ class TotalSheetService extends BaseSiniestrosSheetService
         ];
 
         $vehiculos = $this->hechosBase()
-            ->join('hecho_vehiculo as hv', 'h.id', '=', 'hv.hecho_id')
-            ->join('vehiculos as v', 'hv.vehiculo_id', '=', 'v.id')
+            ->join(
+                'hecho_vehiculo as hv',
+                'h.id',
+                '=',
+                'hv.hecho_id'
+            )
+            ->join(
+                'vehiculos as v',
+                'hv.vehiculo_id',
+                '=',
+                'v.id'
+            )
             ->select([
                 'v.tipo',
+                'v.capacidad_personas',
                 'v.tipo_servicio',
             ])
             ->get();
 
         foreach ($vehiculos as $vehiculo) {
-            $tipo = $this->normalizarTextoComparacion($vehiculo->tipo ?? '');
-            $servicio = $this->normalizarTextoComparacion($vehiculo->tipo_servicio ?? '');
+            $tipo = $vehiculo->tipo ?? '';
 
-            if ($this->contieneAlguno($servicio, ['PUBLIC']) && $this->contieneAlguno($servicio, ['FED'])) {
-                $clave = 'SERVICIO PÚBLICO FED';
-            } elseif ($this->contieneAlguno($servicio, ['PUBLIC'])) {
-                $clave = 'TRANSPORTE PÚBLICO';
-            } else {
-                $clave = $this->mapearTipoVehiculoExcel($tipo);
+            $servicio = $this->normalizarTextoComparacion(
+                $vehiculo->tipo_servicio ?? ''
+            );
+
+            $clave = $this->mapearTipoVehiculoExcel(
+                $tipo,
+                $vehiculo->capacidad_personas
+            );
+
+            if ($clave !== null) {
+                $datos['clasificacion'][$clave] =
+                    ($datos['clasificacion'][$clave] ?? 0) + 1;
             }
 
-            $datos['clasificacion'][$clave] = ($datos['clasificacion'][$clave] ?? 0) + 1;
-            $this->sumarResumenVehiculo($datos['resumen'], $tipo, $servicio);
+            $this->sumarResumenVehiculo(
+                $datos['resumen'],
+                $tipo,
+                $servicio,
+                $vehiculo->capacidad_personas
+            );
         }
 
         $liberaciones = DB::table('liberaciones as l')
-            ->join('vehiculos as v', 'l.vehiculo_id', '=', 'v.id')
-            ->join('hecho_vehiculo as hv', 'v.id', '=', 'hv.vehiculo_id')
-            ->join('hechos as h', 'hv.hecho_id', '=', 'h.id')
+            ->join(
+                'vehiculos as v',
+                'l.vehiculo_id',
+                '=',
+                'v.id'
+            )
+            ->join(
+                'hecho_vehiculo as hv',
+                'v.id',
+                '=',
+                'hv.vehiculo_id'
+            )
+            ->join(
+                'hechos as h',
+                'hv.hecho_id',
+                '=',
+                'h.id'
+            )
             ->select([
                 'l.id',
                 'v.tipo',
+                'v.capacidad_personas',
             ])
             ->where('h.unidad_org_id', 1)
-            ->whereDate('l.fecha_liberacion', $this->fechaCorte)
+            ->whereDate(
+                'l.fecha_liberacion',
+                $this->fechaCorte
+            )
             ->distinct()
             ->get();
 
         foreach ($liberaciones as $liberacion) {
-            $tipo = $this->normalizarTextoComparacion($liberacion->tipo ?? '');
+            $tipoGeneral = $this->tipoGeneralDesdeCarroceria(
+                $liberacion->tipo,
+                $liberacion->capacidad_personas
+            );
 
-            if ($this->esMotocicletaTipo($tipo) || $this->esBicicletaTipo($tipo)) {
-                $datos['liberaciones']['motos']++;
-            } elseif ($this->esRemolqueTipo($tipo)) {
-                $datos['liberaciones']['remolques']++;
-            } elseif ($this->esCamionTipo($tipo)) {
-                $datos['liberaciones']['camiones']++;
-            } else {
-                $datos['liberaciones']['vehiculos']++;
+            switch ($tipoGeneral) {
+                case 'motocicleta':
+                    $datos['liberaciones']['motos']++;
+                    break;
+
+                case 'camion':
+                    $datos['liberaciones']['camiones']++;
+                    break;
+
+                case 'remolque':
+                    $datos['liberaciones']['remolques']++;
+                    break;
+
+                case 'automovil':
+                case 'camioneta':
+                case 'bicicleta':
+                case 'maquinaria':
+                case 'tren':
+                case 'semoviente':
+                    $datos['liberaciones']['vehiculos']++;
+                    break;
             }
         }
 
         return $datos;
     }
 
-    private function sumarResumenVehiculo(array &$resumen, string $tipo, string $servicio): void
-    {
-        if ($this->esMotocicletaTipo($tipo)) {
+    private function sumarResumenVehiculo(
+        array &$resumen,
+        string $tipo,
+        string $servicio,
+        $capacidadPersonas = null
+    ): void {
+        $tipoGeneral = $this->tipoGeneralDesdeCarroceria(
+            $tipo,
+            $capacidadPersonas
+        );
+
+        if ($tipoGeneral === 'motocicleta') {
             $resumen['motos']++;
             return;
         }
@@ -1986,59 +2333,27 @@ class TotalSheetService extends BaseSiniestrosSheetService
         $resumen['particulares']++;
     }
 
-    private function mapearTipoVehiculoExcel(string $tipo): string
-    {
-        $tipo = $this->normalizarTextoComparacion($tipo);
+    private function mapearTipoVehiculoExcel(
+        string $tipo,
+        $capacidadPersonas = null
+    ): ?string {
+        $tipoGeneral = $this->tipoGeneralDesdeCarroceria(
+            $tipo,
+            $capacidadPersonas
+        );
 
-        if ($this->tipoVehiculoNoEspecificado($tipo)) {
-            return 'OTRO';
-        }
-
-        if ($this->esBicicletaTipo($tipo)) {
-            return 'BICICLETA';
-        }
-
-        if ($this->esMotocicletaTipo($tipo)) {
-            return 'MOTOCICLETA';
-        }
-
-        if ($tipo === 'VAGON' || $this->contieneAlguno($tipo, ['FERROCARRIL', 'TREN', 'LOCOMOTORA', 'VAGON DE TREN'])) {
-            return 'FERROCARRIL';
-        }
-
-        if ($this->contieneAlguno($tipo, ['SEMOVIENTE', 'CABALLO', 'BURRO', 'VACA', 'MULA', 'ANIMAL'])) {
-            return 'SEMOVIENTE';
-        }
-
-        if ($this->contieneAlguno($tipo, ['TRACTO', 'TRACTOR'])) {
-            return 'TRACTOR';
-        }
-
-        if ($this->contieneAlguno($tipo, ['MICROBUS'])) {
-            return 'MICROBUS';
-        }
-
-        if ($this->contieneAlguno($tipo, ['OMNIBUS'])) {
-            return 'OMNIBUS';
-        }
-
-        if ($this->contieneAlguno($tipo, ['AUTOBUS', 'CAMION URBANO'])) {
-            return 'CAMIÓN URBANO DE PASAJEROS';
-        }
-
-        if ($this->contieneAlguno($tipo, ['PICK', 'CAMIONETA', 'VAN', 'PANEL', 'VAGONETA', 'MINIVAN'])) {
-            return 'CAMIONETA';
-        }
-
-        if ($this->contieneAlguno($tipo, ['CAJA', 'PLATAFORMA', 'VOLTEO', 'PIPA', 'CISTERNA', 'REDILAS', 'REFRIGERADO', 'GRUA', 'GONDOLA', 'TORTON', 'RABON', 'CAMION'])) {
-            return 'CAMION DE CARGA';
-        }
-
-        if ($this->contieneAlguno($tipo, ['SEDAN', 'SUV', 'HATCHBACK', 'COUPE', 'CONVERTIBLE', 'DEPORTIVO', 'AUTOMOVIL', 'AUTO', 'COMPACTO'])) {
-            return 'AUTOMÓVIL';
-        }
-
-        return 'OTRO';
+        return match ($tipoGeneral) {
+            'automovil' => 'AUTOMÓVIL',
+            'camioneta' => 'CAMIONETA',
+            'camion' => 'CAMIÓN',
+            'motocicleta' => 'MOTOCICLETA',
+            'bicicleta' => 'BICICLETA',
+            'remolque' => 'REMOLQUE',
+            'maquinaria' => 'MAQUINARIA',
+            'tren' => 'TREN',
+            'semoviente' => 'SEMOVIENTE',
+            default => null,
+        };
     }
 
     private function esMotocicletaTipo(string $tipo): bool

@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosContro
 use App\Http\Controllers\Api\ConduceLegalidadController as ApiConduceLegalidadController;
 use App\Http\Controllers\Api\UserNoteController;
 use App\Http\Controllers\Api\ComunicacionController as ApiComunicacionController;
+use App\Http\Controllers\Api\ControlSemaforicoController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -97,6 +98,12 @@ Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPunto
     ->name('api.licencias_puntos.public.numero.show');
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::prefix('control-semaforico')->group(function () {
+        Route::get('/nodos', [ControlSemaforicoController::class, 'index']);
+        Route::get('/nodos/{semaforoNodo}', [ControlSemaforicoController::class, 'show'])->whereNumber('semaforoNodo');
+        Route::post('/nodos/sincronizar', [ControlSemaforicoController::class, 'sync']);
+    });
 
     Route::prefix('comunicaciones')->group(function () {
         Route::get('/', [ApiComunicacionController::class, 'index'])->name('api.comunicaciones.index');

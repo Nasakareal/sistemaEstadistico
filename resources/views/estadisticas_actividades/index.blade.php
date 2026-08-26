@@ -329,6 +329,54 @@
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-dashboard.css') }}">
 <style>
+    .sv-field--date {
+        padding: 9px;
+        border: 1px solid rgba(255, 63, 83, .72);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(255, 45, 68, .16), rgba(255, 45, 68, .06));
+        box-shadow: 0 0 0 1px rgba(255, 63, 83, .10), 0 0 18px rgba(255, 45, 68, .14);
+    }
+
+    .sv-field--date > label {
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 6px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: #ef233c;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .45px;
+        text-transform: uppercase;
+    }
+
+    .sv-field--date input[type="date"] {
+        min-height: 38px;
+        border: 1px solid #ff4d62 !important;
+        background: #181420 !important;
+        color: #fff !important;
+        font-size: 14px;
+        font-weight: 900;
+        color-scheme: dark;
+        box-shadow: inset 0 0 0 1px rgba(255, 77, 98, .16);
+    }
+
+    .sv-field--date input[type="date"]:hover,
+    .sv-field--date input[type="date"]:focus {
+        border-color: #ff7585 !important;
+        box-shadow: 0 0 0 3px rgba(255, 45, 68, .22) !important;
+    }
+
+    .sv-field--date input[type="date"]::-webkit-calendar-picker-indicator {
+        padding: 5px;
+        border-radius: 6px;
+        background-color: #ef233c;
+        cursor: pointer;
+        filter: invert(1);
+        opacity: 1;
+    }
+
     .sv-date-readable {
         display: flex;
         align-items: center;
@@ -336,10 +384,10 @@
         min-height: 26px;
         margin-top: 5px;
         padding: 4px 8px;
-        border: 1px solid rgba(45, 168, 255, .22);
+        border: 1px solid rgba(255, 77, 98, .38);
         border-radius: 9px;
-        background: rgba(45, 168, 255, .09);
-        color: rgba(220, 240, 255, .92);
+        background: rgba(239, 35, 60, .12);
+        color: #ffe8eb;
         font-size: 11px;
         font-weight: 850;
         line-height: 1.2;
@@ -348,7 +396,7 @@
 
     .sv-date-readable i {
         flex: 0 0 auto;
-        color: #54b8ff;
+        color: #ff7585;
     }
 
     .sv-category-summary .sv-panel__title > div:not(.sv-category-summary__actions) {

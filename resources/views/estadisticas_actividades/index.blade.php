@@ -245,6 +245,14 @@
                         <span>Resumen por categoría</span>
                         <small id="resumen_periodo">Periodo seleccionado</small>
                     </div>
+                    <div class="sv-category-summary__actions">
+                        <button class="btn sv-btn sv-btn--ghost" id="btn_resumen_csv" type="button" disabled>
+                            <i class="fa-solid fa-file-csv"></i> Descargar CSV
+                        </button>
+                        <button class="btn sv-btn sv-category-summary__whatsapp" id="btn_resumen_compartir" type="button" disabled>
+                            <i class="fa-brands fa-whatsapp"></i> Compartir
+                        </button>
+                    </div>
                 </div>
 
                 <div class="sv-panel__body p-0">
@@ -343,10 +351,53 @@
         color: #54b8ff;
     }
 
-    .sv-category-summary .sv-panel__title > div {
+    .sv-category-summary .sv-panel__title > div:not(.sv-category-summary__actions) {
         display: flex;
         min-width: 0;
         flex-direction: column;
+    }
+
+    .sv-category-summary__actions {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    .sv-category-summary__actions .btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .sv-category-summary__whatsapp {
+        border-color: #25d366;
+        background: #25d366;
+        color: #07150c;
+    }
+
+    .sv-category-summary__whatsapp:hover,
+    .sv-category-summary__whatsapp:focus {
+        border-color: #20bd5a;
+        background: #20bd5a;
+        color: #07150c;
+    }
+
+    @media (max-width: 575.98px) {
+        .sv-category-summary .sv-panel__title {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .sv-category-summary__actions {
+            width: 100%;
+            margin-top: 9px;
+            margin-left: 0;
+        }
+
+        .sv-category-summary__actions .btn {
+            flex: 1 1 0;
+        }
     }
 
     .sv-category-summary .sv-panel__title small {
@@ -419,6 +470,7 @@
     const base = "{{ url('estadisticas-actividades') }}";
     let page = 1;
     let lastPage = 1;
+    let currentCategorySummary = { categorias: [], total: 0 };
 
     const el = (id) => document.getElementById(id);
 
@@ -496,6 +548,88 @@
         if (desde) return `Desde el ${formatDateLong(desdeValue).toLowerCase()}`;
         if (hasta) return `Hasta el ${formatDateLong(hastaValue).toLowerCase()}`;
         return 'Todos los registros disponibles';
+    }
+
+    function categorySummaryRows(){
+        const rows = [['Tipo', 'Categoría / subcategoría', 'Cantidad']];
+
+        currentCategorySummary.categorias.forEach(categoria => {
+            rows.push(['Categoría', categoria.nombre || '', Number(categoria.total || 0)]);
+
+            const subcategorias = Array.isArray(categoria.subcategorias) ? categoria.subcategorias : [];
+            subcategorias.forEach(subcategoria => {
+                rows.push(['Subcategoría', subcategoria.nombre || '', Number(subcategoria.total || 0)]);
+            });
+        });
+
+        rows.push(['Total general', '', Number(currentCategorySummary.total || 0)]);
+        return rows;
+    }
+
+    function csvCell(value){
+        return `"${String(value ?? '').replace(/"/g, '""')}"`;
+    }
+
+    function categorySummaryCsv(){
+        const period = summaryPeriodTitle();
+        const rows = [[period, '', ''], ...categorySummaryRows()];
+        return '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    }
+
+    function categorySummaryFilename(){
+        const desde = val('f_desde') || 'inicio';
+        const hasta = val('f_hasta') || 'actual';
+        return `resumen-categorias-${desde}-a-${hasta}.csv`;
+    }
+
+    function downloadCategorySummary(){
+        const url = URL.createObjectURL(new Blob([categorySummaryCsv()], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = categorySummaryFilename();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function categorySummaryShareText(){
+        const lines = ['*Resumen por categoría*', summaryPeriodTitle(), ''];
+
+        currentCategorySummary.categorias.forEach(categoria => {
+            lines.push(`*${categoria.nombre || 'Sin categoría'}:* ${Number(categoria.total || 0).toLocaleString('es-MX')}`);
+
+            const subcategorias = Array.isArray(categoria.subcategorias) ? categoria.subcategorias : [];
+            subcategorias.forEach(subcategoria => {
+                lines.push(`↳ ${subcategoria.nombre || 'Sin subcategoría'}: ${Number(subcategoria.total || 0).toLocaleString('es-MX')}`);
+            });
+        });
+
+        lines.push('', `*TOTAL GENERAL: ${Number(currentCategorySummary.total || 0).toLocaleString('es-MX')}*`);
+        return lines.join('\n');
+    }
+
+    async function shareCategorySummary(){
+        const file = new File(
+            [categorySummaryCsv()],
+            categorySummaryFilename(),
+            { type: 'text/csv;charset=utf-8' }
+        );
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'Resumen por categoría',
+                    text: summaryPeriodTitle(),
+                    files: [file]
+                });
+                return;
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+            }
+        }
+
+        window.open(`https://wa.me/?text=${encodeURIComponent(categorySummaryShareText())}`, '_blank', 'noopener');
     }
 
     function qsFromFilters(extra = {}){
@@ -850,8 +984,15 @@
         const total = el('resumen_total');
         const period = el('resumen_periodo');
 
+        currentCategorySummary = {
+            categorias: Array.isArray(summary?.categorias) ? summary.categorias : [],
+            total: Number(summary?.total || 0)
+        };
+
         if (period) period.textContent = summaryPeriodTitle();
         if (total) total.textContent = Number(summary?.total || 0).toLocaleString('es-MX');
+        if (el('btn_resumen_csv')) el('btn_resumen_csv').disabled = currentCategorySummary.categorias.length === 0;
+        if (el('btn_resumen_compartir')) el('btn_resumen_compartir').disabled = currentCategorySummary.categorias.length === 0;
         if (!tbody) return;
 
         const categorias = Array.isArray(summary?.categorias) ? summary.categorias : [];
@@ -1014,6 +1155,16 @@
         if (el('f_desde')) el('f_desde').value = start;
         if (el('f_hasta')) el('f_hasta').value = end;
         updateReadableDates();
+    }
+
+    const btnResumenCsv = el('btn_resumen_csv');
+    if (btnResumenCsv){
+        btnResumenCsv.addEventListener('click', downloadCategorySummary);
+    }
+
+    const btnResumenCompartir = el('btn_resumen_compartir');
+    if (btnResumenCompartir){
+        btnResumenCompartir.addEventListener('click', shareCategorySummary);
     }
 
     setDefaultDates();

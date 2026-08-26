@@ -384,6 +384,7 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
 
     Route::get('/series/actividades',[EstadisticasActividadesController::class,'seriesActividades'])->name('estadisticas_actividades.series.actividades');
     Route::get('/series/categoria',[EstadisticasActividadesController::class,'seriesCategoria'])->name('estadisticas_actividades.series.categoria');
+    Route::get('/resumen/categorias',[EstadisticasActividadesController::class,'resumenCategorias'])->name('estadisticas_actividades.resumen.categorias');
     Route::get('/series/subcategoria',[EstadisticasActividadesController::class,'seriesSubcategoria'])->name('estadisticas_actividades.series.subcategoria');
     Route::get('/series/unidad',[EstadisticasActividadesController::class,'seriesUnidad'])->name('estadisticas_actividades.series.unidad');
     Route::get('/series/delegacion',[EstadisticasActividadesController::class,'seriesDelegacion'])->name('estadisticas_actividades.series.delegacion');

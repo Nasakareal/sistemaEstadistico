@@ -462,6 +462,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/kpis', [EstadisticasActividadesController::class, 'kpis'])->name('api.estadisticas_actividades.kpis');
         Route::get('/series/actividades', [EstadisticasActividadesController::class, 'seriesActividades'])->name('api.estadisticas_actividades.series.actividades');
         Route::get('/series/categoria', [EstadisticasActividadesController::class, 'seriesCategoria'])->name('api.estadisticas_actividades.series.categoria');
+        Route::get('/resumen/categorias', [EstadisticasActividadesController::class, 'resumenCategorias'])->name('api.estadisticas_actividades.resumen.categorias');
         Route::get('/series/subcategoria', [EstadisticasActividadesController::class, 'seriesSubcategoria'])->name('api.estadisticas_actividades.series.subcategoria');
         Route::get('/series/unidad', [EstadisticasActividadesController::class, 'seriesUnidad'])->name('api.estadisticas_actividades.series.unidad');
         Route::get('/series/delegacion', [EstadisticasActividadesController::class, 'seriesDelegacion'])->name('api.estadisticas_actividades.series.delegacion');

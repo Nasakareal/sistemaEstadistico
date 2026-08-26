@@ -909,8 +909,23 @@ class TotalSheetService extends BaseSiniestrosSheetService
         );
 
         $sheet->setCellValue(
+            'H' . ($filaInicio + 1),
+            $datos['monto_total']
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 2),
+            $datos['monto_vehiculos']
+        );
+
+        $sheet->setCellValue(
+            'H' . ($filaInicio + 3),
+            $datos['monto_otros']
+        );
+
+        $sheet->setCellValue(
             'H' . ($filaInicio + 4),
-            $this->numeroVisible($datos['resumen']['oficiales'])
+            '=H' . ($filaInicio + 1)
         );
 
         $liberaciones = [
@@ -2095,9 +2110,81 @@ class TotalSheetService extends BaseSiniestrosSheetService
                 continue;
             }
 
-            if (!$this->contieneAlguno($tipoHecho, ['COLISION', 'CHOQUE'])) {
+        foreach ($hechos as $hecho) {
+            if (is_numeric($hecho->monto_danos_patrimoniales ?? null)) {
+                $datos['monto_otros'] +=
+                    (float) $hecho->monto_danos_patrimoniales;
+            }
+
+            $tipoHecho = $this->normalizarTextoComparacion(
+                $hecho->tipo_hecho ?? ''
+            );
+
+            $vehiculos = $vehiculosPorHecho[$hecho->id] ?? [];
+
+            if ($this->contieneAlguno($tipoHecho, [
+                'PEATON',
+                'ATROPELLO',
+            ])) {
+                $datos['tipos']['CHOQUE ENTRE VEHÍCULO Y PEATÓN']++;
                 continue;
             }
+
+            if (count($vehiculos) === 0) {
+                continue;
+            }
+
+            $camiones = 0;
+            $motocicletas = 0;
+            $vehiculosNormales = 0;
+
+            foreach ($vehiculos as $vehiculo) {
+                $tipo = $this->clasificarVehiculoChoque(
+                    $vehiculo->tipo,
+                    $vehiculo->capacidad_personas
+                );
+
+                if ($tipo === 'camion') {
+                    $camiones++;
+                } elseif ($tipo === 'motocicleta') {
+                    $motocicletas++;
+                } else {
+                    $vehiculosNormales++;
+                }
+            }
+
+            $totalVehiculos =
+                $camiones
+                + $motocicletas
+                + $vehiculosNormales;
+
+            if ($totalVehiculos === 1) {
+                $datos['tipos']['CHOQUE DE VEHÍCULO UNICO']++;
+            } elseif ($camiones > 0 && $motocicletas > 0) {
+                $datos['tipos']['CHOQUE ENTRE CAMIÓN Y MOTOCICLETA']++;
+            } elseif ($camiones > 0 && $vehiculosNormales > 0) {
+                $datos['tipos']['CHOQUE ENTRE CAMIÓN Y VEHÍCULO']++;
+            } elseif (
+                $motocicletas >= 2
+                && $camiones === 0
+                && $vehiculosNormales === 0
+            ) {
+                $datos['tipos']['CHOQUE ENTRE MOTOCICLETAS']++;
+            } elseif (
+                $vehiculosNormales >= 2
+                && $camiones === 0
+                && $motocicletas === 0
+            ) {
+                $datos['tipos']['CHOQUE ENTRE VEHÍCULOS']++;
+            } elseif (
+                $motocicletas > 0
+                && $vehiculosNormales > 0
+            ) {
+                $datos['tipos']['CHOQUE ENTRE MOTOCICLETA Y VEHÍCULO']++;
+            } else {
+                $datos['tipos']['CHOQUE ENTRE VEHÍCULOS']++;
+            }
+        }
 
             $vehiculos = $vehiculosPorHecho[$hecho->id] ?? [];
 

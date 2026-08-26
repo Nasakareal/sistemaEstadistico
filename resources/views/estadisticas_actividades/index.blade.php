@@ -31,9 +31,13 @@
 
                 <div class="sv-form">
                     <div class="sv-form__row">
-                        <div class="sv-field">
-                            <label>Desde</label>
-                            <input type="date" id="f_desde" class="form-control form-control-sm">
+                        <div class="sv-field sv-field--date">
+                            <label for="f_desde">Desde</label>
+                            <input type="date" id="f_desde" class="form-control form-control-sm" aria-describedby="f_desde_legible">
+                            <div class="sv-date-readable" id="f_desde_legible">
+                                <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                                <span>Seleccione una fecha</span>
+                            </div>
                         </div>
 
                         <div class="sv-field">
@@ -41,9 +45,13 @@
                             <input type="time" id="f_hora_desde" class="form-control form-control-sm">
                         </div>
 
-                        <div class="sv-field">
-                            <label>Hasta</label>
-                            <input type="date" id="f_hasta" class="form-control form-control-sm">
+                        <div class="sv-field sv-field--date">
+                            <label for="f_hasta">Hasta</label>
+                            <input type="date" id="f_hasta" class="form-control form-control-sm" aria-describedby="f_hasta_legible">
+                            <div class="sv-date-readable" id="f_hasta_legible">
+                                <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                                <span>Seleccione una fecha</span>
+                            </div>
                         </div>
 
                         <div class="sv-field">
@@ -229,6 +237,40 @@
                     <canvas id="ch_categoria" height="130"></canvas>
                 </div>
             </div>
+
+            <div class="sv-panel sv-category-summary">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-table-list"></i>
+                    <div>
+                        <span>Resumen por categoría</span>
+                        <small id="resumen_periodo">Periodo seleccionado</small>
+                    </div>
+                </div>
+
+                <div class="sv-panel__body p-0">
+                    <div class="table-responsive sv-category-summary__scroll">
+                        <table class="table table-sm mb-0 sv-category-summary__table">
+                            <thead>
+                                <tr>
+                                    <th>Categoría / subcategoría</th>
+                                    <th class="text-right">Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tb_resumen_categorias">
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted">Cargando resumen…</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total general</th>
+                                    <th class="text-right" id="resumen_total">—</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="col-lg-6 col-12">
@@ -278,6 +320,96 @@
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-dashboard.css') }}">
+<style>
+    .sv-date-readable {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 26px;
+        margin-top: 5px;
+        padding: 4px 8px;
+        border: 1px solid rgba(45, 168, 255, .22);
+        border-radius: 9px;
+        background: rgba(45, 168, 255, .09);
+        color: rgba(220, 240, 255, .92);
+        font-size: 11px;
+        font-weight: 850;
+        line-height: 1.2;
+        text-transform: capitalize;
+    }
+
+    .sv-date-readable i {
+        flex: 0 0 auto;
+        color: #54b8ff;
+    }
+
+    .sv-category-summary .sv-panel__title > div {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+    }
+
+    .sv-category-summary .sv-panel__title small {
+        margin-top: 2px;
+        color: rgba(234, 240, 255, .62);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: none;
+    }
+
+    .sv-category-summary__scroll {
+        max-height: 560px;
+        overflow-y: auto;
+    }
+
+    .sv-category-summary__table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 10px 14px;
+        background: #171d2c;
+    }
+
+    .sv-category-summary__table tbody th,
+    .sv-category-summary__table tbody td,
+    .sv-category-summary__table tfoot th {
+        padding: 8px 14px;
+    }
+
+    .sv-category-summary__category th,
+    .sv-category-summary__category td {
+        background: rgba(45, 168, 255, .10);
+        color: rgba(234, 240, 255, .96) !important;
+        font-weight: 950;
+        text-transform: uppercase;
+    }
+
+    .sv-category-summary__subcategory td:first-child {
+        padding-left: 34px;
+    }
+
+    .sv-category-summary__subcategory .sv-branch {
+        margin-right: 7px;
+        color: rgba(84, 184, 255, .75);
+    }
+
+    .sv-category-summary__table td:last-child,
+    .sv-category-summary__table th:last-child {
+        width: 100px;
+        text-align: right;
+    }
+
+    .sv-category-summary__table tfoot th {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        border-top: 1px solid rgba(45, 168, 255, .35);
+        background: #111827;
+        color: #fff;
+        font-size: 14px;
+        text-transform: uppercase;
+    }
+</style>
 @stop
 
 @section('js')
@@ -294,6 +426,77 @@
         const n = el(id);
         return n ? String(n.value ?? '').trim() : '';
     };
+
+    function parseLocalDate(value){
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return null;
+
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day, 12, 0, 0);
+
+        if (
+            date.getFullYear() !== year ||
+            date.getMonth() !== month - 1 ||
+            date.getDate() !== day
+        ) return null;
+
+        return date;
+    }
+
+    function formatDateLong(value, includeWeekday = false){
+        const date = parseLocalDate(value);
+        if (!date) return 'Fecha no seleccionada';
+
+        const options = {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        };
+
+        if (includeWeekday) options.weekday = 'long';
+
+        const text = new Intl.DateTimeFormat('es-MX', options).format(date);
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    function updateReadableDates(){
+        [
+            ['f_desde', 'f_desde_legible'],
+            ['f_hasta', 'f_hasta_legible']
+        ].forEach(([inputId, outputId]) => {
+            const output = el(outputId)?.querySelector('span');
+            if (output) output.textContent = formatDateLong(val(inputId), true);
+        });
+    }
+
+    function summaryPeriodTitle(){
+        const desdeValue = val('f_desde');
+        const hastaValue = val('f_hasta');
+        const desde = parseLocalDate(desdeValue);
+        const hasta = parseLocalDate(hastaValue);
+
+        if (desde && hasta && desdeValue === hastaValue) {
+            return `Actividades del ${formatDateLong(desdeValue).toLowerCase()}`;
+        }
+
+        if (desde && hasta && desde.getFullYear() === hasta.getFullYear() && desde.getMonth() === hasta.getMonth()) {
+            const ultimoDia = new Date(desde.getFullYear(), desde.getMonth() + 1, 0).getDate();
+
+            if (desde.getDate() === 1 && hasta.getDate() === ultimoDia) {
+                return `Actividades de ${new Intl.DateTimeFormat('es-MX', {
+                    month: 'long',
+                    year: 'numeric'
+                }).format(desde)}`;
+            }
+        }
+
+        if (desde && hasta) {
+            return `Del ${formatDateLong(desdeValue).toLowerCase()} al ${formatDateLong(hastaValue).toLowerCase()}`;
+        }
+
+        if (desde) return `Desde el ${formatDateLong(desdeValue).toLowerCase()}`;
+        if (hasta) return `Hasta el ${formatDateLong(hastaValue).toLowerCase()}`;
+        return 'Todos los registros disponibles';
+    }
 
     function qsFromFilters(extra = {}){
         const params = new URLSearchParams();
@@ -618,7 +821,7 @@
             return `
                 <tr>
                     <td>${escapeHtml(r.id)}</td>
-                    <td>${escapeHtml(r.fecha)}</td>
+                    <td>${escapeHtml(formatDateLong(r.fecha))}</td>
                     <td>${escapeHtml(r.unidad ?? r.unidad_nombre)}</td>
                     <td>${escapeHtml(r.delegacion ?? r.delegacion_nombre)}</td>
                     <td>${escapeHtml(r.categoria ?? r.categoria_nombre)}</td>
@@ -640,6 +843,41 @@
         if (el('pg_info')){
             el('pg_info').textContent = `Página ${page} de ${lastPage} · ${paginated.total} registros`;
         }
+    }
+
+    function renderCategorySummary(summary){
+        const tbody = el('tb_resumen_categorias');
+        const total = el('resumen_total');
+        const period = el('resumen_periodo');
+
+        if (period) period.textContent = summaryPeriodTitle();
+        if (total) total.textContent = Number(summary?.total || 0).toLocaleString('es-MX');
+        if (!tbody) return;
+
+        const categorias = Array.isArray(summary?.categorias) ? summary.categorias : [];
+
+        if (categorias.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="2" class="text-center text-muted">Sin actividades para los filtros seleccionados.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = categorias.map(categoria => {
+            const subcategorias = Array.isArray(categoria.subcategorias) ? categoria.subcategorias : [];
+            const categoryRow = `
+                <tr class="sv-category-summary__category">
+                    <th scope="row">${escapeHtml(categoria.nombre)}</th>
+                    <td>${Number(categoria.total || 0).toLocaleString('es-MX')}</td>
+                </tr>
+            `;
+            const subcategoryRows = subcategorias.map(subcategoria => `
+                <tr class="sv-category-summary__subcategory">
+                    <td><span class="sv-branch" aria-hidden="true">↳</span>${escapeHtml(subcategoria.nombre)}</td>
+                    <td>${Number(subcategoria.total || 0).toLocaleString('es-MX')}</td>
+                </tr>
+            `).join('');
+
+            return categoryRow + subcategoryRows;
+        }).join('');
     }
 
     async function loadAll(){
@@ -709,6 +947,9 @@
             categoriaRows.slice(0, 10).map(r => Number(r.total || 0))
         );
 
+        const categorySummary = await getOptionalJson('resumen/categorias', {}, { categorias: [], total: 0 });
+        renderCategorySummary(categorySummary);
+
         const actividades = await getJson('actividades', { page });
         renderActividadesTable(actividades);
 
@@ -772,9 +1013,16 @@
 
         if (el('f_desde')) el('f_desde').value = start;
         if (el('f_hasta')) el('f_hasta').value = end;
+        updateReadableDates();
     }
 
     setDefaultDates();
+    ['f_desde', 'f_hasta'].forEach(id => {
+        const input = el(id);
+        if (!input) return;
+        input.addEventListener('input', updateReadableDates);
+        input.addEventListener('change', updateReadableDates);
+    });
     wireExportLinkUpdates();
     toggleDelegacion();
     setExportLinks();

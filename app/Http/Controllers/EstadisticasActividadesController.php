@@ -97,6 +97,61 @@ class EstadisticasActividadesController extends Controller
         return $this->distributionJoin($request, 'actividad_categorias', 'actividad_categoria_id', 'nombre', 'actividades.actividad_categoria_id');
     }
 
+    public function resumenCategorias(Request $request)
+    {
+        return $this->cachedJson($request, 'resumenCategorias', function () use ($request) {
+            $q = $this->baseActividadesQuery($request);
+            $this->applySearchFilter($q, $request);
+
+            $rows = $q
+                ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
+                ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+                ->selectRaw("
+                    actividad_categorias.id as categoria_id,
+                    COALESCE(NULLIF(TRIM(actividad_categorias.nombre), ''), 'NO ESPECIFICADO') as categoria,
+                    actividad_subcategorias.id as subcategoria_id,
+                    COALESCE(NULLIF(TRIM(actividad_subcategorias.nombre), ''), 'NO ESPECIFICADO') as subcategoria,
+                    COUNT(DISTINCT actividades.id) as total
+                ")
+                ->groupBy(
+                    'actividad_categorias.id',
+                    'actividad_categorias.nombre',
+                    'actividad_subcategorias.id',
+                    'actividad_subcategorias.nombre'
+                )
+                ->get();
+
+            $categorias = $rows
+                ->groupBy(function ($row) {
+                    return $row->categoria_id !== null
+                        ? 'categoria_' . $row->categoria_id
+                        : 'sin_categoria';
+                })
+                ->map(function ($grupo) {
+                    return [
+                        'nombre' => (string)$grupo->first()->categoria,
+                        'total' => (int)$grupo->sum('total'),
+                        'subcategorias' => $grupo
+                            ->map(function ($row) {
+                                return [
+                                    'nombre' => (string)$row->subcategoria,
+                                    'total' => (int)$row->total,
+                                ];
+                            })
+                            ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
+                            ->values(),
+                    ];
+                })
+                ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values();
+
+            return [
+                'categorias' => $categorias,
+                'total' => (int)$categorias->sum('total'),
+            ];
+        });
+    }
+
     public function seriesSubcategoria(Request $request)
     {
         return $this->distributionJoin($request, 'actividad_subcategorias', 'actividad_subcategoria_id', 'nombre', 'actividades.actividad_subcategoria_id');

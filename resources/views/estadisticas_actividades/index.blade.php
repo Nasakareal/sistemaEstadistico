@@ -103,8 +103,8 @@
 
                         <div class="sv-field">
                             <label>Subcategoría</label>
-                            <select id="f_subcategoria" class="form-control form-control-sm">
-                                <option value="">(Todas)</option>
+                            <select id="f_subcategoria" class="form-control form-control-sm" disabled>
+                                <option value="">Seleccione una categoría</option>
                             </select>
                         </div>
 
@@ -864,6 +864,21 @@
         setExportLinks();
     }
 
+    function toggleSubcategoria(){
+        const categoria = val('f_categoria');
+        const subcategoria = el('f_subcategoria');
+
+        if (!subcategoria) return;
+
+        subcategoria.disabled = !categoria;
+
+        if (!categoria) {
+            subcategoria.value = '';
+        }
+
+        setExportLinks();
+    }
+
     let chTime = null;
     let chUnidad = null;
     let chCategoria = null;
@@ -1123,6 +1138,8 @@
             label: r.nombre
         })), '(Todas)');
 
+        toggleSubcategoria();
+
         const deleg = await getOptionalJson('catalogos/delegaciones', {}, []);
         fillSelect('f_delegacion', deleg.map(r => ({
             value: r.id,
@@ -1212,6 +1229,13 @@
         unidadSelect.addEventListener('change', function(){
             toggleDelegacion();
             toggleDestacamento();
+        });
+    }
+
+    const categoriaSelect = el('f_categoria');
+    if (categoriaSelect){
+        categoriaSelect.addEventListener('change', function(){
+            toggleSubcategoria();
         });
     }
 

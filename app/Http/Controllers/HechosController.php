@@ -48,7 +48,7 @@ class HechosController extends Controller
         $unidadFiltro = (string) $request->query('unidad_filtro', '');
 
         $hechosQuery = Hechos::query()
-            ->with(['revisadoPor', 'marcadoRelevantePor', 'croquis', 'creator', 'puestaDisposicion'])
+            ->with(['delegacion', 'marcadoRelevantePor', 'croquis', 'creator', 'puestaDisposicion'])
             ->withCount([
                 'lesionados',
                 'vehiculosEnCorralon as vehiculos_corralon_count',

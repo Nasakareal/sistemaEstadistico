@@ -104,7 +104,7 @@
                                     <th class="text-center">Estado</th>
                                     <th class="text-center">Captura</th>
                                     <th class="text-center">Corralón</th>
-                                    <th class="text-center">Revisado por</th>
+                                    <th class="text-center">Delegación</th>
                                     <th class="text-center">Creado por</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
@@ -192,7 +192,7 @@
                                             </span>
                                         </td>
 
-                                        <td>{{ $hecho->revisadoPor ? $hecho->revisadoPor->name : 'SIN REVISIÓN' }}</td>
+                                        <td>{{ $hecho->delegacion ? $hecho->delegacion->nombre : 'SIN DELEGACIÓN' }}</td>
 
                                         <td>{{ $hecho->creator ? $hecho->creator->name : 'Desconocido' }}</td>
 

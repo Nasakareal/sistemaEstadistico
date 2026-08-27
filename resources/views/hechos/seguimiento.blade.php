@@ -16,9 +16,12 @@
         $periodoActual = strtoupper($periodo ?? 'SEMANA');
         $situacionActual = strtoupper($situacion ?? 'PENDIENTE');
         $unidadActual = (string) ($unidadFiltro ?? '');
+        $delegacionActual = (string) ($delegacionFiltro ?? '');
         $folioBusqueda = trim((string) ($folioBusqueda ?? ''));
         $hayBusquedaFolio = $folioBusqueda !== '';
         $puedeFiltrarUnidad = $puedeFiltrarUnidad ?? false;
+        $puedeFiltrarDelegacion = $puedeFiltrarDelegacion ?? false;
+        $delegacionesFiltro = $delegacionesFiltro ?? collect();
         $puedeMostrarTodasSituaciones = $puedeMostrarTodasSituaciones ?? false;
         $unidadesFiltro = $unidadesFiltro ?? [
             '1' => 'Siniestros',
@@ -63,7 +66,15 @@
             ? 'Folio ' . $folioBusqueda . ' · sin filtros de tablero'
             : (($labelsSituacion[$situacionActual] ?? $situacionActual) . ' · ' . ($labelsPeriodo[$periodoActual] ?? $periodoActual) . ' · ' . $unidadTexto);
 
-        $paramsUnidad = $unidadActual !== '' ? ['unidad_filtro' => $unidadActual] : [];
+        $paramsFiltros = [];
+
+        if ($unidadActual !== '') {
+            $paramsFiltros['unidad_filtro'] = $unidadActual;
+        }
+
+        if ($delegacionActual !== '') {
+            $paramsFiltros['delegacion_filtro'] = $delegacionActual;
+        }
         $conteosPeriodo = $conteos[strtolower($periodoActual)] ?? [];
         $estadosFiltro = $puedeMostrarTodasSituaciones
             ? ['TODOS', 'PENDIENTE', 'TURNADO', 'RESUELTO', 'FALTA_COMPLETAR']
@@ -138,6 +149,24 @@
                         </div>
                     @endif
 
+                    @if ($puedeFiltrarDelegacion)
+                        <div>
+                            <label for="delegacion_filtro">Delegación</label>
+                            <select name="delegacion_filtro" id="delegacion_filtro" class="form-control sv-input">
+                                <option value="">Todas las delegaciones permitidas</option>
+
+                                @foreach ($delegacionesFiltro as $delegacion)
+                                    <option
+                                        value="{{ $delegacion->id }}"
+                                        {{ $delegacionActual === (string) $delegacion->id ? 'selected' : '' }}
+                                    >
+                                        {{ $delegacion->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
                     <div class="sv-filter-actions">
                         <button type="submit" class="btn btn-primary">
                             <i class="fa-solid fa-filter"></i> Filtrar
@@ -154,7 +183,7 @@
                 @foreach ($estadosFiltro as $estado)
                     <a
                         class="sv-kpi sv-kpi--{{ strtolower($estado) }} {{ $situacionActual === $estado ? 'is-active' : '' }}"
-                        href="{{ route('hechos.seguimiento', array_merge($paramsUnidad, ['periodo' => $periodoActual, 'situacion' => $estado])) }}"
+                        href="{{ route('hechos.seguimiento', array_merge($paramsFiltros, ['periodo' => $periodoActual, 'situacion' => $estado])) }}"
                     >
                         <span class="sv-kpi__icon"><i class="fa-solid {{ $iconosSituacion[$estado] }}"></i></span>
                         <span class="sv-kpi__body">
@@ -168,7 +197,7 @@
             <div class="sv-period-links">
                 @foreach (['SEMANA', 'MES', 'ANIO'] as $periodoLink)
                     <a
-                        href="{{ route('hechos.seguimiento', array_merge($paramsUnidad, ['periodo' => $periodoLink, 'situacion' => $situacionActual])) }}"
+                        href="{{ route('hechos.seguimiento', array_merge($paramsFiltros, ['periodo' => $periodoLink, 'situacion' => $situacionActual])) }}"
                         class="sv-period-link {{ $periodoActual === $periodoLink ? 'is-active' : '' }}"
                     >
                         {{ $labelsPeriodo[$periodoLink] }}

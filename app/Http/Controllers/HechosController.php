@@ -22,6 +22,7 @@ use App\Services\WhatsApp\NearestUnit;
 use App\Support\HechoLocationGuard;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
+use App\Models\Delegacion;
 
 class HechosController extends Controller
 {
@@ -1092,6 +1093,55 @@ class HechosController extends Controller
         });
     }
 
+    private function delegacionesFiltroSeguimiento($usuario)
+    {
+        if (!$usuario || (int) ($usuario->unidad_id ?? 0) !== 2) {
+            return collect();
+        }
+
+        if (
+            $usuario->hasRole('Superadmin')
+            || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
+            || $usuario->hasRole('Subdirector')
+        ) {
+            return Delegacion::query()
+                ->orderBy('nombre')
+                ->get(['id', 'nombre', 'delegacion_padre_id']);
+        }
+
+        $delegacionId = (int) ($usuario->delegacion_id ?? 0);
+
+        if ($delegacionId <= 0) {
+            return collect();
+        }
+
+        if (!$usuario->hasRole('Delegado')) {
+            return Delegacion::query()
+                ->whereKey($delegacionId)
+                ->get(['id', 'nombre', 'delegacion_padre_id']);
+        }
+
+        $esRegional = Delegacion::query()
+            ->whereKey($delegacionId)
+            ->whereNull('delegacion_padre_id')
+            ->exists();
+
+        if (!$esRegional) {
+            return Delegacion::query()
+                ->whereKey($delegacionId)
+                ->get(['id', 'nombre', 'delegacion_padre_id']);
+        }
+
+        return Delegacion::query()
+            ->where(function ($query) use ($delegacionId) {
+                $query->where('id', $delegacionId)
+                    ->orWhere('delegacion_padre_id', $delegacionId);
+            })
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'delegacion_padre_id']);
+    }
+
     public function seguimiento(Request $request)
     {
         $usuario = auth()->user();
@@ -1104,8 +1154,29 @@ class HechosController extends Controller
         $periodo = strtoupper($request->get('periodo', $periodoDefault));
         $situacion = strtoupper($request->get('situacion', $situacionDefault));
         $unidadFiltro = (string) $request->get('unidad_filtro', '');
+        $delegacionFiltro = trim((string) $request->get('delegacion_filtro', ''));
         $folioBusqueda = trim((string) $request->get('folio', ''));
         $folioBusqueda = mb_substr($folioBusqueda, 0, 60, 'UTF-8');
+
+        $delegacionesFiltro = $this->delegacionesFiltroSeguimiento($usuario);
+
+        $delegacionIdsPermitidas = $delegacionesFiltro
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+
+        $puedeFiltrarDelegacion = $esUsuarioDelegaciones && $delegacionesFiltro->isNotEmpty();
+
+        if (
+            !$puedeFiltrarDelegacion
+            || (
+                $delegacionFiltro !== ''
+                && !in_array($delegacionFiltro, $delegacionIdsPermitidas, true)
+            )
+        ) {
+            $delegacionFiltro = '';
+        }
         $puedeFiltrarUnidad = $usuario
             && ($usuario->hasRole('Superadmin') || (int) ($usuario->unidad_id ?? 0) === 3);
         $unidadesFiltro = [
@@ -1141,6 +1212,15 @@ class HechosController extends Controller
             $this->scopeHechosUnidad($query, (int) $unidadFiltro);
         };
 
+        $aplicarFiltroDelegacion = function ($query) use ($esUsuarioDelegaciones, $delegacionFiltro) {
+            if (!$esUsuarioDelegaciones || $delegacionFiltro === '') {
+                return;
+            }
+
+            $this->scopeHechosUnidad($query, 2);
+            $query->where('delegacion_id', (int) $delegacionFiltro);
+        };
+
         $hoy = now('America/Mexico_City');
 
         $inicioSemana = $hoy->copy()->startOfWeek();
@@ -1152,28 +1232,30 @@ class HechosController extends Controller
         $inicioAnio = $hoy->copy()->startOfYear();
         $finAnio = $hoy->copy()->endOfYear();
 
-        $crearQueryConteo = function ($inicio, $fin, $situacionConteo) use ($usuario, $aplicarFiltroUnidad) {
+        $crearQueryConteo = function ($inicio, $fin, $situacionConteo) use ($usuario, $aplicarFiltroUnidad, $aplicarFiltroDelegacion) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
                 ->where('situacion', $situacionConteo);
 
             $this->applyHechosVisibilityScope($query, $usuario);
             $aplicarFiltroUnidad($query);
+            $aplicarFiltroDelegacion($query);
 
             return $query;
         };
 
-        $crearQueryTodos = function ($inicio, $fin) use ($usuario, $aplicarFiltroUnidad) {
+        $crearQueryTodos = function ($inicio, $fin) use ($usuario, $aplicarFiltroUnidad, $aplicarFiltroDelegacion) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
 
             $this->applyHechosVisibilityScope($query, $usuario);
             $aplicarFiltroUnidad($query);
+            $aplicarFiltroDelegacion($query);
 
             return $query;
         };
 
-        $crearQueryFaltaCompletar = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro) {
+        $crearQueryFaltaCompletar = function ($inicio, $fin) use ($usuario, $puedeFiltrarUnidad, $unidadFiltro, $aplicarFiltroDelegacion) {
             $query = Hechos::query()
                 ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()]);
 
@@ -1184,6 +1266,7 @@ class HechosController extends Controller
             } else {
                 $this->scopeHechosUnidad($query, 2);
                 $this->aplicarFiltroCapturaIncompletaDelegaciones($query);
+                $aplicarFiltroDelegacion($query);
             }
 
             return $query;
@@ -1229,6 +1312,7 @@ class HechosController extends Controller
             });
 
             $this->applyHechosVisibilityScope($query, $usuario);
+            $aplicarFiltroDelegacion($query);
         } else {
             if ($periodo === 'SEMANA') {
                 $query->whereBetween('fecha', [$inicioSemana->toDateString(), $finSemana->toDateString()]);
@@ -1239,6 +1323,7 @@ class HechosController extends Controller
             }
 
             $this->applyHechosVisibilityScope($query, $usuario);
+            $aplicarFiltroDelegacion($query);
 
             if ($situacion === 'FALTA_COMPLETAR') {
                 if ($puedeFiltrarUnidad && $unidadFiltro !== '' && $unidadFiltro !== '2') {
@@ -1283,9 +1368,12 @@ class HechosController extends Controller
             'periodo',
             'situacion',
             'unidadFiltro',
+            'delegacionFiltro',
             'folioBusqueda',
             'puedeFiltrarUnidad',
             'unidadesFiltro',
+            'puedeFiltrarDelegacion',
+            'delegacionesFiltro',
             'puedeMostrarTodasSituaciones'
         ));
     }

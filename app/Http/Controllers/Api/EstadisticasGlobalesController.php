@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EstadisticasGlobalesController extends Controller
@@ -41,7 +42,7 @@ class EstadisticasGlobalesController extends Controller
             $vehPlacas = trim((string)$request->query('veh_placas', ''));
             $vehSerie  = trim((string)$request->query('veh_serie', ''));
 
-            if ($vehTipo !== '')   $vehQ->where('vehiculos.tipo', $vehTipo);
+            if ($vehTipo !== '')   $this->applyVehiculoTipoFilter($vehQ, $vehTipo);
             if ($vehMarca !== '')  $vehQ->where('vehiculos.marca', $vehMarca);
             if ($vehModelo !== '') $vehQ->where('vehiculos.modelo', $vehModelo);
             if ($vehLinea !== '')  $vehQ->where('vehiculos.linea', $vehLinea);
@@ -155,10 +156,25 @@ class EstadisticasGlobalesController extends Controller
         return $this->cached($request, 'seriesVehiculosTipo', function () use ($request) {
             $q = $this->baseVehiculosQuery($request);
 
-            $rows = $q->selectRaw("COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT vehiculos.id) as total")
-                ->groupBy('label')->orderByDesc('total')->limit(50)->get();
+            $raw = $q->selectRaw("vehiculos.tipo_general as tipo_general, COALESCE(NULLIF(TRIM(vehiculos.tipo), ''), 'NO ESPECIFICADO') as tipo, COUNT(DISTINCT vehiculos.id) as total")
+                ->groupBy('vehiculos.tipo_general', 'tipo')
+                ->get();
 
-            return response()->json(['field' => 'vehiculos.tipo', 'series' => $rows]);
+            $totals = [];
+            foreach ($raw as $row) {
+                $general = $this->tipoGeneralVehiculo(
+                    (string) ($row->tipo_general ?? ''),
+                    (string) ($row->tipo ?? '')
+                );
+                $totals[$general] = ($totals[$general] ?? 0) + (int) ($row->total ?? 0);
+            }
+
+            arsort($totals);
+            $rows = collect($totals)
+                ->map(fn ($total, $label) => ['label' => $label, 'total' => (int) $total])
+                ->values();
+
+            return response()->json(['field' => 'vehiculos.tipo_general', 'series' => $rows]);
         });
     }
 
@@ -294,7 +310,7 @@ class EstadisticasGlobalesController extends Controller
         $vehPlacas = trim((string)$request->query('veh_placas', ''));
         $vehSerie = trim((string)$request->query('veh_serie', ''));
 
-        if ($vehTipo !== '') $q->where('vehiculos.tipo', $vehTipo);
+        if ($vehTipo !== '') $this->applyVehiculoTipoFilter($q, $vehTipo);
         if ($vehMarca !== '') $q->where('vehiculos.marca', $vehMarca);
         if ($vehModelo !== '') $q->where('vehiculos.modelo', $vehModelo);
         if ($vehLinea !== '') $q->where('vehiculos.linea', $vehLinea);
@@ -387,13 +403,124 @@ class EstadisticasGlobalesController extends Controller
         $q->join('hecho_vehiculo', 'hecho_vehiculo.hecho_id', '=', 'hechos.id')
             ->join('vehiculos', 'vehiculos.id', '=', 'hecho_vehiculo.vehiculo_id');
 
-        if ($vehTipo !== '') $q->where('vehiculos.tipo', $vehTipo);
+        if ($vehTipo !== '') $this->applyVehiculoTipoFilter($q, $vehTipo);
         if ($vehMarca !== '') $q->where('vehiculos.marca', $vehMarca);
         if ($vehModelo !== '') $q->where('vehiculos.modelo', $vehModelo);
         if ($vehLinea !== '') $q->where('vehiculos.linea', $vehLinea);
         if ($vehColor !== '') $q->where('vehiculos.color', $vehColor);
         if ($vehPlacas !== '') $q->where('vehiculos.placas', 'like', "%$vehPlacas%");
         if ($vehSerie !== '') $q->where('vehiculos.serie', 'like', "%$vehSerie%");
+    }
+
+    private function applyVehiculoTipoFilter($q, string $vehTipo): void
+    {
+        $general = $this->tipoGeneralKey($vehTipo);
+        if ($general === null) {
+            $q->where('vehiculos.tipo', $vehTipo);
+            return;
+        }
+
+        $carrocerias = $this->carroceriasTipoGeneral($general);
+
+        $q->where(function ($where) use ($general, $carrocerias) {
+            $where->whereRaw(
+                "LOWER(TRIM(COALESCE(vehiculos.tipo_general, ''))) = ?",
+                [$general]
+            );
+
+            if (!empty($carrocerias)) {
+                $where->orWhereIn('vehiculos.tipo', $carrocerias);
+            }
+
+            $legacyLikeMap = [
+                'motocicleta' => ['%MOTO%', '%SCOOTER%', '%CUATRIMOTO%'],
+                'camioneta' => ['%CAMIONETA%', '%PICK%UP%', '%VAGONETA%', '%FURGON%', '%VAN%'],
+                'camion' => ['%CAMION%', '%AUTOBUS%', '%MICROBUS%', '%TRACTOCAMION%', '%TRACTO CAMION%', '%TORTON%', '%RABON%'],
+                'automovil' => ['%AUTOMOVIL%', '%SEDAN%', '%COUPE%'],
+                'bicicleta' => ['%BICICLETA%', '%BICI%'],
+                'remolque' => ['%REMOLQUE%', '%DOLLY%'],
+                'maquinaria' => ['%MAQUINARIA%', '%TRACTOR%', '%MONTACARGAS%'],
+                'tren' => ['%TREN%', '%FERROCARRIL%', '%VAGON%'],
+                'semoviente' => ['%SEMOVIENTE%', '%CABALLO%', '%MULA%', '%VACA%'],
+            ];
+            $legacyLike = $legacyLikeMap[$general] ?? [];
+
+            foreach ($legacyLike as $pattern) {
+                $where->orWhereRaw(
+                    "UPPER(TRIM(COALESCE(vehiculos.tipo, ''))) LIKE ?",
+                    [$pattern]
+                );
+            }
+        });
+    }
+
+    private function tipoGeneralVehiculo(string $tipoGeneral, string $tipo): string
+    {
+        $stored = $this->tipoGeneralKey($tipoGeneral);
+        if ($stored !== null) return $stored;
+
+        $normalizedType = $this->normalizeVehicleText($tipo);
+        if ($normalizedType === '') return 'no especificado';
+
+        foreach (array_keys(config('vehiculos.catalogos.tipos_generales', [])) as $general) {
+            foreach ($this->carroceriasTipoGeneral((string) $general) as $carroceria) {
+                if ($this->normalizeVehicleText((string) $carroceria) === $normalizedType) {
+                    return (string) $general;
+                }
+            }
+        }
+
+        $rules = [
+            'motocicleta' => ['MOTO', 'SCOOTER', 'CUATRIMOTO'],
+            'camioneta' => ['CAMIONETA', 'PICK', 'VAGONETA', 'FURGON', 'VAN'],
+            'maquinaria' => ['MAQUINARIA', 'TRACTOR', 'MONTACARGAS'],
+            'camion' => ['CAMION', 'AUTOBUS', 'MICROBUS', 'OMNIBUS', 'TRACTO', 'TORTON', 'RABON'],
+            'remolque' => ['REMOLQUE', 'DOLLY'],
+            'automovil' => ['AUTOMOVIL', 'SEDAN', 'COUPE'],
+            'bicicleta' => ['BICICLETA', 'BICI'],
+            'tren' => ['FERROCARRIL', 'TREN', 'VAGON'],
+            'semoviente' => ['SEMOVIENTE', 'CABALLO', 'BURRO', 'MULA', 'VACA'],
+        ];
+
+        foreach ($rules as $general => $needles) {
+            foreach ($needles as $needle) {
+                if (strpos($normalizedType, $needle) !== false) return $general;
+            }
+        }
+
+        return 'otro';
+    }
+
+    private function tipoGeneralKey(string $value): ?string
+    {
+        $key = mb_strtolower($this->normalizeVehicleText($value), 'UTF-8');
+        $valid = array_keys(config('vehiculos.catalogos.tipos_generales', []));
+        return in_array($key, $valid, true) ? $key : null;
+    }
+
+    private function carroceriasTipoGeneral(string $general): array
+    {
+        $configured = config("vehiculos.catalogos.carrocerias.$general", []);
+        $legacyMap = [
+            'automovil' => ['Automovil', 'Automóvil'],
+            'camioneta' => ['Camioneta', 'Camioneta carga', 'Camioneta de pasajeros'],
+            'camion' => ['Camion de carga', 'Camión de carga', 'Camion urbano pasajeros', 'Camión urbano pasajeros', 'Microbus', 'Microbús', 'Omnibus', 'Ómnibus', 'Autobus', 'Autobús'],
+            'motocicleta' => ['Motocicleta', 'Motoneta'],
+            'bicicleta' => ['Bicicleta'],
+            'maquinaria' => ['Tractor'],
+            'tren' => ['Ferrocarril'],
+            'semoviente' => ['Semoviente'],
+        ];
+        $legacy = $legacyMap[$general] ?? [];
+
+        return array_values(array_unique([...$configured, ...$legacy]));
+    }
+
+    private function normalizeVehicleText(string $value): string
+    {
+        $value = Str::ascii(trim($value));
+        $value = mb_strtoupper($value, 'UTF-8');
+        return preg_replace('/\s+/', ' ', $value) ?: '';
     }
 
     private function applyLesionadosFilterToHechos($q, Request $request)

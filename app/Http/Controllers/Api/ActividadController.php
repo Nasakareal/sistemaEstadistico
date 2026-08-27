@@ -12,6 +12,7 @@ use App\Models\Delegacion;
 use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
 use App\Models\Vehiculo;
+use App\Services\ActividadCorralonInfraccionService;
 use App\Services\ActividadConduceLegalidadSyncService;
 use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
@@ -179,6 +180,8 @@ class ActividadController extends Controller
             'conduce_legalidad_fundamentos.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
             'conduce_legalidad_fundamentos.*.infraccion_codigo' => 'nullable|string|max:80',
             'conduce_legalidad_fundamentos.*.fundamento_legal' => 'nullable|string|max:2000',
+            'actividad_infracciones' => 'nullable|array|max:20',
+            'actividad_infracciones.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
             'vehiculos.*.marca' => 'required|string|max:50',
             'vehiculos.*.modelo' => 'nullable|string|max:10',
             'vehiculos.*.tipo' => 'required|string|max:50',
@@ -302,6 +305,10 @@ class ActividadController extends Controller
             $validated['conduce_legalidad_fundamentos'] ?? [],
             count($validated['vehiculos'] ?? [])
         );
+        $infraccionesCorralon = app(ActividadCorralonInfraccionService::class)->validarYSnapshot(
+            (int) $validated['actividad_subcategoria_id'],
+            $validated['actividad_infracciones'] ?? []
+        );
 
         $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
         $cantidad = 1;
@@ -359,7 +366,7 @@ class ActividadController extends Controller
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync) {
+        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync, $infraccionesCorralon) {
             $actividad = Actividad::create([
                 'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
                 'sync_status' => 'local',
@@ -398,6 +405,7 @@ class ActividadController extends Controller
                 'narrativa' => $validated['narrativa'] ?? null,
                 'acciones_realizadas' => $validated['acciones_realizadas'] ?? null,
                 'observaciones' => $validated['observaciones'] ?? null,
+                'infracciones_actividad' => $infraccionesCorralon ?: null,
                 'personas_alcanzadas' => (int) ($validated['personas_alcanzadas'] ?? 0),
                 'personas_participantes' => (int) ($validated['personas_participantes'] ?? 0),
                 'personas_detenidas' => (int) ($validated['personas_detenidas'] ?? 0),
@@ -580,6 +588,8 @@ class ActividadController extends Controller
             'conduce_legalidad_fundamentos.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
             'conduce_legalidad_fundamentos.*.infraccion_codigo' => 'nullable|string|max:80',
             'conduce_legalidad_fundamentos.*.fundamento_legal' => 'nullable|string|max:2000',
+            'actividad_infracciones' => 'nullable|array|max:20',
+            'actividad_infracciones.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
         ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
@@ -634,12 +644,16 @@ class ActividadController extends Controller
                 $actividad->vehiculos->count()
             );
         }
+        $infraccionesCorralon = app(ActividadCorralonInfraccionService::class)->validarYSnapshot(
+            (int) $validated['actividad_subcategoria_id'],
+            $validated['actividad_infracciones'] ?? []
+        );
 
         $detenidosAntes = (int) ($actividad->personas_detenidas ?? 0);
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager, $conduceSync) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager, $conduceSync, $infraccionesCorralon) {
             $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
                 ->map(function ($id) {
                     return (int) $id;
@@ -758,6 +772,7 @@ class ActividadController extends Controller
                 'narrativa' => array_key_exists('narrativa', $validated) ? $validated['narrativa'] : $actividad->narrativa,
                 'acciones_realizadas' => array_key_exists('acciones_realizadas', $validated) ? $validated['acciones_realizadas'] : $actividad->acciones_realizadas,
                 'observaciones' => array_key_exists('observaciones', $validated) ? $validated['observaciones'] : $actividad->observaciones,
+                'infracciones_actividad' => $infraccionesCorralon ?: null,
                 'personas_alcanzadas' => array_key_exists('personas_alcanzadas', $validated) ? $validated['personas_alcanzadas'] : $actividad->personas_alcanzadas,
                 'personas_participantes' => array_key_exists('personas_participantes', $validated) ? $validated['personas_participantes'] : $actividad->personas_participantes,
                 'personas_detenidas' => array_key_exists('personas_detenidas', $validated) ? $validated['personas_detenidas'] : $actividad->personas_detenidas,
@@ -1087,6 +1102,43 @@ class ActividadController extends Controller
 
         if ($actividad->motivo) {
             $texto .= "ASUNTO: " . mb_strtoupper($actividad->motivo, 'UTF-8') . "\n\n";
+        }
+
+        $infraccionesActividad = is_array($actividad->infracciones_actividad)
+            ? $actividad->infracciones_actividad
+            : [];
+        if ($infraccionesActividad !== []) {
+            $tipoRemision = trim((string) optional($actividad->subcategoria)->nombre);
+            if ($tipoRemision !== '') {
+                $texto .= "TIPO DE REMISIÓN: " . mb_strtoupper($tipoRemision, 'UTF-8') . "\n";
+            }
+            $texto .= "FUNDAMENTO(S) DE LA INFRACCIÓN\n";
+            foreach ($infraccionesActividad as $index => $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $nombre = trim((string) (
+                    $item['texto_operativo']
+                    ?? $item['nombre']
+                    ?? $item['descripcion']
+                    ?? $item['codigo']
+                    ?? 'Fundamento legal'
+                ));
+                $legal = trim((string) (
+                    $item['fundamento_legal']
+                    ?? $item['referencia_legal_corta']
+                    ?? ''
+                ));
+                $sancion = trim((string) ($item['resumen_sanciones'] ?? ''));
+                $texto .= ($index + 1) . ". " . $nombre . "\n";
+                if ($legal !== '') {
+                    $texto .= "   {$legal}\n";
+                }
+                if ($sancion !== '') {
+                    $texto .= "   SANCIÓN: {$sancion}\n";
+                }
+            }
+            $texto .= "\n";
         }
 
         if ($actividad->narrativa) $texto .= trim($actividad->narrativa) . "\n\n";

@@ -1053,11 +1053,15 @@ class EstadisticasActividadesController extends Controller
 
             $q->leftJoin($table, "$table.id", '=', "actividades.$foreignKey");
 
-            $rows = $q->selectRaw("COALESCE(NULLIF(TRIM($table.$labelColumn), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT actividades.id) as total")
+            $rowsQuery = $q->selectRaw("COALESCE(NULLIF(TRIM($table.$labelColumn), ''), 'NO ESPECIFICADO') as label, COUNT(DISTINCT actividades.id) as total")
                 ->groupBy('label')
-                ->orderByDesc('total')
-                ->limit(100)
-                ->get();
+                ->orderByDesc('total');
+
+            if (!in_array($table, ['actividad_categorias', 'actividad_subcategorias'], true)) {
+                $rowsQuery->limit(100);
+            }
+
+            $rows = $rowsQuery->get();
 
             return ['field' => $field, 'series' => $rows];
         });

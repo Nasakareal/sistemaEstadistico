@@ -53,6 +53,7 @@ class Actividad extends Model
         'narrativa',
         'acciones_realizadas',
         'observaciones',
+        'infracciones_actividad',
         'personas_alcanzadas',
         'personas_participantes',
         'personas_detenidas',
@@ -78,6 +79,7 @@ class Actividad extends Model
         'foto_blob_copiada_at' => 'datetime',
         'foto_archivada_at' => 'datetime',
         'foto_eliminada_at' => 'datetime',
+        'infracciones_actividad' => 'array',
     ];
 
     public function getHoraAttribute($value)

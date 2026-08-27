@@ -85,6 +85,7 @@ class ConduceLegalidadController extends Controller
                 ],
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
+                'fundamentos_actividad_corralon' => $this->fundamentosActividadCorralonPayload(),
                 'fundamentos_persona' => $this->fundamentosPersonaPayload(),
                 'formatos_impresion' => $this->formatosImpresionPayload(),
                 'unidades' => $canAssignScope
@@ -2538,6 +2539,27 @@ class ConduceLegalidadController extends Controller
             ->reject(fn (LicenciaPuntoInfraccion $infraccion) => $this->esFundamentoExcluidoDelOperativo($infraccion))
             ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
                 return implode('|', [
+                    $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                    $infraccion->fraccion ?: 'ZZZZ',
+                    $infraccion->inciso ?: 'ZZZZ',
+                    $infraccion->nombre,
+                ]);
+            })
+            ->values()
+            ->map(fn (LicenciaPuntoInfraccion $infraccion) => $this->fundamentoInfraccionPayload($infraccion));
+    }
+
+    private function fundamentosActividadCorralonPayload()
+    {
+        return LicenciaPuntoInfraccion::activas()
+            ->where(function ($query) {
+                $query->where('retencion_vehiculo', true)
+                    ->orWhere('deposito_si_sin_persona_habilitada', true);
+            })
+            ->get()
+            ->sortBy(function (LicenciaPuntoInfraccion $infraccion) {
+                return implode('|', [
+                    $infraccion->ambito_vehiculo ?: 'general',
                     $infraccion->articulo ? str_pad((string) $infraccion->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
                     $infraccion->fraccion ?: 'ZZZZ',
                     $infraccion->inciso ?: 'ZZZZ',

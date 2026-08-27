@@ -1216,11 +1216,28 @@
     }
 
     setDefaultDates();
+    let temporizadorFecha = null;
+
     ['f_desde', 'f_hasta'].forEach(id => {
         const input = el(id);
         if (!input) return;
+
         input.addEventListener('input', updateReadableDates);
-        input.addEventListener('change', updateReadableDates);
+
+        input.addEventListener('change', function () {
+            updateReadableDates();
+            clearTimeout(temporizadorFecha);
+
+            temporizadorFecha = setTimeout(async function () {
+                page = 1;
+
+                try {
+                    await loadAll();
+                } catch (error) {
+                    console.error('Error al aplicar las fechas:', error);
+                }
+            }, 300);
+        });
     });
     wireExportLinkUpdates();
     toggleDelegacion();

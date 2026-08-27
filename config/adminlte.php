@@ -156,7 +156,7 @@ return [
         ],
 
         [
-            'text'    => 'Siniestros',
+            'text'    => 'Siniestros (CHOQUES)',
             'icon'    => 'fa-solid fa-car-side',
             'classes' => 'bg-blue text-white',
             'can'     => 'ver hechos',
@@ -389,36 +389,7 @@ return [
                 ],
             ],
         ],
-
-        [
-            'text'    => 'Vialidades Urbanas',
-            'icon'    => 'fa-solid fa-traffic-light',
-            'classes' => 'bg-blue text-white',
-            'can'     => 'menu-vialidades-urbanas',
-            'submenu' => [
-                [
-                    'text'    => 'Panel Vialidades Urbanas',
-                    'icon'    => 'fa-solid fa-list-check',
-                    'classes' => 'text-white',
-                    'url'     => 'vialidades-urbanas',
-                    'can'     => 'menu-vialidades-urbanas',
-                ],
-                [
-                    'text'    => 'Resumen',
-                    'icon'    => 'fa-solid fa-chart-column',
-                    'classes' => 'text-white',
-                    'url'     => 'vialidades-urbanas/1/resumen',
-                    'can'     => 'menu-vialidades-urbanas',
-                ],
-                [
-                    'text'    => 'Estadísticas Vialidades',
-                    'icon'    => 'fa-solid fa-file-excel',
-                    'classes' => 'text-info',
-                    'route'   => 'settings.estadisticas_vialidad.index',
-                    'can'     => 'menu-vialidades-urbanas',
-                ],
-            ],
-        ],
+        
         [
             'text'    => 'Oficios',
             'icon'    => 'fas fa-envelope-open-text',
@@ -449,36 +420,36 @@ return [
             'submenu' => [
 
                 [
-                    'text' => 'Siniestros',
+                    'text' => 'Unidad Siniestros',
                     'icon' => 'fa-solid fa-car-burst',
                     'can'  => 'menu-estadisticas-siniestros',
                     'submenu' => [
                         [
-                            'text'    => 'Panel Global',
+                            'text'    => 'Panel de Siniestros',
                             'icon'    => 'fa-solid fa-chart-line',
                             'classes' => 'text-white',
                             'url'     => 'estadisticas-globales',
                             'can'     => 'menu-estadisticas-globales',
                         ],
                         [
-                            'text'    => 'Resumen Ejecutivo',
-                            'route'   => 'resumen_ejecutivo.index',
-                            'icon'    => 'fa-solid fa-chart-line',
-                            'can'     => 'ver estadisticas',
-                        ],
-                        [
-                            'text'    => 'Actividades',
+                            'text'    => 'Panel de Actividades',
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-actividades',
                             'can'     => 'menu-estadisticas-actividades-siniestros',
                         ],
                         [
-                            'text'    => 'Aseguramientos',
+                            'text'    => 'Panel de Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-aseguramientos?unidad_slug=siniestros',
                             'can'     => 'menu-estadisticas-siniestros',
+                        ],
+                        [
+                            'text'    => 'Resumen Ejecutivo',
+                            'route'   => 'resumen_ejecutivo.index',
+                            'icon'    => 'fa-solid fa-chart-line',
+                            'can'     => 'ver estadisticas',
                         ],
                         [
                             'text'    => 'Mapa de Choques por Zona',
@@ -490,26 +461,26 @@ return [
                 ],
 
                 [
-                    'text' => 'Fomento a la Cultura Vial',
+                    'text' => 'Unidad Fomento a la Cultura Vial',
                     'icon' => 'fa-solid fa-school',
                     'can'  => 'menu-estadisticas-actividades-fomento',
                     'submenu' => [
                         [
-                            'text'    => 'Panel Fomento',
+                            'text'    => 'Panel General de Estadisticas',
                             'icon'    => 'fa-solid fa-chart-line',
                             'classes' => 'text-white',
                             'route'   => 'settings.estadisticas_fomento.index',
                             'can'     => 'menu-estadisticas-actividades-fomento',
                         ],
                         [
-                            'text'    => 'Actividades',
+                            'text'    => 'Panel de Actividades',
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-actividades',
                             'can'     => 'menu-estadisticas-actividades-fomento',
                         ],
                         [
-                            'text'    => 'Aseguramientos',
+                            'text'    => 'Panel de Aseguramientos',
                             'icon'    => 'fa-solid fa-boxes-stacked',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-aseguramientos?unidad_slug=fomento-cultura-vial',
@@ -526,12 +497,12 @@ return [
                 ],
 
                 [
-                    'text' => 'Vialidades Urbanas',
+                    'text' => 'Unidad Vialidades Urbanas',
                     'icon' => 'fa-solid fa-traffic-light',
                     'can'  => 'menu-estadisticas-actividades-vialidades',
                     'submenu' => [
                         [
-                            'text'    => 'Actividades',
+                            'text'    => 'Panel de Actividades',
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-actividades',
@@ -548,25 +519,32 @@ return [
                 ],
 
                 [
-                    'text' => 'Delegaciones',
+                    'text' => 'Unidad de Delegaciones',
                     'icon' => 'fa-solid fa-building-shield',
                     'submenu' => [
                         [
-                            'text'    => 'Panel Delegaciones',
+                            'text'    => 'Panel de Siniestros',
                             'icon'    => 'fa-solid fa-chart-line',
                             'classes' => 'text-white',
                             'url'     => 'estadisticas-globales',
                             'can'     => 'menu-estadisticas-globales',
                         ],
                         [
-                            'text'    => 'Actividades',
+                            'text'    => 'Panel de Actividades',
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',
                             'url'     => 'estadisticas-actividades',
                             'can'     => 'menu-estadisticas-actividades-delegaciones',
                         ],
                         [
-                            'text'    => 'Actividades Físicas',
+                            'text'    => 'Panel de Aseguramientos',
+                            'icon'    => 'fa-solid fa-boxes-stacked',
+                            'classes' => 'text-info',
+                            'url'     => 'estadisticas-aseguramientos?unidad_slug=delegaciones',
+                            'can'     => 'menu-estadisticas-delegaciones',
+                        ],
+                        [
+                            'text'    => 'Panel de Actividades Físicas',
                             'icon'    => 'fa-solid fa-person-running',
                             'classes' => 'text-info',
                             'route'   => 'settings.estadisticas_delegaciones.actividades_fisicas',
@@ -579,18 +557,11 @@ return [
                             'route'   => 'estadisticas_delegaciones.control_inegi',
                             'can'     => 'menu-estadisticas-delegaciones',
                         ],
-                        [
-                            'text'    => 'Aseguramientos',
-                            'icon'    => 'fa-solid fa-boxes-stacked',
-                            'classes' => 'text-info',
-                            'url'     => 'estadisticas-aseguramientos?unidad_slug=delegaciones',
-                            'can'     => 'menu-estadisticas-delegaciones',
-                        ],
                     ],
                 ],
 
                 [
-                    'text' => 'Carreteras',
+                    'text' => 'Unidad de Carreteras',
                     'icon' => 'fa-solid fa-road',
                     'submenu' => [
                         [
@@ -614,25 +585,64 @@ return [
         ],
 
         [
-            'text'    => 'Guardianes del Camino',
-            'icon'    => 'fa-solid fa-road',
+            'text'    => 'Unidades',
+            'icon'    => 'fa-solid fa-shield-halved',
             'classes' => 'bg-blue text-white',
-            'can'     => 'menu-guardianes-camino',
             'submenu' => [
+
                 [
-                    'text'    => 'Listado de Dispositivos',
-                    'icon'    => 'fa-solid fa-list-check',
-                    'classes' => 'text-white',
-                    'route'   => 'guardianes_camino.index',
+                    'text'    => 'Vialidades Urbanas',
+                    'icon'    => 'fa-solid fa-traffic-light',
+                    'classes' => 'bg-blue text-white',
+                    'can'     => 'menu-vialidades-urbanas',
+                    'submenu' => [
+                        [
+                            'text'    => 'Panel Vialidades Urbanas',
+                            'icon'    => 'fa-solid fa-list-check',
+                            'classes' => 'text-white',
+                            'url'     => 'vialidades-urbanas',
+                            'can'     => 'menu-vialidades-urbanas',
+                        ],
+                        [
+                            'text'    => 'Resumen',
+                            'icon'    => 'fa-solid fa-chart-column',
+                            'classes' => 'text-white',
+                            'url'     => 'vialidades-urbanas/1/resumen',
+                            'can'     => 'menu-vialidades-urbanas',
+                        ],
+                        [
+                            'text'    => 'Estadísticas Vialidades',
+                            'icon'    => 'fa-solid fa-file-excel',
+                            'classes' => 'text-info',
+                            'route'   => 'settings.estadisticas_vialidad.index',
+                            'can'     => 'menu-vialidades-urbanas',
+                        ],
+                    ],
+                ],
+
+                [
+                    'text'    => 'Guardianes del Camino',
+                    'icon'    => 'fa-solid fa-road',
+                    'classes' => 'bg-blue text-white',
                     'can'     => 'menu-guardianes-camino',
+                    'submenu' => [
+                        [
+                            'text'    => 'Listado de Dispositivos',
+                            'icon'    => 'fa-solid fa-list-check',
+                            'classes' => 'text-white',
+                            'route'   => 'guardianes_camino.index',
+                            'can'     => 'menu-guardianes-camino',
+                        ],
+                        [
+                            'text'    => 'Pendientes de Revisión',
+                            'icon'    => 'fa-solid fa-clipboard-check',
+                            'classes' => 'text-white',
+                            'route'   => 'guardianes_camino.dispositivos.pendientes_revision',
+                            'can'     => 'menu-guardianes-pendientes-revision',
+                        ],
+                    ],
                 ],
-                [
-                    'text'    => 'Pendientes de Revisión',
-                    'icon'    => 'fa-solid fa-clipboard-check',
-                    'classes' => 'text-white',
-                    'route'   => 'guardianes_camino.dispositivos.pendientes_revision',
-                    'can'     => 'menu-guardianes-pendientes-revision',
-                ],
+
             ],
         ],
 

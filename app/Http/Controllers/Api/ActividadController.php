@@ -1332,9 +1332,16 @@ class ActividadController extends Controller
 
     private function withFotoUrls(Actividad $actividad): array
     {
-        $actividad->loadMissing('conduceLegalidadCaptura.operativo', 'conduceLegalidadCaptura.fundamentos.infraccion');
+        $actividad->loadMissing(
+            'creador:id,unidad_id',
+            'conduceLegalidadCaptura.operativo',
+            'conduceLegalidadCaptura.fundamentos.infraccion'
+        );
 
         $data = $actividad->toArray();
+        $data['creador_unidad_id'] = $actividad->creador
+            ? (int) $actividad->creador->unidad_id
+            : null;
         $actividadArchivada = !empty($actividad->foto_archivo_zip_path) || !empty($actividad->foto_archivada_at);
         $fotoDisplayPath = !$actividadArchivada && (!empty($actividad->foto_path) || !empty($actividad->foto_blob_path))
             ? ($actividad->foto_path ?: $actividad->foto_blob_path)
@@ -1612,6 +1619,98 @@ class ActividadController extends Controller
         ]);
     }
 
+    public function updateVehiculo(Request $request, Actividad $actividad, $vehiculoId)
+    {
+        $this->authorize('editar actividades');
+
+        $usuario = Auth::user();
+        $q = Actividad::query()->whereKey($actividad->id);
+        $this->applyActividadesVisibilityScope($q, $usuario);
+
+        if (!$q->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No autorizado para modificar esta actividad',
+            ], 403);
+        }
+
+        $vehiculo = $actividad->vehiculos()
+            ->where('vehiculos.id', $vehiculoId)
+            ->first();
+
+        if (!$vehiculo) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontró el vehículo dentro de esta actividad.',
+            ], 404);
+        }
+
+        $validated = $this->validarVehiculoRequest($request);
+
+        if (!$this->gruaPermitidaParaUsuario($validated['grua_id'] ?? null, $usuario)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La grúa seleccionada no está disponible para tu unidad o delegación.',
+                'errors' => [
+                    'grua_id' => ['La grúa seleccionada no está disponible para tu unidad o delegación.'],
+                ],
+            ], 422);
+        }
+
+        if (GruaEditGuard::locksActividad($usuario, $actividad)) {
+            $gruaCoincide = GruaEditGuard::requestedGruaMatchesCurrent(
+                $vehiculo,
+                !empty($validated['grua_id']) ? (int) $validated['grua_id'] : null
+            );
+            if (
+                !$gruaCoincide
+                && GruaEditGuard::currentGruaId($vehiculo) === null
+                && GruaEditGuard::normalizeProtectedText($vehiculo->grua)
+                    === GruaEditGuard::normalizeProtectedText($validated['grua'] ?? null)
+            ) {
+                $gruaCoincide = true;
+            }
+            $corralonCoincide = GruaEditGuard::normalizeProtectedText($vehiculo->corralon)
+                === GruaEditGuard::normalizeProtectedText($validated['corralon'] ?? null);
+
+            if (!$gruaCoincide || !$corralonCoincide) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'La grúa o corralón ya quedó fijo. Solicita autorización de un Administrador.',
+                    'errors' => [
+                        'grua_id' => $gruaCoincide ? [] : ['No puedes cambiar la grúa asignada.'],
+                        'corralon' => $corralonCoincide ? [] : ['No puedes cambiar el corralón asignado.'],
+                    ],
+                ], 422);
+            }
+        }
+
+        return DB::transaction(function () use ($actividad, $vehiculo, $validated) {
+            $vehiculo->fill($this->vehiculoAttributesParaActividad($validated));
+            $vehiculo->save();
+            $this->registrarServicioGruaParaActividad($actividad, $vehiculo, $validated);
+
+            $actividad->unsetRelation('vehiculos');
+            app(ActividadConduceLegalidadSyncService::class)->sync($actividad);
+            $actividad->load([
+                'categoria',
+                'subcategoria',
+                'unidad',
+                'delegacion',
+                'destacamento',
+                'fotos',
+                'vehiculos',
+            ]);
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Vehículo actualizado correctamente.',
+                'vehiculo' => $vehiculo->fresh(),
+                'data' => $this->withFotoUrls($actividad),
+            ]);
+        });
+    }
+
     private function validarVehiculoRequest(Request $request): array
     {
         $request->merge($this->normalizarVehiculoData($request->only(array_keys($this->vehiculoRules()))));
@@ -1672,18 +1771,28 @@ class ActividadController extends Controller
 
     private function crearVehiculoParaActividad(Actividad $actividad, array $data): Vehiculo
     {
+        $vehiculo = Vehiculo::create(array_merge(
+            ['client_uuid' => (string) Str::uuid()],
+            $this->vehiculoAttributesParaActividad($data),
+            ['fotos' => null]
+        ));
+
+        $actividad->vehiculos()->syncWithoutDetaching([$vehiculo->id]);
+
+        $this->registrarServicioGruaParaActividad($actividad, $vehiculo, $data);
+
+        return $vehiculo;
+    }
+
+    private function vehiculoAttributesParaActividad(array $data): array
+    {
         $data = $this->normalizarVehiculoData($data);
         $gruaId = !empty($data['grua_id']) ? (int) $data['grua_id'] : null;
-        $nombreGrua = null;
+        $nombreGrua = $gruaId
+            ? Grua::query()->whereKey($gruaId)->value('nombre')
+            : null;
 
-        if ($gruaId) {
-            $nombreGrua = Grua::query()
-                ->whereKey($gruaId)
-                ->value('nombre');
-        }
-
-        $vehiculo = Vehiculo::create([
-            'client_uuid' => (string) Str::uuid(),
+        return [
             'marca' => $this->toUpperOrNull($data['marca'] ?? null),
             'modelo' => $this->toUpperOrNull($data['modelo'] ?? null),
             'tipo' => $this->toUpperOrNull($data['tipo'] ?? null),
@@ -1699,17 +1808,10 @@ class ActividadController extends Controller
             'grua_id' => $gruaId,
             'corralon' => $this->toUpperOrNull($data['corralon'] ?? null),
             'aseguradora' => $this->toUpperOrNull($data['aseguradora'] ?? null),
-            'fotos' => null,
             'antecedente_vehiculo' => (int) ($data['antecedente_vehiculo'] ?? 0),
             'monto_danos' => $data['monto_danos'] ?? 0,
             'partes_danadas' => $this->toUpperOrNull($data['partes_danadas'] ?? null),
-        ]);
-
-        $actividad->vehiculos()->syncWithoutDetaching([$vehiculo->id]);
-
-        $this->registrarServicioGruaParaActividad($actividad, $vehiculo, $data);
-
-        return $vehiculo;
+        ];
     }
 
     private function registrarServicioGruaParaActividad(Actividad $actividad, Vehiculo $vehiculo, array $data): void
@@ -1717,6 +1819,7 @@ class ActividadController extends Controller
         $gruaId = !empty($data['grua_id']) ? (int) $data['grua_id'] : null;
 
         if (!$gruaId) {
+            DB::table('servicios')->where('vehiculo_id', $vehiculo->id)->delete();
             return;
         }
 

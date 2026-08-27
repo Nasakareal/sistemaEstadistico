@@ -333,6 +333,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{actividad}', [ActividadController::class, 'update'])->whereNumber('actividad')->middleware('can:editar actividades')->name('api.actividades.update');
         Route::delete('/{actividad}', [ActividadController::class, 'destroy'])->whereNumber('actividad')->middleware('can:eliminar actividades')->name('api.actividades.destroy');
         Route::post('/{actividad}/vehiculos', [ActividadController::class, 'storeVehiculo'])->whereNumber('actividad')->middleware('can:editar actividades')->name('api.actividades.vehiculos.store');
+        Route::put('/{actividad}/vehiculos/{vehiculo}', [ActividadController::class, 'updateVehiculo'])->whereNumber('actividad')->whereNumber('vehiculo')->middleware('can:editar actividades')->name('api.actividades.vehiculos.update');
         Route::delete('/{actividad}/vehiculos/{vehiculo}', [ActividadController::class, 'destroyVehiculo'])->whereNumber('actividad')->whereNumber('vehiculo')->middleware('can:editar actividades')->name('api.actividades.vehiculos.destroy');
     });
 

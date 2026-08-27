@@ -62,9 +62,20 @@
                         <div class="sv-field">
                             <label>Unidad</label>
                             <select id="f_unidad" class="form-control form-control-sm">
-                                <option value="">Todas excepto Seguridad Vial</option>
+                                <option value="">Todas</option>
                                 @foreach(($unidadesFiltro ?? collect()) as $unidad)
-                                    <option value="{{ $unidad->id }}">{{ $unidad->nombre }}</option>
+                                    @php
+                                        $nombreUnidad = match ((int) $unidad->id) {
+                                            1 => 'UNIDAD DE ATENCIÓN A SINIESTROS',
+                                            2 => 'UNIDAD DE DELEGACIONES',
+                                            4 => 'UNIDAD DE PROTECCIÓN A CARRETERAS',
+                                            5 => 'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS',
+                                            6 => 'UNIDAD DE FOMENTO A LA CULTURA VIAL',
+                                            default => $unidad->nombre,
+                                        };
+                                    @endphp
+
+                                    <option value="{{ $unidad->id }}">{{ $nombreUnidad }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -76,7 +87,7 @@
                             </select>
                         </div>
 
-                        <div class="sv-field">
+                        <div class="sv-field" id="campo_destacamento">
                             <label>Destacamento</label>
                             <select id="f_destacamento" class="form-control form-control-sm">
                                 <option value="">(Todos)</option>
@@ -516,6 +527,7 @@
 <script>
 (function(){
     const base = "{{ url('estadisticas-actividades') }}";
+    const unidadUsuarioId = Number(@json($unidadUsuarioId ?? 0));
     let page = 1;
     let lastPage = 1;
     let currentCategorySummary = { categorias: [], total: 0 };
@@ -834,6 +846,24 @@
         setExportLinks();
     }
 
+    function toggleDestacamento(){
+        const campo = el('campo_destacamento');
+        const destacamento = el('f_destacamento');
+        const unidadSeleccionada = val('f_unidad');
+        const ocultar = unidadUsuarioId === 2 || unidadSeleccionada === '2';
+
+        if (!campo || !destacamento) return;
+
+        campo.style.display = ocultar ? 'none' : '';
+        destacamento.disabled = ocultar;
+
+        if (ocultar) {
+            destacamento.value = '';
+        }
+
+        setExportLinks();
+    }
+
     let chTime = null;
     let chUnidad = null;
     let chCategoria = null;
@@ -1071,6 +1101,7 @@
 
     async function loadAll(){
         toggleDelegacion();
+        toggleDestacamento();
         setExportLinks();
 
         const k = await getJson('kpis');
@@ -1180,6 +1211,7 @@
     if (unidadSelect){
         unidadSelect.addEventListener('change', function(){
             toggleDelegacion();
+            toggleDestacamento();
         });
     }
 
@@ -1241,6 +1273,7 @@
     });
     wireExportLinkUpdates();
     toggleDelegacion();
+    toggleDestacamento();
     setExportLinks();
     loadAll().catch(err => console.error('SV ACTIVIDADES ERROR:', err));
 })();

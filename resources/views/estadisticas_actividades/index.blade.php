@@ -1232,10 +1232,39 @@
         });
     }
 
+    async function recargarSubcategorias(){
+        const categoria = val('f_categoria');
+        const subcategoria = el('f_subcategoria');
+
+        if (!subcategoria) return;
+
+        subcategoria.value = '';
+
+        if (!categoria) {
+            subcategoria.innerHTML = '<option value="">Seleccione una categoría</option>';
+            subcategoria.disabled = true;
+            setExportLinks();
+            return;
+        }
+
+        subcategoria.disabled = true;
+        subcategoria.innerHTML = '<option value="">Cargando...</option>';
+
+        const subcat = await getOptionalJson('catalogos/subcategorias', {}, []);
+
+        fillSelect('f_subcategoria', subcat.map(r => ({
+            value: r.id,
+            label: r.nombre
+        })), '(Todas)');
+
+        subcategoria.disabled = false;
+        setExportLinks();
+    }
+
     const categoriaSelect = el('f_categoria');
     if (categoriaSelect){
-        categoriaSelect.addEventListener('change', function(){
-            toggleSubcategoria();
+        categoriaSelect.addEventListener('change', async function(){
+            await recargarSubcategorias();
         });
     }
 

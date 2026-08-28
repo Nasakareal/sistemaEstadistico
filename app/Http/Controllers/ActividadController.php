@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Actividad;
 use App\Models\ActividadCategoria;
+use App\Models\ActividadPersona;
 use App\Models\ActividadSubcategoria;
+use App\Models\Conductor;
 use App\Models\Delegacion;
 use App\Models\FomentoCulturaVialPrograma;
 use App\Models\Grua;
+use App\Models\LicenciaPuntoInfraccion;
 use App\Models\Personal;
 use App\Models\Unidad;
 use App\Models\Vehiculo;
@@ -23,6 +26,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ActividadController extends Controller
 {
@@ -158,7 +162,19 @@ class ActividadController extends Controller
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
 
-        return view('actividades.create', compact('categorias', 'gruas', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'usuarioEsFomento'));
+        $fundamentos = LicenciaPuntoInfraccion::activas()
+            ->get()
+            ->sortBy(function (LicenciaPuntoInfraccion $fundamento) {
+                return [
+                    $fundamento->articulo ? str_pad((string) $fundamento->articulo, 8, '0', STR_PAD_LEFT) : 'ZZZZZZZZ',
+                    $fundamento->fraccion ?: 'ZZZZ',
+                    $fundamento->inciso ?: 'ZZZZ',
+                    $fundamento->nombre,
+                ];
+            })
+            ->values();
+
+        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'usuarioEsFomento'));
     }
 
     public function store(Request $request)
@@ -170,7 +186,7 @@ class ActividadController extends Controller
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
         if ($fomentoManager->usuarioEsFomento($user)) {
-            $request->merge(['vehiculos' => []]);
+            $request->merge(['vehiculos' => [], 'personas' => [], 'fundamento_ids' => []]);
         }
 
         $validated = $request->validate(array_merge([
@@ -219,12 +235,37 @@ class ActividadController extends Controller
             'vehiculos.*.antecedente_vehiculo' => 'nullable|boolean',
             'vehiculos.*.monto_danos'        => 'nullable|numeric|min:0',
             'vehiculos.*.partes_danadas'     => 'nullable|string',
+            'personas'                       => 'nullable|array|max:100',
+            'personas.*.tipo_participacion'  => 'required|string|in:CONDUCTOR,PASAJERO,PEATON,OTRO',
+            'personas.*.vehiculo_indice'     => 'nullable|integer|min:0',
+            'personas.*.nombre'              => 'required|string|max:255',
+            'personas.*.telefono'            => 'nullable|string|max:30',
+            'personas.*.domicilio'           => 'nullable|string|max:255',
+            'personas.*.sexo'                => 'nullable|string|in:MASCULINO,FEMENINO,OTRO',
+            'personas.*.nacionalidad'        => 'nullable|string|max:80',
+            'personas.*.ocupacion'           => 'nullable|string|max:255',
+            'personas.*.edad'                => 'nullable|integer|min:0|max:120',
+            'personas.*.tipo_licencia'       => 'nullable|string|max:80',
+            'personas.*.estado_licencia'     => 'nullable|string|max:120',
+            'personas.*.numero_licencia'     => 'nullable|string|max:80',
+            'personas.*.vigencia_licencia'   => 'nullable|date',
+            'personas.*.permanente'          => 'nullable|boolean',
+            'personas.*.antecedentes'        => 'nullable|boolean',
+            'personas.*.observaciones'       => 'nullable|string|max:2000',
+            'fundamento_ids'                 => 'nullable|array|max:20',
+            'fundamento_ids.*'               => 'required|integer|distinct|exists:licencia_punto_infracciones,id',
         ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
         ]);
 
         $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
         $validated = $this->ajustarPayloadParaUsuarioFomento($validated, $user, $fomentoManager);
+
+        $this->validarPersonasActividad(
+            $validated['personas'] ?? [],
+            count($validated['vehiculos'] ?? [])
+        );
+        $fundamentosActividad = $this->snapshotFundamentosActividad($validated['fundamento_ids'] ?? []);
 
         if ($response = $this->validarGruasPermitidasEnVehiculos($validated['vehiculos'] ?? [], $user)) {
             return $response;
@@ -281,7 +322,7 @@ class ActividadController extends Controller
             ])->withInput();
         }
 
-        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $user, $fomentoManager) {
+        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $user, $fomentoManager, $fundamentosActividad) {
             $actividad = Actividad::create([
                 'client_uuid'                   => (string) Str::uuid(),
                 'sync_status'                   => 'local',
@@ -315,6 +356,7 @@ class ActividadController extends Controller
                 'narrativa'                     => $validated['narrativa'] ?? null,
                 'acciones_realizadas'           => $validated['acciones_realizadas'] ?? null,
                 'observaciones'                 => $validated['observaciones'] ?? null,
+                'infracciones_actividad'        => $fundamentosActividad ?: null,
                 'personas_alcanzadas'           => (int) ($validated['personas_alcanzadas'] ?? 0),
                 'personas_participantes'        => (int) ($validated['personas_participantes'] ?? 0),
                 'personas_detenidas'            => (int) ($validated['personas_detenidas'] ?? 0),
@@ -374,9 +416,16 @@ class ActividadController extends Controller
                 ]);
             }
 
-            foreach (($validated['vehiculos'] ?? []) as $vehiculoData) {
-                $this->crearVehiculoParaActividad($actividad, $vehiculoData);
+            $vehiculosCreados = [];
+            foreach (($validated['vehiculos'] ?? []) as $index => $vehiculoData) {
+                $vehiculosCreados[$index] = $this->crearVehiculoParaActividad($actividad, $vehiculoData);
             }
+
+            $this->crearPersonasParaActividad(
+                $actividad,
+                $validated['personas'] ?? [],
+                $vehiculosCreados
+            );
 
             if ((int) ($actividad->personas_detenidas ?? 0) > 0) {
                 DB::afterCommit(function () use ($actividad) {
@@ -409,6 +458,8 @@ class ActividadController extends Controller
             'actualizador',
             'revisor',
             'vehiculos',
+            'vehiculos.conductores',
+            'personas.vehiculo',
             'fomentoCulturaVialDetalle',
         ]);
 
@@ -1344,6 +1395,8 @@ class ActividadController extends Controller
             'destacamento',
             'creador',
             'fotos',
+            'vehiculos.conductores',
+            'personas.vehiculo',
         ]);
 
         $fecha = $actividad->fecha ? \Carbon\Carbon::parse($actividad->fecha)->format('d/m/Y') : '';
@@ -1394,6 +1447,26 @@ class ActividadController extends Controller
             $texto .= "ASUNTO: " . mb_strtoupper((string) $actividad->motivo, 'UTF-8') . "\n\n";
         }
 
+        $fundamentos = is_array($actividad->infracciones_actividad)
+            ? $actividad->infracciones_actividad
+            : [];
+        if ($fundamentos !== []) {
+            $texto .= "FUNDAMENTO(S)\n";
+            foreach ($fundamentos as $index => $fundamento) {
+                if (!is_array($fundamento)) {
+                    continue;
+                }
+                $referencia = trim((string) ($fundamento['referencia_legal_corta'] ?? $fundamento['codigo'] ?? ''));
+                $nombre = trim((string) ($fundamento['nombre'] ?? $fundamento['descripcion'] ?? 'Fundamento legal'));
+                $legal = trim((string) ($fundamento['fundamento_legal'] ?? ''));
+                $texto .= ($index + 1) . '. ' . trim($referencia . ' ' . $nombre) . "\n";
+                if ($legal !== '') {
+                    $texto .= "   {$legal}\n";
+                }
+            }
+            $texto .= "\n";
+        }
+
         if ($actividad->narrativa) {
             $texto .= trim((string) $actividad->narrativa) . "\n\n";
         }
@@ -1411,6 +1484,27 @@ class ActividadController extends Controller
             $texto .= "PERSONAS ALCANZADAS: " . (int) ($actividad->personas_alcanzadas ?? 0) . "\n";
             $texto .= "PERSONAS PARTICIPANTES: " . (int) ($actividad->personas_participantes ?? 0) . "\n";
             $texto .= "PERSONAS DETENIDAS: " . (int) ($actividad->personas_detenidas ?? 0) . "\n\n";
+        }
+
+        $conductores = $actividad->vehiculos->flatMap(function (Vehiculo $vehiculo) {
+            return $vehiculo->conductores->map(fn (Conductor $conductor) => [
+                'persona' => $conductor,
+                'vehiculo' => $vehiculo,
+            ]);
+        });
+        if ($conductores->isNotEmpty() || $actividad->personas->isNotEmpty()) {
+            $texto .= "CONDUCTORES Y PERSONAS\n";
+            foreach ($conductores as $item) {
+                $placas = trim((string) ($item['vehiculo']->placas ?: 'SIN PLACAS'));
+                $texto .= '- CONDUCTOR: ' . $item['persona']->nombre . " ({$placas})\n";
+            }
+            foreach ($actividad->personas as $persona) {
+                $relacion = $persona->vehiculo
+                    ? ' (' . ($persona->vehiculo->placas ?: trim($persona->vehiculo->marca . ' ' . $persona->vehiculo->linea)) . ')'
+                    : '';
+                $texto .= '- ' . $persona->tipo_participacion . ': ' . $persona->nombre . $relacion . "\n";
+            }
+            $texto .= "\n";
         }
 
         if ($actividad->elementos_participantes_texto) {
@@ -1648,6 +1742,136 @@ class ActividadController extends Controller
 
             return back()->with('success', 'Vehículo desvinculado correctamente.');
         });
+    }
+
+    private function validarPersonasActividad(array $personas, int $vehiculosCount): void
+    {
+        $conductoresPorVehiculo = [];
+
+        foreach (array_values($personas) as $index => $persona) {
+            $tipo = mb_strtoupper(trim((string) ($persona['tipo_participacion'] ?? '')), 'UTF-8');
+            $tieneVehiculo = array_key_exists('vehiculo_indice', $persona)
+                && $persona['vehiculo_indice'] !== null
+                && $persona['vehiculo_indice'] !== '';
+            $vehiculoIndice = $tieneVehiculo ? (int) $persona['vehiculo_indice'] : null;
+
+            if ($tieneVehiculo && ($vehiculoIndice < 0 || $vehiculoIndice >= $vehiculosCount)) {
+                throw ValidationException::withMessages([
+                    "personas.{$index}.vehiculo_indice" => 'El vehículo seleccionado ya no está disponible.',
+                ]);
+            }
+
+            if (in_array($tipo, ['CONDUCTOR', 'PASAJERO'], true) && !$tieneVehiculo) {
+                throw ValidationException::withMessages([
+                    "personas.{$index}.vehiculo_indice" => "Selecciona el vehículo de esta persona ({$tipo}).",
+                ]);
+            }
+
+            if ($tipo !== 'CONDUCTOR') {
+                continue;
+            }
+
+            if (isset($conductoresPorVehiculo[$vehiculoIndice])) {
+                throw ValidationException::withMessages([
+                    "personas.{$index}.vehiculo_indice" => 'Cada vehículo admite únicamente un conductor en esta actividad.',
+                ]);
+            }
+
+            $conductoresPorVehiculo[$vehiculoIndice] = true;
+        }
+
+    }
+
+    private function snapshotFundamentosActividad(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $catalogo = LicenciaPuntoInfraccion::activas()
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        if ($catalogo->count() !== count($ids)) {
+            throw ValidationException::withMessages([
+                'fundamento_ids' => 'Uno de los fundamentos seleccionados ya no está disponible.',
+            ]);
+        }
+
+        return collect($ids)->map(function (int $id) use ($catalogo) {
+            /** @var LicenciaPuntoInfraccion $fundamento */
+            $fundamento = $catalogo->get($id);
+
+            return [
+                'id' => $fundamento->id,
+                'codigo' => $this->textoNullable($fundamento->codigo),
+                'nombre' => $this->textoNullable($fundamento->nombre) ?: 'Fundamento legal',
+                'etiqueta_operativa' => $this->textoNullable($fundamento->etiqueta_operativa),
+                'texto_operativo' => $this->textoNullable($fundamento->texto_operativo),
+                'descripcion' => $this->textoNullable($fundamento->descripcion),
+                'fundamento_legal' => $this->textoNullable($fundamento->fundamento_legal),
+                'referencia_legal_corta' => $this->textoNullable($fundamento->referencia_legal_corta),
+                'resumen_sanciones' => $this->textoNullable($fundamento->resumen_sanciones),
+                'retencion_vehiculo' => (bool) $fundamento->retencion_vehiculo,
+                'deposito_si_sin_persona_habilitada' => (bool) $fundamento->deposito_si_sin_persona_habilitada,
+            ];
+        })->all();
+    }
+
+    private function crearPersonasParaActividad(Actividad $actividad, array $personas, array $vehiculos): void
+    {
+        foreach (array_values($personas) as $persona) {
+            $tipo = mb_strtoupper(trim((string) ($persona['tipo_participacion'] ?? 'OTRO')), 'UTF-8');
+            $vehiculoIndice = isset($persona['vehiculo_indice']) && $persona['vehiculo_indice'] !== ''
+                ? (int) $persona['vehiculo_indice']
+                : null;
+            $vehiculo = $vehiculoIndice !== null ? ($vehiculos[$vehiculoIndice] ?? null) : null;
+
+            if ($tipo === 'CONDUCTOR') {
+                $conductor = Conductor::create([
+                    'client_uuid' => (string) Str::uuid(),
+                    'nombre' => $this->toUpperOrNull($persona['nombre'] ?? null),
+                    'edad' => $persona['edad'] ?? null,
+                    'domicilio' => $this->toUpperOrNull($persona['domicilio'] ?? null),
+                    'antecedentes' => (bool) ($persona['antecedentes'] ?? false),
+                    'estado_licencia' => $this->toUpperOrNull($persona['estado_licencia'] ?? null),
+                    'vigencia_licencia' => $persona['vigencia_licencia'] ?? null,
+                    'numero_licencia' => $this->toUpperOrNull($persona['numero_licencia'] ?? null),
+                    'permanente' => (bool) ($persona['permanente'] ?? false),
+                    'ocupacion' => $this->toUpperOrNull($persona['ocupacion'] ?? null),
+                    'telefono' => trim((string) ($persona['telefono'] ?? '')) ?: null,
+                    'sexo' => $this->toUpperOrNull($persona['sexo'] ?? null),
+                    'tipo_licencia' => $this->toUpperOrNull($persona['tipo_licencia'] ?? null),
+                ]);
+
+                $vehiculo->conductores()->syncWithoutDetaching([$conductor->id]);
+                continue;
+            }
+
+            ActividadPersona::create([
+                'actividad_id' => $actividad->id,
+                'vehiculo_id' => $vehiculo ? $vehiculo->id : null,
+                'tipo_participacion' => $tipo,
+                'nombre' => $this->toUpperOrNull($persona['nombre'] ?? null),
+                'telefono' => trim((string) ($persona['telefono'] ?? '')) ?: null,
+                'domicilio' => $this->toUpperOrNull($persona['domicilio'] ?? null),
+                'sexo' => $this->toUpperOrNull($persona['sexo'] ?? null),
+                'nacionalidad' => $this->toUpperOrNull($persona['nacionalidad'] ?? null),
+                'ocupacion' => $this->toUpperOrNull($persona['ocupacion'] ?? null),
+                'edad' => $persona['edad'] ?? null,
+                'observaciones' => $this->toUpperOrNull($persona['observaciones'] ?? null),
+            ]);
+        }
+    }
+
+    private function textoNullable($value): ?string
+    {
+        $texto = trim((string) ($value ?? ''));
+
+        return $texto !== '' ? $texto : null;
     }
 
     private function validarVehiculoRequest(Request $request): array

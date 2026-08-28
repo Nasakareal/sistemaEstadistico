@@ -223,7 +223,7 @@
                             @unless($usuarioEsFomento ?? false)
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="motivo">Qué ocasiona / motivo</label>
+                                        <label for="motivo">Asunto</label>
                                         <textarea name="motivo"
                                                   id="motivo"
                                                   rows="3"
@@ -247,42 +247,6 @@
                                               class="form-control @error('narrativa') is-invalid @enderror"
                                               placeholder="Describa lo ocurrido">{{ old('narrativa') }}</textarea>
                                     @error('narrativa')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            @unless($usuarioEsFomento ?? false)
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="acciones_realizadas">Acciones realizadas</label>
-                                        <textarea name="acciones_realizadas"
-                                                  id="acciones_realizadas"
-                                                  rows="3"
-                                                  class="form-control @error('acciones_realizadas') is-invalid @enderror"
-                                                  placeholder="Acciones realizadas por el personal">{{ old('acciones_realizadas') }}</textarea>
-                                        @error('acciones_realizadas')
-                                            <span class="invalid-feedback" role="alert">
-                                                <strong>{{ $message }}</strong>
-                                            </span>
-                                        @enderror
-                                    </div>
-                                </div>
-                            @endunless
-
-                            <div class="{{ ($usuarioEsFomento ?? false) ? 'col-md-12' : 'col-md-6' }}">
-                                <div class="form-group">
-                                    <label for="observaciones">Observaciones</label>
-                                    <textarea name="observaciones"
-                                              id="observaciones"
-                                              rows="3"
-                                              class="form-control @error('observaciones') is-invalid @enderror"
-                                              placeholder="Observaciones adicionales">{{ old('observaciones') }}</textarea>
-                                    @error('observaciones')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
@@ -394,6 +358,8 @@
 
                         @unless($usuarioEsFomento ?? false)
                             @include('actividades.partials.vehiculos_create')
+                            @include('actividades.partials.personas_create')
+                            @include('actividades.partials.fundamentos_create')
                         @endunless
 
                         <div class="row">
@@ -447,6 +413,8 @@
 
                     @unless($usuarioEsFomento ?? false)
                         @include('actividades.partials.vehiculo_modal_create')
+                        @include('actividades.partials.persona_modal_create')
+                        @include('actividades.partials.fundamentos_modal_create')
                     @endunless
                 </div>
             </div>
@@ -541,6 +509,53 @@
         @include('actividades.partials.form_guardrails_styles')
 
         @include('actividades.partials.vehiculos_styles')
+
+        .fundamentos-seleccionados {
+            display: grid;
+            gap: 8px;
+        }
+
+        .fundamento-seleccionado {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border: 1px solid rgba(40,167,69,.35);
+            border-radius: 9px;
+            background: rgba(40,167,69,.10);
+            color: #eaf0ff;
+        }
+
+        .fundamento-seleccionado span { flex: 1; }
+        .fundamento-seleccionado .btn { color: #ffb4b4; font-size: 1.2rem; padding: 0 .35rem; }
+
+        .fundamentos-catalogo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 10px;
+            max-height: 58vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .fundamento-opcion {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 0;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,.13);
+            border-radius: 9px;
+            background: rgba(255,255,255,.04);
+            cursor: pointer;
+        }
+
+        .fundamento-opcion:hover { border-color: rgba(40,167,69,.6); }
+        .fundamento-opcion input { margin-top: 5px; transform: scale(1.15); }
+        .fundamento-opcion__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .fundamento-opcion__body strong { color: #85e89d; }
+        .fundamento-opcion__body span { color: #eaf0ff; }
+        .fundamento-opcion__body small { color: rgba(234,240,255,.62); }
     </style>
 @stop
 
@@ -839,5 +854,7 @@
 
     @unless($usuarioEsFomento ?? false)
         @include('actividades.partials.vehiculos_scripts', ['modo' => 'create', 'vehiculosIniciales' => old('vehiculos', [])])
+        @include('actividades.partials.personas_scripts')
+        @include('actividades.partials.fundamentos_scripts')
     @endunless
 @stop

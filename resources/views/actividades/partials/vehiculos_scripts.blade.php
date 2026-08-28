@@ -9,6 +9,9 @@
         const inputsVehiculos = document.getElementById('vehiculosActividadInputs');
         const badgeTotalVehiculos = document.getElementById('vehiculosActividadTotal');
         let vehiculosTemporales = @json(array_values($vehiculosIniciales ?? []));
+        window.actividadVehiculosTemporales = function () {
+            return vehiculosTemporales.map(function (vehiculo) { return Object.assign({}, vehiculo); });
+        };
 
         const carroceriasActividad = {
             automovil: ['Sedán', 'Hatchback', 'Coupé', 'SUV', 'Convertible'],
@@ -201,6 +204,10 @@
             if (badgeTotalVehiculos) {
                 badgeTotalVehiculos.textContent = `Total: ${vehiculosTemporales.length}`;
             }
+
+            document.dispatchEvent(new CustomEvent('actividad:vehiculos-actualizados', {
+                detail: { vehiculos: window.actividadVehiculosTemporales() }
+            }));
         }
 
         if (tipoGeneralVehiculo && tipoVehiculo) {
@@ -258,6 +265,9 @@
                 }
 
                 const index = Number(btn.dataset.removeVehiculo);
+                document.dispatchEvent(new CustomEvent('actividad:vehiculo-eliminado', {
+                    detail: { index: index }
+                }));
                 vehiculosTemporales.splice(index, 1);
                 renderVehiculosTemporales();
             });

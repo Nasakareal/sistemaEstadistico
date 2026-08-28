@@ -59,6 +59,18 @@
             ? $actividad->vehiculos
             : $actividad->vehiculos()->orderBy('vehiculos.id')->get();
 
+        $personasActividad = $actividad->relationLoaded('personas')
+            ? $actividad->personas
+            : $actividad->personas()->with('vehiculo')->get();
+        $conductoresActividad = $vehiculosActividad->flatMap(function ($vehiculo) {
+            return $vehiculo->conductores->map(function ($conductor) use ($vehiculo) {
+                return ['persona' => $conductor, 'vehiculo' => $vehiculo];
+            });
+        });
+        $fundamentosActividad = is_array($actividad->infracciones_actividad)
+            ? $actividad->infracciones_actividad
+            : [];
+
         $detalleFomento = $actividad->relationLoaded('fomentoCulturaVialDetalle')
             ? $actividad->fomentoCulturaVialDetalle
             : $actividad->fomentoCulturaVialDetalle()->first();
@@ -492,6 +504,44 @@
                             No hay vehículos vinculados a esta actividad.
                         </div>
                     @endif
+                </div>
+            </div>
+
+            <div class="card card-outline card-warning mb-4 actividad-vehiculos-card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <div><h3 class="card-title mb-0"><i class="fa-solid fa-users"></i> Conductores y personas</h3><div class="help-muted mt-1">Personas identificadas durante la actividad.</div></div>
+                    <span class="badge badge-light vehiculo-total-badge">Total: {{ $conductoresActividad->count() + $personasActividad->count() }}</span>
+                </div>
+                <div class="card-body">
+                    @if($conductoresActividad->count() || $personasActividad->count())
+                        <div class="vehiculos-grid">
+                            @foreach($conductoresActividad as $item)
+                                <div class="vehiculo-card">
+                                    <div class="vehiculo-card-head"><div><div class="vehiculo-title">{{ $item['persona']->nombre }}</div><div class="vehiculo-subtitle">CONDUCTOR</div></div><span class="vehiculo-placa"><i class="fa-solid fa-car"></i> {{ $item['vehiculo']->placas ?: ($item['vehiculo']->marca . ' ' . $item['vehiculo']->linea) }}</span></div>
+                                    <div class="vehiculo-card-body"><div class="vehiculo-chip-row"><span class="vehiculo-chip">{{ $item['persona']->edad !== null ? $item['persona']->edad . ' años' : 'Edad N/D' }}</span><span class="vehiculo-chip">{{ $item['persona']->sexo ?: 'Sexo N/D' }}</span>@if($item['persona']->numero_licencia)<span class="vehiculo-chip"><i class="fa-solid fa-id-card"></i> {{ $item['persona']->numero_licencia }}</span>@endif</div></div>
+                                </div>
+                            @endforeach
+                            @foreach($personasActividad as $persona)
+                                <div class="vehiculo-card">
+                                    <div class="vehiculo-card-head"><div><div class="vehiculo-title">{{ $persona->nombre }}</div><div class="vehiculo-subtitle">{{ $persona->tipo_participacion }}</div></div>@if($persona->vehiculo)<span class="vehiculo-placa"><i class="fa-solid fa-car"></i> {{ $persona->vehiculo->placas ?: ($persona->vehiculo->marca . ' ' . $persona->vehiculo->linea) }}</span>@endif</div>
+                                    <div class="vehiculo-card-body"><div class="vehiculo-chip-row"><span class="vehiculo-chip">{{ $persona->edad !== null ? $persona->edad . ' años' : 'Edad N/D' }}</span><span class="vehiculo-chip">{{ $persona->sexo ?: 'Sexo N/D' }}</span>@if($persona->telefono)<span class="vehiculo-chip"><i class="fa-solid fa-phone"></i> {{ $persona->telefono }}</span>@endif</div>@if($persona->observaciones)<div class="vehiculo-nota"><span>Observaciones</span><p>{{ $persona->observaciones }}</p></div>@endif</div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="alert alert-info mb-0">No hay conductores ni personas adicionales registradas.</div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="card card-outline card-success mb-4 actividad-vehiculos-card">
+                <div class="card-header d-flex align-items-center justify-content-between"><div><h3 class="card-title mb-0"><i class="fa-solid fa-scale-balanced"></i> Fundamentos</h3><div class="help-muted mt-1">Fundamentos generales seleccionados.</div></div><span class="badge badge-light vehiculo-total-badge">Total: {{ count($fundamentosActividad) }}</span></div>
+                <div class="card-body">
+                    @forelse($fundamentosActividad as $fundamento)
+                        <div class="vehiculo-nota mb-2"><span>{{ $fundamento['referencia_legal_corta'] ?? $fundamento['codigo'] ?? 'Fundamento legal' }}</span><p><strong>{{ $fundamento['nombre'] ?? 'Fundamento legal' }}</strong>@if(!empty($fundamento['fundamento_legal']))<br>{{ $fundamento['fundamento_legal'] }}@endif</p></div>
+                    @empty
+                        <div class="alert alert-info mb-0">No hay fundamentos seleccionados.</div>
+                    @endforelse
                 </div>
             </div>
 

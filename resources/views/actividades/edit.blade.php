@@ -15,6 +15,14 @@
                 </div>
 
                 <div class="card-body">
+                    @php
+                        $puedeCapturarFechaHora = ($puedeCapturarFechaHora ?? false)
+                            || (auth()->check() && auth()->user()->hasRole('Administrativo'));
+                        $puedeEscribirCoordenadas = ($puedeEscribirCoordenadas ?? false)
+                            || (auth()->check() && auth()->user()->hasRole('Administrativo'));
+                        $puedeEscribirNombre = ($puedeEscribirNombre ?? false)
+                            || (auth()->check() && auth()->user()->hasRole('Administrativo'));
+                    @endphp
                     <form action="{{ route('actividades.update', $actividad->id) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
@@ -27,15 +35,17 @@
                                            name="nombre"
                                            id="nombre"
                                            class="form-control @error('nombre') is-invalid @enderror"
-                                           value="{{ old('nombre', auth()->user()->name ?? $actividad->nombre ?? '') }}"
-                                           readonly
+                                           value="{{ old('nombre', $actividad->nombre ?? auth()->user()->name ?? '') }}"
+                                           {{ $puedeEscribirNombre ? '' : 'readonly' }}
                                            required>
                                     @error('nombre')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
                                         </span>
                                     @enderror
-                                    <small class="help-muted">Se toma automáticamente del usuario. No se puede editar.</small>
+                                    <small class="help-muted">
+                                        {{ $puedeEscribirNombre ? 'Captura el nombre de quien realizó o reportó la actividad.' : 'Se toma automáticamente del usuario. No se puede editar.' }}
+                                    </small>
                                 </div>
                             </div>
 
@@ -635,6 +645,7 @@
             const subcatSelect = document.getElementById('actividad_subcategoria_id');
             const nombreInput = document.getElementById('nombre');
             const nombreActual = nombreInput ? nombreInput.value : '';
+            const puedeEscribirNombre = @json((bool) ($puedeEscribirNombre ?? false));
 
             const fotoInput = document.getElementById('fotos');
             const fotoName = document.getElementById('foto_name');
@@ -896,7 +907,7 @@
                 coordenadasTextoInput.addEventListener('input', aplicarCoordenadasEscritas);
             }
 
-            if (nombreInput) {
+            if (nombreInput && !puedeEscribirNombre) {
                 nombreInput.addEventListener('input', function () {
                     if (this.value !== nombreActual) {
                         this.value = nombreActual;

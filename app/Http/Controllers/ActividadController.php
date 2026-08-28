@@ -162,6 +162,7 @@ class ActividadController extends Controller
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($usuario);
+        $puedeEscribirNombre = $this->userCanWriteActivityReporter($usuario);
 
         $fundamentos = LicenciaPuntoInfraccion::activas()
             ->get()
@@ -175,7 +176,7 @@ class ActividadController extends Controller
             })
             ->values();
 
-        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'usuarioEsFomento'));
+        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'puedeEscribirNombre', 'usuarioEsFomento'));
     }
 
     public function store(Request $request)
@@ -185,6 +186,7 @@ class ActividadController extends Controller
         $user = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($user);
+        $puedeEscribirNombre = $this->userCanWriteActivityReporter($user);
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
         $this->normalizeWritableCoordinates($request, $puedeEscribirCoordenadas);
@@ -196,6 +198,7 @@ class ActividadController extends Controller
         $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
+            'nombre'                         => $puedeEscribirNombre ? 'required|string|max:200' : 'nullable|string|max:200',
             'folio_c5i'                      => 'nullable|string|max:50',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
@@ -284,7 +287,11 @@ class ActividadController extends Controller
             ? ($validated['hora'] ?? $ahora->format('H:i'))
             : $ahora->format('H:i');
 
-        $validated['nombre'] = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
+        $validated['nombre'] = mb_strtoupper((string) (
+            $puedeEscribirNombre
+                ? ($validated['nombre'] ?? '')
+                : ($user->name ?? '')
+        ), 'UTF-8');
         $validated['cantidad'] = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
@@ -508,8 +515,9 @@ class ActividadController extends Controller
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($usuario);
+        $puedeEscribirNombre = $this->userCanWriteActivityReporter($usuario);
 
-        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'usuarioEsFomento'));
+        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'puedeEscribirNombre', 'usuarioEsFomento'));
     }
 
     public function update(Request $request, Actividad $actividad)
@@ -519,6 +527,7 @@ class ActividadController extends Controller
         $usuario = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($usuario);
+        $puedeEscribirNombre = $this->userCanWriteActivityReporter($usuario);
 
         $this->normalizeWritableCoordinates($request, $puedeEscribirCoordenadas);
 
@@ -532,6 +541,7 @@ class ActividadController extends Controller
         $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
+            'nombre'                         => $puedeEscribirNombre ? 'required|string|max:200' : 'nullable|string|max:200',
             'folio_c5i'                      => 'nullable|string|max:50',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
@@ -600,10 +610,13 @@ class ActividadController extends Controller
             ? ($validated['hora'] ?? $actividad->hora ?? $horaRespaldo)
             : ($actividad->hora ?? $horaRespaldo);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura, $fomentoManager) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura, $fomentoManager, $puedeEscribirNombre) {
             $actividad->update([
                 'sync_status'                   => $actividad->sync_status ?: 'local',
                 'folio_c5i'                     => $this->toUpperOrNull($validated['folio_c5i'] ?? null),
+                'nombre'                        => $puedeEscribirNombre
+                    ? mb_strtoupper(trim((string) ($validated['nombre'] ?? '')), 'UTF-8')
+                    : $actividad->nombre,
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
                 'cantidad'                      => 1,
@@ -1796,6 +1809,11 @@ class ActividadController extends Controller
     }
 
     private function userCanWriteCoordinates($usuario): bool
+    {
+        return $this->userCanWriteActivityReporter($usuario);
+    }
+
+    private function userCanWriteActivityReporter($usuario): bool
     {
         return $usuario && $usuario->hasRole('Administrativo');
     }

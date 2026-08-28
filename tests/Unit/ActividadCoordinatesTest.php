@@ -22,6 +22,27 @@ class ActividadCoordinatesTest extends TestCase
         $this->assertFalse($method->invoke($controller, $administrador));
     }
 
+    public function test_el_rol_administrativo_puede_capturar_otro_nombre(): void
+    {
+        $method = new ReflectionMethod(ActividadController::class, 'userCanWriteActivityReporter');
+        $method->setAccessible(true);
+        $controller = new ActividadController();
+
+        $this->assertTrue($method->invoke($controller, $this->usuarioConRoles(['Administrativo'])));
+        $this->assertFalse($method->invoke($controller, $this->usuarioConRoles(['Administrador'])));
+    }
+
+    public function test_el_rol_administrativo_puede_capturar_fecha_y_hora(): void
+    {
+        $method = new ReflectionMethod(ActividadController::class, 'userCanCaptureFechaHora');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke(
+            new ActividadController(),
+            $this->usuarioConRoles(['Administrativo'])
+        ));
+    }
+
     public function test_coordenadas_vacias_se_normalizan_a_null(): void
     {
         $request = Request::create('/actividades', 'POST', [

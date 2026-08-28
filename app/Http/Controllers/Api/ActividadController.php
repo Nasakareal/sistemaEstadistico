@@ -144,10 +144,12 @@ class ActividadController extends Controller
 
         $user = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+        $puedeEscribirNombre = $this->userCanWriteActivityReporter($user);
 
         $validated = $request->validate(array_merge([
             'client_uuid' => 'nullable|string|max:36',
             'folio_c5i' => 'nullable|string|max:50',
+            'nombre' => $puedeEscribirNombre ? 'required|string|max:200' : 'nullable|string|max:200',
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
@@ -311,7 +313,11 @@ class ActividadController extends Controller
             $validated['actividad_infracciones'] ?? []
         );
 
-        $nombre = mb_strtoupper((string) ($user->name ?? ''), 'UTF-8');
+        $nombre = mb_strtoupper((string) (
+            $puedeEscribirNombre
+                ? ($validated['nombre'] ?? '')
+                : ($user->name ?? '')
+        ), 'UTF-8');
         $cantidad = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
@@ -544,6 +550,7 @@ class ActividadController extends Controller
 
         $usuario = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeEscribirNombre = $this->userCanWriteActivityReporter($usuario);
 
         $q = Actividad::query()->whereKey($actividad->id);
         $this->applyActividadesVisibilityScope($q, $usuario);
@@ -559,6 +566,7 @@ class ActividadController extends Controller
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'folio_c5i' => 'nullable|string|max:50',
+            'nombre' => $puedeEscribirNombre ? 'required|string|max:200' : 'nullable|string|max:200',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
             'hora' => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar' => 'nullable|string|max:255',
@@ -656,7 +664,7 @@ class ActividadController extends Controller
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $fomentoManager, $conduceSync, $infraccionesCorralon) {
+        return DB::transaction(function () use ($request, $validated, $actividad, $user, $tz, $detenidosAntes, $puedeCapturarFechaHora, $puedeEscribirNombre, $fomentoManager, $conduceSync, $infraccionesCorralon) {
             $fotoIdsEliminar = collect($request->input('eliminar_fotos', []))
                 ->map(function ($id) {
                     return (int) $id;
@@ -754,6 +762,9 @@ class ActividadController extends Controller
 
             $actividad->update([
                 'folio_c5i' => array_key_exists('folio_c5i', $validated) ? $this->toUpperOrNull($validated['folio_c5i']) : $actividad->folio_c5i,
+                'nombre' => $puedeEscribirNombre
+                    ? mb_strtoupper(trim((string) ($validated['nombre'] ?? '')), 'UTF-8')
+                    : $actividad->nombre,
                 'actividad_categoria_id' => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
                 'cantidad' => 1,
@@ -1622,6 +1633,11 @@ class ActividadController extends Controller
             'message' => 'Vehículo desvinculado correctamente.',
             'data' => $this->withFotoUrls($actividad),
         ]);
+    }
+
+    private function userCanWriteActivityReporter($usuario): bool
+    {
+        return $usuario && $usuario->hasRole('Administrativo');
     }
 
     public function updateVehiculo(Request $request, Actividad $actividad, $vehiculoId)

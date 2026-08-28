@@ -80,9 +80,86 @@ class PuestaDisposicionWebIndexFilterTest extends TestCase
         }));
     }
 
-    private function crearPuesta(int $numero, int $anio, int $unidadId, string $area): PuestaDisposicion
+    public function test_index_busca_por_carpeta_y_oficio_y_filtra_por_mes(): void
     {
-        return PuestaDisposicion::query()->create([
+        $anio = (int)now()->year;
+        $numero = (int)PuestaDisposicion::query()
+            ->where('anio', $anio)
+            ->max('numero_puesta') + 400;
+
+        $carpeta = 'CI-FILTRO-' . $numero;
+        $oficio = 'OF-FILTRO-' . $numero;
+        $coincidente = $this->crearPuesta($numero, $anio, 5, 'VIALIDADES', [
+            'carpeta_investigacion' => $carpeta,
+            'oficio' => $oficio,
+            'fecha_puesta' => now()->toDateString(),
+        ]);
+        $fueraDelMes = $this->crearPuesta($numero + 1, $anio, 5, 'VIALIDADES', [
+            'carpeta_investigacion' => $carpeta,
+            'oficio' => $oficio,
+            'fecha_puesta' => now()->subMonthNoOverflow()->toDateString(),
+        ]);
+        $otra = $this->crearPuesta($numero + 2, $anio, 5, 'VIALIDADES', [
+            'carpeta_investigacion' => 'CI-DISTINTA-' . $numero,
+            'oficio' => 'OF-DISTINTO-' . $numero,
+            'fecha_puesta' => now()->toDateString(),
+        ]);
+
+        Auth::login(User::factory()->create(['unidad_id' => 3]));
+
+        $request = Request::create('/puestas-disposicion', 'GET', [
+            'anio' => 'TODOS',
+            'mes' => now()->format('Y-m'),
+            'carpeta_investigacion' => $carpeta,
+            'oficio' => $oficio,
+        ]);
+
+        $response = (new PuestaDisposicionController())->index($request);
+        $puestas = $response->getData()['puestas'];
+
+        $this->assertTrue($puestas->contains('id', $coincidente->id));
+        $this->assertFalse($puestas->contains('id', $fueraDelMes->id));
+        $this->assertFalse($puestas->contains('id', $otra->id));
+    }
+
+    public function test_lupita_busca_en_los_datos_de_las_personas_relacionadas(): void
+    {
+        $anio = (int)now()->year;
+        $numero = (int)PuestaDisposicion::query()
+            ->where('anio', $anio)
+            ->max('numero_puesta') + 500;
+
+        $puesta = $this->crearPuesta($numero, $anio, 5, 'VIALIDADES');
+        $puesta->personas()->create([
+            'nombre_completo' => 'PERSONA BUSQUEDA ' . $numero,
+            'edad' => 31,
+            'calidad' => 'DETENIDA',
+        ]);
+        $otra = $this->crearPuesta($numero + 1, $anio, 5, 'VIALIDADES');
+
+        Auth::login(User::factory()->create(['unidad_id' => 3]));
+
+        $request = Request::create('/puestas-disposicion', 'GET', [
+            'anio' => $anio,
+            'q' => 'PERSONA BUSQUEDA ' . $numero,
+        ]);
+
+        $response = (new PuestaDisposicionController())->index($request);
+        $puestas = $response->getData()['puestas'];
+
+        $this->assertTrue($puestas->contains('id', $puesta->id));
+        $this->assertFalse($puestas->contains('id', $otra->id));
+    }
+
+    private function crearPuesta(
+        int $numero,
+        int $anio,
+        int $unidadId,
+        string $area,
+        array $overrides = []
+    ): PuestaDisposicion
+    {
+        return PuestaDisposicion::query()->create(array_merge([
             'numero_puesta' => $numero,
             'anio' => $anio,
             'tipo_puesta' => 'PERSONA',
@@ -92,6 +169,6 @@ class PuestaDisposicionWebIndexFilterTest extends TestCase
             'area' => $area,
             'fecha_puesta' => now()->toDateString(),
             'unidad_id' => $unidadId,
-        ]);
+        ], $overrides));
     }
 }

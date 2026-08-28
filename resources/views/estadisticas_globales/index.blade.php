@@ -187,7 +187,7 @@
 
     {{-- KPIs --}}
     <div class="row">
-        <div class="col-md-3 col-12">
+        <div class="col-xl col-md-6 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-navy"><i class="fa-solid fa-car-burst"></i></div>
                 <div class="sv-kpi__body">
@@ -197,7 +197,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-12">
+        <div class="col-xl col-md-6 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-maroon"><i class="fa-solid fa-user-injured"></i></div>
                 <div class="sv-kpi__body">
@@ -207,7 +207,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-12">
+        <div class="col-xl col-md-6 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-danger"><i class="fa-solid fa-skull-crossbones"></i></div>
                 <div class="sv-kpi__body">
@@ -217,12 +217,22 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-12">
+        <div class="col-xl col-md-6 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-teal"><i class="fa-solid fa-car-side"></i></div>
                 <div class="sv-kpi__body">
                     <div class="sv-kpi__label">Vehículos participantes</div>
                     <div class="sv-kpi__value" id="k_vehiculos">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl col-md-6 col-12">
+            <div class="sv-kpi">
+                <div class="sv-kpi__icon bg-purple"><i class="fa-solid fa-users"></i></div>
+                <div class="sv-kpi__body">
+                    <div class="sv-kpi__label">Personas en puestas</div>
+                    <div class="sv-kpi__value" id="k_personas_puestas">—</div>
                 </div>
             </div>
         </div>
@@ -259,6 +269,17 @@
                 </div>
                 <div class="sv-panel__body">
                     <canvas id="ch_veh_tipo" height="130"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 col-12">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-users"></i> Personas en puestas por edad
+                </div>
+                <div class="sv-panel__body">
+                    <canvas id="ch_personas_puestas_edad" height="130"></canvas>
                 </div>
             </div>
         </div>
@@ -453,7 +474,7 @@
         });
     }
 
-    let chTime = null, chTipoHecho = null, chVehTipo = null;
+    let chTime = null, chTipoHecho = null, chVehTipo = null, chPersonasPuestasEdad = null;
 
     function mountOrUpdateChart(canvasId, chartRef, type, labels, data){
         const canvas = el(canvasId);
@@ -547,6 +568,7 @@
         if (el('k_lesionados')) el('k_lesionados').textContent = (k.totales?.lesionados ?? 0);
         if (el('k_vehiculos')) el('k_vehiculos').textContent = (k.totales?.vehiculos ?? 0);
         if (el('k_fallecidos')) el('k_fallecidos').textContent = (k.totales?.fallecidos ?? 0);
+        if (el('k_personas_puestas')) el('k_personas_puestas').textContent = (k.totales?.personas_puestas ?? 0);
 
         const distSector = await getJson('series/sector');
         fillSelect('f_sector', distSector.series || []);
@@ -585,6 +607,16 @@
             'doughnut',
             vehTipo.slice(0, 10).map(r => r.label),
             vehTipo.slice(0, 10).map(r => Number(r.total || 0))
+        );
+
+        const personasPuestasEdad = await getJson('series/personas-puestas-edades');
+        const edades = personasPuestasEdad.series || [];
+        chPersonasPuestasEdad = mountOrUpdateChart(
+            'ch_personas_puestas_edad',
+            chPersonasPuestasEdad,
+            'bar',
+            edades.map(r => r.label),
+            edades.map(r => Number(r.total || 0))
         );
 
         const hechos = await getJson('hechos', { page });

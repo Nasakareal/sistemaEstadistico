@@ -68,6 +68,7 @@ class EstadisticasGlobalesController extends Controller
 
             $totalLesionados = 0;
             $totalFallecidos = 0;
+            $totalPersonasPuestas = 0;
 
             if ($this->hasTable('lesionados')) {
 
@@ -81,6 +82,11 @@ class EstadisticasGlobalesController extends Controller
                 $totalLesionados = (int) (clone $baseLes)
                     ->whereRaw("UPPER(TRIM(COALESCE(lesionados.tipo_lesion,''))) <> 'FALLECIDO'")
                     ->count('lesionados.id');
+            }
+
+            if ($this->hasTable('puestas_disposicion') && $this->hasTable('puestas_disposicion_personas')) {
+                $totalPersonasPuestas = (int)$this->basePuestasPersonasQuery($request)
+                    ->count('personas_puesta.id');
             }
 
             $porTipoHecho = (clone $baseHechos)
@@ -102,6 +108,7 @@ class EstadisticasGlobalesController extends Controller
                     'lesionados'  => (int)$totalLesionados,
                     'fallecidos'  => (int)$totalFallecidos,
                     'vehiculos' => (int)$totalVehiculos,
+                    'personas_puestas' => $totalPersonasPuestas,
                 ],
                 'top' => [
                     'tipo_hecho' => $porTipoHecho,
@@ -174,6 +181,56 @@ class EstadisticasGlobalesController extends Controller
             }
 
             return ['group' => $group, 'series' => $rows];
+        });
+    }
+
+    public function seriesPersonasPuestasEdad(Request $request)
+    {
+        return $this->cachedJson($request, 'seriesPersonasPuestasEdad', function () use ($request) {
+            if (!$this->hasTable('puestas_disposicion') || !$this->hasTable('puestas_disposicion_personas')) {
+                return ['total' => 0, 'series' => []];
+            }
+
+            $edad = 'COALESCE(personas_puesta.edad, TIMESTAMPDIFF(YEAR, personas_puesta.fecha_nacimiento, puestas.fecha_puesta))';
+            $label = "CASE
+                WHEN {$edad} IS NULL THEN 'SIN EDAD'
+                WHEN {$edad} BETWEEN 0 AND 11 THEN '0-11'
+                WHEN {$edad} BETWEEN 12 AND 17 THEN '12-17'
+                WHEN {$edad} BETWEEN 18 AND 29 THEN '18-29'
+                WHEN {$edad} BETWEEN 30 AND 44 THEN '30-44'
+                WHEN {$edad} BETWEEN 45 AND 59 THEN '45-59'
+                WHEN {$edad} >= 60 THEN '60+'
+                ELSE 'SIN EDAD'
+            END";
+            $orden = "CASE
+                WHEN {$edad} BETWEEN 0 AND 11 THEN 1
+                WHEN {$edad} BETWEEN 12 AND 17 THEN 2
+                WHEN {$edad} BETWEEN 18 AND 29 THEN 3
+                WHEN {$edad} BETWEEN 30 AND 44 THEN 4
+                WHEN {$edad} BETWEEN 45 AND 59 THEN 5
+                WHEN {$edad} >= 60 THEN 6
+                ELSE 7
+            END";
+
+            $totales = $this->basePuestasPersonasQuery($request)
+                ->selectRaw("{$label} as label, {$orden} as orden, COUNT(personas_puesta.id) as total")
+                ->groupByRaw("{$label}, {$orden}")
+                ->orderBy('orden')
+                ->get()
+                ->pluck('total', 'label');
+
+            $rows = collect(['0-11', '12-17', '18-29', '30-44', '45-59', '60+', 'SIN EDAD'])
+                ->map(function ($rango) use ($totales) {
+                    return [
+                        'label' => $rango,
+                        'total' => (int)($totales[$rango] ?? 0),
+                    ];
+                });
+
+            return [
+                'total' => (int)$rows->sum('total'),
+                'series' => $rows,
+            ];
         });
     }
 
@@ -440,6 +497,49 @@ class EstadisticasGlobalesController extends Controller
         $this->applyHechosFilters($q, $request);
 
         return $q;
+    }
+
+    private function basePuestasPersonasQuery(Request $request)
+    {
+        $q = DB::table('puestas_disposicion_personas as personas_puesta')
+            ->join('puestas_disposicion as puestas', 'puestas.id', '=', 'personas_puesta.puesta_disposicion_id');
+
+        $this->applyPuestasScopeByUser($q);
+
+        $desde = trim((string)$request->query('desde', ''));
+        $hasta = trim((string)$request->query('hasta', ''));
+
+        if ($desde !== '') {
+            $q->whereDate('puestas.fecha_puesta', '>=', $desde);
+        }
+
+        if ($hasta !== '') {
+            $q->whereDate('puestas.fecha_puesta', '<=', $hasta);
+        }
+
+        return $q;
+    }
+
+    private function applyPuestasScopeByUser($q): void
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        if ($user->hasRole('Superadmin') || (int)($user->unidad_id ?? 0) === 3) {
+            return;
+        }
+
+        $unidadId = (int)($user->unidad_id ?? 0);
+
+        if ($unidadId > 0) {
+            $q->where('puestas.unidad_id', $unidadId);
+            return;
+        }
+
+        $q->whereRaw('1 = 0');
     }
 
     private function applyHechosFilters($q, Request $request)

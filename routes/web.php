@@ -361,6 +361,7 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
     Route::get('/kpis',[EstadisticasGlobalesController::class,'kpis'])->name('estadisticas_globales.kpis');
     Route::get('/series/hechos',[EstadisticasGlobalesController::class,'seriesHechos'])->name('estadisticas_globales.series.hechos');
     Route::get('/series/lesionados',[EstadisticasGlobalesController::class,'seriesLesionados'])->name('estadisticas_globales.series.lesionados');
+    Route::get('/series/personas-puestas-edades',[EstadisticasGlobalesController::class,'seriesPersonasPuestasEdad'])->name('estadisticas_globales.series.personas_puestas_edades');
     Route::get('/series/tipo-hecho',[EstadisticasGlobalesController::class,'seriesTipoHecho'])->name('estadisticas_globales.series.tipo_hecho');
     Route::get('/series/sector',[EstadisticasGlobalesController::class,'seriesSector'])->name('estadisticas_globales.series.sector');
     Route::get('/series/municipio',[EstadisticasGlobalesController::class,'seriesMunicipio'])->name('estadisticas_globales.series.municipio');

@@ -13,6 +13,7 @@ use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\Documentos\DocumentoArchivoStorage;
 use App\Support\HechoAccess;
 use App\Support\PuestaDisposicionRules;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -401,35 +402,96 @@ class PuestaDisposicionController extends Controller
         $usuario = auth()->user();
 
         $anioActual = now()->year;
-        $anioSeleccionado = $request->get('anio', $anioActual);
+        $anioSeleccionado = trim((string)$request->get('anio', $anioActual));
+        $mesSeleccionado = trim((string)$request->get('mes', ''));
+        $busqueda = mb_substr(trim((string)$request->get('q', '')), 0, 150, 'UTF-8');
+        $carpetaSeleccionada = mb_substr(trim((string)$request->get('carpeta_investigacion', '')), 0, 150, 'UTF-8');
+        $oficioSeleccionado = mb_substr(trim((string)$request->get('oficio', '')), 0, 150, 'UTF-8');
+        $motivoSeleccionado = trim((string)$request->get('motivo', ''));
+        $tipoSeleccionado = trim((string)$request->get('tipo_puesta', ''));
         $puedeFiltrarUnidad = $this->puedeVerTodasLasUnidades($usuario);
         $unidadSeleccionadaId = $puedeFiltrarUnidad && $request->filled('unidad_id')
             ? (int)$request->input('unidad_id')
             : null;
 
         $query = $this->queryVisibleByUser($usuario)
-            ->where('anio', $anioSeleccionado)
+            ->withCount('personas')
+            ->orderByDesc('fecha_puesta')
             ->orderByDesc('numero_puesta');
+
+        if (preg_match('/^\d{4}-(?:0[1-9]|1[0-2])$/', $mesSeleccionado)) {
+            $inicioMes = Carbon::createFromFormat('Y-m-d', $mesSeleccionado . '-01')->startOfMonth();
+            $query->whereBetween('fecha_puesta', [$inicioMes->toDateString(), $inicioMes->copy()->endOfMonth()->toDateString()]);
+            $anioSeleccionado = (string)$inicioMes->year;
+        } elseif ($anioSeleccionado !== '' && strtoupper($anioSeleccionado) !== 'TODOS') {
+            $query->where('anio', (int)$anioSeleccionado);
+        }
 
         if ($unidadSeleccionadaId) {
             $query->where('unidad_id', $unidadSeleccionadaId);
         }
 
-        if ($request->filled('motivo')) {
-            $query->where('motivo', strtoupper(trim($request->motivo)));
+        if ($motivoSeleccionado !== '') {
+            $query->where('motivo', strtoupper($motivoSeleccionado));
         }
 
-        if ($request->filled('tipo_puesta')) {
-            $query->where('tipo_puesta', strtoupper(trim($request->tipo_puesta)));
+        if ($tipoSeleccionado !== '') {
+            $query->where('tipo_puesta', strtoupper($tipoSeleccionado));
         }
 
-        $puestas = $query->get();
+        if ($carpetaSeleccionada !== '') {
+            $query->where('carpeta_investigacion', 'like', '%' . $carpetaSeleccionada . '%');
+        }
+
+        if ($oficioSeleccionado !== '') {
+            $query->where('oficio', 'like', '%' . $oficioSeleccionado . '%');
+        }
+
+        if ($busqueda !== '') {
+            $like = '%' . $busqueda . '%';
+
+            $query->where(function ($scope) use ($like) {
+                $scope->where('carpeta_investigacion', 'like', $like)
+                    ->orWhere('oficio', 'like', $like)
+                    ->orWhere('nombre_policia', 'like', $like)
+                    ->orWhere('nombre_mp', 'like', $like)
+                    ->orWhere('autoridad_receptora', 'like', $like)
+                    ->orWhere('motivo', 'like', $like)
+                    ->orWhere('tipo_puesta', 'like', $like)
+                    ->orWhere('area', 'like', $like)
+                    ->orWhereRaw('CAST(numero_puesta AS CHAR) LIKE ?', [$like])
+                    ->orWhereHas('personas', function ($personas) use ($like) {
+                        $personas->where('nombre_completo', 'like', $like)
+                            ->orWhere('alias', 'like', $like)
+                            ->orWhere('curp', 'like', $like);
+                    });
+            });
+        }
+
+        $puestas = $query->paginate(25)->withQueryString();
 
         $anios = $this->queryVisibleByUser($usuario)
             ->select('anio')
             ->distinct()
             ->orderBy('anio', 'desc')
-            ->pluck('anio');
+            ->pluck('anio')
+            ->prepend($anioActual)
+            ->unique()
+            ->values();
+
+        $motivosFiltro = $this->queryVisibleByUser($usuario)
+            ->whereNotNull('motivo')
+            ->where('motivo', '<>', '')
+            ->distinct()
+            ->orderBy('motivo')
+            ->pluck('motivo');
+
+        $tiposFiltro = $this->queryVisibleByUser($usuario)
+            ->whereNotNull('tipo_puesta')
+            ->where('tipo_puesta', '<>', '')
+            ->distinct()
+            ->orderBy('tipo_puesta')
+            ->pluck('tipo_puesta');
 
         $unidadesFiltro = $puedeFiltrarUnidad
             ? $this->obtenerUnidadesActivas()->sortBy('nombre')->values()
@@ -442,7 +504,15 @@ class PuestaDisposicionController extends Controller
             'anioSeleccionado',
             'unidadesFiltro',
             'puedeFiltrarUnidad',
-            'unidadSeleccionadaId'
+            'unidadSeleccionadaId',
+            'mesSeleccionado',
+            'busqueda',
+            'carpetaSeleccionada',
+            'oficioSeleccionado',
+            'motivoSeleccionado',
+            'tipoSeleccionado',
+            'motivosFiltro',
+            'tiposFiltro'
         ));
     }
 

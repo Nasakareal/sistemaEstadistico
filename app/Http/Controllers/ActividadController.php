@@ -161,6 +161,7 @@ class ActividadController extends Controller
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($usuario);
 
         $fundamentos = LicenciaPuntoInfraccion::activas()
             ->get()
@@ -174,7 +175,7 @@ class ActividadController extends Controller
             })
             ->values();
 
-        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'usuarioEsFomento'));
+        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'usuarioEsFomento'));
     }
 
     public function store(Request $request)
@@ -183,7 +184,10 @@ class ActividadController extends Controller
 
         $user = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
+        $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($user);
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
+
+        $this->normalizeWritableCoordinates($request, $puedeEscribirCoordenadas);
 
         if ($fomentoManager->usuarioEsFomento($user)) {
             $request->merge(['vehiculos' => [], 'personas' => [], 'fundamento_ids' => []]);
@@ -192,6 +196,7 @@ class ActividadController extends Controller
         $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
+            'folio_c5i'                      => 'nullable|string|max:50',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar'                          => 'nullable|string|max:255',
@@ -201,7 +206,7 @@ class ActividadController extends Controller
             'kilometro'                      => 'nullable|string|max:50',
             'lat'                            => 'nullable|numeric|between:-90,90',
             'lng'                            => 'nullable|numeric|between:-180,180',
-            'coordenadas_texto'              => 'nullable|string',
+            'coordenadas_texto'              => $this->coordinatesTextRules($puedeEscribirCoordenadas),
             'fuente_ubicacion'               => 'nullable|string|max:50',
             'nota_geo'                       => 'nullable|string|max:255',
             'motivo'                         => 'nullable|string',
@@ -325,6 +330,7 @@ class ActividadController extends Controller
         return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $user, $fomentoManager, $fundamentosActividad) {
             $actividad = Actividad::create([
                 'client_uuid'                   => (string) Str::uuid(),
+                'folio_c5i'                     => $this->toUpperOrNull($validated['folio_c5i'] ?? null),
                 'sync_status'                   => 'local',
                 'sync_error'                    => null,
                 'synced_at'                     => null,
@@ -501,8 +507,9 @@ class ActividadController extends Controller
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($usuario);
 
-        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'usuarioEsFomento'));
+        return view('actividades.edit', compact('actividad', 'categorias', 'subcategorias', 'gruas', 'fomentoCategoriaIds', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'usuarioEsFomento'));
     }
 
     public function update(Request $request, Actividad $actividad)
@@ -511,6 +518,9 @@ class ActividadController extends Controller
 
         $usuario = Auth::user();
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
+        $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($usuario);
+
+        $this->normalizeWritableCoordinates($request, $puedeEscribirCoordenadas);
 
         $q = Actividad::query()->whereKey($actividad->id);
         $this->applyActividadesVisibilityScope($q, $usuario);
@@ -522,6 +532,7 @@ class ActividadController extends Controller
         $validated = $request->validate(array_merge([
             'actividad_categoria_id'         => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id'      => 'required|exists:actividad_subcategorias,id',
+            'folio_c5i'                      => 'nullable|string|max:50',
             'fecha'                          => $puedeCapturarFechaHora ? 'required|date' : 'nullable',
             'hora'                           => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar'                          => 'nullable|string|max:255',
@@ -531,7 +542,7 @@ class ActividadController extends Controller
             'kilometro'                      => 'nullable|string|max:50',
             'lat'                            => 'nullable|numeric|between:-90,90',
             'lng'                            => 'nullable|numeric|between:-180,180',
-            'coordenadas_texto'              => 'nullable|string',
+            'coordenadas_texto'              => $this->coordinatesTextRules($puedeEscribirCoordenadas),
             'fuente_ubicacion'               => 'nullable|string|max:50',
             'nota_geo'                       => 'nullable|string|max:255',
             'motivo'                         => 'nullable|string',
@@ -592,6 +603,7 @@ class ActividadController extends Controller
         return DB::transaction(function () use ($request, $validated, $actividad, $usuario, $detenidosAntes, $fechaCaptura, $horaCaptura, $fomentoManager) {
             $actividad->update([
                 'sync_status'                   => $actividad->sync_status ?: 'local',
+                'folio_c5i'                     => $this->toUpperOrNull($validated['folio_c5i'] ?? null),
                 'actividad_categoria_id'        => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id'     => $validated['actividad_subcategoria_id'] ?? null,
                 'cantidad'                      => 1,
@@ -1783,6 +1795,90 @@ class ActividadController extends Controller
 
     }
 
+    private function userCanWriteCoordinates($usuario): bool
+    {
+        return $usuario && $usuario->hasRole('Administrativo');
+    }
+
+    private function coordinatesTextRules(bool $canWrite): array
+    {
+        $rules = ['nullable', 'string', 'max:100'];
+
+        if ($canWrite) {
+            $rules[] = function ($attribute, $value, $fail) {
+                $text = trim((string) $value);
+
+                if ($text !== '' && !$this->parseCoordinates($text)) {
+                    $fail('Captura las coordenadas en formato latitud, longitud.');
+                }
+            };
+        }
+
+        return $rules;
+    }
+
+    private function normalizeWritableCoordinates(Request $request, bool $canWrite): void
+    {
+        if (!$canWrite || !$request->exists('coordenadas_texto')) {
+            return;
+        }
+
+        $text = trim((string) $request->input('coordenadas_texto', ''));
+
+        if ($text === '') {
+            $request->merge([
+                'lat' => null,
+                'lng' => null,
+                'coordenadas_texto' => null,
+                'fuente_ubicacion' => null,
+                'nota_geo' => null,
+            ]);
+            return;
+        }
+
+        $coordinates = $this->parseCoordinates($text);
+
+        if (!$coordinates) {
+            return;
+        }
+
+        $submittedLat = $request->input('lat');
+        $submittedLng = $request->input('lng');
+        $lat = number_format($coordinates['lat'], 7, '.', '');
+        $lng = number_format($coordinates['lng'], 7, '.', '');
+        $source = strtoupper(trim((string) $request->input('fuente_ubicacion', '')));
+        $coordinatesUnchanged = is_numeric($submittedLat) && is_numeric($submittedLng)
+            && number_format((float) $submittedLat, 7, '.', '') === $lat
+            && number_format((float) $submittedLng, 7, '.', '') === $lng;
+        $finalSource = ($source === 'GPS_WEB' || $coordinatesUnchanged)
+            ? ($source ?: 'MANUAL_WEB')
+            : 'MANUAL_WEB';
+
+        $request->merge([
+            'lat' => $lat,
+            'lng' => $lng,
+            'coordenadas_texto' => "{$lat}, {$lng}",
+            'fuente_ubicacion' => $finalSource,
+            'nota_geo' => ($source === 'GPS_WEB' || $coordinatesUnchanged) ? $request->input('nota_geo') : null,
+        ]);
+    }
+
+    private function parseCoordinates(string $text): ?array
+    {
+        if (!preg_match('/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/', $text, $matches)) {
+            return null;
+        }
+
+        $lat = (float) $matches[1];
+        $lng = (float) $matches[2];
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return null;
+        }
+
+        return ['lat' => $lat, 'lng' => $lng];
+    }
+
     private function snapshotFundamentosActividad(array $ids): array
     {
         $ids = array_values(array_unique(array_map('intval', $ids)));
@@ -2111,7 +2207,7 @@ class ActividadController extends Controller
             return $query;
         }
 
-        if ((int) $usuario->unidad_id === 1) {
+        if (GruaEditGuard::usesSiniestrosGruaCatalog($usuario)) {
             return $query->whereHas('unidades', function ($q) {
                 $q->where('unidades.id', 1);
             });

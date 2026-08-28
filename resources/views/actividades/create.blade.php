@@ -19,7 +19,7 @@
                         @csrf
 
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="nombre">Nombre<span style="color:red">*</span></label>
                                     <input type="text"
@@ -38,7 +38,23 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="folio_c5i">Folio de C5i</label>
+                                    <input type="text"
+                                           name="folio_c5i"
+                                           id="folio_c5i"
+                                           class="form-control @error('folio_c5i') is-invalid @enderror"
+                                           value="{{ old('folio_c5i') }}"
+                                           maxlength="50"
+                                           placeholder="Ingrese el folio de C5i">
+                                    @error('folio_c5i')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="actividad_categoria_id">Categoría<span style="color:red">*</span></label>
                                     <select name="actividad_categoria_id"
@@ -62,7 +78,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="actividad_subcategoria_id">Subcategoría<span style="color:red">*</span></label>
                                     <select name="actividad_subcategoria_id"
@@ -159,7 +175,9 @@
                         <input type="hidden" name="lng" id="lng" value="{{ old('lng') }}">
                         <input type="hidden" name="fuente_ubicacion" id="fuente_ubicacion" value="{{ old('fuente_ubicacion') }}">
                         <input type="hidden" name="nota_geo" id="nota_geo" value="{{ old('nota_geo') }}">
-                        <input type="hidden" name="coordenadas_texto" id="coordenadas_texto" value="{{ old('coordenadas_texto') }}">
+                        @unless($puedeEscribirCoordenadas ?? false)
+                            <input type="hidden" name="coordenadas_texto" id="coordenadas_texto" value="{{ old('coordenadas_texto') }}">
+                        @endunless
 
                         <div class="row">
                             <div class="col-md-12">
@@ -175,6 +193,20 @@
                                             {{ old('lat') && old('lng') ? 'Ubicación capturada correctamente.' : 'Aún no se ha capturado la ubicación.' }}
                                         </span>
                                     </div>
+
+                                    @if($puedeEscribirCoordenadas ?? false)
+                                        <div class="mt-2" style="max-width:420px;">
+                                            <label for="coordenadas_texto" class="mb-1">Coordenadas (opcional)</label>
+                                            <input type="text"
+                                                   name="coordenadas_texto"
+                                                   id="coordenadas_texto"
+                                                   class="form-control @error('coordenadas_texto') is-invalid @enderror"
+                                                   value="{{ old('coordenadas_texto', old('lat') && old('lng') ? old('lat') . ', ' . old('lng') : '') }}"
+                                                   placeholder="19.6808588, -101.2339535"
+                                                   autocomplete="off">
+                                            <small class="help-muted">Puedes escribir latitud, longitud o dejar el campo vacío.</small>
+                                        </div>
+                                    @endif
 
                                     <div id="ubicacion_preview_wrap" class="mt-2" style="{{ old('lat') && old('lng') ? '' : 'display:none;' }}">
                                         <div class="form-control">
@@ -726,6 +758,48 @@
                 });
             }
 
+            function aplicarCoordenadasEscritas() {
+                if (!coordenadasTextoInput || coordenadasTextoInput.type === 'hidden') return;
+
+                const texto = coordenadasTextoInput.value.trim();
+
+                if (texto === '') {
+                    if (latInput) latInput.value = '';
+                    if (lngInput) lngInput.value = '';
+                    if (fuenteInput) fuenteInput.value = '';
+                    if (notaGeoInput) notaGeoInput.value = '';
+                    coordenadasTextoInput.classList.remove('is-invalid');
+                    actualizarPreviewUbicacion('', '');
+                    if (ubicacionEstado) ubicacionEstado.textContent = 'Sin ubicación; se guardará vacía.';
+                    return;
+                }
+
+                const match = texto.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+                const lat = match ? Number(match[1]) : NaN;
+                const lng = match ? Number(match[2]) : NaN;
+                const validas = Number.isFinite(lat) && Number.isFinite(lng)
+                    && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+                if (!validas) {
+                    if (latInput) latInput.value = '';
+                    if (lngInput) lngInput.value = '';
+                    coordenadasTextoInput.classList.add('is-invalid');
+                    actualizarPreviewUbicacion('', '');
+                    if (ubicacionEstado) ubicacionEstado.textContent = 'Formato inválido. Usa latitud, longitud.';
+                    return;
+                }
+
+                const latTexto = lat.toFixed(7);
+                const lngTexto = lng.toFixed(7);
+                if (latInput) latInput.value = latTexto;
+                if (lngInput) lngInput.value = lngTexto;
+                if (fuenteInput) fuenteInput.value = 'MANUAL_WEB';
+                if (notaGeoInput) notaGeoInput.value = '';
+                coordenadasTextoInput.classList.remove('is-invalid');
+                actualizarPreviewUbicacion(latTexto, lngTexto);
+                if (ubicacionEstado) ubicacionEstado.textContent = 'Coordenadas escritas correctamente.';
+            }
+
             if (btnUbicacion) {
                 btnUbicacion.addEventListener('click', function () {
                     if (!navigator.geolocation) {
@@ -781,6 +855,10 @@
                         }
                     );
                 });
+            }
+
+            if (coordenadasTextoInput && coordenadasTextoInput.type !== 'hidden') {
+                coordenadasTextoInput.addEventListener('input', aplicarCoordenadasEscritas);
             }
 
             if (nombreInput) {

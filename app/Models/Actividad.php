@@ -14,6 +14,7 @@ class Actividad extends Model
 
     protected $fillable = [
         'client_uuid',
+        'folio_c5i',
         'sync_status',
         'sync_error',
         'synced_at',

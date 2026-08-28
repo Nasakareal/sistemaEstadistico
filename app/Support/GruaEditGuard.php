@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class GruaEditGuard
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
+
+    private const UNIDAD_VIALIDADES_URBANAS_ID = 5;
+
     private const UNIDAD_DELEGACIONES_ID = 2;
 
     private const VALORES_SIN_CORRALON = [
@@ -52,6 +56,14 @@ class GruaEditGuard
         return $usuario->hasRole('Superadmin')
             || (int) ($usuario->unidad_id ?? 0) === 3
             || self::isDelegacionesManager($usuario);
+    }
+
+    public static function usesSiniestrosGruaCatalog($usuario): bool
+    {
+        return $usuario && in_array((int) ($usuario->unidad_id ?? 0), [
+            self::UNIDAD_SINIESTROS_ID,
+            self::UNIDAD_VIALIDADES_URBANAS_ID,
+        ], true);
     }
 
     private static function isDelegacionesManager($usuario): bool

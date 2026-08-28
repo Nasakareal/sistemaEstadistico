@@ -92,6 +92,13 @@ class GruaEditGuardTest extends TestCase
         $this->assertFalse(GruaEditGuard::canViewFullGruaCatalog($this->usuarioConRoles(['Administrador'], 1)));
     }
 
+    public function test_vialidades_urbanas_usa_el_catalogo_de_gruas_de_siniestros(): void
+    {
+        $this->assertTrue(GruaEditGuard::usesSiniestrosGruaCatalog($this->usuarioConRoles([], 1)));
+        $this->assertTrue(GruaEditGuard::usesSiniestrosGruaCatalog($this->usuarioConRoles([], 5)));
+        $this->assertFalse(GruaEditGuard::usesSiniestrosGruaCatalog($this->usuarioConRoles([], 2)));
+    }
+
     private function usuarioConRoles(array $roles, ?int $unidadId = null)
     {
         return new class($roles, $unidadId) {

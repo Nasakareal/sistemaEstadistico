@@ -79,10 +79,23 @@
                             <div class="col-md-2">
                                 <label for="unidad_filtro">Unidad:</label>
                                 <select id="unidad_filtro" name="unidad_filtro" class="form-control">
-                                    <option value="">Todas excepto Seguridad Vial</option>
+                                    <option value="">Todas</option>
+
                                     @foreach (($unidadesFiltro ?? collect()) as $unidad)
-                                        <option value="{{ $unidad->id }}" {{ (string)request('unidad_filtro') === (string)$unidad->id ? 'selected' : '' }}>
-                                            {{ $unidad->nombre }}
+                                        @php
+                                            $nombreUnidad = match ((int) $unidad->id) {
+                                                1 => 'UNIDAD DE ATENCIÓN A SINIESTROS',
+                                                2 => 'UNIDAD DE DELEGACIONES',
+                                                4 => 'UNIDAD DE PROTECCIÓN A CARRETERAS',
+                                                5 => 'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS',
+                                                6 => 'UNIDAD DE FOMENTO A LA CULTURA VIAL',
+                                                default => $unidad->nombre,
+                                            };
+                                        @endphp
+
+                                        <option value="{{ $unidad->id }}"
+                                            {{ (string) request('unidad_filtro') === (string) $unidad->id ? 'selected' : '' }}>
+                                            {{ $nombreUnidad }}
                                         </option>
                                     @endforeach
                                 </select>

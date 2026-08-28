@@ -85,17 +85,22 @@
 
                 <div class="card-body">
                     <div class="row" style="row-gap:18px;">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="help-muted d-block">Nombre</label>
                             <div class="form-control-like">{{ $actividad->nombre ?? '—' }}</div>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="help-muted d-block">Folio C5i</label>
+                            <div class="form-control-like">{{ $actividad->folio_c5i ?: '—' }}</div>
+                        </div>
+
+                        <div class="col-md-3">
                             <label class="help-muted d-block">Categoría</label>
                             <div class="form-control-like">{{ optional($actividad->categoria)->nombre ?? '—' }}</div>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="help-muted d-block">Subcategoría</label>
                             <div class="form-control-like">{{ optional($actividad->subcategoria)->nombre ?? 'Sin subcategoría' }}</div>
                         </div>

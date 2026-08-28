@@ -15,6 +15,7 @@ class ActividadDuplicateGuard
     private const FINGERPRINT_FIELDS = [
         'actividad_categoria_id',
         'actividad_subcategoria_id',
+        'folio_c5i',
         'unidad_org_id',
         'delegacion_id',
         'destacamento_id',
@@ -40,6 +41,7 @@ class ActividadDuplicateGuard
     ];
 
     private const DETAIL_FIELDS = [
+        'folio_c5i',
         'lugar',
         'municipio',
         'carretera',

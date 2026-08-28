@@ -147,6 +147,7 @@ class ActividadController extends Controller
 
         $validated = $request->validate(array_merge([
             'client_uuid' => 'nullable|string|max:36',
+            'folio_c5i' => 'nullable|string|max:50',
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
@@ -369,6 +370,7 @@ class ActividadController extends Controller
         return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync, $infraccionesCorralon) {
             $actividad = Actividad::create([
                 'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
+                'folio_c5i' => $this->toUpperOrNull($validated['folio_c5i'] ?? null),
                 'sync_status' => 'local',
                 'sync_error' => null,
                 'synced_at' => null,
@@ -556,6 +558,7 @@ class ActividadController extends Controller
         $validated = $request->validate(array_merge([
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
+            'folio_c5i' => 'nullable|string|max:50',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
             'hora' => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar' => 'nullable|string|max:255',
@@ -750,6 +753,7 @@ class ActividadController extends Controller
                 : ($actividad->hora ?? $horaRespaldo);
 
             $actividad->update([
+                'folio_c5i' => array_key_exists('folio_c5i', $validated) ? $this->toUpperOrNull($validated['folio_c5i']) : $actividad->folio_c5i,
                 'actividad_categoria_id' => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
                 'cantidad' => 1,
@@ -1894,7 +1898,7 @@ class ActividadController extends Controller
             return $query;
         }
 
-        if ((int) $usuario->unidad_id === 1) {
+        if (GruaEditGuard::usesSiniestrosGruaCatalog($usuario)) {
             return $query->whereHas('unidades', function ($q) {
                 $q->where('unidades.id', 1);
             });

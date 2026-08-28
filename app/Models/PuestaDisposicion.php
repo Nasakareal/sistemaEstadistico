@@ -34,6 +34,7 @@ class PuestaDisposicion extends Model
         'delegacion_id',
         'destacamento_id',
         'archivo_puesta',
+        'archivo_uso_fuerza',
         'created_by',
         'updated_by',
     ];

@@ -399,6 +399,7 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
     Route::get('/series/personas-participantes',[EstadisticasActividadesController::class,'seriesPersonasParticipantes'])->name('estadisticas_actividades.series.personas_participantes');
     Route::get('/series/personas-detenidas',[EstadisticasActividadesController::class,'seriesPersonasDetenidas'])->name('estadisticas_actividades.series.personas_detenidas');
     Route::get('/series/km-recorridos',[EstadisticasActividadesController::class,'seriesKmRecorridos'])->name('estadisticas_actividades.series.km_recorridos');
+    Route::get('/series/puestas-personas-edades',[EstadisticasActividadesController::class,'seriesPuestasPersonasEdad'])->name('estadisticas_actividades.series.puestas_personas_edades');
 
     Route::get('/puestas-disposicion',[EstadisticasActividadesController::class,'puestasDisposicion'])->name('estadisticas_actividades.puestas_disposicion');
     Route::get('/actividades',[EstadisticasActividadesController::class,'actividades'])->name('estadisticas_actividades.actividades');

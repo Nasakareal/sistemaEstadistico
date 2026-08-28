@@ -34,6 +34,19 @@ class EstadisticasActividadesController extends Controller
             $personasParticipantes = (clone $q)->sum('actividades.personas_participantes');
             $personasDetenidas = (clone $q)->sum('actividades.personas_detenidas');
             $kmRecorridos = (clone $q)->sum('actividades.km_recorridos');
+            $totalPuestas = 0;
+            $personasEnPuestas = 0;
+
+            if ($this->hasTable('puestas_disposicion')) {
+                $totalPuestas = (int)$this->basePuestasQuery($request)
+                    ->distinct('puestas_disposicion.id')
+                    ->count('puestas_disposicion.id');
+            }
+
+            if ($this->hasTable('puestas_disposicion') && $this->hasTable('puestas_disposicion_personas')) {
+                $personasEnPuestas = (int)$this->basePuestasPersonasQuery($request)
+                    ->count('personas_puesta.id');
+            }
 
             $porCategoria = (clone $q)
                 ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
@@ -59,6 +72,8 @@ class EstadisticasActividadesController extends Controller
                     'personas_participantes' => (int)$personasParticipantes,
                     'personas_detenidas' => (int)$personasDetenidas,
                     'km_recorridos' => (float)$kmRecorridos,
+                    'puestas_disposicion' => $totalPuestas,
+                    'personas_en_puestas' => $personasEnPuestas,
                 ],
                 'top' => [
                     'categorias' => $porCategoria,
@@ -272,18 +287,79 @@ class EstadisticasActividadesController extends Controller
             $per = (int)$request->query('per', 25);
             $per = max(1, min(200, $per));
 
-            $q = DB::table('puestas_disposicion');
+            $q = $this->basePuestasQuery($request)
+                ->leftJoin('unidades as puesta_unidad', 'puesta_unidad.id', '=', 'puestas_disposicion.unidad_id')
+                ->leftJoin('delegaciones as puesta_delegacion', 'puesta_delegacion.id', '=', 'puestas_disposicion.delegacion_id')
+                ->leftJoin('destacamentos as puesta_destacamento', 'puesta_destacamento.id', '=', 'puestas_disposicion.destacamento_id')
+                ->select([
+                    'puestas_disposicion.id',
+                    'puestas_disposicion.numero_puesta',
+                    'puestas_disposicion.anio',
+                    'puestas_disposicion.fecha_puesta',
+                    'puestas_disposicion.hora_puesta',
+                    'puestas_disposicion.carpeta_investigacion',
+                    'puestas_disposicion.oficio',
+                    'puestas_disposicion.tipo_puesta',
+                    'puestas_disposicion.motivo',
+                    'puesta_unidad.nombre as unidad_nombre',
+                    'puesta_delegacion.nombre as delegacion_nombre',
+                    'puesta_destacamento.nombre as destacamento_nombre',
+                ]);
 
-            if ($this->hasColumn('puestas_disposicion', 'actividad_id')) {
-                $q->join('actividades', 'actividades.id', '=', 'puestas_disposicion.actividad_id');
-                $this->applyActividadesFilters($q, $request);
-                $this->applySearchFilter($q, $request);
+            if ($this->hasTable('puestas_disposicion_personas')) {
+                $q->selectSub(function ($personas) use ($request) {
+                    $personas->from('puestas_disposicion_personas as pdp')
+                        ->selectRaw('COUNT(*)')
+                        ->whereColumn('pdp.puesta_disposicion_id', 'puestas_disposicion.id');
+                    $this->applyPuestasAgeFilter($personas, $request, 'pdp');
+                }, 'personas_count');
+            } else {
+                $q->selectRaw('0 as personas_count');
             }
 
-            $q->select('puestas_disposicion.*')
-                ->orderByDesc('puestas_disposicion.id');
+            $q->distinct()
+                ->orderByDesc('puestas_disposicion.fecha_puesta')
+                ->orderByDesc('puestas_disposicion.numero_puesta');
 
             return $q->paginate($per)->toArray();
+        });
+    }
+
+    public function seriesPuestasPersonasEdad(Request $request)
+    {
+        return $this->cachedJson($request, 'seriesPuestasPersonasEdad', function () use ($request) {
+            if (!$this->hasTable('puestas_disposicion') || !$this->hasTable('puestas_disposicion_personas')) {
+                return ['total' => 0, 'series' => []];
+            }
+
+            $edad = $this->puestasEdadExpression('personas_puesta');
+            $label = "CASE
+                WHEN {$edad} IS NULL THEN 'SIN EDAD'
+                WHEN {$edad} BETWEEN 0 AND 11 THEN '0-11'
+                WHEN {$edad} BETWEEN 12 AND 17 THEN '12-17'
+                WHEN {$edad} BETWEEN 18 AND 29 THEN '18-29'
+                WHEN {$edad} BETWEEN 30 AND 44 THEN '30-44'
+                WHEN {$edad} BETWEEN 45 AND 59 THEN '45-59'
+                WHEN {$edad} >= 60 THEN '60+'
+                ELSE 'SIN EDAD'
+            END";
+
+            $totales = $this->basePuestasPersonasQuery($request)
+                ->selectRaw("{$label} as label, COUNT(personas_puesta.id) as total")
+                ->groupByRaw($label)
+                ->get()
+                ->pluck('total', 'label');
+
+            $series = collect(['0-11', '12-17', '18-29', '30-44', '45-59', '60+', 'SIN EDAD'])
+                ->map(fn ($rango) => [
+                    'label' => $rango,
+                    'total' => (int)($totales[$rango] ?? 0),
+                ]);
+
+            return [
+                'total' => (int)$series->sum('total'),
+                'series' => $series,
+            ];
         });
     }
 
@@ -827,13 +903,7 @@ class EstadisticasActividadesController extends Controller
             return back()->with('error', 'No existe la tabla puestas_disposicion.');
         }
 
-        $q = DB::table('puestas_disposicion');
-
-        if ($this->hasColumn('puestas_disposicion', 'actividad_id')) {
-            $q->join('actividades', 'actividades.id', '=', 'puestas_disposicion.actividad_id');
-            $this->applyActividadesFilters($q, $request);
-            $this->applySearchFilter($q, $request);
-        }
+        $q = $this->basePuestasQuery($request);
 
         $q->select('puestas_disposicion.*')
             ->orderByDesc('puestas_disposicion.id');
@@ -872,6 +942,164 @@ class EstadisticasActividadesController extends Controller
         $q = DB::table('actividades');
         $this->applyActividadesFilters($q, $request);
         return $q;
+    }
+
+    private function basePuestasQuery(Request $request)
+    {
+        $q = DB::table('puestas_disposicion');
+        $this->applyPuestasFilters($q, $request, true);
+        return $q;
+    }
+
+    private function basePuestasPersonasQuery(Request $request)
+    {
+        $q = DB::table('puestas_disposicion_personas as personas_puesta')
+            ->join('puestas_disposicion', 'puestas_disposicion.id', '=', 'personas_puesta.puesta_disposicion_id');
+
+        $this->applyPuestasFilters($q, $request, false);
+        $this->applyPuestasAgeFilter($q, $request, 'personas_puesta');
+
+        return $q;
+    }
+
+    private function applyPuestasFilters($q, Request $request, bool $filterByRelatedAge): void
+    {
+        $this->applyPuestasScopeByUser($q);
+
+        $desde = trim((string)$request->query('desde', ''));
+        $hasta = trim((string)$request->query('hasta', ''));
+        $horaDesde = $this->normalizeHour($request->query('hora_desde', ''));
+        $horaHasta = $this->normalizeHour($request->query('hora_hasta', ''));
+
+        if ($desde !== '') {
+            $q->whereDate('puestas_disposicion.fecha_puesta', '>=', $desde);
+        }
+
+        if ($hasta !== '') {
+            $q->whereDate('puestas_disposicion.fecha_puesta', '<=', $hasta);
+        }
+
+        if ($desde !== '' && $hasta !== '' && $desde === $hasta) {
+            if ($horaDesde !== null) {
+                $q->whereTime('puestas_disposicion.hora_puesta', '>=', $horaDesde);
+            }
+            if ($horaHasta !== null) {
+                $q->whereTime('puestas_disposicion.hora_puesta', '<=', $horaHasta);
+            }
+        }
+
+        $unidadId = (int)$request->query('unidad_org_id', $request->query('unidad_id', 0));
+        if ($unidadId > 0) {
+            $q->where('puestas_disposicion.unidad_id', $unidadId);
+        }
+
+        foreach ([
+            'delegacion_id' => 'puestas_disposicion.delegacion_id',
+            'destacamento_id' => 'puestas_disposicion.destacamento_id',
+        ] as $param => $column) {
+            $value = trim((string)$request->query($param, ''));
+            if ($value !== '') {
+                $q->where($column, $value);
+            }
+        }
+
+        $activityFilters = array_filter([
+            'actividad_categoria_id' => trim((string)$request->query('actividad_categoria_id', '')),
+            'actividad_subcategoria_id' => trim((string)$request->query('actividad_subcategoria_id', '')),
+            'municipio' => trim((string)$request->query('municipio', '')),
+        ], fn ($value) => $value !== '');
+
+        if (!empty($activityFilters) && $this->hasColumn('puestas_disposicion', 'actividad_id')) {
+            $q->whereExists(function ($actividad) use ($activityFilters) {
+                $actividad->selectRaw('1')
+                    ->from('actividades as actividad_puesta')
+                    ->whereColumn('actividad_puesta.id', 'puestas_disposicion.actividad_id');
+
+                foreach ($activityFilters as $field => $value) {
+                    $actividad->where('actividad_puesta.' . $field, $value);
+                }
+            });
+        }
+
+        $search = mb_substr(trim((string)$request->query('q', '')), 0, 150, 'UTF-8');
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $q->where(function ($searchQuery) use ($like) {
+                $searchQuery->where('puestas_disposicion.carpeta_investigacion', 'like', $like)
+                    ->orWhere('puestas_disposicion.oficio', 'like', $like)
+                    ->orWhere('puestas_disposicion.nombre_policia', 'like', $like)
+                    ->orWhere('puestas_disposicion.nombre_mp', 'like', $like)
+                    ->orWhere('puestas_disposicion.motivo', 'like', $like)
+                    ->orWhere('puestas_disposicion.tipo_puesta', 'like', $like)
+                    ->orWhereRaw('CAST(puestas_disposicion.numero_puesta AS CHAR) LIKE ?', [$like]);
+
+                if ($this->hasTable('puestas_disposicion_personas')) {
+                    $searchQuery->orWhereExists(function ($personas) use ($like) {
+                        $personas->selectRaw('1')
+                            ->from('puestas_disposicion_personas as persona_busqueda')
+                            ->whereColumn('persona_busqueda.puesta_disposicion_id', 'puestas_disposicion.id')
+                            ->where(function ($campos) use ($like) {
+                                $campos->where('persona_busqueda.nombre_completo', 'like', $like)
+                                    ->orWhere('persona_busqueda.alias', 'like', $like)
+                                    ->orWhere('persona_busqueda.curp', 'like', $like);
+                            });
+                    });
+                }
+            });
+        }
+
+        if ($filterByRelatedAge && $this->hasTable('puestas_disposicion_personas') && $this->hasPuestasAgeFilter($request)) {
+            $q->whereExists(function ($personas) use ($request) {
+                $personas->selectRaw('1')
+                    ->from('puestas_disposicion_personas as persona_edad')
+                    ->whereColumn('persona_edad.puesta_disposicion_id', 'puestas_disposicion.id');
+                $this->applyPuestasAgeFilter($personas, $request, 'persona_edad');
+            });
+        }
+    }
+
+    private function applyPuestasScopeByUser($q): void
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        if ($user->hasRole('Superadmin') || (int)($user->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL_ID) {
+            return;
+        }
+
+        $unidadId = (int)($user->unidad_id ?? 0);
+        $unidadId > 0
+            ? $q->where('puestas_disposicion.unidad_id', $unidadId)
+            : $q->whereRaw('1 = 0');
+    }
+
+    private function hasPuestasAgeFilter(Request $request): bool
+    {
+        return trim((string)$request->query('edad_min', '')) !== ''
+            || trim((string)$request->query('edad_max', '')) !== '';
+    }
+
+    private function applyPuestasAgeFilter($q, Request $request, string $alias): void
+    {
+        $min = trim((string)$request->query('edad_min', ''));
+        $max = trim((string)$request->query('edad_max', ''));
+        $edad = $this->puestasEdadExpression($alias);
+
+        if ($min !== '' && is_numeric($min)) {
+            $q->whereRaw("{$edad} >= ?", [max(0, (int)$min)]);
+        }
+
+        if ($max !== '' && is_numeric($max)) {
+            $q->whereRaw("{$edad} <= ?", [min(130, (int)$max)]);
+        }
+    }
+
+    private function puestasEdadExpression(string $alias): string
+    {
+        return "COALESCE({$alias}.edad, TIMESTAMPDIFF(YEAR, {$alias}.fecha_nacimiento, puestas_disposicion.fecha_puesta))";
     }
 
     private function applyActividadesFilters($q, Request $request)

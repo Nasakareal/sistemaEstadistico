@@ -134,7 +134,17 @@
                     <div class="sv-form__row sv-form__row--small">
                         <div class="sv-field sv-field--wide">
                             <label>Búsqueda</label>
-                            <input type="text" id="f_q" class="form-control form-control-sm" placeholder="Buscar actividad, ubicación, responsable, observaciones...">
+                            <input type="text" id="f_q" class="form-control form-control-sm" placeholder="Actividad, carpeta, oficio, persona, CURP...">
+                        </div>
+
+                        <div class="sv-field">
+                            <label for="f_edad_min">Edad mínima</label>
+                            <input type="number" id="f_edad_min" class="form-control form-control-sm" min="0" max="130" placeholder="0">
+                        </div>
+
+                        <div class="sv-field">
+                            <label for="f_edad_max">Edad máxima</label>
+                            <input type="number" id="f_edad_max" class="form-control form-control-sm" min="0" max="130" placeholder="130">
                         </div>
 
                         <div class="sv-field">
@@ -164,10 +174,17 @@
                                 <i class="fa-solid fa-calendar-days"></i> Fomento anual
                             </a>
                         </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <a class="btn sv-btn sv-btn--ghost w-100" id="btn_export_puestas" href="#" target="_blank">
+                                <i class="fa-solid fa-file-csv"></i> Exportar puestas
+                            </a>
+                        </div>
                     </div>
 
                     <div class="sv-hint">
-                        * Puedes consultar actividades por unidad. Seguridad Vial queda fuera de este filtro; al seleccionar Delegaciones se habilita el filtro por delegación.
+                        * Puedes consultar actividades y puestas por unidad. Seguridad Vial queda fuera del catálogo operativo; los campos de edad filtran únicamente las personas y puestas a disposición.
                     </div>
                 </div>
             </div>
@@ -175,7 +192,7 @@
     </div>
 
     <div class="row">
-        <div class="col-md-3 col-12">
+        <div class="col-xl-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-navy"><i class="fa-solid fa-clipboard-list"></i></div>
                 <div class="sv-kpi__body">
@@ -185,7 +202,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-12">
+        <div class="col-xl-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-teal"><i class="fa-solid fa-users"></i></div>
                 <div class="sv-kpi__body">
@@ -195,7 +212,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-12">
+        <div class="col-xl-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-info"><i class="fa-solid fa-user-check"></i></div>
                 <div class="sv-kpi__body">
@@ -205,12 +222,32 @@
             </div>
         </div>
 
-        <div class="col-md-3 col-12">
+        <div class="col-xl-2 col-md-4 col-12">
             <div class="sv-kpi">
                 <div class="sv-kpi__icon bg-maroon"><i class="fa-solid fa-road"></i></div>
                 <div class="sv-kpi__body">
                     <div class="sv-kpi__label">KM recorridos</div>
                     <div class="sv-kpi__value" id="k_km_recorridos">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 col-12">
+            <div class="sv-kpi">
+                <div class="sv-kpi__icon bg-purple"><i class="fa-solid fa-scale-balanced"></i></div>
+                <div class="sv-kpi__body">
+                    <div class="sv-kpi__label">Puestas</div>
+                    <div class="sv-kpi__value" id="k_puestas">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 col-12">
+            <div class="sv-kpi">
+                <div class="sv-kpi__icon bg-warning"><i class="fa-solid fa-user-group"></i></div>
+                <div class="sv-kpi__body">
+                    <div class="sv-kpi__label">Personas en puestas</div>
+                    <div class="sv-kpi__value" id="k_personas_puestas">—</div>
                 </div>
             </div>
         </div>
@@ -328,6 +365,61 @@
                         <div class="sv-pager__info" id="pg_info">—</div>
 
                         <button class="btn sv-btn sv-btn--ghost" id="btn_next" type="button">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 col-12">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-chart-column"></i> Personas en puestas por edad
+                </div>
+                <div class="sv-panel__body">
+                    <canvas id="ch_puestas_edades" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8 col-12">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-scale-balanced"></i> Puestas a disposición filtradas
+                </div>
+
+                <div class="sv-panel__body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Fecha</th>
+                                    <th>Unidad</th>
+                                    <th>Carpeta</th>
+                                    <th>Oficio</th>
+                                    <th>Motivo</th>
+                                    <th>Personas</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tb_puestas">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">Sin datos…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="sv-pager">
+                        <button class="btn sv-btn sv-btn--ghost" id="btn_puestas_prev" type="button">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <div class="sv-pager__info" id="puestas_pg_info">—</div>
+                        <button class="btn sv-btn sv-btn--ghost" id="btn_puestas_next" type="button">
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
                     </div>
@@ -527,9 +619,12 @@
 <script>
 (function(){
     const base = "{{ url('estadisticas-actividades') }}";
+    const puestaShowBase = @json(auth()->user()->can('ver puestas a disposicion') ? url('puestas-disposicion') : null);
     const unidadUsuarioId = Number(@json($unidadUsuarioId ?? 0));
     let page = 1;
     let lastPage = 1;
+    let puestasPage = 1;
+    let puestasLastPage = 1;
     let currentCategorySummary = { categorias: [], total: 0 };
 
     const el = (id) => document.getElementById(id);
@@ -707,6 +802,8 @@
         const municipio = val('f_municipio');
         const group = val('f_group');
         const q = val('f_q');
+        const edadMin = val('f_edad_min');
+        const edadMax = val('f_edad_max');
 
         if (desde) params.set('desde', desde);
         if (hora_desde) params.set('hora_desde', hora_desde);
@@ -720,6 +817,8 @@
         if (municipio) params.set('municipio', municipio);
         if (group) params.set('group', group);
         if (q) params.set('q', q);
+        if (edadMin) params.set('edad_min', edadMin);
+        if (edadMax) params.set('edad_max', edadMax);
         params.set('cache_ttl', '0');
 
         for (const k in extra){
@@ -800,6 +899,11 @@
             params.delete('mes');
             aFomentoAnual.href = `${base}/export/fomento-cultura-vial?${params.toString()}`;
         }
+
+        const aPuestas = el('btn_export_puestas');
+        if (aPuestas){
+            aPuestas.href = qs ? `${base}/export/puestas-disposicion?${qs}` : `${base}/export/puestas-disposicion`;
+        }
     }
 
     function wireExportLinkUpdates(){
@@ -815,7 +919,9 @@
             'f_subcategoria',
             'f_municipio',
             'f_group',
-            'f_q'
+            'f_q',
+            'f_edad_min',
+            'f_edad_max'
         ];
 
         ids.forEach(id => {
@@ -882,6 +988,7 @@
     let chTime = null;
     let chUnidad = null;
     let chCategoria = null;
+    let chPuestasEdades = null;
 
     async function getOptionalJson(path, extra = {}, fallback = null){
         try {
@@ -1072,6 +1179,44 @@
         }
     }
 
+    function renderPuestasTable(paginated){
+        const tb = el('tb_puestas');
+        if (!tb) return;
+
+        if (!paginated || !Array.isArray(paginated.data) || paginated.data.length === 0){
+            tb.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Sin puestas para los filtros seleccionados.</td></tr>`;
+            if (el('puestas_pg_info')) el('puestas_pg_info').textContent = '—';
+            puestasLastPage = 1;
+            return;
+        }
+
+        tb.innerHTML = paginated.data.map(r => {
+            const numero = r.numero_puesta ? `${r.numero_puesta}/${r.anio || ''}` : r.id;
+            const action = puestaShowBase
+                ? `<a class="btn btn-sm sv-btn" href="${puestaShowBase}/${r.id}"><i class="fa-solid fa-eye"></i></a>`
+                : '';
+
+            return `
+                <tr>
+                    <td>${escapeHtml(numero)}</td>
+                    <td>${escapeHtml(formatDateLong(r.fecha_puesta))}</td>
+                    <td>${escapeHtml(r.unidad_nombre || 'SIN ASIGNAR')}</td>
+                    <td>${escapeHtml(r.carpeta_investigacion || '—')}</td>
+                    <td>${escapeHtml(r.oficio || '—')}</td>
+                    <td>${escapeHtml(r.motivo || r.tipo_puesta || '—')}</td>
+                    <td class="text-center"><span class="badge badge-info">${Number(r.personas_count || 0)}</span></td>
+                    <td class="text-right">${action}</td>
+                </tr>
+            `;
+        }).join('');
+
+        puestasPage = paginated.current_page || 1;
+        puestasLastPage = paginated.last_page || 1;
+        if (el('puestas_pg_info')) {
+            el('puestas_pg_info').textContent = `Página ${puestasPage} de ${puestasLastPage} · ${paginated.total} registros`;
+        }
+    }
+
     function renderCategorySummary(summary){
         const tbody = el('tb_resumen_categorias');
         const total = el('resumen_total');
@@ -1125,6 +1270,8 @@
         if (el('k_personas_alcanzadas')) el('k_personas_alcanzadas').textContent = k.totales?.personas_alcanzadas ?? 0;
         if (el('k_personas_participantes')) el('k_personas_participantes').textContent = k.totales?.personas_participantes ?? 0;
         if (el('k_km_recorridos')) el('k_km_recorridos').textContent = k.totales?.km_recorridos ?? 0;
+        if (el('k_puestas')) el('k_puestas').textContent = k.totales?.puestas_disposicion ?? 0;
+        if (el('k_personas_puestas')) el('k_personas_puestas').textContent = k.totales?.personas_en_puestas ?? 0;
 
         const cat = await getOptionalJson('catalogos/categorias', {}, []);
         fillSelect('f_categoria', cat.map(r => ({
@@ -1190,6 +1337,19 @@
         const actividades = await getJson('actividades', { page });
         renderActividadesTable(actividades);
 
+        const edadesPuestas = await getOptionalJson('series/puestas-personas-edades', {}, { series: [] });
+        const rangosEdad = edadesPuestas.series || [];
+        chPuestasEdades = mountOrUpdateChart(
+            'ch_puestas_edades',
+            chPuestasEdades,
+            'bar',
+            rangosEdad.map(r => r.label),
+            rangosEdad.map(r => Number(r.total || 0))
+        );
+
+        const puestas = await getOptionalJson('puestas-disposicion', { page: puestasPage }, { data: [], total: 0 });
+        renderPuestasTable(puestas);
+
         toggleDelegacion();
     }
 
@@ -1198,6 +1358,7 @@
         btnAplicar.addEventListener('click', async function(e){
             e.preventDefault();
             page = 1;
+            puestasPage = 1;
             await loadAll();
         });
     }
@@ -1221,6 +1382,28 @@
             page++;
             const actividades = await getJson('actividades', { page });
             renderActividadesTable(actividades);
+        });
+    }
+
+    const btnPuestasPrev = el('btn_puestas_prev');
+    if (btnPuestasPrev){
+        btnPuestasPrev.addEventListener('click', async function(e){
+            e.preventDefault();
+            if (puestasPage <= 1) return;
+            puestasPage--;
+            const puestas = await getJson('puestas-disposicion', { page: puestasPage });
+            renderPuestasTable(puestas);
+        });
+    }
+
+    const btnPuestasNext = el('btn_puestas_next');
+    if (btnPuestasNext){
+        btnPuestasNext.addEventListener('click', async function(e){
+            e.preventDefault();
+            if (puestasPage >= puestasLastPage) return;
+            puestasPage++;
+            const puestas = await getJson('puestas-disposicion', { page: puestasPage });
+            renderPuestasTable(puestas);
         });
     }
 
@@ -1315,6 +1498,7 @@
 
             temporizadorFecha = setTimeout(async function () {
                 page = 1;
+                puestasPage = 1;
 
                 try {
                     await loadAll();

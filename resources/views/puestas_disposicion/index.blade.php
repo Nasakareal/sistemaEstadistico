@@ -2,6 +2,41 @@
 
 @section('title', 'Puestas a Disposición')
 
+@section('css')
+    <style>
+        .pd-filters select.form-control,
+        .pd-filters input.form-control {
+            background-color: #12263c !important;
+            color: #f8fafc !important;
+            border-color: rgba(125, 178, 225, .45) !important;
+            color-scheme: dark;
+        }
+
+        .pd-filters select.form-control:focus,
+        .pd-filters input.form-control:focus {
+            background-color: #12263c !important;
+            color: #ffffff !important;
+            border-color: #64b5f6 !important;
+            box-shadow: 0 0 0 .2rem rgba(100, 181, 246, .18) !important;
+        }
+
+        .pd-filters select.form-control option,
+        .pd-filters select.form-control optgroup {
+            background-color: #12263c !important;
+            color: #f8fafc !important;
+        }
+
+        .pd-filters select.form-control option:checked {
+            background: #2563d8 linear-gradient(0deg, #2563d8 0%, #2563d8 100%) !important;
+            color: #ffffff !important;
+        }
+
+        .pd-filters select.form-control option:disabled {
+            color: #94a3b8 !important;
+        }
+    </style>
+@stop
+
 @section('content_header')
     <div class="d-flex align-items-center justify-content-between">
         <h1 class="mb-0">Puestas a Disposición</h1>
@@ -25,7 +60,7 @@
 
     <div class="card">
         <div class="card-header">
-            <form method="GET" action="{{ route('puestas_disposicion.index') }}">
+            <form method="GET" action="{{ route('puestas_disposicion.index') }}" class="pd-filters">
                 <div class="row">
                     <div class="col-lg-4 col-md-6 mb-3">
                         <label for="q">Buscar</label>

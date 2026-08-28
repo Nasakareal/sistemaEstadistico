@@ -1473,6 +1473,7 @@ class ActividadController extends Controller
 
         return $usuario->hasRole('Superadmin')
             || $usuario->hasRole('Administrador')
+            || $usuario->hasRole('Administrativo')
             || $usuario->hasRole('Subdirector');
     }
 

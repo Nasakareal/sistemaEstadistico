@@ -1,3 +1,6 @@
+@php
+    $fundamentosSeleccionados = array_map('intval', old('fundamento_ids', []));
+@endphp
 <div class="modal fade modal-actividad-vehiculo" id="modalFundamentosActividad" tabindex="-1" role="dialog" aria-labelledby="modalFundamentosActividadLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
         <div class="modal-content">

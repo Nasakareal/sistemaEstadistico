@@ -1,4 +1,6 @@
-@php($fundamentosSeleccionados = array_map('intval', old('fundamento_ids', [])))
+@php
+    $fundamentosSeleccionados = array_map('intval', old('fundamento_ids', []));
+@endphp
 <div class="card card-outline card-success mb-4">
     <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:10px;">
         <div>

@@ -694,7 +694,7 @@
                         subcatSelect.appendChild(opt);
                     });
 
-                    const oldSub = @json(old('actividad_subcategoria_id'));
+                    const oldSub = @json(old('actividad_subcategoria_id', $subcategoriaSeleccionada ?? null));
                     if (oldSub !== null && oldSub !== '') {
                         subcatSelect.value = String(oldSub);
                     } else {

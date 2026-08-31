@@ -20,6 +20,7 @@ use App\Services\FomentoCulturaVialDetalleManager;
 use App\Services\ImageThumbnailService;
 use App\Services\VialidadesUrbanasSiniestrosAlertService;
 use App\Support\ActividadSubcategoriaCaptura;
+use App\Support\ActividadVehiculoCaptura;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
@@ -27,6 +28,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ActividadController extends Controller
 {
@@ -143,6 +146,11 @@ class ActividadController extends Controller
         $this->authorize('crear actividades');
 
         $user = Auth::user();
+        if ($request->has('vehiculos')) {
+            $request->merge([
+                'vehiculos' => ActividadVehiculoCaptura::normalizarVehiculos((array) $request->input('vehiculos', [])),
+            ]);
+        }
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeEscribirNombre = $this->userCanWriteActivityReporter($user);
 
@@ -189,13 +197,13 @@ class ActividadController extends Controller
             'actividad_infracciones' => 'nullable|array|max:20',
             'actividad_infracciones.*.licencia_punto_infraccion_id' => 'required|integer|exists:licencia_punto_infracciones,id',
             'vehiculos.*.marca' => 'required|string|max:50',
-            'vehiculos.*.modelo' => 'nullable|string|max:10',
+            'vehiculos.*.modelo' => 'nullable|digits:4',
             'vehiculos.*.tipo' => 'required|string|max:50',
             'vehiculos.*.linea' => 'required|string|max:50',
             'vehiculos.*.color' => 'required|string|max:30',
             'vehiculos.*.placas' => 'nullable|string|max:15',
-            'vehiculos.*.estado_placas' => 'nullable|string|max:15',
-            'vehiculos.*.serie' => 'nullable|string|max:17',
+            'vehiculos.*.estado_placas' => ['nullable', 'string', 'max:30', Rule::in(array_merge(array_keys(config('vehiculos.catalogos.estados_placas', [])), ['FEDERAL']))],
+            'vehiculos.*.serie' => ['nullable', 'regex:/^[A-Za-z0-9]{17}$/'],
             'vehiculos.*.capacidad_personas' => 'required|integer|min:0',
             'vehiculos.*.tipo_servicio' => 'required|string|max:50',
             'vehiculos.*.tarjeta_circulacion_nombre' => 'nullable|string|max:60',
@@ -208,6 +216,9 @@ class ActividadController extends Controller
             'vehiculos.*.partes_danadas' => 'nullable|string',
         ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
+            'vehiculos.*.modelo.digits' => 'El modelo debe contener exactamente 4 dígitos.',
+            'vehiculos.*.serie.regex' => 'El NIV debe contener exactamente 17 caracteres alfanuméricos o dejarse vacío.',
+            'vehiculos.*.estado_placas.in' => 'Selecciona un estado de placas válido.',
         ]);
 
         if (!empty($validated['client_uuid'])) {
@@ -239,6 +250,14 @@ class ActividadController extends Controller
                 ], 200);
             }
         }
+
+        $categoriaVehiculos = ActividadCategoria::find($validated['actividad_categoria_id']);
+        $subcategoriaVehiculos = ActividadSubcategoria::find($validated['actividad_subcategoria_id']);
+        if (ActividadVehiculoCaptura::ocultaDatosResguardo($user, $categoriaVehiculos, $subcategoriaVehiculos)) {
+            $validated['vehiculos'] = ActividadVehiculoCaptura::limpiarVehiculos($validated['vehiculos'] ?? []);
+        }
+
+        $this->validarEstadosPlacasVehiculos($validated['vehiculos'] ?? [], true);
 
         if (!$request->hasFile('foto') && !$request->hasFile('fotos')) {
             return response()->json([
@@ -1538,6 +1557,12 @@ class ActividadController extends Controller
         }
 
         $validated = $this->validarVehiculoRequest($request);
+        $this->validarEstadosPlacasVehiculos([$validated]);
+
+        $actividad->loadMissing(['categoria', 'subcategoria']);
+        if (ActividadVehiculoCaptura::ocultaDatosResguardo($usuario, $actividad->categoria, $actividad->subcategoria)) {
+            $validated = ActividadVehiculoCaptura::limpiarDatosResguardo($validated);
+        }
 
         if (!$this->gruaPermitidaParaUsuario($validated['grua_id'] ?? null, $usuario)) {
             return response()->json([
@@ -1759,20 +1784,24 @@ class ActividadController extends Controller
     {
         $request->merge($this->normalizarVehiculoData($request->only(array_keys($this->vehiculoRules()))));
 
-        return $request->validate($this->vehiculoRules());
+        return $request->validate($this->vehiculoRules(), [
+            'modelo.digits' => 'El modelo debe contener exactamente 4 dígitos.',
+            'serie.regex' => 'El NIV debe contener exactamente 17 caracteres alfanuméricos o dejarse vacío.',
+            'estado_placas.in' => 'Selecciona un estado de placas válido.',
+        ]);
     }
 
     private function vehiculoRules(): array
     {
         return [
             'marca' => 'required|string|max:50',
-            'modelo' => 'nullable|string|max:10',
+            'modelo' => 'nullable|digits:4',
             'tipo' => 'required|string|max:50',
             'linea' => 'required|string|max:50',
             'color' => 'required|string|max:30',
             'placas' => 'nullable|string|max:15',
-            'estado_placas' => 'nullable|string|max:15',
-            'serie' => 'nullable|string|max:17',
+            'estado_placas' => ['nullable', 'string', 'max:30', Rule::in(array_merge(array_keys(config('vehiculos.catalogos.estados_placas', [])), ['FEDERAL']))],
+            'serie' => ['nullable', 'regex:/^[A-Za-z0-9]{17}$/'],
             'capacidad_personas' => 'required|integer|min:0',
             'tipo_servicio' => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
@@ -1810,7 +1839,19 @@ class ActividadController extends Controller
             }
         }
 
-        return $data;
+        return ActividadVehiculoCaptura::normalizarCamposOpcionales($data);
+    }
+
+    private function validarEstadosPlacasVehiculos(array $vehiculos, bool $anidados = false): void
+    {
+        foreach ($vehiculos as $index => $vehiculo) {
+            if (ActividadVehiculoCaptura::requiereEstadoPlacas($vehiculo) && empty($vehiculo['estado_placas'])) {
+                $campo = $anidados ? "vehiculos.{$index}.estado_placas" : 'estado_placas';
+                throw ValidationException::withMessages([
+                    $campo => 'Selecciona el estado de las placas.',
+                ]);
+            }
+        }
     }
 
     private function crearVehiculoParaActividad(Actividad $actividad, array $data): Vehiculo

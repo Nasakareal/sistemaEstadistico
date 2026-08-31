@@ -8,6 +8,15 @@
         const emptyVehiculos = document.getElementById('vehiculosActividadEmpty');
         const inputsVehiculos = document.getElementById('vehiculosActividadInputs');
         const badgeTotalVehiculos = document.getElementById('vehiculosActividadTotal');
+        const categoriaActividad = document.getElementById('actividad_categoria_id');
+        const subcategoriaActividad = document.getElementById('actividad_subcategoria_id');
+        const modeloVehiculo = document.getElementById('vehiculo_modelo');
+        const serieVehiculo = document.getElementById('vehiculo_serie');
+        const placasVehiculo = document.getElementById('vehiculo_placas');
+        const tipoServicioVehiculo = document.getElementById('vehiculo_tipo_servicio');
+        const estadoPlacasVehiculo = document.getElementById('vehiculo_estado_placas');
+        const estadoPlacasGrupo = document.getElementById('vehiculo_estado_placas_group');
+        const unidadUsuarioVehiculos = Number(@json((int) (auth()->user()->unidad_id ?? 0)));
         let vehiculosTemporales = @json(array_values($vehiculosIniciales ?? []));
         window.actividadVehiculosTemporales = function () {
             return vehiculosTemporales.map(function (vehiculo) { return Object.assign({}, vehiculo); });
@@ -66,6 +75,70 @@
                 .toUpperCase();
         }
 
+        function textoSeleccionado(select) {
+            if (!select || !select.value || select.selectedIndex < 0) {
+                return '';
+            }
+
+            return normalizarTextoVehiculo(select.options[select.selectedIndex].textContent);
+        }
+
+        function ocultarResguardoVehicular() {
+            return unidadUsuarioVehiculos === 5
+                && textoSeleccionado(categoriaActividad) === 'REVISIONES'
+                && textoSeleccionado(subcategoriaActividad) === 'ORIENTACION PREVENTIVA';
+        }
+
+        function actualizarVisibilidadResguardoVehicular() {
+            const ocultar = ocultarResguardoVehicular();
+            const grupos = [
+                document.getElementById('vehiculo_grua_group'),
+                document.getElementById('vehiculo_corralon_group'),
+                document.getElementById('vehiculo_aseguradora_group')
+            ];
+
+            grupos.forEach(function (grupo) {
+                if (!grupo) {
+                    return;
+                }
+
+                grupo.classList.toggle('d-none', ocultar);
+                grupo.querySelectorAll('input, select, textarea').forEach(function (control) {
+                    control.disabled = ocultar;
+                    if (ocultar) {
+                        control.value = '';
+                    }
+                });
+            });
+
+            if (ocultar) {
+                vehiculosTemporales.forEach(function (vehiculo) {
+                    vehiculo.grua_id = '';
+                    vehiculo.grua = '';
+                    vehiculo.corralon = '';
+                    vehiculo.aseguradora = '';
+                });
+            }
+        }
+
+        function sincronizarEstadoPlacasVehiculo() {
+            const tienePlacas = (placasVehiculo?.value || '').trim() !== '';
+            const esFederal = tipoServicioVehiculo?.value === 'SERVICIO PÚBLICO FEDERAL';
+            const requiereEstado = tienePlacas && !esFederal;
+
+            if (estadoPlacasGrupo) {
+                estadoPlacasGrupo.classList.toggle('d-none', !requiereEstado);
+            }
+
+            if (estadoPlacasVehiculo) {
+                estadoPlacasVehiculo.required = requiereEstado;
+                estadoPlacasVehiculo.disabled = !requiereEstado;
+                if (!requiereEstado) {
+                    estadoPlacasVehiculo.value = '';
+                }
+            }
+        }
+
         function detectarTipoGeneral(tipoActual) {
             const tipoNorm = normalizarTextoVehiculo(tipoActual);
 
@@ -119,6 +192,8 @@
                 tipoVehiculo.dataset.oldTipo = '';
                 tipoVehiculo.innerHTML = '<option value="">Seleccione un tipo primero...</option>';
             }
+
+            sincronizarEstadoPlacasVehiculo();
         }
 
         function obtenerDatosVehiculo(form) {
@@ -237,9 +312,57 @@
             });
         });
 
+        if (modeloVehiculo) {
+            modeloVehiculo.addEventListener('input', function () {
+                this.value = this.value.replace(/\D/g, '').slice(0, 4);
+            });
+        }
+
+        if (serieVehiculo) {
+            serieVehiculo.addEventListener('input', function () {
+                this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 17).toUpperCase();
+            });
+        }
+
+        function limpiarValoresNoDisponiblesVehiculo() {
+            [modeloVehiculo, serieVehiculo].forEach(function (input) {
+                if (!input) {
+                    return;
+                }
+
+                const valor = normalizarTextoVehiculo(input.value).replace(/[^A-Z0-9]/g, '');
+                if (['X', 'SD', 'NA', 'NOAPLICA', 'SINDATO', 'SINDATOS', 'NODISPONIBLE'].includes(valor)) {
+                    input.value = '';
+                }
+            });
+        }
+
+        modeloVehiculo?.addEventListener('blur', limpiarValoresNoDisponiblesVehiculo);
+        serieVehiculo?.addEventListener('blur', limpiarValoresNoDisponiblesVehiculo);
+
+        placasVehiculo?.addEventListener('input', sincronizarEstadoPlacasVehiculo);
+        tipoServicioVehiculo?.addEventListener('change', sincronizarEstadoPlacasVehiculo);
+
+        [categoriaActividad, subcategoriaActividad].forEach(function (select) {
+            if (select) {
+                select.addEventListener('change', function () {
+                    actualizarVisibilidadResguardoVehicular();
+                    renderVehiculosTemporales();
+                });
+            }
+        });
+
+        if (window.jQuery) {
+            $('#modalAgregarVehiculoActividad').on('show.bs.modal', function () {
+                actualizarVisibilidadResguardoVehicular();
+                sincronizarEstadoPlacasVehiculo();
+            });
+        }
+
         if (formTemporalVehiculo) {
             formTemporalVehiculo.addEventListener('submit', function (event) {
                 event.preventDefault();
+                limpiarValoresNoDisponiblesVehiculo();
 
                 if (!formTemporalVehiculo.checkValidity()) {
                     formTemporalVehiculo.reportValidity();
@@ -273,6 +396,8 @@
             });
         }
 
+        actualizarVisibilidadResguardoVehicular();
+        sincronizarEstadoPlacasVehiculo();
         renderVehiculosTemporales();
 
         @if ($errors->any() && old('actividad_vehiculo_modal'))

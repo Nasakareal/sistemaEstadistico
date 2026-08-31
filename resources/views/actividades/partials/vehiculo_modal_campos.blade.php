@@ -16,7 +16,8 @@
     <div class="col-md-3">
         <div class="form-group">
             <label for="vehiculo_modelo">Modelo</label>
-            <input type="text" name="modelo" id="vehiculo_modelo" class="form-control js-uppercase @error('modelo') is-invalid @enderror" value="{{ old('modelo') }}" placeholder="Ej. 2020">
+            <input type="text" name="modelo" id="vehiculo_modelo" class="form-control @error('modelo') is-invalid @enderror" value="{{ old('modelo') }}" placeholder="Ej. 2020" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" title="Escribe exactamente 4 dígitos, por ejemplo 2020.">
+            <small class="form-text text-muted">Solo 4 dígitos, por ejemplo 1998, 2006 o 2020.</small>
             @error('modelo')
                 <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
             @enderror
@@ -85,10 +86,15 @@
         </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3" id="vehiculo_estado_placas_group">
         <div class="form-group">
             <label for="vehiculo_estado_placas">Estado de placas</label>
-            <input type="text" name="estado_placas" id="vehiculo_estado_placas" class="form-control js-uppercase @error('estado_placas') is-invalid @enderror" value="{{ old('estado_placas') }}" placeholder="Ej. MICHOACÁN">
+            <select name="estado_placas" id="vehiculo_estado_placas" class="form-control @error('estado_placas') is-invalid @enderror">
+                <option value="">Seleccione un estado</option>
+                @foreach (config('vehiculos.catalogos.estados_placas', []) as $valor => $etiqueta)
+                    <option value="{{ $valor }}" {{ old('estado_placas') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                @endforeach
+            </select>
             @error('estado_placas')
                 <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
             @enderror
@@ -103,8 +109,9 @@
 <div class="row">
     <div class="col-md-4">
         <div class="form-group">
-            <label for="vehiculo_serie">Serie</label>
-            <input type="text" name="serie" id="vehiculo_serie" class="form-control js-uppercase @error('serie') is-invalid @enderror" value="{{ old('serie') }}" placeholder="NIV / serie">
+            <label for="vehiculo_serie">NIV / serie</label>
+            <input type="text" name="serie" id="vehiculo_serie" class="form-control js-uppercase @error('serie') is-invalid @enderror" value="{{ old('serie') }}" placeholder="17 caracteres o vacío" minlength="17" maxlength="17" pattern="[A-Za-z0-9]{17}" title="El NIV debe contener exactamente 17 caracteres alfanuméricos o dejarse vacío.">
+            <small class="form-text text-muted">Debe contener exactamente 17 caracteres alfanuméricos o dejarse vacío.</small>
             @error('serie')
                 <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
             @enderror
@@ -126,9 +133,9 @@
             <label for="vehiculo_tipo_servicio">Tipo de servicio <span class="text-danger">*</span></label>
             <select name="tipo_servicio" id="vehiculo_tipo_servicio" class="form-control @error('tipo_servicio') is-invalid @enderror" required>
                 <option value="">Seleccione...</option>
-                <option value="PARTICULAR" {{ old('tipo_servicio') === 'PARTICULAR' ? 'selected' : '' }}>Particular</option>
-                <option value="OFICIAL" {{ old('tipo_servicio') === 'OFICIAL' ? 'selected' : '' }}>Oficial</option>
-                <option value="PUBLICO" {{ old('tipo_servicio') === 'PUBLICO' ? 'selected' : '' }}>Público</option>
+                @foreach (config('vehiculos.catalogos.tipos_servicio', []) as $valor => $etiqueta)
+                    <option value="{{ $valor }}" {{ old('tipo_servicio') === $valor ? 'selected' : '' }}>{{ $etiqueta }}</option>
+                @endforeach
             </select>
             @error('tipo_servicio')
                 <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
@@ -148,7 +155,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-3">
+    <div class="col-md-3" id="vehiculo_grua_group">
         <div class="form-group">
             <label for="vehiculo_grua_id">Grúa</label>
             <select name="grua_id" id="vehiculo_grua_id" class="form-control @error('grua_id') is-invalid @enderror">
@@ -165,7 +172,7 @@
         </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3" id="vehiculo_corralon_group">
         <div class="form-group">
             <label for="vehiculo_corralon">Corralón</label>
             <select name="corralon" id="vehiculo_corralon" class="form-control @error('corralon') is-invalid @enderror">
@@ -189,7 +196,7 @@
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-4" id="vehiculo_aseguradora_group">
         <div class="form-group">
             <label for="vehiculo_aseguradora">Aseguradora</label>
             <input type="text" name="aseguradora" id="vehiculo_aseguradora" class="form-control js-uppercase @error('aseguradora') is-invalid @enderror" value="{{ old('aseguradora') }}" placeholder="Nombre de la aseguradora">

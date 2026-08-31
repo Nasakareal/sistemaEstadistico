@@ -18,6 +18,7 @@ use App\Services\ActividadDuplicateGuard;
 use App\Services\DelegacionesWhatsAppAlertService;
 use App\Services\FomentoCulturaVialDetalleManager;
 use App\Support\ActividadSubcategoriaCaptura;
+use App\Support\ActividadVehiculoCaptura;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Carbon\Carbon;
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ActividadController extends Controller
@@ -153,10 +155,13 @@ class ActividadController extends Controller
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
         $usuarioEsFomento = $fomentoManager->usuarioEsFomento($usuario);
         $fomentoCategoriaIds = $fomentoManager->categoriaIds();
+        [$categoriaVialidadesId, $subcategoriaVialidadesId] = $this->actividadDefaultVialidades($usuario);
         $categoriaDefaultId = $usuarioEsFomento
             ? $this->categoriaCapacitacionesId()
-            : null;
+            : $categoriaVialidadesId;
+        $subcategoriaDefaultId = $usuarioEsFomento ? null : $subcategoriaVialidadesId;
         $categoriaSeleccionada = (int) old('actividad_categoria_id', $categoriaDefaultId ?: 0);
+        $subcategoriaSeleccionada = (int) old('actividad_subcategoria_id', $subcategoriaDefaultId ?: 0);
         $mostrarFomentoCulturaVial = $usuarioEsFomento
             || in_array($categoriaSeleccionada, $fomentoCategoriaIds, true);
         $programasFomento = $this->obtenerProgramasFomentoCaptura();
@@ -176,7 +181,7 @@ class ActividadController extends Controller
             })
             ->values();
 
-        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'puedeEscribirNombre', 'usuarioEsFomento'));
+        return view('actividades.create', compact('categorias', 'gruas', 'fundamentos', 'fomentoCategoriaIds', 'categoriaSeleccionada', 'subcategoriaSeleccionada', 'mostrarFomentoCulturaVial', 'programasFomento', 'puedeCapturarFechaHora', 'puedeEscribirCoordenadas', 'puedeEscribirNombre', 'usuarioEsFomento'));
     }
 
     public function store(Request $request)
@@ -184,6 +189,11 @@ class ActividadController extends Controller
         $this->authorize('crear actividades');
 
         $user = Auth::user();
+        if ($request->has('vehiculos')) {
+            $request->merge([
+                'vehiculos' => ActividadVehiculoCaptura::normalizarVehiculos((array) $request->input('vehiculos', [])),
+            ]);
+        }
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeEscribirCoordenadas = $this->userCanWriteCoordinates($user);
         $puedeEscribirNombre = $this->userCanWriteActivityReporter($user);
@@ -226,13 +236,13 @@ class ActividadController extends Controller
             'fotos.*'                        => 'required|image|mimes:jpg,jpeg,png,webp|max:4096',
             'vehiculos'                      => 'nullable|array',
             'vehiculos.*.marca'              => 'required|string|max:50',
-            'vehiculos.*.modelo'             => 'nullable|string|max:10',
+            'vehiculos.*.modelo'             => 'nullable|digits:4',
             'vehiculos.*.tipo'               => 'required|string|max:50',
             'vehiculos.*.linea'              => 'required|string|max:50',
             'vehiculos.*.color'              => 'required|string|max:30',
             'vehiculos.*.placas'             => 'nullable|string|max:15',
-            'vehiculos.*.estado_placas'      => 'nullable|string|max:15',
-            'vehiculos.*.serie'              => 'nullable|string|max:17',
+            'vehiculos.*.estado_placas'      => ['nullable', 'string', 'max:30', Rule::in(array_merge(array_keys(config('vehiculos.catalogos.estados_placas', [])), ['FEDERAL']))],
+            'vehiculos.*.serie'              => ['nullable', 'regex:/^[A-Za-z0-9]{17}$/'],
             'vehiculos.*.capacidad_personas' => 'required|integer|min:0',
             'vehiculos.*.tipo_servicio'      => 'required|string|max:50',
             'vehiculos.*.tarjeta_circulacion_nombre' => 'nullable|string|max:60',
@@ -264,10 +274,21 @@ class ActividadController extends Controller
             'fundamento_ids.*'               => 'required|integer|distinct|exists:licencia_punto_infracciones,id',
         ], FomentoCulturaVialDetalleManager::validationRules()), [
             'personas_detenidas.max' => 'No se pueden capturar mas de 3 personas detenidas.',
+            'vehiculos.*.modelo.digits' => 'El modelo debe contener exactamente 4 dígitos.',
+            'vehiculos.*.serie.regex' => 'El NIV debe contener exactamente 17 caracteres alfanuméricos o dejarse vacío.',
+            'vehiculos.*.estado_placas.in' => 'Selecciona un estado de placas válido.',
         ]);
 
         $validated['personas_participantes'] = min((int) ($validated['personas_participantes'] ?? 0), 15);
         $validated = $this->ajustarPayloadParaUsuarioFomento($validated, $user, $fomentoManager);
+
+        $this->validarEstadosPlacasVehiculos($validated['vehiculos'] ?? [], true);
+
+        $categoriaVehiculos = ActividadCategoria::find($validated['actividad_categoria_id']);
+        $subcategoriaVehiculos = ActividadSubcategoria::find($validated['actividad_subcategoria_id']);
+        if (ActividadVehiculoCaptura::ocultaDatosResguardo($user, $categoriaVehiculos, $subcategoriaVehiculos)) {
+            $validated['vehiculos'] = ActividadVehiculoCaptura::limpiarVehiculos($validated['vehiculos'] ?? []);
+        }
 
         $this->validarPersonasActividad(
             $validated['personas'] ?? [],
@@ -834,6 +855,39 @@ class ActividadController extends Controller
             ->first(['id']);
 
         return $categoria ? (int) $categoria->id : null;
+    }
+
+    private function actividadDefaultVialidades($usuario): array
+    {
+        if ((int) ($usuario->unidad_id ?? 0) !== 5) {
+            return [null, null];
+        }
+
+        $categoria = ActividadCategoria::query()
+            ->where('activo', 1)
+            ->where(function ($query) {
+                $query->where('slug', 'revisiones')
+                    ->orWhereRaw('UPPER(nombre) = ?', ['REVISIONES']);
+            })
+            ->first(['id']);
+
+        if (!$categoria) {
+            return [null, null];
+        }
+
+        $subcategoria = ActividadSubcategoria::query()
+            ->where('activo', 1)
+            ->where('actividad_categoria_id', $categoria->id)
+            ->where(function ($query) {
+                $query->where('slug', 'orientacion-preventiva')
+                    ->orWhereRaw('UPPER(nombre) = ?', ['ORIENTACIÓN PREVENTIVA']);
+            })
+            ->first(['id']);
+
+        return [
+            (int) $categoria->id,
+            $subcategoria ? (int) $subcategoria->id : null,
+        ];
     }
 
     private function categoriaEsCapacitaciones(int $categoriaId): bool
@@ -1714,6 +1768,12 @@ class ActividadController extends Controller
         }
 
         $validated = $this->validarVehiculoRequest($request);
+        $this->validarEstadosPlacasVehiculos([$validated]);
+
+        $actividad->loadMissing(['categoria', 'subcategoria']);
+        if (ActividadVehiculoCaptura::ocultaDatosResguardo($usuario, $actividad->categoria, $actividad->subcategoria)) {
+            $validated = ActividadVehiculoCaptura::limpiarDatosResguardo($validated);
+        }
 
         if (!$this->gruaPermitidaParaUsuario($validated['grua_id'] ?? null, $usuario)) {
             return back()->withErrors([
@@ -1993,20 +2053,24 @@ class ActividadController extends Controller
     {
         $request->merge($this->normalizarVehiculoData($request->only(array_keys($this->vehiculoRules()))));
 
-        return $request->validate($this->vehiculoRules());
+        return $request->validate($this->vehiculoRules(), [
+            'modelo.digits' => 'El modelo debe contener exactamente 4 dígitos.',
+            'serie.regex' => 'El NIV debe contener exactamente 17 caracteres alfanuméricos o dejarse vacío.',
+            'estado_placas.in' => 'Selecciona un estado de placas válido.',
+        ]);
     }
 
     private function vehiculoRules(): array
     {
         return [
             'marca' => 'required|string|max:50',
-            'modelo' => 'nullable|string|max:10',
+            'modelo' => 'nullable|digits:4',
             'tipo' => 'required|string|max:50',
             'linea' => 'required|string|max:50',
             'color' => 'required|string|max:30',
             'placas' => 'nullable|string|max:15',
-            'estado_placas' => 'nullable|string|max:15',
-            'serie' => 'nullable|string|max:17',
+            'estado_placas' => ['nullable', 'string', 'max:30', Rule::in(array_merge(array_keys(config('vehiculos.catalogos.estados_placas', [])), ['FEDERAL']))],
+            'serie' => ['nullable', 'regex:/^[A-Za-z0-9]{17}$/'],
             'capacidad_personas' => 'required|integer|min:0',
             'tipo_servicio' => 'required|string|max:50',
             'tarjeta_circulacion_nombre' => 'nullable|string|max:60',
@@ -2044,7 +2108,19 @@ class ActividadController extends Controller
             }
         }
 
-        return $data;
+        return ActividadVehiculoCaptura::normalizarCamposOpcionales($data);
+    }
+
+    private function validarEstadosPlacasVehiculos(array $vehiculos, bool $anidados = false): void
+    {
+        foreach ($vehiculos as $index => $vehiculo) {
+            if (ActividadVehiculoCaptura::requiereEstadoPlacas($vehiculo) && empty($vehiculo['estado_placas'])) {
+                $campo = $anidados ? "vehiculos.{$index}.estado_placas" : 'estado_placas';
+                throw ValidationException::withMessages([
+                    $campo => 'Selecciona el estado de las placas.',
+                ]);
+            }
+        }
     }
 
     private function crearVehiculoParaActividad(Actividad $actividad, array $data): Vehiculo

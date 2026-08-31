@@ -307,7 +307,7 @@ class EstadisticasActividadesController extends Controller
     public function actividades(Request $request)
     {
         return $this->cachedJson($request, 'actividades', function () use ($request) {
-            $per = (int)$request->query('per', 25);
+            $per = (int)$request->query('per', 5);
             $per = max(1, min(200, $per));
 
             $q = $this->baseActividadesQuery($request);
@@ -342,7 +342,7 @@ class EstadisticasActividadesController extends Controller
                 return ['data' => [], 'total' => 0];
             }
 
-            $per = (int)$request->query('per', 25);
+            $per = (int)$request->query('per', 5);
             $per = max(1, min(200, $per));
 
             $puestas = $this->basePuestasQuery($request)

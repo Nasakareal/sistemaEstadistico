@@ -707,11 +707,6 @@
 
         grid.querySelectorAll('[data-dashboard-block]').forEach(card => {
             card.addEventListener('dragstart', event => {
-                if (!event.target.closest('.sv-panel__title')
-                    || event.target.closest('button, a, input, select, textarea')) {
-                    event.preventDefault();
-                    return;
-                }
                 dragging = card;
                 card.classList.add('is-dragging');
                 event.dataTransfer.effectAllowed = 'move';
@@ -1451,7 +1446,7 @@
         const categorySummary = await getOptionalJson('resumen/categorias', {}, { categorias: [], total: 0 });
         renderCategorySummary(categorySummary);
 
-        const actividades = await getJson('actividades', { page });
+        const actividades = await getJson('actividades', { page, per: 5 });
         renderActividadesTable(actividades);
 
         const edadesPuestas = await getOptionalJson('series/puestas-personas-edades', {}, { series: [] });
@@ -1464,7 +1459,7 @@
             rangosEdad.map(r => Number(r.total || 0))
         );
 
-        const puestas = await getOptionalJson('puestas-disposicion', { page: puestasPage }, { data: [], total: 0 });
+        const puestas = await getOptionalJson('puestas-disposicion', { page: puestasPage, per: 5 }, { data: [], total: 0 });
         renderPuestasTable(puestas);
 
         toggleDelegacion();
@@ -1476,7 +1471,7 @@
             e.preventDefault();
             if (page <= 1) return;
             page--;
-            const actividades = await getJson('actividades', { page });
+            const actividades = await getJson('actividades', { page, per: 5 });
             renderActividadesTable(actividades);
         });
     }
@@ -1487,7 +1482,7 @@
             e.preventDefault();
             if (page >= lastPage) return;
             page++;
-            const actividades = await getJson('actividades', { page });
+            const actividades = await getJson('actividades', { page, per: 5 });
             renderActividadesTable(actividades);
         });
     }
@@ -1498,7 +1493,7 @@
             e.preventDefault();
             if (puestasPage <= 1) return;
             puestasPage--;
-            const puestas = await getJson('puestas-disposicion', { page: puestasPage });
+            const puestas = await getJson('puestas-disposicion', { page: puestasPage, per: 5 });
             renderPuestasTable(puestas);
         });
     }
@@ -1509,7 +1504,7 @@
             e.preventDefault();
             if (puestasPage >= puestasLastPage) return;
             puestasPage++;
-            const puestas = await getJson('puestas-disposicion', { page: puestasPage });
+            const puestas = await getJson('puestas-disposicion', { page: puestasPage, per: 5 });
             renderPuestasTable(puestas);
         });
     }

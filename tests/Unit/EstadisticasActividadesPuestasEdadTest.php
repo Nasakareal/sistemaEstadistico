@@ -57,6 +57,7 @@ class EstadisticasActividadesPuestasEdadTest extends TestCase
         $kpis = $controller->kpis($request)->getData(true);
 
         $this->assertSame(1, $puestas['total']);
+        $this->assertSame(5, $puestas['per_page']);
         $this->assertSame($coincidente->id, $puestas['data'][0]['id']);
         $this->assertSame(1, (int)$puestas['data'][0]['personas_count']);
         $this->assertSame(1, $edades['total']);

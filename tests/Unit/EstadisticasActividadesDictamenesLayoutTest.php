@@ -101,6 +101,12 @@ class EstadisticasActividadesDictamenesLayoutTest extends TestCase
                 $view
             );
         }
+
+        $this->assertStringNotContainsString(
+            "event.target.closest('.sv-panel__title')",
+            $view,
+            'El evento dragstart se dispara sobre la tarjeta y no debe cancelarse por su elemento hijo.'
+        );
     }
 
     public function test_completa_preferencias_antiguas_que_solo_tenian_graficas(): void

@@ -380,6 +380,7 @@ Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas
 
 Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisticas actividades'])->group(function () {
     Route::get('/',[EstadisticasActividadesController::class,'index'])->name('estadisticas_actividades.index');
+    Route::post('/preferencias/graficas',[EstadisticasActividadesController::class,'updateChartLayout'])->name('estadisticas_actividades.preferencias_graficas');
 
     Route::get('/kpis',[EstadisticasActividadesController::class,'kpis'])->name('estadisticas_actividades.kpis');
 

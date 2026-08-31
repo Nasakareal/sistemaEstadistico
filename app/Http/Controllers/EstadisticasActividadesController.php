@@ -13,13 +13,58 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EstadisticasActividadesController extends Controller
 {
+    private const UNIDAD_SINIESTROS_ID = 1;
     private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
+    private const DASHBOARD_LAYOUT_KEY = 'estadisticas_actividades';
+    private const CHART_IDS = [
+        'actividades_tiempo',
+        'actividades_unidad',
+        'actividades_categoria',
+        'puestas_edades',
+    ];
 
     public function index(Request $request)
     {
         $unidadesFiltro = $this->unidadesDisponiblesParaFiltro($request->user());
+        $chartOrder = self::CHART_IDS;
 
-        return view('estadisticas_actividades.index', compact('unidadesFiltro'));
+        if ($this->hasTable('user_dashboard_preferences')) {
+            $savedOrder = DB::table('user_dashboard_preferences')
+                ->where('user_id', $request->user()->id)
+                ->where('dashboard', self::DASHBOARD_LAYOUT_KEY)
+                ->value('layout');
+            $savedOrder = json_decode((string)$savedOrder, true);
+
+            if (is_array($savedOrder) && empty(array_diff(self::CHART_IDS, $savedOrder))) {
+                $chartOrder = array_values(array_intersect($savedOrder, self::CHART_IDS));
+            }
+        }
+
+        return view('estadisticas_actividades.index', compact('unidadesFiltro', 'chartOrder'));
+    }
+
+    public function updateChartLayout(Request $request)
+    {
+        abort_unless($this->hasTable('user_dashboard_preferences'), 503, 'Ejecuta las migraciones para guardar el orden de las gráficas.');
+
+        $validated = $request->validate([
+            'order' => ['required', 'array', 'size:' . count(self::CHART_IDS)],
+            'order.*' => ['required', 'string', 'distinct', 'in:' . implode(',', self::CHART_IDS)],
+        ]);
+
+        DB::table('user_dashboard_preferences')->updateOrInsert(
+            [
+                'user_id' => $request->user()->id,
+                'dashboard' => self::DASHBOARD_LAYOUT_KEY,
+            ],
+            [
+                'layout' => json_encode(array_values($validated['order'])),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        return response()->json(['saved' => true]);
     }
 
     public function kpis(Request $request)
@@ -41,6 +86,12 @@ class EstadisticasActividadesController extends Controller
                 $totalPuestas = (int)$this->basePuestasQuery($request)
                     ->distinct('puestas_disposicion.id')
                     ->count('puestas_disposicion.id');
+            }
+
+            if ($this->hasTable('dictamens')) {
+                $totalPuestas += (int)$this->baseDictamenesComoPuestasQuery($request)
+                    ->distinct('dictamens.id')
+                    ->count('dictamens.id');
             }
 
             if ($this->hasTable('puestas_disposicion') && $this->hasTable('puestas_disposicion_personas')) {
@@ -280,19 +331,21 @@ class EstadisticasActividadesController extends Controller
     public function puestasDisposicion(Request $request)
     {
         return $this->cachedJson($request, 'puestasDisposicion', function () use ($request) {
-            if (!$this->hasTable('puestas_disposicion')) {
+            if (!$this->hasTable('puestas_disposicion') && !$this->hasTable('dictamens')) {
                 return ['data' => [], 'total' => 0];
             }
 
             $per = (int)$request->query('per', 25);
             $per = max(1, min(200, $per));
 
-            $q = $this->basePuestasQuery($request)
+            $puestas = $this->basePuestasQuery($request)
                 ->leftJoin('unidades as puesta_unidad', 'puesta_unidad.id', '=', 'puestas_disposicion.unidad_id')
                 ->leftJoin('delegaciones as puesta_delegacion', 'puesta_delegacion.id', '=', 'puestas_disposicion.delegacion_id')
                 ->leftJoin('destacamentos as puesta_destacamento', 'puesta_destacamento.id', '=', 'puestas_disposicion.destacamento_id')
                 ->select([
+                    DB::raw("'puesta' as origen"),
                     'puestas_disposicion.id',
+                    'puestas_disposicion.id as source_id',
                     'puestas_disposicion.numero_puesta',
                     'puestas_disposicion.anio',
                     'puestas_disposicion.fecha_puesta',
@@ -307,19 +360,40 @@ class EstadisticasActividadesController extends Controller
                 ]);
 
             if ($this->hasTable('puestas_disposicion_personas')) {
-                $q->selectSub(function ($personas) use ($request) {
+                $puestas->selectSub(function ($personas) use ($request) {
                     $personas->from('puestas_disposicion_personas as pdp')
                         ->selectRaw('COUNT(*)')
                         ->whereColumn('pdp.puesta_disposicion_id', 'puestas_disposicion.id');
                     $this->applyPuestasAgeFilter($personas, $request, 'pdp');
                 }, 'personas_count');
             } else {
-                $q->selectRaw('0 as personas_count');
+                $puestas->selectRaw('0 as personas_count');
             }
 
-            $q->distinct()
-                ->orderByDesc('puestas_disposicion.fecha_puesta')
-                ->orderByDesc('puestas_disposicion.numero_puesta');
+            $dictamenes = $this->baseDictamenesComoPuestasQuery($request)
+                ->leftJoin('unidades as dictamen_unidad', 'dictamen_unidad.id', '=', DB::raw((string)self::UNIDAD_SINIESTROS_ID))
+                ->selectRaw("'dictamen' as origen")
+                ->addSelect([
+                    'dictamens.id as source_id',
+                    'dictamens.id',
+                    'dictamens.numero_dictamen as numero_puesta',
+                    'dictamens.anio',
+                    DB::raw('COALESCE(hecho_dictamen.fecha, DATE(dictamens.created_at)) as fecha_puesta'),
+                    DB::raw('COALESCE(hecho_dictamen.hora, TIME(dictamens.created_at)) as hora_puesta'),
+                    DB::raw('NULL as carpeta_investigacion'),
+                    DB::raw('hecho_dictamen.oficio_mp as oficio'),
+                    DB::raw("'DICTAMEN' as tipo_puesta"),
+                    DB::raw("COALESCE(NULLIF(dictamens.area, ''), 'DICTAMEN DE SINIESTROS') as motivo"),
+                    'dictamen_unidad.nombre as unidad_nombre',
+                    DB::raw('NULL as delegacion_nombre'),
+                    DB::raw('NULL as destacamento_nombre'),
+                    DB::raw('0 as personas_count'),
+                ]);
+
+            $q = DB::query()
+                ->fromSub($puestas->unionAll($dictamenes), 'registros_puesta')
+                ->orderByDesc('fecha_puesta')
+                ->orderByDesc('numero_puesta');
 
             return $q->paginate($per)->toArray();
         });
@@ -899,14 +973,48 @@ class EstadisticasActividadesController extends Controller
 
     public function exportPuestasDisposicion(Request $request)
     {
-        if (!$this->hasTable('puestas_disposicion')) {
-            return back()->with('error', 'No existe la tabla puestas_disposicion.');
+        if (!$this->hasTable('puestas_disposicion') && !$this->hasTable('dictamens')) {
+            return back()->with('error', 'No existen registros de puestas o dictámenes.');
         }
 
-        $q = $this->basePuestasQuery($request);
+        $puestas = $this->basePuestasQuery($request)
+            ->selectRaw("'PUESTA' as origen")
+            ->addSelect([
+                'puestas_disposicion.id',
+                'puestas_disposicion.numero_puesta as numero',
+                'puestas_disposicion.anio',
+                'puestas_disposicion.fecha_puesta as fecha',
+                'puestas_disposicion.hora_puesta as hora',
+                'puestas_disposicion.nombre_policia',
+                'puestas_disposicion.nombre_mp',
+                'puestas_disposicion.area',
+                'puestas_disposicion.carpeta_investigacion',
+                'puestas_disposicion.oficio',
+                'puestas_disposicion.tipo_puesta as tipo',
+                'puestas_disposicion.motivo',
+            ]);
 
-        $q->select('puestas_disposicion.*')
-            ->orderByDesc('puestas_disposicion.id');
+        $dictamenes = $this->baseDictamenesComoPuestasQuery($request)
+            ->selectRaw("'DICTAMEN' as origen")
+            ->addSelect([
+                'dictamens.id',
+                'dictamens.numero_dictamen as numero',
+                'dictamens.anio',
+                DB::raw('COALESCE(hecho_dictamen.fecha, DATE(dictamens.created_at)) as fecha'),
+                DB::raw('COALESCE(hecho_dictamen.hora, TIME(dictamens.created_at)) as hora'),
+                'dictamens.nombre_policia',
+                'dictamens.nombre_mp',
+                'dictamens.area',
+                DB::raw('NULL as carpeta_investigacion'),
+                DB::raw('hecho_dictamen.oficio_mp as oficio'),
+                DB::raw("'DICTAMEN' as tipo"),
+                DB::raw("COALESCE(NULLIF(dictamens.area, ''), 'DICTAMEN DE SINIESTROS') as motivo"),
+            ]);
+
+        $q = DB::query()
+            ->fromSub($puestas->unionAll($dictamenes), 'registros_exportacion')
+            ->orderByDesc('fecha')
+            ->orderByDesc('numero');
 
         $filename = 'puestas_disposicion_export_' . now()->format('Ymd_His') . '.csv';
 
@@ -958,6 +1066,88 @@ class EstadisticasActividadesController extends Controller
 
         $this->applyPuestasFilters($q, $request, false);
         $this->applyPuestasAgeFilter($q, $request, 'personas_puesta');
+
+        return $q;
+    }
+
+    private function baseDictamenesComoPuestasQuery(Request $request)
+    {
+        $q = DB::table('dictamens')
+            ->leftJoin('hechos as hecho_dictamen', 'hecho_dictamen.id', '=', 'dictamens.hecho_id');
+
+        if ($this->hasTable('puestas_disposicion')) {
+            $q->whereNotExists(function ($puesta) {
+                $puesta->selectRaw('1')
+                    ->from('puestas_disposicion as puesta_existente')
+                    ->whereNotNull('dictamens.hecho_id')
+                    ->whereColumn('puesta_existente.hecho_id', 'dictamens.hecho_id');
+            });
+        }
+
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        if (!$user->hasRole('Superadmin')
+            && (int)($user->unidad_id ?? 0) !== self::UNIDAD_SEGURIDAD_VIAL_ID
+            && (int)($user->unidad_id ?? 0) !== self::UNIDAD_SINIESTROS_ID) {
+            $q->whereRaw('1 = 0');
+        }
+
+        $unidadId = (int)$request->query('unidad_org_id', $request->query('unidad_id', 0));
+        if ($unidadId > 0 && $unidadId !== self::UNIDAD_SINIESTROS_ID) {
+            $q->whereRaw('1 = 0');
+        }
+
+        foreach (['delegacion_id', 'destacamento_id', 'actividad_categoria_id', 'actividad_subcategoria_id'] as $param) {
+            if (trim((string)$request->query($param, '')) !== '') {
+                $q->whereRaw('1 = 0');
+            }
+        }
+
+        $desde = trim((string)$request->query('desde', ''));
+        $hasta = trim((string)$request->query('hasta', ''));
+        $horaDesde = $this->normalizeHour($request->query('hora_desde', ''));
+        $horaHasta = $this->normalizeHour($request->query('hora_hasta', ''));
+        $fecha = 'COALESCE(hecho_dictamen.fecha, DATE(dictamens.created_at))';
+        $hora = 'COALESCE(hecho_dictamen.hora, TIME(dictamens.created_at))';
+
+        if ($desde !== '') {
+            $q->whereRaw("{$fecha} >= ?", [$desde]);
+        }
+        if ($hasta !== '') {
+            $q->whereRaw("{$fecha} <= ?", [$hasta]);
+        }
+        if ($desde !== '' && $desde === $hasta) {
+            if ($horaDesde !== null) {
+                $q->whereRaw("{$hora} >= ?", [$horaDesde]);
+            }
+            if ($horaHasta !== null) {
+                $q->whereRaw("{$hora} <= ?", [$horaHasta]);
+            }
+        }
+
+        $municipio = trim((string)$request->query('municipio', ''));
+        if ($municipio !== '') {
+            $q->where('hecho_dictamen.municipio', $municipio);
+        }
+
+        if ($this->hasPuestasAgeFilter($request)) {
+            $q->whereRaw('1 = 0');
+        }
+
+        $search = mb_substr(trim((string)$request->query('q', '')), 0, 150, 'UTF-8');
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $q->where(function ($searchQuery) use ($like) {
+                $searchQuery->where('dictamens.nombre_policia', 'like', $like)
+                    ->orWhere('dictamens.nombre_mp', 'like', $like)
+                    ->orWhere('dictamens.area', 'like', $like)
+                    ->orWhere('hecho_dictamen.oficio_mp', 'like', $like)
+                    ->orWhereRaw('CAST(dictamens.numero_dictamen AS CHAR) LIKE ?', [$like]);
+            });
+        }
 
         return $q;
     }

@@ -9,7 +9,7 @@ final class ActividadSubcategoriaCaptura
 {
     private const UNIDAD_DELEGACIONES_ID = 2;
 
-    public const MENSAJE_OTROS_DELEGACIONES = 'La opción "Otros" ya no está disponible para Delegaciones. Actualiza la aplicación y selecciona una subcategoría específica.';
+    public const MENSAJE_OTROS_DELEGACIONES = 'Las opciones genéricas "Otro/Otra" no están disponibles para Delegaciones. Selecciona una subcategoría específica.';
 
     public static function filtrarParaUsuario(Collection $subcategorias, $usuario): Collection
     {
@@ -45,7 +45,7 @@ final class ActividadSubcategoriaCaptura
     {
         $nombreNormalizado = mb_strtoupper(trim((string) $nombre), 'UTF-8');
 
-        return preg_match('/^OTR(?:OS|AS)(?:[^\p{L}\p{N}]|$)/u', $nombreNormalizado) === 1;
+        return preg_match('/^OTR(?:O|A|OS|AS)(?:[^\p{L}\p{N}]|$)/u', $nombreNormalizado) === 1;
     }
 
     private static function usuarioEsDeDelegaciones($usuario): bool

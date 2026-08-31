@@ -11,6 +11,8 @@ class ActividadSubcategoriaCapturaTest extends TestCase
 {
     public function test_identifica_las_opciones_genericas_otros_y_otras(): void
     {
+        $this->assertTrue(ActividadSubcategoriaCaptura::esOpcionOtros('OTRO'));
+        $this->assertTrue(ActividadSubcategoriaCaptura::esOpcionOtros('Otra (especificar)'));
         $this->assertTrue(ActividadSubcategoriaCaptura::esOpcionOtros(
             'OTROS REPORTES (Especificar en las novedades relevantes)'
         ));
@@ -85,7 +87,7 @@ class ActividadSubcategoriaCapturaTest extends TestCase
         ]);
 
         $this->assertSame(
-            'La opción "Otros" ya no está disponible para Delegaciones. Actualiza la aplicación y selecciona una subcategoría específica.',
+            'Las opciones genéricas "Otro/Otra" no están disponibles para Delegaciones. Selecciona una subcategoría específica.',
             ActividadSubcategoriaCaptura::mensajeRechazoParaUsuario(
                 $subcategoria,
                 $this->usuario(2, 'Administrador')

@@ -65,14 +65,14 @@
                                 <option value="">Todas</option>
                                 @foreach(($unidadesFiltro ?? collect()) as $unidad)
                                     @php
-                                        $nombreUnidad = match ((int) $unidad->id) {
+                                        $nombresUnidades = [
                                             1 => 'UNIDAD DE ATENCIÓN A SINIESTROS',
                                             2 => 'UNIDAD DE DELEGACIONES',
                                             4 => 'UNIDAD DE PROTECCIÓN A CARRETERAS',
                                             5 => 'UNIDAD DE PROTECCIÓN EN VIALIDADES URBANAS',
                                             6 => 'UNIDAD DE FOMENTO A LA CULTURA VIAL',
-                                            default => $unidad->nombre,
-                                        };
+                                        ];
+                                        $nombreUnidad = $nombresUnidades[(int) $unidad->id] ?? $unidad->nombre;
                                     @endphp
 
                                     <option value="{{ $unidad->id }}">{{ $nombreUnidad }}</option>
@@ -123,12 +123,6 @@
                             </select>
                         </div>
 
-                        <div class="sv-field sv-field--actions">
-                            <label>&nbsp;</label>
-                            <button class="btn sv-btn w-100" id="btn_aplicar" type="button">
-                                <i class="fas fa-sync-alt"></i> Aplicar
-                            </button>
-                        </div>
                     </div>
 
                     <div class="sv-form__row sv-form__row--small">
@@ -253,10 +247,11 @@
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-lg-6 col-12">
+    <div class="row sv-chart-grid" id="sv_chart_grid">
+        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="actividades_tiempo" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-chart-line"></i> Actividades en el tiempo
                 </div>
                 <div class="sv-panel__body">
@@ -265,9 +260,10 @@
             </div>
         </div>
 
-        <div class="col-lg-6 col-12">
+        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="actividades_unidad" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-building-shield"></i> Actividades por unidad
                 </div>
                 <div class="sv-panel__body">
@@ -276,16 +272,21 @@
             </div>
         </div>
 
-        <div class="col-lg-6 col-12">
+        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="actividades_categoria" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-layer-group"></i> Categorías
                 </div>
                 <div class="sv-panel__body">
                     <canvas id="ch_categoria" height="130"></canvas>
                 </div>
             </div>
+        </div>
+    </div>
 
+    <div class="row">
+        <div class="col-lg-6 col-12">
             <div class="sv-panel sv-category-summary">
                 <div class="sv-panel__title">
                     <i class="fa-solid fa-table-list"></i>
@@ -373,10 +374,11 @@
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-lg-4 col-12">
+    <div class="row" id="sv_puestas_row">
+        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="puestas_edades" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-chart-column"></i> Personas en puestas por edad
                 </div>
                 <div class="sv-panel__body">
@@ -385,7 +387,7 @@
             </div>
         </div>
 
-        <div class="col-lg-8 col-12">
+        <div class="col-lg-12 col-12">
             <div class="sv-panel">
                 <div class="sv-panel__title">
                     <i class="fa-solid fa-scale-balanced"></i> Puestas a disposición filtradas
@@ -611,15 +613,45 @@
         font-size: 14px;
         text-transform: uppercase;
     }
+
+    .sv-chart-card {
+        transition: opacity .16s ease, transform .16s ease;
+    }
+
+    .sv-chart-card .sv-panel__title {
+        cursor: grab;
+        user-select: none;
+    }
+
+    .sv-chart-card .sv-panel__title:active {
+        cursor: grabbing;
+    }
+
+    .sv-chart-card.is-dragging {
+        opacity: .38;
+        transform: scale(.985);
+    }
+
+    .sv-chart-grip {
+        color: rgba(234, 240, 255, .46);
+    }
 </style>
 @stop
 
 @section('js')
+@php
+    $dictamenShowUrl = auth()->user()->can('ver dictamenes')
+        && (auth()->user()->hasRole('Superadmin') || (int) auth()->user()->unidad_id === 1)
+            ? url('dictamenes')
+            : null;
+@endphp
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 (function(){
     const base = "{{ url('estadisticas-actividades') }}";
     const puestaShowBase = @json(auth()->user()->can('ver puestas a disposicion') ? url('puestas-disposicion') : null);
+    const dictamenShowBase = @json($dictamenShowUrl);
+    const savedChartOrder = @json($chartOrder ?? []);
     const unidadUsuarioId = Number(@json($unidadUsuarioId ?? 0));
     let page = 1;
     let lastPage = 1;
@@ -628,6 +660,86 @@
     let currentCategorySummary = { categorias: [], total: 0 };
 
     const el = (id) => document.getElementById(id);
+
+    function currentChartOrder(){
+        return [...document.querySelectorAll('#sv_chart_grid [data-chart-card]')]
+            .map(card => card.dataset.chartCard);
+    }
+
+    function applyChartOrder(order){
+        const grid = el('sv_chart_grid');
+        if (!grid) return;
+
+        const cards = new Map(
+            [...document.querySelectorAll('[data-chart-card]')]
+                .map(card => [card.dataset.chartCard, card])
+        );
+
+        (Array.isArray(order) ? order : []).forEach(id => {
+            if (cards.has(id)) grid.appendChild(cards.get(id));
+        });
+
+        cards.forEach(card => {
+            if (!grid.contains(card)) grid.appendChild(card);
+        });
+    }
+
+    async function saveChartOrder(){
+        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch(`${base}/preferencias/graficas`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token || ''
+            },
+            body: JSON.stringify({ order: currentChartOrder() })
+        });
+
+        if (!response.ok) throw new Error(`No se pudo guardar el orden (${response.status})`);
+    }
+
+    function enableChartSorting(){
+        const grid = el('sv_chart_grid');
+        if (!grid) return;
+
+        applyChartOrder(savedChartOrder);
+        let dragging = null;
+
+        grid.querySelectorAll('[data-chart-card]').forEach(card => {
+            card.addEventListener('dragstart', event => {
+                if (!event.target.closest('.sv-panel__title')) {
+                    event.preventDefault();
+                    return;
+                }
+                dragging = card;
+                card.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', card.dataset.chartCard);
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('is-dragging');
+                dragging = null;
+                saveChartOrder().catch(error => console.error('No se guardó el orden de gráficas:', error));
+                [chTime, chUnidad, chCategoria, chPuestasEdades].forEach(chart => chart?.resize());
+            });
+        });
+
+        grid.addEventListener('dragover', event => {
+            event.preventDefault();
+            if (!dragging) return;
+
+            const target = event.target.closest('[data-chart-card]');
+            if (!target || target === dragging || target.parentElement !== grid) return;
+
+            const box = target.getBoundingClientRect();
+            const after = event.clientY > box.top + box.height / 2
+                || (Math.abs(event.clientY - (box.top + box.height / 2)) < box.height / 3
+                    && event.clientX > box.left + box.width / 2);
+            grid.insertBefore(dragging, after ? target.nextSibling : target);
+        });
+    }
 
     const val = (id) => {
         const n = el(id);
@@ -1191,14 +1303,19 @@
         }
 
         tb.innerHTML = paginated.data.map(r => {
-            const numero = r.numero_puesta ? `${r.numero_puesta}/${r.anio || ''}` : r.id;
-            const action = puestaShowBase
-                ? `<a class="btn btn-sm sv-btn" href="${puestaShowBase}/${r.id}"><i class="fa-solid fa-eye"></i></a>`
+            const numero = r.numero_puesta ? `${r.numero_puesta}/${r.anio || ''}` : r.source_id;
+            const isDictamen = r.origen === 'dictamen';
+            const detailBase = isDictamen ? dictamenShowBase : puestaShowBase;
+            const action = detailBase
+                ? `<a class="btn btn-sm sv-btn" href="${detailBase}/${r.source_id}"><i class="fa-solid fa-eye"></i></a>`
+                : '';
+            const sourceBadge = isDictamen
+                ? '<span class="badge badge-warning ml-1">Dictamen</span>'
                 : '';
 
             return `
                 <tr>
-                    <td>${escapeHtml(numero)}</td>
+                    <td>${escapeHtml(numero)} ${sourceBadge}</td>
                     <td>${escapeHtml(formatDateLong(r.fecha_puesta))}</td>
                     <td>${escapeHtml(r.unidad_nombre || 'SIN ASIGNAR')}</td>
                     <td>${escapeHtml(r.carpeta_investigacion || '—')}</td>
@@ -1353,16 +1470,6 @@
         toggleDelegacion();
     }
 
-    const btnAplicar = el('btn_aplicar');
-    if (btnAplicar){
-        btnAplicar.addEventListener('click', async function(e){
-            e.preventDefault();
-            page = 1;
-            puestasPage = 1;
-            await loadAll();
-        });
-    }
-
     const btnPrev = el('btn_prev');
     if (btnPrev){
         btnPrev.addEventListener('click', async function(e){
@@ -1444,13 +1551,6 @@
         setExportLinks();
     }
 
-    const categoriaSelect = el('f_categoria');
-    if (categoriaSelect){
-        categoriaSelect.addEventListener('change', async function(){
-            await recargarSubcategorias();
-        });
-    }
-
     function setDefaultDates(){
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -1484,33 +1584,54 @@
     }
 
     setDefaultDates();
-    let temporizadorFecha = null;
+    let filterReloadTimer = null;
 
-    ['f_desde', 'f_hasta'].forEach(id => {
+    function scheduleDashboardReload(delay = 250){
+        clearTimeout(filterReloadTimer);
+        filterReloadTimer = setTimeout(async () => {
+            page = 1;
+            puestasPage = 1;
+            try {
+                await loadAll();
+            } catch (error) {
+                console.error('Error al actualizar los filtros:', error);
+            }
+        }, delay);
+    }
+
+    const automaticFilterIds = [
+        'f_desde', 'f_hora_desde', 'f_hasta', 'f_hora_hasta',
+        'f_unidad', 'f_delegacion', 'f_destacamento', 'f_subcategoria',
+        'f_municipio', 'f_group', 'f_edad_min', 'f_edad_max'
+    ];
+
+    automaticFilterIds.forEach(id => {
         const input = el(id);
         if (!input) return;
-
-        input.addEventListener('input', updateReadableDates);
-
-        input.addEventListener('change', function () {
+        input.addEventListener('change', () => {
             updateReadableDates();
-            clearTimeout(temporizadorFecha);
-
-            temporizadorFecha = setTimeout(async function () {
-                page = 1;
-                puestasPage = 1;
-
-                try {
-                    await loadAll();
-                } catch (error) {
-                    console.error('Error al aplicar las fechas:', error);
-                }
-            }, 300);
+            scheduleDashboardReload();
         });
     });
+
+    const categoriaSelect = el('f_categoria');
+    if (categoriaSelect){
+        categoriaSelect.addEventListener('change', async function(){
+            await recargarSubcategorias();
+            scheduleDashboardReload(0);
+        });
+    }
+
+    const searchInput = el('f_q');
+    if (searchInput){
+        searchInput.addEventListener('input', () => scheduleDashboardReload(450));
+    }
+
+    ['f_desde', 'f_hasta'].forEach(id => el(id)?.addEventListener('input', updateReadableDates));
     wireExportLinkUpdates();
     toggleDelegacion();
     toggleDestacamento();
+    enableChartSorting();
     setExportLinks();
     loadAll().catch(err => console.error('SV ACTIVIDADES ERROR:', err));
 })();

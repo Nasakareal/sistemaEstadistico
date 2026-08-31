@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\PuestaDisposicion;
 use App\Models\PuestaDisposicionPersona;
 use Tests\TestCase;
 
@@ -9,13 +10,18 @@ class PuestaDisposicionUsoFuerzaTest extends TestCase
 {
     public function test_modelo_admite_el_pdf_de_uso_de_fuerza(): void
     {
+        $puesta = new PuestaDisposicion([
+            'archivo_uso_fuerza' => 'puestas_disposicion/uso_fuerza/general.pdf',
+        ]);
         $persona = new PuestaDisposicionPersona([
-            'archivo_uso_fuerza' => 'puestas_disposicion/uso_fuerza/archivo.pdf',
+            'archivo_uso_fuerza' => 'puestas_disposicion/uso_fuerza/personas/archivo.pdf',
         ]);
 
+        $this->assertTrue($puesta->isFillable('archivo_uso_fuerza'));
+        $this->assertSame('puestas_disposicion/uso_fuerza/general.pdf', $puesta->archivo_uso_fuerza);
         $this->assertTrue($persona->isFillable('archivo_uso_fuerza'));
         $this->assertSame(
-            'puestas_disposicion/uso_fuerza/archivo.pdf',
+            'puestas_disposicion/uso_fuerza/personas/archivo.pdf',
             $persona->archivo_uso_fuerza
         );
     }
@@ -39,9 +45,11 @@ class PuestaDisposicionUsoFuerzaTest extends TestCase
         $edit = file_get_contents(resource_path('views/puestas_disposicion/edit.blade.php'));
         $show = file_get_contents(resource_path('views/puestas_disposicion/show.blade.php'));
 
-        $this->assertStringContainsString('personas[${i}][archivo_uso_fuerza]', $create);
-        $this->assertStringContainsString('accept="application/pdf" required', $create);
-        $this->assertStringContainsString('Reemplazar PDF de uso de fuerza', $edit);
+        $this->assertStringContainsString('name="archivo_puesta"', $create);
+        $this->assertStringContainsString('name="archivo_uso_fuerza"', $create);
+        $this->assertStringContainsString('PDF de puesta a disposición', $create);
+        $this->assertStringContainsString('PDF de uso de la fuerza', $create);
+        $this->assertStringContainsString('Reemplazar PDF general de uso de la fuerza', $edit);
         $this->assertStringContainsString('El PDF actual se conservará', $edit);
         $this->assertStringContainsString('Ver PDF de uso de fuerza', $show);
     }
@@ -52,6 +60,8 @@ class PuestaDisposicionUsoFuerzaTest extends TestCase
         $webRoutes = file_get_contents(base_path('routes/web.php'));
 
         $this->assertStringContainsString('api.puestas_disposicion.personas.uso_fuerza', $apiRoutes);
+        $this->assertStringContainsString('api.puestas_disposicion.uso_fuerza', $apiRoutes);
         $this->assertStringContainsString('puestas_disposicion.personas.uso_fuerza', $webRoutes);
+        $this->assertStringContainsString('puestas_disposicion.uso_fuerza', $webRoutes);
     }
 }

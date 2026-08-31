@@ -118,18 +118,34 @@ readonly>
 
 </div>
 
-@if($puestaDisposicion->archivo_puesta)
 <hr>
 <div class="row">
-<div class="col-md-12">
+<div class="col-md-6 mb-3">
+<label>PDF de puesta a disposición</label><br>
+@if($puestaDisposicion->archivo_puesta)
 <a href="{{ route('puestas_disposicion.archivo', $puestaDisposicion->id) }}"
 class="btn btn-outline-primary"
 target="_blank">
-<i class="fa-solid fa-file-pdf"></i> Ver Archivo PDF
+<i class="fa-solid fa-file-pdf"></i> Ver PDF de puesta
 </a>
-</div>
-</div>
+@else
+<span class="text-muted">No se adjuntó archivo.</span>
 @endif
+</div>
+
+<div class="col-md-6 mb-3">
+<label>PDF de uso de la fuerza</label><br>
+@if($puestaDisposicion->archivo_uso_fuerza)
+<a href="{{ route('puestas_disposicion.uso_fuerza', $puestaDisposicion->id) }}"
+class="btn btn-outline-danger"
+target="_blank">
+<i class="fa-solid fa-file-pdf"></i> Ver PDF de uso de la fuerza
+</a>
+@else
+<span class="text-muted">No se adjuntó archivo.</span>
+@endif
+</div>
+</div>
 
 <hr>
 

@@ -149,7 +149,10 @@ class ActividadController extends Controller
         $validated = $request->validate(array_merge([
             'client_uuid' => 'nullable|string|max:36',
             'folio_c5i' => 'nullable|string|max:50',
-            'nombre' => $puedeEscribirNombre ? 'required|string|max:200' : 'nullable|string|max:200',
+            // La app movil muestra el nombre de la sesion, pero historicamente no
+            // lo enviaba en el multipart. Para Administrativo sigue siendo posible
+            // indicar otro reportante; si se omite, se toma el usuario autenticado.
+            'nombre' => 'nullable|string|max:200',
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
@@ -313,11 +316,11 @@ class ActividadController extends Controller
             $validated['actividad_infracciones'] ?? []
         );
 
-        $nombre = mb_strtoupper((string) (
+        $nombre = $this->resolveActivityReporter(
+            $user,
+            $validated,
             $puedeEscribirNombre
-                ? ($validated['nombre'] ?? '')
-                : ($user->name ?? '')
-        ), 'UTF-8');
+        );
         $cantidad = 1;
 
         if (!empty($validated['actividad_subcategoria_id'])) {
@@ -566,7 +569,7 @@ class ActividadController extends Controller
             'actividad_categoria_id' => 'required|exists:actividad_categorias,id',
             'actividad_subcategoria_id' => 'required|exists:actividad_subcategorias,id',
             'folio_c5i' => 'nullable|string|max:50',
-            'nombre' => $puedeEscribirNombre ? 'required|string|max:200' : 'nullable|string|max:200',
+            'nombre' => 'nullable|string|max:200',
             'fecha' => $puedeCapturarFechaHora ? 'nullable|date' : 'nullable',
             'hora' => $puedeCapturarFechaHora ? 'nullable|date_format:H:i' : 'nullable',
             'lugar' => 'nullable|string|max:255',
@@ -762,9 +765,12 @@ class ActividadController extends Controller
 
             $actividad->update([
                 'folio_c5i' => array_key_exists('folio_c5i', $validated) ? $this->toUpperOrNull($validated['folio_c5i']) : $actividad->folio_c5i,
-                'nombre' => $puedeEscribirNombre
-                    ? mb_strtoupper(trim((string) ($validated['nombre'] ?? '')), 'UTF-8')
-                    : $actividad->nombre,
+                'nombre' => $this->resolveActivityReporter(
+                    $user,
+                    $validated,
+                    $puedeEscribirNombre,
+                    $actividad->nombre
+                ),
                 'actividad_categoria_id' => $validated['actividad_categoria_id'],
                 'actividad_subcategoria_id' => $validated['actividad_subcategoria_id'] ?? null,
                 'cantidad' => 1,
@@ -1638,6 +1644,23 @@ class ActividadController extends Controller
     private function userCanWriteActivityReporter($usuario): bool
     {
         return $usuario && $usuario->hasRole('Administrativo');
+    }
+
+    private function resolveActivityReporter(
+        $usuario,
+        array $validated,
+        bool $puedeEscribirNombre,
+        ?string $nombreActual = null
+    ): string {
+        $nombreEnviado = trim((string) ($validated['nombre'] ?? ''));
+
+        if ($puedeEscribirNombre && $nombreEnviado !== '') {
+            return mb_strtoupper($nombreEnviado, 'UTF-8');
+        }
+
+        $respaldo = trim((string) ($nombreActual ?? ($usuario->name ?? '')));
+
+        return mb_strtoupper($respaldo, 'UTF-8');
     }
 
     public function updateVehiculo(Request $request, Actividad $actividad, $vehiculoId)

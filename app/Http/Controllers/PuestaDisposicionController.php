@@ -886,6 +886,18 @@ class PuestaDisposicionController extends Controller
         return $this->documentos()->response($puestaDisposicion->archivo_puesta, $nombre);
     }
 
+    public function archivoUsoFuerzaGeneral(PuestaDisposicion $puestaDisposicion)
+    {
+        $usuario = auth()->user();
+        $puestaDisposicion = $this->findVisibleOrFail($puestaDisposicion->id, $usuario);
+
+        abort_unless($puestaDisposicion->archivo_uso_fuerza, 404);
+
+        $nombre = 'uso_fuerza_puesta_' . $puestaDisposicion->numero_puesta . '_' . $puestaDisposicion->anio . '.pdf';
+
+        return $this->documentos()->response($puestaDisposicion->archivo_uso_fuerza, $nombre);
+    }
+
     public function archivoUsoFuerza(PuestaDisposicion $puestaDisposicion, PuestaDisposicionPersona $persona)
     {
         $usuario = auth()->user();

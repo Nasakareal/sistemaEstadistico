@@ -272,7 +272,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="archivo_puesta">Archivo PDF</label>
+                                    <label for="archivo_puesta">Reemplazar PDF de puesta a disposición</label>
                                     <input type="file" name="archivo_puesta" id="archivo_puesta"
                                            class="form-control @error('archivo_puesta') is-invalid @enderror"
                                            accept="application/pdf">
@@ -287,7 +287,32 @@
                                 @if($puestaDisposicion->archivo_puesta)
                                     <div class="mb-3">
                                         <a href="{{ route('puestas_disposicion.archivo', $puestaDisposicion->id) }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                            <i class="fa-solid fa-file-pdf"></i> Ver archivo actual
+                                            <i class="fa-solid fa-file-pdf"></i> Ver PDF de puesta actual
+                                        </a>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="archivo_uso_fuerza">
+                                        {{ $puestaDisposicion->archivo_uso_fuerza ? 'Reemplazar PDF general de uso de la fuerza' : 'PDF general de uso de la fuerza' }}
+                                    </label>
+                                    <input type="file" name="archivo_uso_fuerza" id="archivo_uso_fuerza"
+                                           class="form-control @error('archivo_uso_fuerza') is-invalid @enderror"
+                                           accept="application/pdf">
+                                    <small class="form-text text-muted">
+                                        Documento independiente del PDF de la puesta. Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB.
+                                    </small>
+                                    @error('archivo_uso_fuerza')
+                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+
+                                @if($puestaDisposicion->archivo_uso_fuerza)
+                                    <div class="mb-3">
+                                        <a href="{{ route('puestas_disposicion.uso_fuerza', $puestaDisposicion->id) }}" target="_blank" class="btn btn-outline-danger btn-sm">
+                                            <i class="fa-solid fa-file-pdf"></i> Ver PDF de uso de la fuerza actual
                                         </a>
                                     </div>
                                 @endif
@@ -835,10 +860,10 @@
                             </div>
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label>${tieneArchivoUsoFuerza ? 'Reemplazar PDF de uso de fuerza' : 'PDF de uso de fuerza *'}</label>
+                                    <label>${tieneArchivoUsoFuerza ? 'Reemplazar PDF individual de uso de fuerza' : 'PDF individual de uso de fuerza (opcional)'}</label>
                                     ${archivoUsoFuerzaActual}
                                     <input type="file" name="personas[${i}][archivo_uso_fuerza]"
-                                           class="form-control" accept="application/pdf" ${tieneArchivoUsoFuerza ? '' : 'required'}>
+                                           class="form-control" accept="application/pdf">
                                     <small class="form-text text-muted">
                                         ${tieneArchivoUsoFuerza ? 'Déjalo vacío para conservar el archivo actual.' : 'Obligatorio para esta persona.'}
                                         Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB.

@@ -300,7 +300,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="archivo_puesta">Archivo PDF</label>
+                                    <label for="archivo_puesta">PDF de puesta a disposición</label>
                                     <input type="file" name="archivo_puesta" id="archivo_puesta"
                                            class="form-control @error('archivo_puesta') is-invalid @enderror"
                                            accept="application/pdf">
@@ -308,6 +308,21 @@
                                         Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB; se comprimirá automáticamente cuando sea posible.
                                     </small>
                                     @error('archivo_puesta')
+                                        <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="archivo_uso_fuerza">PDF de uso de la fuerza</label>
+                                    <input type="file" name="archivo_uso_fuerza" id="archivo_uso_fuerza"
+                                           class="form-control @error('archivo_uso_fuerza') is-invalid @enderror"
+                                           accept="application/pdf">
+                                    <small class="form-text text-muted">
+                                        Documento independiente del PDF de la puesta. Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB.
+                                    </small>
+                                    @error('archivo_uso_fuerza')
                                         <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
@@ -1028,11 +1043,11 @@
                             </div>
                             <div class="col-md-12">
                                 <div class="form-group">
-                                    <label>PDF de uso de fuerza <span class="text-danger">*</span></label>
+                                    <label>PDF individual de uso de fuerza <span class="text-muted">(opcional)</span></label>
                                     <input type="file" name="personas[${i}][archivo_uso_fuerza]"
-                                           class="form-control" accept="application/pdf" required>
+                                           class="form-control" accept="application/pdf">
                                     <small class="form-text text-muted">
-                                        Obligatorio para cada persona. Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB; se comprimirá automáticamente cuando sea posible.
+                                        Úselo sólo si esta persona tiene un documento distinto al PDF general. Máximo {{ (int) ceil(config('pdf_compression.max_upload_kb', 51200) / 1024) }} MB.
                                     </small>
                                 </div>
                             </div>

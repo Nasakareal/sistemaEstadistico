@@ -285,6 +285,7 @@ class PuestaDisposicionController extends Controller
             'narrativa'=>'nullable|string',
             'observaciones'=>'nullable|string',
             'archivo_puesta'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
+            'archivo_uso_fuerza'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
             'fotos'=>'nullable|array|max:10',
             'fotos.*'=>'image|mimes:jpg,jpeg,png,webp|max:5120',
 
@@ -302,7 +303,7 @@ class PuestaDisposicionController extends Controller
             'personas.*.orden_aprehension'=>'nullable|boolean',
             'personas.*.mandamiento_judicial'=>'nullable|string|max:255',
             'personas.*.observaciones'=>'nullable|string',
-            'personas.*.archivo_uso_fuerza'=>'required_with:personas.*.nombre_completo|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
+            'personas.*.archivo_uso_fuerza'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
 
             'vehiculos'=>'nullable|array',
             'vehiculos.*.vehiculo_id'=>'nullable|integer|exists:vehiculos,id',
@@ -329,16 +330,6 @@ class PuestaDisposicionController extends Controller
             'objetos.*.observaciones'=>'nullable|string',
         ]);
 
-        foreach ($request->input('personas', []) as $index => $persona) {
-            if (
-                !empty(trim((string)($persona['nombre_completo'] ?? '')))
-                && !$request->hasFile("personas.$index.archivo_uso_fuerza")
-            ) {
-                throw ValidationException::withMessages([
-                    "personas.$index.archivo_uso_fuerza"=>'El PDF de uso de fuerza es obligatorio para cada persona.',
-                ]);
-            }
-        }
     }
 
     private function guardarDetalles(PuestaDisposicion $puesta, Request $request, array &$documentPaths): void
@@ -352,16 +343,15 @@ class PuestaDisposicionController extends Controller
         foreach ($request->input('personas', []) as $index => $persona) {
             if (empty(trim((string)($persona['nombre_completo'] ?? '')))) continue;
 
+            $archivoUsoFuerzaPath=null;
             $archivoUsoFuerza=$request->file("personas.$index.archivo_uso_fuerza");
-            if (!$archivoUsoFuerza) {
-                throw new \RuntimeException('No se encontró el PDF de uso de fuerza validado para la persona.');
+            if ($archivoUsoFuerza) {
+                $archivoUsoFuerzaPath=$this->documentos()->putUploadedPdf(
+                    $archivoUsoFuerza,
+                    'puestas_disposicion/uso_fuerza/personas'
+                );
+                $documentPaths[]=$archivoUsoFuerzaPath;
             }
-
-            $archivoUsoFuerzaPath=$this->documentos()->putUploadedPdf(
-                $archivoUsoFuerza,
-                'puestas_disposicion/uso_fuerza'
-            );
-            $documentPaths[]=$archivoUsoFuerzaPath;
 
             PuestaDisposicionPersona::create([
                 'puesta_disposicion_id'=>$puesta->id,
@@ -504,6 +494,7 @@ class PuestaDisposicionController extends Controller
             'vehiculos'=>count($request->input('vehiculos', [])),
             'objetos'=>count($request->input('objetos', [])),
             'tiene_archivo'=>$request->hasFile('archivo_puesta'),
+            'tiene_archivo_uso_fuerza'=>$request->hasFile('archivo_uso_fuerza'),
         ]);
 
         $fotoPaths=[];
@@ -528,6 +519,15 @@ class PuestaDisposicionController extends Controller
                 $documentPaths[]=$archivo;
             }
 
+            $archivoUsoFuerzaGeneral=null;
+            if ($request->hasFile('archivo_uso_fuerza')) {
+                $archivoUsoFuerzaGeneral=$this->documentos()->putUploadedPdf(
+                    $request->file('archivo_uso_fuerza'),
+                    'puestas_disposicion/uso_fuerza'
+                );
+                $documentPaths[]=$archivoUsoFuerzaGeneral;
+            }
+
             $puesta=PuestaDisposicion::create([
                 'hecho_id'=>$hechoOrigen ? $hechoOrigen->id : null,
                 'actividad_id'=>$actividadOrigen ? $actividadOrigen->id : null,
@@ -548,6 +548,7 @@ class PuestaDisposicionController extends Controller
                 'narrativa'=>$request->input('narrativa'),
                 'observaciones'=>$request->input('observaciones'),
                 'archivo_puesta'=>$archivo,
+                'archivo_uso_fuerza'=>$archivoUsoFuerzaGeneral,
                 'unidad_id'=>$unidadRegistroId,
                 'delegacion_id'=>$hechoOrigen
                     ? ($hechoOrigen->delegacion_id ?: $usuario->delegacion_id)
@@ -620,6 +621,18 @@ class PuestaDisposicionController extends Controller
         return $this->documentos()->response($puesta->archivo_puesta,$nombre);
     }
 
+    public function archivoUsoFuerzaGeneral(PuestaDisposicion $puestaDisposicion)
+    {
+        $usuario=Auth::user();
+        $puesta=$this->findVisibleOrFail($puestaDisposicion->id,$usuario);
+
+        abort_unless($puesta->archivo_uso_fuerza,404);
+
+        $nombre='uso_fuerza_puesta_' . $puesta->numero_puesta . '_' . $puesta->anio . '.pdf';
+
+        return $this->documentos()->response($puesta->archivo_uso_fuerza,$nombre);
+    }
+
     public function archivoUsoFuerza(PuestaDisposicion $puestaDisposicion, PuestaDisposicionPersona $persona)
     {
         $usuario=Auth::user();
@@ -641,6 +654,8 @@ class PuestaDisposicionController extends Controller
             'tipo_puesta'=>'required|string|in:PERSONA,VEHICULO,OBJETO,MIXTA',
             'motivo'=>'required|string|max:150',
             'nombre_policia'=>'required|string|max:255',
+            'archivo_puesta'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
+            'archivo_uso_fuerza'=>'nullable|file|mimes:pdf|max:' . (int) config('pdf_compression.max_upload_kb', 51200),
         ]);
         $motivo=$this->normalizarTextoRequerido($request->motivo);
 
@@ -654,13 +669,51 @@ class PuestaDisposicionController extends Controller
             ]);
         }
 
-        $puesta->update([
-            'tipo_puesta'=>$this->normalizarTextoRequerido($request->tipo_puesta),
-            'motivo'=>$motivo,
-            'nombre_policia'=>$this->normalizarTextoRequerido($request->nombre_policia),
-        ]);
+        $documentosNuevos=[];
+        $archivoPuestaAnterior=$puesta->archivo_puesta;
+        $archivoUsoFuerzaAnterior=$puesta->archivo_uso_fuerza;
 
-        return response()->json($puesta);
+        try {
+            $archivoPuesta=$archivoPuestaAnterior;
+            $archivoUsoFuerza=$archivoUsoFuerzaAnterior;
+
+            if ($request->hasFile('archivo_puesta')) {
+                $archivoPuesta=$this->documentos()->putUploadedPdf($request->file('archivo_puesta'),'puestas_disposicion');
+                $documentosNuevos[]=$archivoPuesta;
+            }
+
+            if ($request->hasFile('archivo_uso_fuerza')) {
+                $archivoUsoFuerza=$this->documentos()->putUploadedPdf(
+                    $request->file('archivo_uso_fuerza'),
+                    'puestas_disposicion/uso_fuerza'
+                );
+                $documentosNuevos[]=$archivoUsoFuerza;
+            }
+
+            $puesta->update([
+                'tipo_puesta'=>$this->normalizarTextoRequerido($request->tipo_puesta),
+                'motivo'=>$motivo,
+                'nombre_policia'=>$this->normalizarTextoRequerido($request->nombre_policia),
+                'archivo_puesta'=>$archivoPuesta,
+                'archivo_uso_fuerza'=>$archivoUsoFuerza,
+            ]);
+
+            foreach ([
+                [$archivoPuestaAnterior,$archivoPuesta],
+                [$archivoUsoFuerzaAnterior,$archivoUsoFuerza],
+            ] as [$anterior,$actual]) {
+                if ($anterior && $anterior !== $actual) {
+                    $this->documentos()->delete($anterior);
+                }
+            }
+        } catch (\Throwable $e) {
+            foreach ($documentosNuevos as $documentoNuevo) {
+                $this->documentos()->delete($documentoNuevo);
+            }
+            throw $e;
+        }
+
+        return response()->json($this->withFotoUrls($puesta->fresh()));
     }
 
     public function destroy(PuestaDisposicion $puestaDisposicion)
@@ -670,12 +723,17 @@ class PuestaDisposicionController extends Controller
 
         $puesta->loadMissing(['fotos','personas']);
         $archivo=$puesta->archivo_puesta;
+        $archivoUsoFuerzaGeneral=$puesta->archivo_uso_fuerza;
         $archivosUsoFuerza=$puesta->personas->pluck('archivo_uso_fuerza')->filter()->all();
         $fotos=$puesta->fotos->pluck('ruta')->all();
         $puesta->delete();
 
         if ($archivo) {
             $this->documentos()->delete($archivo);
+        }
+
+        if ($archivoUsoFuerzaGeneral) {
+            $this->documentos()->delete($archivoUsoFuerzaGeneral);
         }
 
         foreach ($archivosUsoFuerza as $archivoUsoFuerza) {
@@ -703,6 +761,12 @@ class PuestaDisposicionController extends Controller
     {
         $puesta->loadMissing(['fotos','personas']);
         $data=$puesta->toArray();
+        $data['archivo_puesta_url']=$puesta->archivo_puesta
+            ? route('api.puestas_disposicion.archivo',$puesta->id)
+            : null;
+        $data['archivo_uso_fuerza_url']=$puesta->archivo_uso_fuerza
+            ? route('api.puestas_disposicion.uso_fuerza',$puesta->id)
+            : null;
         $data['personas']=$puesta->personas->map(function (PuestaDisposicionPersona $persona) use ($puesta) {
             $item=$persona->toArray();
             $item['archivo_uso_fuerza_url']=$persona->archivo_uso_fuerza

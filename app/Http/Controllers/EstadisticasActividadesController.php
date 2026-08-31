@@ -16,17 +16,20 @@ class EstadisticasActividadesController extends Controller
     private const UNIDAD_SINIESTROS_ID = 1;
     private const UNIDAD_SEGURIDAD_VIAL_ID = 3;
     private const DASHBOARD_LAYOUT_KEY = 'estadisticas_actividades';
-    private const CHART_IDS = [
+    private const DASHBOARD_BLOCK_IDS = [
         'actividades_tiempo',
         'actividades_unidad',
         'actividades_categoria',
+        'resumen_categorias',
+        'actividades_filtradas',
         'puestas_edades',
+        'puestas_filtradas',
     ];
 
     public function index(Request $request)
     {
         $unidadesFiltro = $this->unidadesDisponiblesParaFiltro($request->user());
-        $chartOrder = self::CHART_IDS;
+        $chartOrder = self::DASHBOARD_BLOCK_IDS;
 
         if ($this->hasTable('user_dashboard_preferences')) {
             $savedOrder = DB::table('user_dashboard_preferences')
@@ -35,8 +38,12 @@ class EstadisticasActividadesController extends Controller
                 ->value('layout');
             $savedOrder = json_decode((string)$savedOrder, true);
 
-            if (is_array($savedOrder) && empty(array_diff(self::CHART_IDS, $savedOrder))) {
-                $chartOrder = array_values(array_intersect($savedOrder, self::CHART_IDS));
+            if (is_array($savedOrder)) {
+                $chartOrder = array_values(array_intersect($savedOrder, self::DASHBOARD_BLOCK_IDS));
+                $chartOrder = array_merge(
+                    $chartOrder,
+                    array_values(array_diff(self::DASHBOARD_BLOCK_IDS, $chartOrder))
+                );
             }
         }
 
@@ -48,8 +55,8 @@ class EstadisticasActividadesController extends Controller
         abort_unless($this->hasTable('user_dashboard_preferences'), 503, 'Ejecuta las migraciones para guardar el orden de las gráficas.');
 
         $validated = $request->validate([
-            'order' => ['required', 'array', 'size:' . count(self::CHART_IDS)],
-            'order.*' => ['required', 'string', 'distinct', 'in:' . implode(',', self::CHART_IDS)],
+            'order' => ['required', 'array', 'size:' . count(self::DASHBOARD_BLOCK_IDS)],
+            'order.*' => ['required', 'string', 'distinct', 'in:' . implode(',', self::DASHBOARD_BLOCK_IDS)],
         ]);
 
         DB::table('user_dashboard_preferences')->updateOrInsert(

@@ -247,8 +247,8 @@
         </div>
     </div>
 
-    <div class="row sv-chart-grid" id="sv_chart_grid">
-        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="actividades_tiempo" draggable="true">
+    <div class="row sv-dashboard-grid" id="sv_dashboard_grid">
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="actividades_tiempo" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
                     <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
@@ -260,7 +260,7 @@
             </div>
         </div>
 
-        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="actividades_unidad" draggable="true">
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="actividades_unidad" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
                     <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
@@ -272,7 +272,7 @@
             </div>
         </div>
 
-        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="actividades_categoria" draggable="true">
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="actividades_categoria" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
                     <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
@@ -283,12 +283,11 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-lg-6 col-12">
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="resumen_categorias" draggable="true">
             <div class="sv-panel sv-category-summary">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-table-list"></i>
                     <div>
                         <span>Resumen por categoría</span>
@@ -330,9 +329,10 @@
             </div>
         </div>
 
-        <div class="col-lg-6 col-12">
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="actividades_filtradas" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-list"></i> Actividades filtradas
                 </div>
 
@@ -372,10 +372,8 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row" id="sv_puestas_row">
-        <div class="col-lg-6 col-12 sv-chart-card" data-chart-card="puestas_edades" draggable="true">
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="puestas_edades" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
                     <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
@@ -387,9 +385,10 @@
             </div>
         </div>
 
-        <div class="col-lg-12 col-12">
+        <div class="col-lg-12 col-12 sv-dashboard-card" data-dashboard-block="puestas_filtradas" draggable="true">
             <div class="sv-panel">
                 <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
                     <i class="fa-solid fa-scale-balanced"></i> Puestas a disposición filtradas
                 </div>
 
@@ -614,20 +613,20 @@
         text-transform: uppercase;
     }
 
-    .sv-chart-card {
+    .sv-dashboard-card {
         transition: opacity .16s ease, transform .16s ease;
     }
 
-    .sv-chart-card .sv-panel__title {
+    .sv-dashboard-card .sv-panel__title {
         cursor: grab;
         user-select: none;
     }
 
-    .sv-chart-card .sv-panel__title:active {
+    .sv-dashboard-card .sv-panel__title:active {
         cursor: grabbing;
     }
 
-    .sv-chart-card.is-dragging {
+    .sv-dashboard-card.is-dragging {
         opacity: .38;
         transform: scale(.985);
     }
@@ -662,17 +661,17 @@
     const el = (id) => document.getElementById(id);
 
     function currentChartOrder(){
-        return [...document.querySelectorAll('#sv_chart_grid [data-chart-card]')]
-            .map(card => card.dataset.chartCard);
+        return [...document.querySelectorAll('#sv_dashboard_grid [data-dashboard-block]')]
+            .map(card => card.dataset.dashboardBlock);
     }
 
     function applyChartOrder(order){
-        const grid = el('sv_chart_grid');
+        const grid = el('sv_dashboard_grid');
         if (!grid) return;
 
         const cards = new Map(
-            [...document.querySelectorAll('[data-chart-card]')]
-                .map(card => [card.dataset.chartCard, card])
+            [...document.querySelectorAll('[data-dashboard-block]')]
+                .map(card => [card.dataset.dashboardBlock, card])
         );
 
         (Array.isArray(order) ? order : []).forEach(id => {
@@ -700,22 +699,23 @@
     }
 
     function enableChartSorting(){
-        const grid = el('sv_chart_grid');
+        const grid = el('sv_dashboard_grid');
         if (!grid) return;
 
         applyChartOrder(savedChartOrder);
         let dragging = null;
 
-        grid.querySelectorAll('[data-chart-card]').forEach(card => {
+        grid.querySelectorAll('[data-dashboard-block]').forEach(card => {
             card.addEventListener('dragstart', event => {
-                if (!event.target.closest('.sv-panel__title')) {
+                if (!event.target.closest('.sv-panel__title')
+                    || event.target.closest('button, a, input, select, textarea')) {
                     event.preventDefault();
                     return;
                 }
                 dragging = card;
                 card.classList.add('is-dragging');
                 event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', card.dataset.chartCard);
+                event.dataTransfer.setData('text/plain', card.dataset.dashboardBlock);
             });
 
             card.addEventListener('dragend', () => {
@@ -730,7 +730,7 @@
             event.preventDefault();
             if (!dragging) return;
 
-            const target = event.target.closest('[data-chart-card]');
+            const target = event.target.closest('[data-dashboard-block]');
             if (!target || target === dragging || target.parentElement !== grid) return;
 
             const box = target.getBoundingClientRect();

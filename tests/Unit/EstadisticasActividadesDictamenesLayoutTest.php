@@ -55,10 +55,13 @@ class EstadisticasActividadesDictamenesLayoutTest extends TestCase
         $user = User::factory()->create(['unidad_id' => 1]);
         Auth::login($user);
         $order = [
+            'actividades_filtradas',
+            'resumen_categorias',
             'puestas_edades',
             'actividades_categoria',
             'actividades_unidad',
             'actividades_tiempo',
+            'puestas_filtradas',
         ];
 
         $request = Request::create('/estadisticas-actividades/preferencias/graficas', 'POST', [
@@ -76,5 +79,60 @@ class EstadisticasActividadesDictamenesLayoutTest extends TestCase
                 ->where('dashboard', 'estadisticas_actividades')
                 ->value('layout'), true)
         );
+    }
+
+    public function test_todos_los_bloques_visibles_son_reordenables(): void
+    {
+        $view = (string) file_get_contents(
+            resource_path('views/estadisticas_actividades/index.blade.php')
+        );
+
+        foreach ([
+            'actividades_tiempo',
+            'actividades_unidad',
+            'actividades_categoria',
+            'resumen_categorias',
+            'actividades_filtradas',
+            'puestas_edades',
+            'puestas_filtradas',
+        ] as $block) {
+            $this->assertStringContainsString(
+                'data-dashboard-block="' . $block . '"',
+                $view
+            );
+        }
+    }
+
+    public function test_completa_preferencias_antiguas_que_solo_tenian_graficas(): void
+    {
+        $user = User::factory()->create(['unidad_id' => 1]);
+        Auth::login($user);
+        $oldOrder = [
+            'puestas_edades',
+            'actividades_categoria',
+            'actividades_unidad',
+            'actividades_tiempo',
+        ];
+
+        DB::table('user_dashboard_preferences')->insert([
+            'user_id' => $user->id,
+            'dashboard' => 'estadisticas_actividades',
+            'layout' => json_encode($oldOrder),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $request = Request::create('/estadisticas-actividades', 'GET');
+        $request->setUserResolver(fn () => $user);
+        $view = (new EstadisticasActividadesController())->index($request);
+        $order = $view->getData()['chartOrder'];
+
+        $this->assertSame($oldOrder, array_slice($order, 0, 4));
+        $this->assertSame([
+            'resumen_categorias',
+            'actividades_filtradas',
+            'puestas_filtradas',
+        ], array_values(array_diff($order, $oldOrder)));
+        $this->assertCount(7, $order);
     }
 }

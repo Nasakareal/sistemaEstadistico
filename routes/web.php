@@ -672,9 +672,7 @@ Route::prefix('modulo-constancias-examenes')->middleware(['auth','can:ver modulo
     Route::post('/{constancia}/cancelar', [ModuloConstanciaExamenController::class, 'cancelar'])->middleware('can:editar modulo examenes')->name('modulo_constancias_examenes.cancelar');
 });
 
-Route::get('/servicios/grafico',[ServicioController::class,'grafico'])
-    ->middleware(['auth', 'can:ver gruas'])
-    ->name('servicios.grafico');
+Route::get('/servicios/grafico',[ServicioController::class,'grafico'])->name('servicios.grafico');
 
 Route::get('/admin/settings/constancias/preguntas/{path?}', function ($path = null) {
     $destino = '/constancias-manejo/preguntas';

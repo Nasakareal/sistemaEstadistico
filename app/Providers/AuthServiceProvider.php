@@ -18,10 +18,6 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         Gate::before(function ($user, $ability) {
-            if ($this->isModuloRestringidoParaVialidades($user, $ability)) {
-                return false;
-            }
-
             if ($user->hasRole('Superadmin')) {
                 return true;
             }
@@ -398,25 +394,6 @@ class AuthServiceProvider extends ServiceProvider
     {
         return (int) ($user->unidad_id ?? 0) === 3
             || optional($user->unidad)->slug === 'seguridad-vial';
-    }
-
-    private function isModuloRestringidoParaVialidades($user, $ability): bool
-    {
-        if ((int) ($user->unidad_id ?? 0) !== 5) {
-            return false;
-        }
-
-        if (HechoAccess::shouldResolvePermissionDirectly($ability)) {
-            return true;
-        }
-
-        return in_array($this->normalizeAbility($ability), [
-            'ver gruas',
-            'crear gruas',
-            'editar gruas',
-            'eliminar gruas',
-            'subir liberacion grua',
-        ], true);
     }
 
     private function isFomentoCulturaVialUser($user): bool

@@ -160,6 +160,7 @@ return [
             'icon'    => 'fa-solid fa-car-side',
             'classes' => 'bg-blue text-white',
             'can'     => 'ver hechos',
+            'hide_for_units' => [5],
             'submenu' => [
                 [
                     'text'    => 'Listado de Siniestros',
@@ -314,6 +315,7 @@ return [
             'icon'    => 'fa-solid fa-truck-moving',
             'classes' => 'bg-blue text-white',
             'can'     => 'ver gruas',
+            'hide_for_units' => [5],
             'submenu' => [
                 [
                     'text'    => 'Listado de Grúas',
@@ -859,6 +861,7 @@ return [
     ],
 
     'filters' => [
+        App\AdminLte\Filters\UnidadMenuFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
         JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,

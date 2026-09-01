@@ -231,9 +231,19 @@ class EstadisticasGlobalesController extends Controller
         $this->applyVehiculoFiltersToHechos($q, $request);
         $this->applyLesionadosFilterToHechos($q, $request);
         $this->applyFallecidosFilterToHechos($q, $request);
+
+        $q->leftJoin('users as export_creator', 'export_creator.id', '=', 'hechos.created_by')
+            ->leftJoin('delegaciones as export_delegacion', 'export_delegacion.id', '=', 'hechos.delegacion_id')
+            ->leftJoin('delegaciones as export_creator_delegacion', 'export_creator_delegacion.id', '=', 'export_creator.delegacion_id');
+
         $q->select([
             'hechos.id', 'hechos.folio_c5i', 'hechos.fecha', 'hechos.hora', 'hechos.sector', 'hechos.municipio',
             'hechos.tipo_hecho', 'hechos.situacion', 'hechos.perito', 'hechos.unidad', 'hechos.calle', 'hechos.colonia', 'hechos.entre_calles',
+            DB::raw("CASE
+                WHEN COALESCE(hechos.unidad_org_id, export_creator.unidad_id) = " . self::UNIDAD_DELEGACIONES_ID . "
+                THEN COALESCE(export_delegacion.nombre, export_creator_delegacion.nombre)
+                ELSE NULL
+            END as delegacion"),
         ])
             ->distinct('hechos.id')
             ->orderByDesc('hechos.fecha')
@@ -245,12 +255,12 @@ class EstadisticasGlobalesController extends Controller
             $out = fopen('php://output', 'w');
             fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($out, ['id', 'folio_c5i', 'fecha', 'hora', 'sector', 'municipio', 'tipo_hecho', 'situacion', 'perito', 'unidad', 'calle', 'colonia', 'entre_calles']);
+            fputcsv($out, ['id', 'folio_c5i', 'fecha', 'hora', 'sector', 'municipio', 'delegacion', 'tipo_hecho', 'situacion', 'perito', 'unidad', 'calle', 'colonia', 'entre_calles']);
 
             $q->chunk(1000, function ($rows) use ($out) {
                 foreach ($rows as $r) {
                     fputcsv($out, [
-                        $r->id, $r->folio_c5i, $r->fecha, $r->hora, $r->sector, $r->municipio,
+                        $r->id, $r->folio_c5i, $r->fecha, $r->hora, $r->sector, $r->municipio, $r->delegacion,
                         $r->tipo_hecho, $r->situacion, $r->perito, $r->unidad, $r->calle, $r->colonia, $r->entre_calles,
                     ]);
                 }

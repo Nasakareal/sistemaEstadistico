@@ -35,6 +35,17 @@ class EstadisticaMensualExporter
         $filename = "estadistica_{$desde}_{$hasta}.xlsx";
 
         $hechosQuery = DB::table('hechos')
+            ->leftJoin('users as export_creator', 'export_creator.id', '=', 'hechos.created_by')
+            ->leftJoin('delegaciones as export_delegacion', 'export_delegacion.id', '=', 'hechos.delegacion_id')
+            ->leftJoin('delegaciones as export_creator_delegacion', 'export_creator_delegacion.id', '=', 'export_creator.delegacion_id')
+            ->select([
+                'hechos.*',
+                DB::raw("CASE
+                    WHEN COALESCE(hechos.unidad_org_id, export_creator.unidad_id) = " . self::UNIDAD_DELEGACIONES_ID . "
+                    THEN COALESCE(export_delegacion.nombre, export_creator_delegacion.nombre)
+                    ELSE NULL
+                END as delegacion"),
+            ])
             ->whereBetween('hechos.fecha', [$desde, $hasta]);
 
         $this->applyScopeByUser($hechosQuery, $request);
@@ -114,7 +125,7 @@ class EstadisticaMensualExporter
                 'coordenadas','sector','resuelto','pendiente','superficie_via','tiempo','clima','condiciones',
                 'cont_transito','circunstancias','colision_sob_cam','tipo_vehiculo','otras_causas','otros',
                 'perito','unidad','situacion','oficio_mp','personasmp','vehiculosmp','reporte',
-                'id_usuario','calidad_geo','nota_geo'
+                'id_usuario','calidad_geo','nota_geo','delegacion'
             ];
             $sheet1->fromArray($headersIncidentes, null, 'A1');
 
@@ -172,6 +183,7 @@ class EstadisticaMensualExporter
                     $h->created_by ?? '\N',
                     $h->calidad_geo ?? '\N',
                     $h->nota_geo ?? 'sin uso',
+                    $h->delegacion ?? '',
                 ], null, "A{$row}");
 
                 $row++;

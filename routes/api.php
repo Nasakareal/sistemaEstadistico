@@ -478,12 +478,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/series/personas-detenidas', [EstadisticasActividadesController::class, 'seriesPersonasDetenidas'])->name('api.estadisticas_actividades.series.personas_detenidas');
         Route::get('/series/km-recorridos', [EstadisticasActividadesController::class, 'seriesKmRecorridos'])->name('api.estadisticas_actividades.series.km_recorridos');
         Route::get('/puestas-disposicion', [EstadisticasActividadesController::class, 'puestasDisposicion'])->name('api.estadisticas_actividades.puestas_disposicion');
+        Route::get('/series/personas-actividad-edades', [EstadisticasActividadesController::class, 'seriesActividadPersonasEdad'])->name('api.estadisticas_actividades.series.personas_actividad_edades');
+        Route::get('/series/articulos', [EstadisticasActividadesController::class, 'seriesArticulos'])->name('api.estadisticas_actividades.series.articulos');
         Route::get('/actividades', [EstadisticasActividadesController::class, 'actividades'])->name('api.estadisticas_actividades.actividades');
         Route::get('/catalogos/categorias', [EstadisticasActividadesController::class, 'catalogoCategorias'])->name('api.estadisticas_actividades.catalogos.categorias');
         Route::get('/catalogos/subcategorias', [EstadisticasActividadesController::class, 'catalogoSubcategorias'])->name('api.estadisticas_actividades.catalogos.subcategorias');
         Route::get('/catalogos/unidades', [EstadisticasActividadesController::class, 'catalogoUnidades'])->name('api.estadisticas_actividades.catalogos.unidades');
         Route::get('/catalogos/delegaciones', [EstadisticasActividadesController::class, 'catalogoDelegaciones'])->name('api.estadisticas_actividades.catalogos.delegaciones');
         Route::get('/catalogos/destacamentos', [EstadisticasActividadesController::class, 'catalogoDestacamentos'])->name('api.estadisticas_actividades.catalogos.destacamentos');
+        Route::get('/catalogos/articulos', [EstadisticasActividadesController::class, 'catalogoArticulos'])->name('api.estadisticas_actividades.catalogos.articulos');
         Route::get('/export/actividades', [EstadisticasActividadesController::class, 'exportActividades'])->name('api.estadisticas_actividades.export.actividades');
         Route::get('/export/mensual', [EstadisticasActividadesController::class, 'exportMensual'])->name('api.estadisticas_actividades.export.mensual');
         Route::get('/export/fomento-cultura-vial', [EstadisticasActividadesController::class, 'exportFomentoCulturaVial'])->name('api.estadisticas_actividades.export.fomento_cultura_vial');

@@ -109,6 +109,13 @@
                         </div>
 
                         <div class="sv-field">
+                            <label>Artículo</label>
+                            <select id="f_articulo" class="form-control form-control-sm">
+                                <option value="">(Todos)</option>
+                            </select>
+                        </div>
+
+                        <div class="sv-field">
                             <label>Municipio</label>
                             <select id="f_municipio" class="form-control form-control-sm">
                                 <option value="">(Todos)</option>
@@ -178,7 +185,7 @@
                     </div>
 
                     <div class="sv-hint">
-                        * Puedes consultar actividades y puestas por unidad. Seguridad Vial queda fuera del catálogo operativo; los campos de edad filtran únicamente las personas y puestas a disposición.
+                        * La edad filtra tanto actividades como puestas a disposición según las personas registradas. El artículo permite analizar las revisiones y recomendaciones por fundamento legal.
                     </div>
                 </div>
             </div>
@@ -192,6 +199,16 @@
                 <div class="sv-kpi__body">
                     <div class="sv-kpi__label">Actividades</div>
                     <div class="sv-kpi__value" id="k_actividades">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 col-12">
+            <div class="sv-kpi">
+                <div class="sv-kpi__icon bg-olive"><i class="fa-solid fa-user-shield"></i></div>
+                <div class="sv-kpi__body">
+                    <div class="sv-kpi__label">Personas en actividades</div>
+                    <div class="sv-kpi__value" id="k_personas_actividades">—</div>
                 </div>
             </div>
         </div>
@@ -347,12 +364,14 @@
                                     <th>Delegación</th>
                                     <th>Categoría</th>
                                     <th>Subcategoría</th>
+                                    <th>Personas atendidas</th>
+                                    <th>Artículos</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody id="tb_actividades">
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted">Sin datos…</td>
+                                    <td colspan="9" class="text-center text-muted">Sin datos…</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -369,6 +388,42 @@
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="actividades_edades" draggable="true">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
+                    <i class="fa-solid fa-users-viewfinder"></i> Personas atendidas por edad
+                </div>
+                <div class="sv-panel__body">
+                    <canvas id="ch_actividades_edades" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="actividades_articulos" draggable="true">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
+                    <i class="fa-solid fa-scale-balanced"></i> Reportes por artículo
+                </div>
+                <div class="sv-panel__body">
+                    <canvas id="ch_actividades_articulos" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 col-12 sv-dashboard-card" data-dashboard-block="personas_articulos" draggable="true">
+            <div class="sv-panel">
+                <div class="sv-panel__title">
+                    <i class="fa-solid fa-grip-vertical sv-chart-grip" aria-hidden="true" title="Arrastra para cambiar la posición"></i>
+                    <i class="fa-solid fa-person-circle-check"></i> Personas revisadas o recomendadas por artículo
+                </div>
+                <div class="sv-panel__body">
+                    <canvas id="ch_personas_articulos" height="180"></canvas>
                 </div>
             </div>
         </div>
@@ -717,7 +772,7 @@
                 card.classList.remove('is-dragging');
                 dragging = null;
                 saveChartOrder().catch(error => console.error('No se guardó el orden de gráficas:', error));
-                [chTime, chUnidad, chCategoria, chPuestasEdades].forEach(chart => chart?.resize());
+                [chTime, chUnidad, chCategoria, chActividadesEdades, chArticulos, chPersonasArticulos, chPuestasEdades].forEach(chart => chart?.resize());
             });
         });
 
@@ -906,6 +961,7 @@
         const destacamento = val('f_destacamento');
         const categoria = val('f_categoria');
         const subcategoria = val('f_subcategoria');
+        const articulo = val('f_articulo');
         const municipio = val('f_municipio');
         const group = val('f_group');
         const q = val('f_q');
@@ -921,6 +977,7 @@
         if (destacamento) params.set('destacamento_id', destacamento);
         if (categoria) params.set('actividad_categoria_id', categoria);
         if (subcategoria) params.set('actividad_subcategoria_id', subcategoria);
+        if (articulo) params.set('articulo', articulo);
         if (municipio) params.set('municipio', municipio);
         if (group) params.set('group', group);
         if (q) params.set('q', q);
@@ -1024,6 +1081,7 @@
             'f_destacamento',
             'f_categoria',
             'f_subcategoria',
+            'f_articulo',
             'f_municipio',
             'f_group',
             'f_q',
@@ -1095,6 +1153,9 @@
     let chTime = null;
     let chUnidad = null;
     let chCategoria = null;
+    let chActividadesEdades = null;
+    let chArticulos = null;
+    let chPersonasArticulos = null;
     let chPuestasEdades = null;
 
     async function getOptionalJson(path, extra = {}, fallback = null){
@@ -1250,7 +1311,7 @@
         if (!tb) return;
 
         if (!paginated || !paginated.data || paginated.data.length === 0){
-            tb.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Sin datos…</td></tr>`;
+            tb.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Sin datos…</td></tr>`;
             if (el('pg_info')) el('pg_info').textContent = '—';
             lastPage = 1;
             return;
@@ -1267,6 +1328,12 @@
                     <td>${escapeHtml(r.delegacion ?? r.delegacion_nombre)}</td>
                     <td>${escapeHtml(r.categoria ?? r.categoria_nombre)}</td>
                     <td>${escapeHtml(r.subcategoria ?? r.subcategoria_nombre)}</td>
+                    <td>${Array.isArray(r.personas_resumen) && r.personas_resumen.length
+                        ? r.personas_resumen.map(persona => `<span class="badge badge-info mr-1 mb-1">${escapeHtml(persona)}</span>`).join('')
+                        : '<span class="text-muted">Sin registro</span>'}</td>
+                    <td>${Array.isArray(r.articulos_resumen) && r.articulos_resumen.length
+                        ? r.articulos_resumen.map(articulo => `<span class="badge badge-warning mr-1 mb-1">${escapeHtml(articulo)}</span>`).join('')
+                        : '<span class="text-muted">—</span>'}</td>
                     <td class="text-right">
                         <a class="btn btn-sm sv-btn" href="${link}">
                             <i class="fa-solid fa-eye"></i>
@@ -1384,6 +1451,7 @@
         if (el('k_km_recorridos')) el('k_km_recorridos').textContent = k.totales?.km_recorridos ?? 0;
         if (el('k_puestas')) el('k_puestas').textContent = k.totales?.puestas_disposicion ?? 0;
         if (el('k_personas_puestas')) el('k_personas_puestas').textContent = k.totales?.personas_en_puestas ?? 0;
+        if (el('k_personas_actividades')) el('k_personas_actividades').textContent = k.totales?.personas_en_actividades ?? 0;
 
         const cat = await getOptionalJson('catalogos/categorias', {}, []);
         fillSelect('f_categoria', cat.map(r => ({
@@ -1398,6 +1466,9 @@
         })), '(Todas)');
 
         toggleSubcategoria();
+
+        const articulosCatalogo = await getOptionalJson('catalogos/articulos', {}, []);
+        fillSelect('f_articulo', articulosCatalogo, '(Todos)');
 
         const deleg = await getOptionalJson('catalogos/delegaciones', {}, []);
         fillSelect('f_delegacion', deleg.map(r => ({
@@ -1448,6 +1519,33 @@
 
         const actividades = await getJson('actividades', { page, per: 5 });
         renderActividadesTable(actividades);
+
+        const edadesActividades = await getOptionalJson('series/personas-actividad-edades', {}, { series: [] });
+        const rangosActividad = edadesActividades.series || [];
+        chActividadesEdades = mountOrUpdateChart(
+            'ch_actividades_edades',
+            chActividadesEdades,
+            'bar',
+            rangosActividad.map(r => r.label),
+            rangosActividad.map(r => Number(r.total || 0))
+        );
+
+        const articulos = await getOptionalJson('series/articulos', {}, { series: [] });
+        const articulosRows = articulos.series || [];
+        chArticulos = mountOrUpdateChart(
+            'ch_actividades_articulos',
+            chArticulos,
+            'bar',
+            articulosRows.map(r => r.label),
+            articulosRows.map(r => Number(r.reportes || 0))
+        );
+        chPersonasArticulos = mountOrUpdateChart(
+            'ch_personas_articulos',
+            chPersonasArticulos,
+            'bar',
+            articulosRows.map(r => r.label),
+            articulosRows.map(r => Number(r.personas || 0))
+        );
 
         const edadesPuestas = await getOptionalJson('series/puestas-personas-edades', {}, { series: [] });
         const rangosEdad = edadesPuestas.series || [];
@@ -1596,7 +1694,7 @@
 
     const automaticFilterIds = [
         'f_desde', 'f_hora_desde', 'f_hasta', 'f_hora_hasta',
-        'f_unidad', 'f_delegacion', 'f_destacamento', 'f_subcategoria',
+        'f_unidad', 'f_delegacion', 'f_destacamento', 'f_subcategoria', 'f_articulo',
         'f_municipio', 'f_group', 'f_edad_min', 'f_edad_max'
     ];
 

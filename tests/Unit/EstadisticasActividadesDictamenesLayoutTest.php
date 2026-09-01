@@ -57,6 +57,9 @@ class EstadisticasActividadesDictamenesLayoutTest extends TestCase
         $order = [
             'actividades_filtradas',
             'resumen_categorias',
+            'actividades_edades',
+            'actividades_articulos',
+            'personas_articulos',
             'puestas_edades',
             'actividades_categoria',
             'actividades_unidad',
@@ -93,6 +96,9 @@ class EstadisticasActividadesDictamenesLayoutTest extends TestCase
             'actividades_categoria',
             'resumen_categorias',
             'actividades_filtradas',
+            'actividades_edades',
+            'actividades_articulos',
+            'personas_articulos',
             'puestas_edades',
             'puestas_filtradas',
         ] as $block) {
@@ -137,8 +143,11 @@ class EstadisticasActividadesDictamenesLayoutTest extends TestCase
         $this->assertSame([
             'resumen_categorias',
             'actividades_filtradas',
+            'actividades_edades',
+            'actividades_articulos',
+            'personas_articulos',
             'puestas_filtradas',
         ], array_values(array_diff($order, $oldOrder)));
-        $this->assertCount(7, $order);
+        $this->assertCount(10, $order);
     }
 }

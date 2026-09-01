@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -22,6 +23,9 @@ class EstadisticasActividadesController extends Controller
         'actividades_categoria',
         'resumen_categorias',
         'actividades_filtradas',
+        'actividades_edades',
+        'actividades_articulos',
+        'personas_articulos',
         'puestas_edades',
         'puestas_filtradas',
     ];
@@ -88,6 +92,13 @@ class EstadisticasActividadesController extends Controller
             $kmRecorridos = (clone $q)->sum('actividades.km_recorridos');
             $totalPuestas = 0;
             $personasEnPuestas = 0;
+            $personasEnActividades = 0;
+
+            if ($this->hasTable('actividad_personas')) {
+                $personasQuery = $this->baseActividadPersonasQuery($request);
+                $this->applySearchFilter($personasQuery, $request);
+                $personasEnActividades = (int)$personasQuery->distinct('personas_actividad.id')->count('personas_actividad.id');
+            }
 
             if ($this->hasTable('puestas_disposicion')) {
                 $totalPuestas = (int)$this->basePuestasQuery($request)
@@ -132,6 +143,7 @@ class EstadisticasActividadesController extends Controller
                     'km_recorridos' => (float)$kmRecorridos,
                     'puestas_disposicion' => $totalPuestas,
                     'personas_en_puestas' => $personasEnPuestas,
+                    'personas_en_actividades' => $personasEnActividades,
                 ],
                 'top' => [
                     'categorias' => $porCategoria,
@@ -331,7 +343,35 @@ class EstadisticasActividadesController extends Controller
                 ->orderByDesc('actividades.hora')
                 ->orderByDesc('actividades.id');
 
-            return $q->paginate($per)->toArray();
+            $paginated = $q->paginate($per);
+            $activityIds = $paginated->getCollection()->pluck('id')->map(fn ($id) => (int)$id)->all();
+            $personas = collect();
+
+            if ($activityIds !== [] && $this->hasTable('actividad_personas')) {
+                $personasQuery = DB::table('actividad_personas')
+                    ->whereIn('actividad_id', $activityIds);
+                $this->applyActividadAgeFilter($personasQuery, $request, 'actividad_personas');
+                $personas = $personasQuery
+                    ->orderBy('id')
+                    ->get(['actividad_id', 'nombre', 'edad'])
+                    ->groupBy('actividad_id');
+            }
+
+            $catalogo = $this->articleCatalogById();
+            $paginated->setCollection($paginated->getCollection()->map(function ($row) use ($personas, $catalogo) {
+                $row->personas_resumen = collect($personas->get($row->id, []))
+                    ->map(fn ($persona) => trim((string)$persona->nombre) . ($persona->edad !== null ? ' (' . (int)$persona->edad . ')' : ''))
+                    ->filter()
+                    ->values()
+                    ->all();
+                $row->articulos_resumen = $this->activityArticles($row->infracciones_actividad ?? null, $catalogo)
+                    ->map(fn ($article) => $article['label'])
+                    ->values()
+                    ->all();
+                return $row;
+            }));
+
+            return $paginated->toArray();
         });
     }
 
@@ -441,6 +481,117 @@ class EstadisticasActividadesController extends Controller
                 'total' => (int)$series->sum('total'),
                 'series' => $series,
             ];
+        });
+    }
+
+    public function seriesActividadPersonasEdad(Request $request)
+    {
+        return $this->cachedJson($request, 'seriesActividadPersonasEdad', function () use ($request) {
+            if (!$this->hasTable('actividad_personas')) {
+                return ['total' => 0, 'series' => []];
+            }
+
+            $label = "CASE
+                WHEN personas_actividad.edad IS NULL THEN 'SIN EDAD'
+                WHEN personas_actividad.edad BETWEEN 0 AND 11 THEN '0-11'
+                WHEN personas_actividad.edad BETWEEN 12 AND 17 THEN '12-17'
+                WHEN personas_actividad.edad BETWEEN 18 AND 29 THEN '18-29'
+                WHEN personas_actividad.edad BETWEEN 30 AND 44 THEN '30-44'
+                WHEN personas_actividad.edad BETWEEN 45 AND 59 THEN '45-59'
+                WHEN personas_actividad.edad >= 60 THEN '60+'
+                ELSE 'SIN EDAD'
+            END";
+
+            $q = $this->baseActividadPersonasQuery($request);
+            $this->applySearchFilter($q, $request);
+            $totales = $q
+                ->selectRaw("{$label} as label, COUNT(DISTINCT personas_actividad.id) as total")
+                ->groupByRaw($label)
+                ->get()
+                ->pluck('total', 'label');
+
+            $series = collect(['0-11', '12-17', '18-29', '30-44', '45-59', '60+', 'SIN EDAD'])
+                ->map(fn ($rango) => ['label' => $rango, 'total' => (int)($totales[$rango] ?? 0)]);
+
+            return ['total' => (int)$series->sum('total'), 'series' => $series];
+        });
+    }
+
+    public function seriesArticulos(Request $request)
+    {
+        return $this->cachedJson($request, 'seriesArticulos', function () use ($request) {
+            if (!$this->hasColumn('actividades', 'infracciones_actividad')) {
+                return ['total_reportes' => 0, 'total_personas' => 0, 'series' => []];
+            }
+
+            $catalogo = $this->articleCatalogById();
+            $estadisticas = [];
+            $q = $this->baseActividadesQuery($request);
+            $this->applySearchFilter($q, $request);
+
+            $q->select('actividades.id', 'actividades.infracciones_actividad')
+                ->orderBy('actividades.id')
+                ->chunkById(500, function ($actividades) use (&$estadisticas, $catalogo, $request) {
+                    $ids = $actividades->pluck('id')->map(fn ($id) => (int)$id)->all();
+                    $personas = collect();
+
+                    if ($ids !== [] && $this->hasTable('actividad_personas')) {
+                        $personasQuery = DB::table('actividad_personas')
+                            ->whereIn('actividad_id', $ids);
+                        $this->applyActividadAgeFilter($personasQuery, $request, 'actividad_personas');
+                        $personas = $personasQuery
+                            ->selectRaw('actividad_id, COUNT(*) as total')
+                            ->groupBy('actividad_id')
+                            ->pluck('total', 'actividad_id');
+                    }
+
+                    foreach ($actividades as $actividad) {
+                        $articleRows = $this->activityArticles($actividad->infracciones_actividad, $catalogo);
+                        foreach ($articleRows as $article) {
+                            $key = $article['article'];
+                            $estadisticas[$key] ??= [
+                                'article' => $key,
+                                'label' => $article['label'],
+                                'reportes' => 0,
+                                'personas' => 0,
+                            ];
+                            $estadisticas[$key]['reportes']++;
+                            $estadisticas[$key]['personas'] += (int)($personas[$actividad->id] ?? 0);
+                        }
+                    }
+                }, 'actividades.id', 'id');
+
+            $allSeries = collect($estadisticas)
+                ->sort(function ($a, $b) {
+                    $byReports = $b['reportes'] <=> $a['reportes'];
+                    return $byReports !== 0 ? $byReports : strnatcasecmp($a['article'], $b['article']);
+                })
+                ->values();
+            $series = $allSeries->take(30)->values();
+
+            return [
+                'total_reportes' => (int)$allSeries->sum('reportes'),
+                'total_personas' => (int)$allSeries->sum('personas'),
+                'series' => $series,
+            ];
+        });
+    }
+
+    public function catalogoArticulos(Request $request)
+    {
+        return $this->cachedJson($request, 'catalogoArticulos', function () {
+            if (!$this->hasTable('licencia_punto_infracciones')) {
+                return [];
+            }
+
+            return DB::table('licencia_punto_infracciones')
+                ->where('activa', 1)
+                ->whereNotNull('articulo')
+                ->whereRaw("TRIM(articulo) <> ''")
+                ->selectRaw("TRIM(articulo) as value, CONCAT('Artículo ', TRIM(articulo)) as label")
+                ->distinct()
+                ->orderByRaw("CAST(TRIM(articulo) AS UNSIGNED), TRIM(articulo)")
+                ->get();
         });
     }
 
@@ -1077,6 +1228,17 @@ class EstadisticasActividadesController extends Controller
         return $q;
     }
 
+    private function baseActividadPersonasQuery(Request $request)
+    {
+        $q = DB::table('actividad_personas as personas_actividad')
+            ->join('actividades', 'actividades.id', '=', 'personas_actividad.actividad_id');
+
+        $this->applyActividadesFilters($q, $request);
+        $this->applyActividadAgeFilter($q, $request, 'personas_actividad');
+
+        return $q;
+    }
+
     private function baseDictamenesComoPuestasQuery(Request $request)
     {
         $q = DB::table('dictamens')
@@ -1107,7 +1269,7 @@ class EstadisticasActividadesController extends Controller
             $q->whereRaw('1 = 0');
         }
 
-        foreach (['delegacion_id', 'destacamento_id', 'actividad_categoria_id', 'actividad_subcategoria_id'] as $param) {
+        foreach (['delegacion_id', 'destacamento_id', 'actividad_categoria_id', 'actividad_subcategoria_id', 'articulo'] as $param) {
             if (trim((string)$request->query($param, '')) !== '') {
                 $q->whereRaw('1 = 0');
             }
@@ -1218,6 +1380,20 @@ class EstadisticasActividadesController extends Controller
             });
         }
 
+        $articulo = trim((string)$request->query('articulo', ''));
+        if ($articulo !== '') {
+            if ($this->hasColumn('puestas_disposicion', 'actividad_id')) {
+                $q->whereExists(function ($actividad) use ($articulo) {
+                    $actividad->selectRaw('1')
+                        ->from('actividades as actividad_puesta_articulo')
+                        ->whereColumn('actividad_puesta_articulo.id', 'puestas_disposicion.actividad_id');
+                    $this->applyArticleFilter($actividad, $articulo, 'actividad_puesta_articulo.infracciones_actividad');
+                });
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        }
+
         $search = mb_substr(trim((string)$request->query('q', '')), 0, 150, 'UTF-8');
         if ($search !== '') {
             $like = '%' . $search . '%';
@@ -1291,6 +1467,20 @@ class EstadisticasActividadesController extends Controller
 
         if ($max !== '' && is_numeric($max)) {
             $q->whereRaw("{$edad} <= ?", [min(130, (int)$max)]);
+        }
+    }
+
+    private function applyActividadAgeFilter($q, Request $request, string $alias): void
+    {
+        $min = trim((string)$request->query('edad_min', ''));
+        $max = trim((string)$request->query('edad_max', ''));
+
+        if ($min !== '' && is_numeric($min)) {
+            $q->where("{$alias}.edad", '>=', max(0, (int)$min));
+        }
+
+        if ($max !== '' && is_numeric($max)) {
+            $q->where("{$alias}.edad", '<=', min(130, (int)$max));
         }
     }
 
@@ -1400,6 +1590,56 @@ class EstadisticasActividadesController extends Controller
                 $q->where($col, $val);
             }
         }
+
+        if ($this->hasPuestasAgeFilter($request)) {
+            if ($this->hasTable('actividad_personas')) {
+                $q->whereExists(function ($personas) use ($request) {
+                    $personas->selectRaw('1')
+                        ->from('actividad_personas as persona_edad_actividad')
+                        ->whereColumn('persona_edad_actividad.actividad_id', 'actividades.id');
+                    $this->applyActividadAgeFilter($personas, $request, 'persona_edad_actividad');
+                });
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        }
+
+        $articulo = trim((string)$request->query('articulo', ''));
+        if ($articulo !== '') {
+            $this->applyArticleFilter($q, $articulo, 'actividades.infracciones_actividad');
+        }
+    }
+
+    private function applyArticleFilter($q, string $articulo, string $jsonColumn): void
+    {
+        if (!$this->hasTable('licencia_punto_infracciones')) {
+            $q->whereRaw('1 = 0');
+            return;
+        }
+
+        $fundamentoIds = DB::table('licencia_punto_infracciones')
+            ->where('articulo', $articulo)
+            ->pluck('id')
+            ->map(fn ($id) => (int)$id)
+            ->all();
+
+        if ($fundamentoIds === []) {
+            $q->whereRaw('1 = 0');
+            return;
+        }
+
+        $q->where(function ($articles) use ($fundamentoIds, $articulo, $jsonColumn) {
+            foreach ($fundamentoIds as $id) {
+                $articles->orWhereRaw(
+                    "JSON_CONTAINS({$jsonColumn}, ?)",
+                    [json_encode(['id' => $id])]
+                );
+            }
+            $articles->orWhereRaw(
+                "JSON_SEARCH({$jsonColumn}, 'one', ?, NULL, '$[*].articulo') IS NOT NULL",
+                [$articulo]
+            );
+        });
     }
 
     private function applySearchFilter($q, Request $request)
@@ -1421,8 +1661,67 @@ class EstadisticasActividadesController extends Controller
                 ->orWhere('actividades.acciones_realizadas', 'like', "%$search%")
                 ->orWhere('actividades.observaciones', 'like', "%$search%")
                 ->orWhere('actividades.elementos_participantes_texto', 'like', "%$search%")
-                ->orWhere('actividades.patrullas_participantes_texto', 'like', "%$search%");
+                ->orWhere('actividades.patrullas_participantes_texto', 'like', "%$search%")
+                ->orWhere('actividades.infracciones_actividad', 'like', "%$search%");
+
+            if ($this->hasTable('actividad_personas')) {
+                $qq->orWhereExists(function ($personas) use ($search) {
+                    $personas->selectRaw('1')
+                        ->from('actividad_personas as persona_busqueda_actividad')
+                        ->whereColumn('persona_busqueda_actividad.actividad_id', 'actividades.id')
+                        ->where(function ($campos) use ($search) {
+                            $campos->where('persona_busqueda_actividad.nombre', 'like', "%$search%")
+                                ->orWhere('persona_busqueda_actividad.telefono', 'like', "%$search%")
+                                ->orWhere('persona_busqueda_actividad.domicilio', 'like', "%$search%");
+                        });
+                });
+            }
         });
+    }
+
+    private function articleCatalogById(): Collection
+    {
+        if (!$this->hasTable('licencia_punto_infracciones')) {
+            return collect();
+        }
+
+        return DB::table('licencia_punto_infracciones')
+            ->select('id', 'articulo', 'fraccion', 'inciso', 'codigo')
+            ->get()
+            ->keyBy('id');
+    }
+
+    private function activityArticles($raw, Collection $catalogo): Collection
+    {
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+
+        if (!is_array($raw)) {
+            return collect();
+        }
+
+        return collect($raw)
+            ->filter(fn ($item) => is_array($item))
+            ->map(function (array $item) use ($catalogo) {
+                $catalogRow = isset($item['id']) ? $catalogo->get((int)$item['id']) : null;
+                $article = trim((string)($item['articulo'] ?? ($catalogRow->articulo ?? '')));
+
+                if ($article === '') {
+                    $reference = trim((string)($item['referencia_legal_corta'] ?? $item['codigo'] ?? ''));
+                    if (preg_match('/(?:ART(?:ICULO)?\.?\s*)?([0-9]{1,4}(?:\s*(?:BIS|TER))?)/iu', $reference, $match)) {
+                        $article = trim((string)$match[1]);
+                    }
+                }
+
+                return $article === '' ? null : [
+                    'article' => $article,
+                    'label' => 'Artículo ' . $article,
+                ];
+            })
+            ->filter()
+            ->unique('article')
+            ->values();
     }
 
     private function distributionActividades(Request $request, string $field)

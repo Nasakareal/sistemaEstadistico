@@ -1983,6 +1983,9 @@ class ActividadController extends Controller
             return [
                 'id' => $fundamento->id,
                 'codigo' => $this->textoNullable($fundamento->codigo),
+                'articulo' => $this->textoNullable($fundamento->articulo),
+                'fraccion' => $this->textoNullable($fundamento->fraccion),
+                'inciso' => $this->textoNullable($fundamento->inciso),
                 'nombre' => $this->textoNullable($fundamento->nombre) ?: 'Fundamento legal',
                 'etiqueta_operativa' => $this->textoNullable($fundamento->etiqueta_operativa),
                 'texto_operativo' => $this->textoNullable($fundamento->texto_operativo),

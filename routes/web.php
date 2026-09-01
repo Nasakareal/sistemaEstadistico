@@ -401,6 +401,8 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
     Route::get('/series/personas-detenidas',[EstadisticasActividadesController::class,'seriesPersonasDetenidas'])->name('estadisticas_actividades.series.personas_detenidas');
     Route::get('/series/km-recorridos',[EstadisticasActividadesController::class,'seriesKmRecorridos'])->name('estadisticas_actividades.series.km_recorridos');
     Route::get('/series/puestas-personas-edades',[EstadisticasActividadesController::class,'seriesPuestasPersonasEdad'])->name('estadisticas_actividades.series.puestas_personas_edades');
+    Route::get('/series/personas-actividad-edades',[EstadisticasActividadesController::class,'seriesActividadPersonasEdad'])->name('estadisticas_actividades.series.personas_actividad_edades');
+    Route::get('/series/articulos',[EstadisticasActividadesController::class,'seriesArticulos'])->name('estadisticas_actividades.series.articulos');
 
     Route::get('/puestas-disposicion',[EstadisticasActividadesController::class,'puestasDisposicion'])->name('estadisticas_actividades.puestas_disposicion');
     Route::get('/actividades',[EstadisticasActividadesController::class,'actividades'])->name('estadisticas_actividades.actividades');
@@ -410,6 +412,7 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
     Route::get('/catalogos/unidades',[EstadisticasActividadesController::class,'catalogoUnidades'])->name('estadisticas_actividades.catalogos.unidades');
     Route::get('/catalogos/delegaciones',[EstadisticasActividadesController::class,'catalogoDelegaciones'])->name('estadisticas_actividades.catalogos.delegaciones');
     Route::get('/catalogos/destacamentos',[EstadisticasActividadesController::class,'catalogoDestacamentos'])->name('estadisticas_actividades.catalogos.destacamentos');
+    Route::get('/catalogos/articulos',[EstadisticasActividadesController::class,'catalogoArticulos'])->name('estadisticas_actividades.catalogos.articulos');
 
     Route::get('/export/actividades',[EstadisticasActividadesController::class,'exportActividades'])->name('estadisticas_actividades.export.actividades');
     Route::get('/export/mensual',[EstadisticasActividadesController::class,'exportMensual'])->name('estadisticas_actividades.export.mensual');

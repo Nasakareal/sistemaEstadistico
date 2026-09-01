@@ -64,6 +64,9 @@ class ActividadCorralonInfraccionService
             $resultado[] = [
                 'id' => (int) $infraccion->id,
                 'codigo' => $this->nullable($infraccion->codigo),
+                'articulo' => $this->nullable($infraccion->articulo),
+                'fraccion' => $this->nullable($infraccion->fraccion),
+                'inciso' => $this->nullable($infraccion->inciso),
                 'nombre' => $this->nullable($infraccion->nombre) ?: 'Infracción',
                 'etiqueta_operativa' => $this->nullable($infraccion->etiqueta_operativa),
                 'texto_operativo' => $this->nullable($infraccion->texto_operativo),

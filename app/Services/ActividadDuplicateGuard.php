@@ -27,7 +27,6 @@ class ActividadDuplicateGuard
         'kilometro',
         'lat',
         'lng',
-        'km_recorridos',
         'coordenadas_texto',
         'motivo',
         'narrativa',
@@ -56,6 +55,13 @@ class ActividadDuplicateGuard
         'patrullas_participantes_texto',
     ];
 
+    private const SUBMISSION_NESTED_FIELDS = [
+        'vehiculos',
+        'conduce_legalidad_fundamentos',
+        'actividad_infracciones',
+        'fomento',
+    ];
+
     public function hashUploadedFiles(iterable $files): array
     {
         $hashes = [];
@@ -82,6 +88,60 @@ class ActividadDuplicateGuard
         $hashes = array_values(array_filter($hashes));
 
         return count($hashes) !== count(array_unique($hashes));
+    }
+
+    /**
+     * Identifies the content of one mobile submission independently from its
+     * client UUID. A genuinely new capture still keeps its own new UUID.
+     */
+    public function submissionFingerprint(int $userId, array $payload, array $fotoHashes): string
+    {
+        $normalized = [];
+
+        foreach (self::FINGERPRINT_FIELDS as $field) {
+            $normalized[$field] = $this->normalizedValue($field, $payload[$field] ?? null);
+        }
+
+        foreach (self::SUBMISSION_NESTED_FIELDS as $field) {
+            $normalized[$field] = $this->normalizedStructure($payload[$field] ?? null);
+        }
+
+        $hashes = array_values(array_unique(array_filter(array_map('strval', $fotoHashes))));
+        sort($hashes, SORT_STRING);
+
+        return hash('sha256', json_encode([
+            'created_by' => $userId,
+            'payload' => $normalized,
+            'foto_hashes' => $hashes,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function normalizedStructure($value)
+    {
+        if (!is_array($value)) {
+            return is_string($value)
+                ? $this->normalizedValue('text', $value)
+                : $value;
+        }
+
+        $normalized = [];
+
+        foreach ($value as $key => $item) {
+            if ((string) $key === 'client_uuid') {
+                continue;
+            }
+
+            $normalized[$key] = $this->normalizedStructure($item);
+        }
+
+        $isList = $normalized === []
+            || array_keys($normalized) === range(0, count($normalized) - 1);
+
+        if (!$isList) {
+            ksort($normalized, SORT_STRING);
+        }
+
+        return $normalized;
     }
 
     public function findRecentDuplicate(int $userId, array $payload, array $fotoHashes, ?int $exceptActividadId = null): ?Actividad

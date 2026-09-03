@@ -24,6 +24,7 @@ use App\Support\ActividadVehiculoCaptura;
 use App\Support\HechoAccess;
 use App\Support\GruaEditGuard;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -227,27 +228,7 @@ class ActividadController extends Controller
                 ->first();
 
             if ($actividadExistente) {
-                $actividadExistente->load([
-                    'categoria',
-                    'subcategoria',
-                    'unidad',
-                    'delegacion',
-                    'destacamento',
-                    'fotos',
-                    'vehiculos',
-                    'fomentoCulturaVialDetalle',
-                ]);
-
-                return response()->json([
-                    'ok' => true,
-                    'message' => 'Actividad ya existente.',
-                    'created' => false,
-                    'data' => $this->withFotoUrls($actividadExistente),
-                    'meta' => [
-                        'id' => $actividadExistente->id,
-                        'client_uuid' => $actividadExistente->client_uuid,
-                    ],
-                ], 200);
+                return $this->actividadExistenteResponse($actividadExistente);
             }
         }
 
@@ -383,21 +364,38 @@ class ActividadController extends Controller
             'delegacion_id' => $delegacionId,
         ]);
 
-        if ($duplicateGuard->findRecentDuplicate((int) $user->id, $duplicatePayload, $fotoHashes)) {
-            return response()->json([
-                'ok' => false,
-                'message' => ActividadDuplicateGuard::MESSAGE,
-                'errors' => [
-                    'fotos' => [ActividadDuplicateGuard::MESSAGE],
-                ],
-            ], 422);
+        $submissionFingerprint = $duplicateGuard->submissionFingerprint(
+            (int) $user->id,
+            $duplicatePayload,
+            $fotoHashes
+        );
+
+        $actividadExistente = Actividad::query()
+            ->where('submission_fingerprint', $submissionFingerprint)
+            ->first();
+
+        if (!$actividadExistente) {
+            $actividadExistente = $duplicateGuard->findRecentDuplicate(
+                (int) $user->id,
+                $duplicatePayload,
+                $fotoHashes
+            );
+        }
+
+        if ($actividadExistente) {
+            return $this->actividadExistenteResponse(
+                $actividadExistente,
+                'Esta actividad ya estaba registrada. No se creó otra copia.'
+            );
         }
 
         $fomentoManager = app(FomentoCulturaVialDetalleManager::class);
 
-        return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync, $infraccionesCorralon) {
-            $actividad = Actividad::create([
+        try {
+            return DB::transaction(function () use ($archivos, $fotoHashes, $validated, $nombre, $cantidad, $user, $unidadOrg, $delegacionId, $fecha, $hora, $fomentoManager, $conduceSync, $infraccionesCorralon, $submissionFingerprint) {
+                $actividad = Actividad::create([
                 'client_uuid' => !empty($validated['client_uuid']) ? $validated['client_uuid'] : (string) Str::uuid(),
+                'submission_fingerprint' => $submissionFingerprint,
                 'folio_c5i' => $this->toUpperOrNull($validated['folio_c5i'] ?? null),
                 'sync_status' => 'local',
                 'sync_error' => null,
@@ -521,17 +519,71 @@ class ActividadController extends Controller
                 'fomentoCulturaVialDetalle',
             ]);
 
-            return response()->json([
-                'ok' => true,
-                'message' => 'Actividad creada correctamente.',
-                'created' => true,
-                'data' => $this->withFotoUrls($actividad),
-                'meta' => [
-                    'id' => $actividad->id,
-                    'client_uuid' => $actividad->client_uuid,
-                ],
-            ], 201);
-        });
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Actividad creada correctamente.',
+                    'created' => true,
+                    'data' => $this->withFotoUrls($actividad),
+                    'meta' => [
+                        'id' => $actividad->id,
+                        'client_uuid' => $actividad->client_uuid,
+                    ],
+                ], 201);
+            });
+        } catch (QueryException $e) {
+            if (!$this->isUniqueConstraintViolation($e)) {
+                throw $e;
+            }
+
+            $actividadExistente = Actividad::query()
+                ->where('submission_fingerprint', $submissionFingerprint)
+                ->when(!empty($validated['client_uuid']), function ($query) use ($validated) {
+                    $query->orWhere('client_uuid', $validated['client_uuid']);
+                })
+                ->first();
+
+            if (!$actividadExistente) {
+                throw $e;
+            }
+
+            return $this->actividadExistenteResponse(
+                $actividadExistente,
+                'Esta actividad ya estaba registrada. No se creó otra copia.'
+            );
+        }
+    }
+
+    private function actividadExistenteResponse(Actividad $actividad, string $message = 'Actividad ya existente.')
+    {
+        $actividad->load([
+            'categoria',
+            'subcategoria',
+            'unidad',
+            'delegacion',
+            'destacamento',
+            'fotos',
+            'vehiculos',
+            'fomentoCulturaVialDetalle',
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'message' => $message,
+            'created' => false,
+            'duplicate' => true,
+            'data' => $this->withFotoUrls($actividad),
+            'meta' => [
+                'id' => $actividad->id,
+                'client_uuid' => $actividad->client_uuid,
+            ],
+        ], 200);
+    }
+
+    private function isUniqueConstraintViolation(QueryException $e): bool
+    {
+        $sqlState = (string) ($e->errorInfo[0] ?? $e->getCode());
+
+        return in_array($sqlState, ['23000', '23505'], true);
     }
 
     public function show(Actividad $actividad)

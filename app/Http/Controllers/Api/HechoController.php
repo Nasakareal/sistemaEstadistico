@@ -320,35 +320,33 @@ class HechoController extends Controller
             ], 403);
         }
 
+        $this->normalizeCatalogFields($request);
+        $photoHashes = app(\App\Services\ActividadDuplicateGuard::class)->hashUploadedFiles([
+            $request->file('foto_lugar'), $request->file('foto_lugar_2'), $request->file('foto_situacion'),
+        ]);
+        $fingerprint = app(\App\Services\HechoDuplicateGuard::class)->fingerprint(
+            (int) $user->id, $request->all(), $photoHashes
+        );
         $clientUuid = trim((string) $request->input('client_uuid', ''));
+        $hechoExistente = Hechos::query()->where('submission_fingerprint', $fingerprint)->first();
         if ($clientUuid !== '') {
-            $hechoExistente = Hechos::query()
-                ->where('client_uuid', $clientUuid)
-                ->first();
-
-            if ($hechoExistente) {
-                if (!HechoAccess::canView($user, $hechoExistente)) {
+            $byUuid = Hechos::query()->where('client_uuid', $clientUuid)->first();
+            if ($byUuid) {
+                $matches = $byUuid->submission_fingerprint
+                    ? $byUuid->submission_fingerprint === $fingerprint
+                    : app(\App\Services\HechoDuplicateGuard::class)->legacyMatches($request->all(), $byUuid->getAttributes());
+                if (!$matches) {
                     return response()->json([
-                        'message' => 'No tienes permiso para consultar este hecho.',
-                    ], 403);
+                        'message' => 'Esta captura ya fue enviada con otros datos. No se modificó el hecho anterior. Abre el hecho guardado para continuar, o elige Nuevo hecho para otro evento.',
+                        'code' => 'capture_already_submitted',
+                    ], 409);
                 }
-
-                $hechoExistente->load(['vehiculos.conductores', 'lesionados']);
-
-                return response()->json([
-                    'message' => 'Hecho ya existente.',
-                    'created' => false,
-                    'data' => $this->withFotoUrls($hechoExistente),
-                    'meta' => [
-                        'id' => $hechoExistente->id,
-                        'client_uuid' => $hechoExistente->client_uuid,
-                    ],
-                ], 200);
+                $hechoExistente = $byUuid;
             }
         }
-
-        $this->normalizeCatalogFields($request);
-
+        if ($hechoExistente) {
+            return $this->existingCreateResponse($user, $hechoExistente);
+        }
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
@@ -361,7 +359,7 @@ class HechoController extends Controller
             : ['required', 'string', Rule::in(self::SECTORES)];
 
         $rules = [
-            'client_uuid' => ['sometimes', 'nullable', 'string', 'max:36', Rule::unique('hechos', 'client_uuid')],
+            'client_uuid' => ['sometimes', 'nullable', 'string', 'max:36'],
             'folio_c5i' => $reglaFolio,
             'perito' => 'required|string|max:255',
             'autorizacion_practico' => 'nullable|string|max:255',
@@ -521,6 +519,7 @@ class HechoController extends Controller
             $validated['personas_mp'] = 0;
         }
 
+        $validated['submission_fingerprint'] = $fingerprint;
         $validated['calle_norm'] = StreetNormalizer::normalize($validated['calle'] ?? null);
         $validated['codigo_postal'] = app(CodigoPostalGeoService::class)
             ->resolver($validated['lat'] ?? null, $validated['lng'] ?? null);
@@ -591,6 +590,15 @@ class HechoController extends Controller
             $fotoStorage->delete($newFotoLugar2Path);
             $fotoStorage->delete($newFotoSituacionPath);
 
+            if ($e instanceof \Illuminate\Database\QueryException) {
+                $existing = Hechos::query()->where('submission_fingerprint', $fingerprint)->first();
+                if (!$existing && $clientUuid !== '') {
+                    $existing = Hechos::query()->where('client_uuid', $clientUuid)->first();
+                }
+                if ($existing) {
+                    return $this->existingCreateResponse($user, $existing);
+                }
+            }
             return response()->json([
                 'message' => $e->getMessage(),
                 'errors' => [
@@ -616,6 +624,20 @@ class HechoController extends Controller
         ], 201);
     }
 
+    private function existingCreateResponse($user, Hechos $hecho)
+    {
+        if (!HechoAccess::canView($user, $hecho)) {
+            return response()->json(['message' => 'No tienes permiso para consultar este hecho.'], 403);
+        }
+        $hecho->load(['vehiculos.conductores', 'lesionados']);
+        return response()->json([
+            'message' => 'Este hecho ya estaba guardado. No se creó otro ni se modificó el anterior.',
+            'created' => false,
+            'duplicate' => true,
+            'data' => $this->withFotoUrls($hecho),
+            'meta' => ['id' => $hecho->id, 'client_uuid' => $hecho->client_uuid],
+        ], 200);
+    }
     public function update(Request $request, Hechos $hecho)
     {
         $user = $request->user();

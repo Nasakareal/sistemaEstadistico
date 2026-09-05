@@ -49,7 +49,7 @@ class PushService
                             'body'  => $body,
                         ],
                         'data' => $this->stringifyData($data),
-                    ],
+                    ] + self::platformOptions($data),
                 ];
 
                 $res = Http::timeout(15)
@@ -71,6 +71,27 @@ class PushService
             Log::error('FCM send exception', ['error' => $e->getMessage()]);
             return false;
         }
+    }
+
+    public static function platformOptions(array $data): array
+    {
+        if (($data['modulo'] ?? '') !== 'comunicaciones') {
+            return [];
+        }
+        return [
+            'android' => [
+                'priority' => 'high',
+                'notification' => [
+                    'channel_id' => 'comunicaciones_v3',
+                    'sound' => 'message_received',
+                    'tag' => 'comunicacion_'.($data['comunicacion_id'] ?? ''),
+                ],
+            ],
+            'apns' => [
+                'headers' => ['apns-priority' => '10', 'apns-push-type' => 'alert'],
+                'payload' => ['aps' => ['sound' => 'default']],
+            ],
+        ];
     }
 
     private function stringifyData(array $data): array

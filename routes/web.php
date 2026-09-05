@@ -105,6 +105,7 @@ use App\Http\Controllers\ComunicacionController;
 
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
+// Ruta para las constancias de manejo
 Route::prefix('constancias-manejo')->group(function () {
     Route::get('/examen/{token}', [ConstanciaExamenPublicoController::class, 'iniciar'])->name('constancias_manejo.examen.iniciar');
     Route::post('/examen/{token}', [ConstanciaExamenPublicoController::class, 'guardar'])->name('constancias_manejo.examen.guardar');
@@ -113,6 +114,7 @@ Route::prefix('constancias-manejo')->group(function () {
     Route::get('/imprimir-lote-firmado', [ConstanciaManejoController::class, 'imprimirLoteFirmado'])->middleware('signed')->name('constancias_manejo.imprimir_lote_firmado');
 });
 
+// Ruta para usuarios de las grúas, no convfundir para rutas para creacion de grúas y servicios
 Route::prefix('grua-usuarios')->middleware(['auth','can:ver gruas'])->group(function () {
     Route::get('/', [GruaUsuarioController::class, 'index'])->name('grua_usuarios.index');
     Route::get('/create', [GruaUsuarioController::class, 'create'])->middleware('can:crear gruas')->name('grua_usuarios.create');
@@ -122,6 +124,7 @@ Route::prefix('grua-usuarios')->middleware(['auth','can:ver gruas'])->group(func
     Route::delete('/{gruaUsuario}', [GruaUsuarioController::class, 'destroy'])->middleware('can:eliminar gruas')->name('grua_usuarios.destroy');
 });
 
+// Rutas para las liberaciones de los vehículos del corralón
 Route::prefix('liberaciones-corralon')->middleware(['auth','can:ver gruas'])->group(function () {
     Route::get('/', [LiberacionCorralonController::class, 'index'])->name('liberaciones_corralon.index');
     Route::get('/vehiculo/{vehiculo}', [LiberacionCorralonController::class, 'show'])->name('liberaciones_corralon.show');

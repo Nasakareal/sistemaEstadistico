@@ -312,6 +312,8 @@ class ComunicacionController extends Controller
             throw $e;
         }
 
+        app(\App\Services\ComunicacionPushService::class)->schedule($comunicacion->id);
+
         $comunicacion->load([
             'remitente:id,name,nombres,apellido_paterno,apellido_materno',
             'destinatario:id,name,nombres,apellido_paterno,apellido_materno',
@@ -616,7 +618,6 @@ class ComunicacionController extends Controller
         }
 
         $otroUsuario = User::query()
-            ->visibleFor($actor)
             ->with([
                 'unidad:id,nombre',
                 'turno:id,nombre',
@@ -1427,7 +1428,7 @@ class ComunicacionController extends Controller
         }
 
         if ($data['alcance'] === 'usuario') {
-            return $query
+            return $this->queryUsuariosParaMensajeIndividual($actor)
                 ->whereKey(
                     $data['destinatario_user_id']
                 )
@@ -1439,27 +1440,12 @@ class ComunicacionController extends Controller
         return collect();
     }
 
-    private function queryUsuariosParaMensajeIndividual(
-        User $actor
-    ) {
-        $query = User::query()
-            ->visibleFor($actor)
-            ->where('estado', 'Activo')
-            ->where('id', '!=', $actor->id);
-
-        if (!$this->actorTieneAlcanceGlobal($actor)) {
-            if (!$actor->unidad_id) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            $query->where(
-                'unidad_id',
-                $actor->unidad_id
-            );
-        }
-
-        return $query;
+    private function queryUsuariosParaMensajeIndividual(User $actor)
+    {
+        return \App\Services\ComunicacionConversationAccess::recipients($actor, $this->actorTieneAlcanceGlobal($actor));
     }
+
+
 
     private function usuarioPermitidoParaMensaje(
         User $actor,

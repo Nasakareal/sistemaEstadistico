@@ -23,6 +23,7 @@ class Hechos extends Model
 
     protected $fillable = [
         'client_uuid',
+        'submission_fingerprint',
         'folio_c5i',
         'perito',
         'autorizacion_practico',

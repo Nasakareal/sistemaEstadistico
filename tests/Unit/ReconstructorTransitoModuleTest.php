@@ -42,4 +42,21 @@ class ReconstructorTransitoModuleTest extends TestCase
         $this->assertStringContainsString('fitScene', $source);
         $this->assertStringContainsString('data-add-road', file_get_contents(resource_path('views/admin/settings/reconstructor_transito/index.blade.php')));
     }
+
+    public function test_editor_includes_physics_bridges_water_and_rollover_controls(): void
+    {
+        $script = file_get_contents(public_path('js/reconstructor-transito.js'));
+        $view = file_get_contents(resource_path('views/admin/settings/reconstructor_transito/index.blade.php'));
+
+        $this->assertStringContainsString('buildPhysicsCache', $script);
+        $this->assertStringContainsString("status = 'en caída'", $script);
+        $this->assertStringContainsString("status = 'sumergido'", $script);
+        $this->assertStringContainsString("status = 'volcado'", $script);
+        $this->assertStringContainsString('actorA.massKg', $script);
+        $this->assertStringContainsString('rolloverLimit', $script);
+        $this->assertStringContainsString('data-add-road="puente"', $view);
+        $this->assertStringContainsString('data-add-zone="water"', $view);
+        $this->assertStringContainsString('id="rtPhysicsEnabled"', $view);
+        $this->assertStringContainsString('id="rtActorCgHeight"', $view);
+    }
 }

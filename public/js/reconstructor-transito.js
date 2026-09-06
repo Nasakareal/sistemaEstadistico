@@ -27,6 +27,20 @@
         peaton: { label: 'Peatón', color: '#f97316', width: 30, height: 30 }
     };
 
+    const ZONE_META = {
+        water: { label: 'Cuerpo de agua', color: '#1597c5', depth: 4 },
+        slope: { label: 'Talud / desnivel', color: '#8a6a3f', depth: 3 }
+    };
+
+    const PHYSICS_DEFAULTS = {
+        automovil: { massKg: 1450, cgHeight: .55, grip: .9 },
+        motocicleta: { massKg: 240, cgHeight: .65, grip: .95 },
+        camioneta: { massKg: 2100, cgHeight: .82, grip: .82 },
+        camion: { massKg: 8500, cgHeight: 1.35, grip: .72 },
+        bicicleta: { massKg: 95, cgHeight: .75, grip: .7 },
+        peaton: { massKg: 80, cgHeight: .9, grip: .8 }
+    };
+
     const el = {};
     [
         'rtProjectName', 'rtHypothesis', 'rtDuration', 'rtScale', 'rtSaveStatus',
@@ -48,7 +62,11 @@
         'rtCenterLineField', 'rtRoadCenterLine', 'rtRoadLength', 'rtRoadLaneWidth',
         'rtRoadLengthField', 'rtCurveHelp', 'rtResetCurve', 'rtRoadRotation',
         'rtRoadLeftEdge', 'rtRoadRightEdge',
-        'rtDistance', 'rtKeyframeCount', 'rtEventCount'
+        'rtDistance', 'rtKeyframeCount', 'rtEventCount', 'rtPhysicsEnabled',
+        'rtActorMass', 'rtActorCgHeight', 'rtActorGrip', 'rtPhysicsStatus',
+        'rtRoadBridge', 'rtRoadElevation', 'rtRoadElevationField',
+        'rtZoneInspector', 'rtZoneTitle', 'rtZoneName', 'rtZoneWidth', 'rtZoneHeight',
+        'rtZoneDepth', 'rtZoneDepthLabel'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     const imageCache = {};
@@ -68,6 +86,8 @@
     let recording = null;
     let recordingCameraBackup = null;
     let fullscreenFallback = false;
+    let physicsCache = null;
+    let physicsCacheKey = '';
     const camera = { zoom: 1, panX: 0, panY: 0 };
 
     function uid(prefix) {
@@ -95,25 +115,28 @@
 
     function demoProject() {
         return {
-            version: 1,
+            version: 2,
             metadata: {
                 name: 'Ejemplo · Cruce con punto de conflicto',
                 hypothesis: 'Hipótesis A',
                 duration: 10,
                 pixelsPerMeter: 20,
-                mode: 'illustrative'
+                mode: 'physical',
+                physicsEnabled: true
             },
             scene: {
                 roads: [
                     { id: uid('road'), type: 'straight', name: 'Avenida principal', x: 600, y: 420, lengthMeters: 60, laneWidthMeters: 3.5, lanes: 2, rotation: 0, direction: 'two_way', centerLine: 'solid', leftEdge: 'sidewalk', rightEdge: 'sidewalk', surface: 'asphalt' },
                     { id: uid('road'), type: 'straight', name: 'Calle transversal', x: 650, y: 350, lengthMeters: 38, laneWidthMeters: 3.5, lanes: 2, rotation: 90, direction: 'two_way', centerLine: 'dashed', leftEdge: 'none', rightEdge: 'none', surface: 'concrete' }
-                ]
+                ],
+                zones: []
             },
             layers: { road: true, actors: true, paths: true, events: true, grid: true },
             actors: [
                 {
                     id: uid('actor'), type: 'automovil', name: 'Vehículo 1',
                     image: (config.actorImages || {}).automovil || '', color: '#ef4444', speedKmh: 48,
+                    massKg: 1450, cgHeight: .55, grip: .9,
                     keyframes: [
                         { time: 0, x: 120, y: 420, rotation: 0 },
                         { time: 2.4, x: 360, y: 420, rotation: 0 },
@@ -125,6 +148,7 @@
                 {
                     id: uid('actor'), type: 'motocicleta', name: 'Vehículo 2',
                     image: (config.actorImages || {}).motocicleta || '', color: '#38bdf8', speedKmh: 38,
+                    massKg: 240, cgHeight: .65, grip: .95,
                     keyframes: [
                         { time: 0, x: 650, y: 650, rotation: -90 },
                         { time: 3.2, x: 650, y: 525, rotation: -90 },
@@ -146,10 +170,10 @@
 
     function blankProject() {
         return {
-            version: 1,
-            metadata: { name: 'Hecho de tránsito sin título', hypothesis: 'Hipótesis A', duration: 10, pixelsPerMeter: 20, mode: 'illustrative' },
-            scene: { roads: [] },
-            layers: { road: true, actors: true, paths: true, events: true, grid: true },
+            version: 2,
+            metadata: { name: 'Hecho de tránsito sin título', hypothesis: 'Hipótesis A', duration: 10, pixelsPerMeter: 20, mode: 'physical', physicsEnabled: true },
+            scene: { roads: [], zones: [] },
+            layers: { road: true, environment: true, actors: true, paths: true, events: true, grid: true },
             actors: [],
             events: []
         };
@@ -161,6 +185,9 @@
         normalized.metadata = Object.assign(normalized.metadata, raw.metadata || {});
         normalized.metadata.duration = clamp(normalized.metadata.duration, 2, 120);
         normalized.metadata.pixelsPerMeter = clamp(normalized.metadata.pixelsPerMeter, 2, 100);
+        normalized.metadata.physicsEnabled = raw.metadata && Object.prototype.hasOwnProperty.call(raw.metadata, 'physicsEnabled')
+            ? Boolean(raw.metadata.physicsEnabled) : true;
+        normalized.metadata.mode = normalized.metadata.physicsEnabled ? 'physical' : 'illustrative';
         const rawScene = raw.scene || {};
         const rawRoads = Array.isArray(rawScene.roads)
             ? rawScene.roads
@@ -182,7 +209,9 @@
                     leftEdge: ['none', 'sidewalk', 'median'].includes(road.leftEdge) ? road.leftEdge : 'none',
                     rightEdge: ['none', 'sidewalk', 'median'].includes(road.rightEdge) ? road.rightEdge : 'none',
                     surface: ['asphalt', 'concrete', 'pavers', 'cobblestone', 'dirt', 'gravel', 'natural'].includes(road.surface) ? road.surface : 'asphalt',
-                    curve: normalizeCurve(road.curve)
+                    curve: normalizeCurve(road.curve),
+                    isBridge: Boolean(road.isBridge),
+                    elevationMeters: clamp(road.elevationMeters || 5, .5, 60)
                 };
             }).map(function (road) {
                 if (road.direction === 'two_way') {
@@ -191,6 +220,18 @@
                 return road;
             })
         };
+        normalized.scene.zones = Array.isArray(rawScene.zones) ? rawScene.zones.map(function (zone, index) {
+            const type = ZONE_META[zone.type] ? zone.type : 'water';
+            return {
+                id: zone.id || uid('zone'), type: type,
+                name: String(zone.name || (ZONE_META[type].label + ' ' + (index + 1))).slice(0, 80),
+                x: clamp(zone.x, -10000, 10000), y: clamp(zone.y, -10000, 10000),
+                widthMeters: clamp(zone.widthMeters || 18, 2, 200),
+                heightMeters: clamp(zone.heightMeters || 12, 2, 200),
+                rotation: normalizeAngle(zone.rotation),
+                depthMeters: clamp(zone.depthMeters || ZONE_META[type].depth, .5, 100)
+            };
+        }) : [];
         normalized.layers = Object.assign(normalized.layers, raw.layers || {});
         normalized.actors = Array.isArray(raw.actors) ? raw.actors.map(function (actor, index) {
             const type = ACTOR_META[actor.type] ? actor.type : 'automovil';
@@ -204,12 +245,16 @@
                     rotationManual: Boolean(frame.rotationManual)
                 };
             }).sort(function (a, b) { return a.time - b.time; }) : [];
+            const defaults = PHYSICS_DEFAULTS[type];
             return {
                 id: actor.id || uid('actor'), type: type,
                 name: String(actor.name || (meta.label + ' ' + (index + 1))).slice(0, 80),
                 image: actor.image || (config.actorImages || {})[type] || '',
                 color: /^#[0-9a-f]{6}$/i.test(actor.color || '') ? actor.color : meta.color,
                 speedKmh: clamp(actor.speedKmh, 0, 300),
+                massKg: clamp(actor.massKg || defaults.massKg, 40, 50000),
+                cgHeight: clamp(actor.cgHeight || defaults.cgHeight, .2, 3),
+                grip: clamp(actor.grip || defaults.grip, .15, 1.3),
                 scaleX: actorScale(actor, 'x'),
                 scaleY: actorScale(actor, 'y'),
                 keyframes: frames
@@ -308,6 +353,8 @@
         project.metadata.hypothesis = (el.rtHypothesis.value || 'Hipótesis A').trim();
         project.metadata.duration = clamp(el.rtDuration.value, 2, 120);
         project.metadata.pixelsPerMeter = clamp(el.rtScale.value, 2, 100);
+        project.metadata.physicsEnabled = Boolean(el.rtPhysicsEnabled && el.rtPhysicsEnabled.checked);
+        project.metadata.mode = project.metadata.physicsEnabled ? 'physical' : 'illustrative';
     }
 
     function syncInputsFromProject() {
@@ -315,6 +362,7 @@
         el.rtHypothesis.value = project.metadata.hypothesis;
         el.rtDuration.value = project.metadata.duration;
         el.rtScale.value = project.metadata.pixelsPerMeter;
+        if (el.rtPhysicsEnabled) el.rtPhysicsEnabled.checked = project.metadata.physicsEnabled !== false;
         el.rtTimeline.max = project.metadata.duration;
         el.rtCurrentTime.max = project.metadata.duration;
         el.rtDurationLabel.textContent = formatClock(project.metadata.duration, false);
@@ -323,7 +371,7 @@
         });
     }
 
-    function actorPosition(actor, time) {
+    function guidedActorPosition(actor, time) {
         const frames = actor.keyframes.slice().sort(function (a, b) { return a.time - b.time; });
         if (!frames.length) return null;
         if (time <= frames[0].time) return Object.assign({}, frames[0]);
@@ -343,6 +391,226 @@
             }
         }
         return Object.assign({}, frames[0]);
+    }
+
+    function physicsSignature() {
+        return JSON.stringify({ metadata: project.metadata, scene: project.scene, actors: project.actors });
+    }
+
+    function pointInZone(point, zone) {
+        const pixelsPerMeter = project.metadata.pixelsPerMeter || 20;
+        const angle = -(zone.rotation || 0) * Math.PI / 180;
+        const dx = point.x - zone.x;
+        const dy = point.y - zone.y;
+        const localX = (dx * Math.cos(angle)) - (dy * Math.sin(angle));
+        const localY = (dx * Math.sin(angle)) + (dy * Math.cos(angle));
+        return Math.abs(localX) <= zone.widthMeters * pixelsPerMeter / 2
+            && Math.abs(localY) <= zone.heightMeters * pixelsPerMeter / 2;
+    }
+
+    function roadContact(point) {
+        let best = null;
+        project.scene.roads.forEach(function (road) {
+            const geometry = roadGeometry(road);
+            const angle = -(road.rotation || 0) * Math.PI / 180;
+            const dx = point.x - road.x;
+            const dy = point.y - road.y;
+            const local = {
+                x: (dx * Math.cos(angle)) - (dy * Math.sin(angle)),
+                y: (dx * Math.sin(angle)) + (dy * Math.cos(angle))
+            };
+            let separation = Infinity;
+            if (road.type === 'curve') {
+                const points = roadCurvePolyline(road, 0, 60);
+                for (let index = 1; index < points.length; index++) {
+                    separation = Math.min(separation, distanceToSegment(local, points[index - 1], points[index]));
+                }
+            } else if (Math.abs(local.x) <= geometry.length / 2) {
+                separation = Math.abs(local.y);
+            }
+            if (separation <= geometry.width / 2 && (!best || separation < best.separation)) {
+                best = { road: road, separation: separation };
+            }
+        });
+        (project.scene.zones || []).forEach(function (zone) {
+            const pixelsPerMeter = project.metadata.pixelsPerMeter || 20;
+            const radius = Math.sqrt(Math.pow(zone.widthMeters * pixelsPerMeter / 2, 2) + Math.pow(zone.heightMeters * pixelsPerMeter / 2, 2));
+            include(zone, radius + 20);
+        });
+        return best;
+    }
+
+    function zoneAt(point, type) {
+        return (project.scene.zones || []).find(function (zone) {
+            return (!type || zone.type === type) && pointInZone(point, zone);
+        }) || null;
+    }
+
+    function surfaceGrip(surface) {
+        return ({ asphalt: 1, concrete: .96, pavers: .8, cobblestone: .68, dirt: .55, gravel: .45, natural: .38 })[surface] || .65;
+    }
+
+    function initialPhysicsState(actor) {
+        const start = guidedActorPosition(actor, 0) || guidedActorPosition(actor, actor.keyframes[0] ? actor.keyframes[0].time : 0) || { x: 0, y: 0, rotation: 0 };
+        const radians = start.rotation * Math.PI / 180;
+        const pixelsPerMeter = project.metadata.pixelsPerMeter || 20;
+        const speed = (actor.speedKmh || 0) / 3.6 * pixelsPerMeter;
+        const contact = roadContact(start);
+        const elevation = contact && contact.road.isBridge ? contact.road.elevationMeters : 0;
+        return {
+            x: start.x, y: start.y, rotation: start.rotation,
+            vx: Math.cos(radians) * speed, vy: Math.sin(radians) * speed,
+            z: elevation, vz: 0, roll: 0, rollRate: 0,
+            status: elevation > 0 ? 'sobre puente' : 'en marcha',
+            roadId: contact ? contact.road.id : null, supportedBridgeId: elevation > 0 ? contact.road.id : null,
+            submerged: false
+        };
+    }
+
+    function buildPhysicsCache() {
+        const key = physicsSignature();
+        if (physicsCache && physicsCacheKey === key) return;
+        physicsCacheKey = key;
+        const step = 1 / 60;
+        const pixelsPerMeter = project.metadata.pixelsPerMeter || 20;
+        const states = project.actors.map(initialPhysicsState);
+        const frames = project.actors.map(function () { return []; });
+        const count = Math.ceil(project.metadata.duration / step);
+        for (let tick = 0; tick <= count; tick++) {
+            const time = tick * step;
+            states.forEach(function (state, index) {
+                frames[index].push({
+                    time: time, x: state.x, y: state.y, rotation: state.rotation,
+                    z: state.z, roll: state.roll, status: state.status, submerged: state.submerged
+                });
+            });
+            if (tick === count) break;
+
+            states.forEach(function (state, index) {
+                const actor = project.actors[index];
+                const guide = guidedActorPosition(actor, Math.min(project.metadata.duration, time + .45));
+                const oldRoad = state.roadId;
+                const contact = roadContact(state);
+                const road = contact && contact.road;
+                const water = zoneAt(state, 'water');
+                const slope = zoneAt(state, 'slope');
+                const speed = Math.sqrt(state.vx * state.vx + state.vy * state.vy);
+                const speedMps = speed / pixelsPerMeter;
+                const desired = guide ? Math.atan2(guide.y - state.y, guide.x - state.x) : state.rotation * Math.PI / 180;
+                const heading = state.rotation * Math.PI / 180;
+                const angleError = normalizeAngle((desired - heading) * 180 / Math.PI) * Math.PI / 180;
+                const grip = actor.grip * (road ? surfaceGrip(road.surface) : (slope ? .28 : .42));
+                const maxYaw = Math.max(.18, Math.min(1.8, (grip * 9.81) / Math.max(2, speedMps))) * step;
+                const yaw = clamp(angleError, -maxYaw, maxYaw);
+                state.rotation = normalizeAngle(state.rotation + yaw * 180 / Math.PI);
+                const targetSpeed = (actor.speedKmh || 0) / 3.6 * pixelsPerMeter;
+                const acceleration = clamp(targetSpeed - speed, -7.5 * pixelsPerMeter, 3.2 * pixelsPerMeter);
+                const nextHeading = state.rotation * Math.PI / 180;
+                state.vx += Math.cos(nextHeading) * acceleration * step;
+                state.vy += Math.sin(nextHeading) * acceleration * step;
+                const lateralRetention = Math.max(0, 1 - ((road ? .7 : 1.8) * step));
+                const forwardSpeed = state.vx * Math.cos(nextHeading) + state.vy * Math.sin(nextHeading);
+                const lateralSpeed = -state.vx * Math.sin(nextHeading) + state.vy * Math.cos(nextHeading);
+                state.vx = Math.cos(nextHeading) * forwardSpeed - Math.sin(nextHeading) * lateralSpeed * lateralRetention;
+                state.vy = Math.sin(nextHeading) * forwardSpeed + Math.cos(nextHeading) * lateralSpeed * lateralRetention;
+
+                const lateralAcceleration = Math.abs(speedMps * (yaw / step));
+                const trackMeters = Math.max(.7, ((ACTOR_META[actor.type] || ACTOR_META.automovil).height * actorScale(actor, 'y')) / pixelsPerMeter);
+                const rolloverLimit = 9.81 * trackMeters / Math.max(.4, 2 * actor.cgHeight);
+                if (lateralAcceleration > rolloverLimit) {
+                    state.rollRate += Math.sign(yaw || 1) * (lateralAcceleration / rolloverLimit) * 48 * step;
+                }
+                if (oldRoad && !road && speedMps > 9 && state.z <= .05) state.rollRate += Math.sign(yaw || lateralSpeed || 1) * speedMps * .7;
+                if (slope && speedMps > 5) state.rollRate += Math.sign(yaw || 1) * slope.depthMeters * 2.1 * step;
+                state.rollRate *= Math.pow(.985, step * 60);
+                state.roll += state.rollRate * step;
+                if (Math.abs(state.roll) < 55) state.roll *= Math.pow(.97, step * 60);
+                if (Math.abs(state.roll) >= 78) {
+                    state.roll = Math.sign(state.roll) * 90;
+                    state.status = 'volcado';
+                    state.vx *= .94; state.vy *= .94;
+                }
+
+                if (road && road.isBridge) {
+                    state.z = road.elevationMeters;
+                    state.vz = 0;
+                    state.supportedBridgeId = road.id;
+                    if (state.status !== 'volcado') state.status = 'sobre puente';
+                } else if (state.supportedBridgeId && state.z > .01) {
+                    state.supportedBridgeId = null;
+                    state.status = 'en caída';
+                }
+                if (!state.supportedBridgeId && state.z > 0) {
+                    state.vz -= 9.81 * step;
+                    state.z += state.vz * step;
+                    if (state.z <= 0) {
+                        state.z = 0; state.vz = 0;
+                        state.rollRate += Math.min(65, speedMps * 1.7);
+                        state.vx *= .62; state.vy *= .62;
+                        state.status = water ? 'en el agua' : 'impactó el terreno';
+                    }
+                }
+                if (water && state.z <= .05) {
+                    state.submerged = true;
+                    state.status = 'sumergido';
+                    state.vx *= Math.pow(.9, step * 60); state.vy *= Math.pow(.9, step * 60);
+                    state.z = Math.max(-water.depthMeters, state.z - .32 * step);
+                }
+                state.x += state.vx * step;
+                state.y += state.vy * step;
+                state.roadId = road ? road.id : null;
+                if (!state.submerged && state.status !== 'volcado' && state.status !== 'en caída' && !(road && road.isBridge)) {
+                    state.status = road ? 'en calzada' : (slope ? 'en talud' : 'fuera del camino');
+                }
+            });
+
+            for (let a = 0; a < states.length; a++) {
+                for (let b = a + 1; b < states.length; b++) {
+                    const first = states[a]; const second = states[b];
+                    if (Math.abs(first.z - second.z) > 1.5) continue;
+                    const actorA = project.actors[a]; const actorB = project.actors[b];
+                    const radiusA = Math.max(10, (ACTOR_META[actorA.type] || ACTOR_META.automovil).width * actorScale(actorA, 'x') * .34);
+                    const radiusB = Math.max(10, (ACTOR_META[actorB.type] || ACTOR_META.automovil).width * actorScale(actorB, 'x') * .34);
+                    const dx = second.x - first.x; const dy = second.y - first.y;
+                    const separation = Math.sqrt(dx * dx + dy * dy) || .001;
+                    if (separation >= radiusA + radiusB) continue;
+                    const nx = dx / separation; const ny = dy / separation;
+                    const relative = (second.vx - first.vx) * nx + (second.vy - first.vy) * ny;
+                    if (relative < 0) {
+                        const invA = 1 / actorA.massKg; const invB = 1 / actorB.massKg;
+                        const impulse = -(1.28 * relative) / (invA + invB);
+                        first.vx -= impulse * invA * nx; first.vy -= impulse * invA * ny;
+                        second.vx += impulse * invB * nx; second.vy += impulse * invB * ny;
+                        first.rollRate -= relative * .08; second.rollRate += relative * .08;
+                        first.status = 'colisión'; second.status = 'colisión';
+                    }
+                    const correction = (radiusA + radiusB - separation) / 2;
+                    first.x -= nx * correction; first.y -= ny * correction;
+                    second.x += nx * correction; second.y += ny * correction;
+                }
+            }
+        }
+        physicsCache = { frames: frames, step: step };
+    }
+
+    function actorPosition(actor, time) {
+        if (!project.metadata.physicsEnabled) return guidedActorPosition(actor, time);
+        buildPhysicsCache();
+        const actorIndex = project.actors.indexOf(actor);
+        if (actorIndex < 0 || !physicsCache.frames[actorIndex].length) return guidedActorPosition(actor, time);
+        const list = physicsCache.frames[actorIndex];
+        const raw = clamp(time / physicsCache.step, 0, list.length - 1);
+        const index = Math.floor(raw);
+        const from = list[index];
+        const to = list[Math.min(list.length - 1, index + 1)];
+        const mix = raw - index;
+        const rotationDelta = normalizeAngle(to.rotation - from.rotation);
+        return {
+            time: time, x: from.x + (to.x - from.x) * mix, y: from.y + (to.y - from.y) * mix,
+            z: from.z + (to.z - from.z) * mix, roll: from.roll + (to.roll - from.roll) * mix,
+            rotation: from.rotation + rotationDelta * mix,
+            status: mix < .5 ? from.status : to.status, submerged: from.submerged || to.submerged
+        };
     }
 
     function upsertKeyframe(actor, time, x, y, rotation, options) {
@@ -397,6 +665,7 @@
         ctx.translate(camera.panX, camera.panY);
         ctx.scale(camera.zoom, camera.zoom);
         if (project.layers.grid !== false) drawGrid();
+        if (project.layers.environment !== false) (project.scene.zones || []).forEach(drawZone);
         if (project.layers.road !== false) {
             project.scene.roads.forEach(drawRoadFill);
             project.scene.roads.forEach(drawRoadMarkings);
@@ -409,6 +678,10 @@
         drawVideoHeader();
         el.rtCanvasTime.textContent = formatClock(currentTime, true);
         el.rtZoomLabel.textContent = Math.round(camera.zoom * 100) + '%';
+        const focusedActor = selectedActor();
+        const physical = focusedActor ? actorPosition(focusedActor, currentTime) : null;
+        if (el.rtPhysicsStatus) el.rtPhysicsStatus.textContent = project.metadata.physicsEnabled
+            ? String(physical && physical.status || 'SIMULANDO').toUpperCase() : 'ILUSTRATIVO';
     }
 
     function drawBackground() {
@@ -449,6 +722,46 @@
             leftEdgeWidth: edgeWidth(road.leftEdge),
             rightEdgeWidth: edgeWidth(road.rightEdge)
         };
+    }
+
+    function drawZone(zone) {
+        const pixelsPerMeter = project.metadata.pixelsPerMeter || 20;
+        const width = zone.widthMeters * pixelsPerMeter;
+        const height = zone.heightMeters * pixelsPerMeter;
+        const active = selected && selected.kind === 'zone' && selected.id === zone.id;
+        ctx.save();
+        ctx.translate(zone.x, zone.y);
+        ctx.rotate((zone.rotation || 0) * Math.PI / 180);
+        if (zone.type === 'water') {
+            const gradient = ctx.createLinearGradient(0, -height / 2, 0, height / 2);
+            gradient.addColorStop(0, 'rgba(20, 184, 222, .68)');
+            gradient.addColorStop(1, 'rgba(5, 74, 122, .88)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(-width / 2, -height / 2, width, height);
+            ctx.strokeStyle = 'rgba(186, 230, 253, .45)'; ctx.lineWidth = 2;
+            for (let y = -height / 2 + 12; y < height / 2; y += 22) {
+                ctx.beginPath();
+                for (let x = -width / 2; x <= width / 2; x += 18) {
+                    const wave = y + Math.sin((x + currentTime * 45) / 24) * 3;
+                    if (x === -width / 2) ctx.moveTo(x, wave); else ctx.lineTo(x, wave);
+                }
+                ctx.stroke();
+            }
+        } else {
+            ctx.fillStyle = 'rgba(112, 82, 45, .72)'; ctx.fillRect(-width / 2, -height / 2, width, height);
+            ctx.strokeStyle = 'rgba(229, 192, 123, .5)'; ctx.lineWidth = 2;
+            for (let x = -width / 2; x < width / 2; x += 18) {
+                ctx.beginPath(); ctx.moveTo(x, height / 2); ctx.lineTo(x + height * .55, -height / 2); ctx.stroke();
+            }
+        }
+        ctx.strokeStyle = active ? '#fff' : ZONE_META[zone.type].color;
+        ctx.lineWidth = active ? 4 : 2; ctx.setLineDash(active ? [8, 5] : []);
+        ctx.strokeRect(-width / 2, -height / 2, width, height);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(2, 8, 23, .78)'; ctx.fillRect(-width / 2 + 8, -height / 2 + 8, Math.min(width - 16, 180), 22);
+        ctx.fillStyle = '#fff'; ctx.font = '700 11px Arial'; ctx.textAlign = 'left';
+        ctx.fillText(zone.name, -width / 2 + 15, -height / 2 + 23);
+        ctx.restore();
     }
 
     function roadWorldPoint(road, localX, localY) {
@@ -608,6 +921,11 @@
         ctx.save();
         ctx.translate(road.x, road.y);
         ctx.rotate(road.rotation * Math.PI / 180);
+        if (road.isBridge) {
+            ctx.shadowColor = 'rgba(0,0,0,.75)';
+            ctx.shadowBlur = 16 + road.elevationMeters * 2;
+            ctx.shadowOffsetX = 8; ctx.shadowOffsetY = 12;
+        }
         if (road.type === 'curve') {
             [
                 { type: road.leftEdge, side: -1, width: geometry.leftEdgeWidth },
@@ -652,6 +970,12 @@
         });
         ctx.fillStyle = roadSurfacePattern(road.surface);
         ctx.fillRect(-geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
+        if (road.isBridge) {
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = '#d7dde4';
+            ctx.fillRect(-geometry.length / 2, -geometry.width / 2 - 7, geometry.length, 7);
+            ctx.fillRect(-geometry.length / 2, geometry.width / 2, geometry.length, 7);
+        }
         ctx.restore();
     }
 
@@ -915,9 +1239,18 @@
         const height = meta.height * actorScale(actor, 'y');
         const image = getImage(actor.image);
         const active = selected && selected.kind === 'actor' && selected.id === actor.id;
+        const elevationOffset = Math.max(0, position.z || 0) * (project.metadata.pixelsPerMeter || 20) * .18;
+        const renderedY = position.y - elevationOffset;
+        const rollScale = Math.max(.18, Math.abs(Math.cos((position.roll || 0) * Math.PI / 180)));
+        if (position.z > .05) {
+            ctx.save(); ctx.globalAlpha = .24; ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.ellipse(position.x + 9, position.y + 12, width * .45, height * .35, position.rotation * Math.PI / 180, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
         ctx.save();
-        ctx.translate(position.x, position.y);
+        ctx.globalAlpha = position.submerged ? .48 : 1;
+        ctx.translate(position.x, renderedY);
         ctx.rotate(position.rotation * Math.PI / 180);
+        ctx.scale(1, rollScale);
         if (active) {
             ctx.shadowColor = actor.color;
             ctx.shadowBlur = 18;
@@ -940,10 +1273,15 @@
         ctx.font = '700 10px Arial';
         const labelWidth = ctx.measureText(actor.name).width + 12;
         ctx.fillStyle = 'rgba(4, 10, 18, .82)';
-        ctx.fillRect(position.x - labelWidth / 2, position.y + height / 2 + 9, labelWidth, 17);
+        ctx.fillRect(position.x - labelWidth / 2, renderedY + height / 2 + 9, labelWidth, 17);
         ctx.fillStyle = '#f8fafc';
         ctx.textAlign = 'center';
-        ctx.fillText(actor.name, position.x, position.y + height / 2 + 21);
+        ctx.fillText(actor.name, position.x, renderedY + height / 2 + 21);
+        if (project.metadata.physicsEnabled && position.status) {
+            ctx.font = '800 9px Arial';
+            ctx.fillStyle = position.status === 'en calzada' ? '#86efac' : '#fde68a';
+            ctx.fillText(String(position.status).toUpperCase(), position.x, renderedY + height / 2 + 34);
+        }
         ctx.restore();
         if (active && !playing) {
             drawResizeHandles(actor, position);
@@ -1251,6 +1589,11 @@
                 }
             }
         }
+        if (project.layers.environment !== false) {
+            for (let i = (project.scene.zones || []).length - 1; i >= 0; i--) {
+                if (pointInZone(point, project.scene.zones[i])) return { kind: 'zone', id: project.scene.zones[i].id };
+            }
+        }
         return null;
     }
 
@@ -1355,6 +1698,10 @@
         return selected && selected.kind === 'road' ? project.scene.roads.find(function (road) { return road.id === selected.id; }) : null;
     }
 
+    function selectedZone() {
+        return selected && selected.kind === 'zone' ? (project.scene.zones || []).find(function (zone) { return zone.id === selected.id; }) : null;
+    }
+
     function createRoad(overrides) {
         const count = project.scene.roads.length + 1;
         return Object.assign({
@@ -1362,7 +1709,7 @@
             x: canvas.width / 2, y: canvas.height / 2,
             lengthMeters: 30, laneWidthMeters: 3.5, lanes: 2, rotation: 0,
             direction: 'one_way', centerLine: 'solid', leftEdge: 'none', rightEdge: 'none',
-            surface: 'asphalt', curve: defaultCurve()
+            surface: 'asphalt', curve: defaultCurve(), isBridge: false, elevationMeters: 5
         }, overrides || {});
     }
 
@@ -1370,18 +1717,38 @@
         pushHistory();
         const offset = (project.scene.roads.length % 5) * 22;
         const isCurve = type === 'curve';
+        const isBridge = type === 'bridge';
         const center = cameraWorldCenter();
         const road = createRoad({
             type: isCurve ? 'curve' : 'straight',
-            name: (isCurve ? 'Curva ' : 'Calle ') + (project.scene.roads.length + 1),
+            name: (isCurve ? 'Curva ' : (isBridge ? 'Puente ' : 'Calle ')) + (project.scene.roads.length + 1),
             x: center.x,
-            y: center.y + offset
+            y: center.y + offset,
+            isBridge: isBridge,
+            elevationMeters: isBridge ? 6 : 5,
+            leftEdge: isBridge ? 'sidewalk' : 'none',
+            rightEdge: isBridge ? 'sidewalk' : 'none'
         });
         project.scene.roads.push(road);
         selected = { kind: 'road', id: road.id };
         setTool('select');
         renderAll();
         markDirty();
+    }
+
+    function addZone(type) {
+        const meta = ZONE_META[type] || ZONE_META.water;
+        pushHistory();
+        const center = cameraWorldCenter();
+        const zone = {
+            id: uid('zone'), type: type, name: meta.label + ' ' + ((project.scene.zones || []).length + 1),
+            x: center.x, y: center.y, widthMeters: type === 'water' ? 24 : 18,
+            heightMeters: type === 'water' ? 14 : 10, rotation: 0, depthMeters: meta.depth
+        };
+        project.scene.zones = project.scene.zones || [];
+        project.scene.zones.push(zone);
+        selected = { kind: 'zone', id: zone.id };
+        setTool('select'); renderAll(); markDirty();
     }
 
     function createEditableCrossing() {
@@ -1404,6 +1771,7 @@
         const actor = {
             id: uid('actor'), type: type, name: meta.label + ' ' + (sameType + 1),
             image: (config.actorImages || {})[type] || '', color: meta.color, speedKmh: 0,
+            massKg: PHYSICS_DEFAULTS[type].massKg, cgHeight: PHYSICS_DEFAULTS[type].cgHeight, grip: PHYSICS_DEFAULTS[type].grip,
             scaleX: 1, scaleY: 1,
             keyframes: [{ time: currentTime, x: center.x + offset, y: center.y + (offset % 180), rotation: 0 }]
         };
@@ -1452,6 +1820,7 @@
         if (selected.kind === 'actor') project.actors = project.actors.filter(function (actor) { return actor.id !== selected.id; });
         if (selected.kind === 'event') project.events = project.events.filter(function (event) { return event.id !== selected.id; });
         if (selected.kind === 'road') project.scene.roads = project.scene.roads.filter(function (road) { return road.id !== selected.id; });
+        if (selected.kind === 'zone') project.scene.zones = (project.scene.zones || []).filter(function (zone) { return zone.id !== selected.id; });
         selected = null;
         renderAll();
         markDirty();
@@ -1517,10 +1886,12 @@
         const actor = selectedActor();
         const event = selectedEvent();
         const road = selectedRoad();
-        el.rtNoSelection.hidden = Boolean(actor || event || road);
+        const zone = selectedZone();
+        el.rtNoSelection.hidden = Boolean(actor || event || road || zone);
         el.rtActorInspector.hidden = !actor;
         el.rtEventInspector.hidden = !event;
         el.rtRoadInspector.hidden = !road;
+        el.rtZoneInspector.hidden = !zone;
         if (actor) {
             el.rtActorSwatch.style.background = actor.color;
             el.rtActorTitle.textContent = actor.name;
@@ -1529,6 +1900,9 @@
             el.rtActorSpeed.value = actor.speedKmh;
             el.rtActorLength.value = Math.round(actorScale(actor, 'x') * 100);
             el.rtActorWidth.value = Math.round(actorScale(actor, 'y') * 100);
+            el.rtActorMass.value = actor.massKg;
+            el.rtActorCgHeight.value = actor.cgHeight;
+            el.rtActorGrip.value = actor.grip;
             updateActorRotationControls();
             renderKeyframes();
         }
@@ -1559,8 +1933,19 @@
             el.rtRoadRotation.value = Math.round(normalizeAngle(road.rotation));
             el.rtRoadLeftEdge.value = road.leftEdge;
             el.rtRoadRightEdge.value = road.rightEdge;
+            el.rtRoadBridge.checked = Boolean(road.isBridge);
+            el.rtRoadElevation.value = road.elevationMeters;
+            el.rtRoadElevationField.hidden = !road.isBridge;
             el.rtRemoveLane.disabled = road.lanes <= (road.direction === 'two_way' ? 2 : 1);
             el.rtAddLane.disabled = road.lanes >= 12;
+        }
+        if (zone) {
+            el.rtZoneTitle.textContent = ZONE_META[zone.type].label;
+            el.rtZoneName.value = zone.name;
+            el.rtZoneWidth.value = zone.widthMeters;
+            el.rtZoneHeight.value = zone.heightMeters;
+            el.rtZoneDepth.value = zone.depthMeters;
+            el.rtZoneDepthLabel.textContent = zone.type === 'water' ? 'Profundidad' : 'Desnivel máximo';
         }
     }
 
@@ -1840,6 +2225,9 @@
         } else if (dragging.kind === 'road') {
             const road = project.scene.roads.find(function (item) { return item.id === dragging.id; });
             if (road) { road.x = point.x; road.y = point.y; }
+        } else if (dragging.kind === 'zone') {
+            const zone = (project.scene.zones || []).find(function (item) { return item.id === dragging.id; });
+            if (zone) { zone.x = point.x; zone.y = point.y; }
         } else if (dragging.kind === 'rotate') {
             const actor = project.actors.find(function (item) { return item.id === dragging.id; });
             const position = actor ? actorPosition(actor, currentTime) : null;
@@ -1921,7 +2309,14 @@
     });
 
     document.querySelectorAll('[data-add-road]').forEach(function (button) {
-        button.addEventListener('click', function () { pause(); addRoad(button.dataset.addRoad === 'curva' ? 'curve' : 'straight'); });
+        button.addEventListener('click', function () {
+            pause();
+            addRoad(button.dataset.addRoad === 'curva' ? 'curve' : (button.dataset.addRoad === 'puente' ? 'bridge' : 'straight'));
+        });
+    });
+
+    document.querySelectorAll('[data-add-zone]').forEach(function (button) {
+        button.addEventListener('click', function () { pause(); addZone(button.dataset.addZone); });
     });
 
     document.querySelectorAll('[data-road-preset="cruce"]').forEach(function (button) {
@@ -1956,6 +2351,10 @@
         setCurrentTime(Math.min(currentTime, project.metadata.duration)); syncInputsFromProject(); renderAll(); markDirty();
     });
     el.rtScale.addEventListener('change', function () { syncMetadataFromInputs(); renderAll(); markDirty(); });
+    el.rtPhysicsEnabled.addEventListener('change', function () {
+        pause(); syncMetadataFromInputs(); physicsCache = null; setCurrentTime(0); renderAll(); markDirty();
+        toast(project.metadata.physicsEnabled ? 'Simulación física activada.' : 'Modo de trayectoria ilustrativa activado.');
+    });
 
     el.rtTimeline.addEventListener('input', function () { pause(); setCurrentTime(el.rtTimeline.value); });
     el.rtCurrentTime.addEventListener('change', function () { pause(); setCurrentTime(el.rtCurrentTime.value); });
@@ -2001,6 +2400,9 @@
         const actor = selectedActor(); if (!actor) return;
         pushHistory(); actor.scaleY = clamp(Number(el.rtActorWidth.value) / 100, .4, 4); renderAll(); markDirty();
     });
+    el.rtActorMass.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.massKg = clamp(el.rtActorMass.value, 40, 50000); renderAll(); markDirty(); });
+    el.rtActorCgHeight.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.cgHeight = clamp(el.rtActorCgHeight.value, .2, 3); renderAll(); markDirty(); });
+    el.rtActorGrip.addEventListener('input', function () { const actor = selectedActor(); if (!actor) return; actor.grip = clamp(el.rtActorGrip.value, .15, 1.3); renderAll(); markDirty(); });
     el.rtActorRotation.addEventListener('change', function () { if (!selectedActor()) return; pushHistory(); setActorRotation(el.rtActorRotation.value); });
     el.rtActorRotationRange.addEventListener('pointerdown', function () { if (selectedActor()) pushHistory(); });
     el.rtActorRotationRange.addEventListener('input', function () { setActorRotation(el.rtActorRotationRange.value); });
@@ -2067,6 +2469,17 @@
         const road = selectedRoad(); if (!road) return;
         pushHistory(); road.rightEdge = el.rtRoadRightEdge.value; renderAll(); markDirty();
     });
+    el.rtRoadBridge.addEventListener('change', function () {
+        const road = selectedRoad(); if (!road) return; pushHistory(); road.isBridge = el.rtRoadBridge.checked;
+        el.rtRoadElevationField.hidden = !road.isBridge; renderAll(); markDirty();
+    });
+    el.rtRoadElevation.addEventListener('change', function () {
+        const road = selectedRoad(); if (!road) return; pushHistory(); road.elevationMeters = clamp(el.rtRoadElevation.value, .5, 60); renderAll(); markDirty();
+    });
+    el.rtZoneName.addEventListener('change', function () { const zone = selectedZone(); if (!zone) return; pushHistory(); zone.name = (el.rtZoneName.value || ZONE_META[zone.type].label).trim(); renderAll(); markDirty(); });
+    el.rtZoneWidth.addEventListener('change', function () { const zone = selectedZone(); if (!zone) return; pushHistory(); zone.widthMeters = clamp(el.rtZoneWidth.value, 2, 200); renderAll(); markDirty(); });
+    el.rtZoneHeight.addEventListener('change', function () { const zone = selectedZone(); if (!zone) return; pushHistory(); zone.heightMeters = clamp(el.rtZoneHeight.value, 2, 200); renderAll(); markDirty(); });
+    el.rtZoneDepth.addEventListener('change', function () { const zone = selectedZone(); if (!zone) return; pushHistory(); zone.depthMeters = clamp(el.rtZoneDepth.value, .5, 100); renderAll(); markDirty(); });
     el.rtEventTime.addEventListener('change', function () { const event = selectedEvent(); if (!event) return; pushHistory(); event.time = clamp(el.rtEventTime.value, 0, project.metadata.duration); setCurrentTime(event.time); renderAll(); markDirty(); });
     el.rtEventDescription.addEventListener('change', function () { const event = selectedEvent(); if (!event) return; pushHistory(); event.description = el.rtEventDescription.value.trim(); renderAll(); markDirty(); });
 

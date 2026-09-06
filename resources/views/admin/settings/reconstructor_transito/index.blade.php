@@ -24,8 +24,8 @@
         <div class="rt-notice">
             <i class="fas fa-flask"></i>
             <div>
-                <strong>Primera versión — reconstrucción ilustrativa.</strong>
-                Los tiempos, velocidades y recorridos representan una hipótesis visual; todavía no constituyen un cálculo pericial.
+                <strong>Motor físico experimental para reconstrucción 2D.</strong>
+                Simula dinámica y entorno para contrastar hipótesis; los resultados requieren validación pericial antes de usarse como conclusión técnica.
             </div>
             <span id="rtSaveStatus" class="rt-save-status"><i class="fas fa-circle"></i> Borrador local</span>
         </div>
@@ -52,6 +52,11 @@
                     <input id="rtScale" type="number" class="form-control" value="20" min="2" max="100" step="1">
                     <div class="input-group-append"><span class="input-group-text">px/m</span></div>
                 </div>
+            </label>
+            <label class="rt-physics-switch" title="Calcula movimiento, colisiones, gravedad, vuelcos y agua">
+                <input id="rtPhysicsEnabled" type="checkbox" checked>
+                <span><i class="fas fa-atom"></i></span>
+                <b>Físicas</b>
             </label>
             <div class="rt-file-actions">
                 <button id="rtNewProject" type="button" class="btn btn-outline-light" title="Iniciar un proyecto limpio">
@@ -131,7 +136,10 @@
                     <div class="rt-scene-buttons">
                         <button type="button" data-add-road="recta"><i class="fas fa-road"></i> Añadir calle recta</button>
                         <button type="button" data-add-road="curva"><i class="fas fa-bezier-curve"></i> Añadir calle curva</button>
+                        <button type="button" data-add-road="puente"><i class="fas fa-archway"></i> Añadir puente</button>
                         <button type="button" data-road-preset="cruce"><i class="fas fa-plus"></i> Crear cruce editable</button>
+                        <button type="button" data-add-zone="water"><i class="fas fa-water"></i> Añadir agua</button>
+                        <button type="button" data-add-zone="slope"><i class="fas fa-mountain"></i> Añadir talud</button>
                         <button type="button" data-clear-roads><i class="far fa-square"></i> Quitar todas las calles</button>
                     </div>
                 </div>
@@ -139,6 +147,7 @@
                 <div class="rt-library__group rt-layers">
                     <h3>Capas visibles</h3>
                     <label><input type="checkbox" data-layer="road" checked> <span>Geometría vial</span></label>
+                    <label><input type="checkbox" data-layer="environment" checked> <span>Agua, taludes y desniveles</span></label>
                     <label><input type="checkbox" data-layer="actors" checked> <span>Participantes</span></label>
                     <label><input type="checkbox" data-layer="paths" checked> <span>Trayectorias</span></label>
                     <label><input type="checkbox" data-layer="events" checked> <span>Puntos técnicos</span></label>
@@ -235,6 +244,15 @@
                     <div class="rt-field-row">
                         <label class="rt-field"><span>Color de ruta</span><input id="rtActorColor" type="color" class="form-control form-control-sm"></label>
                         <label class="rt-field"><span>Velocidad inicial</span><div class="input-group input-group-sm"><input id="rtActorSpeed" type="number" class="form-control" min="0" max="300" step="1"><div class="input-group-append"><span class="input-group-text">km/h</span></div></div></label>
+                    </div>
+                    <div class="rt-physics-card">
+                        <strong><i class="fas fa-atom"></i> Comportamiento físico</strong>
+                        <div class="rt-field-row">
+                            <label class="rt-field"><span>Masa</span><div class="input-group input-group-sm"><input id="rtActorMass" type="number" class="form-control" min="40" max="50000" step="50"><div class="input-group-append"><span class="input-group-text">kg</span></div></div></label>
+                            <label class="rt-field"><span>Altura C.G.</span><div class="input-group input-group-sm"><input id="rtActorCgHeight" type="number" class="form-control" min="0.2" max="3" step="0.1"><div class="input-group-append"><span class="input-group-text">m</span></div></div></label>
+                        </div>
+                        <label class="rt-field"><span>Agarre de neumáticos</span><input id="rtActorGrip" type="range" min="0.15" max="1.3" step="0.05"></label>
+                        <small>La trayectoria actúa como intención del conductor; la física limita cuánto puede acelerar, girar y recuperar el control.</small>
                     </div>
                     <div class="rt-field-row">
                         <label class="rt-field"><span>Largo</span><div class="input-group input-group-sm"><input id="rtActorLength" type="number" class="form-control" min="40" max="400" step="5"><div class="input-group-append"><span class="input-group-text">%</span></div></div></label>
@@ -337,7 +355,26 @@
                             </label>
                         </div>
                     </div>
+                    <div class="rt-physics-card">
+                        <label class="rt-check"><input id="rtRoadBridge" type="checkbox"> <span>Este tramo es un puente elevado</span></label>
+                        <label id="rtRoadElevationField" class="rt-field"><span>Altura del tablero</span><div class="input-group input-group-sm"><input id="rtRoadElevation" type="number" class="form-control" min="0.5" max="60" step="0.5"><div class="input-group-append"><span class="input-group-text">m</span></div></div></label>
+                        <small>Al abandonar el tablero, el vehículo queda en caída libre hasta el terreno o el agua.</small>
+                    </div>
                     <p class="rt-hint">Arrastra la calle para moverla. Las líneas punteadas se distribuyen según los carriles.</p>
+                </div>
+
+                <div id="rtZoneInspector" class="rt-inspector-section" hidden>
+                    <div class="rt-selection-title rt-selection-title--zone">
+                        <span><i class="fas fa-water"></i></span>
+                        <div><small>Entorno seleccionado</small><strong id="rtZoneTitle">Cuerpo de agua</strong></div>
+                    </div>
+                    <label class="rt-field"><span>Nombre</span><input id="rtZoneName" type="text" class="form-control form-control-sm" maxlength="80"></label>
+                    <div class="rt-field-row">
+                        <label class="rt-field"><span>Ancho</span><div class="input-group input-group-sm"><input id="rtZoneWidth" type="number" class="form-control" min="2" max="200" step="1"><div class="input-group-append"><span class="input-group-text">m</span></div></div></label>
+                        <label class="rt-field"><span>Alto</span><div class="input-group input-group-sm"><input id="rtZoneHeight" type="number" class="form-control" min="2" max="200" step="1"><div class="input-group-append"><span class="input-group-text">m</span></div></div></label>
+                    </div>
+                    <label class="rt-field"><span id="rtZoneDepthLabel">Profundidad</span><div class="input-group input-group-sm"><input id="rtZoneDepth" type="number" class="form-control" min="0.5" max="100" step="0.5"><div class="input-group-append"><span class="input-group-text">m</span></div></div></label>
+                    <p class="rt-hint">Arrastra el área para moverla. Agua frena y hunde al vehículo; un talud altera el apoyo y puede provocar un vuelco.</p>
                 </div>
 
                 <div id="rtEventInspector" class="rt-inspector-section" hidden>
@@ -355,6 +392,7 @@
                 </div>
 
                 <div class="rt-summary">
+                    <div><span>Estado físico</span><strong id="rtPhysicsStatus">LISTO</strong></div>
                     <div><span>Distancia seleccionada</span><strong id="rtDistance">—</strong></div>
                     <div><span>Fotogramas</span><strong id="rtKeyframeCount">0</strong></div>
                     <div><span>Puntos técnicos</span><strong id="rtEventCount">0</strong></div>

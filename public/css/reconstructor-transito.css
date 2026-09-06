@@ -71,6 +71,13 @@
 .rt-projectbar .rt-field { margin-bottom: 0; min-width: 150px; }
 .rt-projectbar .rt-field--grow { flex: 1 1 240px; }
 .rt-projectbar .rt-field--short { flex: 0 0 115px; min-width: 115px; }
+.rt-physics-switch { display:flex; align-items:center; gap:8px; margin:21px 2px 0; padding:8px 11px; border:1px solid rgba(56,189,248,.38); border-radius:10px; color:#dff7ff; background:rgba(14,116,144,.16); cursor:pointer; white-space:nowrap; }
+.rt-physics-switch input { position:absolute; opacity:0; pointer-events:none; }
+.rt-physics-switch span { width:30px; height:18px; border-radius:999px; background:#334155; display:inline-flex; align-items:center; padding:2px; transition:.2s; }
+.rt-physics-switch span i { width:14px; height:14px; border-radius:50%; background:#94a3b8; color:transparent; transition:.2s; }
+.rt-physics-switch input:checked + span { background:#0ea5e9; justify-content:flex-end; }
+.rt-physics-switch input:checked + span i { background:#fff; box-shadow:0 0 12px rgba(125,211,252,.8); }
+.rt-physics-switch b { font-size:12px; }
 .rt-field > span { display: block; margin-bottom: 5px; color: var(--rt-muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .rt-field .form-control,
 .rt-field .input-group-text,
@@ -190,9 +197,14 @@
 .rt-selection-title strong { overflow: hidden; color: #fff; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .rt-selection-title--event > span { display: grid; place-items: center; color: #fff; border: 0; background: var(--rt-danger); font-size: 9px; font-weight: 900; }
 .rt-selection-title--road > span { display: grid; place-items: center; color: #07101c; border: 0; background: #f8fafc; font-size: 14px; }
+.rt-selection-title--zone > span { display:grid; place-items:center; color:#e0f2fe; border:0; background:linear-gradient(145deg,#0ea5e9,#075985); font-size:14px; }
 .rt-field-row { display: grid; grid-template-columns: 90px 1fr; gap: 8px; }
 .rt-field-row--road { grid-template-columns: 1fr 1fr; }
 .rt-field input[type="color"] { padding: 3px; }
+.rt-physics-card { margin:12px 0; padding:11px; border:1px solid rgba(56,189,248,.22); border-radius:10px; background:rgba(8,47,73,.18); }
+.rt-physics-card > strong { display:block; margin-bottom:9px; color:#7dd3fc; font-size:12px; }
+.rt-physics-card > small { display:block; color:#94a3b8; line-height:1.35; }
+.rt-check { display:flex; align-items:center; gap:8px; color:#dbeafe; font-size:12px; margin:0 0 10px; }
 .rt-rotation-control { padding: 9px; margin: 1px 0 10px; border: 1px solid var(--rt-border); border-radius: 9px; background: rgba(255, 255, 255, .025); }
 .rt-rotation-control__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
 .rt-rotation-control__head > span { color: var(--rt-muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }

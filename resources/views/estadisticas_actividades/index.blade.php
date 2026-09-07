@@ -182,6 +182,13 @@
                                 <i class="fa-solid fa-file-csv"></i> Exportar puestas
                             </a>
                         </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <button class="btn sv-btn sv-excel-launch w-100" id="btn_vista_excel" type="button" aria-pressed="false">
+                                <i class="fa-solid fa-table-cells"></i> Vista Excel
+                            </button>
+                        </div>
                     </div>
 
                     <div class="sv-hint">
@@ -191,6 +198,10 @@
             </div>
         </div>
     </div>
+
+    @include('partials.estadisticas_excel_view', ['excelMode' => 'actividades'])
+
+    <div id="sv_dashboard_view">
 
     <div class="row">
         <div class="col-xl-2 col-md-4 col-12">
@@ -483,10 +494,12 @@
             </div>
         </div>
     </div>
+    </div>
 @stop
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-dashboard.css') }}">
+<link rel="stylesheet" href="{{ asset('css/estadisticas-excel-view.css') }}">
 <style>
     .sv-field--date {
         padding: 9px;
@@ -700,6 +713,7 @@
             : null;
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ asset('js/estadisticas-excel-view.js') }}"></script>
 <script>
 (function(){
     const base = "{{ url('estadisticas-actividades') }}";
@@ -712,6 +726,7 @@
     let puestasPage = 1;
     let puestasLastPage = 1;
     let currentCategorySummary = { categorias: [], total: 0 };
+    let excelView = null;
 
     const el = (id) => document.getElementById(id);
 
@@ -1561,6 +1576,7 @@
         renderPuestasTable(puestas);
 
         toggleDelegacion();
+        if (excelView) await excelView.refreshIfVisible();
     }
 
     const btnPrev = el('btn_prev');
@@ -1726,6 +1742,14 @@
     toggleDestacamento();
     enableChartSorting();
     setExportLinks();
+    excelView = window.SvExcelView?.create({
+        mode: 'actividades',
+        base,
+        query: qsFromFilters,
+        button: '#btn_vista_excel',
+        dashboard: '#sv_dashboard_view',
+        view: '#sv_excel_view_actividades'
+    });
     loadAll().catch(err => console.error('SV ACTIVIDADES ERROR:', err));
 })();
 </script>

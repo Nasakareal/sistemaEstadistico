@@ -175,6 +175,13 @@
                                 <i class="fa-solid fa-file-excel"></i> INEGI
                             </a>
                         </div>
+
+                        <div class="sv-field">
+                            <label>&nbsp;</label>
+                            <button class="btn sv-btn sv-excel-launch w-100" id="btn_vista_excel" type="button" aria-pressed="false">
+                                <i class="fa-solid fa-table-cells"></i> Vista Excel
+                            </button>
+                        </div>
                     </div>
 
                     <div class="sv-hint">
@@ -184,6 +191,10 @@
             </div>
         </div>
     </div>
+
+    @include('partials.estadisticas_excel_view', ['excelMode' => 'hechos'])
+
+    <div id="sv_dashboard_view">
 
     {{-- KPIs --}}
     <div class="row">
@@ -320,19 +331,23 @@
             </div>
         </div>
     </div>
+    </div>
 @stop
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/sv-dashboard.css') }}">
+<link rel="stylesheet" href="{{ asset('css/estadisticas-excel-view.css') }}">
 @stop
 
 @section('js')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ asset('js/estadisticas-excel-view.js') }}"></script>
 <script>
 (function(){
     const base = "{{ url('estadisticas-globales') }}";
     let page = 1;
     let lastPage = 1;
+    let excelView = null;
 
     const el = (id) => document.getElementById(id);
     const val = (id) => {
@@ -621,6 +636,8 @@
 
         const hechos = await getJson('hechos', { page });
         renderHechosTable(hechos);
+
+        if (excelView) await excelView.refreshIfVisible();
     }
 
     const btnAplicar = el('btn_aplicar');
@@ -676,6 +693,14 @@
     setDefaultDates();
     wireExportLinkUpdates();
     setExportLinks();
+    excelView = window.SvExcelView?.create({
+        mode: 'hechos',
+        base,
+        query: qsFromFilters,
+        button: '#btn_vista_excel',
+        dashboard: '#sv_dashboard_view',
+        view: '#sv_excel_view_hechos'
+    });
     loadAll().catch(err => console.error('SV DASH ERROR:', err));
 })();
 </script>

@@ -103,6 +103,11 @@ use App\Http\Controllers\BoquillaDotacionController;
 
 use App\Http\Controllers\ComunicacionController;
 
+use App\Http\Controllers\CaleaDirectivaController;
+use App\Http\Controllers\CaleaDirectivaVersionController;
+use App\Http\Controllers\CaleaDirectivaSeccionController;
+use App\Http\Controllers\CaleaDirectivaBloqueController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 // Ruta para las constancias de manejo
@@ -112,6 +117,14 @@ Route::prefix('constancias-manejo')->group(function () {
     Route::get('/examen-escrito/{token}', [ConstanciaExamenPublicoController::class, 'escrito'])->name('constancias_manejo.examen.escrito');
     Route::get('/validar/{token}', [ConstanciaValidacionController::class, 'validar'])->name('constancias_manejo.validar');
     Route::get('/imprimir-lote-firmado', [ConstanciaManejoController::class, 'imprimirLoteFirmado'])->middleware('signed')->name('constancias_manejo.imprimir_lote_firmado');
+});
+
+Route::prefix('calea')->middleware(['auth', 'can:ver calea'])->group(function () {
+    Route::get('/', [CaleaDirectivaController::class, 'index'])->name('calea.index');
+    Route::get('/buscar', [CaleaDirectivaController::class, 'buscar'])->name('calea.buscar');
+    Route::get('/estudio', [CaleaDirectivaController::class, 'estudio'])->name('calea.estudio');
+    Route::get('/versiones/{version}/pdf', [CaleaDirectivaVersionController::class, 'pdf'])->name('calea.versiones.pdf');
+    Route::get('/{directiva}', [CaleaDirectivaController::class, 'show'])->name('calea.show');
 });
 
 // Ruta para usuarios de las grúas, no convfundir para rutas para creacion de grúas y servicios
@@ -766,6 +779,36 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
         Route::delete('/{role}',[RoleController::class,'destroy'])->middleware('can:eliminar roles')->name('roles.destroy');
         Route::get('/{role}/permissions',[RoleController::class,'permissions'])->middleware('can:editar roles')->name('roles.permissions');
         Route::post('/{role}/permissions',[RoleController::class,'assignPermissions'])->middleware('can:editar roles')->name('roles.assignPermissions');
+    });
+
+    Route::prefix('calea')->middleware(['auth', 'can:ver calea'])->group(function () {
+        Route::get('/', [CaleaDirectivaController::class, 'index'])->name('settings.calea.index');
+        Route::get('/create', [CaleaDirectivaController::class, 'create'])->middleware('can:crear calea')->name('settings.calea.create');
+        Route::post('/', [CaleaDirectivaController::class, 'store'])->middleware('can:crear calea')->name('settings.calea.store');
+        Route::prefix('versiones')->group(function () {
+            Route::get('/{version}/pdf', [CaleaDirectivaVersionController::class, 'pdf'])->name('settings.calea.versiones.pdf');
+            Route::get('/{version}/edit', [CaleaDirectivaVersionController::class, 'edit'])->middleware('can:editar calea')->name('settings.calea.versiones.edit');
+            Route::put('/{version}', [CaleaDirectivaVersionController::class, 'update'])->middleware('can:editar calea')->name('settings.calea.versiones.update');
+            Route::delete('/{version}', [CaleaDirectivaVersionController::class, 'destroy'])->middleware('can:eliminar calea')->name('settings.calea.versiones.destroy');
+            Route::post('/{version}/vigente', [CaleaDirectivaVersionController::class, 'marcarVigente'])->middleware('can:editar calea')->name('settings.calea.versiones.vigente');
+            Route::post('/{version}/secciones', [CaleaDirectivaSeccionController::class, 'store'])->middleware('can:editar calea')->name('settings.calea.secciones.store');
+        });
+        Route::prefix('secciones')->group(function () {
+            Route::get('/{seccion}/edit', [CaleaDirectivaSeccionController::class, 'edit'])->middleware('can:editar calea')->name('settings.calea.secciones.edit');
+            Route::put('/{seccion}', [CaleaDirectivaSeccionController::class, 'update'])->middleware('can:editar calea')->name('settings.calea.secciones.update');
+            Route::delete('/{seccion}', [CaleaDirectivaSeccionController::class, 'destroy'])->middleware('can:eliminar calea')->name('settings.calea.secciones.destroy');
+            Route::post('/{seccion}/bloques', [CaleaDirectivaBloqueController::class, 'store'])->middleware('can:editar calea')->name('settings.calea.bloques.store');
+        });
+        Route::prefix('bloques')->group(function () {
+            Route::get('/{bloque}/edit', [CaleaDirectivaBloqueController::class, 'edit'])->middleware('can:editar calea')->name('settings.calea.bloques.edit');
+            Route::put('/{bloque}', [CaleaDirectivaBloqueController::class, 'update'])->middleware('can:editar calea')->name('settings.calea.bloques.update');
+            Route::delete('/{bloque}', [CaleaDirectivaBloqueController::class, 'destroy'])->middleware('can:eliminar calea')->name('settings.calea.bloques.destroy');
+        });
+        Route::get('/{directiva}/versiones/create', [CaleaDirectivaVersionController::class, 'create'])->middleware('can:crear calea')->name('settings.calea.versiones.create');
+        Route::post('/{directiva}/versiones', [CaleaDirectivaVersionController::class, 'store'])->middleware('can:crear calea')->name('settings.calea.versiones.store');
+        Route::get('/{directiva}/edit', [CaleaDirectivaController::class, 'edit'])->middleware('can:editar calea')->name('settings.calea.edit');
+        Route::put('/{directiva}', [CaleaDirectivaController::class, 'update'])->middleware('can:editar calea')->name('settings.calea.update');
+        Route::delete('/{directiva}', [CaleaDirectivaController::class, 'destroy'])->middleware('can:eliminar calea')->name('settings.calea.destroy');
     });
 
     Route::prefix('personal')->middleware('can:ver personal')->group(function () {

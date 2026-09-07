@@ -79,7 +79,7 @@ Route::prefix('choques-diarios')->group(function () {
     Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
 });
 
-Route::prefix('calea')->middleware('can:ver calea')->group(function () {
+Route::prefix('calea')->middleware(['auth:sanctum', 'can:ver calea'])->group(function () {
     Route::get('/meta', [ApiCaleaController::class, 'meta'])->name('api.calea.meta');
     Route::get('/buscar', [ApiCaleaController::class, 'buscar'])->name('api.calea.buscar');
     Route::get('/estudio', [ApiCaleaController::class, 'estudio'])->name('api.calea.estudio');

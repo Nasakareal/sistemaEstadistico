@@ -206,6 +206,24 @@
             </div>
         @endcan
 
+        {{-- DIRECTIVAS CALEA --}}
+        @can('ver calea')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-primary">
+                        <i class="fa-solid fa-book-shield"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Directivas CALEA</div>
+                        <div class="sv-card__desc">Administración de estándares, versiones, documentos y contenido CALEA.</div>
+                        <a href="{{ route('settings.calea.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Acceder
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endcan
+
         {{-- EXÁMENES DIARIOS --}}
         @can('ver modulo examenes')
             @if(auth()->user()->perteneceAAlgunaUnidad(['siniestros','delegaciones']) || (int)(auth()->user()->unidad_id ?? 0) === 3)

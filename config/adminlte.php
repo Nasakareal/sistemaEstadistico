@@ -686,6 +686,36 @@ return [
         ],
 
         [
+            'text'    => 'CALEA',
+            'icon'    => 'fa-solid fa-book-open',
+            'classes' => 'bg-blue text-white',
+            'can'     => 'ver calea',
+            'submenu' => [
+                [
+                    'text'    => 'Directivas',
+                    'icon'    => 'fa-solid fa-book',
+                    'classes' => 'text-white',
+                    'route'   => 'calea.index',
+                    'can'     => 'ver calea',
+                ],
+                [
+                    'text'    => 'Buscar',
+                    'icon'    => 'fa-solid fa-magnifying-glass',
+                    'classes' => 'text-white',
+                    'route'   => 'calea.buscar',
+                    'can'     => 'ver calea',
+                ],
+                [
+                    'text'    => 'Modo Estudio',
+                    'icon'    => 'fa-solid fa-graduation-cap',
+                    'classes' => 'text-white',
+                    'route'   => 'calea.estudio',
+                    'can'     => 'ver calea',
+                ],
+            ],
+        ],
+
+        [
             'text'    => 'Puntos de Licencia',
             'icon'    => 'fa-solid fa-id-card-clip',
             'classes' => 'bg-blue text-white',

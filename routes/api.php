@@ -53,6 +53,7 @@ use App\Http\Controllers\Api\ConduceLegalidadController as ApiConduceLegalidadCo
 use App\Http\Controllers\Api\UserNoteController;
 use App\Http\Controllers\Api\ComunicacionController as ApiComunicacionController;
 use App\Http\Controllers\Api\ControlSemaforicoController;
+use App\Http\Controllers\Api\CaleaController as ApiCaleaController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -76,6 +77,15 @@ Route::prefix('choques-diarios')->group(function () {
     Route::get('/{hecho}', [ChoquesDiariosController::class, 'show'])->whereNumber('hecho')->name('api.choques_diarios.show');
     Route::get('/eliminados/fecha/{fecha}', [ChoquesDiariosController::class, 'eliminadosPorFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios.eliminados.fecha');
     Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
+});
+
+Route::prefix('calea')->middleware('can:ver calea')->group(function () {
+    Route::get('/meta', [ApiCaleaController::class, 'meta'])->name('api.calea.meta');
+    Route::get('/buscar', [ApiCaleaController::class, 'buscar'])->name('api.calea.buscar');
+    Route::get('/estudio', [ApiCaleaController::class, 'estudio'])->name('api.calea.estudio');
+    Route::get('/', [ApiCaleaController::class, 'index'])->name('api.calea.index');
+    Route::get('/versiones/{version}/pdf', [ApiCaleaController::class, 'pdf'])->whereNumber('version')->name('api.calea.versiones.pdf');
+    Route::get('/{directiva}', [ApiCaleaController::class, 'show'])->whereNumber('directiva')->name('api.calea.show');
 });
 
 Route::prefix('choques-diarios-inegi')->group(function () {

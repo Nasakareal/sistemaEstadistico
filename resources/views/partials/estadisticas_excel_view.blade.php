@@ -42,6 +42,12 @@
                     <i class="fas fa-sync-alt" aria-hidden="true"></i>
                     <span>Actualizar</span>
                 </button>
+                @if ($excelMode === 'actividades')
+                    <button type="button" class="sv-excel-ribbon-button" data-excel-action="download">
+                        <i class="fas fa-file-excel" aria-hidden="true"></i>
+                        <span>Descargar</span>
+                    </button>
+                @endif
                 <button type="button" class="sv-excel-ribbon-button" data-excel-action="print">
                     <i class="fas fa-print" aria-hidden="true"></i>
                     <span>Imprimir</span>

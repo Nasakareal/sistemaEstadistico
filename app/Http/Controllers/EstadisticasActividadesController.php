@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -185,33 +186,38 @@ class EstadisticasActividadesController extends Controller
     public function resumenCategorias(Request $request)
     {
         return $this->cachedJson($request, 'resumenCategorias', function () use ($request) {
-            $q = $this->baseActividadesQuery($request);
-            $this->applySearchFilter($q, $request);
-
-            $rows = $q
-                ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
-                ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
-                ->select([
-                    'actividades.id',
-                    'actividades.personas_participantes',
-                    'actividades.elementos_participantes_texto',
-                    'actividades.patrullas_participantes_texto',
-                    'actividades.personas_alcanzadas',
-                    'actividad_categorias.id as categoria_id',
-                    'actividad_subcategorias.id as subcategoria_id',
-                ])
-                ->selectRaw("COALESCE(NULLIF(TRIM(actividad_categorias.nombre), ''), 'NO ESPECIFICADO') as categoria")
-                ->selectRaw("COALESCE(NULLIF(TRIM(actividad_subcategorias.nombre), ''), 'NO ESPECIFICADO') as subcategoria")
-                ->distinct()
-                ->get();
-
-            $categorias = $this->agruparResumenCategorias($rows);
+            $categorias = $this->obtenerResumenCategorias($request);
 
             return [
                 'categorias' => $categorias,
                 'total' => (int)$categorias->sum('total'),
             ];
         });
+    }
+
+    private function obtenerResumenCategorias(Request $request): Collection
+    {
+        $q = $this->baseActividadesQuery($request);
+        $this->applySearchFilter($q, $request);
+
+        $rows = $q
+            ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
+            ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
+            ->select([
+                'actividades.id',
+                'actividades.personas_participantes',
+                'actividades.elementos_participantes_texto',
+                'actividades.patrullas_participantes_texto',
+                'actividades.personas_alcanzadas',
+                'actividad_categorias.id as categoria_id',
+                'actividad_subcategorias.id as subcategoria_id',
+            ])
+            ->selectRaw("COALESCE(NULLIF(TRIM(actividad_categorias.nombre), ''), 'NO ESPECIFICADO') as categoria")
+            ->selectRaw("COALESCE(NULLIF(TRIM(actividad_subcategorias.nombre), ''), 'NO ESPECIFICADO') as subcategoria")
+            ->distinct()
+            ->get();
+
+        return $this->agruparResumenCategorias($rows);
     }
 
     private function agruparResumenCategorias(Collection $rows): Collection
@@ -877,6 +883,174 @@ class EstadisticasActividadesController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"$filename\"",
         ]);
+    }
+
+    public function exportVistaExcel(Request $request): StreamedResponse
+    {
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(0);
+
+        $categorias = $this->obtenerResumenCategorias($request);
+        $titulo = mb_substr(trim((string)$request->query('_excel_title', 'TODAS LAS UNIDADES')), 0, 120, 'UTF-8');
+        $titulo = $titulo !== '' ? mb_strtoupper($titulo, 'UTF-8') : 'TODAS LAS UNIDADES';
+
+        $desde = trim((string)$request->query('desde', ''));
+        $hasta = trim((string)$request->query('hasta', ''));
+        $formatearFecha = static function (string $fecha): string {
+            $timestamp = strtotime($fecha);
+            return $timestamp === false ? $fecha : date('d/m/Y', $timestamp);
+        };
+
+        if ($desde !== '' && $hasta !== '' && $desde !== $hasta) {
+            $periodo = $formatearFecha($desde) . ' AL ' . $formatearFecha($hasta);
+        } else {
+            $periodo = $hasta !== ''
+                ? $formatearFecha($hasta)
+                : ($desde !== '' ? $formatearFecha($desde) : 'PERIODO COMPLETO');
+        }
+
+        $spreadsheet = $this->crearLibroVistaExcel($categorias, $titulo, $periodo);
+        $nombrePeriodo = preg_replace('/[^0-9]+/', '_', trim($desde . '_' . $hasta, '_')) ?: now()->format('Ymd_His');
+        $filename = 'vista_excel_actividades_' . trim($nombrePeriodo, '_') . '.xlsx';
+
+        return new StreamedResponse(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
+    private function crearLibroVistaExcel(Collection $categorias, string $titulo, string $periodo): Spreadsheet
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('TOTAL');
+        $sheet->setShowGridlines(false);
+
+        $sheet->setCellValue('C1', $titulo);
+        $sheet->setCellValue('B2', 'FECHA');
+        $sheet->setCellValue('C2', $periodo);
+
+        $headers = [
+            'No.',
+            'CATEGORÍA',
+            'ACTIVIDAD',
+            'CANTIDAD',
+            'ESTADO DE FUERZA PARTICIPANTE',
+            'UNIDADES PARTICIPANTES',
+            'KILÓMETROS RECORRIDOS',
+            'PERSONAS ALCANZADAS',
+            'RECOMENDACIONES',
+        ];
+        $sheet->fromArray($headers, null, 'A3');
+
+        $row = 4;
+        foreach ($categorias->values() as $categoryIndex => $categoria) {
+            $subcategorias = collect($categoria['subcategorias'] ?? []);
+            if ($subcategorias->isEmpty()) {
+                $subcategorias = collect([[
+                    'nombre' => $categoria['nombre'] ?? 'NO ESPECIFICADO',
+                    'total' => $categoria['total'] ?? 0,
+                    'estado_fuerza_participante' => $categoria['estado_fuerza_participante'] ?? 0,
+                    'unidades_participantes' => $categoria['unidades_participantes'] ?? 0,
+                    'personas_alcanzadas' => $categoria['personas_alcanzadas'] ?? 0,
+                ]]);
+            }
+
+            $categoryStart = $row;
+            foreach ($subcategorias as $subcategoria) {
+                $sheet->fromArray([
+                    $row === $categoryStart ? $categoryIndex + 1 : null,
+                    $row === $categoryStart ? ($categoria['nombre'] ?? 'NO ESPECIFICADO') : null,
+                    $subcategoria['nombre'] ?? 'NO ESPECIFICADO',
+                    $this->valorVisibleExcel($subcategoria['total'] ?? 0),
+                    $this->valorVisibleExcel($subcategoria['estado_fuerza_participante'] ?? 0),
+                    $this->valorVisibleExcel($subcategoria['unidades_participantes'] ?? 0),
+                    null,
+                    $this->valorVisibleExcel($subcategoria['personas_alcanzadas'] ?? 0),
+                    null,
+                ], null, 'A' . $row);
+                $row++;
+            }
+
+            $categoryEnd = $row - 1;
+            if ($categoryEnd > $categoryStart) {
+                $sheet->mergeCells("A{$categoryStart}:A{$categoryEnd}");
+                $sheet->mergeCells("B{$categoryStart}:B{$categoryEnd}");
+            }
+
+            if ($categoryIndex % 2 === 1) {
+                $sheet->getStyle("A{$categoryStart}:I{$categoryEnd}")
+                    ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF9BC2E6');
+            }
+        }
+
+        if ($categorias->isEmpty()) {
+            $sheet->fromArray([1, 'SIN DATOS', 'No hay actividades para los filtros seleccionados'], null, 'A4');
+            $row = 5;
+        }
+
+        $totalRow = $row;
+        $sheet->mergeCells("A{$totalRow}:B{$totalRow}");
+        $sheet->setCellValue("A{$totalRow}", 'TOTAL');
+        $sheet->setCellValue("C{$totalRow}", 'DISPOSITIVOS REALIZADOS');
+        $sheet->setCellValue("D{$totalRow}", $this->valorVisibleExcel((int)$categorias->sum('total')));
+        $sheet->setCellValue("E{$totalRow}", $this->valorVisibleExcel((int)$categorias->sum('estado_fuerza_participante')));
+        $sheet->setCellValue("F{$totalRow}", $this->valorVisibleExcel((int)$categorias->sum('unidades_participantes')));
+        $sheet->setCellValue("H{$totalRow}", $this->valorVisibleExcel((int)$categorias->sum('personas_alcanzadas')));
+
+        $sheet->getStyle('A3:C3')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF0070C0');
+        $sheet->getStyle('D3:G3')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF00B050');
+        $sheet->getStyle('H3:I3')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF00B0F0');
+        $sheet->getStyle("A{$totalRow}:I{$totalRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF00B0F0');
+
+        $sheet->getStyle('A3:I3')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$totalRow}:I{$totalRow}")->getFont()->setBold(true);
+        $sheet->getStyle('C1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('B2:C2')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A3:I{$totalRow}")->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FF202020');
+        $sheet->getStyle("A3:I{$totalRow}")->getAlignment()
+            ->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+        $sheet->getStyle("A3:I3")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("A4:B{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("D4:H{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("A{$totalRow}:I{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("B4:B{$totalRow}")->getFont()->setBold(true);
+
+        foreach ([
+            'A' => 8,
+            'B' => 30,
+            'C' => 62,
+            'D' => 14,
+            'E' => 20,
+            'F' => 20,
+            'G' => 22,
+            'H' => 19,
+            'I' => 24,
+        ] as $column => $width) {
+            $sheet->getColumnDimension($column)->setWidth($width);
+        }
+
+        $sheet->getRowDimension(1)->setRowHeight(24);
+        $sheet->getRowDimension(2)->setRowHeight(24);
+        $sheet->getRowDimension(3)->setRowHeight(44);
+        $sheet->freezePane('D4');
+        $sheet->getPageSetup()->setOrientation('landscape')->setFitToWidth(1)->setFitToHeight(0);
+        $sheet->getPageMargins()->setTop(0.35)->setRight(0.25)->setBottom(0.35)->setLeft(0.25);
+        $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 3);
+        $sheet->setSelectedCell('C1');
+
+        return $spreadsheet;
+    }
+
+    private function valorVisibleExcel($value): ?int
+    {
+        $number = (int)$value;
+        return $number === 0 ? null : $number;
     }
 
     public function exportMensual(Request $request)

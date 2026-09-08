@@ -713,7 +713,7 @@
             : null;
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="{{ asset('js/estadisticas-excel-view.js') }}"></script>
+<script src="{{ asset('js/estadisticas-excel-view.js') }}?v={{ filemtime(public_path('js/estadisticas-excel-view.js')) }}"></script>
 <script>
 (function(){
     const base = "{{ url('estadisticas-actividades') }}";
@@ -1746,6 +1746,7 @@
         mode: 'actividades',
         base,
         query: qsFromFilters,
+        downloadPath: 'export/vista-excel',
         button: '#btn_vista_excel',
         dashboard: '#sv_dashboard_view',
         view: '#sv_excel_view_actividades'

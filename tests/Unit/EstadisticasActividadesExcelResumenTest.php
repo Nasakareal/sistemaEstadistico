@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\EstadisticasActividadesController;
 use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -41,6 +43,50 @@ class EstadisticasActividadesExcelResumenTest extends TestCase
         $this->assertSame(5, $categoria['estado_fuerza_participante']);
         $this->assertSame(1, $categoria['unidades_participantes']);
         $this->assertSame(100, $categoria['personas_alcanzadas']);
+    }
+
+    public function test_libro_descargable_reproduce_la_vista_excel_filtrada(): void
+    {
+        $categorias = $this->agrupar(collect([
+            $this->actividad(1, 'ABANDERAMIENTOS', 10, 'ACCIDENTES', 4, '3214, 3178', 25),
+            $this->actividad(1, 'ABANDERAMIENTOS', 10, 'ACCIDENTES', 3, '2', 15),
+            $this->actividad(1, 'ABANDERAMIENTOS', 11, 'OBRAS PÚBLICAS', 0, '2637', 8, 'OF. ANA, OF. LUIS'),
+        ]));
+
+        $controller = new EstadisticasActividadesController();
+        $method = new ReflectionMethod($controller, 'crearLibroVistaExcel');
+        $method->setAccessible(true);
+        $spreadsheet = $method->invoke($controller, $categorias, 'TODAS LAS UNIDADES', '01/09/2026 AL 08/09/2026');
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $this->assertSame('TOTAL', $sheet->getTitle());
+        $this->assertSame('TODAS LAS UNIDADES', $sheet->getCell('C1')->getValue());
+        $this->assertSame('01/09/2026 AL 08/09/2026', $sheet->getCell('C2')->getValue());
+        $this->assertSame('ESTADO DE FUERZA PARTICIPANTE', $sheet->getCell('E3')->getValue());
+        $this->assertSame('PERSONAS ALCANZADAS', $sheet->getCell('H3')->getValue());
+        $this->assertSame(2, $sheet->getCell('D4')->getValue());
+        $this->assertSame(7, $sheet->getCell('E4')->getValue());
+        $this->assertSame(4, $sheet->getCell('F4')->getValue());
+        $this->assertNull($sheet->getCell('G4')->getValue());
+        $this->assertSame(40, $sheet->getCell('H4')->getValue());
+        $this->assertContains('A4:A5', $sheet->getMergeCells());
+        $this->assertContains('B4:B5', $sheet->getMergeCells());
+        $this->assertSame(3, $sheet->getCell('D6')->getValue());
+        $this->assertSame(9, $sheet->getCell('E6')->getValue());
+        $this->assertSame(5, $sheet->getCell('F6')->getValue());
+        $this->assertSame(48, $sheet->getCell('H6')->getValue());
+        $this->assertSame('FF00B050', $sheet->getStyle('D3')->getFill()->getStartColor()->getARGB());
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'vista_excel_');
+        $this->assertNotFalse($tempFile);
+        (new Xlsx($spreadsheet))->save($tempFile);
+        $this->assertGreaterThan(0, filesize($tempFile));
+
+        $reloaded = IOFactory::load($tempFile);
+        $this->assertSame(48, $reloaded->getSheetByName('TOTAL')->getCell('H6')->getValue());
+        $reloaded->disconnectWorksheets();
+        $spreadsheet->disconnectWorksheets();
+        unlink($tempFile);
     }
 
     private function agrupar(Collection $rows): Collection

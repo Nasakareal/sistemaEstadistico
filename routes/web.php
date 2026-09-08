@@ -431,6 +431,7 @@ Route::prefix('estadisticas-actividades')->middleware(['auth','can:ver estadisti
     Route::get('/catalogos/articulos',[EstadisticasActividadesController::class,'catalogoArticulos'])->name('estadisticas_actividades.catalogos.articulos');
 
     Route::get('/export/actividades',[EstadisticasActividadesController::class,'exportActividades'])->name('estadisticas_actividades.export.actividades');
+    Route::get('/export/vista-excel',[EstadisticasActividadesController::class,'exportVistaExcel'])->name('estadisticas_actividades.export.vista_excel');
     Route::get('/export/mensual',[EstadisticasActividadesController::class,'exportMensual'])->name('estadisticas_actividades.export.mensual');
     Route::get('/export/fomento-cultura-vial',[EstadisticasActividadesController::class,'exportFomentoCulturaVial'])->name('estadisticas_actividades.export.fomento_cultura_vial');
     Route::get('/export/puestas-disposicion',[EstadisticasActividadesController::class,'exportPuestasDisposicion'])->name('estadisticas_actividades.export.puestas_disposicion');

@@ -70,11 +70,12 @@
 
     function buildActivities(data, context) {
         const categories = data.summary?.categorias || [];
-        const totals = data.kpis?.totales || {};
-        const participatingUnits = categories.reduce(
-            (total, category) => total + Number(category.unidades_participantes || 0),
-            0
-        );
+        const totals = categories.reduce((result, category) => ({
+            actividades: result.actividades + Number(category.total || 0),
+            personasParticipantes: result.personasParticipantes + Number(category.estado_fuerza_participante || 0),
+            unidadesParticipantes: result.unidadesParticipantes + Number(category.unidades_participantes || 0),
+            personasAlcanzadas: result.personasAlcanzadas + Number(category.personas_alcanzadas || 0),
+        }), { actividades: 0, personasParticipantes: 0, unidadesParticipantes: 0, personasAlcanzadas: 0 });
         let excelRow = 4;
         let body = titleRows(context.title, context.period) + activityHeader(3);
 
@@ -113,10 +114,10 @@
         body += cell('TOTAL', excelRow, 'A', '', 'colspan="2"');
         body += cell('DISPOSITIVOS REALIZADOS', excelRow, 'C');
         body += cell(displayNumber(totals.actividades), excelRow, 'D', 'sv-excel-number');
-        body += cell(displayNumber(totals.personas_participantes), excelRow, 'E', 'sv-excel-number');
-        body += cell(displayNumber(participatingUnits), excelRow, 'F', 'sv-excel-number');
+        body += cell(displayNumber(totals.personasParticipantes), excelRow, 'E', 'sv-excel-number');
+        body += cell(displayNumber(totals.unidadesParticipantes), excelRow, 'F', 'sv-excel-number');
         body += cell('', excelRow, 'G', 'sv-excel-number');
-        body += cell(displayNumber(totals.personas_alcanzadas), excelRow, 'H', 'sv-excel-number');
+        body += cell(displayNumber(totals.personasAlcanzadas), excelRow, 'H', 'sv-excel-number');
         body += cell('', excelRow, 'I', 'sv-excel-number');
         body += '</tr>';
 
@@ -310,6 +311,13 @@
             }
         }
 
+        function download() {
+            if (!options.downloadPath) return;
+            const params = new URLSearchParams(options.query ? options.query() : '');
+            params.set('_excel_title', titleContext(options.mode));
+            window.location.href = `${options.base}/${options.downloadPath}?${params.toString()}`;
+        }
+
         function selectCell(target) {
             if (!target) return;
             sheet.querySelector('.sv-excel-cell--selected')?.classList.remove('sv-excel-cell--selected');
@@ -343,6 +351,7 @@
             const action = event.target.closest('[data-excel-action]')?.dataset.excelAction;
             if (action === 'close') close();
             if (action === 'refresh') refresh();
+            if (action === 'download') download();
             if (action === 'print') window.print();
             if (action === 'zoom-in') setZoom(Number(zoom.value) + 5);
             if (action === 'zoom-out') setZoom(Number(zoom.value) - 5);

@@ -59,30 +59,20 @@
                         @endif
 
                         <div class="row">
-                            <div class="col-md-2">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="orden">Orden <span class="text-danger">*</span></label>
-                                    <input type="number" name="orden" id="orden" class="form-control @error('orden') is-invalid @enderror" value="{{ old('orden', $seccion->orden) }}" min="0" required>
-                                    @error('orden')
-                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="numero">Número</label>
-                                    <input type="text" name="numero" id="numero" class="form-control @error('numero') is-invalid @enderror" value="{{ old('numero', $seccion->numero) }}" maxlength="50" placeholder="Ej. 4">
+                                    <label for="numero">Número <span class="text-danger">*</span></label>
+                                    <input type="number" name="numero" id="numero" class="form-control @error('numero') is-invalid @enderror" value="{{ old('numero', $seccion->numero) }}" min="0" max="65535" placeholder="Ej. 4" required>
                                     @error('numero')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-8">
                                 <div class="form-group">
-                                    <label for="tipo">Tipo</label>
-                                    <select name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror">
+                                    <label for="tipo">Tipo <span class="text-danger">*</span></label>
+                                    <select name="tipo" id="tipo" class="form-control @error('tipo') is-invalid @enderror" required>
                                         <option value="">Seleccionar</option>
                                         @foreach ($tipos as $valor => $nombre)
                                             <option value="{{ $valor }}" {{ old('tipo', $seccion->tipo) === $valor ? 'selected' : '' }}>
@@ -96,15 +86,6 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-5">
-                                <div class="form-group">
-                                    <label for="titulo">Título <span class="text-danger">*</span></label>
-                                    <input type="text" name="titulo" id="titulo" class="form-control @error('titulo') is-invalid @enderror" value="{{ old('titulo', $seccion->titulo) }}" maxlength="500" required>
-                                    @error('titulo')
-                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
                         </div>
 
                         <div class="form-group">
@@ -116,27 +97,6 @@
                             <small class="form-text text-muted">Úsalo para el contenido general. Los numerales, incisos, subtítulos y procedimientos específicos pueden capturarse como bloques.</small>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="pagina_inicio">Página inicial</label>
-                                    <input type="number" name="pagina_inicio" id="pagina_inicio" class="form-control @error('pagina_inicio') is-invalid @enderror" value="{{ old('pagina_inicio', $seccion->pagina_inicio) }}" min="1">
-                                    @error('pagina_inicio')
-                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="pagina_fin">Página final</label>
-                                    <input type="number" name="pagina_fin" id="pagina_fin" class="form-control @error('pagina_fin') is-invalid @enderror" value="{{ old('pagina_fin', $seccion->pagina_fin) }}" min="1">
-                                    @error('pagina_fin')
-                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="card-footer">

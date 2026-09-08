@@ -9,6 +9,19 @@ class CaleaDirectivaSeccion extends Model
 {
     use HasFactory;
 
+    public const TIPOS = [
+        'proposito' => 'Propósito',
+        'alcance' => 'Alcance',
+        'marco_juridico' => 'Marco Jurídico',
+        'directiva' => 'Directiva',
+        'procedimiento' => 'Procedimiento',
+        'definiciones' => 'Definiciones',
+        'responsabilidades' => 'Responsabilidades',
+        'supervision' => 'Supervisión',
+        'anexos' => 'Anexos',
+        'otro' => 'Otro',
+    ];
+
     protected $table = 'calea_directiva_secciones';
 
     protected $fillable = [

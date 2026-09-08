@@ -191,50 +191,116 @@ class EstadisticasActividadesController extends Controller
             $rows = $q
                 ->leftJoin('actividad_categorias', 'actividad_categorias.id', '=', 'actividades.actividad_categoria_id')
                 ->leftJoin('actividad_subcategorias', 'actividad_subcategorias.id', '=', 'actividades.actividad_subcategoria_id')
-                ->selectRaw("
-                    actividad_categorias.id as categoria_id,
-                    COALESCE(NULLIF(TRIM(actividad_categorias.nombre), ''), 'NO ESPECIFICADO') as categoria,
-                    actividad_subcategorias.id as subcategoria_id,
-                    COALESCE(NULLIF(TRIM(actividad_subcategorias.nombre), ''), 'NO ESPECIFICADO') as subcategoria,
-                    COUNT(DISTINCT actividades.id) as total
-                ")
-                ->groupBy(
-                    'actividad_categorias.id',
-                    'actividad_categorias.nombre',
-                    'actividad_subcategorias.id',
-                    'actividad_subcategorias.nombre'
-                )
+                ->select([
+                    'actividades.id',
+                    'actividades.personas_participantes',
+                    'actividades.elementos_participantes_texto',
+                    'actividades.patrullas_participantes_texto',
+                    'actividades.personas_alcanzadas',
+                    'actividad_categorias.id as categoria_id',
+                    'actividad_subcategorias.id as subcategoria_id',
+                ])
+                ->selectRaw("COALESCE(NULLIF(TRIM(actividad_categorias.nombre), ''), 'NO ESPECIFICADO') as categoria")
+                ->selectRaw("COALESCE(NULLIF(TRIM(actividad_subcategorias.nombre), ''), 'NO ESPECIFICADO') as subcategoria")
+                ->distinct()
                 ->get();
 
-            $categorias = $rows
-                ->groupBy(function ($row) {
-                    return $row->categoria_id !== null
-                        ? 'categoria_' . $row->categoria_id
-                        : 'sin_categoria';
-                })
-                ->map(function ($grupo) {
-                    return [
-                        'nombre' => (string)$grupo->first()->categoria,
-                        'total' => (int)$grupo->sum('total'),
-                        'subcategorias' => $grupo
-                            ->map(function ($row) {
-                                return [
-                                    'nombre' => (string)$row->subcategoria,
-                                    'total' => (int)$row->total,
-                                ];
-                            })
-                            ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
-                            ->values(),
-                    ];
-                })
-                ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
-                ->values();
+            $categorias = $this->agruparResumenCategorias($rows);
 
             return [
                 'categorias' => $categorias,
                 'total' => (int)$categorias->sum('total'),
             ];
         });
+    }
+
+    private function agruparResumenCategorias(Collection $rows): Collection
+    {
+        return $rows
+            ->unique('id')
+            ->groupBy(function ($row) {
+                return $row->categoria_id !== null
+                    ? 'categoria_' . $row->categoria_id
+                    : 'sin_categoria';
+            })
+            ->map(function (Collection $grupo) {
+                $subcategorias = $grupo
+                    ->groupBy(function ($row) {
+                        return $row->subcategoria_id !== null
+                            ? 'subcategoria_' . $row->subcategoria_id
+                            : 'sin_subcategoria';
+                    })
+                    ->map(function (Collection $registros) {
+                        return [
+                            'nombre' => (string)$registros->first()->subcategoria,
+                            'total' => $registros->count(),
+                            'estado_fuerza_participante' => (int)$registros->sum(function ($registro) {
+                                $totalCapturado = (int)($registro->personas_participantes ?? 0);
+
+                                return $totalCapturado > 0
+                                    ? $totalCapturado
+                                    : $this->contarParticipantesTexto($registro->elementos_participantes_texto ?? null);
+                            }),
+                            'unidades_participantes' => (int)$registros->sum(function ($registro) {
+                                return $this->contarUnidadesParticipantes($registro->patrullas_participantes_texto ?? null);
+                            }),
+                            'personas_alcanzadas' => (int)$registros->sum('personas_alcanzadas'),
+                        ];
+                    })
+                    ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
+                    ->values();
+
+                return [
+                    'nombre' => (string)$grupo->first()->categoria,
+                    'total' => (int)$subcategorias->sum('total'),
+                    'estado_fuerza_participante' => (int)$subcategorias->sum('estado_fuerza_participante'),
+                    'unidades_participantes' => (int)$subcategorias->sum('unidades_participantes'),
+                    'personas_alcanzadas' => (int)$subcategorias->sum('personas_alcanzadas'),
+                    'subcategorias' => $subcategorias,
+                ];
+            })
+            ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
+    private function contarUnidadesParticipantes(?string $texto): int
+    {
+        $texto = trim((string)$texto);
+
+        if ($texto === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\d+$/', $texto)) {
+            $numero = (int)$texto;
+
+            if ($numero === 0) {
+                return 0;
+            }
+
+            return $numero <= 100 ? $numero : 1;
+        }
+
+        $unidades = array_filter(array_map('trim', preg_split('/[\n,;|]+/', $texto) ?: []));
+
+        return max(1, count($unidades));
+    }
+
+    private function contarParticipantesTexto(?string $texto): int
+    {
+        $texto = trim((string)$texto);
+
+        if ($texto === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\d+$/', $texto)) {
+            return (int)$texto;
+        }
+
+        $participantes = array_filter(array_map('trim', preg_split('/[\n,;|]+/', $texto) ?: []));
+
+        return max(1, count($participantes));
     }
 
     public function seriesSubcategoria(Request $request)

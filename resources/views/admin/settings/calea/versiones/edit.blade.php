@@ -7,7 +7,7 @@
 @stop
 
 @section('content')
-    <div class="row">
+    <div class="row calea-version-page">
         <div class="col-md-12">
             <div class="card card-outline card-info">
                 <div class="card-header">
@@ -309,68 +309,26 @@
                         @csrf
 
                         <div class="row">
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="numero">Número</label>
-                                    <input type="text" name="numero" id="numero" class="form-control" placeholder="Ej. 1">
-                                </div>
-                            </div>
-
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="tipo">Tipo</label>
-                                    <select name="tipo" id="tipo" class="form-control">
-                                        <option value="">Seleccionar</option>
-                                        <option value="proposito">Propósito</option>
-                                        <option value="alcance">Alcance</option>
-                                        <option value="marco_juridico">Marco Jurídico</option>
-                                        <option value="directiva">Directiva</option>
-                                        <option value="procedimiento">Procedimiento</option>
-                                        <option value="definiciones">Definiciones</option>
-                                        <option value="responsabilidades">Responsabilidades</option>
-                                        <option value="supervision">Supervisión</option>
-                                        <option value="anexos">Anexos</option>
-                                        <option value="otro">Otro</option>
-                                    </select>
+                                    <label for="numero">Número <span class="text-danger">*</span></label>
+                                    <input type="number" name="numero" id="numero" class="form-control" value="{{ old('numero') }}" min="0" max="65535" placeholder="Ej. 1" required>
                                 </div>
                             </div>
 
                             <div class="col-md-5">
                                 <div class="form-group">
-                                    <label for="titulo">Título <span class="text-danger">*</span></label>
-                                    <input type="text" name="titulo" id="titulo" class="form-control" placeholder="Ej. PROPÓSITO" required>
+                                    <label for="tipo">Tipo <span class="text-danger">*</span></label>
+                                    <select name="tipo" id="tipo" class="form-control" required>
+                                        <option value="">Seleccionar</option>
+                                        @foreach (\App\Models\CaleaDirectivaSeccion::TIPOS as $valor => $nombre)
+                                            <option value="{{ $valor }}" {{ old('tipo') === $valor ? 'selected' : '' }}>{{ $nombre }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                             </div>
 
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label for="orden">Orden</label>
-                                    <input type="number" name="orden" id="orden" class="form-control" min="0">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="contenido">Contenido</label>
-                            <textarea name="contenido" id="contenido" rows="4" class="form-control"></textarea>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="pagina_inicio">Página inicial</label>
-                                    <input type="number" name="pagina_inicio" id="pagina_inicio" class="form-control" min="1">
-                                </div>
-                            </div>
-
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="pagina_fin">Página final</label>
-                                    <input type="number" name="pagina_fin" id="pagina_fin" class="form-control" min="1">
-                                </div>
-                            </div>
-
-                            <div class="col-md-6 d-flex align-items-end">
+                            <div class="col-md-4 d-flex align-items-end">
                                 <div class="form-group w-100">
                                     @can('editar calea')
                                         <button type="submit" class="btn btn-warning btn-block">
@@ -380,16 +338,20 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label for="contenido">Contenido</label>
+                            <textarea name="contenido" id="contenido" rows="4" class="form-control">{{ old('contenido') }}</textarea>
+                        </div>
+
                     </form>
 
-                    <table id="secciones" class="table table-striped table-bordered table-hover table-sm">
+                    <div class="table-responsive">
+                    <table id="secciones" class="table table-striped table-bordered table-hover table-sm mb-0">
                         <thead>
                             <tr>
-                                <th>Orden</th>
                                 <th>Número</th>
                                 <th>Tipo</th>
-                                <th>Título</th>
-                                <th>Páginas</th>
                                 <th>Bloques</th>
                                 <th>Acciones</th>
                             </tr>
@@ -397,19 +359,8 @@
                         <tbody>
                             @foreach ($version->secciones as $seccion)
                                 <tr>
-                                    <td>{{ $seccion->orden }}</td>
                                     <td>{{ $seccion->numero ?? '—' }}</td>
-                                    <td>{{ $seccion->tipo ?? '—' }}</td>
-                                    <td class="text-left">{{ $seccion->titulo ?? '—' }}</td>
-                                    <td>
-                                        @if ($seccion->pagina_inicio && $seccion->pagina_fin)
-                                            {{ $seccion->pagina_inicio }} - {{ $seccion->pagina_fin }}
-                                        @elseif ($seccion->pagina_inicio)
-                                            {{ $seccion->pagina_inicio }}
-                                        @else
-                                            —
-                                        @endif
-                                    </td>
+                                    <td>{{ \App\Models\CaleaDirectivaSeccion::TIPOS[$seccion->tipo] ?? ($seccion->tipo ?? '—') }}</td>
                                     <td>{{ $seccion->bloques->count() }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
@@ -434,6 +385,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    </div>
 
                     @if ($version->secciones->isEmpty())
                         <div class="alert alert-warning mt-3 mb-0">
@@ -468,6 +420,99 @@
         .badge {
             font-size: .85rem;
             padding: .4rem .55rem;
+        }
+
+        .calea-version-page {
+            color: #e5e7eb;
+        }
+
+        .calea-version-page .form-group label {
+            color: #e5e7eb;
+            font-weight: 700;
+        }
+
+        .calea-version-page .form-control,
+        .calea-version-page .custom-file-label {
+            background: rgba(15, 23, 42, .75) !important;
+            color: #fff !important;
+            border: 1px solid rgba(255, 255, 255, .14) !important;
+            border-radius: 18px !important;
+            box-shadow: none !important;
+        }
+
+        .calea-version-page .custom-file-label::after {
+            color: #fff;
+            background: rgba(59, 130, 246, .22);
+            border-color: rgba(255, 255, 255, .14);
+            border-radius: 0 18px 18px 0;
+        }
+
+        .calea-version-page .form-control:focus {
+            background: rgba(15, 23, 42, .92) !important;
+            color: #fff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 .2rem rgba(59, 130, 246, .25) !important;
+        }
+
+        .calea-version-page .form-control::placeholder {
+            color: rgba(255, 255, 255, .65) !important;
+        }
+
+        .calea-version-page select.form-control option {
+            background: #0f172a;
+            color: #fff;
+        }
+
+        .calea-version-page .card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, .95), rgba(49, 46, 129, .92)) !important;
+            border: 1px solid rgba(255, 255, 255, .08) !important;
+            border-radius: 24px !important;
+            overflow: hidden;
+        }
+
+        .calea-version-page .card-header,
+        .calea-version-page .card-footer {
+            background: rgba(255, 255, 255, .04) !important;
+            border-color: rgba(255, 255, 255, .06) !important;
+        }
+
+        .calea-version-page .card-title,
+        .calea-version-page h5,
+        .calea-version-page strong,
+        .calea-version-page .custom-control-label {
+            color: #fff;
+        }
+
+        .calea-version-page .text-muted {
+            color: rgba(255, 255, 255, .68) !important;
+        }
+
+        .calea-version-page .table {
+            color: #f8fafc;
+            background: rgba(15, 23, 42, .42);
+        }
+
+        .calea-version-page .table thead th {
+            color: #fff;
+            background: rgba(59, 130, 246, .16);
+            border-color: rgba(255, 255, 255, .14);
+        }
+
+        .calea-version-page .table td {
+            border-color: rgba(255, 255, 255, .10);
+        }
+
+        .calea-version-page .table-striped tbody tr:nth-of-type(odd) {
+            background: rgba(255, 255, 255, .035);
+        }
+
+        .calea-version-page .table-hover tbody tr:hover {
+            color: #fff;
+            background: rgba(59, 130, 246, .14);
+        }
+
+        .calea-version-page .btn {
+            border-radius: 16px;
         }
     </style>
 @stop
@@ -509,30 +554,6 @@
                 boton.html('<i class="fa-solid fa-spinner fa-spin"></i> Guardando...');
             });
 
-            $('#secciones').DataTable({
-                "pageLength": 10,
-                "order": [],
-                "language": {
-                    "emptyTable": "No hay secciones registradas",
-                    "info": "Mostrando _START_ a _END_ de _TOTAL_ secciones",
-                    "infoEmpty": "Mostrando 0 a 0 de 0 secciones",
-                    "infoFiltered": "(Filtrado de _MAX_ secciones)",
-                    "lengthMenu": "Mostrar _MENU_ secciones",
-                    "loadingRecords": "Cargando...",
-                    "processing": "Procesando...",
-                    "search": "Buscar:",
-                    "zeroRecords": "No se encontraron secciones",
-                    "paginate": {
-                        "first": "Primero",
-                        "last": "Último",
-                        "next": "Siguiente",
-                        "previous": "Anterior"
-                    }
-                },
-                "responsive": true,
-                "lengthChange": true,
-                "autoWidth": false
-            });
         });
 
         @if (session('success'))

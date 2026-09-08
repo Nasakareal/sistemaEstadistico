@@ -71,7 +71,10 @@
     function buildActivities(data, context) {
         const categories = data.summary?.categorias || [];
         const totals = data.kpis?.totales || {};
-        const units = (data.units?.series || []).filter(item => Number(item.total || 0) > 0).length;
+        const participatingUnits = categories.reduce(
+            (total, category) => total + Number(category.unidades_participantes || 0),
+            0
+        );
         let excelRow = 4;
         let body = titleRows(context.title, context.period) + activityHeader(3);
 
@@ -97,10 +100,10 @@
                     : '';
                 body += cell(subcategory.nombre, row, 'C');
                 body += cell(displayNumber(subcategory.total), row, 'D', 'sv-excel-number');
-                body += cell('', row, 'E', 'sv-excel-number');
-                body += cell('', row, 'F', 'sv-excel-number');
+                body += cell(displayNumber(subcategory.estado_fuerza_participante), row, 'E', 'sv-excel-number');
+                body += cell(displayNumber(subcategory.unidades_participantes), row, 'F', 'sv-excel-number');
                 body += cell('', row, 'G', 'sv-excel-number');
-                body += cell('', row, 'H', 'sv-excel-number');
+                body += cell(displayNumber(subcategory.personas_alcanzadas), row, 'H', 'sv-excel-number');
                 body += cell('', row, 'I', 'sv-excel-number');
                 body += '</tr>';
             });
@@ -111,8 +114,8 @@
         body += cell('DISPOSITIVOS REALIZADOS', excelRow, 'C');
         body += cell(displayNumber(totals.actividades), excelRow, 'D', 'sv-excel-number');
         body += cell(displayNumber(totals.personas_participantes), excelRow, 'E', 'sv-excel-number');
-        body += cell(displayNumber(units), excelRow, 'F', 'sv-excel-number');
-        body += cell(displayNumber(totals.km_recorridos), excelRow, 'G', 'sv-excel-number');
+        body += cell(displayNumber(participatingUnits), excelRow, 'F', 'sv-excel-number');
+        body += cell('', excelRow, 'G', 'sv-excel-number');
         body += cell(displayNumber(totals.personas_alcanzadas), excelRow, 'H', 'sv-excel-number');
         body += cell('', excelRow, 'I', 'sv-excel-number');
         body += '</tr>';
@@ -285,12 +288,11 @@
             try {
                 const context = { title: titleContext(options.mode), period: periodContext() };
                 if (options.mode === 'actividades') {
-                    const [kpis, summary, units] = await Promise.all([
+                    const [kpis, summary] = await Promise.all([
                         fetchJson(options.base, 'kpis', query),
                         fetchJson(options.base, 'resumen/categorias', query),
-                        fetchJson(options.base, 'series/unidad', query),
                     ]);
-                    sheet.innerHTML = buildActivities({ kpis, summary, units }, context);
+                    sheet.innerHTML = buildActivities({ kpis, summary }, context);
                 } else {
                     const [kpis, vehicles] = await Promise.all([
                         fetchJson(options.base, 'kpis', query),

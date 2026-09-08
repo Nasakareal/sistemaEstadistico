@@ -6,7 +6,6 @@ use App\Models\CaleaDirectivaVersion;
 use App\Models\CaleaDirectivaSeccion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class CaleaDirectivaSeccionController extends Controller
 {
@@ -15,31 +14,19 @@ class CaleaDirectivaSeccionController extends Controller
         $version = CaleaDirectivaVersion::with('directiva')->findOrFail($version);
 
         $validated = $request->validate([
-            'orden' => 'nullable|integer|min:0|max:65535',
-            'numero' => 'nullable|string|max:50',
-            'tipo' => 'nullable|string|max:100',
-            'titulo' => 'required|string|max:500',
+            'numero' => 'required|integer|min:0|max:65535',
+            'tipo' => 'required|string|in:' . implode(',', array_keys(CaleaDirectivaSeccion::TIPOS)),
             'contenido' => 'nullable|string',
-            'pagina_inicio' => 'nullable|integer|min:1|max:65535',
-            'pagina_fin' => 'nullable|integer|min:1|max:65535',
         ]);
-
-        $this->validarPaginas($validated);
-
-        if (!isset($validated['orden'])) {
-            $validated['orden'] = ((int) $version->secciones()->max('orden')) + 1;
-        }
 
         try {
             $seccion = CaleaDirectivaSeccion::create([
                 'calea_directiva_version_id' => $version->id,
-                'orden' => $validated['orden'],
-                'numero' => $this->normalizarTexto($validated['numero'] ?? null),
-                'tipo' => $this->normalizarTexto($validated['tipo'] ?? null),
-                'titulo' => $this->normalizarTexto($validated['titulo']),
+                'orden' => (int) $validated['numero'],
+                'numero' => (string) $validated['numero'],
+                'tipo' => $validated['tipo'],
+                'titulo' => CaleaDirectivaSeccion::TIPOS[$validated['tipo']],
                 'contenido' => $this->normalizarTexto($validated['contenido'] ?? null),
-                'pagina_inicio' => $validated['pagina_inicio'] ?? null,
-                'pagina_fin' => $validated['pagina_fin'] ?? null,
             ]);
 
             Log::info('Sección CALEA creada', [
@@ -76,18 +63,7 @@ class CaleaDirectivaSeccionController extends Controller
             ])
             ->findOrFail($id);
 
-        $tipos = [
-            'proposito' => 'Propósito',
-            'alcance' => 'Alcance',
-            'marco_juridico' => 'Marco Jurídico',
-            'directiva' => 'Directiva',
-            'procedimiento' => 'Procedimiento',
-            'definiciones' => 'Definiciones',
-            'responsabilidades' => 'Responsabilidades',
-            'supervision' => 'Supervisión',
-            'anexos' => 'Anexos',
-            'otro' => 'Otro',
-        ];
+        $tipos = CaleaDirectivaSeccion::TIPOS;
 
         return view('admin.settings.calea.secciones.edit', compact(
             'seccion',
@@ -100,26 +76,18 @@ class CaleaDirectivaSeccionController extends Controller
         $seccion = CaleaDirectivaSeccion::with('version.directiva')->findOrFail($id);
 
         $validated = $request->validate([
-            'orden' => 'required|integer|min:0|max:65535',
-            'numero' => 'nullable|string|max:50',
-            'tipo' => 'nullable|string|max:100',
-            'titulo' => 'required|string|max:500',
+            'numero' => 'required|integer|min:0|max:65535',
+            'tipo' => 'required|string|in:' . implode(',', array_keys(CaleaDirectivaSeccion::TIPOS)),
             'contenido' => 'nullable|string',
-            'pagina_inicio' => 'nullable|integer|min:1|max:65535',
-            'pagina_fin' => 'nullable|integer|min:1|max:65535',
         ]);
-
-        $this->validarPaginas($validated);
 
         try {
             $seccion->update([
-                'orden' => $validated['orden'],
-                'numero' => $this->normalizarTexto($validated['numero'] ?? null),
-                'tipo' => $this->normalizarTexto($validated['tipo'] ?? null),
-                'titulo' => $this->normalizarTexto($validated['titulo']),
+                'orden' => (int) $validated['numero'],
+                'numero' => (string) $validated['numero'],
+                'tipo' => $validated['tipo'],
+                'titulo' => CaleaDirectivaSeccion::TIPOS[$validated['tipo']],
                 'contenido' => $this->normalizarTexto($validated['contenido'] ?? null),
-                'pagina_inicio' => $validated['pagina_inicio'] ?? null,
-                'pagina_fin' => $validated['pagina_fin'] ?? null,
             ]);
 
             Log::info('Sección CALEA actualizada', [
@@ -173,18 +141,6 @@ class CaleaDirectivaSeccionController extends Controller
             return redirect()
                 ->back()
                 ->withErrors('No fue posible eliminar la sección CALEA.');
-        }
-    }
-
-    private function validarPaginas(array $validated): void
-    {
-        $inicio = $validated['pagina_inicio'] ?? null;
-        $fin = $validated['pagina_fin'] ?? null;
-
-        if ($inicio && $fin && $fin < $inicio) {
-            throw ValidationException::withMessages([
-                'pagina_fin' => 'La página final no puede ser menor que la página inicial.',
-            ]);
         }
     }
 

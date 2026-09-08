@@ -54,6 +54,7 @@ use App\Http\Controllers\Api\UserNoteController;
 use App\Http\Controllers\Api\ComunicacionController as ApiComunicacionController;
 use App\Http\Controllers\Api\ControlSemaforicoController;
 use App\Http\Controllers\Api\CaleaController as ApiCaleaController;
+use App\Http\Controllers\Api\CaleaEncuestaController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -86,6 +87,29 @@ Route::prefix('calea')->middleware(['auth:sanctum', 'can:ver calea'])->group(fun
     Route::get('/', [ApiCaleaController::class, 'index'])->name('api.calea.index');
     Route::get('/versiones/{version}/pdf', [ApiCaleaController::class, 'pdf'])->whereNumber('version')->name('api.calea.versiones.pdf');
     Route::get('/{directiva}', [ApiCaleaController::class, 'show'])->whereNumber('directiva')->name('api.calea.show');
+});
+
+Route::prefix('calea-encuestas/public')->group(function () {
+    Route::get('/{codigo}', [CaleaEncuestaController::class, 'publicShow']);
+    Route::post('/{codigo}/iniciar', [CaleaEncuestaController::class, 'publicStart'])->middleware('throttle:20,1');
+    Route::get('/intentos/{uuid}', [CaleaEncuestaController::class, 'intento']);
+    Route::put('/intentos/{uuid}/respuesta', [CaleaEncuestaController::class, 'guardarRespuesta'])->middleware('throttle:120,1');
+    Route::post('/intentos/{uuid}/finalizar', [CaleaEncuestaController::class, 'finalizar']);
+    Route::post('/intentos/{uuid}/cancelar', [CaleaEncuestaController::class, 'cancelar']);
+});
+
+Route::prefix('calea-encuestas')->middleware('auth:sanctum')->group(function () {
+    Route::get('/activas', [CaleaEncuestaController::class, 'activas']);
+    Route::get('/administrar', [CaleaEncuestaController::class, 'administrar']);
+    Route::get('/catalogos', [CaleaEncuestaController::class, 'catalogos']);
+    Route::post('/', [CaleaEncuestaController::class, 'store']);
+    Route::get('/{encuesta}/resultados', [CaleaEncuestaController::class, 'resultados']);
+    Route::post('/{encuesta}/iniciar', [CaleaEncuestaController::class, 'iniciar']);
+    Route::get('/intentos/{uuid}', [CaleaEncuestaController::class, 'intento']);
+    Route::put('/intentos/{uuid}/respuesta', [CaleaEncuestaController::class, 'guardarRespuesta']);
+    Route::post('/intentos/{uuid}/finalizar', [CaleaEncuestaController::class, 'finalizar']);
+    Route::post('/intentos/{uuid}/cancelar', [CaleaEncuestaController::class, 'cancelar']);
+    Route::post('/{encuesta}/usuarios/{user}/reautorizar', [CaleaEncuestaController::class, 'reautorizar']);
 });
 
 Route::prefix('choques-diarios-inegi')->group(function () {

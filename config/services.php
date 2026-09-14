@@ -44,6 +44,8 @@ return [
         'morelia_polygon' => [],
         'notify_radius_km' => (float) env('WAZE_NOTIFY_RADIUS_KM', 75),
         'notify_location_max_age_minutes' => (int) env('WAZE_NOTIFY_LOCATION_MAX_AGE_MINUTES', 720),
+        'dedup_radius_km' => (float) env('WAZE_DEDUP_RADIUS_KM', 2),
+        'dedup_window_minutes' => (int) env('WAZE_DEDUP_WINDOW_MINUTES', 120),
     ],
 
     'firebase' => [

@@ -6,6 +6,7 @@ use App\Helpers\StreetNormalizer;
 use App\Models\DeviceToken;
 use App\Models\WazeAlert;
 use App\Services\PushService;
+use App\Services\Waze\WazeAlertDeduplicationService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,17 @@ class FetchWazeAlerts extends Command
 
                 $street = $item['street'] ?? null;
 
+                $isDuplicate = false;
+                if (is_numeric($lat) && is_numeric($lng) && $publishedAt !== null) {
+                    $isDuplicate = app(WazeAlertDeduplicationService::class)->hasEquivalent(
+                        $type,
+                        $subtype,
+                        (float) $lat,
+                        (float) $lng,
+                        $publishedAt
+                    );
+                }
+
                 $wazeAlert = WazeAlert::create([
                     'uuid' => $uuid,
                     'waze_id' => $item['id'] ?? null,
@@ -112,6 +124,17 @@ class FetchWazeAlerts extends Command
                 ]);
 
                 $savedTotal++;
+
+                if ($isDuplicate) {
+                    Log::info('Waze alert grouped with a recent nearby event', [
+                        'waze_uuid' => $wazeAlert->uuid,
+                        'type' => $wazeAlert->type,
+                        'subtype' => $wazeAlert->subtype,
+                        'radius_km' => config('services.waze.dedup_radius_km', 2),
+                        'window_minutes' => config('services.waze.dedup_window_minutes', 120),
+                    ]);
+                    continue;
+                }
 
                 $sent = $this->notifyRelevantTokens($wazeAlert);
                 $wazeAlert->update(['notified' => $sent]);
@@ -200,10 +223,12 @@ class FetchWazeAlerts extends Command
     private function getTokensByUserId(int $userId): array
     {
         return DeviceToken::query()
-            ->where('user_id', $userId)
-            ->whereNotNull('token')
-            ->where('token', '!=', '')
-            ->pluck('token')
+            ->join('users', 'users.id', '=', 'device_tokens.user_id')
+            ->where('users.id', $userId)
+            ->where('users.receive_waze_alerts', true)
+            ->whereNotNull('device_tokens.token')
+            ->where('device_tokens.token', '!=', '')
+            ->pluck('device_tokens.token')
             ->unique()
             ->values()
             ->toArray();
@@ -215,7 +240,8 @@ class FetchWazeAlerts extends Command
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->whereNotNull('device_tokens.token')
             ->where('device_tokens.token', '!=', '')
-            ->where('users.unidad_id', $unidadId);
+            ->where('users.unidad_id', $unidadId)
+            ->where('users.receive_waze_alerts', true);
 
         $this->excludeVialidadesUrbanasNoWazeUsers($query);
 
@@ -233,7 +259,8 @@ class FetchWazeAlerts extends Command
         $query = DeviceToken::query()
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '');
+            ->where('device_tokens.token', '!=', '')
+            ->where('users.receive_waze_alerts', true);
 
         $this->excludeVialidadesUrbanasNoWazeUsers($query);
 
@@ -273,7 +300,8 @@ class FetchWazeAlerts extends Command
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->join('user_locations', 'user_locations.user_id', '=', 'users.id')
             ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '');
+            ->where('device_tokens.token', '!=', '')
+            ->where('users.receive_waze_alerts', true);
 
         $this->excludeVialidadesUrbanasNoWazeUsers($query);
 

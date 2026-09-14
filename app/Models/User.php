@@ -34,6 +34,7 @@ class User extends Authenticatable
         'delegacion_id',
         'destacamento_id',
         'compartir_ubicacion',
+        'receive_waze_alerts',
     ];
 
     protected $hidden = [
@@ -44,6 +45,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'compartir_ubicacion' => 'boolean',
+        'receive_waze_alerts' => 'boolean',
         'last_seen_at' => 'datetime',
         'disconnected_alert_sent_at' => 'datetime',
     ];

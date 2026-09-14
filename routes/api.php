@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\ComunicacionController as ApiComunicacionController
 use App\Http\Controllers\Api\ControlSemaforicoController;
 use App\Http\Controllers\Api\CaleaController as ApiCaleaController;
 use App\Http\Controllers\Api\CaleaEncuestaController;
+use App\Http\Controllers\Api\AccountSettingsController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -132,6 +133,9 @@ Route::get('/licencias-puntos/public/numero/{numeroLicencia}', [ApiLicenciaPunto
     ->name('api.licencias_puntos.public.numero.show');
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/account/settings', [AccountSettingsController::class, 'show'])->name('api.account.settings.show');
+    Route::put('/account/settings', [AccountSettingsController::class, 'update'])->name('api.account.settings.update');
+
 
     Route::prefix('control-semaforico')->group(function () {
         Route::get('/nodos', [ControlSemaforicoController::class, 'index']);

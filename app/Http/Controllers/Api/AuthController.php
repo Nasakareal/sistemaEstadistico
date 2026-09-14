@@ -172,6 +172,7 @@ class AuthController extends Controller
             'turno_id' => $user->turno_id,
             'patrulla_id' => $user->patrulla_id,
             'compartir_ubicacion' => (int) ($user->compartir_ubicacion ?? 0),
+            'receive_waze_alerts' => (bool) ($user->receive_waze_alerts ?? true),
             'location_tracking' => $locationTracking,
             'location_tracking_allowed' => (bool)($locationTracking['allowed'] ?? false),
             'licencias_puntos_turno' => $licenciasPuntosTurno,

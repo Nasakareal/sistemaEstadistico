@@ -462,11 +462,7 @@ class WazeFeedService
             return $storedPolyline;
         }
 
-        // Incidents do not affect routing. A single-point polyline plus direction
-        // avoids fabricating short segments that Waze may reject during road matching.
-        return $this->formatPolyline([
-            [$lat, $lng],
-        ]);
+        return $storedPolyline ?? $this->buildPointPolyline($lat, $lng);
     }
 
     protected function storedPolyline($hecho): ?string
@@ -490,22 +486,12 @@ class WazeFeedService
 
     protected function buildPointPolyline(float $lat, float $lng, $hecho = null): string
     {
-        $tramoPolyline = $this->buildPolylineFromNearbyTramo($lat, $lng);
-
-        if ($tramoPolyline !== null) {
-            return $tramoPolyline;
-        }
-
-        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
-        $bearing = $this->bearingFromStreet($street);
-        $halfMeters = max(8, (float) config('waze.generated_polyline_half_meters', 18));
-
-        $start = $this->offsetCoordinate($lat, $lng, $bearing + 180, $halfMeters);
-        $end = $this->offsetCoordinate($lat, $lng, $bearing, $halfMeters);
-
+        // Waze's official ACCIDENT example repeats the location for point incidents:
+        // https://developers.google.com/waze/data-feed/incident-information
+        // Preserve the reported position instead of guessing a road or its bearing.
         return $this->formatPolyline([
-            $start,
-            $end,
+            [$lat, $lng],
+            [$lat, $lng],
         ]);
     }
 

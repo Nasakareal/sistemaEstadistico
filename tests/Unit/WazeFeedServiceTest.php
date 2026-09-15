@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Waze\WazeFeedService;
+use App\Services\Waze\WazeReverseGeocodingService;
 use PHPUnit\Framework\TestCase;
 
 class WazeFeedServiceTest extends TestCase
@@ -12,13 +13,13 @@ class WazeFeedServiceTest extends TestCase
         $polyline = (new TestableWazeFeedService())->buildPointPolylinePublic(19.7028915, -101.2006836);
 
         $this->assertSame(
-            '19.7028915 -101.2006836',
+            '19.7028915 -101.2006836 19.7028915 -101.2006836',
             $polyline
         );
 
         $numbers = $this->numbers($polyline);
 
-        $this->assertCount(2, $numbers);
+        $this->assertCount(4, $numbers);
     }
 
     public function test_accidente_prefiere_polyline_real_cuando_existe(): void
@@ -54,7 +55,7 @@ class WazeFeedServiceTest extends TestCase
         );
 
         $this->assertSame(
-            '19.7028915 -101.2006836',
+            '19.7028915 -101.2006836 19.7028915 -101.2006836',
             $polyline
         );
     }
@@ -85,6 +86,11 @@ class WazeFeedServiceTest extends TestCase
 
 class TestableWazeFeedService extends WazeFeedService
 {
+    public function __construct()
+    {
+        parent::__construct(new WazeReverseGeocodingService());
+    }
+
     public function buildPointPolylinePublic(float $lat, float $lng): string
     {
         return $this->buildPointPolyline($lat, $lng);

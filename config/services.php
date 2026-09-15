@@ -89,6 +89,7 @@ return [
             'dispatch_author_ids' => env('WHATSAPP_C5I_RESPONSE_TIME_DISPATCH_AUTHOR_IDS', ''),
             'template' => env('WHATSAPP_C5I_RESPONSE_TIME_TEMPLATE', 'alerta_tiempo_reaccion_siniestros_v1'),
             'template_language' => env('WHATSAPP_C5I_RESPONSE_TIME_TEMPLATE_LANGUAGE', 'es_MX'),
+            'route_button' => filter_var(env('WHATSAPP_C5I_RESPONSE_TIME_ROUTE_BUTTON', false), FILTER_VALIDATE_BOOLEAN),
             'unit_slug' => env('WHATSAPP_C5I_RESPONSE_TIME_UNIT_SLUG', 'siniestros'),
             'arrival_radius_meters' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_ARRIVAL_RADIUS_METERS', 200),
             'max_accuracy_meters' => (int) env('WHATSAPP_C5I_RESPONSE_TIME_MAX_ACCURACY_METERS', 100),

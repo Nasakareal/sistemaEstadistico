@@ -81,6 +81,16 @@ class LocationController extends Controller
             ? Carbon::parse($validated['captured_at'])
             : now();
 
+        if ((int) $user->unidad_id === 1 && isset($validated['accuracy'])
+            && $validated['accuracy'] <= 100 && $capturedAt->lte(now())
+            && $trackingEligibility->statusForUser($user, $capturedAt)['allowed']) {
+            $history = app(\App\Services\C5iRouteService::class)->record($user, [
+                'lat' => $validated['lat'], 'lng' => $validated['lng'],
+                'accuracy' => $validated['accuracy'], 'captured_at' => $capturedAt->toIso8601String(),
+            ]);
+            if ($history) $responseTime->processLocation($user, $history);
+        }
+
         $currentLocation = UserLocation::query()
             ->where('user_id', $user->id)
             ->first();

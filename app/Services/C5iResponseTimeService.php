@@ -10,6 +10,8 @@ use App\Models\UserLocation;
 use App\Models\WhatsAppWebMessage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -160,6 +162,10 @@ class C5iResponseTimeService
         $incident = $this->recommendations->parseIncident($body);
         $normalized = $this->normalizedText($body);
         $patrulla = $this->resolvePatrulla($body, $author);
+        if ($this->hasArrivalCue($normalized) && !$this->hasUnitReportCue($normalized)) {
+            $authorPatrol = $this->patrullaFromAuthor($author);
+            $patrulla = $authorPatrol ?: $this->patrullaFromText($body);
+        }
 
         if ($this->hasUnitReportCue($normalized) && $patrulla) {
             $arrivalResult = $this->recordArrival($message, $patrulla);
@@ -198,7 +204,8 @@ class C5iResponseTimeService
 
     private function recordIncident(WhatsAppWebMessage $message, array $incident): array
     {
-        $response = C5iServiceResponse::query()->updateOrCreate(
+        // Replaying an incident must preserve its assignment and arrival.
+        $response = C5iServiceResponse::query()->firstOrCreate(
             ['incident_message_id' => $message->id],
             [
                 'whatsapp_web_group_id' => $message->whatsapp_web_group_id,
@@ -222,12 +229,18 @@ class C5iResponseTimeService
             return ['status' => 'ignored', 'reason' => 'open_incident_not_found'];
         }
 
+        if ($response->assignment_message_id || $response->arrival_message_id) {
+            return ['status' => 'ignored', 'reason' => 'already_assigned_or_complete'];
+        }
+
         $response->forceFill([
             'assignment_message_id' => $message->id,
             'patrulla_id' => $patrulla->id,
             'assigned_at' => $message->sent_at ?: now(),
             'status' => 'assigned',
         ])->save();
+
+        $this->reconcileHistory($response->fresh());
 
         return [
             'status' => 'assigned',
@@ -243,6 +256,12 @@ class C5iResponseTimeService
         if (!$response) {
             return ['status' => 'ignored', 'reason' => 'assigned_incident_not_found'];
         }
+
+        if ($response->arrival_message_id) {
+            return ['status' => 'ignored', 'reason' => 'arrival_already_recorded'];
+        }
+        // A quoted incident can establish the patrol even without an assignment.
+        $response->forceFill(['patrulla_id' => $patrulla->id])->save();
 
         $arrivalAt = ($message->sent_at ? $message->sent_at->copy() : now())
             ->timezone('America/Mexico_City');
@@ -263,6 +282,7 @@ class C5iResponseTimeService
             'status' => 'complete',
         ])->save();
 
+        $this->reconcileHistory($response->fresh());
         $this->notifyIfComplete($response->fresh(['patrulla']));
 
         return [
@@ -299,8 +319,12 @@ class C5iResponseTimeService
 
         $responses = C5iServiceResponse::query()
             ->where('patrulla_id', $patrulla->id)
-            ->whereNull('gps_arrived_at')
-            ->whereNotNull('assigned_at')
+            ->where(function ($query) use ($capturedAt) {
+                $query->whereNull('gps_arrived_at')->orWhere('gps_arrived_at', '>', $capturedAt);
+            })
+            ->where(function ($query) use ($capturedAt) {
+                $query->whereNull('assigned_at')->orWhere('assigned_at', '<=', $capturedAt);
+            })
             ->where('reported_at', '<=', $capturedAt)
             ->where('reported_at', '>=', $capturedAt->copy()->subMinutes($lookbackMinutes))
             ->latest('reported_at')
@@ -309,6 +333,8 @@ class C5iResponseTimeService
         $nearest = null;
 
         foreach ($responses as $response) {
+            // A later pass by the scene is not evidence of the original arrival.
+            if ($response->arrival_reported_at && $capturedAt->gt($response->arrival_reported_at)) continue;
             $distance = $this->haversineMeters(
                 (float) $response->incident_lat,
                 (float) $response->incident_lng,
@@ -361,6 +387,23 @@ class C5iResponseTimeService
         ];
     }
 
+    private function reconcileHistory(C5iServiceResponse $response): void
+    {
+        if (!$response->patrulla_id || !Schema::hasTable('c5i_route_points')) return;
+        $start = $response->assigned_at ?: $response->reported_at;
+        $end = $response->arrival_reported_at ?: $start->copy()->addMinutes(240)->min(now());
+        $patrol = $response->patrulla;
+        if (!$patrol) return;
+        $points = DB::table('c5i_route_points')->where('patrulla_id', $patrol->id)
+            ->whereBetween('captured_at', [$start, $end])->orderBy('captured_at')->get();
+        foreach ($points as $point) {
+            $this->registerGpsArrival($patrol, new UserLocation([
+                'user_id' => $point->user_id, 'lat' => $point->lat, 'lng' => $point->lng,
+                'accuracy' => $point->accuracy, 'captured_at' => $point->captured_at,
+            ]));
+        }
+    }
+
     private function responseForMessage(
         WhatsAppWebMessage $message,
         ?Patrulla $patrulla,
@@ -383,6 +426,8 @@ class C5iResponseTimeService
                     ->first();
 
                 if ($quotedResponse
+                    && (int) $quotedResponse->whatsapp_web_group_id === (int) $message->whatsapp_web_group_id
+                    && $quotedResponse->reported_at->lte($message->sent_at ?: now())
                     && (!$patrulla || !$quotedResponse->patrulla_id
                         || (int) $quotedResponse->patrulla_id === (int) $patrulla->id)) {
                     return $quotedResponse;
@@ -400,14 +445,25 @@ class C5iResponseTimeService
             ->where('reported_at', '>=', ($message->sent_at ?: now())->copy()->subMinutes($lookbackMinutes));
 
         if ($forAssignment) {
-            $query->whereNull('assignment_message_id');
+            $query->whereNull('assignment_message_id')->whereNull('arrival_message_id');
         } else {
             $query->where('patrulla_id', $patrulla->id)
-                ->whereNotNull('assignment_message_id')
                 ->whereNull('arrival_message_id');
         }
 
-        return $query->latest('reported_at')->first();
+        $matches = $query->latest('reported_at')->limit(2)->get();
+        if (!$forAssignment && $matches->isEmpty()) {
+            $matches = C5iServiceResponse::query()
+                ->where('whatsapp_web_group_id', $message->whatsapp_web_group_id)
+                ->whereNull('patrulla_id')->whereNull('arrival_message_id')
+                ->whereBetween('reported_at', [
+                    ($message->sent_at ?: now())->copy()->subMinutes($lookbackMinutes),
+                    $message->sent_at ?: now(),
+                ])->latest('reported_at')->limit(2)->get();
+        }
+        // Do not attach an arrival to an arbitrary service if several are open.
+        if (!$forAssignment && $matches->count() > 1) return null;
+        return $matches->first();
     }
 
     private function resolvePatrulla(string $body, string $authorId): ?Patrulla
@@ -423,12 +479,15 @@ class C5iResponseTimeService
 
     private function patrullaFromText(string $body): ?Patrulla
     {
+        // PM identifies the municipal police, not our reporting patrol.
+        $body = preg_replace('/\bPM\s*[-:]?\s*\d+\b/iu', ' ', $body) ?? $body;
         $unitSlug = trim((string) config(
             'services.whatsapp.c5i_response_time.unit_slug',
             'siniestros'
         )) ?: 'siniestros';
         $patrullas = Patrulla::query()
             ->where('activa', 1)
+            ->where('unidad_id', 1)
             ->whereHas('unidad', function ($query) use ($unitSlug) {
                 $query->where('slug', $unitSlug);
             })
@@ -437,11 +496,15 @@ class C5iResponseTimeService
                 return strlen(preg_replace('/\D+/', '', (string) $patrulla->numero_economico) ?: '');
             });
 
+        $matches = [];
         foreach ($patrullas as $patrulla) {
             $digits = preg_replace('/\D+/', '', (string) $patrulla->numero_economico) ?: '';
+            $components = preg_split('/[-\s]+/', trim((string) $patrulla->numero_economico));
+            $suffix = count($components) > 1 ? preg_replace('/\D+/', '', end($components)) : null;
             $aliases = array_values(array_unique(array_filter([
                 $digits,
                 ltrim($digits, '0'),
+                $suffix,
             ])));
 
             foreach ($aliases as $alias) {
@@ -453,12 +516,12 @@ class C5iResponseTimeService
                 $pattern = implode('[\s\-\.]*', array_map('preg_quote', $parts));
 
                 if (preg_match('/(?<!\d)' . $pattern . '(?!\d)/u', $body)) {
-                    return $patrulla;
+                    $matches[$patrulla->id] = $patrulla;
                 }
             }
         }
 
-        return null;
+        return count($matches) === 1 ? reset($matches) : null;
     }
 
     private function patrullaFromAuthor(string $authorId): ?Patrulla
@@ -474,15 +537,19 @@ class C5iResponseTimeService
                 $query->whereNotNull('telefono_whatsapp_operativo')
                     ->orWhereNotNull('telefono_whatsapp_operativo_secundario');
             })
-            ->whereNotNull('patrulla_id')
-            ->with(['unidad', 'patrulla'])
+            ->where(function ($query) {
+                $query->whereNotNull('patrulla_id')->orWhereHas('personal', function ($personal) {
+                    $personal->whereNotNull('patrulla_id');
+                });
+            })
+            ->with(['unidad', 'patrulla', 'personal.patrulla'])
             ->get();
 
         foreach ($users as $user) {
             if (($this->samePhone($authorDigits, (string) $user->telefono_whatsapp_operativo)
                     || $this->samePhone($authorDigits, (string) $user->telefono_whatsapp_operativo_secundario))
                 && $this->isSiniestrosUser($user)) {
-                return $user->patrulla;
+                return optional($user->personal)->patrulla ?: $user->patrulla;
             }
         }
 
@@ -492,7 +559,7 @@ class C5iResponseTimeService
             ->get();
 
         foreach ($personals as $personal) {
-            if (mb_strtolower((string) optional($personal->unidad)->slug, 'UTF-8') !== 'siniestros') {
+            if ((int) $personal->unidad_id !== 1) {
                 continue;
             }
 
@@ -524,12 +591,18 @@ class C5iResponseTimeService
             'services.whatsapp.c5i_response_time.template_language',
             'es_MX'
         )) ?: 'es_MX';
-        $params = $this->templateParams($response);
+        $routeButton = (bool) config(
+            'services.whatsapp.c5i_response_time.route_button',
+            false
+        );
+        $params = $this->templateParams($response, !$routeButton);
         $meta = [
             'template' => $template,
             'template_language' => $language,
             'recipients' => $recipients,
             'template_params' => $params,
+            'route_button' => $routeButton,
+            'route_button_param' => $routeButton ? (string) $response->id : null,
         ];
 
         if ((bool) config('services.whatsapp.c5i_response_time.dry_run', true)) {
@@ -565,7 +638,20 @@ class C5iResponseTimeService
             }
 
             try {
-                $result = $this->whatsApp->sendTemplate($recipient, $template, $params, $language);
+                $result = $routeButton
+                    ? $this->whatsApp->sendTemplateWithUrlButton(
+                        $recipient,
+                        $template,
+                        $params,
+                        (string) $response->id,
+                        $language
+                    )
+                    : $this->whatsApp->sendTemplate(
+                        $recipient,
+                        $template,
+                        $params,
+                        $language
+                    );
 
                 if (!($result['ok'] ?? false)) {
                     $this->sendGuard->release(self::CONTEXT, $periodKey, $recipient);
@@ -607,7 +693,10 @@ class C5iResponseTimeService
         ])->save();
     }
 
-    private function templateParams(C5iServiceResponse $response): array
+    private function templateParams(
+        C5iServiceResponse $response,
+        bool $includeInlineRoute = true
+    ): array
     {
         $timezone = (string) config('app.schedule_timezone', 'America/Mexico_City');
         $patrulla = $response->patrulla
@@ -637,11 +726,16 @@ class C5iResponseTimeService
                 . '; GPS a ' . number_format((float) $response->gps_distance_meters, 0, '.', '')
                 . ' m del punto; precisión ' . $accuracy
             : 'Llegada confirmada por ' . $arrivalSource
-                . '; C5i → audio: ' . $this->humanDuration($reactionSeconds)
-                . '; asignación → audio: ' . ($assignmentReactionSeconds !== null
+                . '; C5i → ' . ($response->arrival_source === 'audio_transcription' ? 'audio' : 'mensaje') . ': ' . $this->humanDuration($reactionSeconds)
+                . '; asignación → ' . ($response->arrival_source === 'audio_transcription' ? 'audio' : 'mensaje') . ': ' . ($assignmentReactionSeconds !== null
                     ? $this->humanDuration($assignmentReactionSeconds)
                     : 'sin hora de asignación')
                 . '; sin lectura GPS disponible';
+
+        if ($includeInlineRoute) {
+            $gpsDetail .= '; ruta registrada: '
+                . route('c5i.responses.show', ['response' => $response->id]);
+        }
 
         return [
             $response->incident_reference ?: ('C5i #' . $response->id),
@@ -762,8 +856,7 @@ class C5iResponseTimeService
 
     private function isSiniestrosUser(User $user): bool
     {
-        return (int) $user->unidad_id === 1
-            || mb_strtolower((string) optional($user->unidad)->slug, 'UTF-8') === 'siniestros';
+        return (int) $user->unidad_id === 1;
     }
 
     private function groupAllowed(string $groupId): bool

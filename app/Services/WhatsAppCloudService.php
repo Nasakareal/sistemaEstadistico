@@ -50,6 +50,49 @@ class WhatsAppCloudService
         ]);
     }
 
+    public function sendTemplateWithUrlButton(
+        string $to,
+        string $templateName,
+        array $bodyParameters,
+        string $urlSuffix,
+        string $language = 'es_MX',
+        int $buttonIndex = 0
+    ): array {
+        $parameters = [];
+
+        foreach ($bodyParameters as $value) {
+            $parameters[] = [
+                'type' => 'text',
+                'text' => $this->templateTextParameter((string) $value),
+            ];
+        }
+
+        return $this->request([
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizeTo($to),
+            'type' => 'template',
+            'template' => [
+                'name' => $templateName,
+                'language' => ['code' => $language],
+                'components' => [
+                    [
+                        'type' => 'body',
+                        'parameters' => $parameters,
+                    ],
+                    [
+                        'type' => 'button',
+                        'sub_type' => 'url',
+                        'index' => (string) $buttonIndex,
+                        'parameters' => [[
+                            'type' => 'text',
+                            'text' => $this->templateTextParameter($urlSuffix),
+                        ]],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     public function sendInteractive(string $to, array $interactive): array
     {
         return $this->request([

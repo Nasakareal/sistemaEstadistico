@@ -1050,3 +1050,5 @@ Route::prefix('admin/settings/estadisticas-fomento')->middleware(['auth'])->grou
 Route::get('/prueba-404', function () { return response()->view('errors.404', [], 404); });
 
 Route::view('/privacy-policy', 'privacy_policy')->name('privacy.policy');
+
+Route::get('/c5i/tiempos/{response}', [\App\Http\Controllers\C5iResponseReportController::class, 'show'])->middleware('auth')->name('c5i.responses.show');

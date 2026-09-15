@@ -466,6 +466,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hechos/{hecho}/croquis', [CroquisController::class, 'update']);
     Route::delete('/hechos/{hecho}/croquis', [CroquisController::class, 'destroy']);
 
+    Route::post('/location/response-route', [\App\Http\Controllers\Api\C5iRouteController::class, 'store']);
     Route::post('/location', [LocationController::class, 'store']);
     Route::post('/suspicious-place-events', [LocationController::class, 'storeSuspiciousPlaceEvent']);
     Route::get('/location/last', [LocationController::class, 'last']);

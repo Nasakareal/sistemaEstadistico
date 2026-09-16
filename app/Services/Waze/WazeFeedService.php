@@ -462,7 +462,7 @@ class WazeFeedService
             return $storedPolyline;
         }
 
-        return $storedPolyline ?? $this->buildPointPolyline($lat, $lng);
+        return $storedPolyline ?? $this->buildPointPolyline($lat, $lng, $hecho);
     }
 
     protected function storedPolyline($hecho): ?string
@@ -486,12 +486,21 @@ class WazeFeedService
 
     protected function buildPointPolyline(float $lat, float $lng, $hecho = null): string
     {
-        // Waze's official ACCIDENT example repeats the location for point incidents:
-        // https://developers.google.com/waze/data-feed/incident-information
-        // Preserve the reported position instead of guessing a road or its bearing.
+        $tramoPolyline = $this->buildPolylineFromNearbyTramo($lat, $lng);
+
+        if ($tramoPolyline !== null) {
+            return $tramoPolyline;
+        }
+
+        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
+        $bearing = $this->bearingFromStreet($street);
+        $halfMeters = max(2, (float) config('waze.generated_polyline_half_meters', 5));
+        $start = $this->offsetCoordinate($lat, $lng, $bearing + 180, $halfMeters);
+        $end = $this->offsetCoordinate($lat, $lng, $bearing, $halfMeters);
+
         return $this->formatPolyline([
-            [$lat, $lng],
-            [$lat, $lng],
+            $start,
+            $end,
         ]);
     }
 

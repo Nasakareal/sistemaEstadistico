@@ -4,22 +4,18 @@ namespace Tests\Unit;
 
 use App\Services\Waze\WazeFeedService;
 use App\Services\Waze\WazeReverseGeocodingService;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class WazeFeedServiceTest extends TestCase
 {
-    public function test_genera_polyline_de_punto_sin_inventar_segmento(): void
+    public function test_genera_polyline_corta_con_dos_puntos_distintos(): void
     {
         $polyline = (new TestableWazeFeedService())->buildPointPolylinePublic(19.7028915, -101.2006836);
-
-        $this->assertSame(
-            '19.7028915 -101.2006836 19.7028915 -101.2006836',
-            $polyline
-        );
 
         $numbers = $this->numbers($polyline);
 
         $this->assertCount(4, $numbers);
+        $this->assertNotSame($numbers[0] . ' ' . $numbers[1], $numbers[2] . ' ' . $numbers[3]);
     }
 
     public function test_accidente_prefiere_polyline_real_cuando_existe(): void
@@ -41,7 +37,7 @@ class WazeFeedServiceTest extends TestCase
         );
     }
 
-    public function test_accidente_con_polyline_real_duplicada_usa_punto_original(): void
+    public function test_accidente_con_polyline_real_duplicada_genera_linea_valida(): void
     {
         $hecho = (object) [
             'polyline' => '19.7028915 -101.2006836 19.7028915 -101.2006836',
@@ -54,10 +50,9 @@ class WazeFeedServiceTest extends TestCase
             'ACCIDENT'
         );
 
-        $this->assertSame(
-            '19.7028915 -101.2006836 19.7028915 -101.2006836',
-            $polyline
-        );
+        $numbers = $this->numbers($polyline);
+        $this->assertCount(4, $numbers);
+        $this->assertNotSame($numbers[0] . ' ' . $numbers[1], $numbers[2] . ' ' . $numbers[3]);
     }
 
     public function test_cierre_con_polyline_duplicada_se_descarta(): void
@@ -99,5 +94,10 @@ class TestableWazeFeedService extends WazeFeedService
     public function buildPolylinePublic(float $lat, float $lng, $hecho, string $type): ?string
     {
         return $this->buildPolyline($lat, $lng, $hecho, $type);
+    }
+
+    protected function buildPolylineFromNearbyTramo(float $lat, float $lng): ?string
+    {
+        return null;
     }
 }

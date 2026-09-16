@@ -15,7 +15,7 @@ class WazeReverseGeocodingService
         }
 
         $key = sprintf(
-            'waze_reverse_geocoding:%s:%s',
+            'waze_reverse_geocoding:v2:%s:%s',
             number_format($lat, 5, '.', ''),
             number_format($lng, 5, '.', '')
         );
@@ -67,7 +67,9 @@ class WazeReverseGeocodingService
                     continue;
                 }
 
-                $streetNames = $item['streetNames'] ?? [];
+                // The current ROW API uses `names`; older responses used
+                // `streetNames`. Accept both shapes so Waze names are not lost.
+                $streetNames = $item['names'] ?? ($item['streetNames'] ?? []);
 
                 if (!is_array($streetNames)) {
                     continue;

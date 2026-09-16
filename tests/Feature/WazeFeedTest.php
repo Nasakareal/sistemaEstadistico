@@ -19,6 +19,7 @@ class WazeFeedTest extends TestCase
         $geocoder->shouldReceive('nearestStreet')->andReturn(null);
         $service = Mockery::mock(WazeFeedService::class, [$geocoder])
             ->makePartial()->shouldAllowMockingProtectedMethods();
+        $service->shouldReceive('buildPolylineFromNearbyTramo')->andReturn(null);
         $hechos = collect(range(1, 55))->map(function ($id) {
             return (object) [
                 'id' => $id,
@@ -38,7 +39,12 @@ class WazeFeedTest extends TestCase
         $response->assertOk()->assertJsonCount(55, 'incidents');
         foreach ($response->json('incidents') as $incident) {
             $this->assertSame('ACCIDENT', $incident['type']);
-            $this->assertSame('19.7028915 -101.2006836 19.7028915 -101.2006836', $incident['polyline']);
+            preg_match_all('/-?\d+(?:\.\d+)?/', $incident['polyline'], $matches);
+            $this->assertCount(4, $matches[0]);
+            $this->assertNotSame(
+                $matches[0][0] . ' ' . $matches[0][1],
+                $matches[0][2] . ' ' . $matches[0][3]
+            );
             $this->assertSame('BOTH_DIRECTIONS', $incident['direction']);
             $this->assertSame('2026-09-15T14:46:00-06:00', $incident['starttime']);
             $this->assertNotEmpty($incident['street']);

@@ -3,7 +3,12 @@
 @section('title', 'Listado de Patrullas')
 
 @section('content_header')
-    <h1>Listado de Patrullas</h1>
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-0">Control de Patrullas</h1>
+            <small class="text-muted">Busca por número económico, placas, unidad o responsable y abre su operación sin usar IDs.</small>
+        </div>
+    </div>
 @stop
 
 @section('content')
@@ -11,7 +16,7 @@
         <div class="col-md-12">
             <div class="card card-outline card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Patrullas Registradas</h3>
+                    <h3 class="card-title"><i class="fa-solid fa-car-side mr-2"></i>Patrullas Registradas</h3>
                     <div class="card-tools">
                         <a href="{{ url('/admin/settings/patrullas/create') }}" class="btn btn-primary">
                             <i class="fa-solid fa-plus"></i> Crear Nueva Patrulla
@@ -26,6 +31,7 @@
                                 <th><center>Número Económico</center></th>
                                 <th><center>Unidad</center></th>
                                 <th><center>Estado</center></th>
+                                <th><center>Servicio actual</center></th>
                                 <th><center>A resguardo de</center></th>
                                 <th><center>Resguardo</center></th>
                                 <th><center>Fecha de Registro</center></th>
@@ -45,6 +51,22 @@
                                             <span class="badge badge-danger">Inactiva</span>
                                         @endif
                                     </td>
+                                    <td>
+                                        @php($bitacoraActual = $patrulla->ultimaBitacoraServicio)
+                                        @if($bitacoraActual && $bitacoraActual->estatus === 'abierta')
+                                            <span class="badge badge-success mb-1">
+                                                <i class="fa-solid fa-circle-play"></i> En servicio
+                                            </span>
+                                            <div class="small">
+                                                {{ $bitacoraActual->capturado_por_nombre ?: ($bitacoraActual->capturadoPor->name ?? 'Sin responsable') }}
+                                            </div>
+                                            <div class="small text-muted">
+                                                Desde {{ $bitacoraActual->hora_inicio ? substr($bitacoraActual->hora_inicio, 0, 5) : '—' }}
+                                            </div>
+                                        @else
+                                            <span class="badge badge-secondary">Disponible</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $patrulla->resguardo_nombre ?? '—' }}</td>
                                     <td>
                                         @if ($patrulla->resguardo_pdf_url)
@@ -57,25 +79,43 @@
                                     </td>
                                     <td>{{ optional($patrulla->created_at)->format('d-m-Y') }}</td>
                                     <td>
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ url('/admin/settings/patrullas/' . $patrulla->id) }}"
-                                               class="btn btn-info btn-sm">
-                                                <i class="fa-regular fa-eye"></i>
+                                        <div class="d-flex flex-wrap justify-content-center patrol-actions">
+                                            <a href="{{ route('patrullas.bitacoras.index', $patrulla->id) }}"
+                                               class="btn btn-primary btn-sm"
+                                               title="Consultar bitácoras y servicios">
+                                                <i class="fa-solid fa-clipboard-list"></i> Bitácoras
                                             </a>
 
-                                            <a href="{{ url('/admin/settings/patrullas/' . $patrulla->id . '/edit') }}"
-                                               class="btn btn-success btn-sm">
-                                                <i class="fa-regular fa-pen-to-square"></i>
+                                            <a href="{{ route('patrullas.entregas_recepciones.index', $patrulla->id) }}"
+                                               class="btn btn-info btn-sm"
+                                               title="Consultar entregas y recepciones">
+                                                <i class="fa-solid fa-right-left"></i> Entregas
                                             </a>
 
-                                            <form action="{{ url('/admin/settings/patrullas/' . $patrulla->id) }}"
-                                                  method="POST" style="display:inline-block;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="button" class="btn btn-danger btn-sm delete-btn">
-                                                    <i class="fa-regular fa-trash-can"></i>
-                                                </button>
-                                            </form>
+                                            <a href="{{ route('patrullas.show', $patrulla->id) }}"
+                                               class="btn btn-secondary btn-sm"
+                                               title="Ver ficha de la patrulla">
+                                                <i class="fa-regular fa-eye"></i> Ficha
+                                            </a>
+
+                                            @can('editar patrullas')
+                                                <a href="{{ route('patrullas.edit', $patrulla->id) }}"
+                                                   class="btn btn-success btn-sm"
+                                                   title="Editar patrulla">
+                                                    <i class="fa-regular fa-pen-to-square"></i>
+                                                </a>
+                                            @endcan
+
+                                            @can('eliminar patrullas')
+                                                <form action="{{ route('patrullas.destroy', $patrulla->id) }}"
+                                                      method="POST" style="display:inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="button" class="btn btn-danger btn-sm delete-btn" title="Eliminar patrulla">
+                                                        <i class="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
@@ -93,6 +133,11 @@
         .table th, .table td {
             text-align: center;
             vertical-align: middle;
+        }
+
+        .patrol-actions {
+            gap: .3rem;
+            min-width: 300px;
         }
     </style>
 @stop

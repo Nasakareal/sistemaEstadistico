@@ -14,9 +14,17 @@
             </small>
         </div>
 
-        <a href="{{ route('patrullas.show', $patrulla->id) }}" class="btn btn-secondary">
-            <i class="fa-solid fa-arrow-left"></i> Volver a la Patrulla
-        </a>
+        <div class="btn-group">
+            <a href="{{ route('patrullas.index') }}" class="btn btn-primary">
+                <i class="fa-solid fa-magnifying-glass"></i> Elegir otra patrulla
+            </a>
+            <a href="{{ route('patrullas.bitacoras.index', $patrulla->id) }}" class="btn btn-info">
+                <i class="fa-solid fa-clipboard-list"></i> Ver bitácoras
+            </a>
+            <a href="{{ route('patrullas.show', $patrulla->id) }}" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i> Ver ficha
+            </a>
+        </div>
     </div>
 @stop
 

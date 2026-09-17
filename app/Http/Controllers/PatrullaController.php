@@ -40,7 +40,12 @@ class PatrullaController extends Controller
         $actor = $this->actor();
 
         return Patrulla::query()
-            ->with(['unidad', 'turno', 'fotos'])
+            ->with([
+                'unidad',
+                'turno',
+                'fotos',
+                'ultimaBitacoraServicio.capturadoPor',
+            ])
             ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) use ($actor) {
                 if (!empty($actor->unidad_id)) {
                     $q->where('unidad_id', (int) $actor->unidad_id);

@@ -70,6 +70,8 @@ class Hechos extends Model
         'place_id',
         'created_by',
         'updated_by',
+        'patrulla_id',
+        'bitacora_servicio_patrulla_id',
         'es_relevante',
         'marcado_relevante_por',
         'marcado_relevante_at',
@@ -104,6 +106,8 @@ class Hechos extends Model
         'lesionados_capturados' => 'integer',
         'captura_completa' => 'boolean',
         'captura_completa_at' => 'datetime',
+        'patrulla_id' => 'integer',
+        'bitacora_servicio_patrulla_id' => 'integer',
     ];
 
     public static function normalizarLongitud($valor)
@@ -123,6 +127,10 @@ class Hechos extends Model
     protected static function booted(): void
     {
         static::creating(function (Hechos $hecho): void {
+            $hecho->vincularServicioPatrullaActivo();
+        });
+
+        static::creating(function (Hechos $hecho): void {
             if (!empty($hecho->id) || DB::connection()->getDriverName() !== 'mysql') {
                 return;
             }
@@ -140,6 +148,24 @@ class Hechos extends Model
         static::created(function (): void {
             self::releaseNextIdLock();
         });
+    }
+
+    private function vincularServicioPatrullaActivo(): void
+    {
+        if ($this->bitacora_servicio_patrulla_id || !$this->created_by) {
+            return;
+        }
+
+        $bitacora = BitacoraServicioPatrulla::query()
+            ->where('capturado_por_user_id', $this->created_by)
+            ->where('estatus', 'abierta')
+            ->latest('id')
+            ->first();
+
+        if ($bitacora) {
+            $this->bitacora_servicio_patrulla_id = $bitacora->id;
+            $this->patrulla_id = $bitacora->patrulla_id;
+        }
     }
 
     private static function releaseNextIdLock(): void
@@ -177,6 +203,19 @@ class Hechos extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function patrulla(): BelongsTo
+    {
+        return $this->belongsTo(Patrulla::class, 'patrulla_id');
+    }
+
+    public function bitacoraServicioPatrulla(): BelongsTo
+    {
+        return $this->belongsTo(
+            BitacoraServicioPatrulla::class,
+            'bitacora_servicio_patrulla_id'
+        );
     }
 
     public function updater(): BelongsTo

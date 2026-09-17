@@ -14,6 +14,14 @@
                     <h3 class="card-title">Información de la Patrulla</h3>
                     <div class="card-tools">
 
+                        <a href="{{ route('patrullas.bitacoras.index', $patrulla->id) }}" class="btn btn-primary btn-sm">
+                            <i class="fa-solid fa-clipboard-list"></i> Bitácoras y servicios
+                        </a>
+
+                        <a href="{{ route('patrullas.entregas_recepciones.index', $patrulla->id) }}" class="btn btn-info btn-sm">
+                            <i class="fa-solid fa-right-left"></i> Entregas y recepciones
+                        </a>
+
                         @can('ver kilometrajes patrullas')
                             <a href="{{ route('patrullas.kilometrajes.index', $patrulla->id) }}" class="btn btn-primary btn-sm">
                                 <i class="fa-solid fa-gauge-high"></i> Kilometrajes

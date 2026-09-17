@@ -35,6 +35,8 @@ class Actividad extends Model
         'foto_eliminada_at',
         'created_by',
         'updated_by',
+        'patrulla_id',
+        'bitacora_servicio_patrulla_id',
         'unidad_org_id',
         'delegacion_id',
         'destacamento_id',
@@ -78,11 +80,38 @@ class Actividad extends Model
         'fecha' => 'date',
         'synced_at' => 'datetime',
         'revisado_at' => 'datetime',
+        'patrulla_id' => 'integer',
+        'bitacora_servicio_patrulla_id' => 'integer',
         'foto_blob_copiada_at' => 'datetime',
         'foto_archivada_at' => 'datetime',
         'foto_eliminada_at' => 'datetime',
         'infracciones_actividad' => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Actividad $actividad): void {
+            $actividad->vincularServicioPatrullaActivo();
+        });
+    }
+
+    private function vincularServicioPatrullaActivo(): void
+    {
+        if ($this->bitacora_servicio_patrulla_id || !$this->created_by) {
+            return;
+        }
+
+        $bitacora = BitacoraServicioPatrulla::query()
+            ->where('capturado_por_user_id', $this->created_by)
+            ->where('estatus', 'abierta')
+            ->latest('id')
+            ->first();
+
+        if ($bitacora) {
+            $this->bitacora_servicio_patrulla_id = $bitacora->id;
+            $this->patrulla_id = $bitacora->patrulla_id;
+        }
+    }
 
     public function getHoraAttribute($value)
     {
@@ -178,6 +207,19 @@ class Actividad extends Model
     public function vehiculos()
     {
         return $this->belongsToMany(\App\Models\Vehiculo::class, 'actividad_vehiculo', 'actividad_id', 'vehiculo_id')->withTimestamps();
+    }
+
+    public function patrulla()
+    {
+        return $this->belongsTo(Patrulla::class, 'patrulla_id');
+    }
+
+    public function bitacoraServicioPatrulla()
+    {
+        return $this->belongsTo(
+            BitacoraServicioPatrulla::class,
+            'bitacora_servicio_patrulla_id'
+        );
     }
 
     public function personas()

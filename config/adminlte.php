@@ -649,6 +649,14 @@ return [
         ],
 
         [
+            'text'    => 'Control de Patrullas',
+            'icon'    => 'fa-solid fa-car-side',
+            'classes' => 'bg-blue text-white',
+            'route'   => 'patrullas.index',
+            'can'     => 'ver patrullas',
+        ],
+
+        [
             'text'    => 'Mapa',
             'icon'    => 'fa-solid fa-map-location-dot',
             'classes' => 'bg-blue text-white',

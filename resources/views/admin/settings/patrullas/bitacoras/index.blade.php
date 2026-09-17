@@ -14,11 +14,17 @@
             </small>
         </div>
 
-        <a href="{{ route('patrullas.show', $patrulla->id) }}"
-           class="btn btn-secondary">
-            <i class="fa-solid fa-arrow-left"></i>
-            Volver a la Patrulla
-        </a>
+        <div class="btn-group">
+            <a href="{{ route('patrullas.index') }}" class="btn btn-primary">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Elegir otra patrulla
+            </a>
+            <a href="{{ route('patrullas.show', $patrulla->id) }}"
+               class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i>
+                Ver ficha
+            </a>
+        </div>
     </div>
 @stop
 
@@ -361,9 +367,10 @@
                                                     'bitacoraServicioPatrulla' => $bitacora->id
                                                 ]) }}"
                                                 class="btn btn-info btn-sm"
-                                                title="Ver bitácora"
+                                                title="Ver hechos y actividades de esta bitácora"
                                             >
                                                 <i class="fa-regular fa-eye"></i>
+                                                Ver servicios
                                             </a>
 
 

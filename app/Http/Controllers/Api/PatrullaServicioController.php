@@ -998,6 +998,10 @@ class PatrullaServicioController extends Controller
             'America/Mexico_City'
         );
 
+        if ($this->esPrimeraBitacoraDelUsuarioEnFecha($bitacora, $fecha)) {
+            $inicio->startOfDay();
+        }
+
         if ($bitacora->cerrada_at) {
             $fin = Carbon::parse(
                 $bitacora->cerrada_at,
@@ -1019,13 +1023,48 @@ class PatrullaServicioController extends Controller
         return [$inicio, $fin];
     }
 
+    private function esPrimeraBitacoraDelUsuarioEnFecha(
+        BitacoraServicioPatrulla $bitacora,
+        string $fecha
+    ): bool {
+        if (!$bitacora->capturado_por_user_id) {
+            return false;
+        }
+
+        $horaInicio = $bitacora->hora_inicio ?: '00:00:00';
+
+        return !BitacoraServicioPatrulla::query()
+            ->where('capturado_por_user_id', $bitacora->capturado_por_user_id)
+            ->whereDate('fecha', $fecha)
+            ->whereKeyNot($bitacora->id)
+            ->where(function ($query) use ($horaInicio, $bitacora) {
+                $query->where('hora_inicio', '<', $horaInicio)
+                    ->orWhere(function ($sameTime) use ($horaInicio, $bitacora) {
+                        $sameTime->where('hora_inicio', $horaInicio)
+                            ->where('id', '<', $bitacora->id);
+                    });
+            })
+            ->exists();
+    }
+
     private function actividadesDeBitacora(
         BitacoraServicioPatrulla $bitacora,
         Carbon $inicio,
         Carbon $fin
     ) {
         return Actividad::query()
-            ->where('created_by', $bitacora->capturado_por_user_id)
+            ->where(function ($query) use ($bitacora) {
+                $query->where(
+                    'bitacora_servicio_patrulla_id',
+                    $bitacora->id
+                )->orWhere(function ($legacy) use ($bitacora) {
+                    $legacy->whereNull('bitacora_servicio_patrulla_id')
+                        ->where(
+                            'created_by',
+                            $bitacora->capturado_por_user_id
+                        );
+                });
+            })
             ->whereBetween('fecha', [
                 $inicio->toDateString(),
                 $fin->toDateString(),
@@ -1088,7 +1127,18 @@ class PatrullaServicioController extends Controller
         Carbon $fin
     ) {
         return Hechos::query()
-            ->where('created_by', $bitacora->capturado_por_user_id)
+            ->where(function ($query) use ($bitacora) {
+                $query->where(
+                    'bitacora_servicio_patrulla_id',
+                    $bitacora->id
+                )->orWhere(function ($legacy) use ($bitacora) {
+                    $legacy->whereNull('bitacora_servicio_patrulla_id')
+                        ->where(
+                            'created_by',
+                            $bitacora->capturado_por_user_id
+                        );
+                });
+            })
             ->whereBetween('fecha', [
                 $inicio->toDateString(),
                 $fin->toDateString(),

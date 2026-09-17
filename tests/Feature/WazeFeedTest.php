@@ -42,6 +42,11 @@ class WazeFeedTest extends TestCase
         $response->assertOk()->assertJsonCount(55, 'incidents');
         foreach ($response->json('incidents') as $incident) {
             $this->assertSame('ACCIDENT', $incident['type']);
+            $this->assertSame(['x' => -101.2006836, 'y' => 19.7028915], $incident['location']);
+            $this->assertSame('MX', $incident['country']);
+            $this->assertSame('MORELIA', $incident['city']);
+            $this->assertSame(0.9, $incident['confidence']);
+            $this->assertSame(6, $incident['reliability']);
             preg_match_all('/-?\d+(?:\.\d+)?/', $incident['polyline'], $matches);
             $this->assertCount(4, $matches[0]);
             $this->assertSame(

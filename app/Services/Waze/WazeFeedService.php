@@ -151,9 +151,20 @@ class WazeFeedService
         $payload = [
             'id' => 'hecho_' . $hecho->id,
             'type' => $type,
+            // Preserve the original partner-feed location contract. This is
+            // the shape used when Waze successfully ingested these events;
+            // the CIFS polyline below complements it but does not replace it.
+            'confidence' => 0.9,
+            'reliability' => $this->resolveReliability($hecho),
+            'location' => [
+                'x' => $lng,
+                'y' => $lat,
+            ],
             'polyline' => $polyline,
             'direction' => $this->resolveDirection($hecho, $type),
             'street' => $street,
+            'city' => $this->resolveCity($hecho),
+            'country' => 'MX',
             'starttime' => $startTime->format('c'),
             'creationtime' => $this->resolveCreationTime($hecho, $startTime)->format('c'),
             'updatetime' => $this->resolveUpdateTime($hecho, $startTime)->format('c'),
@@ -169,6 +180,41 @@ class WazeFeedService
         $payload['endtime'] = $this->resolveEndTime($hecho, $startTime, $type)->format('c');
 
         return $payload;
+    }
+
+    protected function resolveReliability($hecho): int
+    {
+        $source = mb_strtoupper(trim((string) ($hecho->fuente_ubicacion ?? '')), 'UTF-8');
+        $accuracy = is_numeric($hecho->calidad_geo ?? null)
+            ? (float) $hecho->calidad_geo
+            : null;
+
+        if ($source === 'GPS_APP' && $accuracy !== null) {
+            if ($accuracy <= 10) {
+                return 9;
+            }
+
+            if ($accuracy <= 25) {
+                return 8;
+            }
+
+            if ($accuracy <= 60) {
+                return 7;
+            }
+        }
+
+        return $source === 'GPS_WEB' ? 7 : 6;
+    }
+
+    protected function resolveCity($hecho): string
+    {
+        $city = mb_strtoupper(trim((string) ($hecho->municipio ?? '')), 'UTF-8');
+
+        if ($city === '' || $city === 'MOTELIA') {
+            return 'MORELIA';
+        }
+
+        return $city;
     }
 
     protected function skipReason($hecho): ?string

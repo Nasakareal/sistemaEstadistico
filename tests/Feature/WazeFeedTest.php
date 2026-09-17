@@ -14,12 +14,15 @@ class WazeFeedTest extends TestCase
         config()->set('waze.feed_token', 'test-feed-token');
         config()->set('waze.require_reverse_geocoding_match', false);
         config()->set('waze.publish_accidents_as_closures', false);
+        config()->set('waze.road_snap_enabled', false);
 
         $geocoder = Mockery::mock(WazeReverseGeocodingService::class);
         $geocoder->shouldReceive('nearestStreet')->andReturn(null);
         $service = Mockery::mock(WazeFeedService::class, [$geocoder])
             ->makePartial()->shouldAllowMockingProtectedMethods();
         $service->shouldReceive('buildPolylineFromNearbyTramo')->andReturn(null);
+        $service->shouldReceive('buildPointPolyline')
+            ->andReturn('19.7027000 -101.2009000 19.7031000 -101.2005000');
         $hechos = collect(range(1, 55))->map(function ($id) {
             return (object) [
                 'id' => $id,
@@ -40,8 +43,11 @@ class WazeFeedTest extends TestCase
         foreach ($response->json('incidents') as $incident) {
             $this->assertSame('ACCIDENT', $incident['type']);
             preg_match_all('/-?\d+(?:\.\d+)?/', $incident['polyline'], $matches);
-            $this->assertCount(2, $matches[0]);
-            $this->assertSame('19.7028915 -101.2006836', $incident['polyline']);
+            $this->assertCount(4, $matches[0]);
+            $this->assertSame(
+                '19.7027000 -101.2009000 19.7031000 -101.2005000',
+                $incident['polyline']
+            );
             $this->assertSame('BOTH_DIRECTIONS', $incident['direction']);
             $this->assertSame('2026-09-15T14:46:00-06:00', $incident['starttime']);
             $this->assertNotEmpty($incident['street']);

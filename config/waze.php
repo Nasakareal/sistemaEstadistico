@@ -15,4 +15,11 @@ return [
     'require_reverse_geocoding_match' => filter_var(env('WAZE_REQUIRE_REVERSE_GEOCODING_MATCH', false), FILTER_VALIDATE_BOOLEAN),
     'generated_polyline_half_meters' => env('WAZE_GENERATED_POLYLINE_HALF_METERS', 5),
     'tramo_polyline_match_meters' => env('WAZE_TRAMO_POLYLINE_MATCH_METERS', 60),
+    'road_snap_enabled' => filter_var(env('WAZE_ROAD_SNAP_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+    'road_snap_endpoint' => env('WAZE_ROAD_SNAP_ENDPOINT', 'https://router.project-osrm.org/table/v1/driving'),
+    'road_snap_timeout' => env('WAZE_ROAD_SNAP_TIMEOUT', 10),
+    'road_snap_cache_seconds' => env('WAZE_ROAD_SNAP_CACHE_SECONDS', 604800),
+    'road_snap_batch_size' => env('WAZE_ROAD_SNAP_BATCH_SIZE', 8),
+    'road_snap_probe_meters' => env('WAZE_ROAD_SNAP_PROBE_METERS', 35),
+    'road_snap_max_distance_meters' => env('WAZE_ROAD_SNAP_MAX_DISTANCE_METERS', 30),
 ];

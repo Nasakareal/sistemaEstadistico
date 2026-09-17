@@ -4,10 +4,15 @@ namespace App\Services\Waze;
 
 use App\Models\Hechos;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WazeFeedService
 {
     private WazeReverseGeocodingService $reverseGeocoder;
+    private array $roadPolylines = [];
 
     public function __construct(WazeReverseGeocodingService $reverseGeocoder)
     {
@@ -17,6 +22,7 @@ class WazeFeedService
     public function buildIncidentsFeed(): array
     {
         $hechos = $this->queryHechos();
+        $this->prepareRoadPolylines($hechos);
 
         $incidents = [];
 
@@ -484,7 +490,7 @@ class WazeFeedService
         return null;
     }
 
-    protected function buildPointPolyline(float $lat, float $lng, $hecho = null): string
+    protected function buildPointPolyline(float $lat, float $lng, $hecho = null): ?string
     {
         $tramoPolyline = $this->buildPolylineFromNearbyTramo($lat, $lng);
 
@@ -492,11 +498,221 @@ class WazeFeedService
             return $tramoPolyline;
         }
 
-        // An incident may be represented by one coordinate when its direction
-        // is supplied. Do not invent a segment: an arbitrary bearing can move
-        // the endpoints away from the actual Waze road and make the event
-        // impossible to match.
-        return $this->formatPolyline([[$lat, $lng]]);
+        return isset($hecho->id) ? ($this->roadPolylines[(string) $hecho->id] ?? null) : null;
+    }
+
+    /**
+     * Build short road-aligned polylines in batches. OSRM snaps a group of
+     * probes around every incident to its routable road network; we retain two
+     * separated points that belong to the same named road.
+     */
+    protected function prepareRoadPolylines($hechos): void
+    {
+        $this->roadPolylines = [];
+
+        if (!(bool) config('waze.road_snap_enabled', true)) {
+            return;
+        }
+
+        $pending = [];
+        $cacheSeconds = max(300, (int) config('waze.road_snap_cache_seconds', 604800));
+
+        foreach ($hechos as $hecho) {
+            if (!is_numeric($hecho->lat ?? null) || !is_numeric($hecho->lng ?? null)) {
+                continue;
+            }
+
+            $id = (string) $hecho->id;
+            $key = $this->roadPolylineCacheKey((float) $hecho->lat, (float) $hecho->lng);
+            try {
+                $cached = Cache::get($key);
+            } catch (\Throwable $e) {
+                $cached = null;
+            }
+
+            if (is_string($cached) && $cached !== '') {
+                if ($cached !== '__missing__') {
+                    $this->roadPolylines[$id] = $cached;
+                }
+                continue;
+            }
+
+            $pending[] = [
+                'id' => $id,
+                'lat' => (float) $hecho->lat,
+                'lng' => (float) $hecho->lng,
+                'cache_key' => $key,
+                'cache_seconds' => $cacheSeconds,
+            ];
+        }
+
+        $batchSize = max(1, min(10, (int) config('waze.road_snap_batch_size', 8)));
+
+        foreach (array_chunk($pending, $batchSize) as $batch) {
+            $this->fetchRoadPolylineBatch($batch);
+        }
+    }
+
+    protected function fetchRoadPolylineBatch(array $batch): void
+    {
+        $coordinates = [];
+        $ranges = [];
+
+        foreach ($batch as $item) {
+            $probes = $this->roadSnapProbes($item['lat'], $item['lng']);
+            $ranges[$item['id']] = [count($coordinates), count($probes), $item];
+
+            foreach ($probes as [$lat, $lng]) {
+                $coordinates[] = $this->formatCoord($lng) . ',' . $this->formatCoord($lat);
+            }
+        }
+
+        $endpoint = rtrim((string) config(
+            'waze.road_snap_endpoint',
+            'https://router.project-osrm.org/table/v1/driving'
+        ), '/');
+
+        try {
+            $response = Http::acceptJson()
+                ->timeout(max(2, (int) config('waze.road_snap_timeout', 10)))
+                ->get($endpoint . '/' . implode(';', $coordinates), [
+                    'annotations' => 'distance',
+                    'sources' => '0',
+                ]);
+
+            if (!$response->successful() || $response->json('code') !== 'Ok') {
+                $this->logRoadSnapWarning('Waze road snap failed', ['status' => $response->status()]);
+                return;
+            }
+
+            $destinations = $response->json('destinations');
+
+            if (!is_array($destinations)) {
+                return;
+            }
+
+            foreach ($ranges as $id => [$offset, $length, $item]) {
+                $polyline = $this->selectRoadPolyline(
+                    array_slice($destinations, $offset, $length),
+                    $item['lat'],
+                    $item['lng']
+                );
+                $cached = $polyline ?: '__missing__';
+
+                try {
+                    Cache::put($item['cache_key'], $cached, $item['cache_seconds']);
+                } catch (\Throwable $e) {
+                    $this->logRoadSnapWarning('Waze road snap cache failed', ['message' => $e->getMessage()]);
+                }
+
+                if ($polyline !== null) {
+                    $this->roadPolylines[$id] = $polyline;
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logRoadSnapWarning('Waze road snap exception', ['message' => $e->getMessage()]);
+        }
+    }
+
+    protected function roadSnapProbes(float $lat, float $lng): array
+    {
+        $meters = max(20, min(60, (float) config('waze.road_snap_probe_meters', 35)));
+        $latDelta = $meters / 110540.0;
+        $lngDelta = $meters / (111320.0 * max(0.1, cos(deg2rad($lat))));
+        $diagonal = sqrt(0.5);
+
+        return [
+            [$lat, $lng],
+            [$lat + $latDelta, $lng],
+            [$lat - $latDelta, $lng],
+            [$lat, $lng + $lngDelta],
+            [$lat, $lng - $lngDelta],
+            [$lat + ($latDelta * $diagonal), $lng + ($lngDelta * $diagonal)],
+            [$lat - ($latDelta * $diagonal), $lng - ($lngDelta * $diagonal)],
+            [$lat - ($latDelta * $diagonal), $lng + ($lngDelta * $diagonal)],
+            [$lat + ($latDelta * $diagonal), $lng - ($lngDelta * $diagonal)],
+        ];
+    }
+
+    protected function selectRoadPolyline(array $destinations, float $lat, float $lng): ?string
+    {
+        $center = $destinations[0] ?? null;
+        $roadName = $this->normalizedRoadName(is_array($center) ? ($center['name'] ?? '') : '');
+
+        if ($roadName === '') {
+            return null;
+        }
+
+        $maxSnapDistance = max(5, (float) config('waze.road_snap_max_distance_meters', 30));
+        $points = [];
+
+        foreach ($destinations as $destination) {
+            if (!is_array($destination)
+                || $this->normalizedRoadName($destination['name'] ?? '') !== $roadName
+                || !isset($destination['location'][0], $destination['location'][1])
+                || !is_numeric($destination['location'][0])
+                || !is_numeric($destination['location'][1])
+                || (isset($destination['distance']) && (float) $destination['distance'] > $maxSnapDistance)) {
+                continue;
+            }
+
+            $point = [(float) $destination['location'][1], (float) $destination['location'][0]];
+
+            if ($this->distanceMeters($lat, $lng, $point[0], $point[1]) <= 100) {
+                $points[$this->formatPolyline([$point])] = $point;
+            }
+        }
+
+        $points = array_values($points);
+        $best = null;
+
+        for ($i = 0; $i < count($points); $i++) {
+            for ($j = $i + 1; $j < count($points); $j++) {
+                $distance = $this->distanceMeters(
+                    $points[$i][0],
+                    $points[$i][1],
+                    $points[$j][0],
+                    $points[$j][1]
+                );
+
+                if ($distance >= 12 && $distance <= 120
+                    && ($best === null || $distance > $best['distance'])) {
+                    $best = ['distance' => $distance, 'points' => [$points[$i], $points[$j]]];
+                }
+            }
+        }
+
+        return $best ? $this->formatPolyline($best['points']) : null;
+    }
+
+    protected function distanceMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $radius = 6371000.0;
+        $latDelta = deg2rad($lat2 - $lat1);
+        $lngDelta = deg2rad($lng2 - $lng1);
+        $a = (sin($latDelta / 2) ** 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * (sin($lngDelta / 2) ** 2);
+
+        return $radius * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    protected function normalizedRoadName($name): string
+    {
+        return preg_replace('/[^A-Z0-9]+/', ' ', mb_strtoupper(Str::ascii(trim((string) $name)), 'UTF-8')) ?: '';
+    }
+
+    protected function roadPolylineCacheKey(float $lat, float $lng): string
+    {
+        return sprintf('waze_road_polyline:v1:%0.6f:%0.6f', $lat, $lng);
+    }
+
+    protected function logRoadSnapWarning(string $message, array $context = []): void
+    {
+        try {
+            Log::warning($message, $context);
+        } catch (\Throwable $e) {
+            // A logging permission problem must not make the public feed fail.
+        }
     }
 
     protected function resolveWazeStreet(float $lat, float $lng): ?string

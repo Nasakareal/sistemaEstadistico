@@ -82,7 +82,7 @@ Route::prefix('choques-diarios')->group(function () {
     Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
 });
 
-Route::prefix('patrullas')->middleware('can:ver patrullas')->group(function () {
+Route::prefix('patrullas')->middleware(['auth:sanctum', 'can:ver patrullas'])->group(function () {
     Route::get('/disponibles', [PatrullaServicioController::class, 'disponibles'])->name('api.patrullas.disponibles');
 
     Route::get('/mi-servicio', [PatrullaServicioController::class, 'miServicio'])

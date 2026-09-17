@@ -40,11 +40,8 @@ class WazeFeedTest extends TestCase
         foreach ($response->json('incidents') as $incident) {
             $this->assertSame('ACCIDENT', $incident['type']);
             preg_match_all('/-?\d+(?:\.\d+)?/', $incident['polyline'], $matches);
-            $this->assertCount(4, $matches[0]);
-            $this->assertNotSame(
-                $matches[0][0] . ' ' . $matches[0][1],
-                $matches[0][2] . ' ' . $matches[0][3]
-            );
+            $this->assertCount(2, $matches[0]);
+            $this->assertSame('19.7028915 -101.2006836', $incident['polyline']);
             $this->assertSame('BOTH_DIRECTIONS', $incident['direction']);
             $this->assertSame('2026-09-15T14:46:00-06:00', $incident['starttime']);
             $this->assertNotEmpty($incident['street']);

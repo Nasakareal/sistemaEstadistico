@@ -492,16 +492,11 @@ class WazeFeedService
             return $tramoPolyline;
         }
 
-        $street = mb_strtoupper(trim((string) ($hecho->calle ?? '')), 'UTF-8');
-        $bearing = $this->bearingFromStreet($street);
-        $halfMeters = max(2, (float) config('waze.generated_polyline_half_meters', 5));
-        $start = $this->offsetCoordinate($lat, $lng, $bearing + 180, $halfMeters);
-        $end = $this->offsetCoordinate($lat, $lng, $bearing, $halfMeters);
-
-        return $this->formatPolyline([
-            $start,
-            $end,
-        ]);
+        // An incident may be represented by one coordinate when its direction
+        // is supplied. Do not invent a segment: an arbitrary bearing can move
+        // the endpoints away from the actual Waze road and make the event
+        // impossible to match.
+        return $this->formatPolyline([[$lat, $lng]]);
     }
 
     protected function resolveWazeStreet(float $lat, float $lng): ?string

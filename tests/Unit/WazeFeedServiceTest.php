@@ -8,14 +8,14 @@ use Tests\TestCase;
 
 class WazeFeedServiceTest extends TestCase
 {
-    public function test_genera_polyline_corta_con_dos_puntos_distintos(): void
+    public function test_genera_polyline_de_un_punto_sin_inventar_segmento(): void
     {
         $polyline = (new TestableWazeFeedService())->buildPointPolylinePublic(19.7028915, -101.2006836);
 
         $numbers = $this->numbers($polyline);
 
-        $this->assertCount(4, $numbers);
-        $this->assertNotSame($numbers[0] . ' ' . $numbers[1], $numbers[2] . ' ' . $numbers[3]);
+        $this->assertCount(2, $numbers);
+        $this->assertSame('19.7028915 -101.2006836', $polyline);
     }
 
     public function test_accidente_prefiere_polyline_real_cuando_existe(): void
@@ -37,7 +37,7 @@ class WazeFeedServiceTest extends TestCase
         );
     }
 
-    public function test_accidente_con_polyline_real_duplicada_genera_linea_valida(): void
+    public function test_accidente_con_polyline_real_duplicada_usa_un_punto(): void
     {
         $hecho = (object) [
             'polyline' => '19.7028915 -101.2006836 19.7028915 -101.2006836',
@@ -51,8 +51,8 @@ class WazeFeedServiceTest extends TestCase
         );
 
         $numbers = $this->numbers($polyline);
-        $this->assertCount(4, $numbers);
-        $this->assertNotSame($numbers[0] . ' ' . $numbers[1], $numbers[2] . ' ' . $numbers[3]);
+        $this->assertCount(2, $numbers);
+        $this->assertSame('19.7028915 -101.2006836', $polyline);
     }
 
     public function test_cierre_con_polyline_duplicada_se_descarta(): void

@@ -108,6 +108,9 @@ use App\Http\Controllers\CaleaDirectivaVersionController;
 use App\Http\Controllers\CaleaDirectivaSeccionController;
 use App\Http\Controllers\CaleaDirectivaBloqueController;
 
+use App\Http\Controllers\BitacoraServicioPatrullaController;
+use App\Http\Controllers\EntregaRecepcionPatrullaController;
+
 Route::get('/', function () { return view('welcome'); })->name('welcome');
 
 // Ruta para las constancias de manejo
@@ -727,22 +730,38 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::delete('/tutoriales/{tutorial}', [TutorialController::class, 'destroy'])->name('settings.tutoriales.destroy');
 
     Route::prefix('patrullas')->middleware('can:ver patrullas')->group(function () {
-        Route::get('/',[PatrullaController::class,'index'])->name('patrullas.index');
-        Route::get('/create',[PatrullaController::class,'create'])->middleware('can:crear patrullas')->name('patrullas.create');
-        Route::post('/',[PatrullaController::class,'store'])->middleware('can:crear patrullas')->name('patrullas.store');
-        Route::get('/{patrulla}',[PatrullaController::class,'show'])->middleware('can:ver patrullas')->name('patrullas.show');
-        Route::get('/{patrulla}/edit',[PatrullaController::class,'edit'])->middleware('can:editar patrullas')->name('patrullas.edit');
-        Route::put('/{patrulla}',[PatrullaController::class,'update'])->middleware('can:editar patrullas')->name('patrullas.update');
-        Route::delete('/{patrulla}',[PatrullaController::class,'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.destroy');
+        Route::get('/', [PatrullaController::class, 'index'])->name('patrullas.index');
+        Route::get('/create', [PatrullaController::class, 'create'])->middleware('can:crear patrullas')->name('patrullas.create');
+        Route::post('/', [PatrullaController::class, 'store'])->middleware('can:crear patrullas')->name('patrullas.store');
+        Route::get('/{patrulla}', [PatrullaController::class, 'show'])->middleware('can:ver patrullas')->name('patrullas.show');
+        Route::get('/{patrulla}/edit', [PatrullaController::class, 'edit'])->middleware('can:editar patrullas')->name('patrullas.edit');
+        Route::put('/{patrulla}', [PatrullaController::class, 'update'])->middleware('can:editar patrullas')->name('patrullas.update');
+        Route::delete('/{patrulla}', [PatrullaController::class, 'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.destroy');
         Route::delete('/{patrulla}/fotos/{foto}', [PatrullaController::class, 'destroyFoto'])->middleware('can:editar patrullas')->name('patrullas.fotos.destroy');
 
         Route::prefix('{patrulla}/kilometrajes')->middleware('can:ver kilometrajes patrullas')->group(function () {
             Route::get('/', [PatrullaKilometrajeController::class, 'index'])->name('patrullas.kilometrajes.index');
             Route::get('/create', [PatrullaKilometrajeController::class, 'create'])->middleware('can:crear kilometrajes patrullas')->name('patrullas.kilometrajes.create');
-            Route::post('/', [\App\Http\Controllers\PatrullaKilometrajeController::class, 'store'])->middleware('can:crear kilometrajes patrullas')->name('patrullas.kilometrajes.store');
+            Route::post('/', [PatrullaKilometrajeController::class, 'store'])->middleware('can:crear kilometrajes patrullas')->name('patrullas.kilometrajes.store');
             Route::get('/{kilometraje}/edit', [PatrullaKilometrajeController::class, 'edit'])->middleware('can:editar kilometrajes patrullas')->name('patrullas.kilometrajes.edit');
             Route::put('/{kilometraje}', [PatrullaKilometrajeController::class, 'update'])->middleware('can:editar kilometrajes patrullas')->name('patrullas.kilometrajes.update');
             Route::delete('/{kilometraje}', [PatrullaKilometrajeController::class, 'destroy'])->middleware('can:eliminar kilometrajes patrullas')->name('patrullas.kilometrajes.destroy');
+        });
+
+        Route::prefix('{patrulla}/bitacoras')->group(function () {
+            Route::get('/', [BitacoraServicioPatrullaController::class, 'index'])->name('patrullas.bitacoras.index');
+            Route::get('/{bitacoraServicioPatrulla}', [BitacoraServicioPatrullaController::class, 'show'])->name('patrullas.bitacoras.show');
+            Route::get('/{bitacoraServicioPatrulla}/edit', [BitacoraServicioPatrullaController::class, 'edit'])->middleware('can:editar patrullas')->name('patrullas.bitacoras.edit');
+            Route::put('/{bitacoraServicioPatrulla}', [BitacoraServicioPatrullaController::class, 'update'])->middleware('can:editar patrullas')->name('patrullas.bitacoras.update');
+            Route::delete('/{bitacoraServicioPatrulla}', [BitacoraServicioPatrullaController::class, 'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.bitacoras.destroy');
+        });
+
+        Route::prefix('{patrulla}/entregas-recepciones')->group(function () {
+            Route::get('/', [EntregaRecepcionPatrullaController::class, 'index'])->name('patrullas.entregas_recepciones.index');
+            Route::get('/{entregaRecepcionPatrulla}', [EntregaRecepcionPatrullaController::class, 'show'])->name('patrullas.entregas_recepciones.show');
+            Route::get('/{entregaRecepcionPatrulla}/edit', [EntregaRecepcionPatrullaController::class, 'edit'])->middleware('can:editar patrullas')->name('patrullas.entregas_recepciones.edit');
+            Route::put('/{entregaRecepcionPatrulla}', [EntregaRecepcionPatrullaController::class, 'update'])->middleware('can:editar patrullas')->name('patrullas.entregas_recepciones.update');
+            Route::delete('/{entregaRecepcionPatrulla}', [EntregaRecepcionPatrullaController::class, 'destroy'])->middleware('can:eliminar patrullas')->name('patrullas.entregas_recepciones.destroy');
         });
     });
 

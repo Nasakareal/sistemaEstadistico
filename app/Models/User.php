@@ -326,4 +326,28 @@ class User extends Authenticatable
         ])
         ->withTimestamps();
     }
+
+    public function bitacorasPatrullaCapturadas()
+    {
+        return $this->hasMany(
+            BitacoraServicioPatrulla::class,
+            'capturado_por_user_id'
+        );
+    }
+
+    public function patrullasEntregadas()
+    {
+        return $this->hasMany(
+            EntregaRecepcionPatrulla::class,
+            'entrega_user_id'
+        );
+    }
+
+    public function patrullasRecibidas()
+    {
+        return $this->hasMany(
+            EntregaRecepcionPatrulla::class,
+            'recibe_user_id'
+        );
+    }
 }

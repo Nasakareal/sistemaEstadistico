@@ -86,4 +86,36 @@ class Patrulla extends Model
     {
         return $this->resguardo_pdf ? asset('storage/' . $this->resguardo_pdf) : null;
     }
+
+    public function bitacorasServicio()
+    {
+        return $this->hasMany(
+            BitacoraServicioPatrulla::class,
+            'patrulla_id'
+        );
+    }
+
+    public function entregasRecepciones()
+    {
+        return $this->hasMany(
+            EntregaRecepcionPatrulla::class,
+            'patrulla_id'
+        );
+    }
+
+    public function ultimaBitacoraServicio()
+    {
+        return $this->hasOne(
+            BitacoraServicioPatrulla::class,
+            'patrulla_id'
+        )->latestOfMany();
+    }
+
+    public function ultimaEntregaRecepcion()
+    {
+        return $this->hasOne(
+            EntregaRecepcionPatrulla::class,
+            'patrulla_id'
+        )->latestOfMany();
+    }
 }

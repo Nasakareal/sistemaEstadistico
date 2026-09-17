@@ -56,6 +56,7 @@ use App\Http\Controllers\Api\ControlSemaforicoController;
 use App\Http\Controllers\Api\CaleaController as ApiCaleaController;
 use App\Http\Controllers\Api\CaleaEncuestaController;
 use App\Http\Controllers\Api\AccountSettingsController;
+use App\Http\Controllers\Api\PatrullaServicioController;
 
 Route::post('/wabot/incoming',[WabotIncomingController::class,'handle']);
 Route::post('/bot/c5i/reco',[BotC5IController::class,'recommend']);
@@ -79,6 +80,34 @@ Route::prefix('choques-diarios')->group(function () {
     Route::get('/{hecho}', [ChoquesDiariosController::class, 'show'])->whereNumber('hecho')->name('api.choques_diarios.show');
     Route::get('/eliminados/fecha/{fecha}', [ChoquesDiariosController::class, 'eliminadosPorFecha'])->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('api.choques_diarios.eliminados.fecha');
     Route::get('/eliminados/rango', [ChoquesDiariosController::class, 'eliminadosRango'])->name('api.choques_diarios.eliminados.rango');
+});
+
+Route::prefix('patrullas')->middleware('can:ver patrullas')->group(function () {
+    Route::get('/disponibles', [PatrullaServicioController::class, 'disponibles'])->name('api.patrullas.disponibles');
+
+    Route::get('/mi-servicio', [PatrullaServicioController::class, 'miServicio'])
+        ->name('api.patrullas.mi_servicio');
+
+    Route::get('/mi-bitacora', [PatrullaServicioController::class, 'miBitacora'])
+        ->name('api.patrullas.mi_bitacora');
+
+    Route::get('/mi-historial', [PatrullaServicioController::class, 'miHistorial'])
+        ->name('api.patrullas.mi_historial');
+
+    Route::post('/{patrulla}/recibir', [PatrullaServicioController::class, 'recibir'])
+        ->whereNumber('patrulla')
+        ->name('api.patrullas.recibir');
+
+    Route::post('/{patrulla}/entregar', [PatrullaServicioController::class, 'entregar'])
+        ->whereNumber('patrulla')
+        ->name('api.patrullas.entregar');
+
+    Route::put('/mi-servicio', [PatrullaServicioController::class, 'actualizarServicio'])
+        ->name('api.patrullas.mi_servicio.update');
+
+    Route::post('/mi-servicio/kilometraje', [PatrullaServicioController::class, 'registrarKilometraje'])
+        ->middleware('can:crear kilometrajes patrullas')
+        ->name('api.patrullas.mi_servicio.kilometraje');
 });
 
 Route::prefix('calea')->middleware(['auth:sanctum', 'can:ver calea'])->group(function () {
@@ -217,6 +246,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [DirectorioRedApoyoController::class, 'index'])->name('api.directorio_red_apoyo.index');
         Route::get('/{redApoyo}', [DirectorioRedApoyoController::class, 'show'])->whereNumber('redApoyo')->name('api.directorio_red_apoyo.show');
     });
+
 
     Route::prefix('constancias-manejo')->middleware('can:ver modulo examenes')->group(function () {
         Route::get('/', [ApiConstanciaManejoController::class, 'index'])->name('api.constancias_manejo.index');

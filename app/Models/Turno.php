@@ -43,4 +43,12 @@ class Turno extends Model
     {
         return $this->hasMany(Patrulla::class);
     }
+
+    public function bitacorasServicioPatrullas()
+    {
+        return $this->hasMany(
+            BitacoraServicioPatrulla::class,
+            'turno_id'
+        );
+    }
 }

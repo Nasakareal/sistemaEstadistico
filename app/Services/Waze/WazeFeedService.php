@@ -108,6 +108,10 @@ class WazeFeedService
 
     protected function mapHechoToIncident($hecho): ?array
     {
+        if ($this->isExcludedFromFeed($hecho)) {
+            return null;
+        }
+
         if (!$this->isSupportedTrafficEvent((string) $hecho->tipo_hecho)) {
             return null;
         }
@@ -154,9 +158,19 @@ class WazeFeedService
         $payload = [
             'id' => 'hecho_' . $hecho->id,
             'type' => $type,
+            // Partner Hub tiene este feed configurado con el contrato legado:
+            // toma este punto como geometría e ignora el campo CIFS `polyline`.
+            'confidence' => 0.9,
+            'reliability' => $this->resolveReliability($hecho),
+            'location' => [
+                'x' => $lng,
+                'y' => $lat,
+            ],
             'polyline' => $polyline,
             'direction' => $this->resolveDirection($hecho, $type),
             'street' => $street,
+            'city' => $this->resolveCity($hecho),
+            'country' => 'MX',
             'starttime' => $startTime->format('c'),
             'creationtime' => $this->resolveCreationTime($hecho, $startTime)->format('c'),
             'updatetime' => $this->resolveUpdateTime($hecho, $startTime)->format('c'),
@@ -174,8 +188,54 @@ class WazeFeedService
         return $payload;
     }
 
+    protected function resolveReliability($hecho): int
+    {
+        $source = mb_strtoupper(trim((string) ($hecho->fuente_ubicacion ?? '')), 'UTF-8');
+        $accuracy = is_numeric($hecho->calidad_geo ?? null)
+            ? (float) $hecho->calidad_geo
+            : null;
+
+        if ($source === 'GPS_APP' && $accuracy !== null) {
+            if ($accuracy <= 10) {
+                return 9;
+            }
+
+            if ($accuracy <= 25) {
+                return 8;
+            }
+
+            if ($accuracy <= 60) {
+                return 7;
+            }
+        }
+
+        return $source === 'GPS_WEB' ? 7 : 6;
+    }
+
+    protected function resolveCity($hecho): string
+    {
+        $city = mb_strtoupper(trim((string) ($hecho->municipio ?? '')), 'UTF-8');
+
+        if ($city === '' || $city === 'MOTELIA') {
+            return 'MORELIA';
+        }
+
+        return $city;
+    }
+
+    protected function isExcludedFromFeed($hecho): bool
+    {
+        $excludedIds = array_map('intval', (array) config('waze.excluded_hecho_ids', []));
+
+        return in_array((int) ($hecho->id ?? 0), $excludedIds, true);
+    }
+
     protected function skipReason($hecho): ?string
     {
+        if ($this->isExcludedFromFeed($hecho)) {
+            return 'excluded_by_waze';
+        }
+
         if (!$this->isSupportedTrafficEvent((string) $hecho->tipo_hecho)) {
             return 'unsupported_tipo_hecho';
         }

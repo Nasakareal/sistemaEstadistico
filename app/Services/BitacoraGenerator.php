@@ -6,6 +6,7 @@ use App\Models\Hechos;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 
@@ -28,7 +29,7 @@ class BitacoraGenerator
             ->orderBy('created_at', 'asc')
             ->get();
 
-        $phpWord = new PhpWord();
+        $phpWord = $this->newPhpWord();
         $phpWord->setDefaultFontName('Arial');
         $phpWord->setDefaultFontSize(10);
 
@@ -111,7 +112,7 @@ class BitacoraGenerator
         $wTipo   = 2400;
         $wObs    = 2500;
 
-        $table->addRow(320);
+        $table->addRow(320, ['tblHeader' => true, 'cantSplit' => true]);
         $table->addCell($wNo,     $headerCell)->addText('N°', ['bold' => true, 'size' => 10], $pCenter0);
         $table->addCell($wHora,   $headerCell)->addText('HORA DE SALIDA', ['bold' => true, 'size' => 10], $pCenter0);
         $table->addCell($wUnidad, $headerCell)->addText('UNIDAD', ['bold' => true, 'size' => 10], $pCenter0);
@@ -131,7 +132,7 @@ class BitacoraGenerator
                 $hora = Carbon::parse($hecho->created_at, $tz)->format('H:i');
             }
 
-            $unidad = (string)($hecho->unidad ?? '');
+            $unidad = $this->normalizeUnidad($hecho->unidad ?? '');
             $perito = strtoupper((string)($hecho->perito ?? ''));
 
             $lugar = trim((string)($hecho->calle ?? ''));
@@ -156,7 +157,7 @@ class BitacoraGenerator
             $estatus    = strtoupper((string)($hecho->situacion ?? ''));
             $obsEstatus = trim($estatus);
 
-            $table->addRow(300);
+            $table->addRow(300, ['cantSplit' => true]);
             $table->addCell($wNo,     $cell)->addText((string)$n, ['size' => 10], $pCenter0);
             $table->addCell($wHora,   $cell)->addText($hora !== '' ? $hora : '-', ['size' => 10], $pCenter0);
             $table->addCell($wUnidad, $cell)->addText($unidad !== '' ? $unidad : '-', ['size' => 10], $pCenter0);
@@ -215,5 +216,30 @@ class BitacoraGenerator
         IOFactory::createWriter($phpWord, 'Word2007')->save($tempPath);
 
         return $tempPath;
+    }
+
+    protected function newPhpWord(): PhpWord
+    {
+        // PHPWord 1.4 mantiene desactivado el escape de salida por defecto.
+        // Sin esto, datos válidos como "C102&" producen un document.xml
+        // inválido y Word debe intentar reparar la bitácora al abrirla.
+        Settings::setOutputEscapingEnabled(true);
+
+        return new PhpWord();
+    }
+
+    protected function normalizeUnidad($value): string
+    {
+        $unidad = strtoupper(trim((string) $value));
+
+        // Corrige el carácter capturado por error en lugar del dígito 8 y
+        // conserva el formato usado por Siniestros para las unidades C.
+        $unidad = str_replace('&', '8', $unidad);
+
+        if (preg_match('/^C-?(\d{4})$/', $unidad, $matches)) {
+            return 'C-' . $matches[1];
+        }
+
+        return $unidad;
     }
 }

@@ -11,6 +11,31 @@ use Illuminate\Support\Str;
 
 class WazeFeedService
 {
+    private const DEFAULT_EXCLUDED_HECHO_IDS = [
+        61551,
+        62948,
+        63147,
+        63204,
+        63254,
+        63256,
+        63260,
+        63401,
+        63428,
+        63497,
+        63582,
+        63590,
+        63596,
+        63597,
+        63598,
+        63599,
+        63600,
+        63601,
+        63602,
+        63603,
+        63604,
+        63605,
+    ];
+
     private WazeReverseGeocodingService $reverseGeocoder;
     private array $roadPolylines = [];
 
@@ -225,7 +250,13 @@ class WazeFeedService
 
     protected function isExcludedFromFeed($hecho): bool
     {
-        $excludedIds = array_map('intval', (array) config('waze.excluded_hecho_ids', []));
+        // El valor por defecto vive en código para que el filtro siga activo
+        // aunque producción conserve temporalmente una caché de configuración
+        // creada antes de que existiera esta opción.
+        $excludedIds = array_map('intval', (array) config(
+            'waze.excluded_hecho_ids',
+            self::DEFAULT_EXCLUDED_HECHO_IDS
+        ));
 
         return in_array((int) ($hecho->id ?? 0), $excludedIds, true);
     }

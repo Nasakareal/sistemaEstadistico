@@ -22,33 +22,4 @@ return [
     'road_snap_batch_size' => env('WAZE_ROAD_SNAP_BATCH_SIZE', 8),
     'road_snap_probe_meters' => env('WAZE_ROAD_SNAP_PROBE_METERS', 35),
     'road_snap_max_distance_meters' => env('WAZE_ROAD_SNAP_MAX_DISTANCE_METERS', 30),
-    // El importador actual de Partner Hub toma `location` como punto único y
-    // rechaza estos hechos al ubicarlos sobre vías de doble sentido. Se omiten
-    // del feed sin borrar los registros operativos de la base de datos.
-    'excluded_hecho_ids' => [
-        61551,
-        62948,
-        63147,
-        63204,
-        63254,
-        63256,
-        63260,
-        63401,
-        63428,
-        63497,
-        63582,
-        63590,
-        63596,
-        63597,
-        63598,
-        63599,
-        63600,
-        63601,
-        63602,
-        // Publicados después del diagnóstico anterior; se excluyen de forma
-        // conservadora hasta que Waze pueda validar una geometría direccional.
-        63603,
-        63604,
-        63605,
-    ],
 ];

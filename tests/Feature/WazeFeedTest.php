@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class WazeFeedTest extends TestCase
 {
-    public function test_endpoint_serializa_geometria_y_campos_cifs_sin_perder_incidentes(): void
+    public function test_endpoint_serializa_solo_campos_cifs_con_geometria_util(): void
     {
         config()->set('waze.feed_token', 'test-feed-token');
         config()->set('waze.require_reverse_geocoding_match', false);
@@ -42,11 +42,11 @@ class WazeFeedTest extends TestCase
         $response->assertOk()->assertJsonCount(55, 'incidents');
         foreach ($response->json('incidents') as $incident) {
             $this->assertSame('ACCIDENT', $incident['type']);
-            $this->assertSame(['x' => -101.2006836, 'y' => 19.7028915], $incident['location']);
-            $this->assertSame('MX', $incident['country']);
-            $this->assertSame('MORELIA', $incident['city']);
-            $this->assertSame(0.9, $incident['confidence']);
-            $this->assertSame(6, $incident['reliability']);
+            $this->assertArrayNotHasKey('location', $incident);
+            $this->assertArrayNotHasKey('country', $incident);
+            $this->assertArrayNotHasKey('city', $incident);
+            $this->assertArrayNotHasKey('confidence', $incident);
+            $this->assertArrayNotHasKey('reliability', $incident);
             preg_match_all('/-?\d+(?:\.\d+)?/', $incident['polyline'], $matches);
             $this->assertCount(4, $matches[0]);
             $this->assertSame(
@@ -59,5 +59,37 @@ class WazeFeedTest extends TestCase
             $this->assertNotEmpty($incident['description']);
             $this->assertGreaterThan(strtotime($incident['starttime']), strtotime($incident['endtime']));
         }
+    }
+
+    public function test_endpoint_descarta_incidente_con_geometria_equivalente_a_un_punto(): void
+    {
+        config()->set('waze.feed_token', 'test-feed-token');
+        config()->set('waze.require_reverse_geocoding_match', false);
+        config()->set('waze.road_snap_enabled', false);
+
+        $geocoder = Mockery::mock(WazeReverseGeocodingService::class);
+        $geocoder->shouldReceive('nearestStreet')->andReturn(null);
+        $service = Mockery::mock(WazeFeedService::class, [$geocoder])
+            ->makePartial()->shouldAllowMockingProtectedMethods();
+        $service->shouldReceive('buildPolylineFromNearbyTramo')->andReturn(null);
+        $service->shouldReceive('buildPointPolyline')
+            ->andReturn('19.7028915 -101.2006836 19.7028916 -101.2006836');
+        $service->shouldReceive('queryHechos')->once()->andReturn(collect([
+            (object) [
+                'id' => 63602,
+                'tipo_hecho' => 'CHOQUE',
+                'situacion' => 'PENDIENTE',
+                'fecha' => '2026-09-18',
+                'hora' => '16:53:00',
+                'lat' => '19.7407818',
+                'lng' => '-101.2056256',
+                'calle' => 'AV. GERTRUDIS SANCHEZ',
+            ],
+        ]));
+        $this->app->instance(WazeFeedService::class, $service);
+
+        $this->getJson('http://localhost/api/waze/incidents?token=test-feed-token')
+            ->assertOk()
+            ->assertJsonCount(0, 'incidents');
     }
 }

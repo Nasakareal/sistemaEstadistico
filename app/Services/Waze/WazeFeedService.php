@@ -42,6 +42,7 @@ class WazeFeedService
     public function buildDebugReport(): array
     {
         $hechos = $this->queryHechos();
+        $this->prepareRoadPolylines($hechos);
         $skipped = [];
         $examples = [];
         $included = 0;
@@ -136,7 +137,9 @@ class WazeFeedService
 
         $type = $this->resolveFeedType($hecho);
 
-        $polyline = $this->buildPolyline($lat, $lng, $hecho, $type);
+        $polyline = $this->validatedFeedPolyline(
+            $this->buildPolyline($lat, $lng, $hecho, $type)
+        );
 
         if ($polyline === null) {
             return null;
@@ -151,20 +154,9 @@ class WazeFeedService
         $payload = [
             'id' => 'hecho_' . $hecho->id,
             'type' => $type,
-            // Preserve the original partner-feed location contract. This is
-            // the shape used when Waze successfully ingested these events;
-            // the CIFS polyline below complements it but does not replace it.
-            'confidence' => 0.9,
-            'reliability' => $this->resolveReliability($hecho),
-            'location' => [
-                'x' => $lng,
-                'y' => $lat,
-            ],
             'polyline' => $polyline,
             'direction' => $this->resolveDirection($hecho, $type),
             'street' => $street,
-            'city' => $this->resolveCity($hecho),
-            'country' => 'MX',
             'starttime' => $startTime->format('c'),
             'creationtime' => $this->resolveCreationTime($hecho, $startTime)->format('c'),
             'updatetime' => $this->resolveUpdateTime($hecho, $startTime)->format('c'),
@@ -180,41 +172,6 @@ class WazeFeedService
         $payload['endtime'] = $this->resolveEndTime($hecho, $startTime, $type)->format('c');
 
         return $payload;
-    }
-
-    protected function resolveReliability($hecho): int
-    {
-        $source = mb_strtoupper(trim((string) ($hecho->fuente_ubicacion ?? '')), 'UTF-8');
-        $accuracy = is_numeric($hecho->calidad_geo ?? null)
-            ? (float) $hecho->calidad_geo
-            : null;
-
-        if ($source === 'GPS_APP' && $accuracy !== null) {
-            if ($accuracy <= 10) {
-                return 9;
-            }
-
-            if ($accuracy <= 25) {
-                return 8;
-            }
-
-            if ($accuracy <= 60) {
-                return 7;
-            }
-        }
-
-        return $source === 'GPS_WEB' ? 7 : 6;
-    }
-
-    protected function resolveCity($hecho): string
-    {
-        $city = mb_strtoupper(trim((string) ($hecho->municipio ?? '')), 'UTF-8');
-
-        if ($city === '' || $city === 'MOTELIA') {
-            return 'MORELIA';
-        }
-
-        return $city;
     }
 
     protected function skipReason($hecho): ?string
@@ -248,7 +205,7 @@ class WazeFeedService
 
         $type = $this->resolveFeedType($hecho);
 
-        if ($this->buildPolyline($lat, $lng, $hecho, $type) === null) {
+        if ($this->validatedFeedPolyline($this->buildPolyline($lat, $lng, $hecho, $type)) === null) {
             return 'missing_polyline';
         }
 
@@ -578,9 +535,17 @@ class WazeFeedService
 
             if (is_string($cached) && $cached !== '') {
                 if ($cached !== '__missing__') {
-                    $this->roadPolylines[$id] = $cached;
+                    $normalized = $this->validatedFeedPolyline($cached);
+
+                    if ($normalized !== null) {
+                        $this->roadPolylines[$id] = $normalized;
+                        continue;
+                    }
                 }
-                continue;
+
+                if ($cached === '__missing__') {
+                    continue;
+                }
             }
 
             $pending[] = [
@@ -749,7 +714,7 @@ class WazeFeedService
 
     protected function roadPolylineCacheKey(float $lat, float $lng): string
     {
-        return sprintf('waze_road_polyline:v1:%0.6f:%0.6f', $lat, $lng);
+        return sprintf('waze_road_polyline:v2:%0.6f:%0.6f', $lat, $lng);
     }
 
     protected function logRoadSnapWarning(string $message, array $context = []): void
@@ -1017,6 +982,50 @@ class WazeFeedService
         }
 
         return $this->formatPolyline($points);
+    }
+
+    /**
+     * Reject ambiguous point-like geometries before Waze sees them. A usable
+     * CIFS event needs a road-aligned polyline whose points establish traffic
+     * direction; very short pairs are effectively treated as one point.
+     */
+    protected function validatedFeedPolyline(?string $polyline): ?string
+    {
+        if ($polyline === null) {
+            return null;
+        }
+
+        $normalized = $this->normalizePolyline($polyline);
+
+        if ($normalized === null) {
+            return null;
+        }
+
+        preg_match_all('/-?\d+(?:\.\d+)?/', $normalized, $matches);
+        $numbers = array_map('floatval', $matches[0] ?? []);
+        $points = [];
+
+        for ($i = 0; $i + 1 < count($numbers); $i += 2) {
+            $points[] = [$numbers[$i], $numbers[$i + 1]];
+        }
+
+        $maximumDistance = 0.0;
+
+        for ($i = 0; $i < count($points); $i++) {
+            for ($j = $i + 1; $j < count($points); $j++) {
+                $maximumDistance = max(
+                    $maximumDistance,
+                    $this->distanceMeters(
+                        $points[$i][0],
+                        $points[$i][1],
+                        $points[$j][0],
+                        $points[$j][1]
+                    )
+                );
+            }
+        }
+
+        return $maximumDistance >= 12.0 ? $normalized : null;
     }
 
     protected function isValidCoordinatePair(float $lat, float $lng): bool

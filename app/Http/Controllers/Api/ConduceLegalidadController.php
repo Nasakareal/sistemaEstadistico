@@ -85,6 +85,7 @@ class ConduceLegalidadController extends Controller
                 ],
                 'abilities' => $this->abilitiesPayload($user),
                 'fundamentos_corralon' => $this->fundamentosCorralonPayload(),
+                'fundamentos_conduce_legalidad' => $this->fundamentosConduceLegalidadPayload(),
                 'fundamentos_actividad_corralon' => $this->fundamentosActividadCorralonPayload(),
                 'fundamentos_persona' => $this->fundamentosPersonaPayload(),
                 'formatos_impresion' => $this->formatosImpresionPayload(),
@@ -494,6 +495,7 @@ class ConduceLegalidadController extends Controller
         $this->assertPuedeAlimentarOperativo($operativo, $user);
 
         $this->assertCapturaHasContent($validated, $request);
+        $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
         $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request) {
             $operativo->refresh();
@@ -564,6 +566,7 @@ class ConduceLegalidadController extends Controller
 
         $validated = $request->validate($this->capturaRules());
         $this->assertCapturaHasContent($validated, $request, $captura);
+        $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
         DB::transaction(function () use ($captura, $operativo, $validated, $request, $user) {
             $operativo->refresh();
@@ -2421,6 +2424,7 @@ class ConduceLegalidadController extends Controller
                 ? $this->esFundamentoAlcoholimetria($infraccion)
                 : (
                     $this->infraccionAplicaRetencionOperativo($infraccion)
+                    && $this->ambitoFundamentoAplicaConduceLegalidad($infraccion->ambito_vehiculo)
                     && !$this->esFundamentoExcluidoDelOperativo($infraccion)
                 )
         );
@@ -2499,6 +2503,33 @@ class ConduceLegalidadController extends Controller
             || (bool) $infraccion->deposito_si_sin_persona_habilitada;
     }
 
+    private function assertVehiculosCorrespondenOperativo(
+        array $validated,
+        ConduceLegalidadOperativo $operativo
+    ): void
+    {
+        if ($this->esOperativoAlcoholimetria($operativo)) {
+            return;
+        }
+
+        foreach ($validated['vehiculos'] ?? [] as $index => $vehiculo) {
+            if (strtolower(trim((string) ($vehiculo['tipo_general'] ?? ''))) !== 'motocicleta') {
+                throw ValidationException::withMessages([
+                    "vehiculos.$index.tipo_general" => 'Conduce con Legalidad es exclusivo para motocicletas.',
+                ]);
+            }
+        }
+    }
+
+    private function ambitoFundamentoAplicaConduceLegalidad(?string $ambito): bool
+    {
+        return in_array(strtolower(trim((string) $ambito)), [
+            '',
+            'general',
+            'motocicleta',
+        ], true);
+    }
+
     private function infraccionAplicaSancionPersonaOperativo(LicenciaPuntoInfraccion $infraccion): bool
     {
         return (bool) $infraccion->amonestacion
@@ -2568,6 +2599,15 @@ class ConduceLegalidadController extends Controller
             })
             ->values()
             ->map(fn (LicenciaPuntoInfraccion $infraccion) => $this->fundamentoInfraccionPayload($infraccion));
+    }
+
+    private function fundamentosConduceLegalidadPayload()
+    {
+        return $this->fundamentosCorralonPayload()
+            ->filter(fn (array $fundamento) => $this->ambitoFundamentoAplicaConduceLegalidad(
+                $fundamento['ambito_vehiculo'] ?? null
+            ))
+            ->values();
     }
 
     private function fundamentosPersonaPayload()

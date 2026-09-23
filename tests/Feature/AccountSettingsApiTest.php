@@ -39,6 +39,7 @@ class AccountSettingsApiTest extends TestCase
             $table->string('apellido_materno')->nullable();
             $table->string('email')->unique();
             $table->string('password');
+            $table->unsignedBigInteger('unidad_id')->nullable();
             $table->boolean('receive_waze_alerts')->default(true);
             $table->timestamps();
         });
@@ -61,6 +62,28 @@ class AccountSettingsApiTest extends TestCase
 
         $this->assertFalse((bool) $user->fresh()->receive_waze_alerts);
         $this->assertTrue((bool) $other->fresh()->receive_waze_alerts);
+    }
+
+    public function test_vialidades_urbanas_cannot_enable_waze_alerts(): void
+    {
+        $user = $this->user('vialidades@example.test');
+        DB::table('users')->where('id', $user->id)->update([
+            'unidad_id' => 5,
+            'receive_waze_alerts' => true,
+        ]);
+        $user->refresh();
+        Sanctum::actingAs($user);
+
+        $this->getJson(route('api.account.settings.show'))
+            ->assertOk()
+            ->assertJsonPath('data.receive_waze_alerts', false);
+
+        $this->putJson(route('api.account.settings.update'), [
+            'receive_waze_alerts' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.receive_waze_alerts', false);
+
+        $this->assertFalse((bool) $user->fresh()->receive_waze_alerts);
     }
 
     private function user(string $email): User

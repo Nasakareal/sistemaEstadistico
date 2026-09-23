@@ -222,12 +222,16 @@ class FetchWazeAlerts extends Command
 
     private function getTokensByUserId(int $userId): array
     {
-        return DeviceToken::query()
+        $query = DeviceToken::query()
             ->join('users', 'users.id', '=', 'device_tokens.user_id')
             ->where('users.id', $userId)
             ->where('users.receive_waze_alerts', true)
             ->whereNotNull('device_tokens.token')
-            ->where('device_tokens.token', '!=', '')
+            ->where('device_tokens.token', '!=', '');
+
+        $this->excludeVialidadesUrbanasNoWazeUsers($query);
+
+        return $query
             ->pluck('device_tokens.token')
             ->unique()
             ->values()
@@ -322,18 +326,9 @@ class FetchWazeAlerts extends Command
 
     private function excludeVialidadesUrbanasNoWazeUsers($query): void
     {
-        $query->whereNotExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('model_has_roles as mhr')
-                ->join('roles', 'roles.id', '=', 'mhr.role_id')
-                ->whereColumn('mhr.model_id', 'users.id')
-                ->where('users.unidad_id', 5)
-                ->whereIn(DB::raw('UPPER(roles.name)'), [
-                    'MOTOCICLISTA',
-                    'AGENTE VIAL',
-                    'FENIX',
-                    'FÉNIX',
-                ]);
+        $query->where(function ($users) {
+            $users->whereNull('users.unidad_id')
+                ->orWhere('users.unidad_id', '!=', 5);
         });
     }
 
@@ -394,9 +389,6 @@ class FetchWazeAlerts extends Command
         }
 
         $tokensVialidadesUrbanas = [];
-        if ($this->isInsideMorelia($wazeAlert)) {
-            $tokensVialidadesUrbanas = $this->getTokensByUnidadId(5, [1]);
-        }
 
         $tokensNearby = $this->getNearbyTokens($wazeAlert);
 

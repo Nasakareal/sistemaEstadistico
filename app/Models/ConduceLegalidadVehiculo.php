@@ -22,6 +22,7 @@ class ConduceLegalidadVehiculo extends Model
         'placas',
         'estado_placas',
         'serie',
+        'numero_inventario',
         'capacidad_personas',
         'tipo_servicio',
         'tarjeta_circulacion_nombre',

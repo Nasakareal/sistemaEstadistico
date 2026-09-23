@@ -21,7 +21,9 @@ class AccountSettingsController extends Controller
         ]);
 
         $user = $request->user();
-        $user->receive_waze_alerts = (bool) $validated['receive_waze_alerts'];
+        $user->receive_waze_alerts = (int) ($user->unidad_id ?? 0) === 5
+            ? false
+            : (bool) $validated['receive_waze_alerts'];
         $user->save();
 
         return response()->json([
@@ -32,8 +34,11 @@ class AccountSettingsController extends Controller
 
     private function settings(Request $request): array
     {
+        $user = $request->user();
         return [
-            'receive_waze_alerts' => (bool) ($request->user()->receive_waze_alerts ?? true),
+            'receive_waze_alerts' => (int) ($user->unidad_id ?? 0) === 5
+                ? false
+                : (bool) ($user->receive_waze_alerts ?? true),
         ];
     }
 }

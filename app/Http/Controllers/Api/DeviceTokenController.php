@@ -31,14 +31,9 @@ class DeviceTokenController extends Controller
         $platform = (string) $request->input('platform');
         $now = Carbon::now('America/Mexico_City');
 
-        if ($this->isVialidadesUrbanasNoWazeUser($user)) {
-            DeviceToken::query()
-                ->where('user_id', (int) $user->id)
-                ->delete();
-
-            return response()->json([
-                'message' => 'Token no registrado para este rol.',
-            ]);
+        if ((int) ($user->unidad_id ?? 0) === 5 && (bool) $user->receive_waze_alerts) {
+            $user->receive_waze_alerts = false;
+            $user->save();
         }
 
         DB::transaction(function () use ($user, $token, $platform, $now) {
@@ -64,20 +59,6 @@ class DeviceTokenController extends Controller
 
         return response()->json([
             'message' => 'Token registrado.',
-        ]);
-    }
-
-    private function isVialidadesUrbanasNoWazeUser($user): bool
-    {
-        if ((int) ($user->unidad_id ?? 0) !== 5) {
-            return false;
-        }
-
-        return $user->hasAnyRole([
-            'Motociclista',
-            'Agente Vial',
-            'Fenix',
-            'Fénix',
         ]);
     }
 }

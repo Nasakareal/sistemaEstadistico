@@ -279,6 +279,7 @@ class LocationController extends Controller
             'turno_descanso' => 'Ubicación desactivada: tu turno está en descanso.',
             'turno_sin_asignar' => 'Ubicación desactivada: no tienes un turno asignado.',
             'rol_no_autorizado_vialidades' => 'Ubicación desactivada: rol no autorizado para Vialidades Urbanas.',
+            'unidad_vialidades_urbanas_sin_rastreo' => 'Ubicación desactivada para la Unidad de Protección en Vialidades Urbanas.',
         ];
 
         return $messages[$reason]

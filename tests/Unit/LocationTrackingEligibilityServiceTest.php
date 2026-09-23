@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class LocationTrackingEligibilityServiceTest extends TestCase
 {
-    public function test_agente_vial_turno_b_trabaja_el_4_de_junio_y_a_descansa(): void
+    public function test_vialidades_urbanas_no_reporta_ubicacion_sin_importar_turno(): void
     {
         $service = new LocationTrackingEligibilityService(new TurnoService());
         $momento = Carbon::parse('2026-06-04 09:00:00', 'America/Mexico_City');
@@ -23,10 +23,12 @@ class LocationTrackingEligibilityServiceTest extends TestCase
         $turnoB = $this->turno('B', 'b', '2026-02-24 07:00:00');
 
         $this->assertFalse($service->statusForUser($this->agenteVial($turnoA), $momento)['allowed']);
-        $this->assertTrue($service->statusForUser($this->agenteVial($turnoB), $momento)['allowed']);
+        $status = $service->statusForUser($this->agenteVial($turnoB), $momento);
+        $this->assertFalse($status['allowed']);
+        $this->assertSame('unidad_vialidades_urbanas_sin_rastreo', $status['reason']);
     }
 
-    public function test_agente_vial_turno_a_trabaja_el_5_de_junio_y_b_descansa(): void
+    public function test_vialidades_urbanas_no_reporta_ubicacion_aunque_sea_agente_vial(): void
     {
         $service = new LocationTrackingEligibilityService(new TurnoService());
         $momento = Carbon::parse('2026-06-05 09:00:00', 'America/Mexico_City');
@@ -34,7 +36,7 @@ class LocationTrackingEligibilityServiceTest extends TestCase
         $turnoA = $this->turno('A', 'a', '2026-02-23 07:00:00');
         $turnoB = $this->turno('B', 'b', '2026-02-24 07:00:00');
 
-        $this->assertTrue($service->statusForUser($this->agenteVial($turnoA), $momento)['allowed']);
+        $this->assertFalse($service->statusForUser($this->agenteVial($turnoA), $momento)['allowed']);
         $this->assertFalse($service->statusForUser($this->agenteVial($turnoB), $momento)['allowed']);
     }
 
@@ -47,7 +49,7 @@ class LocationTrackingEligibilityServiceTest extends TestCase
         $status = $service->statusForUser($user, $momento);
 
         $this->assertFalse($status['allowed']);
-        $this->assertSame('rol_no_autorizado_vialidades', $status['reason']);
+        $this->assertSame('unidad_vialidades_urbanas_sin_rastreo', $status['reason']);
     }
 
     public function test_siniestros_turno_franco_no_reporta_ubicacion(): void

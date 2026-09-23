@@ -27,6 +27,10 @@ class ConduceLegalidadMultipleFundamentosTest extends TestCase
             'fundamentos.*.licencia_punto_infraccion_id',
             $rules
         );
+        $this->assertContains(
+            'nullable',
+            $rules['fundamentos.*.licencia_punto_infraccion_id']
+        );
         $this->assertArrayHasKey('fundamentos.*.infraccion_codigo', $rules);
         $this->assertArrayHasKey('fundamentos.*.fundamento_legal', $rules);
         $this->assertArrayHasKey('fundamento_ids', $rules);

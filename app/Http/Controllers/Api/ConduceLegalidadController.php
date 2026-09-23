@@ -40,7 +40,7 @@ class ConduceLegalidadController extends Controller
     private const FORMATO_IPH_BARANDILLAS = 'barandillas';
     private const FORMATO_IPH_ANTERIOR = 'anterior';
     private const TICKET_SUPERVISOR_NOMBRE = 'Luis Eduardo Lugo Ordorica';
-    private const TICKET_SUPERVISOR_CARGO = 'Subdirector de Vialidades Urbanas';
+    private const TICKET_SUPERVISOR_CARGO = 'Subdirector de la Unidad de Protección en Vialidades Urbanas';
     private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
     private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
     private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
@@ -1125,6 +1125,7 @@ class ConduceLegalidadController extends Controller
                 'linea' => $vehiculo->linea,
                 'placas' => $vehiculo->placas,
                 'serie' => $vehiculo->serie,
+                'numero_inventario' => $vehiculo->numero_inventario,
             ])->values(),
         ];
     }
@@ -1146,6 +1147,7 @@ class ConduceLegalidadController extends Controller
                 'placas' => $vehiculo->placas,
                 'estado_placas' => $vehiculo->estado_placas,
                 'serie' => $vehiculo->serie,
+                'numero_inventario' => $vehiculo->numero_inventario,
                 'capacidad_personas' => $vehiculo->capacidad_personas,
                 'tipo_servicio' => $vehiculo->tipo_servicio,
                 'tarjeta_circulacion_nombre' => $vehiculo->tarjeta_circulacion_nombre,
@@ -1919,7 +1921,7 @@ class ConduceLegalidadController extends Controller
             'observaciones' => ['nullable', 'string'],
             'fundamentos' => ['sometimes', 'array', 'max:20'],
             'fundamentos.*' => ['required', 'array'],
-            'fundamentos.*.licencia_punto_infraccion_id' => ['required', 'integer', 'exists:licencia_punto_infracciones,id'],
+            'fundamentos.*.licencia_punto_infraccion_id' => ['nullable', 'integer', 'exists:licencia_punto_infracciones,id'],
             'fundamentos.*.infraccion_codigo' => ['nullable', 'string', 'max:80'],
             'fundamentos.*.fundamento_legal' => ['nullable', 'string', 'max:2000'],
             'fundamento_ids' => ['sometimes', 'array', 'max:20'],
@@ -1942,6 +1944,7 @@ class ConduceLegalidadController extends Controller
             'vehiculos.*.placas' => ['nullable', 'string', 'max:20'],
             'vehiculos.*.estado_placas' => ['nullable', 'string', 'max:80'],
             'vehiculos.*.serie' => ['nullable', 'string', 'max:30'],
+            'vehiculos.*.numero_inventario' => ['nullable', 'string', 'max:100'],
             'vehiculos.*.capacidad_personas' => ['nullable', 'integer', 'min:0', 'max:999'],
             'vehiculos.*.tipo_servicio' => ['nullable', 'string', 'max:80'],
             'vehiculos.*.tarjeta_circulacion_nombre' => ['nullable', 'string', 'max:255'],
@@ -2127,6 +2130,7 @@ class ConduceLegalidadController extends Controller
                 'placas' => $this->nullableString($row['placas'] ?? null),
                 'estado_placas' => $this->nullableString($row['estado_placas'] ?? null),
                 'serie' => $this->nullableString($row['serie'] ?? null),
+                'numero_inventario' => $this->nullableString($row['numero_inventario'] ?? null),
                 'capacidad_personas' => (int) ($row['capacidad_personas'] ?? 0),
                 'tipo_servicio' => $this->nullableString($row['tipo_servicio'] ?? null),
                 'tarjeta_circulacion_nombre' => $this->nullableString($row['tarjeta_circulacion_nombre'] ?? null),
@@ -2330,23 +2334,31 @@ class ConduceLegalidadController extends Controller
         ConduceLegalidadOperativo $operativo
     ): array
     {
-        $ids = array_key_exists('fundamentos', $validated)
-            ? array_map(
-                fn (array $item) => $item['licencia_punto_infraccion_id'] ?? null,
-                $validated['fundamentos'] ?? []
-            )
+        $seleccionesEntrada = array_key_exists('fundamentos', $validated)
+            ? ($validated['fundamentos'] ?? [])
             : (array_key_exists('fundamento_ids', $validated)
-            ? ($validated['fundamento_ids'] ?? [])
-            : [$validated['licencia_punto_infraccion_id'] ?? null]);
+                ? array_map(
+                    fn ($id) => ['licencia_punto_infraccion_id' => $id],
+                    $validated['fundamento_ids'] ?? []
+                )
+                : [[
+                    'licencia_punto_infraccion_id' => $validated['licencia_punto_infraccion_id'] ?? null,
+                    'infraccion_codigo' => $validated['infraccion_codigo'] ?? null,
+                    'fundamento_legal' => $validated['fundamento_legal'] ?? null,
+                ]]);
 
         $fundamentos = [];
         $selecciones = [];
-        foreach ($ids as $orden => $id) {
-            $infraccion = $this->capturaInfraccion($id, $operativo);
+        foreach ($seleccionesEntrada as $orden => $seleccion) {
+            $seleccion = is_array($seleccion) ? $seleccion : [];
+            $infraccion = $this->capturaInfraccion(
+                $seleccion['licencia_punto_infraccion_id'] ?? null,
+                $operativo,
+                $seleccion['infraccion_codigo'] ?? null
+            );
             if ($infraccion) {
-                $seleccion = $validated['fundamentos'][$orden] ?? [];
                 $snapshot = $this->capturaInfraccionSnapshot(
-                    is_array($seleccion) ? $seleccion : [],
+                    $seleccion,
                     $infraccion
                 );
                 $key = $infraccion->id . '|' . ($snapshot['codigo'] ?? '');
@@ -2409,15 +2421,19 @@ class ConduceLegalidadController extends Controller
 
     private function capturaInfraccion(
         $id,
-        ConduceLegalidadOperativo $operativo
+        ConduceLegalidadOperativo $operativo,
+        $codigo = null
     ): ?LicenciaPuntoInfraccion
     {
         $id = (int) ($id ?? 0);
-        if ($id <= 0) {
+        $codigo = $this->nullableString($codigo);
+        if ($id <= 0 && $codigo === null) {
             return null;
         }
 
-        $infraccion = LicenciaPuntoInfraccion::activas()->find($id);
+        $infraccion = $id > 0
+            ? LicenciaPuntoInfraccion::activas()->find($id)
+            : LicenciaPuntoInfraccion::activas()->where('codigo', $codigo)->first();
         $esAlcoholimetria = $this->esOperativoAlcoholimetria($operativo);
         $aplica = $infraccion && (
             $esAlcoholimetria
@@ -2827,6 +2843,7 @@ class ConduceLegalidadController extends Controller
             'placas' => $vehiculo->placas,
             'estado_placas' => $vehiculo->estado_placas,
             'serie' => $vehiculo->serie,
+            'numero_inventario' => $vehiculo->numero_inventario,
             'capacidad_personas' => (int) $vehiculo->capacidad_personas,
             'tipo_servicio' => $vehiculo->tipo_servicio,
             'tarjeta_circulacion_nombre' => $vehiculo->tarjeta_circulacion_nombre,
@@ -3305,8 +3322,10 @@ class ConduceLegalidadController extends Controller
 
     private function canSetOperativoSchedule($user): bool
     {
-        return $user
-            && $user->hasAnyRole(['Superadmin', 'Administrador', 'Subdirector']);
+        return $user && (
+            (int) ($user->unidad_id ?? 0) === self::UNIDAD_VIALIDADES_URBANAS
+            || $user->hasAnyRole(['Superadmin', 'Administrador', 'Subdirector'])
+        );
     }
 
     private function canAssignOperativoScope($user): bool
@@ -3389,6 +3408,10 @@ class ConduceLegalidadController extends Controller
         }
 
         if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        if ((int) ($user->unidad_id ?? 0) === self::UNIDAD_VIALIDADES_URBANAS) {
             return true;
         }
 

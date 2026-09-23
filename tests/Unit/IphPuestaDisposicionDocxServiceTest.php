@@ -10,6 +10,50 @@ use ZipArchive;
 
 class IphPuestaDisposicionDocxServiceTest extends TestCase
 {
+    public function test_folio_del_ticket_se_reparte_en_las_casillas_del_expediente_de_barandillas(): void
+    {
+        if (!class_exists(ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is required to inspect generated DOCX files.');
+        }
+
+        foreach ([false, true] as $conPersona) {
+            $hecho = new Hechos([
+                'id' => 125,
+                'folio_c5i' => 'CL-11-125',
+            ]);
+            $mapeo = [
+                'hecho' => [
+                    'folio_c5i' => 'CL-11-125',
+                    'fecha' => '2026-09-23',
+                    'hora' => '18:08',
+                    'creador_nombre' => 'MARIO BAUTISTA R.',
+                    'ubicacion' => [],
+                ],
+                'puesta_disposicion' => [],
+                'vehiculos_hecho' => [],
+                'lesionados_hecho' => [],
+                'objetos' => [],
+                'anexos' => [],
+                'personas' => $conPersona ? [['nombre_completo' => 'MARIO DANTE BAUTISTA REBOLLAR']] : [],
+            ];
+
+            [$path] = app(IphPuestaDisposicionDocxService::class)
+                ->generarConduceLegalidadBarandillas($hecho, $mapeo);
+
+            try {
+                $texto = $this->textoDocx($path);
+
+                $this->assertStringContainsString('CL-11-125No. Expediente', $texto);
+                $this->assertStringNotContainsString('$foc', $texto);
+                $this->assertStringNotContainsString('CL-11-125CL-', $texto);
+            } finally {
+                if (is_file($path)) {
+                    @unlink($path);
+                }
+            }
+        }
+    }
+
     public function test_descripcion_de_vehiculos_incluye_tarjeta_conductor_y_licencia_en_docx(): void
     {
         if (!class_exists(ZipArchive::class)) {

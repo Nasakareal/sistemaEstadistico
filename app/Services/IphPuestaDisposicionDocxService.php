@@ -163,6 +163,7 @@ class IphPuestaDisposicionDocxService
             '$prona' => ($placas && !$placaExtranjera) ? 'X' : '',
             '$proex' => ($placas && $placaExtranjera) ? 'X' : '',
             '$grua' => $grua ?: '',
+            '$foc' => $this->clean($data['folio'] ?? null),
             '$d' => $fecha['dia'],
             '$me' => $fecha['mes'],
             '$m' => '',
@@ -220,7 +221,7 @@ class IphPuestaDisposicionDocxService
 
     private function debeRepartirVariableDocx(string $xml, string $placeholder, $value): bool
     {
-        if (!in_array($placeholder, ['$d', '$me', '$ye', '$ho', '$min'], true)) {
+        if (!in_array($placeholder, ['$foc', '$d', '$me', '$ye', '$ho', '$min'], true)) {
             return false;
         }
 
@@ -242,8 +243,8 @@ class IphPuestaDisposicionDocxService
         $index = 0;
         $pattern = '/' . preg_quote($placeholder, '/') . '/u';
 
-        return preg_replace_callback($pattern, function () use (&$index, $chars, $total) {
-            $char = $chars[$index % $total] ?? '';
+        return preg_replace_callback($pattern, function () use (&$index, $chars) {
+            $char = $chars[$index] ?? '';
             $index++;
 
             return $this->escapeDocxText($char);

@@ -20,6 +20,16 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertFalse($this->canCreate($this->user('Policia')));
     }
 
+    public function test_every_vialidades_urbanas_user_can_create_and_manage_operatives(): void
+    {
+        $user = $this->user('Policia', 5, null);
+
+        $this->assertTrue($this->canCreate($user));
+        $this->assertTrue($this->canManage($user));
+        $this->assertArrayHasKey('fecha', $this->scheduleRules($user));
+        $this->assertArrayHasKey('hora_inicio', $this->scheduleRules($user));
+    }
+
     public function test_schedule_fields_are_removed_from_delegate_validation(): void
     {
         $delegateRules = $this->scheduleRules($this->user('Delegado'));
@@ -184,6 +194,14 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
     private function canCreate($user): bool
     {
         $method = new ReflectionMethod(ConduceLegalidadController::class, 'canCreateOperativo');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $user);
+    }
+
+    private function canManage($user): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'canManage');
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user);

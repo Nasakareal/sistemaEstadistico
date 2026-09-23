@@ -24,21 +24,21 @@ class LocationTrackingEligibilityService
         $turnoUsuario = $this->turnoEfectivo($user);
         $turnoUsuarioMeta = $this->turnoMeta($turnoUsuario);
 
-        if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
+        if ($this->isVialidadesUrbanas($user)) {
             return [
                 'allowed' => false,
-                'reason' => 'compartir_ubicacion_off',
+                'reason' => 'unidad_vialidades_urbanas_sin_rastreo',
                 'turno_activo' => null,
                 'turno_usuario' => $turnoUsuarioMeta,
-                'turno_en_servicio' => $this->turnoMeta($this->turnos->turnoActivoEn($momento)),
+                'turno_en_servicio' => null,
                 'checked_at' => $momento->toIso8601String(),
             ];
         }
 
-        if ($this->isVialidadesUrbanas($user) && !$user->hasRole('Agente Vial')) {
+        if ((int)($user->compartir_ubicacion ?? 0) !== 1) {
             return [
                 'allowed' => false,
-                'reason' => 'rol_no_autorizado_vialidades',
+                'reason' => 'compartir_ubicacion_off',
                 'turno_activo' => null,
                 'turno_usuario' => $turnoUsuarioMeta,
                 'turno_en_servicio' => $this->turnoMeta($this->turnos->turnoActivoEn($momento)),
@@ -61,18 +61,14 @@ class LocationTrackingEligibilityService
             return $this->statusPorTurno($turnoUsuario, $momento);
         }
 
-        if (!$this->isAgenteVialVialidadesUrbanas($user)) {
-            return [
-                'allowed' => true,
-                'reason' => 'allowed',
-                'turno_activo' => null,
-                'turno_usuario' => $turnoUsuarioMeta,
-                'turno_en_servicio' => null,
-                'checked_at' => $momento->toIso8601String(),
-            ];
-        }
-
-        return $this->statusPorTurno($turnoUsuario, $momento);
+        return [
+            'allowed' => true,
+            'reason' => 'allowed',
+            'turno_activo' => null,
+            'turno_usuario' => $turnoUsuarioMeta,
+            'turno_en_servicio' => null,
+            'checked_at' => $momento->toIso8601String(),
+        ];
     }
 
     private function statusPorTurno($turno, Carbon $momento): array
@@ -97,12 +93,6 @@ class LocationTrackingEligibilityService
         }
 
         return $user->turno;
-    }
-
-    private function isAgenteVialVialidadesUrbanas(User $user): bool
-    {
-        return $user->hasRole('Agente Vial')
-            && $this->isVialidadesUrbanas($user);
     }
 
     private function isVialidadesUrbanas(User $user): bool

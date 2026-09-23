@@ -28,7 +28,7 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
         $lines = $this->appendSupervisor($controller, 5, null);
 
         $this->assertContains('Supervisó: Luis Eduardo Lugo Ordorica', $lines);
-        $this->assertContains('Subdirector de Vialidades Urbanas', $lines);
+        $this->assertContains('Subdirector de la Unidad de Protección en Vialidades Urbanas', $lines);
     }
 
     public function test_supervisor_payload_uses_delegate_from_specific_delegation(): void

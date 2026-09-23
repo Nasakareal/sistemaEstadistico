@@ -19,6 +19,8 @@ use App\Services\CodigoPostalGeoService;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\WhatsAppCloudService;
+use App\Support\TelefonoMexico;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -469,7 +471,11 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
-    public function storeCaptura(Request $request, ConduceLegalidadOperativo $operativo)
+    public function storeCaptura(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        WhatsAppCloudService $whatsApp
+    )
     {
         $user = $request->user();
         abort_unless($user, 403);
@@ -552,10 +558,51 @@ class ConduceLegalidadController extends Controller
 
         $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
+        $whatsappPayload = null;
+        if (!$this->esOperativoAlcoholimetria($operativo)) {
+            try {
+                $whatsappResponse = $this->enviarBoletaWhatsApp(
+                    $request,
+                    $operativo,
+                    $captura,
+                    $whatsApp
+                );
+                $whatsappPayload = $whatsappResponse->getData(true);
+            } catch (ValidationException $e) {
+                $firstError = collect($e->errors())->flatten()->first();
+                $whatsappPayload = [
+                    'ok' => false,
+                    'message' => $firstError ?: 'La captura no tiene un teléfono válido para enviar la boleta.',
+                ];
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+                $whatsappPayload = [
+                    'ok' => false,
+                    'message' => trim($e->getMessage())
+                        ?: 'La captura no tiene un teléfono válido para enviar la boleta.',
+                ];
+            } catch (\Throwable $e) {
+                report($e);
+                $whatsappPayload = [
+                    'ok' => false,
+                    'message' => trim($e->getMessage())
+                        ?: 'No se pudo enviar la boleta por WhatsApp.',
+                ];
+            }
+        }
+
+        $message = 'Captura guardada correctamente.';
+        if ($whatsappPayload !== null) {
+            $message .= ($whatsappPayload['ok'] ?? false)
+                ? ' La boleta se envió automáticamente por WhatsApp.'
+                : ' La captura quedó guardada, pero la boleta no se envió por WhatsApp: '
+                    . ($whatsappPayload['message'] ?? 'revisa el teléfono o la configuración de Meta.');
+        }
+
         return response()->json([
             'ok' => true,
-            'message' => 'Captura guardada correctamente.',
+            'message' => $message,
             'data' => $this->capturaPayload($captura, $user),
+            'whatsapp_boleta' => $whatsappPayload,
         ], 201);
     }
 
@@ -802,6 +849,224 @@ class ConduceLegalidadController extends Controller
                 'tipo' => 'captura_individual',
             ],
         ]);
+    }
+
+    public function enviarBoletaWhatsApp(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        WhatsAppCloudService $whatsApp
+    ) {
+        $user = $request->user();
+        abort_unless($user, 403);
+        $this->assertPuedeVerOperativo($operativo, $user);
+        abort_unless($captura->operativo_id === $operativo->id, 404);
+        abort_unless(!$this->esOperativoAlcoholimetria($operativo), 422, 'La boleta por WhatsApp sólo está disponible para Conduce con Legalidad.');
+
+        $query = $operativo->capturas()->whereKey($captura->id);
+        $this->scopeCapturas($query, $user);
+        abort_unless($query->exists(), 404);
+
+        $validated = $request->validate([
+            'persona_id' => ['nullable', 'integer'],
+        ]);
+
+        $operativo->loadMissing(['creador']);
+        $captura->loadMissing([
+            'creador.personal.unidad',
+            'creador.unidad',
+            'unidad',
+            'delegacion',
+            'infraccion',
+            'fundamentos.infraccion',
+            'vehiculos.infraccion',
+            'personas.infraccion',
+        ]);
+
+        $personaId = (int) ($validated['persona_id'] ?? 0);
+        $persona = $personaId > 0
+            ? $captura->personas->firstWhere('id', $personaId)
+            : $captura->personas->first(function (ConduceLegalidadPersona $item) {
+                $telefono = TelefonoMexico::normalize($item->telefono);
+                return $telefono !== null && preg_match('/^\d{10}$/', $telefono);
+            });
+
+        abort_unless($persona, 422, 'La captura no tiene una persona con teléfono para enviar la boleta.');
+
+        $telefono = TelefonoMexico::normalize($persona->telefono);
+        if (!$telefono || !preg_match('/^\d{10}$/', $telefono)) {
+            throw ValidationException::withMessages([
+                'telefono' => 'El teléfono capturado debe tener 10 dígitos para enviar la boleta por WhatsApp.',
+            ]);
+        }
+
+        $prefix = preg_replace('/\D+/', '', (string) config(
+            'services.whatsapp.conduce_legalidad.boleta_country_prefix',
+            '521'
+        )) ?: '521';
+        $to = $prefix . $telefono;
+        $template = trim((string) config(
+            'services.whatsapp.conduce_legalidad.boleta_template',
+            'boleta_conduce_legalidad_v1'
+        ));
+        $language = trim((string) config(
+            'services.whatsapp.conduce_legalidad.boleta_template_language',
+            'es_MX'
+        )) ?: 'es_MX';
+        $boleta = $this->boletaWhatsAppData($operativo, $captura, $persona, $user);
+        $filename = 'boleta_' . Str::slug($boleta['folio'], '_') . '.pdf';
+        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR
+            . 'boleta_conduce_' . Str::uuid() . '.pdf';
+
+        try {
+            $pdf = Pdf::loadView('pdf.conduce_legalidad_boleta', [
+                'boleta' => $boleta,
+            ])->setPaper('letter');
+            file_put_contents($tempPath, $pdf->output());
+
+            $upload = $whatsApp->uploadMedia($tempPath, 'application/pdf');
+            $mediaId = data_get($upload, 'body.id');
+            if (!($upload['ok'] ?? false) || !$mediaId) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'No se pudo preparar el PDF de la boleta para WhatsApp. Intenta nuevamente.',
+                ], 502);
+            }
+
+            $response = $whatsApp->sendDocumentTemplate(
+                $to,
+                $template,
+                (string) $mediaId,
+                $filename,
+                [
+                    $boleta['folio'],
+                    $boleta['persona_nombre'],
+                    $boleta['fecha_hora'],
+                    $boleta['vehiculo_resumen'],
+                ],
+                $language
+            );
+
+            if (!($response['ok'] ?? false)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'WhatsApp no aceptó el envío. Verifica que la plantilla esté aprobada en Meta y vuelve a intentar.',
+                ], 502);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No fue posible comunicarse con WhatsApp en este momento. Intenta nuevamente.',
+            ], 502);
+        } finally {
+            if (is_file($tempPath)) {
+                @unlink($tempPath);
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Boleta enviada por WhatsApp al teléfono terminado en ' . substr($telefono, -4) . '.',
+            'data' => [
+                'folio' => $boleta['folio'],
+                'telefono_terminacion' => substr($telefono, -4),
+                'template' => $template,
+                'language' => $language,
+            ],
+        ]);
+    }
+
+    private function boletaWhatsAppData(
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        ConduceLegalidadPersona $persona,
+        $user
+    ): array {
+        $vehiculo = $captura->vehiculos->first();
+        $adscripcion = $this->adscripcionTicket($operativo, $user, $captura);
+        $supervisor = $this->supervisorTicket(
+            $adscripcion['unidad_id'],
+            $adscripcion['delegacion_id']
+        );
+        $creador = $captura->creador;
+        $creadorPayload = $this->userPayload($creador);
+
+        $personaNombre = $this->joinText([
+            $persona->nombre,
+            $this->joinText([
+                $persona->nombres,
+                $persona->apellido_paterno,
+                $persona->apellido_materno,
+            ], ' '),
+        ], ' ');
+
+        $sanciones = $captura->fundamentos
+            ->map(fn (ConduceLegalidadCapturaFundamento $fundamento) => $fundamento->infraccion
+                ? $this->nullableString($fundamento->infraccion->resumen_sanciones)
+                : null)
+            ->filter()
+            ->values();
+        if ($captura->infraccion && $this->nullableString($captura->infraccion->resumen_sanciones)) {
+            $sanciones->push($captura->infraccion->resumen_sanciones);
+        }
+        if ($vehiculo && $vehiculo->infraccion && $this->nullableString($vehiculo->infraccion->resumen_sanciones)) {
+            $sanciones->push($vehiculo->infraccion->resumen_sanciones);
+        }
+
+        $conducta = $this->nullableString($captura->narrativa)
+            ?: ($captura->infraccion ? $this->textoOperativoInfraccion($captura->infraccion) : null)
+            ?: ($vehiculo && $vehiculo->infraccion ? $this->textoOperativoInfraccion($vehiculo->infraccion) : null)
+            ?: ($vehiculo ? $this->nullableString($vehiculo->motivo_retencion) : null)
+            ?: 'Conducta asentada en la intervención del operativo.';
+
+        $vigenciaLicencia = $persona->permanente
+            ? 'Permanente'
+            : (optional($persona->vigencia_licencia)->format('d/m/Y') ?: 'No capturada');
+        $licencia = $this->joinText([
+            $persona->tipo_licencia ? 'Tipo: ' . $persona->tipo_licencia : null,
+            $persona->numero_licencia ? 'Número: ' . $persona->numero_licencia : null,
+            $persona->estado_licencia ? 'Estado: ' . $persona->estado_licencia : null,
+            'Vigencia: ' . $vigenciaLicencia,
+        ], ' · ');
+
+        $placaAgente = $this->nullableString(data_get($creadorPayload, 'numero_placa'));
+        $unidadAgente = $this->nullableString(data_get($creadorPayload, 'adscripcion'))
+            ?: $this->unidadOperativaTexto($adscripcion['unidad_id']);
+        $delegacion = $this->delegacionTexto($adscripcion['delegacion_id']);
+        $lugar = $this->lugarConNumero(
+            $this->nullableString($captura->lugar) ?: $this->nullableString($operativo->lugar),
+            $operativo->numero
+        );
+
+        return [
+            'folio' => 'CL-' . $operativo->id . '-' . $captura->id,
+            'municipio' => $captura->municipio ?: $operativo->municipio ?: 'No capturado',
+            'fecha' => optional($captura->fecha)->format('d/m/Y') ?: 'No capturada',
+            'hora' => $this->horaCorta($captura->hora) ?: 'No capturada',
+            'fecha_hora' => $this->fechaHoraCaptura($captura),
+            'lugar' => $lugar ?: 'No capturado',
+            'fundamento' => $this->fundamentosIphCaptura($captura),
+            'sancion' => $sanciones->unique()->implode('; ') ?: 'La asentada en la boleta de notificación.',
+            'conducta' => $conducta,
+            'persona_nombre' => $personaNombre ?: 'No proporcionado',
+            'persona_domicilio' => $persona->domicilio ?: 'No proporcionado',
+            'vehiculo_resumen' => $vehiculo ? $this->vehiculoResumen($vehiculo) : 'No capturado',
+            'placas' => $vehiculo && $vehiculo->placas ? $vehiculo->placas : 'No capturadas',
+            'estado_placas' => $vehiculo && $vehiculo->estado_placas ? $vehiculo->estado_placas : 'No capturado',
+            'numero_inventario' => $vehiculo && $vehiculo->numero_inventario ? $vehiculo->numero_inventario : 'No capturado',
+            'corralon' => $vehiculo ? ($this->valorCorralon($vehiculo) ?: 'No capturado') : 'No capturado',
+            'grua' => $vehiculo ? ($this->valorGrua($vehiculo) ?: 'No capturada') : 'No capturada',
+            'licencia' => $licencia ?: 'No capturada',
+            'requiere_liberacion' => $vehiculo ? $this->vehiculoResguardado($vehiculo) : false,
+            'liberacion' => 'La liberación del vehículo deberá tramitarse ante la autoridad competente, presentando la documentación aplicable y esta boleta.',
+            'agente_nombre' => $creador ? $this->nombreUsuario($creador) : 'No capturado',
+            'agente_placa' => $placaAgente ?: 'No capturada',
+            'adscripcion' => $this->joinText([$unidadAgente, $delegacion], ' · '),
+            'supervisor_nombre' => $supervisor['nombre'],
+            'supervisor_cargo' => $supervisor['cargo'],
+        ];
     }
 
     public function descargarIphCaptura(

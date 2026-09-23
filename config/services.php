@@ -126,6 +126,9 @@ return [
             'rnd_chatbot_to' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TO', '5214433163728'),
             'rnd_chatbot_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TEMPLATE', 'solicitud_rnd_faltas_administrativas'),
             'rnd_chatbot_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TEMPLATE_LANGUAGE', 'es_MX'),
+            'boleta_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_TEMPLATE', 'boleta_conduce_legalidad_v1'),
+            'boleta_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_TEMPLATE_LANGUAGE', 'es_MX'),
+            'boleta_country_prefix' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_COUNTRY_PREFIX', '521'),
         ],
 
         'equinos_bridge' => [

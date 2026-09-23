@@ -475,7 +475,10 @@ class ConduceLegalidadController extends Controller
         abort_unless($user, 403);
         $this->assertPuedeVerOperativo($operativo, $user);
 
-        $validated = $request->validate($this->capturaRules());
+        $validated = $request->validate(
+            $this->capturaRules($operativo),
+            $this->capturaValidationMessages()
+        );
         $clientUuid = $this->nullableString($validated['client_uuid'] ?? null);
         if ($clientUuid !== null) {
             $existing = $operativo->capturas()
@@ -564,7 +567,10 @@ class ConduceLegalidadController extends Controller
         abort_unless($this->canEditCaptura($user, $captura), 403);
         $this->assertPuedeAlimentarOperativo($operativo, $user);
 
-        $validated = $request->validate($this->capturaRules());
+        $validated = $request->validate(
+            $this->capturaRules($operativo),
+            $this->capturaValidationMessages()
+        );
         $this->assertCapturaHasContent($validated, $request, $captura);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
@@ -1906,8 +1912,10 @@ class ConduceLegalidadController extends Controller
         ];
     }
 
-    private function capturaRules(): array
+    private function capturaRules(?ConduceLegalidadOperativo $operativo = null): array
     {
+        $requiereVehiculo = $operativo === null || !$this->esOperativoAlcoholimetria($operativo);
+
         return [
             'client_uuid' => ['nullable', 'string', 'max:80'],
             'fecha' => ['nullable', 'date'],
@@ -1933,8 +1941,10 @@ class ConduceLegalidadController extends Controller
             'rnd_data.*' => ['nullable', 'string', 'max:2000'],
             'fotos' => ['nullable', 'array', 'max:25'],
             'fotos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'vehiculos' => ['nullable', 'array', 'max:1'],
-            'vehiculos.*' => ['array'],
+            'vehiculos' => $requiereVehiculo
+                ? ['required', 'array', 'size:1']
+                : ['nullable', 'array', 'max:1'],
+            'vehiculos.*' => [$requiereVehiculo ? 'required' : 'sometimes', 'array'],
             'vehiculos.*.marca' => ['nullable', 'string', 'max:80'],
             'vehiculos.*.modelo' => ['nullable', 'string', 'max:20'],
             'vehiculos.*.tipo_general' => ['nullable', 'string', 'max:80'],
@@ -1944,12 +1954,12 @@ class ConduceLegalidadController extends Controller
             'vehiculos.*.placas' => ['nullable', 'string', 'max:20'],
             'vehiculos.*.estado_placas' => ['nullable', 'string', 'max:80'],
             'vehiculos.*.serie' => ['nullable', 'string', 'max:30'],
-            'vehiculos.*.numero_inventario' => ['nullable', 'string', 'max:100'],
+            'vehiculos.*.numero_inventario' => [$requiereVehiculo ? 'required' : 'nullable', 'string', 'max:100'],
             'vehiculos.*.capacidad_personas' => ['nullable', 'integer', 'min:0', 'max:999'],
             'vehiculos.*.tipo_servicio' => ['nullable', 'string', 'max:80'],
             'vehiculos.*.tarjeta_circulacion_nombre' => ['nullable', 'string', 'max:255'],
             'vehiculos.*.grua_id' => ['nullable', 'integer', 'exists:gruas,id'],
-            'vehiculos.*.corralon_id' => ['nullable', 'integer', 'exists:gruas,id'],
+            'vehiculos.*.corralon_id' => [$requiereVehiculo ? 'required' : 'nullable', 'integer', 'exists:gruas,id'],
             'vehiculos.*.grua' => ['nullable', 'string', 'max:255'],
             'vehiculos.*.corralon' => ['nullable', 'string', 'max:255'],
             'vehiculos.*.aseguradora' => ['nullable', 'string', 'max:255'],
@@ -1997,6 +2007,17 @@ class ConduceLegalidadController extends Controller
             'personas.*.raw_licencia_qr' => ['nullable', 'string'],
             'personas.*.licencia_punto_infraccion_id' => ['nullable', 'integer', 'exists:licencia_punto_infracciones,id'],
             'personas.*.observaciones' => ['nullable', 'string'],
+        ];
+    }
+
+    private function capturaValidationMessages(): array
+    {
+        return [
+            'vehiculos.required' => 'Agrega el vehículo antes de guardar la captura.',
+            'vehiculos.size' => 'La captura debe contener exactamente un vehículo.',
+            'vehiculos.*.numero_inventario.required' => 'Captura el número de inventario del vehículo.',
+            'vehiculos.*.corralon_id.required' => 'Selecciona el corralón al que se trasladará el vehículo.',
+            'vehiculos.*.corralon_id.exists' => 'El corralón seleccionado ya no está disponible. Selecciona otro.',
         ];
     }
 
@@ -2119,6 +2140,13 @@ class ConduceLegalidadController extends Controller
                     ?: ($retencionVehiculo && $motivoSugerido !== '' ? $motivoSugerido : null)
                 );
             $tieneServicioGrua = $this->tieneServicioGrua($row);
+            $corralonId = $row['corralon_id'] ?? null;
+            $corralonNombre = $this->nullableString($row['corralon'] ?? null);
+
+            if ($corralonId) {
+                $corralonNombre = Grua::query()->whereKey($corralonId)->value('nombre')
+                    ?: $corralonNombre;
+            }
 
             $captura->vehiculos()->create([
                 'marca' => $this->nullableString($row['marca'] ?? null),
@@ -2135,9 +2163,9 @@ class ConduceLegalidadController extends Controller
                 'tipo_servicio' => $this->nullableString($row['tipo_servicio'] ?? null),
                 'tarjeta_circulacion_nombre' => $this->nullableString($row['tarjeta_circulacion_nombre'] ?? null),
                 'grua_id' => $row['grua_id'] ?? null,
-                'corralon_id' => $row['corralon_id'] ?? null,
+                'corralon_id' => $corralonId,
                 'grua' => $this->nullableString($row['grua'] ?? null),
-                'corralon' => $this->nullableString($row['corralon'] ?? null),
+                'corralon' => $corralonNombre,
                 'servicio_unidad_id' => $tieneServicioGrua ? $captura->unidad_id : null,
                 'servicio_delegacion_id' => $tieneServicioGrua ? $captura->delegacion_id : null,
                 'servicio_created_by' => $tieneServicioGrua ? $captura->created_by : null,
@@ -2850,7 +2878,7 @@ class ConduceLegalidadController extends Controller
             'grua_id' => $vehiculo->grua_id,
             'corralon_id' => $vehiculo->corralon_id,
             'grua' => $vehiculo->grua,
-            'corralon' => $vehiculo->corralon,
+            'corralon' => $vehiculo->corralon ?: optional($vehiculo->corralonRelacion)->nombre,
             'servicio_unidad_id' => $vehiculo->servicio_unidad_id,
             'servicio_delegacion_id' => $vehiculo->servicio_delegacion_id,
             'servicio_created_by' => $vehiculo->servicio_created_by,

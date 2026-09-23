@@ -17,6 +17,10 @@ class GruaController extends Controller
 
     public function index(Request $request)
     {
+        if ($this->esOrigenConduceLegalidad($request)) {
+            return $this->indexConduceLegalidad($request);
+        }
+
         $gruas = $this->visibleGruasQuery($request)
             ->select(['id', 'nombre', 'direccion', 'telefono', 'email', 'created_at'])
             ->with('unidades:id,nombre,slug')
@@ -287,6 +291,10 @@ class GruaController extends Controller
 
     public function resumenSemanalDetallado(Request $request)
     {
+        if ($this->esOrigenConduceLegalidad($request)) {
+            return $this->resumenSemanalDetalladoConduceLegalidad($request);
+        }
+
         [$fromDate, $toDate] = $this->resolveDateRange($request);
 
         $gruasIds = $this->normalizeIds($request->query('gruas', []));
@@ -466,6 +474,174 @@ class GruaController extends Controller
         ]);
     }
 
+    private function indexConduceLegalidad(Request $request)
+    {
+        $gruas = $this->visibleGruasQuery($request)
+            ->select(['gruas.id', 'gruas.nombre', 'gruas.direccion', 'gruas.telefono', 'gruas.email', 'gruas.created_at'])
+            ->selectSub(function ($query) use ($request) {
+                $query->from('conduce_legalidad_vehiculos as clv')
+                    ->join('conduce_legalidad_capturas as clc', 'clc.id', '=', 'clv.captura_id')
+                    ->join('conduce_legalidad_operativos as clo', 'clo.id', '=', 'clc.operativo_id')
+                    ->selectRaw('COUNT(*)')
+                    ->where('clo.tipo_operativo', 'conduce_legalidad')
+                    ->whereRaw('COALESCE(clv.grua_id, clv.corralon_id) = gruas.id');
+
+                $this->applyConduceServiciosVisibilityScope($query, $request, 'clv');
+            }, 'total_servicios')
+            ->with('unidades:id,nombre,slug')
+            ->with('delegaciones:id,clave,nombre,municipio')
+            ->orderBy('gruas.nombre')
+            ->get();
+
+        return response()->json([
+            'meta' => ['origen' => 'conduce_legalidad'],
+            'data' => $gruas,
+        ]);
+    }
+
+    private function resumenSemanalDetalladoConduceLegalidad(Request $request)
+    {
+        [$fromDate, $toDate] = $this->resolveDateRange($request);
+
+        $gruasIds = $this->normalizeIds($request->query('gruas', []));
+        $incluirSinServicios = $this->includeGruasSinServicios($request);
+        $gruas = $this->visibleGruasQuery($request)
+            ->select(['gruas.id', 'gruas.nombre'])
+            ->when(!empty($gruasIds), function ($query) use ($gruasIds) {
+                $query->whereIn('gruas.id', $gruasIds);
+            })
+            ->orderBy('gruas.nombre')
+            ->get();
+        $allowedGruaIds = $gruas->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $detalle = collect();
+        if (!empty($allowedGruaIds)) {
+            $detalleQuery = DB::table('conduce_legalidad_vehiculos as clv')
+                ->join('conduce_legalidad_capturas as clc', 'clc.id', '=', 'clv.captura_id')
+                ->join('conduce_legalidad_operativos as clo', 'clo.id', '=', 'clc.operativo_id')
+                ->select([
+                    DB::raw('COALESCE(clv.grua_id, clv.corralon_id) as grua_id'),
+                    'clv.id as conduce_vehiculo_id',
+                    'clv.created_at as fecha_servicio',
+                    'clv.servicio_unidad_id as unidad_id',
+                    'clv.servicio_delegacion_id as delegacion_id',
+                    'clc.id as captura_conduce_id',
+                    'clo.id as operativo_conduce_id',
+                    'clv.placas',
+                    'clv.marca',
+                    'clv.linea',
+                    'clv.modelo',
+                    'clv.color',
+                    'clv.tipo_general as tipo_vehiculo',
+                    'clv.aseguradora',
+                    'clv.numero_inventario',
+                    'clv.grua',
+                    'clv.corralon',
+                    'clv.grua_id as grua_servicio_id',
+                    'clv.corralon_id',
+                ])
+                ->where('clo.tipo_operativo', 'conduce_legalidad')
+                ->whereBetween('clv.created_at', [$fromDate, $toDate])
+                ->whereIn(DB::raw('COALESCE(clv.grua_id, clv.corralon_id)'), $allowedGruaIds);
+
+            $this->applyConduceServiciosVisibilityScope($detalleQuery, $request, 'clv');
+            $detalle = $detalleQuery
+                ->orderByRaw('COALESCE(clv.grua_id, clv.corralon_id)')
+                ->orderByDesc('clv.created_at')
+                ->get();
+        }
+
+        $vehiculosByGrua = [];
+        foreach ($detalle as $row) {
+            $gruaId = (int) $row->grua_id;
+            $aseguradora = trim((string) $row->aseguradora);
+            $aseguradoraNormalizada = mb_strtoupper($aseguradora, 'UTF-8');
+            $sinSeguro = in_array($aseguradoraNormalizada, ['', 'SIN SEGURO', 'NO', 'N/A', 'NULL'], true);
+
+            $vehiculosByGrua[$gruaId][] = [
+                'origen' => 'conduce_legalidad',
+                'servicio_id' => null,
+                'fecha_servicio' => $row->fecha_servicio,
+                'vehiculo_id' => null,
+                'conduce_vehiculo_id' => (int) $row->conduce_vehiculo_id,
+                'unidad_id' => $row->unidad_id ? (int) $row->unidad_id : null,
+                'delegacion_id' => $row->delegacion_id ? (int) $row->delegacion_id : null,
+                'operativo_conduce_id' => (int) $row->operativo_conduce_id,
+                'captura_conduce_id' => (int) $row->captura_conduce_id,
+                'folio_conduce' => 'CL-' . (int) $row->operativo_conduce_id . '-' . (int) $row->captura_conduce_id,
+                'placas' => $row->placas,
+                'marca' => $row->marca,
+                'linea' => $row->linea,
+                'modelo' => $row->modelo,
+                'color' => $row->color,
+                'tipo_vehiculo' => $row->tipo_vehiculo,
+                'aseguradora' => $row->aseguradora,
+                'tiene_seguro' => $sinSeguro ? 0 : 1,
+                'numero_inventario' => $row->numero_inventario,
+                'grua' => $row->grua,
+                'corralon' => $row->corralon,
+                'grua_servicio_id' => $row->grua_servicio_id ? (int) $row->grua_servicio_id : null,
+                'corralon_id' => $row->corralon_id ? (int) $row->corralon_id : null,
+            ];
+        }
+
+        $data = [];
+        foreach ($gruas as $grua) {
+            $id = (int) $grua->id;
+            $vehiculos = $vehiculosByGrua[$id] ?? [];
+            if (!$incluirSinServicios && empty($vehiculos)) {
+                continue;
+            }
+
+            $data[] = [
+                'id' => $id,
+                'nombre' => (string) $grua->nombre,
+                'servicios_count' => count($vehiculos),
+                'fecha_ultimo_servicio' => $vehiculos[0]['fecha_servicio'] ?? null,
+                'vehiculos' => $vehiculos,
+            ];
+        }
+
+        return response()->json([
+            'meta' => [
+                'from' => $fromDate->toDateString(),
+                'to' => $toDate->toDateString(),
+                'incluir_sin_servicios' => $incluirSinServicios,
+                'origen' => 'conduce_legalidad',
+            ],
+            'data' => $data,
+        ]);
+    }
+
+    private function applyConduceServiciosVisibilityScope($query, Request $request, string $alias = 'clv'): void
+    {
+        $usuario = $request->user();
+        if ($this->tieneAccesoGlobal($usuario) || ($usuario && $usuario->hasRole('Subdirector'))) {
+            return;
+        }
+
+        $unidadId = (int) ($usuario->unidad_id ?? 0);
+        if ($unidadId <= 0) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        $query->where("{$alias}.servicio_unidad_id", $unidadId);
+        if ($unidadId === self::UNIDAD_DELEGACIONES_ID) {
+            $delegacionIds = $this->delegacionIdsVisibles($usuario);
+            if (!empty($delegacionIds)) {
+                $query->whereIn("{$alias}.servicio_delegacion_id", $delegacionIds);
+            }
+        }
+    }
+
+    private function esOrigenConduceLegalidad(Request $request): bool
+    {
+        $origen = mb_strtolower(trim((string) $request->query('origen', '')), 'UTF-8');
+
+        return in_array($origen, ['conduce', 'conduce_legalidad', 'conduce-legalidad'], true);
+    }
+
     private function visibleGruasQuery(Request $request)
     {
         $query = Grua::query();
@@ -613,6 +789,8 @@ class GruaController extends Controller
                 $unidadId = self::UNIDAD_SINIESTROS_ID;
             } elseif (in_array($origen, ['delegacion', 'delegaciones'], true)) {
                 $unidadId = self::UNIDAD_DELEGACIONES_ID;
+            } elseif (in_array($origen, ['conduce', 'conduce_legalidad', 'conduce-legalidad'], true)) {
+                $unidadId = self::UNIDAD_SINIESTROS_ID;
             }
         }
 

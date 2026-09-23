@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Api\ConduceLegalidadController;
+use App\Models\ConduceLegalidadOperativo;
 use App\Models\ConduceLegalidadVehiculo;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -17,16 +18,48 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
         );
         $rulesMethod->setAccessible(true);
 
-        $rules = $rulesMethod->invoke(new ConduceLegalidadController());
+        $rules = $rulesMethod->invoke(
+            new ConduceLegalidadController(),
+            new ConduceLegalidadOperativo(['tipo_operativo' => 'conduce_legalidad'])
+        );
         $vehiculo = new ConduceLegalidadVehiculo([
             'numero_inventario' => 'INV-2026-0042',
         ]);
 
         $this->assertSame(
+            ['required', 'string', 'max:100'],
+            $rules['vehiculos.*.numero_inventario']
+        );
+        $this->assertSame(['required', 'array', 'size:1'], $rules['vehiculos']);
+        $this->assertSame(
+            ['required', 'integer', 'exists:gruas,id'],
+            $rules['vehiculos.*.corralon_id']
+        );
+        $this->assertSame('INV-2026-0042', $vehiculo->numero_inventario);
+    }
+
+    public function test_alcoholimetria_keeps_vehicle_optional(): void
+    {
+        $rulesMethod = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'capturaRules'
+        );
+        $rulesMethod->setAccessible(true);
+
+        $rules = $rulesMethod->invoke(
+            new ConduceLegalidadController(),
+            new ConduceLegalidadOperativo(['tipo_operativo' => 'alcoholimetria'])
+        );
+
+        $this->assertSame(['nullable', 'array', 'max:1'], $rules['vehiculos']);
+        $this->assertSame(
             ['nullable', 'string', 'max:100'],
             $rules['vehiculos.*.numero_inventario']
         );
-        $this->assertSame('INV-2026-0042', $vehiculo->numero_inventario);
+        $this->assertSame(
+            ['nullable', 'integer', 'exists:gruas,id'],
+            $rules['vehiculos.*.corralon_id']
+        );
     }
 
     public function test_vehicle_payload_returns_inventory_number(): void
@@ -35,6 +68,8 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
         $vehiculo->forceFill([
             'id' => 15,
             'numero_inventario' => 'INV-2026-0042',
+            'corralon_id' => 8,
+            'corralon' => 'CORRALÓN MORELIA',
         ]);
         $vehiculo->setRelation('infraccion', null);
 
@@ -49,5 +84,7 @@ class ConduceLegalidadNumeroInventarioTest extends TestCase
         );
 
         $this->assertSame('INV-2026-0042', $payload['numero_inventario']);
+        $this->assertSame(8, $payload['corralon_id']);
+        $this->assertSame('CORRALÓN MORELIA', $payload['corralon']);
     }
 }

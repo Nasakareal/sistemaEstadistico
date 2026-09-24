@@ -58,7 +58,7 @@ class NotificarLicenciasPersonalVencidas extends Command
         }
 
         if (empty($destinatarios)) {
-            $this->error('No hay destinatarios. Define WHATSAPP_OFICIOS_TERMINOS_TO o usa --to=');
+            $this->error('No hay destinatarios. Define WHATSAPP_CARRETERAS_GUARDIANES_TO o usa --to=');
 
             return self::FAILURE;
         }

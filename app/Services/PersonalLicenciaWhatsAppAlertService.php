@@ -38,7 +38,7 @@ class PersonalLicenciaWhatsAppAlertService
     {
         $configured = (string) (
             $override
-            ?: config('services.whatsapp.oficios.terminos_to', '')
+            ?: config('services.whatsapp.carreteras_guardianes.to', '')
         );
         $parts = preg_split('/[\s,;|]+/', $configured, -1, PREG_SPLIT_NO_EMPTY);
         $numbers = [];

@@ -637,19 +637,10 @@ class GruaController extends Controller
 
     private function conduceGruasQuery(Request $request)
     {
-        $gruaIds = DB::table('conduce_legalidad_vehiculos as clv')
-            ->join('conduce_legalidad_capturas as clc', 'clc.id', '=', 'clv.captura_id')
-            ->join('conduce_legalidad_operativos as clo', 'clo.id', '=', 'clc.operativo_id')
-            ->selectRaw('COALESCE(clv.grua_id, clv.corralon_id)')
-            ->where('clo.tipo_operativo', 'conduce_legalidad')
-            ->where(function ($query) {
-                $query->whereNotNull('clv.grua_id')
-                    ->orWhereNotNull('clv.corralon_id');
+        return Grua::query()
+            ->whereHas('unidades', function ($query) {
+                $query->where('unidades.id', self::UNIDAD_SINIESTROS_ID);
             });
-
-        $this->applyConduceServiciosVisibilityScope($gruaIds, $request, 'clv');
-
-        return Grua::query()->whereIn('gruas.id', $gruaIds);
     }
 
     private function esOrigenConduceLegalidad(Request $request): bool

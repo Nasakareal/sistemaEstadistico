@@ -434,6 +434,13 @@ return [
                             'can'     => 'menu-estadisticas-globales',
                         ],
                         [
+                            'text'    => 'Rendimiento de Peritos',
+                            'icon'    => 'fa-solid fa-ranking-star',
+                            'classes' => 'text-warning',
+                            'route'   => 'estadisticas_globales.rendimiento_peritos',
+                            'can'     => 'menu-estadisticas-globales',
+                        ],
+                        [
                             'text'    => 'Panel de Actividades',
                             'icon'    => 'fa-solid fa-clipboard-list',
                             'classes' => 'text-info',

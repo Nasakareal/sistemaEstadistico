@@ -10,6 +10,7 @@ use App\Http\Controllers\CiudadanoLicenciaPuntosController;
 use App\Http\Controllers\DocumentoHechoController;
 use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\EstadisticasGlobalesController;
+use App\Http\Controllers\RendimientoPeritosController;
 use App\Http\Controllers\EstadisticasActividadesController;
 use App\Http\Controllers\EstadisticasAseguramientosController;
 
@@ -377,6 +378,7 @@ Route::prefix('actividades')->middleware(['auth','can:ver actividades'])->group(
 
 Route::prefix('estadisticas-globales')->middleware(['auth','can:ver estadisticas globales'])->group(function () {
     Route::get('/',[EstadisticasGlobalesController::class,'index'])->name('estadisticas_globales.index');
+    Route::get('/rendimiento-peritos',[RendimientoPeritosController::class,'index'])->name('estadisticas_globales.rendimiento_peritos');
     Route::get('/kpis',[EstadisticasGlobalesController::class,'kpis'])->name('estadisticas_globales.kpis');
     Route::get('/series/hechos',[EstadisticasGlobalesController::class,'seriesHechos'])->name('estadisticas_globales.series.hechos');
     Route::get('/series/lesionados',[EstadisticasGlobalesController::class,'seriesLesionados'])->name('estadisticas_globales.series.lesionados');

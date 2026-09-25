@@ -240,8 +240,7 @@
 
 @section('css')
 <style>
-    :root{--rp-navy:#0d1b3d;--rp-blue:#2563eb;--rp-line:#e7ebf3;--rp-muted:#6b7280;--rp-bg:#f4f7fb}
-    .content-wrapper{background:var(--rp-bg)}
+    :root{--rp-navy:#0d1b3d;--rp-blue:#2da8ff;--rp-line:rgba(255,255,255,.12);--rp-muted:rgba(234,240,255,.65);--rp-bg:transparent}
     .rp-hero{position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:28px 32px;border-radius:20px;color:#fff;background:linear-gradient(120deg,#091632 0%,#153c79 60%,#0f766e 130%);box-shadow:0 18px 45px rgba(12,35,76,.18)}
     .rp-hero:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-80px;top:-130px;background:rgba(255,255,255,.08)}
     .rp-hero h1{margin:6px 0 5px;font-size:2rem;font-weight:800;letter-spacing:-.03em}.rp-hero p{margin:0;color:#cbd9ef}.rp-eyebrow{font-size:.76rem;text-transform:uppercase;letter-spacing:.12em;color:#a7f3d0;font-weight:700}.rp-hero__periodo{position:relative;z-index:1;min-width:265px;padding:13px 16px;border:1px solid rgba(255,255,255,.2);border-radius:13px;background:rgba(255,255,255,.09);backdrop-filter:blur(8px)}.rp-hero__periodo span,.rp-hero__periodo strong{display:block}.rp-hero__periodo span{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1}.rp-hero__periodo strong{margin-top:3px;font-size:1rem}
@@ -251,6 +250,21 @@
     .rp-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.rp-insight{padding:15px 18px;border-radius:14px;background:#111c36;color:#fff}.rp-insight span,.rp-insight strong,.rp-insight small{display:block}.rp-insight span{font-size:.69rem;text-transform:uppercase;letter-spacing:.08em;color:#93c5fd}.rp-insight strong{overflow:hidden;margin:4px 0 2px;text-overflow:ellipsis;white-space:nowrap;font-size:1rem}.rp-insight small{color:#b8c5dc}
     .rp-panel{margin-bottom:18px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055);overflow:hidden}.rp-panel__head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px 10px}.rp-panel__head h2{margin:0 0 3px;color:#17213a;font-size:1.05rem;font-weight:800}.rp-panel__head p{margin:0;color:var(--rp-muted);font-size:.78rem}.rp-chip{padding:5px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:.72rem;font-weight:700}.rp-chart{position:relative;height:275px;padding:8px 17px 18px}.rp-chart--wide{height:310px}
     .rp-table{font-size:.79rem;color:#334155}.rp-table thead th{border-top:0;border-bottom:1px solid var(--rp-line);background:#f8fafc;color:#64748b;font-size:.68rem;text-transform:uppercase;letter-spacing:.035em;white-space:nowrap}.rp-table td,.rp-table th{vertical-align:middle;padding:.78rem .7rem}.rp-table tbody tr:hover{background:#fafcff}.rp-table--ranking td{white-space:nowrap}.rp-table--ranking td:nth-child(2){min-width:245px;white-space:normal}.rp-turno{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;font-weight:800}.rp-turno--a{background:#dbeafe;color:#1d4ed8}.rp-turno--b{background:#fef3c7;color:#b45309}.rp-progress{display:inline-block;width:55px;height:6px;margin-right:7px;border-radius:99px;background:#e5e7eb;overflow:hidden;vertical-align:middle}.rp-progress i{display:block;height:100%;border-radius:inherit;background:#10b981}.rp-quality{display:inline-block;min-width:54px;padding:4px 8px;border-radius:999px;text-align:center;font-weight:800}.rp-quality.is-good{background:#d1fae5;color:#047857}.rp-quality.is-mid{background:#fef3c7;color:#b45309}.rp-quality.is-low{background:#fee2e2;color:#b91c1c}.rp-rank{color:#94a3b8;font-weight:800}.rp-empty{padding:35px!important;text-align:center;color:#94a3b8}.rp-search{position:relative}.rp-search i{position:absolute;left:11px;top:11px;color:#94a3b8}.rp-search input{width:240px;height:37px;padding:7px 12px 7px 33px;border:1px solid #dbe2ec;border-radius:9px;outline:0}.rp-search input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
+    /* Mismo lenguaje visual oscuro y translúcido que las demás estadísticas. */
+    .rp-hero{border:1px solid rgba(255,255,255,.12);background:radial-gradient(700px 280px at 20% 30%,rgba(45,168,255,.20),transparent 60%),radial-gradient(700px 280px at 80% 30%,rgba(124,92,255,.18),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04));box-shadow:0 18px 55px rgba(0,0,0,.35)}
+    .rp-hero p{color:rgba(234,240,255,.68)}
+    .rp-note{border-color:rgba(45,168,255,.24);background:rgba(45,168,255,.09);color:rgba(234,240,255,.78);box-shadow:0 10px 28px rgba(0,0,0,.16)}.rp-note i{color:#63c5ff}
+    .rp-filter,.rp-kpi,.rp-panel{border-color:rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.045));box-shadow:0 10px 35px rgba(0,0,0,.22)}
+    .rp-filter label{color:rgba(234,240,255,.76)!important}
+    .rp-filter .form-control{border-color:rgba(255,255,255,.14)!important;background:linear-gradient(180deg,rgba(12,16,28,.55),rgba(12,16,28,.40))!important;color:rgba(234,240,255,.92)!important;box-shadow:0 10px 22px rgba(0,0,0,.18)}
+    .rp-filter select option{background:#0c101c;color:rgba(234,240,255,.92)}
+    .rp-btn{border:1px solid rgba(45,168,255,.35)!important;background:linear-gradient(135deg,rgba(45,168,255,.28),rgba(124,92,255,.24))!important;color:rgba(234,240,255,.96)!important}.rp-btn:hover{border-color:rgba(45,168,255,.55)!important;background:linear-gradient(135deg,rgba(45,168,255,.36),rgba(124,92,255,.32))!important}
+    .rp-btn--ghost{border-color:rgba(255,255,255,.12)!important;background:rgba(0,0,0,.18)!important;color:rgba(234,240,255,.86)!important}.rp-btn--ghost:hover{background:rgba(0,0,0,.25)!important;color:#fff!important}
+    .rp-kpi small,.rp-kpi em{color:rgba(234,240,255,.62)}.rp-kpi strong{color:rgba(234,240,255,.96)}.rp-kpi__icon{border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 22px rgba(0,0,0,.22)}
+    .rp-insight{border:1px solid rgba(255,255,255,.12);background:linear-gradient(135deg,rgba(45,168,255,.13),rgba(124,92,255,.10));box-shadow:0 10px 30px rgba(0,0,0,.20)}.rp-insight span{color:#83d3ff}.rp-insight small{color:rgba(234,240,255,.62)}
+    .rp-panel__head h2{color:rgba(234,240,255,.95)}.rp-panel__head p{color:rgba(234,240,255,.60)}.rp-chip{border:1px solid rgba(124,92,255,.25);background:rgba(124,92,255,.13);color:#c9bcff}
+    .rp-table{color:rgba(234,240,255,.86)!important}.rp-table thead th{border-color:rgba(255,255,255,.14)!important;background:rgba(0,0,0,.16)!important;color:rgba(234,240,255,.78)!important}.rp-table tbody td{border-color:rgba(255,255,255,.08)!important;background:transparent!important;color:rgba(234,240,255,.78)!important}.rp-table tbody td b{color:rgba(234,240,255,.96)}.rp-table tbody tr:hover{background:rgba(45,168,255,.08)!important}
+    .rp-rank,.rp-empty{color:rgba(234,240,255,.52)!important}.rp-search i{color:rgba(234,240,255,.50)}.rp-search input{border-color:rgba(255,255,255,.14);background:rgba(0,0,0,.18);color:rgba(234,240,255,.92)}.rp-search input::placeholder{color:rgba(234,240,255,.50)}.rp-search input:focus{border-color:rgba(45,168,255,.52);box-shadow:0 0 0 4px rgba(45,168,255,.14)}.rp-progress{background:rgba(255,255,255,.13)}
     @media(max-width:1400px){.rp-kpis{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:767px){.rp-hero{display:block;padding:22px}.rp-hero__periodo{margin-top:18px;min-width:0}.rp-kpis,.rp-insights{grid-template-columns:1fr}.rp-filter__field,.rp-filter__field--perito{width:100%;min-width:0}.rp-filter .btn{flex:1}.rp-panel__head--ranking{align-items:flex-start;flex-direction:column}.rp-search,.rp-search input{width:100%}}
 </style>
@@ -267,8 +281,8 @@
     const common = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { labels: { usePointStyle: true, boxWidth: 8, color: '#475569' } } },
-        scales: { x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 12 } }, y: { beginAtZero: true, grid: { color: '#eef2f7' }, ticks: { precision: 0, color: '#64748b' } } }
+        plugins: { legend: { labels: { usePointStyle: true, boxWidth: 8, color: 'rgba(234,240,255,.76)' } } },
+        scales: { x: { grid: { display: false }, ticks: { color: 'rgba(234,240,255,.65)', maxTicksLimit: 12 } }, y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.08)' }, ticks: { precision: 0, color: 'rgba(234,240,255,.65)' } } }
     };
 
     if (window.Chart) {
@@ -295,13 +309,13 @@
         new Chart(document.getElementById('chartTipos'), {
             type: 'bar',
             data: { labels: tipos.map(x => x.tipo), datasets: [{ label: 'Capturas', data: tipos.map(x => x.total), backgroundColor: '#14b8a6', borderRadius: 5 }] },
-            options: { ...common, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ...common.scales.y }, y: { ...common.scales.x, ticks: { color: '#64748b', callback: function(value) { const label = this.getLabelForValue(value); return label.length > 28 ? label.slice(0, 28) + '…' : label; } } } } }
+            options: { ...common, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ...common.scales.y }, y: { ...common.scales.x, ticks: { color: 'rgba(234,240,255,.68)', callback: function(value) { const label = this.getLabelForValue(value); return label.length > 28 ? label.slice(0, 28) + '…' : label; } } } } }
         });
 
         new Chart(document.getElementById('chartActividades'), {
             type: 'bar',
             data: { labels: categorias.map(x => x.categoria), datasets: [{ label: 'Actividades', data: categorias.map(x => x.total), backgroundColor: '#8b5cf6', borderRadius: 5 }] },
-            options: { ...common, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ...common.scales.y }, y: { ...common.scales.x, ticks: { color: '#64748b', callback: function(value) { const label = this.getLabelForValue(value); return label.length > 28 ? label.slice(0, 28) + '…' : label; } } } } }
+            options: { ...common, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ...common.scales.y }, y: { ...common.scales.x, ticks: { color: 'rgba(234,240,255,.68)', callback: function(value) { const label = this.getLabelForValue(value); return label.length > 28 ? label.slice(0, 28) + '…' : label; } } } } }
         });
     }
 

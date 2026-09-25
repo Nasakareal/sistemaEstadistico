@@ -476,7 +476,7 @@ class GruaController extends Controller
 
     private function indexConduceLegalidad(Request $request)
     {
-        $gruas = $this->visibleGruasQuery($request)
+        $gruas = $this->conduceGruasQuery($request)
             ->select(['gruas.id', 'gruas.nombre', 'gruas.direccion', 'gruas.telefono', 'gruas.email', 'gruas.created_at'])
             ->selectSub(function ($query) use ($request) {
                 $query->from('conduce_legalidad_vehiculos as clv')
@@ -505,7 +505,7 @@ class GruaController extends Controller
 
         $gruasIds = $this->normalizeIds($request->query('gruas', []));
         $incluirSinServicios = $this->includeGruasSinServicios($request);
-        $gruas = $this->visibleGruasQuery($request)
+        $gruas = $this->conduceGruasQuery($request)
             ->select(['gruas.id', 'gruas.nombre'])
             ->when(!empty($gruasIds), function ($query) use ($gruasIds) {
                 $query->whereIn('gruas.id', $gruasIds);
@@ -633,6 +633,23 @@ class GruaController extends Controller
                 $query->whereIn("{$alias}.servicio_delegacion_id", $delegacionIds);
             }
         }
+    }
+
+    private function conduceGruasQuery(Request $request)
+    {
+        $gruaIds = DB::table('conduce_legalidad_vehiculos as clv')
+            ->join('conduce_legalidad_capturas as clc', 'clc.id', '=', 'clv.captura_id')
+            ->join('conduce_legalidad_operativos as clo', 'clo.id', '=', 'clc.operativo_id')
+            ->selectRaw('COALESCE(clv.grua_id, clv.corralon_id)')
+            ->where('clo.tipo_operativo', 'conduce_legalidad')
+            ->where(function ($query) {
+                $query->whereNotNull('clv.grua_id')
+                    ->orWhereNotNull('clv.corralon_id');
+            });
+
+        $this->applyConduceServiciosVisibilityScope($gruaIds, $request, 'clv');
+
+        return Grua::query()->whereIn('gruas.id', $gruaIds);
     }
 
     private function esOrigenConduceLegalidad(Request $request): bool

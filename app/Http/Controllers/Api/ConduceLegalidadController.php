@@ -528,8 +528,8 @@ class ConduceLegalidadController extends Controller
                 'delegacion_id' => $user->delegacion_id,
                 'fecha' => $validated['fecha'] ?? $operativo->fecha ?? $now->toDateString(),
                 'hora' => $validated['hora'] ?? $now->format('H:i:s'),
-                'municipio' => $this->nullableString($validated['municipio'] ?? null),
-                'lugar' => $this->nullableString($validated['lugar'] ?? null),
+                'municipio' => $this->nullableString($validated['municipio'] ?? $operativo->municipio),
+                'lugar' => $this->nullableString($validated['lugar'] ?? $operativo->lugar),
                 'lat' => $validated['lat'] ?? null,
                 'lng' => $validated['lng'] ?? null,
                 'coordenadas_texto' => $this->nullableString($validated['coordenadas_texto'] ?? null),
@@ -3700,20 +3700,17 @@ class ConduceLegalidadController extends Controller
             return false;
         }
 
-        if ($user->hasRole('Superadmin')) {
+        if ($user->hasAnyRole(['Superadmin', 'Administrador', 'Subdirector'])) {
             return true;
         }
 
-        if ((int) ($user->unidad_id ?? 0) === self::UNIDAD_VIALIDADES_URBANAS) {
+        if ($this->isRtVialidades($user) || $this->isSubdirectorVialidades($user)) {
             return true;
         }
 
-        if ((int) ($user->unidad_id ?? 0) === self::UNIDAD_SEGURIDAD_VIAL) {
-            return true;
-        }
-
-        if (($this->isRtVialidades($user) || $this->isSubdirectorVialidades($user))) {
-            return true;
+        if ($this->isVialidadesUser($user)
+            && $user->hasAnyRole(['Agente Vial', 'Fenix', 'Fénix', 'Motociclista'])) {
+            return false;
         }
 
         return $this->isVialidadesUser($user) && $user->can('editar conduce legalidad');

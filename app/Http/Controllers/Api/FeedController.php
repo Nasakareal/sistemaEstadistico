@@ -43,8 +43,9 @@ class FeedController extends Controller
         $actividades = $this->obtenerRowsFeed($this->queryActividades($unidadIds, false, 2, $usuario, $delegacionIds, $userIdFilter, $dateRange), $limit);
         $carreteras = $this->obtenerRowsFeed($this->queryCarreteras($unidadIds, false, 3, $usuario, $userIdFilter, $dateRange), $limit);
         $vialidades = $this->obtenerRowsFeed($this->queryVialidades($unidadIds, false, 4, $userIdFilter, $dateRange), $limit);
+        $conduce = $this->obtenerRowsFeed($this->queryConduceLegalidad($unidadIds, false, 5, $usuario, $delegacionIds, $userIdFilter, $dateRange), $limit);
 
-        $items = $hechos->concat($actividades)->concat($carreteras)->concat($vialidades)
+        $items = $hechos->concat($actividades)->concat($carreteras)->concat($vialidades)->concat($conduce)
             ->sortByDesc('created_at')
             ->values()
             ->take($limit);
@@ -67,6 +68,7 @@ class FeedController extends Controller
             return [
                 'type' => $row->type,
                 'id' => (int)$row->item_id,
+                'operativo_id' => isset($row->operativo_id) ? (int)$row->operativo_id : null,
                 'user_id' => (int)$row->user_id,
                 'user_name' => $row->user_name,
                 'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
@@ -116,6 +118,7 @@ class FeedController extends Controller
             $this->queryActividades($unidadIds, true, 2, $usuario, $delegacionIds, $userIdFilter, $dateRange),
             $this->queryCarreteras($unidadIds, true, 3, $usuario, $userIdFilter, $dateRange),
             $this->queryVialidades($unidadIds, true, 4, $userIdFilter, $dateRange),
+            $this->queryConduceLegalidad($unidadIds, true, 5, $usuario, $delegacionIds, $userIdFilter, $dateRange),
         ])->filter();
 
         $union = null;
@@ -197,6 +200,7 @@ class FeedController extends Controller
             return [
                 'type' => $row->type,
                 'id' => (int)$row->item_id,
+                'operativo_id' => isset($row->operativo_id) ? (int)$row->operativo_id : null,
                 'user_id' => (int)$row->user_id,
                 'user_name' => $row->user_name,
                 'unidad_id' => isset($row->unidad_id) ? (int)$row->unidad_id : null,
@@ -673,6 +677,7 @@ class FeedController extends Controller
                 'HECHO' as type,
                 ? as type_order,
                 h.id as item_id,
+                NULL as operativo_id,
                 h.created_by as user_id,
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
@@ -690,6 +695,7 @@ class FeedController extends Controller
         return $q->selectRaw("
             'HECHO' as type,
             h.id as item_id,
+            NULL as operativo_id,
             h.created_by as user_id,
             u.name as user_name,
             {$unidadSql} as unidad_id,
@@ -742,6 +748,7 @@ class FeedController extends Controller
                 'ACTIVIDAD' as type,
                 ? as type_order,
                 a.id as item_id,
+                NULL as operativo_id,
                 a.created_by as user_id,
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
@@ -759,6 +766,7 @@ class FeedController extends Controller
         return $q->selectRaw("
             'ACTIVIDAD' as type,
             a.id as item_id,
+            NULL as operativo_id,
             a.created_by as user_id,
             u.name as user_name,
             {$unidadSql} as unidad_id,
@@ -835,6 +843,7 @@ class FeedController extends Controller
                 'CARRETERAS' as type,
                 ? as type_order,
                 od.id as item_id,
+                NULL as operativo_id,
                 od.created_by as user_id,
                 u.name as user_name,
                 od.unidad_org_id as unidad_id,
@@ -862,6 +871,7 @@ class FeedController extends Controller
         return $q->selectRaw("
             'CARRETERAS' as type,
             od.id as item_id,
+            NULL as operativo_id,
             od.created_by as user_id,
             u.name as user_name,
             od.unidad_org_id as unidad_id,
@@ -944,6 +954,7 @@ class FeedController extends Controller
                 'VIALIDADES' as type,
                 ? as type_order,
                 vd.id as item_id,
+                NULL as operativo_id,
                 vd.created_by as user_id,
                 u.name as user_name,
                 {$unidadSql} as unidad_id,
@@ -961,6 +972,7 @@ class FeedController extends Controller
         return $q->selectRaw("
             'VIALIDADES' as type,
             vd.id as item_id,
+            NULL as operativo_id,
             vd.created_by as user_id,
             u.name as user_name,
             {$unidadSql} as unidad_id,
@@ -973,6 +985,105 @@ class FeedController extends Controller
             NULL as foto_path,
             vd.created_at as created_at
         ")->orderByDesc('vd.created_at')->orderByDesc('vd.id');
+    }
+
+    private function queryConduceLegalidad(
+        array $unidadIds,
+        bool $forUnion = false,
+        int $typeOrder = 5,
+        $usuario = null,
+        array $delegacionIds = [],
+        ?int $userIdFilter = null,
+        array $dateRange = []
+    ) {
+        if (empty($unidadIds)
+            || !Schema::hasTable('conduce_legalidad_capturas')
+            || !Schema::hasTable('conduce_legalidad_operativos')) {
+            return $forUnion ? null : collect();
+        }
+
+        $unidadSql = 'COALESCE(clo.unidad_id, clc.unidad_id, u.unidad_id)';
+        $delegacionIdSql = 'COALESCE(clo.delegacion_id, clc.delegacion_id, u.delegacion_id)';
+        $delegacionNombreSql = $this->delegacionNombreSql('do', 'du');
+        $resumenSql = "COALESCE(
+            NULLIF(TRIM(COALESCE(clc.narrativa, '')), ''),
+            NULLIF(TRIM(CONCAT(COALESCE(clo.lugar, ''), ' ', COALESCE(clo.numero, ''))), ''),
+            'Alimentación de Conduce con Legalidad'
+        )";
+        $fotoPathSql = Schema::hasTable('conduce_legalidad_fotos')
+            ? "(
+                SELECT clf.foto_path
+                FROM conduce_legalidad_fotos clf
+                WHERE clf.captura_id = clc.id
+                ORDER BY clf.id ASC
+                LIMIT 1
+            )"
+            : 'NULL';
+
+        $q = DB::table('conduce_legalidad_capturas as clc')
+            ->join('conduce_legalidad_operativos as clo', 'clo.id', '=', 'clc.operativo_id')
+            ->leftJoin('users as u', 'u.id', '=', 'clc.created_by')
+            ->leftJoin('unidades as un', DB::raw($unidadSql), '=', 'un.id')
+            ->leftJoin('delegaciones as do', 'do.id', '=', 'clo.delegacion_id')
+            ->leftJoin('delegaciones as du', 'du.id', '=', 'u.delegacion_id')
+            ->where('clo.tipo_operativo', 'conduce_legalidad')
+            ->whereIn(DB::raw($unidadSql), $unidadIds);
+
+        if (Schema::hasColumn('conduce_legalidad_capturas', 'actividad_id')) {
+            $q->whereNull('clc.actividad_id');
+        }
+
+        if (!$this->puedeVerTodasCapturasConduce($usuario)) {
+            $userId = (int) ($usuario->id ?? 0);
+            $userId > 0
+                ? $q->where('clc.created_by', $userId)
+                : $q->whereRaw('1 = 0');
+        }
+
+        $this->applyDelegacionesScope($q, $usuario, $delegacionIdSql);
+        $this->applyDelegacionFilter($q, $delegacionIdSql, $delegacionIds);
+        $this->applyUserFilter($q, 'clc.created_by', $userIdFilter);
+        $this->applyDateRange($q, 'clc.created_at', $dateRange);
+
+        $typeOrderSql = $forUnion ? '? as type_order,' : '';
+        $bindings = $forUnion ? [$typeOrder] : [];
+
+        $selected = $q->selectRaw("
+            'CONDUCE_LEGALIDAD' as type,
+            {$typeOrderSql}
+            clc.id as item_id,
+            clo.id as operativo_id,
+            clc.created_by as user_id,
+            u.name as user_name,
+            {$unidadSql} as unidad_id,
+            un.nombre as unidad_nombre,
+            {$delegacionIdSql} as delegacion_id,
+            {$delegacionNombreSql} as delegacion_nombre,
+            {$resumenSql} as resumen,
+            'Operativos' as categoria_nombre,
+            'Conduce con Legalidad' as subcategoria_nombre,
+            {$fotoPathSql} as foto_path,
+            clc.created_at as created_at
+        ", $bindings);
+
+        if ($forUnion) {
+            return $selected;
+        }
+
+        return $selected->orderByDesc('clc.created_at')->orderByDesc('clc.id');
+    }
+
+    private function puedeVerTodasCapturasConduce($usuario): bool
+    {
+        return $usuario
+            && $usuario->hasAnyRole([
+                'Superadmin',
+                'Administrador',
+                'Subdirector',
+                'Responsable de Turno',
+                'RT',
+                'Administrativo',
+            ]);
     }
 
     private function resolverShowUrl($row): ?string

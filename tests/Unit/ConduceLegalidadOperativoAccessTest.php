@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Api\ConduceLegalidadController;
+use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadOperativo;
 use Carbon\CarbonImmutable;
 use ReflectionMethod;
@@ -20,14 +21,26 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         $this->assertFalse($this->canCreate($this->user('Policia')));
     }
 
-    public function test_every_vialidades_urbanas_user_can_create_and_manage_operatives(): void
+    public function test_low_vialidades_role_cannot_manage_other_users_captures(): void
     {
-        $user = $this->user('Policia', 5, null);
+        $user = $this->user('Agente Vial', 5, null, 10);
+        $own = new ConduceLegalidadCaptura(['created_by' => 10]);
+        $other = new ConduceLegalidadCaptura(['created_by' => 11]);
 
-        $this->assertTrue($this->canCreate($user));
-        $this->assertTrue($this->canManage($user));
+        $this->assertFalse($this->canManage($user));
+        $this->assertTrue($this->canEditCaptura($user, $own));
+        $this->assertFalse($this->canEditCaptura($user, $other));
         $this->assertArrayHasKey('fecha', $this->scheduleRules($user));
         $this->assertArrayHasKey('hora_inicio', $this->scheduleRules($user));
+    }
+
+    public function test_high_vialidades_role_can_edit_other_users_captures(): void
+    {
+        $user = $this->user('Responsable de Turno', 5, null, 10);
+        $other = new ConduceLegalidadCaptura(['created_by' => 11]);
+
+        $this->assertTrue($this->canManage($user));
+        $this->assertTrue($this->canEditCaptura($user, $other));
     }
 
     public function test_schedule_fields_are_removed_from_delegate_validation(): void
@@ -207,16 +220,26 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         return $method->invoke(new ConduceLegalidadController(), $user);
     }
 
-    private function user(string $role, int $unidadId = 2, ?int $delegacionId = 15)
+    private function canEditCaptura($user, ConduceLegalidadCaptura $captura): bool
     {
-        return new class ($role, $unidadId, $delegacionId) {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'canEditCaptura');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $user, $captura);
+    }
+
+    private function user(string $role, int $unidadId = 2, ?int $delegacionId = 15, int $id = 1)
+    {
+        return new class ($role, $unidadId, $delegacionId, $id) {
+            public int $id;
             public int $unidad_id;
             public ?int $delegacion_id;
             public object $unidad;
             private string $role;
 
-            public function __construct(string $role, int $unidadId, ?int $delegacionId)
+            public function __construct(string $role, int $unidadId, ?int $delegacionId, int $id)
             {
+                $this->id = $id;
                 $this->role = $role;
                 $this->unidad_id = $unidadId;
                 $this->delegacion_id = $delegacionId;

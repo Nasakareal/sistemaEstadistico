@@ -25,14 +25,15 @@
             $resto = (int) $minutos % 60;
             return $horas . ' h' . ($resto ? ' ' . $resto . ' min' : '');
         };
-        $liderVolumen = $porPerito->sortByDesc('total')->first();
+        $liderVolumen = $porPerito->where('total', '>', 0)->sortByDesc('total')->first();
         $liderCalidad = $porPerito->where('hechos', '>=', 5)->sortByDesc('completitud')->first();
+        $liderCalificacion = $porPerito->whereNotNull('calificacion')->sortByDesc('calificacion')->first();
     @endphp
 
     <div class="rp-note">
         <i class="fas fa-circle-info"></i>
         <div>
-            <strong>Criterio de lectura.</strong> Se cuentan tanto <b>siniestros como actividades</b> por fecha de creación, no por la fecha operativa del registro. Solo entran capturas de la unidad Siniestros creadas por usuarios que actualmente tienen rol <b>Perito</b>. El turno proviene de la bitácora asociada cuando existe; en capturas anteriores se usa el turno actual del usuario. La completitud y el tiempo de cierre aplican únicamente a siniestros; ese control se incorporó en abril de 2026.
+            <strong>Criterio de lectura.</strong> Se cuentan tanto <b>siniestros como actividades</b> por fecha de creación, no por la fecha operativa del registro. Solo entran capturas de la unidad Siniestros creadas por usuarios que actualmente tienen rol <b>Perito</b>. El turno proviene de la bitácora asociada cuando existe; en capturas anteriores se usa el turno actual del usuario. La asignación operativa se toma de la patrulla actual. Esta vista mide lo registrado en el sistema y <b>no sustituye</b> asistencia, incidencias, comisiones ni una evaluación integral del servicio.
         </div>
     </div>
 
@@ -59,7 +60,7 @@
                 <option value="">Todos los peritos</option>
                 @foreach($peritos as $perito)
                     <option value="{{ $perito->id }}" @selected((int) $peritoSeleccionado === (int) $perito->id)>
-                        {{ $perito->name }} · Turno {{ $perito->turno }}
+                        {{ $perito->name }} · Turno {{ $perito->turno }} · {{ $perito->perfil_operativo === 'MOTOCICLETA' ? 'Moto' : ($perito->perfil_operativo === 'PATRULLA' ? 'Patrulla' : 'Sin asignación') }}
                     </option>
                 @endforeach
             </select>
@@ -128,6 +129,11 @@
             <span>Mayor completitud (mínimo 5 siniestros)</span>
             <strong>{{ $liderCalidad?->name ?? 'Sin datos suficientes' }}</strong>
             <small>{{ $liderCalidad ? $liderCalidad->completitud . '% completos · ' . number_format($liderCalidad->hechos) . ' siniestros' : 'Se requieren al menos 5 siniestros' }}</small>
+        </div>
+        <div class="rp-insight">
+            <span>Mejor calificación contextual</span>
+            <strong>{{ $liderCalificacion?->name ?? 'Sin muestra suficiente' }}</strong>
+            <small>{{ $liderCalificacion ? $liderCalificacion->calificacion . '/100 · ' . $liderCalificacion->nivel_calificacion . ' · ' . ($liderCalificacion->perfil_operativo === 'MOTOCICLETA' ? 'Moto' : ucfirst(strtolower($liderCalificacion->perfil_operativo))) . ' · Turno ' . $liderCalificacion->turno : 'No hay una muestra y grupo comparables suficientes' }}</small>
         </div>
     </div>
 
@@ -199,15 +205,29 @@
         </div>
     </div>
 
+    <section class="rp-method">
+        <div class="rp-method__intro">
+            <span class="rp-method__icon"><i class="fas fa-scale-balanced"></i></span>
+            <div><h2>Calificación contextual, no volumen bruto</h2><p>Cada compañero se compara con la mediana de su mismo turno y asignación operativa. Una moto sin siniestros no pierde puntos por ese motivo.</p></div>
+        </div>
+        <div class="rp-method__grid">
+            <div><b>Producción contextual · 20% / 35%</b><span>Registros por día activo frente a pares equivalentes; pesa 35% cuando el cierre no aplica.</span></div>
+            <div><b>Constancia · 35% / 45%</b><span>Días con captura frente a la mediana; pesa 45% cuando el cierre no aplica.</span></div>
+            <div><b>Calidad del registro · 20%</b><span>Ubicación capturada y ausencia de rechazos.</span></div>
+            <div><b>Cierre de siniestros · 25%</b><span>Completitud y cierre ≤ 24 h; no aplica a motos ni a quien no tuvo siniestros.</span></div>
+        </div>
+        <p class="rp-method__foot"><i class="fas fa-circle-info"></i> La nota requiere al menos {{ $minimoRegistrosCalificacion }} {{ $minimoRegistrosCalificacion === 1 ? 'registro' : 'registros' }}, {{ $minimoDiasCalificacion }} {{ $minimoDiasCalificacion === 1 ? 'día activo' : 'días activos' }} y 3 pares comparables. “Sin muestra” o “sin pares” no significan bajo rendimiento; indican que no hay base suficiente para calificar.</p>
+    </section>
+
     <section class="rp-panel">
         <div class="rp-panel__head rp-panel__head--ranking">
-            <div><h2>Detalle por compañero</h2><p>Orden inicial por cantidad de capturas. La completitud muestra calidad, no solo volumen.</p></div>
+            <div><h2>Detalle por compañero</h2><p>Ordenado por calificación contextual. Incluye compañeros sin capturas como “sin muestra”.</p></div>
             <div class="rp-search"><i class="fas fa-search"></i><input id="buscarPerito" type="search" placeholder="Buscar compañero…"></div>
         </div>
         <div class="table-responsive">
             <table class="table rp-table rp-table--ranking mb-0" id="tablaPeritos">
                 <thead>
-                    <tr><th>#</th><th>Compañero</th><th>Turno</th><th>Total</th><th>Siniestros</th><th>Actividades</th><th>Cant. actividades</th><th>Personas alcanzadas</th><th>Días activos</th><th>Prom./día activo</th><th>Completitud siniestros</th><th>Ubicación</th><th>Aprobadas</th><th>Rechazadas</th><th>Tiempo cierre siniestros</th><th>Última captura</th></tr>
+                    <tr><th>#</th><th>Compañero</th><th>Turno</th><th>Asignación</th><th>Calificación</th><th>Desglose / 100</th><th>Total</th><th>Siniestros</th><th>Actividades</th><th>Cant. actividades</th><th>Personas alcanzadas</th><th>Días activos</th><th>Prom./día activo</th><th>Completitud siniestros</th><th>≤ 24 h</th><th>Ubicación</th><th>Aprobadas</th><th>Rechazadas</th><th>Tiempo cierre siniestros</th><th>Última captura</th></tr>
                 </thead>
                 <tbody>
                     @forelse($porPerito as $indice => $fila)
@@ -215,6 +235,28 @@
                             <td class="rp-rank">{{ $indice + 1 }}</td>
                             <td><b>{{ $fila->name }}</b></td>
                             <td><span class="rp-turno rp-turno--{{ strtolower($fila->turno) }}">{{ $fila->turno }}</span></td>
+                            <td>
+                                <span class="rp-profile rp-profile--{{ strtolower(str_replace(' ', '-', $fila->perfil_operativo)) }}">{{ $fila->perfil_operativo === 'MOTOCICLETA' ? 'Moto' : ($fila->perfil_operativo === 'PATRULLA' ? 'Patrulla' : 'Sin asignación') }}</span>
+                                @if($fila->patrulla)<small class="rp-unit">{{ $fila->patrulla }}</small>@endif
+                            </td>
+                            <td>
+                                @if($fila->calificacion !== null)
+                                    <span class="rp-score {{ $fila->calificacion >= 90 ? 'is-good' : ($fila->calificacion >= 70 ? 'is-mid' : 'is-low') }}"><b>{{ $fila->calificacion }}</b><small>{{ $fila->nivel_calificacion }}</small></span>
+                                @else
+                                    <span class="rp-score is-empty"><b>—</b><small>{{ $fila->nivel_calificacion }}</small></span>
+                                @endif
+                            </td>
+                            <td class="rp-breakdown">
+                                @if($fila->calificacion !== null)
+                                    <span title="Producción contextual">Prod. <b>{{ $fila->score_produccion }}</b></span>
+                                    <span title="Constancia">Const. <b>{{ $fila->score_constancia }}</b></span>
+                                    <span title="Calidad del registro">Cal. <b>{{ $fila->score_calidad }}</b></span>
+                                    <span title="Cierre de siniestros">Cierre <b>{{ $fila->score_cierre ?? 'N/A' }}</b></span>
+                                    <small>{{ $fila->pares_comparables }} pares comparables</small>
+                                @else
+                                    <span>{{ $fila->motivo_sin_calificacion }}</span>
+                                @endif
+                            </td>
                             <td><b>{{ number_format($fila->total) }}</b></td>
                             <td>{{ number_format($fila->hechos) }}</td>
                             <td>{{ number_format($fila->actividades) }}</td>
@@ -223,6 +265,7 @@
                             <td>{{ number_format($fila->dias_activos) }}</td>
                             <td>{{ $fila->promedio_dia_activo }}</td>
                             <td>@if($fila->hechos > 0)<span class="rp-quality {{ $fila->completitud >= 90 ? 'is-good' : ($fila->completitud >= 70 ? 'is-mid' : 'is-low') }}">{{ $fila->completitud }}%</span>@else — @endif</td>
+                            <td>@if($fila->completas > 0){{ $fila->oportunidad_24h }}%@else — @endif</td>
                             <td>{{ $fila->cobertura_ubicacion }}%</td>
                             <td>{{ number_format($fila->aprobadas) }}</td>
                             <td>{{ number_format($fila->rechazadas) }}</td>
@@ -230,7 +273,7 @@
                             <td>{{ $fila->ultima_captura ? \Carbon\Carbon::parse($fila->ultima_captura)->format('d/m/Y H:i') : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="16" class="rp-empty">No hay capturas de peritos para los filtros seleccionados.</td></tr>
+                        <tr><td colspan="20" class="rp-empty">No hay compañeros con rol Perito para los filtros seleccionados.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -247,14 +290,15 @@
     .rp-note{display:flex;gap:12px;align-items:flex-start;margin:18px 0 14px;padding:13px 16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#334155;font-size:.86rem}.rp-note i{margin-top:3px;color:#2563eb}
     .rp-filter{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding:16px 18px;border:1px solid var(--rp-line);border-radius:15px;background:#fff;box-shadow:0 8px 22px rgba(27,45,82,.05)}.rp-filter__field{width:155px}.rp-filter__field--perito{min-width:280px;flex:1}.rp-filter label{display:block;margin-bottom:5px;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:#64748b}.rp-filter .form-control{height:40px;border-color:#dce3ee;border-radius:9px}.rp-btn{height:40px;padding:9px 15px;border:0;border-radius:9px;background:var(--rp-blue);color:#fff;font-weight:700}.rp-btn:hover{background:#1d4ed8;color:#fff}.rp-btn--ghost{border:1px solid #dbe2ec;background:#fff;color:#475569}.rp-btn--ghost:hover{background:#f8fafc;color:#0f172a}
     .rp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.rp-kpi{display:flex;gap:12px;min-height:132px;padding:17px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055)}.rp-kpi__icon{display:grid;place-items:center;flex:0 0 39px;height:39px;border-radius:11px;font-size:1rem}.rp-kpi small,.rp-kpi strong,.rp-kpi em{display:block}.rp-kpi small{min-height:32px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700}.rp-kpi strong{margin:2px 0;font-size:1.55rem;line-height:1.1;color:#111827}.rp-kpi em{font-size:.73rem;color:#64748b;font-style:normal}.rp-kpi--blue .rp-kpi__icon{background:#dbeafe;color:#2563eb}.rp-kpi--green .rp-kpi__icon{background:#d1fae5;color:#059669}.rp-kpi--violet .rp-kpi__icon{background:#ede9fe;color:#7c3aed}.rp-kpi--amber .rp-kpi__icon{background:#fef3c7;color:#d97706}.rp-kpi--cyan .rp-kpi__icon{background:#cffafe;color:#0891b2}.rp-kpi--rose .rp-kpi__icon{background:#ffe4e6;color:#e11d48}.rp-kpi--teal .rp-kpi__icon{background:#ccfbf1;color:#0f766e}.rp-kpi--indigo .rp-kpi__icon{background:#e0e7ff;color:#4338ca}
-    .rp-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.rp-insight{padding:15px 18px;border-radius:14px;background:#111c36;color:#fff}.rp-insight span,.rp-insight strong,.rp-insight small{display:block}.rp-insight span{font-size:.69rem;text-transform:uppercase;letter-spacing:.08em;color:#93c5fd}.rp-insight strong{overflow:hidden;margin:4px 0 2px;text-overflow:ellipsis;white-space:nowrap;font-size:1rem}.rp-insight small{color:#b8c5dc}
+    .rp-insights{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.rp-insight{padding:15px 18px;border-radius:14px;background:#111c36;color:#fff}.rp-insight span,.rp-insight strong,.rp-insight small{display:block}.rp-insight span{font-size:.69rem;text-transform:uppercase;letter-spacing:.08em;color:#93c5fd}.rp-insight strong{overflow:hidden;margin:4px 0 2px;text-overflow:ellipsis;white-space:nowrap;font-size:1rem}.rp-insight small{color:#b8c5dc}
+    .rp-method{margin-bottom:18px;padding:18px 20px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055)}.rp-method__intro{display:flex;align-items:center;gap:12px}.rp-method__icon{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:12px;background:#e0e7ff;color:#4338ca}.rp-method h2{margin:0 0 3px;font-size:1.02rem;font-weight:800}.rp-method p{margin:0;color:#64748b;font-size:.79rem}.rp-method__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.rp-method__grid div{padding:11px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.rp-method__grid b,.rp-method__grid span{display:block}.rp-method__grid b{font-size:.75rem;color:#1e293b}.rp-method__grid span{margin-top:3px;color:#64748b;font-size:.7rem;line-height:1.35}.rp-method__foot{margin-top:12px!important}.rp-method__foot i{margin-right:5px;color:#2563eb}
     .rp-panel{margin-bottom:18px;border:1px solid var(--rp-line);border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(21,42,78,.055);overflow:hidden}.rp-panel__head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px 10px}.rp-panel__head h2{margin:0 0 3px;color:#17213a;font-size:1.05rem;font-weight:800}.rp-panel__head p{margin:0;color:var(--rp-muted);font-size:.78rem}.rp-chip{padding:5px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:.72rem;font-weight:700}.rp-chart{position:relative;height:275px;padding:8px 17px 18px}.rp-chart--wide{height:310px}
-    .rp-table{font-size:.79rem;color:#334155}.rp-table thead th{border-top:0;border-bottom:1px solid var(--rp-line);background:#f8fafc;color:#64748b;font-size:.68rem;text-transform:uppercase;letter-spacing:.035em;white-space:nowrap}.rp-table td,.rp-table th{vertical-align:middle;padding:.78rem .7rem}.rp-table tbody tr:hover{background:#fafcff}.rp-table--ranking td{white-space:nowrap}.rp-table--ranking td:nth-child(2){min-width:245px;white-space:normal}.rp-turno{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;font-weight:800}.rp-turno--a{background:#dbeafe;color:#1d4ed8}.rp-turno--b{background:#fef3c7;color:#b45309}.rp-progress{display:inline-block;width:55px;height:6px;margin-right:7px;border-radius:99px;background:#e5e7eb;overflow:hidden;vertical-align:middle}.rp-progress i{display:block;height:100%;border-radius:inherit;background:#10b981}.rp-quality{display:inline-block;min-width:54px;padding:4px 8px;border-radius:999px;text-align:center;font-weight:800}.rp-quality.is-good{background:#d1fae5;color:#047857}.rp-quality.is-mid{background:#fef3c7;color:#b45309}.rp-quality.is-low{background:#fee2e2;color:#b91c1c}.rp-rank{color:#94a3b8;font-weight:800}.rp-empty{padding:35px!important;text-align:center;color:#94a3b8}.rp-search{position:relative}.rp-search i{position:absolute;left:11px;top:11px;color:#94a3b8}.rp-search input{width:240px;height:37px;padding:7px 12px 7px 33px;border:1px solid #dbe2ec;border-radius:9px;outline:0}.rp-search input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
+    .rp-table{font-size:.79rem;color:#334155}.rp-table thead th{border-top:0;border-bottom:1px solid var(--rp-line);background:#f8fafc;color:#64748b;font-size:.68rem;text-transform:uppercase;letter-spacing:.035em;white-space:nowrap}.rp-table td,.rp-table th{vertical-align:middle;padding:.78rem .7rem}.rp-table tbody tr:hover{background:#fafcff}.rp-table--ranking td{white-space:nowrap}.rp-table--ranking td:nth-child(2){min-width:245px;white-space:normal}.rp-turno{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;font-weight:800}.rp-turno--a{background:#dbeafe;color:#1d4ed8}.rp-turno--b{background:#fef3c7;color:#b45309}.rp-profile{display:inline-block;padding:4px 8px;border-radius:999px;font-size:.67rem;font-weight:800;text-transform:uppercase}.rp-profile--motocicleta{background:#cffafe;color:#0e7490}.rp-profile--patrulla{background:#dbeafe;color:#1d4ed8}.rp-profile--sin-asignacion{background:#e2e8f0;color:#475569}.rp-unit{display:block;margin-top:3px;color:#94a3b8}.rp-score{display:inline-flex;align-items:flex-start;flex-direction:column;min-width:92px;padding:6px 9px;border-radius:10px}.rp-score b{font-size:1rem;line-height:1}.rp-score small{margin-top:3px;font-size:.64rem}.rp-score.is-good{background:#d1fae5;color:#047857}.rp-score.is-mid{background:#fef3c7;color:#b45309}.rp-score.is-low{background:#fee2e2;color:#b91c1c}.rp-score.is-empty{background:#e2e8f0;color:#64748b}.rp-breakdown span{margin-right:7px;color:#64748b;font-size:.68rem}.rp-breakdown small{display:block;margin-top:3px;color:#94a3b8;font-size:.63rem}.rp-progress{display:inline-block;width:55px;height:6px;margin-right:7px;border-radius:99px;background:#e5e7eb;overflow:hidden;vertical-align:middle}.rp-progress i{display:block;height:100%;border-radius:inherit;background:#10b981}.rp-quality{display:inline-block;min-width:54px;padding:4px 8px;border-radius:999px;text-align:center;font-weight:800}.rp-quality.is-good{background:#d1fae5;color:#047857}.rp-quality.is-mid{background:#fef3c7;color:#b45309}.rp-quality.is-low{background:#fee2e2;color:#b91c1c}.rp-rank{color:#94a3b8;font-weight:800}.rp-empty{padding:35px!important;text-align:center;color:#94a3b8}.rp-search{position:relative}.rp-search i{position:absolute;left:11px;top:11px;color:#94a3b8}.rp-search input{width:240px;height:37px;padding:7px 12px 7px 33px;border:1px solid #dbe2ec;border-radius:9px;outline:0}.rp-search input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
     /* Mismo lenguaje visual oscuro y translúcido que las demás estadísticas. */
     .rp-hero{border:1px solid rgba(255,255,255,.12);background:radial-gradient(700px 280px at 20% 30%,rgba(45,168,255,.20),transparent 60%),radial-gradient(700px 280px at 80% 30%,rgba(124,92,255,.18),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04));box-shadow:0 18px 55px rgba(0,0,0,.35)}
     .rp-hero p{color:rgba(234,240,255,.68)}
     .rp-note{border-color:rgba(45,168,255,.24);background:rgba(45,168,255,.09);color:rgba(234,240,255,.78);box-shadow:0 10px 28px rgba(0,0,0,.16)}.rp-note i{color:#63c5ff}
-    .rp-filter,.rp-kpi,.rp-panel{border-color:rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.045));box-shadow:0 10px 35px rgba(0,0,0,.22)}
+    .rp-filter,.rp-kpi,.rp-panel,.rp-method{border-color:rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.045));box-shadow:0 10px 35px rgba(0,0,0,.22)}
     .rp-filter label{color:rgba(234,240,255,.76)!important}
     .rp-filter .form-control{border-color:rgba(255,255,255,.14)!important;background:linear-gradient(180deg,rgba(12,16,28,.55),rgba(12,16,28,.40))!important;color:rgba(234,240,255,.92)!important;box-shadow:0 10px 22px rgba(0,0,0,.18)}
     .rp-filter select option{background:#0c101c;color:rgba(234,240,255,.92)}
@@ -262,11 +306,13 @@
     .rp-btn--ghost{border-color:rgba(255,255,255,.12)!important;background:rgba(0,0,0,.18)!important;color:rgba(234,240,255,.86)!important}.rp-btn--ghost:hover{background:rgba(0,0,0,.25)!important;color:#fff!important}
     .rp-kpi small,.rp-kpi em{color:rgba(234,240,255,.62)}.rp-kpi strong{color:rgba(234,240,255,.96)}.rp-kpi__icon{border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 22px rgba(0,0,0,.22)}
     .rp-insight{border:1px solid rgba(255,255,255,.12);background:linear-gradient(135deg,rgba(45,168,255,.13),rgba(124,92,255,.10));box-shadow:0 10px 30px rgba(0,0,0,.20)}.rp-insight span{color:#83d3ff}.rp-insight small{color:rgba(234,240,255,.62)}
+    .rp-method h2{color:rgba(234,240,255,.95)}.rp-method p{color:rgba(234,240,255,.62)}.rp-method__icon{border:1px solid rgba(124,92,255,.28);background:rgba(124,92,255,.14);color:#c9bcff}.rp-method__grid div{border-color:rgba(255,255,255,.10);background:rgba(0,0,0,.15)}.rp-method__grid b{color:rgba(234,240,255,.90)}.rp-method__grid span{color:rgba(234,240,255,.56)}.rp-method__foot i{color:#63c5ff}
     .rp-panel__head h2{color:rgba(234,240,255,.95)}.rp-panel__head p{color:rgba(234,240,255,.60)}.rp-chip{border:1px solid rgba(124,92,255,.25);background:rgba(124,92,255,.13);color:#c9bcff}
     .rp-table{color:rgba(234,240,255,.86)!important}.rp-table thead th{border-color:rgba(255,255,255,.14)!important;background:rgba(0,0,0,.16)!important;color:rgba(234,240,255,.78)!important}.rp-table tbody td{border-color:rgba(255,255,255,.08)!important;background:transparent!important;color:rgba(234,240,255,.78)!important}.rp-table tbody td b{color:rgba(234,240,255,.96)}.rp-table tbody tr:hover{background:rgba(45,168,255,.08)!important}
+    .rp-breakdown span{color:rgba(234,240,255,.65)}.rp-breakdown small,.rp-unit{color:rgba(234,240,255,.48)}
     .rp-rank,.rp-empty{color:rgba(234,240,255,.52)!important}.rp-search i{color:rgba(234,240,255,.50)}.rp-search input{border-color:rgba(255,255,255,.14);background:rgba(0,0,0,.18);color:rgba(234,240,255,.92)}.rp-search input::placeholder{color:rgba(234,240,255,.50)}.rp-search input:focus{border-color:rgba(45,168,255,.52);box-shadow:0 0 0 4px rgba(45,168,255,.14)}.rp-progress{background:rgba(255,255,255,.13)}
-    @media(max-width:1400px){.rp-kpis{grid-template-columns:repeat(3,1fr)}}
-    @media(max-width:767px){.rp-hero{display:block;padding:22px}.rp-hero__periodo{margin-top:18px;min-width:0}.rp-kpis,.rp-insights{grid-template-columns:1fr}.rp-filter__field,.rp-filter__field--perito{width:100%;min-width:0}.rp-filter .btn{flex:1}.rp-panel__head--ranking{align-items:flex-start;flex-direction:column}.rp-search,.rp-search input{width:100%}}
+    @media(max-width:1400px){.rp-kpis{grid-template-columns:repeat(3,1fr)}.rp-insights,.rp-method__grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:767px){.rp-hero{display:block;padding:22px}.rp-hero__periodo{margin-top:18px;min-width:0}.rp-kpis,.rp-insights,.rp-method__grid{grid-template-columns:1fr}.rp-filter__field,.rp-filter__field--perito{width:100%;min-width:0}.rp-filter .btn{flex:1}.rp-panel__head--ranking{align-items:flex-start;flex-direction:column}.rp-search,.rp-search input{width:100%}}
 </style>
 @stop
 

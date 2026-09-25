@@ -82,6 +82,8 @@ class RendimientoPeritosController extends Controller
         $total = (int) ($resumenCombinado->total ?? 0);
         $completas = (int) ($resumen->completas ?? 0);
         $diasPeriodo = $desde->diffInDays($hasta) + 1;
+        $minimoRegistrosCalificacion = $diasPeriodo <= 1 ? 1 : ($diasPeriodo <= 7 ? 3 : 5);
+        $minimoDiasCalificacion = min(3, $diasPeriodo);
         $peritosActivos = (int) ($resumenCombinado->peritos_activos ?? 0);
 
         $kpis = [
@@ -116,11 +118,18 @@ class RendimientoPeritosController extends Controller
             ),
         ];
 
-        $porPerito = (clone $baseCombinada)
+        // La calificacion necesita comparar contra pares equivalentes aun cuando se filtre a una persona.
+        $baseCalificaciones = $peritoId
+            ? $this->capturasCombinadasQuery($desde, $hasta, $turno, null)
+            : $baseCombinada;
+
+        $porPerito = (clone $baseCalificaciones)
             ->selectRaw(<<<'SQL'
                 user_id AS id,
                 name,
                 turno,
+                perfil_operativo,
+                patrulla,
                 COUNT(*) AS total,
                 SUM(CASE WHEN origen = 'hecho' THEN 1 ELSE 0 END) AS hechos,
                 SUM(CASE WHEN origen = 'actividad' THEN 1 ELSE 0 END) AS actividades,
@@ -129,12 +138,13 @@ class RendimientoPeritosController extends Controller
                 SUM(aprobada) AS aprobadas,
                 SUM(rechazada) AS rechazadas,
                 SUM(con_ubicacion) AS con_ubicacion,
+                SUM(oportuna) AS oportunas,
                 AVG(minutos_cierre) AS minutos_promedio_cierre,
                 SUM(cantidad) AS cantidad_actividades,
                 SUM(personas_alcanzadas) AS personas_alcanzadas,
                 MAX(created_at) AS ultima_captura
             SQL)
-            ->groupBy('user_id', 'name', 'turno')
+            ->groupBy('user_id', 'name', 'turno', 'perfil_operativo', 'patrulla')
             ->orderByDesc('total')
             ->get()
             ->map(function ($fila) {
@@ -146,10 +156,13 @@ class RendimientoPeritosController extends Controller
                 $fila->aprobadas = (int) $fila->aprobadas;
                 $fila->rechazadas = (int) $fila->rechazadas;
                 $fila->con_ubicacion = (int) $fila->con_ubicacion;
+                $fila->oportunas = (int) $fila->oportunas;
                 $fila->cantidad_actividades = (int) $fila->cantidad_actividades;
                 $fila->personas_alcanzadas = (int) $fila->personas_alcanzadas;
                 $fila->completitud = $this->porcentaje($fila->completas, $fila->hechos);
+                $fila->oportunidad_24h = $this->porcentaje($fila->oportunas, $fila->completas);
                 $fila->cobertura_ubicacion = $this->porcentaje($fila->con_ubicacion, $fila->total);
+                $fila->sin_rechazo = $this->porcentaje($fila->total - $fila->rechazadas, $fila->total);
                 $fila->promedio_dia_activo = $fila->dias_activos > 0
                     ? round($fila->total / $fila->dias_activos, 1)
                     : 0;
@@ -159,6 +172,55 @@ class RendimientoPeritosController extends Controller
 
                 return $fila;
             });
+
+        // Hace visible la ausencia de captura sin convertirla automaticamente en bajo rendimiento.
+        $peritosParaTabla = $peritos
+            ->when($turno, fn ($lista) => $lista->where('turno', $turno))
+            ->when($peritoId, fn ($lista) => $lista->where('id', $peritoId));
+
+        foreach ($peritosParaTabla as $perito) {
+            if ($porPerito->contains(fn ($fila) => (int) $fila->id === (int) $perito->id)) {
+                continue;
+            }
+
+            $porPerito->push((object) [
+                'id' => (int) $perito->id,
+                'name' => $perito->name,
+                'turno' => $perito->turno,
+                'perfil_operativo' => $perito->perfil_operativo,
+                'patrulla' => $perito->patrulla,
+                'total' => 0,
+                'hechos' => 0,
+                'actividades' => 0,
+                'dias_activos' => 0,
+                'completas' => 0,
+                'aprobadas' => 0,
+                'rechazadas' => 0,
+                'con_ubicacion' => 0,
+                'oportunas' => 0,
+                'cantidad_actividades' => 0,
+                'personas_alcanzadas' => 0,
+                'completitud' => 0.0,
+                'oportunidad_24h' => 0.0,
+                'cobertura_ubicacion' => 0.0,
+                'sin_rechazo' => 0.0,
+                'promedio_dia_activo' => 0.0,
+                'minutos_promedio_cierre' => null,
+                'ultima_captura' => null,
+            ]);
+        }
+
+        $porPerito = $this->calificarPorContexto(
+            $porPerito,
+            $minimoRegistrosCalificacion,
+            $minimoDiasCalificacion
+        )
+            ->when($peritoId, fn ($lista) => $lista->where('id', $peritoId))
+            ->sortBy([
+                fn ($a, $b) => ($b->calificacion ?? -1) <=> ($a->calificacion ?? -1),
+                fn ($a, $b) => $b->total <=> $a->total,
+            ])
+            ->values();
 
         $porTurno = (clone $baseCombinada)
             ->selectRaw(<<<'SQL'
@@ -247,6 +309,8 @@ class RendimientoPeritosController extends Controller
             'tiposHecho' => $tiposHecho,
             'categoriasActividad' => $categoriasActividad,
             'comparacion' => $comparacion,
+            'minimoRegistrosCalificacion' => $minimoRegistrosCalificacion,
+            'minimoDiasCalificacion' => $minimoDiasCalificacion,
         ]);
     }
 
@@ -311,10 +375,23 @@ class RendimientoPeritosController extends Controller
     private function capturasCombinadasQuery(Carbon $desde, Carbon $hasta, ?string $turno, ?int $peritoId): Builder
     {
         $hechos = $this->capturasPeritosQuery($desde, $hasta, $turno, $peritoId)
+            ->leftJoin('personals as personal_perfil', function ($join) {
+                $join->on('personal_perfil.user_id', '=', 'users.id')
+                    ->whereNull('personal_perfil.deleted_at');
+            })
+            ->leftJoin('patrullas as patrulla_perfil', function ($join) {
+                $join->on('patrulla_perfil.id', '=', DB::raw('COALESCE(personal_perfil.patrulla_id, users.patrulla_id)'));
+            })
             ->selectRaw(<<<'SQL'
                 users.id AS user_id,
                 users.name AS name,
                 turnos_captura.nombre AS turno,
+                CASE
+                    WHEN UPPER(COALESCE(patrulla_perfil.tipo, '')) LIKE '%MOTO%' THEN 'MOTOCICLETA'
+                    WHEN patrulla_perfil.id IS NOT NULL THEN 'PATRULLA'
+                    ELSE 'SIN ASIGNACION'
+                END AS perfil_operativo,
+                patrulla_perfil.numero_economico AS patrulla,
                 hechos.created_at AS created_at,
                 'hecho' AS origen,
                 CASE WHEN hechos.captura_completa = 1 THEN 1 ELSE 0 END AS completa,
@@ -323,16 +400,33 @@ class RendimientoPeritosController extends Controller
                 CASE WHEN hechos.lat IS NOT NULL AND hechos.lng IS NOT NULL THEN 1 ELSE 0 END AS con_ubicacion,
                 CASE WHEN hechos.captura_completa_at IS NOT NULL AND hechos.captura_completa_at >= hechos.created_at
                      THEN TIMESTAMPDIFF(MINUTE, hechos.created_at, hechos.captura_completa_at) END AS minutos_cierre,
+                CASE WHEN hechos.captura_completa_at IS NOT NULL
+                           AND hechos.captura_completa_at >= hechos.created_at
+                           AND TIMESTAMPDIFF(HOUR, hechos.created_at, hechos.captura_completa_at) <= 24
+                     THEN 1 ELSE 0 END AS oportuna,
                 0 AS cantidad,
                 0 AS personas_alcanzadas,
                 0 AS personas_participantes
             SQL);
 
         $actividades = $this->actividadesPeritosQuery($desde, $hasta, $turno, $peritoId)
+            ->leftJoin('personals as personal_perfil', function ($join) {
+                $join->on('personal_perfil.user_id', '=', 'users.id')
+                    ->whereNull('personal_perfil.deleted_at');
+            })
+            ->leftJoin('patrullas as patrulla_perfil', function ($join) {
+                $join->on('patrulla_perfil.id', '=', DB::raw('COALESCE(personal_perfil.patrulla_id, users.patrulla_id)'));
+            })
             ->selectRaw(<<<'SQL'
                 users.id AS user_id,
                 users.name AS name,
                 turnos_captura.nombre AS turno,
+                CASE
+                    WHEN UPPER(COALESCE(patrulla_perfil.tipo, '')) LIKE '%MOTO%' THEN 'MOTOCICLETA'
+                    WHEN patrulla_perfil.id IS NOT NULL THEN 'PATRULLA'
+                    ELSE 'SIN ASIGNACION'
+                END AS perfil_operativo,
+                patrulla_perfil.numero_economico AS patrulla,
                 actividades.created_at AS created_at,
                 'actividad' AS origen,
                 0 AS completa,
@@ -340,6 +434,7 @@ class RendimientoPeritosController extends Controller
                 CASE WHEN LOWER(COALESCE(actividades.estado_revision, '')) = 'rechazado' THEN 1 ELSE 0 END AS rechazada,
                 CASE WHEN actividades.lat IS NOT NULL AND actividades.lng IS NOT NULL THEN 1 ELSE 0 END AS con_ubicacion,
                 NULL AS minutos_cierre,
+                0 AS oportuna,
                 COALESCE(actividades.cantidad, 0) AS cantidad,
                 COALESCE(actividades.personas_alcanzadas, 0) AS personas_alcanzadas,
                 COALESCE(actividades.personas_participantes, 0) AS personas_participantes
@@ -352,6 +447,13 @@ class RendimientoPeritosController extends Controller
     {
         return DB::table('users')
             ->join('turnos', 'turnos.id', '=', 'users.turno_id')
+            ->leftJoin('personals as personal_perfil', function ($join) {
+                $join->on('personal_perfil.user_id', '=', 'users.id')
+                    ->whereNull('personal_perfil.deleted_at');
+            })
+            ->leftJoin('patrullas as patrulla_perfil', function ($join) {
+                $join->on('patrulla_perfil.id', '=', DB::raw('COALESCE(personal_perfil.patrulla_id, users.patrulla_id)'));
+            })
             ->where('users.unidad_id', self::UNIDAD_SINIESTROS_ID)
             ->whereIn('turnos.nombre', ['A', 'B'])
             ->whereExists(function ($query) {
@@ -362,10 +464,95 @@ class RendimientoPeritosController extends Controller
                     ->where('model_has_roles.model_type', 'App\\Models\\User')
                     ->where('roles.name', 'Perito');
             })
-            ->select('users.id', 'users.name', 'turnos.nombre as turno')
+            ->selectRaw(<<<'SQL'
+                users.id,
+                users.name,
+                turnos.nombre AS turno,
+                CASE
+                    WHEN UPPER(COALESCE(patrulla_perfil.tipo, '')) LIKE '%MOTO%' THEN 'MOTOCICLETA'
+                    WHEN patrulla_perfil.id IS NOT NULL THEN 'PATRULLA'
+                    ELSE 'SIN ASIGNACION'
+                END AS perfil_operativo,
+                patrulla_perfil.numero_economico AS patrulla
+            SQL)
+            ->distinct()
             ->orderBy('turnos.nombre')
             ->orderBy('users.name')
             ->get();
+    }
+
+    private function calificarPorContexto($filas, int $minimoRegistros, int $minimoDias)
+    {
+        foreach ($filas as $fila) {
+            $fila->muestra_suficiente = $fila->total >= $minimoRegistros && $fila->dias_activos >= $minimoDias;
+        }
+
+        $grupos = $filas->groupBy(fn ($fila) => $fila->perfil_operativo.'|'.$fila->turno);
+
+        return $filas->map(function ($fila) use ($grupos) {
+            $fila->calificacion = null;
+            $fila->nivel_calificacion = 'Sin muestra';
+            $fila->score_produccion = null;
+            $fila->score_constancia = null;
+            $fila->score_calidad = null;
+            $fila->score_cierre = null;
+            $fila->pares_comparables = 0;
+            $fila->motivo_sin_calificacion = 'Muestra insuficiente';
+
+            if (!$fila->muestra_suficiente) {
+                return $fila;
+            }
+
+            $llave = $fila->perfil_operativo.'|'.$fila->turno;
+            $pares = $grupos->get($llave, collect())->where('muestra_suficiente', true);
+            $fila->pares_comparables = $pares->count();
+            if ($fila->pares_comparables < 3) {
+                $fila->nivel_calificacion = 'Sin pares';
+                $fila->motivo_sin_calificacion = 'Menos de 3 pares comparables';
+
+                return $fila;
+            }
+
+            $medianaRitmo = (float) ($pares->median('promedio_dia_activo') ?: 0);
+            $medianaDias = (float) ($pares->median('dias_activos') ?: 0);
+            $fila->score_produccion = $this->indiceContraMediana($fila->promedio_dia_activo, $medianaRitmo);
+            $fila->score_constancia = $this->indiceContraMediana($fila->dias_activos, $medianaDias);
+            $fila->score_calidad = round(($fila->cobertura_ubicacion * .5) + ($fila->sin_rechazo * .5), 1);
+
+            $evaluaCierre = $fila->perfil_operativo !== 'MOTOCICLETA' && $fila->hechos > 0;
+            if ($evaluaCierre) {
+                $fila->score_cierre = round(($fila->completitud * .6) + ($fila->oportunidad_24h * .4), 1);
+                $nota = ($fila->score_produccion * .20)
+                    + ($fila->score_constancia * .35)
+                    + ($fila->score_calidad * .20)
+                    + ($fila->score_cierre * .25);
+            } else {
+                // En motos (o sin siniestros asignados) el cierre no aplica y su peso se redistribuye.
+                $nota = ($fila->score_produccion * .35)
+                    + ($fila->score_constancia * .45)
+                    + ($fila->score_calidad * .20);
+            }
+
+            $fila->calificacion = round(min(100, max(0, $nota)), 1);
+            $fila->motivo_sin_calificacion = null;
+            $fila->nivel_calificacion = match (true) {
+                $fila->calificacion >= 90 => 'Sobresaliente',
+                $fila->calificacion >= 80 => 'Alto',
+                $fila->calificacion >= 70 => 'Esperado',
+                default => 'Revisar contexto',
+            };
+
+            return $fila;
+        });
+    }
+
+    private function indiceContraMediana(float|int $valor, float $mediana): float
+    {
+        if ($mediana <= 0) {
+            return $valor > 0 ? 100.0 : 0.0;
+        }
+
+        return round(min(100, max(0, ($valor / $mediana) * 100)), 1);
     }
 
     private function serieDiaria(Carbon $desde, Carbon $hasta, $filas): array

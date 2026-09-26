@@ -3576,12 +3576,29 @@ class ConduceLegalidadController extends Controller
             return false;
         }
 
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
         if ($this->isDelegacionesUser($user) && $user->hasRole('Delegado')) {
             return true;
         }
 
-        return $this->canManage($user)
-            || ($this->isVialidadesUser($user) && $user->can('crear conduce legalidad'));
+        if (!$this->isVialidadesUser($user)) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['Agente Vial', 'Fenix', 'Fénix', 'Motociclista'])) {
+            return false;
+        }
+
+        return $user->hasAnyRole([
+            'Responsable de Turno',
+            'RT',
+            'Subdirector',
+            'Administrador',
+            'Administrativo',
+        ]);
     }
 
     private function operativoRulesForUser($user, ?ConduceLegalidadOperativo $operativo = null): array

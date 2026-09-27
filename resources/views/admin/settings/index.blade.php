@@ -567,6 +567,24 @@
             </div>
         @endif
 
+        {{-- Esta tarjeta debe permanecer como la última opción del panel. --}}
+        @role('Superadmin')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card">
+                    <div class="sv-card__icon bg-danger">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Eventos de Seguridad</div>
+                        <div class="sv-card__desc">Inicios fallidos, accesos denegados, escaneos e IPs reincidentes.</div>
+                        <a href="{{ route('settings.security_events.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Revisar logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endrole
+
     </div>
 @stop
 @section('css')

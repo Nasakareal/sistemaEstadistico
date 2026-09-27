@@ -1,0 +1,105 @@
+<?php
+
+namespace Tests\Unit;
+
+use App\Http\Middleware\LogSecurityEvents;
+use App\Models\SecurityEvent;
+use App\Services\SecurityEventRecorder;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
+use Mockery;
+use Tests\TestCase;
+
+class SecurityLoggingTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    public function test_recorder_groups_repeated_events_and_redacts_sensitive_metadata(): void
+    {
+        $request = Request::create('/login', 'POST', [], [], [], [
+            'REMOTE_ADDR' => '192.0.2.25',
+            'HTTP_USER_AGENT' => 'Security logging test',
+        ]);
+        $recorder = app(SecurityEventRecorder::class);
+
+        $metadata = [
+            'status_code' => 401,
+            'password' => 'never-store-this',
+            'nested' => ['access_token' => 'never-store-this-either'],
+            'safe' => 'visible',
+        ];
+
+        $recorder->record('test_login_failed', 'Prueba', 'high', 'authentication', $request, $metadata);
+        $recorder->record('test_login_failed', 'Prueba', 'high', 'authentication', $request, $metadata);
+
+        $event = SecurityEvent::where('event_code', 'test_login_failed')->firstOrFail();
+
+        $this->assertSame(2, $event->occurrences);
+        $this->assertSame('192.0.2.25', $event->ip_address);
+        $this->assertSame('[REDACTED]', $event->metadata['password']);
+        $this->assertSame('[REDACTED]', $event->metadata['nested']['access_token']);
+        $this->assertSame('visible', $event->metadata['safe']);
+    }
+
+    public function test_middleware_marks_common_scanner_paths_as_high_severity(): void
+    {
+        $recorder = Mockery::mock(SecurityEventRecorder::class);
+        $recorder->shouldReceive('record')
+            ->once()
+            ->withArgs(function ($code, $description, $severity, $category, $request, $metadata) {
+                return $code === 'suspicious_path_probe'
+                    && $severity === 'high'
+                    && $category === 'reconnaissance'
+                    && $metadata['matched_pattern'] === '.env'
+                    && $metadata['status_code'] === 404;
+            });
+
+        $middleware = new LogSecurityEvents($recorder);
+        $request = Request::create('/.env', 'GET');
+        $response = $middleware->handle($request, fn () => response('No encontrado', 404));
+
+        $this->assertSame(404, $response->getStatusCode());
+    }
+
+    public function test_identity_is_masked_before_it_reaches_the_log(): void
+    {
+        $recorder = app(SecurityEventRecorder::class);
+
+        $this->assertSame('us*****@example.com', $recorder->maskedIdentity('usuario@example.com'));
+        $this->assertSame('******7890', $recorder->maskedIdentity('1234567890'));
+    }
+
+    public function test_middleware_classifies_authorization_exceptions_as_access_denied(): void
+    {
+        $recorder = Mockery::mock(SecurityEventRecorder::class);
+        $recorder->shouldReceive('record')
+            ->once()
+            ->withArgs(function ($code, $description, $severity, $category, $request, $metadata) {
+                return $code === 'access_denied'
+                    && $severity === 'high'
+                    && $category === 'authorization'
+                    && $metadata['status_code'] === 403
+                    && $metadata['exception_class'] === AuthorizationException::class;
+            });
+
+        $middleware = new LogSecurityEvents($recorder);
+        $request = Request::create('/admin/settings/security-events', 'GET');
+
+        try {
+            $middleware->handle($request, function () {
+                throw new AuthorizationException('No autorizado');
+            });
+            $this->fail('La excepción debía propagarse.');
+        } catch (AuthorizationException $exception) {
+            $this->assertSame('No autorizado', $exception->getMessage());
+        }
+    }
+
+    public function test_authentication_subscriber_is_registered(): void
+    {
+        $this->assertTrue(Event::hasListeners(Login::class));
+    }
+}

@@ -33,6 +33,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ServiceScheduleController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SecurityEventController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehiculosController;
 use App\Http\Controllers\LesionadoController;
@@ -711,6 +712,9 @@ Route::get('/admin/settings/constancias/preguntas/{path?}', function ($path = nu
 
 Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(function () {
     Route::get('/',[SettingsController::class,'index'])->name('settings.index');
+    Route::get('/security-events', [SecurityEventController::class, 'index'])
+        ->middleware(['auth', 'role:Superadmin'])
+        ->name('settings.security_events.index');
     Route::get('/reconstructor-transito', [SettingsController::class, 'reconstructorTransito'])
         ->name('settings.reconstructor_transito.index');
 

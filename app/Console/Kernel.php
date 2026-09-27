@@ -11,6 +11,11 @@ class Kernel extends ConsoleKernel
     {
         $timezone = (string) config('app.schedule_timezone', config('app.timezone', 'America/Mexico_City'));
 
+        $schedule->command('security:prune-events')
+            ->timezone($timezone)
+            ->dailyAt('03:15')
+            ->withoutOverlapping();
+
         $schedule->command('hechos:notificar-pendientes')
             ->everyFiveMinutes()
             ->withoutOverlapping();

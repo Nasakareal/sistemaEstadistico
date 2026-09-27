@@ -503,6 +503,7 @@ class ConduceLegalidadController extends Controller
 
         $this->assertPuedeAlimentarOperativo($operativo, $user);
 
+        $this->assertCapturaHasFundamento($validated, $operativo);
         $this->assertCapturaHasContent($validated, $request);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
@@ -618,6 +619,7 @@ class ConduceLegalidadController extends Controller
             $this->capturaRules($operativo),
             $this->capturaValidationMessages()
         );
+        $this->assertCapturaHasFundamento($validated, $operativo, $captura);
         $this->assertCapturaHasContent($validated, $request, $captura);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
@@ -2301,6 +2303,32 @@ class ConduceLegalidadController extends Controller
         if ($narrativa === null && count($vehiculos) === 0 && count($personas) === 0 && !$hasFotos) {
             throw ValidationException::withMessages([
                 'narrativa' => 'Captura una narrativa o agrega al menos un vehiculo/persona/foto.',
+            ]);
+        }
+    }
+
+    private function assertCapturaHasFundamento(
+        array $validated,
+        ConduceLegalidadOperativo $operativo,
+        ?ConduceLegalidadCaptura $captura = null
+    ): void
+    {
+        $campoFundamentoPresente = array_key_exists('fundamentos', $validated)
+            || array_key_exists('fundamento_ids', $validated)
+            || array_key_exists('licencia_punto_infraccion_id', $validated);
+
+        if ($campoFundamentoPresente) {
+            $fundamentos = $this->capturaInfracciones($validated, $operativo);
+        } elseif ($captura !== null) {
+            $captura->loadMissing(['fundamentos.infraccion', 'infraccion']);
+            $fundamentos = $this->fundamentosCapturaActuales($captura);
+        } else {
+            $fundamentos = [];
+        }
+
+        if (count($fundamentos) === 0) {
+            throw ValidationException::withMessages([
+                'fundamentos' => 'Selecciona al menos un fundamento legal antes de guardar la alimentación.',
             ]);
         }
     }

@@ -54,6 +54,7 @@ return [
     ],
 
     'whatsapp' => [
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
         'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v25.0'),
         'token' => env('WHATSAPP_ACCESS_TOKEN'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),

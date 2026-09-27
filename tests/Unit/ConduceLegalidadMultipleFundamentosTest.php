@@ -5,8 +5,10 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\ConduceLegalidadController;
 use App\Models\ConduceLegalidadCaptura;
 use App\Models\ConduceLegalidadCapturaFundamento;
+use App\Models\ConduceLegalidadOperativo;
 use App\Models\LicenciaPuntoInfraccion;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -20,7 +22,9 @@ class ConduceLegalidadMultipleFundamentosTest extends TestCase
         );
         $method->setAccessible(true);
 
-        $rules = $method->invoke(new ConduceLegalidadController());
+        $operativo = new ConduceLegalidadOperativo();
+        $operativo->forceFill(['tipo_operativo' => 'alcoholimetria']);
+        $rules = $method->invoke(new ConduceLegalidadController(), $operativo);
 
         $this->assertArrayHasKey('fundamentos', $rules);
         $this->assertArrayHasKey(
@@ -41,6 +45,29 @@ class ConduceLegalidadMultipleFundamentosTest extends TestCase
             $rules['fundamento_ids.*']
         );
         $this->assertContains('max:1', $rules['vehiculos']);
+    }
+
+    public function test_capture_requires_at_least_one_legal_ground(): void
+    {
+        $method = new ReflectionMethod(
+            ConduceLegalidadController::class,
+            'assertCapturaHasFundamento'
+        );
+        $method->setAccessible(true);
+
+        try {
+            $method->invoke(
+                new ConduceLegalidadController(),
+                ['fundamentos' => []],
+                new ConduceLegalidadOperativo()
+            );
+            $this->fail('La alimentación sin fundamento debió rechazarse.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                'Selecciona al menos un fundamento legal antes de guardar la alimentación.',
+                $e->errors()['fundamentos'][0] ?? null
+            );
+        }
     }
 
     public function test_iph_includes_every_capture_legal_ground(): void

@@ -67,11 +67,44 @@ class WhatsAppWebhookController extends Controller
 
     public function handle(Request $request)
     {
+        $appSecret = trim((string) config('services.whatsapp.app_secret', ''));
+        $signature = trim((string) $request->header('X-Hub-Signature-256', ''));
+        $rawBody = $request->getContent();
+
+        if ($appSecret === '') {
+            Log::critical('WA webhook rechazado: WHATSAPP_APP_SECRET no está configurado');
+
+            return response()->json([
+                'ok' => false,
+            ], 503);
+        }
+
+        $expectedSignature = 'sha256=' . hash_hmac(
+            'sha256',
+            $rawBody,
+            $appSecret
+        );
+
+        if (
+            $signature === ''
+            || !hash_equals($expectedSignature, $signature)
+        ) {
+            Log::warning('WA webhook rechazado por firma inválida', [
+                'has_signature' => $signature !== '',
+            ]);
+
+            return response()->json([
+                'ok' => false,
+            ], 403);
+        }
+
         $payload = $request->all();
 
         Log::info('WA Cloud webhook recibido', [
             'object' => $payload['object'] ?? null,
-            'entries_count' => isset($payload['entry']) && is_array($payload['entry']) ? count($payload['entry']) : 0,
+            'entries_count' => isset($payload['entry']) && is_array($payload['entry'])
+                ? count($payload['entry'])
+                : 0,
         ]);
 
         $messages = $this->inboundService->extractMessages($payload);

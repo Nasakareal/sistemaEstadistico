@@ -98,6 +98,49 @@ class SecurityLoggingTest extends TestCase
         }
     }
 
+    public function test_authenticated_rate_limit_is_operational_and_records_safe_context(): void
+    {
+        $recorder = Mockery::mock(SecurityEventRecorder::class);
+        $recorder->shouldReceive('record')
+            ->once()
+            ->withArgs(function ($code, $description, $severity, $category, $request, $metadata) {
+                return $code === 'authenticated_rate_limit_reached'
+                    && $severity === 'warning'
+                    && $category === 'operational'
+                    && $metadata['authenticated'] === true
+                    && $metadata['intent'] === 'Actualizar la sesión, el perfil y los permisos de la aplicación.'
+                    && $metadata['rate_limit']['limit'] === '60'
+                    && $metadata['rate_limit']['retry_after_seconds'] === '12';
+            });
+
+        $middleware = new LogSecurityEvents($recorder);
+        $request = Request::create('/api/me', 'GET');
+        $request->setUserResolver(fn () => new class {
+            public function getAuthIdentifier()
+            {
+                return 11;
+            }
+        });
+
+        $response = response('Límite excedido', 429, [
+            'X-RateLimit-Limit' => '60',
+            'Retry-After' => '12',
+        ]);
+
+        $middleware->handle($request, fn () => $response);
+    }
+
+    public function test_historical_events_can_explain_probable_endpoint_intent(): void
+    {
+        $profileCheck = new SecurityEvent(['method' => 'GET', 'path' => '/api/me']);
+        $conversation = new SecurityEvent(['method' => 'GET', 'path' => '/api/comunicaciones/conversacion/3']);
+        $location = new SecurityEvent(['method' => 'POST', 'path' => '/api/location']);
+
+        $this->assertStringContainsString('sesión', $profileCheck->intentLabel());
+        $this->assertStringContainsString('#3', $conversation->intentLabel());
+        $this->assertStringContainsString('ubicación actual', $location->intentLabel());
+    }
+
     public function test_authentication_subscriber_is_registered(): void
     {
         $this->assertTrue(Event::hasListeners(Login::class));

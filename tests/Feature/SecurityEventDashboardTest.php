@@ -52,7 +52,8 @@ class SecurityEventDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('Eventos de Seguridad')
             ->assertSee('192.0.2.80')
-            ->assertSee('login_failed');
+            ->assertSee('login_failed')
+            ->assertSee('Intención probable');
     }
 
     public function test_non_superadmin_cannot_open_security_dashboard(): void

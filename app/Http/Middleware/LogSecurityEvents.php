@@ -27,7 +27,8 @@ class LogSecurityEvents
         } catch (Throwable $exception) {
             $status = $this->statusForException($exception);
             $suspiciousPattern = $this->suspiciousPattern($request);
-            $event = $status !== null ? $this->eventForStatus($status) : null;
+            $event = $status !== null ? $this->eventForStatus($status, $request) : null;
+            $context = $this->requestContext($request, $exception);
 
             if ($suspiciousPattern !== null) {
                 $this->recorder->record(
@@ -40,7 +41,7 @@ class LogSecurityEvents
                         'status_code' => $status,
                         'matched_pattern' => $suspiciousPattern,
                         'exception_class' => get_class($exception),
-                    ]
+                    ] + $context
                 );
             } elseif ($event !== null) {
                 $this->recorder->record(
@@ -49,7 +50,7 @@ class LogSecurityEvents
                     $event['severity'],
                     $event['category'],
                     $request,
-                    ['status_code' => $status, 'exception_class' => get_class($exception)]
+                    ['status_code' => $status, 'exception_class' => get_class($exception)] + $context
                 );
             } else {
                 $this->recorder->record(
@@ -58,7 +59,7 @@ class LogSecurityEvents
                     'critical',
                     'application',
                     $request,
-                    ['exception_class' => get_class($exception)]
+                    ['exception_class' => get_class($exception)] + $context
                 );
             }
 
@@ -81,7 +82,8 @@ class LogSecurityEvents
             return $response;
         }
 
-        $event = $this->eventForStatus($status);
+        $event = $this->eventForStatus($status, $request);
+        $context = $this->requestContext($request, $response);
 
         if ($event !== null) {
             $this->recorder->record(
@@ -90,14 +92,14 @@ class LogSecurityEvents
                 $event['severity'],
                 $event['category'],
                 $request,
-                ['status_code' => $status]
+                ['status_code' => $status] + $context
             );
         }
 
         return $response;
     }
 
-    private function eventForStatus(int $status): ?array
+    private function eventForStatus(int $status, Request $request): ?array
     {
         $events = [
             401 => [
@@ -118,13 +120,25 @@ class LogSecurityEvents
                 'severity' => 'high',
                 'category' => 'request_integrity',
             ],
-            429 => [
+        ];
+
+        if ($status === 429) {
+            if ($request->user()) {
+                return [
+                    'code' => 'authenticated_rate_limit_reached',
+                    'description' => 'Un usuario autenticado alcanzó el límite compartido de solicitudes API.',
+                    'severity' => 'warning',
+                    'category' => 'operational',
+                ];
+            }
+
+            return [
                 'code' => 'rate_limit_exceeded',
-                'description' => 'La IP excedió el límite de solicitudes permitido.',
+                'description' => 'Una solicitud no autenticada excedió el límite permitido.',
                 'severity' => 'high',
                 'category' => 'rate_limit',
-            ],
-        ];
+            ];
+        }
 
         if (isset($events[$status])) {
             return $events[$status];
@@ -140,6 +154,87 @@ class LogSecurityEvents
         }
 
         return null;
+    }
+
+    private function requestContext(Request $request, $source = null): array
+    {
+        $route = $request->route();
+        $headers = $source instanceof HttpExceptionInterface
+            ? $source->getHeaders()
+            : (is_object($source) && isset($source->headers) ? $source->headers->all() : []);
+
+        $header = function (string $name) use ($headers) {
+            foreach ($headers as $key => $value) {
+                if (strtolower((string) $key) === strtolower($name)) {
+                    return is_array($value) ? ($value[0] ?? null) : $value;
+                }
+            }
+
+            return null;
+        };
+
+        $referer = trim((string) $request->headers->get('referer', ''));
+        $refererPath = $referer !== '' ? parse_url($referer, PHP_URL_PATH) : null;
+        $parameters = [];
+
+        if (is_object($route)) {
+            foreach ($route->parameters() as $key => $value) {
+                if (is_numeric($value)) {
+                    $parameters[$key] = (string) $value;
+                } elseif ($value !== null) {
+                    $parameters[$key] = '[presente]';
+                }
+            }
+        }
+
+        return [
+            'authenticated' => (bool) $request->user(),
+            'intent' => $this->intentFor($request),
+            'controller_action' => is_object($route) ? $route->getActionName() : null,
+            'route_parameters' => $parameters,
+            'input_fields' => array_values(array_slice(array_keys($request->all()), 0, 40)),
+            'query_fields' => array_values(array_slice(array_keys($request->query()), 0, 40)),
+            'referer_path' => is_string($refererPath) ? $refererPath : null,
+            'ajax' => $request->ajax(),
+            'content_type' => $request->getContentType(),
+            'rate_limit' => [
+                'limit' => $header('X-RateLimit-Limit'),
+                'remaining' => $header('X-RateLimit-Remaining'),
+                'retry_after_seconds' => $header('Retry-After'),
+            ],
+        ];
+    }
+
+    private function intentFor(Request $request): string
+    {
+        $path = '/' . ltrim((string) $request->path(), '/');
+        $method = strtoupper((string) $request->method());
+
+        if ($method === 'GET' && $path === '/api/me') {
+            return 'Actualizar la sesión, el perfil y los permisos de la aplicación.';
+        }
+
+        if ($method === 'GET' && preg_match('#^/api/comunicaciones/conversacion/(\\d+)$#', $path, $matches)) {
+            return 'Consultar o actualizar la conversación con el usuario #' . $matches[1] . '.';
+        }
+
+        if ($method === 'POST' && $path === '/api/location') {
+            return 'Enviar la ubicación actual del dispositivo.';
+        }
+
+        if ($method === 'POST' && $path === '/api/location/response-route') {
+            return 'Sincronizar puntos de ruta o ubicación acumulados por el dispositivo.';
+        }
+
+        $verbs = [
+            'GET' => 'Consultar un recurso de la aplicación.',
+            'POST' => 'Enviar o crear información en la aplicación.',
+            'PUT' => 'Actualizar información existente.',
+            'PATCH' => 'Actualizar parcialmente información existente.',
+            'DELETE' => 'Solicitar la eliminación de un recurso.',
+        ];
+
+        return $verbs[$method] ?? 'Realizar una operación en la aplicación.';
     }
 
     private function statusForException(Throwable $exception): ?int

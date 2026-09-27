@@ -33,7 +33,8 @@
     <div class="alert alert-info">
         <i class="fas fa-info-circle mr-1"></i>
         La IP corresponde a <code>request()-&gt;ip()</code>. Si el sistema está detrás de Cloudflare, un balanceador o proxy,
-        primero deben configurarse correctamente los proxies confiables. No bloquees una IP sólo por volumen: puede ser una oficina, VPN o red móvil compartida.
+        primero deben configurarse correctamente los proxies confiables. Una intención mostrada es una inferencia por la ruta solicitada,
+        no una prueba de lo que pensaba la persona. No bloquees una IP sólo por volumen: puede ser una oficina, VPN o red móvil compartida.
     </div>
 
     <div class="row">
@@ -174,6 +175,7 @@
                         <td>
                             <code>{{ $event->event_code }}</code>
                             <div class="small text-muted">{{ $event->description }}</div>
+                            <div class="small mt-1"><i class="fas fa-magnifying-glass mr-1"></i>{{ $event->assessmentLabel() }}</div>
                         </td>
                         <td>
                             <a href="{{ route('settings.security_events.index', ['ip' => $event->ip_address]) }}"><code>{{ $event->ip_address ?: 'sin IP' }}</code></a>
@@ -190,6 +192,7 @@
                             @if($event->status_code)<span class="badge badge-light">HTTP {{ $event->status_code }}</span>@endif
                             <div class="security-path" title="{{ $event->path }}">{{ $event->path ?: '—' }}</div>
                             @if($event->route_name)<div class="small text-muted">{{ $event->route_name }}</div>@endif
+                            <div class="small text-info mt-1"><strong>Intención probable:</strong> {{ $event->intentLabel() }}</div>
                         </td>
                         <td><span class="badge badge-pill badge-primary">{{ number_format($event->occurrences) }}</span></td>
                         <td>

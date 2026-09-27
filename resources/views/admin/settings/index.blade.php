@@ -567,7 +567,7 @@
             </div>
         @endif
 
-        {{-- Esta tarjeta debe permanecer como la última opción del panel. --}}
+        {{-- EVENTOS DE SEGURIDAD --}}
         @role('Superadmin')
             <div class="col-md-3 col-sm-6 col-12">
                 <div class="sv-card">
@@ -579,6 +579,24 @@
                         <div class="sv-card__desc">Inicios fallidos, accesos denegados, escaneos e IPs reincidentes.</div>
                         <a href="{{ route('settings.security_events.index') }}" class="btn sv-btn">
                             <i class="fas fa-arrow-right"></i> Revisar logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endrole
+
+        {{-- Esta tarjeta debe permanecer como la última opción del panel. --}}
+        @role('Superadmin')
+            <div class="col-md-3 col-sm-6 col-12">
+                <div class="sv-card sv-card--insurers">
+                    <div class="sv-card__icon sv-card__icon--insurers">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div class="sv-card__body">
+                        <div class="sv-card__title">Inteligencia para Aseguradoras</div>
+                        <div class="sv-card__desc">Vista comercial de riesgo, siniestros y eficiencia de grúas.</div>
+                        <a href="{{ route('settings.aseguradoras_preview.index') }}" class="btn sv-btn">
+                            <i class="fas fa-arrow-right"></i> Ver demostración
                         </a>
                     </div>
                 </div>
@@ -660,6 +678,15 @@
         transform: translateY(-2px);
         border-color: rgba(45,168,255,.28);
         box-shadow: 0 18px 55px rgba(0,0,0,.30);
+    }
+    .sv-card--insurers{
+        border-color: rgba(47,229,165,.30);
+        background:
+            radial-gradient(220px 100px at 0 0, rgba(47,229,165,.16), transparent 70%),
+            linear-gradient(180deg, var(--sv-card), var(--sv-card2));
+    }
+    .sv-card__icon--insurers{
+        background: linear-gradient(145deg, #20c997, #146b88);
     }
 
     .sv-card__icon{

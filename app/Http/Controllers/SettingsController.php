@@ -22,4 +22,14 @@ class SettingsController extends Controller
     {
         return view('admin.settings.reconstructor_transito.index');
     }
+
+    /**
+     * Muestra el prototipo comercial anonimizado para aseguradoras.
+     */
+    public function aseguradorasPreview(Request $request)
+    {
+        abort_unless($request->user() && $request->user()->hasRole('Superadmin'), 403);
+
+        return view('admin.settings.aseguradoras_preview.index');
+    }
 }

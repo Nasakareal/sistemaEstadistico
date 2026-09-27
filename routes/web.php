@@ -715,6 +715,9 @@ Route::prefix('admin/settings')->middleware('can:ver configuraciones')->group(fu
     Route::get('/security-events', [SecurityEventController::class, 'index'])
         ->middleware(['auth', 'role:Superadmin'])
         ->name('settings.security_events.index');
+    Route::get('/aseguradoras-preview', [SettingsController::class, 'aseguradorasPreview'])
+        ->middleware(['auth', 'role:Superadmin'])
+        ->name('settings.aseguradoras_preview.index');
     Route::get('/reconstructor-transito', [SettingsController::class, 'reconstructorTransito'])
         ->name('settings.reconstructor_transito.index');
 

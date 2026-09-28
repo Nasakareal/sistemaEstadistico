@@ -130,6 +130,30 @@ class SecurityLoggingTest extends TestCase
         $middleware->handle($request, fn () => $response);
     }
 
+    public function test_known_legacy_client_rejections_do_not_pollute_security_events(): void
+    {
+        $recorder = Mockery::mock(SecurityEventRecorder::class);
+        $recorder->shouldNotReceive('record');
+        $middleware = new LogSecurityEvents($recorder);
+
+        $cases = [
+            ['GET', '/api/app/version', 401],
+            ['GET', '/api/agente-upec-home/filtros', 403],
+            ['GET', '/api/estadisticas-actividades/catalogos/unidades', 403],
+            ['GET', '/api/estadisticas-actividades/catalogos/delegaciones', 403],
+            ['POST', '/api/whatsapp/webhook', 503],
+        ];
+
+        foreach ($cases as [$method, $path, $status]) {
+            $request = Request::create($path, $method);
+            $response = response('', $status);
+
+            $handled = $middleware->handle($request, fn () => $response);
+
+            $this->assertSame($status, $handled->getStatusCode());
+        }
+    }
+
     public function test_historical_events_can_explain_probable_endpoint_intent(): void
     {
         $profileCheck = new SecurityEvent(['method' => 'GET', 'path' => '/api/me']);

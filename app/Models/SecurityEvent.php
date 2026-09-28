@@ -43,6 +43,25 @@ class SecurityEvent extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function scopeWithoutKnownOperationalNoise($query)
+    {
+        return $query->whereRaw(
+            "NOT (
+                (COALESCE(method, '') = ? AND COALESCE(status_code, 0) = ? AND COALESCE(path, '') = ?)
+                OR (COALESCE(method, '') = ? AND COALESCE(status_code, 0) = ? AND COALESCE(path, '') IN (?, ?, ?))
+                OR (COALESCE(method, '') = ? AND COALESCE(status_code, 0) = ? AND COALESCE(path, '') = ?)
+            )",
+            [
+                'GET', 401, '/api/app/version',
+                'GET', 403,
+                '/api/agente-upec-home/filtros',
+                '/api/estadisticas-actividades/catalogos/unidades',
+                '/api/estadisticas-actividades/catalogos/delegaciones',
+                'POST', 503, '/api/whatsapp/webhook',
+            ]
+        );
+    }
+
     public function intentLabel(): string
     {
         if (!empty($this->metadata['intent'])) {

@@ -55,6 +55,12 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
         );
     }
 
+    public function test_only_superadmin_can_reactivate_operatives(): void
+    {
+        $this->assertTrue($this->canReactivate($this->user('Superadmin')));
+        $this->assertFalse($this->canReactivate($this->user('Administrador')));
+    }
+
     public function test_low_vialidades_role_cannot_manage_other_users_captures(): void
     {
         $user = $this->user('Agente Vial', 5, null, 10);
@@ -241,6 +247,14 @@ class ConduceLegalidadOperativoAccessTest extends TestCase
     private function canCreate($user): bool
     {
         $method = new ReflectionMethod(ConduceLegalidadController::class, 'canCreateOperativo');
+        $method->setAccessible(true);
+
+        return $method->invoke(new ConduceLegalidadController(), $user);
+    }
+
+    private function canReactivate($user): bool
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'canReactivateOperativo');
         $method->setAccessible(true);
 
         return $method->invoke(new ConduceLegalidadController(), $user);

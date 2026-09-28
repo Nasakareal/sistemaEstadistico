@@ -400,6 +400,11 @@ class ConduceLegalidadController extends Controller
 
         $validated = $request->validate($this->operativoRulesForUser($user, $operativo));
         $oldEstado = $operativo->estado;
+        $requestedEstado = $validated['estado'] ?? $oldEstado;
+        if ($oldEstado !== 'activo' && $requestedEstado === 'activo') {
+            abort_unless($this->canReactivateOperativo($user), 403);
+        }
+
         $scope = $this->resolveOperativoScope($user, $validated, $operativo);
         $tipoOperativo = array_key_exists('tipo_operativo', $validated)
             ? $this->tipoOperativo(
@@ -445,6 +450,11 @@ class ConduceLegalidadController extends Controller
         if ($oldEstado === 'activo' && in_array($operativo->estado, ['cerrado', 'cancelado'], true)) {
             $operativo->closed_by = $user->id;
             $operativo->hora_cierre = $operativo->hora_cierre ?: now()->format('H:i:s');
+        }
+
+        if ($oldEstado !== 'activo' && $operativo->estado === 'activo') {
+            $operativo->closed_by = null;
+            $operativo->hora_cierre = null;
         }
 
         $operativo->save();
@@ -3737,6 +3747,11 @@ class ConduceLegalidadController extends Controller
                 ? ((int) ($validated['delegacion_id'] ?? 0) ?: null)
                 : null,
         ];
+    }
+
+    private function canReactivateOperativo($user): bool
+    {
+        return $user && $user->hasRole('Superadmin');
     }
 
     private function canManage($user): bool

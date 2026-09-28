@@ -13,6 +13,7 @@ class PatrullaServicioAuthorizationTest extends TestCase
             'api.patrullas.mi_servicio',
             'api.patrullas.mi_bitacora',
             'api.patrullas.mi_historial',
+            'api.patrullas.bitacora_diaria',
             'api.patrullas.recibir',
             'api.patrullas.entregar',
             'api.patrullas.mi_servicio.update',

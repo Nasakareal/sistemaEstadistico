@@ -101,6 +101,10 @@ class LogSecurityEvents
 
     private function eventForStatus(int $status, Request $request): ?array
     {
+        if ($this->isExpectedClientRejection($request, $status)) {
+            return null;
+        }
+
         $events = [
             401 => [
                 'code' => 'authentication_required',
@@ -154,6 +158,28 @@ class LogSecurityEvents
         }
 
         return null;
+    }
+
+    private function isExpectedClientRejection(Request $request, int $status): bool
+    {
+        $method = strtoupper((string) $request->method());
+        $path = '/' . ltrim((string) $request->path(), '/');
+
+        if ($method === 'GET' && $status === 401 && $path === '/api/app/version') {
+            return true;
+        }
+
+        if ($method === 'GET' && $status === 403) {
+            return in_array($path, [
+                '/api/agente-upec-home/filtros',
+                '/api/estadisticas-actividades/catalogos/unidades',
+                '/api/estadisticas-actividades/catalogos/delegaciones',
+            ], true);
+        }
+
+        return $method === 'POST'
+            && $status === 503
+            && $path === '/api/whatsapp/webhook';
     }
 
     private function requestContext(Request $request, $source = null): array

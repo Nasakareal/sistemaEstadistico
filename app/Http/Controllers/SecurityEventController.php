@@ -24,7 +24,7 @@ class SecurityEventController extends Controller
             'search' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $query = SecurityEvent::query()->with('user:id,name,email');
+        $query = SecurityEvent::withoutKnownOperationalNoise()->with('user:id,name,email');
         $this->applyFilters($query, $filters);
 
         $events = $query
@@ -33,7 +33,8 @@ class SecurityEventController extends Controller
             ->appends($request->query());
 
         $since = Carbon::now()->subDay();
-        $summaryBase = SecurityEvent::query()->where('last_seen_at', '>=', $since);
+        $summaryBase = SecurityEvent::withoutKnownOperationalNoise()
+            ->where('last_seen_at', '>=', $since);
 
         $summary = [
             'total' => (int) (clone $summaryBase)->sum('occurrences'),
@@ -42,7 +43,7 @@ class SecurityEventController extends Controller
             'ips' => (int) (clone $summaryBase)->whereNotNull('ip_address')->distinct()->count('ip_address'),
         ];
 
-        $topIps = SecurityEvent::query()
+        $topIps = SecurityEvent::withoutKnownOperationalNoise()
             ->where('last_seen_at', '>=', $since)
             ->whereNotNull('ip_address')
             ->select([

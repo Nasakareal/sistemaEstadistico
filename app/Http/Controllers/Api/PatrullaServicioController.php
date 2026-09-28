@@ -193,6 +193,100 @@ class PatrullaServicioController extends Controller
         return response()->json($bitacoras, 200);
     }
 
+    public function bitacoraDiaria(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->hasRole('Perito')) {
+            return response()->json([
+                'message' => 'La bitácora general está reservada para supervisión.',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->query(), [
+            'fecha' => 'nullable|date_format:Y-m-d',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse(
+                $validator->errors()->toArray()
+            );
+        }
+
+        $fecha = $request->query('fecha')
+            ?: now('America/Mexico_City')->toDateString();
+
+        $query = BitacoraServicioPatrulla::query()
+            ->whereDate('fecha', $fecha)
+            ->whereHas('patrulla', function ($patrullas) use ($user) {
+                $this->aplicarVisibilidadPatrullas($patrullas, $user);
+            })
+            ->with([
+                'patrulla.unidad',
+                'patrulla.turno',
+                'turno',
+                'capturadoPor',
+            ])
+            ->orderBy('hora_inicio')
+            ->orderBy('id');
+
+        $bitacoras = $query->get()->map(function (
+            BitacoraServicioPatrulla $bitacora
+        ) {
+            [$inicio, $fin] = $this->rangoBitacora($bitacora);
+            $actividades = $this->actividadesDeBitacora(
+                $bitacora,
+                $inicio,
+                $fin
+            );
+            $hechos = $this->hechosDeBitacora($bitacora, $inicio, $fin);
+            $entregaRecepcion = $this->entregaRecepcionDeBitacora($bitacora);
+            $entregaFinal = $this->entregaFinalDeBitacora(
+                $bitacora,
+                $inicio,
+                $fin
+            );
+
+            return [
+                'patrulla' => $this->patrullaPayload($bitacora->patrulla),
+                'bitacora' => $this->bitacoraPayload($bitacora),
+                'entrega_recepcion' => $entregaRecepcion
+                    ? $this->entregaRecepcionPayload($entregaRecepcion)
+                    : null,
+                'entrega_final' => $entregaFinal
+                    ? $this->entregaRecepcionPayload($entregaFinal)
+                    : null,
+                'periodo' => [
+                    'inicio' => $inicio->toIso8601String(),
+                    'fin' => $fin->toIso8601String(),
+                ],
+                'totales' => [
+                    'servicios' => $actividades->count() + $hechos->count(),
+                    'actividades' => $actividades->count(),
+                    'hechos' => $hechos->count(),
+                ],
+                'actividades' => $actividades,
+                'hechos' => $hechos,
+            ];
+        })->values();
+
+        return response()->json([
+            'data' => $bitacoras,
+            'meta' => [
+                'fecha' => $fecha,
+                'total_bitacoras' => $bitacoras->count(),
+                'abiertas' => $bitacoras
+                    ->where('bitacora.estatus', 'abierta')
+                    ->count(),
+                'cerradas' => $bitacoras
+                    ->where('bitacora.estatus', 'cerrada')
+                    ->count(),
+                'total_servicios' => $bitacoras
+                    ->sum('totales.servicios'),
+            ],
+        ], 200);
+    }
+
     public function recibir(Request $request, Patrulla $patrulla)
     {
         $user = $request->user();
@@ -1021,6 +1115,38 @@ class PatrullaServicioController extends Controller
         }
 
         return [$inicio, $fin];
+    }
+
+    private function entregaRecepcionDeBitacora(
+        BitacoraServicioPatrulla $bitacora
+    ): ?EntregaRecepcionPatrulla {
+        $fecha = $bitacora->fecha instanceof \DateTimeInterface
+            ? $bitacora->fecha->format('Y-m-d')
+            : Carbon::parse($bitacora->fecha)->format('Y-m-d');
+
+        return EntregaRecepcionPatrulla::query()
+            ->where('patrulla_id', $bitacora->patrulla_id)
+            ->where('recibe_user_id', $bitacora->capturado_por_user_id)
+            ->whereDate('fecha', $fecha)
+            ->where('hora_real', '<=', $bitacora->hora_inicio ?: '23:59:59')
+            ->orderByDesc('hora_real')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function entregaFinalDeBitacora(
+        BitacoraServicioPatrulla $bitacora,
+        Carbon $inicio,
+        Carbon $fin
+    ): ?EntregaRecepcionPatrulla {
+        return EntregaRecepcionPatrulla::query()
+            ->where('patrulla_id', $bitacora->patrulla_id)
+            ->where('entrega_user_id', $bitacora->capturado_por_user_id)
+            ->whereNotNull('entrega_confirmada_at')
+            ->whereBetween('entrega_confirmada_at', [$inicio, $fin])
+            ->orderBy('entrega_confirmada_at')
+            ->orderBy('id')
+            ->first();
     }
 
     private function esPrimeraBitacoraDelUsuarioEnFecha(

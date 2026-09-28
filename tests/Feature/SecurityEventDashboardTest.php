@@ -56,6 +56,40 @@ class SecurityEventDashboardTest extends TestCase
             ->assertSee('Intención probable');
     }
 
+    public function test_dashboard_hides_known_operational_noise_without_deleting_it(): void
+    {
+        $user = $this->userWithSettingsPermission();
+        $role = Role::firstOrCreate(['name' => 'Superadmin', 'guard_name' => 'web']);
+        $user->assignRole($role);
+
+        SecurityEvent::create([
+            'occurred_at' => now(),
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+            'bucket_at' => now()->startOfMinute(),
+            'occurrences' => 25,
+            'severity' => 'high',
+            'category' => 'authorization',
+            'event_code' => 'access_denied',
+            'description' => 'Ruido operativo heredado',
+            'ip_address' => '192.0.2.199',
+            'method' => 'GET',
+            'path' => '/api/agente-upec-home/filtros',
+            'status_code' => 403,
+            'fingerprint' => hash('sha256', 'legacy-noise-dashboard-test'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin/settings/security-events')
+            ->assertOk()
+            ->assertDontSee('Ruido operativo heredado')
+            ->assertDontSee('192.0.2.199');
+
+        $this->assertDatabaseHas('security_events', [
+            'fingerprint' => hash('sha256', 'legacy-noise-dashboard-test'),
+        ]);
+    }
+
     public function test_non_superadmin_cannot_open_security_dashboard(): void
     {
         $user = $this->userWithSettingsPermission();

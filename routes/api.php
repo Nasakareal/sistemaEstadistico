@@ -94,6 +94,9 @@ Route::prefix('patrullas')->middleware(['auth:sanctum', 'can:ver patrullas'])->g
     Route::get('/mi-historial', [PatrullaServicioController::class, 'miHistorial'])
         ->name('api.patrullas.mi_historial');
 
+    Route::get('/bitacora-diaria', [PatrullaServicioController::class, 'bitacoraDiaria'])
+        ->name('api.patrullas.bitacora_diaria');
+
     Route::post('/{patrulla}/recibir', [PatrullaServicioController::class, 'recibir'])
         ->whereNumber('patrulla')
         ->name('api.patrullas.recibir');
@@ -390,6 +393,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('actividades')->group(function () {
+        Route::get('/catalogos/unidades', [EstadisticasActividadesController::class, 'catalogoUnidades'])->middleware('can:ver actividades')->name('api.actividades.catalogos.unidades');
+        Route::get('/catalogos/delegaciones', [EstadisticasActividadesController::class, 'catalogoDelegaciones'])->middleware('can:ver actividades')->name('api.actividades.catalogos.delegaciones');
         Route::get('/categorias', [ActividadController::class, 'categorias'])->name('api.actividades.categorias');
         Route::get('/subcategorias/{categoria}', [ActividadController::class, 'subcategorias'])->whereNumber('categoria')->name('api.actividades.subcategorias');
         Route::get('/informe/diario', [ActividadController::class, 'informeDiario'])->name('api.actividades.informe.diario');

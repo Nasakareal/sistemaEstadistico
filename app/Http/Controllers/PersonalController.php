@@ -86,7 +86,7 @@ class PersonalController extends Controller
             ->get();
     }
 
-    private function patrullasDisponiblesParaActor(?int $unidadId = null, ?int $personalIdExcluir = null)
+    private function patrullasDisponiblesParaActor(?int $unidadId = null)
     {
         return Patrulla::query()
             ->where('activa', 1)
@@ -97,18 +97,6 @@ class PersonalController extends Controller
             })
             ->when(!$this->actorTieneVisibilidadGlobal(), function ($q) {
                 $q->where('unidad_id', $this->unidadIdActor());
-            })
-            ->when($personalIdExcluir !== null, function ($q) use ($personalIdExcluir) {
-                $q->whereDoesntHave('personal', function ($subQ) use ($personalIdExcluir) {
-                    $subQ->whereNull('deleted_at')
-                        ->where('estatus', 'ACTIVO')
-                        ->where('id', '!=', $personalIdExcluir);
-                });
-            }, function ($q) {
-                $q->whereDoesntHave('personal', function ($subQ) {
-                    $subQ->whereNull('deleted_at')
-                        ->where('estatus', 'ACTIVO');
-                });
             })
             ->orderBy('numero_economico')
             ->get();
@@ -423,18 +411,6 @@ class PersonalController extends Controller
                         ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la unidad permitida o no está activa.'])
                         ->withInput();
                 }
-
-                $ocupada = Personal::query()
-                    ->whereNull('deleted_at')
-                    ->where('estatus', 'ACTIVO')
-                    ->where('patrulla_id', $validated['patrulla_id'])
-                    ->exists();
-
-                if ($ocupada) {
-                    return redirect()->back()
-                        ->withErrors(['patrulla_id' => 'Esa patrulla ya está asignada a otro elemento ACTIVO.'])
-                        ->withInput();
-                }
             }
 
             if (!empty($validated['user_id'])) {
@@ -560,8 +536,7 @@ class PersonalController extends Controller
         $unidades = $this->unidadesDisponiblesParaActor();
         $turnos = $this->turnosDisponiblesParaActor();
         $patrullas = $this->patrullasDisponiblesParaActor(
-            $this->actorEsSuperadmin() ? $personal->unidad_id : $this->unidadIdActor(),
-            $personal->id
+            $this->actorEsSuperadmin() ? $personal->unidad_id : $this->unidadIdActor()
         );
 
         $usuariosDisponibles = $this->usuariosDisponiblesParaActor($personal->user_id, (int) $personal->unidad_id);
@@ -650,19 +625,6 @@ class PersonalController extends Controller
                 if (!$this->patrullaPerteneceAUnidad($validated['patrulla_id'], $validated['unidad_id'])) {
                     return redirect()->back()
                         ->withErrors(['patrulla_id' => 'La patrulla seleccionada no pertenece a la unidad permitida o no está activa.'])
-                        ->withInput();
-                }
-
-                $ocupada = Personal::query()
-                    ->whereNull('deleted_at')
-                    ->where('estatus', 'ACTIVO')
-                    ->where('id', '!=', $personal->id)
-                    ->where('patrulla_id', $validated['patrulla_id'])
-                    ->exists();
-
-                if ($ocupada) {
-                    return redirect()->back()
-                        ->withErrors(['patrulla_id' => 'Esa patrulla ya está asignada a otro elemento ACTIVO.'])
                         ->withInput();
                 }
             }

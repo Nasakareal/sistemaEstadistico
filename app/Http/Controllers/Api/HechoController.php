@@ -348,6 +348,7 @@ class HechoController extends Controller
             return $this->existingCreateResponse($user, $hechoExistente);
         }
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user);
+        $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($user);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($user);
@@ -410,10 +411,10 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $this->messages());
 
-        $validator->after(function ($v) use ($request, $usaReglasFlexibles, $puedeUsarDictamenes, $puedeGestionarTotalesEsperados) {
+        $validator->after(function ($v) use ($request, $requiereFotoSituacion, $puedeUsarDictamenes, $puedeGestionarTotalesEsperados) {
             $situacion = strtoupper($this->removeAccents((string) $request->input('situacion')));
 
-            if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
+            if ($requiereFotoSituacion && in_array($situacion, ['RESUELTO', 'TURNADO'], true) && !$request->hasFile('foto_situacion')) {
                 $v->errors()->add('foto_situacion', 'Para marcar el hecho como RESUELTO o TURNADO debes subir la foto de situación.');
             }
 
@@ -655,6 +656,7 @@ class HechoController extends Controller
         $this->normalizeCatalogFields($request);
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($user, $hecho);
+        $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($user, $hecho);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($user);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($user, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($user, $hecho);
@@ -738,14 +740,14 @@ class HechoController extends Controller
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
-        $validator->after(function ($v) use ($request, $hecho, $usaReglasFlexibles, $puedeUsarDictamenes, $puedeGestionarTotalesEsperados) {
+        $validator->after(function ($v) use ($request, $hecho, $requiereFotoSituacion, $puedeUsarDictamenes, $puedeGestionarTotalesEsperados) {
             $situacionNueva = $request->has('situacion')
                 ? strtoupper($this->removeAccents((string) $request->input('situacion')))
                 : null;
 
             $situacionEfectiva = $situacionNueva ?? strtoupper((string) ($hecho->situacion ?? ''));
 
-            if (!$usaReglasFlexibles && in_array($situacionEfectiva, ['RESUELTO', 'TURNADO'], true)) {
+            if ($requiereFotoSituacion && in_array($situacionEfectiva, ['RESUELTO', 'TURNADO'], true)) {
                 $yaTieneFoto = !empty($hecho->foto_situacion);
                 $vieneArchivo = $request->hasFile('foto_situacion');
 

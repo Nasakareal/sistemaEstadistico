@@ -129,6 +129,15 @@ class HechoAccess
         return $unidadId > 0 ? $unidadId : self::UNIDAD_SINIESTROS_ID;
     }
 
+    public static function requiresSituacionPhoto($usuario, ?Hechos $hecho = null): bool
+    {
+        $unidadId = $hecho
+            ? self::effectiveUnidadIdForHecho($hecho)
+            : self::effectiveUnidadId($usuario);
+
+        return $unidadId === self::UNIDAD_SINIESTROS_ID;
+    }
+
     public static function filterPermissionsForUser($permissions, $usuario)
     {
         $permissions = collect($permissions)->values();

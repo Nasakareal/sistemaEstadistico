@@ -594,6 +594,7 @@
 
             const situacionSelect = document.getElementById('situacion');
             const puedeUsarDictamenes = @json((bool)($puedeUsarDictamenes ?? false));
+            const requiereFotoSituacion = @json((bool)($requiereFotoSituacion ?? true));
 
             const dictamenGroup = document.getElementById('dictamen_group');
             const dictamenSelect = document.getElementById('dictamen_id');
@@ -670,14 +671,16 @@
             function toggleFotoSituacion() {
                 if (!situacionSelect) return;
 
-                const mustShow = situacionSelect.value === 'RESUELTO';
+                const mustShow = situacionSelect.value === 'RESUELTO' || situacionSelect.value === 'TURNADO';
 
                 if (mustShow) {
                     if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'block';
-                    if (fotoSituacionRequired) fotoSituacionRequired.style.display = 'inline';
-                    if (fotoSituacionInput) fotoSituacionInput.required = true;
+                    if (fotoSituacionRequired) fotoSituacionRequired.style.display = requiereFotoSituacion ? 'inline' : 'none';
+                    if (fotoSituacionInput) fotoSituacionInput.required = requiereFotoSituacion;
                     if (fotoSituacionHint) {
-                        fotoSituacionHint.textContent = 'Obligatoria: foto de la situación (RESUELTO).';
+                        fotoSituacionHint.textContent = requiereFotoSituacion
+                            ? 'Obligatoria para la unidad 1.'
+                            : 'Opcional para esta unidad.';
                     }
                 } else {
                     if (fotoSituacionGroup) fotoSituacionGroup.style.display = 'none';

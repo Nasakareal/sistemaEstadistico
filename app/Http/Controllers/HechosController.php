@@ -114,6 +114,7 @@ class HechosController extends Controller
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
+        $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($usuario);
         $ocultarCamposAdministrativosDelegaciones = $this->hideDelegacionesHechoAdminFields($usuario);
 
         $dictamenesDisponibles = $puedeUsarDictamenes
@@ -124,7 +125,7 @@ class HechosController extends Controller
                 ->get()
             : collect();
 
-        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'usaReglasFlexibles', 'ocultarCamposAdministrativosDelegaciones'));
+        return view('hechos.create', compact('dictamenesDisponibles', 'puedeUsarDictamenes', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'usaReglasFlexibles', 'requiereFotoSituacion', 'ocultarCamposAdministrativosDelegaciones'));
     }
 
     public function store(Request $request)
@@ -138,6 +139,7 @@ class HechosController extends Controller
         }
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario);
+        $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($usuario);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario);
@@ -243,7 +245,7 @@ class HechosController extends Controller
                 ->withInput();
         }
 
-        if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+        if ($requiereFotoSituacion && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $request->validate([
                 'foto_situacion' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             ]);
@@ -477,9 +479,10 @@ class HechosController extends Controller
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeEditarCoordenadasManual = $this->userCanEditCoordenadasManual($usuario);
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario, $hecho);
+        $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($usuario, $hecho);
         $ocultarCamposAdministrativosDelegaciones = $this->hideDelegacionesHechoAdminFields($usuario, $hecho);
 
-        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual', 'usaReglasFlexibles', 'ocultarCamposAdministrativosDelegaciones'));
+        return view('hechos.edit', compact('hecho', 'dictamenesDisponibles', 'dictamenActual', 'dictamenLabel', 'puedeUsarDictamenes', 'anioHecho', 'puedeGestionarTotalesEsperados', 'puedeCapturarFechaHora', 'puedeEditarCoordenadasManual', 'usaReglasFlexibles', 'requiereFotoSituacion', 'ocultarCamposAdministrativosDelegaciones'));
     }
 
     public function update(Request $request, Hechos $hecho)
@@ -507,6 +510,7 @@ class HechosController extends Controller
         $quitarFotoSituacion = (string) $request->input('quitar_foto_situacion', '0') === '1';
 
         $usaReglasFlexibles = $this->usaReglasFlexiblesHechos($usuario, $hecho);
+        $requiereFotoSituacion = HechoAccess::requiresSituacionPhoto($usuario, $hecho);
         $puedeCapturarFechaHora = $this->userCanCaptureFechaHora($usuario);
         $puedeUsarDictamenes = $this->userCanUseDictamenes($usuario, $hecho);
         $puedeGestionarTotalesEsperados = HechoAccess::canManageTotalesEsperados($usuario, $hecho);
@@ -639,7 +643,7 @@ class HechosController extends Controller
                 ->withInput();
         }
 
-        if (!$usaReglasFlexibles && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
+        if ($requiereFotoSituacion && in_array($situacion, ['RESUELTO', 'TURNADO'], true)) {
             $hayFotoGuardada = !empty($hecho->foto_situacion) && !$quitarFotoSituacion;
 
             if (!$hayFotoGuardada && !$request->hasFile('foto_situacion')) {

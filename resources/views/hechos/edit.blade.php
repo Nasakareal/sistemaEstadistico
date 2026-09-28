@@ -669,6 +669,7 @@
 
             const situacionSelect = document.getElementById('situacion');
             const puedeUsarDictamenes = @json((bool)($puedeUsarDictamenes ?? false));
+            const requiereFotoSituacion = @json((bool)($requiereFotoSituacion ?? true));
 
             const dictamenGroup  = document.getElementById('dictamen_group');
             const dictamenSelect = document.getElementById('dictamen_id');
@@ -822,15 +823,19 @@
 
                 if (mustShow) {
                     fotoSituacionGroup.style.display = 'block';
-                    fotoSituacionRequired.style.display = 'inline';
+                    fotoSituacionRequired.style.display = requiereFotoSituacion ? 'inline' : 'none';
 
                     const quitarFotoSituacionInput = document.getElementById('quitar_foto_situacion');
                     const seMarcaraParaQuitar = quitarFotoSituacionInput && quitarFotoSituacionInput.value === '1';
                     const hayGuardada = {{ $fotoSituacionUrl ? 'true' : 'false' }} && !seMarcaraParaQuitar;
 
-                    fotoSituacionInput.required = !hayGuardada;
+                    fotoSituacionInput.required = requiereFotoSituacion && !hayGuardada;
 
-                    if (val === 'RESUELTO') {
+                    if (!requiereFotoSituacion) {
+                        fotoSituacionHint.textContent = hayGuardada
+                            ? 'Ya existe una foto. Si quieres cambiarla, sube otra.'
+                            : 'Opcional para esta unidad.';
+                    } else if (val === 'RESUELTO') {
                         fotoSituacionHint.textContent = hayGuardada
                             ? 'Ya existe foto del convenio. Si quieres cambiarla, sube otra.'
                             : 'Obligatoria: foto del convenio (RESUELTO).';

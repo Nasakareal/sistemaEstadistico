@@ -477,6 +477,12 @@
                                                         </span>
                                                         @break
 
+                                                    @case('usuarios')
+                                                        <span class="badge badge-info">
+                                                            Usuarios seleccionados
+                                                        </span>
+                                                        @break
+
                                                     @default
                                                         {{ $comunicacion->alcance }}
 

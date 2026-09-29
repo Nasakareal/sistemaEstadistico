@@ -3,12 +3,14 @@
 namespace Tests\Unit;
 
 use App\Models\Patrulla;
+use App\Models\Comunicacion;
 use App\Models\Unidad;
 use App\Models\User;
 use App\Models\UserLocation;
 use App\Models\WhatsAppWebGroup;
 use App\Models\WhatsAppWebMessage;
 use App\Services\C5iSiniestrosRecommendationService;
+use App\Services\ComunicacionPushService;
 use App\Services\WhatsAppCloudService;
 use App\Services\WhatsAppSendGuard;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -58,16 +60,22 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
         $this->assertSame($siniestrosPatrulla->id, $message->recommended_patrulla_id);
     }
 
-    public function test_solicita_dos_plantillas_oficiales_solo_fuera_de_simulacion(): void
+    public function test_envia_la_recomendacion_por_mensajeria_interna_solo_a_los_usuarios_configurados(): void
     {
+        $recipientIds = [1, 2, 21, 42, 47, 74];
+        foreach ($recipientIds as $recipientId) {
+            if (!User::query()->whereKey($recipientId)->exists()) {
+                User::factory()->create(['id' => $recipientId]);
+            }
+        }
+
         config([
             'services.whatsapp.c5i_recommendation.enabled' => true,
             'services.whatsapp.c5i_recommendation.dry_run' => false,
             'services.whatsapp.c5i_recommendation.group_ids' => '120363424100430316@g.us',
             'services.whatsapp.c5i_recommendation.source_author_ids' => '5214437916890@c.us',
-            'services.whatsapp.c5i_recommendation.to' => '5214438000001,5214438000002',
-            'services.whatsapp.c5i_recommendation.template' => 'recomendacion_unidad_siniestros_c5i_v1',
-            'services.whatsapp.c5i_recommendation.template_language' => 'es_MX',
+            'services.whatsapp.c5i_recommendation.internal_recipient_user_ids' => $recipientIds,
+            'services.whatsapp.c5i_recommendation.internal_sender_user_id' => 21,
             'services.whatsapp.c5i_recommendation.location_max_age_minutes' => 10,
             'services.whatsapp.c5i_recommendation.max_accuracy_meters' => 200,
         ]);
@@ -76,30 +84,26 @@ class C5iSiniestrosRecommendationServiceTest extends TestCase
         $message = $this->message();
 
         $cloud = $this->createMock(WhatsAppCloudService::class);
-        $cloud->expects($this->exactly(2))
-            ->method('sendTemplate')
-            ->with(
-                $this->callback(fn ($to) => in_array($to, ['5214438000001', '5214438000002'], true)),
-                'recomendacion_unidad_siniestros_c5i_v1',
-                $this->callback(fn ($params) => count($params) === 7 && $params[2] === $siniestrosPatrulla->numero_economico),
-                'es_MX'
-            )
-            ->willReturn([
-                'ok' => true,
-                'status' => 200,
-                'body' => ['messages' => [['id' => 'wamid.TEST']]],
-            ]);
+        $cloud->expects($this->never())->method('sendTemplate');
 
         $guard = $this->createMock(WhatsAppSendGuard::class);
-        $guard->expects($this->exactly(2))->method('reserve')->willReturn(true);
-        $guard->expects($this->exactly(2))->method('markSent');
-        $guard->expects($this->never())->method('release');
+        $guard->expects($this->never())->method('reserve');
+        $push = $this->createMock(ComunicacionPushService::class);
+        $push->expects($this->once())->method('schedule');
 
-        $service = new C5iSiniestrosRecommendationService($cloud, $guard);
+        $service = new C5iSiniestrosRecommendationService($cloud, $guard, $push);
         $result = $service->process($message);
 
         $this->assertSame('sent', $result['status']);
         $this->assertSame('sent', $message->fresh()->recommendation_status);
+        $communication = Comunicacion::query()->findOrFail($result['delivery']['communication_id']);
+        $this->assertSame(21, (int) $communication->remitente_user_id);
+        $this->assertSame('Recomendación de unidad cercana', $communication->asunto);
+        $this->assertStringContainsString($siniestrosPatrulla->numero_economico, $communication->contenido);
+        $this->assertSame(
+            $recipientIds,
+            $communication->destinatarios()->orderBy('user_id')->pluck('user_id')->map(fn ($id) => (int) $id)->all()
+        );
     }
 
     public function test_ignora_solo_reportes_llega_con_clave_l4(): void

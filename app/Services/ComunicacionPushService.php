@@ -28,7 +28,6 @@ class ComunicacionPushService
             }
             $userIds = $comunicacion->destinatarios()->pluck('user_id');
             $tokens = DeviceToken::whereIn('user_id', $userIds)
-                ->where('user_id', '!=', $comunicacion->remitente_user_id)
                 ->whereNotNull('token')->where('token', '!=', '')
                 ->pluck('token')->unique()->values()->all();
             if (!$tokens) {

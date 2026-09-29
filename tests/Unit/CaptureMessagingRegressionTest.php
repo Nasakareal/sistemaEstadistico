@@ -38,6 +38,9 @@ class CaptureMessagingRegressionTest extends TestCase
             $t->id(); $t->integer('remitente_user_id'); $t->integer('destinatario_user_id');
             $t->string('tipo'); $t->string('alcance'); $t->string('contenido')->nullable();
             $t->string('asunto')->nullable();
+            $t->integer('unidad_id')->nullable(); $t->integer('turno_id')->nullable();
+            $t->integer('role_id')->nullable(); $t->boolean('requiere_enterado')->default(false);
+            $t->timestamp('enviado_at')->nullable(); $t->timestamps();
         });
         Schema::create('comunicacion_destinatarios', function (Blueprint $t) {
             $t->id(); $t->integer('comunicacion_id'); $t->integer('user_id');
@@ -104,8 +107,48 @@ class CaptureMessagingRegressionTest extends TestCase
         $data = $response->getData(true);
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame(1, $data['usuario']['id']);
+        $this->assertTrue($data['usuario']['puede_enviar']);
         $this->assertCount(1, $data['mensajes']);
         $this->assertNotNull(DB::table('comunicacion_destinatarios')->where('user_id', 2)->value('leido_at'));
+    }
+
+    public function test_recipient_can_send_a_complete_reply_to_an_existing_conversation(): void
+    {
+        $this->incoming();
+        DB::table('comunicacion_destinatarios')->insert([
+            'comunicacion_id' => 10,
+            'user_id' => 2,
+        ]);
+
+        $push = \Mockery::mock(ComunicacionPushService::class);
+        $push->shouldReceive('schedule')->once();
+        $this->app->instance(ComunicacionPushService::class, $push);
+
+        $request = \Illuminate\Http\Request::create(
+            '/api/comunicaciones',
+            'POST',
+            [
+                'tipo' => 'mensaje',
+                'alcance' => 'usuario',
+                'destinatario_user_id' => 1,
+                'contenido' => 'Respuesta confirmada',
+            ]
+        );
+        $request->setUserResolver(fn () => User::findOrFail(2));
+
+        $response = (new \App\Http\Controllers\Api\ComunicacionController())
+            ->store($request);
+
+        $this->assertSame(201, $response->getStatusCode());
+        $replyId = DB::table('comunicaciones')
+            ->where('remitente_user_id', 2)
+            ->where('destinatario_user_id', 1)
+            ->value('id');
+        $this->assertNotNull($replyId);
+        $this->assertDatabaseHas('comunicacion_destinatarios', [
+            'comunicacion_id' => $replyId,
+            'user_id' => 1,
+        ]);
     }
 
     public function test_communication_push_has_audible_android_and_apple_options(): void

@@ -2,22 +2,28 @@
 
 namespace App\Services;
 
+use App\Models\Comunicacion;
+use App\Models\ComunicacionDestinatario;
+use App\Models\User;
 use App\Models\WhatsAppWebMessage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class C5iSiniestrosRecommendationService
 {
-    private const CONTEXT = 'c5i-siniestros-recomendacion';
+    private ComunicacionPushService $pushService;
 
-    private WhatsAppCloudService $whatsApp;
-    private WhatsAppSendGuard $sendGuard;
-
-    public function __construct(WhatsAppCloudService $whatsApp, WhatsAppSendGuard $sendGuard)
+    public function __construct(
+        WhatsAppCloudService $whatsApp,
+        WhatsAppSendGuard $sendGuard,
+        ?ComunicacionPushService $pushService = null
+    )
     {
-        $this->whatsApp = $whatsApp;
-        $this->sendGuard = $sendGuard;
+        // Los dos primeros argumentos se conservan temporalmente para no romper
+        // consumidores existentes mientras la salida migra de Meta a mensajería interna.
+        $this->pushService = $pushService ?: app(ComunicacionPushService::class);
     }
 
     public function process(WhatsAppWebMessage $message): array
@@ -115,16 +121,13 @@ class C5iSiniestrosRecommendationService
             return ['status' => 'no_candidate'];
         }
 
-        $recipients = $this->recipientNumbers();
-        $template = trim((string) config('services.whatsapp.c5i_recommendation.template', ''));
-        $language = trim((string) config('services.whatsapp.c5i_recommendation.template_language', 'es_MX')) ?: 'es_MX';
-        $params = $this->templateParams($message, $incident, $candidate);
+        $recipients = $this->recipientUserIds();
+        $content = $this->internalMessageContent($message, $incident, $candidate);
         $baseMeta = [
-            'template' => $template,
-            'template_language' => $language,
+            'channel' => 'internal_messaging',
             'recipients' => $recipients,
             'candidate' => $candidate,
-            'template_params' => $params,
+            'content' => $content,
         ];
 
         if ((bool) config('services.whatsapp.c5i_recommendation.dry_run', true)) {
@@ -139,76 +142,28 @@ class C5iSiniestrosRecommendationService
             return ['status' => 'dry_run', 'candidate' => $candidate];
         }
 
-        if (empty($recipients) || $template === '') {
-            $baseMeta['reason'] = empty($recipients) ? 'recipients_not_configured' : 'template_not_configured';
+        if (empty($recipients)) {
+            $baseMeta['reason'] = 'recipients_not_configured';
             $this->persistResult($message, 'failed', $incident, $candidate, $baseMeta);
 
             return ['status' => 'failed', 'reason' => $baseMeta['reason']];
         }
 
-        $periodKey = 'message:' . $message->id;
-        $results = [];
-        $sent = 0;
-
-        foreach ($recipients as $recipient) {
-            if (!$this->sendGuard->reserve(self::CONTEXT, $periodKey, $recipient, 30)) {
-                $results[] = ['recipient' => $recipient, 'status' => 'duplicate'];
-                continue;
-            }
-
-            try {
-                $response = $this->whatsApp->sendTemplate(
-                    $recipient,
-                    $template,
-                    $params,
-                    $language
-                );
-
-                if (!($response['ok'] ?? false)) {
-                    $this->sendGuard->release(self::CONTEXT, $periodKey, $recipient);
-                    $results[] = [
-                        'recipient' => $recipient,
-                        'status' => 'failed',
-                        'http_status' => $response['status'] ?? null,
-                        'error' => data_get($response, 'body.error.message'),
-                    ];
-                    continue;
-                }
-
-                $messageId = data_get($response, 'body.messages.0.id');
-                $this->sendGuard->markSent(self::CONTEXT, $periodKey, $recipient, $messageId, 30);
-                $results[] = [
-                    'recipient' => $recipient,
-                    'status' => 'sent',
-                    'message_id' => $messageId,
-                ];
-                $sent++;
-            } catch (Throwable $e) {
-                $this->sendGuard->release(self::CONTEXT, $periodKey, $recipient);
-                $results[] = [
-                    'recipient' => $recipient,
-                    'status' => 'failed',
-                    'error' => $e->getMessage(),
-                ];
-            }
-        }
-
-        $status = $sent === count($recipients)
-            ? 'sent'
-            : ($sent > 0 ? 'partial' : 'failed');
-        $baseMeta['send_results'] = $results;
+        $delivery = $this->sendInternalMessage($recipients, $content);
+        $status = $delivery['status'];
+        $baseMeta = array_merge($baseMeta, $delivery);
 
         $this->persistResult($message, $status, $incident, $candidate, $baseMeta);
 
         Log::info('Resultado recomendación C5i/Siniestros', [
             'whatsapp_web_message_id' => $message->id,
             'status' => $status,
-            'sent' => $sent,
+            'sent' => count($delivery['delivered_user_ids'] ?? []),
             'recipients' => count($recipients),
             'patrulla_id' => $candidate['patrulla_id'],
         ]);
 
-        return ['status' => $status, 'candidate' => $candidate, 'results' => $results];
+        return ['status' => $status, 'candidate' => $candidate, 'delivery' => $delivery];
     }
 
     private function nearestSiniestrosPatrulla(float $incidentLat, float $incidentLng): ?array
@@ -294,7 +249,11 @@ class C5iSiniestrosRecommendationService
         return $nearest;
     }
 
-    private function templateParams(WhatsAppWebMessage $message, array $incident, array $candidate): array
+    private function internalMessageContent(
+        WhatsAppWebMessage $message,
+        array $incident,
+        array $candidate
+    ): string
     {
         $timezone = (string) config('app.schedule_timezone', 'America/Mexico_City');
         $reportedAt = ($message->sent_at ? $message->sent_at->copy() : now())
@@ -304,14 +263,91 @@ class C5iSiniestrosRecommendationService
             ->timezone($timezone)
             ->format('d/m/Y H:i');
 
+        return implode("\n", [
+            'Se recomienda enviar la unidad más cercana al reporte C5i.',
+            '',
+            'Reporte: ' . $reportedAt,
+            'Ubicación: ' . $incident['location'],
+            'Unidad sugerida: ' . $candidate['numero_economico'],
+            'Distancia aproximada: ' . number_format((float) $candidate['distance_km'], 2, '.', '') . ' km',
+            'Ubicación de la unidad actualizada: ' . $locationUpdatedAt,
+            'Mapa del incidente: ' . $this->mapsLink($incident['lat'], $incident['lng']),
+            'Mapa de la unidad: ' . $this->mapsLink($candidate['lat'], $candidate['lng']),
+        ]);
+    }
+
+    private function sendInternalMessage(array $requestedUserIds, string $content): array
+    {
+        $senderUserId = (int) config(
+            'services.whatsapp.c5i_recommendation.internal_sender_user_id',
+            21
+        );
+
+        if ($senderUserId <= 0 || !User::query()->whereKey($senderUserId)->exists()) {
+            return [
+                'status' => 'failed',
+                'reason' => 'internal_sender_not_found',
+                'delivered_user_ids' => [],
+                'missing_user_ids' => $requestedUserIds,
+            ];
+        }
+
+        $deliveredUserIds = User::query()
+            ->whereIn('id', $requestedUserIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+        $missingUserIds = array_values(array_diff($requestedUserIds, $deliveredUserIds));
+
+        if (empty($deliveredUserIds)) {
+            return [
+                'status' => 'failed',
+                'reason' => 'internal_recipients_not_found',
+                'delivered_user_ids' => [],
+                'missing_user_ids' => $missingUserIds,
+            ];
+        }
+
+        $communication = DB::transaction(function () use ($senderUserId, $deliveredUserIds, $content) {
+            $communication = Comunicacion::query()->create([
+                'remitente_user_id' => $senderUserId,
+                'tipo' => 'aviso',
+                'asunto' => 'Recomendación de unidad cercana',
+                'contenido' => $content,
+                'alcance' => 'usuarios',
+                'unidad_id' => null,
+                'turno_id' => null,
+                'role_id' => null,
+                'destinatario_user_id' => null,
+                'requiere_enterado' => false,
+                'enviado_at' => now(),
+            ]);
+            $now = now();
+
+            ComunicacionDestinatario::query()->insert(array_map(
+                fn (int $userId) => [
+                    'comunicacion_id' => $communication->id,
+                    'user_id' => $userId,
+                    'leido_at' => null,
+                    'enterado_at' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
+                $deliveredUserIds
+            ));
+
+            return $communication;
+        });
+
+        $this->pushService->schedule($communication->id);
+
         return [
-            $reportedAt,
-            $incident['location'],
-            $candidate['numero_economico'],
-            number_format((float) $candidate['distance_km'], 2, '.', ''),
-            $locationUpdatedAt,
-            $this->mapsLink($incident['lat'], $incident['lng']),
-            $this->mapsLink($candidate['lat'], $candidate['lng']),
+            'status' => empty($missingUserIds) ? 'sent' : 'partial',
+            'communication_id' => $communication->id,
+            'delivered_user_ids' => $deliveredUserIds,
+            'missing_user_ids' => $missingUserIds,
         ];
     }
 
@@ -360,19 +396,20 @@ class C5iSiniestrosRecommendationService
         ))));
     }
 
-    private function recipientNumbers(): array
+    private function recipientUserIds(): array
     {
-        $numbers = [];
+        $configured = config(
+            'services.whatsapp.c5i_recommendation.internal_recipient_user_ids',
+            [1, 2, 21, 42, 47, 74]
+        );
+        $values = is_array($configured)
+            ? $configured
+            : preg_split('/[\s,;|]+/', (string) $configured, -1, PREG_SPLIT_NO_EMPTY);
 
-        foreach ($this->csvConfig('services.whatsapp.c5i_recommendation.to') as $recipient) {
-            $number = preg_replace('/\D+/', '', $recipient) ?: '';
-
-            if (strlen($number) >= 10 && strlen($number) <= 15) {
-                $numbers[] = $number;
-            }
-        }
-
-        return array_values(array_unique($numbers));
+        return array_values(array_unique(array_filter(array_map(
+            fn ($value) => (int) $value,
+            $values ?: []
+        ), fn (int $value) => $value > 0)));
     }
 
     private function ignored(WhatsAppWebMessage $message, string $reason): array

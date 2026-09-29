@@ -625,10 +625,10 @@ class ComunicacionController extends Controller
             ])
             ->findOrFail($user->id);
 
-        $puedeEnviar = $this
-            ->queryUsuariosParaMensajeIndividual($actor)
-            ->whereKey($otroUsuario->id)
-            ->exists();
+        $puedeEnviar = $this->usuarioPermitidoParaMensaje(
+            $actor,
+            (int) $otroUsuario->id
+        );
 
         $existeConversacion = Comunicacion::query()
             ->where('tipo', 'mensaje')
@@ -1428,10 +1428,15 @@ class ComunicacionController extends Controller
         }
 
         if ($data['alcance'] === 'usuario') {
-            return $this->queryUsuariosParaMensajeIndividual($actor)
-                ->whereKey(
-                    $data['destinatario_user_id']
-                )
+            $userId = (int) $data['destinatario_user_id'];
+
+            if (!$this->usuarioPermitidoParaMensaje($actor, $userId)) {
+                return collect();
+            }
+
+            return User::query()
+                ->whereKey($userId)
+                ->where('estado', 'Activo')
                 ->pluck('id')
                 ->unique()
                 ->values();
@@ -1458,9 +1463,43 @@ class ComunicacionController extends Controller
             return false;
         }
 
+        $destinatarioActivo = User::query()
+            ->whereKey($userId)
+            ->where('estado', 'Activo')
+            ->exists();
+
+        if (!$destinatarioActivo) {
+            return false;
+        }
+
+        if ($this->existeConversacionDirecta($actor, $userId)) {
+            return true;
+        }
+
         return $this
             ->queryUsuariosParaMensajeIndividual($actor)
             ->whereKey($userId)
+            ->exists();
+    }
+
+    private function existeConversacionDirecta(
+        User $actor,
+        int $userId
+    ): bool {
+        return Comunicacion::query()
+            ->where('tipo', 'mensaje')
+            ->where('alcance', 'usuario')
+            ->where(function ($query) use ($actor, $userId) {
+                $query->where(function ($outgoing) use ($actor, $userId) {
+                    $outgoing
+                        ->where('remitente_user_id', $actor->id)
+                        ->where('destinatario_user_id', $userId);
+                })->orWhere(function ($incoming) use ($actor, $userId) {
+                    $incoming
+                        ->where('remitente_user_id', $userId)
+                        ->where('destinatario_user_id', $actor->id);
+                });
+            })
             ->exists();
     }
 

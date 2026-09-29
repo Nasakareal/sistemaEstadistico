@@ -299,6 +299,10 @@
                                         ?? 'Usuario' }}
                                     @break
 
+                                @case('usuarios')
+                                    Usuarios seleccionados
+                                    @break
+
                                 @default
                                     {{ $comunicacion->alcance }}
 

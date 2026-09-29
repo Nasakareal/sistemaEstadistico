@@ -16,6 +16,11 @@ use Spatie\Permission\PermissionRegistrar;
 
 class AuthController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('throttle:login')->only('login');
+    }
+
     public function login(Request $request)
     {
         $credentials = $request->validate([

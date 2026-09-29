@@ -299,8 +299,12 @@ class LogSecurityEvents
         $patterns = [
             '/.env' => '.env',
             '/.git' => '.git',
+            '/.aws' => '.aws',
+            '/.ssh' => '.ssh',
             'wp-admin' => 'wp-admin',
             'wp-login' => 'wp-login',
+            'wp-content' => 'wp-content',
+            'xmlrpc.php' => 'xmlrpc.php',
             'phpmyadmin' => 'phpmyadmin',
             'pma/' => 'pma',
             'vendor/phpunit' => 'vendor/phpunit',
@@ -308,6 +312,8 @@ class LogSecurityEvents
             '..\\' => 'path-traversal',
             '/server-status' => 'server-status',
             '/actuator' => 'actuator',
+            '/cgi-bin' => 'cgi-bin',
+            '/etc/passwd' => 'etc-passwd',
             '/config.php' => 'config.php',
             '/shell.php' => 'shell.php',
         ];

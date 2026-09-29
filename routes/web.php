@@ -331,7 +331,8 @@ Route::prefix('admin/settings/licencias-puntos/infracciones')->middleware(['auth
         Route::put('/{infraccion}', [LicenciaPuntoInfraccionCatalogoController::class, 'update'])->middleware('can:editar catalogo infracciones puntos licencias')->name('settings.licencias_puntos.infracciones.update');
 });
 
-Auth::routes();
+// Las cuentas deben ser creadas por administradores; no se permite auto-registro.
+Auth::routes(['register' => false]);
 
 Route::prefix('comunicaciones')->middleware(['auth'])->group(function () {
     Route::get('/', [ComunicacionController::class, 'index'])->name('comunicaciones.index');

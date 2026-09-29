@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\SettingsPersonalController;
 use App\Http\Controllers\Api\SettingsStatisticsFilesController;
 use App\Http\Controllers\Api\TutorialController;
 use App\Http\Controllers\Api\LicenciaPuntosController as ApiLicenciaPuntosController;
+use App\Http\Controllers\Api\LicenciaEmisionController as ApiLicenciaEmisionController;
 use App\Http\Controllers\Api\ConduceLegalidadController as ApiConduceLegalidadController;
 use App\Http\Controllers\Api\UserNoteController;
 use App\Http\Controllers\Api\ComunicacionController as ApiComunicacionController;
@@ -290,6 +291,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{cuenta}', [ApiLicenciaPuntosController::class, 'show'])->whereNumber('cuenta')->name('api.licencias_puntos.show');
         Route::post('/{cuenta}/infracciones', [ApiLicenciaPuntosController::class, 'registrarInfraccionCuenta'])->whereNumber('cuenta')->middleware('can:registrar infracciones puntos licencias')->name('api.licencias_puntos.cuenta.infracciones.store');
         Route::post('/{cuenta}/capacitacion', [ApiLicenciaPuntosController::class, 'acreditarCapacitacion'])->whereNumber('cuenta')->middleware('can:acreditar capacitacion puntos licencias')->name('api.licencias_puntos.capacitacion.store');
+    });
+
+    Route::prefix('licencias-emision')->group(function () {
+        Route::get('/', [ApiLicenciaEmisionController::class, 'index'])->name('api.licencias_emision.index');
+        Route::post('/', [ApiLicenciaEmisionController::class, 'store'])->name('api.licencias_emision.store');
+        Route::get('/historial/{curp}', [ApiLicenciaEmisionController::class, 'historial'])->name('api.licencias_emision.historial');
+        Route::get('/qr/{token}', [ApiLicenciaEmisionController::class, 'buscarQr'])->name('api.licencias_emision.qr');
+        Route::get('/{licencia}', [ApiLicenciaEmisionController::class, 'show'])->whereNumber('licencia')->name('api.licencias_emision.show');
     });
 
     Route::prefix('conduce-legalidad')->group(function () {

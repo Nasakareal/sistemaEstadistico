@@ -64,6 +64,11 @@ class ConstanciaManejo extends Model
         return $this->hasMany(ConstanciaActivacion::class, 'constancia_id');
     }
 
+    public function licencia()
+    {
+        return $this->hasOne(LicenciaConducir::class, 'constancia_id');
+    }
+
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');

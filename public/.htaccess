@@ -12,12 +12,27 @@
     php_value max_input_time 300
 </IfModule>
 
+ServerSignature Off
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
 
     RewriteEngine On
+
+    # Rechaza archivos ocultos y rutas de herramientas que buscan los escaneres.
+    # Se conserva .well-known para validaciones de certificados TLS.
+    RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L,NC]
+    RewriteRule ^(?:vendor|storage/logs|bootstrap/cache|config|database|tests)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:wp-admin|wp-login\.php|xmlrpc\.php|phpmyadmin|pma|server-status|cgi-bin)(?:/|$) - [F,L,NC]
 
     # Las fotos de personal se sirven por una ruta autenticada, no por /storage.
     RewriteRule ^storage/personals/fotos/ - [F,L]

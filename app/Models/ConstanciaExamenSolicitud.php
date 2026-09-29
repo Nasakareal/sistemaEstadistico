@@ -56,4 +56,9 @@ class ConstanciaExamenSolicitud extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function licencia()
+    {
+        return $this->hasOne(LicenciaConducir::class, 'examen_solicitud_id');
+    }
 }

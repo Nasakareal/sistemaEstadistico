@@ -132,6 +132,11 @@ return [
             'boleta_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_TEMPLATE', 'boleta_conduce_legalidad_v1'),
             'boleta_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_TEMPLATE_LANGUAGE', 'es_MX'),
             'boleta_country_prefix' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_COUNTRY_PREFIX', '521'),
+            'barandillas_enabled' => filter_var(env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'barandillas_to' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_TO', '5214433163728'),
+            'barandillas_boleta_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_BOLETA_TEMPLATE', 'aviso_barandillas_conduce_v1'),
+            'barandillas_iph_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_IPH_TEMPLATE', 'iph_barandillas_conduce_v1'),
+            'barandillas_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
         'equinos_bridge' => [

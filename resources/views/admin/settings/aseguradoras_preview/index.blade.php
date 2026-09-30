@@ -13,8 +13,17 @@
             <span class="vi-brand__divider"></span>
             <small>Insurance Intelligence</small>
         </div>
+        <nav class="vi-topnav" aria-label="Secciones de la presentación">
+            <a href="#vi-command">Command center</a>
+            <a href="#vi-business-case">Caso de negocio</a>
+            <a href="#vi-moat">Ventaja</a>
+            <a href="#vi-pilot">Piloto</a>
+        </nav>
         <div class="vi-topbar__actions">
             <span class="vi-private"><i class="fas fa-lock"></i> Vista privada</span>
+            <button type="button" class="vi-print vi-pitch-toggle" id="viPitchToggle">
+                <i class="fas fa-expand"></i> Modo presentación
+            </button>
             <button type="button" class="vi-print" onclick="window.print()">
                 <i class="fas fa-file-export"></i> Exportar resumen
             </button>
@@ -22,24 +31,83 @@
     </div>
 @stop
 
+@section('js')
+<script>
+(() => {
+    const tow = document.getElementById('viTowRange');
+    const cost = document.getElementById('viCostRange');
+    const rate = document.getElementById('viRateRange');
+    const integer = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+    const money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+    const compactMoney = (value) => value >= 1000000
+        ? `$${(value / 1000000).toFixed(2)} M`
+        : money.format(value);
+
+    const updateBusinessCase = () => {
+        const services = Number(tow.value);
+        const averageCost = Number(cost.value);
+        const reviewRate = Number(rate.value) / 100;
+        const reviewServices = Math.round(services * reviewRate);
+        const annualSpend = services * averageCost;
+        const opportunity = reviewServices * averageCost;
+
+        document.getElementById('viTowOutput').textContent = integer.format(services);
+        document.getElementById('viCostOutput').textContent = money.format(averageCost);
+        document.getElementById('viRateOutput').textContent = `${Number(rate.value).toFixed(1)}%`;
+        document.getElementById('viOpportunity').textContent = compactMoney(opportunity);
+        document.getElementById('viOpportunityDetail').textContent = `${integer.format(reviewServices)} servicios entrarían a una revisión priorizada.`;
+        document.getElementById('viAnnualSpend').textContent = compactMoney(annualSpend);
+        document.getElementById('viSignalCost').textContent = money.format(averageCost);
+    };
+
+    [tow, cost, rate].forEach((control) => control.addEventListener('input', updateBusinessCase));
+    updateBusinessCase();
+
+    const pitchButton = document.getElementById('viPitchToggle');
+    const syncPitchButton = () => {
+        const active = document.body.classList.contains('vi-pitch-mode');
+        pitchButton.innerHTML = active
+            ? '<i class="fas fa-compress"></i> Salir de presentación'
+            : '<i class="fas fa-expand"></i> Modo presentación';
+    };
+
+    pitchButton.addEventListener('click', async () => {
+        document.body.classList.toggle('vi-pitch-mode');
+        if (document.body.classList.contains('vi-pitch-mode') && !document.fullscreenElement) {
+            try { await document.documentElement.requestFullscreen(); } catch (error) { /* El modo visual sigue activo. */ }
+        } else if (document.fullscreenElement) {
+            try { await document.exitFullscreen(); } catch (error) { /* Sin impacto en la vista. */ }
+        }
+        syncPitchButton();
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) document.body.classList.remove('vi-pitch-mode');
+        syncPitchButton();
+    });
+})();
+</script>
+@stop
+
 @section('content')
     <main class="vi-shell">
         <section class="vi-hero">
             <div class="vi-hero__copy">
-                <div class="vi-eyebrow"><span></span> Inteligencia territorial para decisiones de seguros</div>
-                <h1>Convertimos hechos viales en <em>decisiones rentables.</em></h1>
-                <p>Una lectura agregada y anonimizada del riesgo, la severidad y la asistencia vial para anticipar pérdidas, auditar costos y proteger mejor cada portafolio.</p>
+                <div class="vi-eyebrow"><span></span> La capa de inteligencia vial que hoy no existe en el seguro</div>
+                <h1>La carretera ya sabe dónde ocurrirá el próximo riesgo. <em>Ahora su cartera también.</em></h1>
+                <p>Convertimos evidencia operativa de movilidad, siniestros y asistencia vial en señales territoriales para suscripción, prevención, claims y control de proveedores.</p>
                 <div class="vi-hero__meta">
                     <span><i class="fas fa-shield-alt"></i> Sin datos personales</span>
                     <span><i class="fas fa-database"></i> Fuentes operativas verificables</span>
                     <span><i class="fas fa-map-marked-alt"></i> Cobertura territorial</span>
+                    <span><i class="fas fa-user-check"></i> Decisión humana</span>
                 </div>
             </div>
             <div class="vi-hero__score">
-                <span>Índice general de riesgo</span>
-                <strong>67</strong><small>/100</small>
-                <div class="vi-scorebar"><i style="width:67%"></i></div>
-                <b><i class="fas fa-arrow-up"></i> 4.2% vs. periodo anterior</b>
+                <span>Inteligencia accionable</span>
+                <strong>86</strong><small>/100</small>
+                <div class="vi-scorebar"><i style="width:86%"></i></div>
+                <b><i class="fas fa-bolt"></i> Señal contextual en minutos</b>
             </div>
         </section>
 
@@ -48,7 +116,7 @@
             <p><strong>Demostración comercial.</strong> Las cifras de esta pantalla son ilustrativas y no representan resultados reales. La versión para clientes utilizará únicamente información agregada, reglas documentadas y umbrales de privacidad.</p>
         </div>
 
-        <section class="vi-toolbar">
+        <section class="vi-toolbar" id="vi-command">
             <div>
                 <span class="vi-toolbar__label">Portafolio</span>
                 <button type="button" class="vi-select">Vehículos particulares <i class="fas fa-chevron-down"></i></button>
@@ -178,6 +246,59 @@
             </article>
         </section>
 
+        <section class="vi-business-case" id="vi-business-case">
+            <div class="vi-section-title vi-section-title--wide">
+                <span>Business case lab</span>
+                <h2>Ponga su cartera sobre la mesa.</h2>
+                <p>En menos de un minuto convertimos una hipótesis operativa en una conversación financiera.</p>
+            </div>
+            <div class="vi-lab">
+                <div class="vi-lab__controls">
+                    <div class="vi-lab__heading">
+                        <span class="vi-panel__kicker">Simulador de oportunidad</span>
+                        <h3>Auditoría inteligente de asistencia vial</h3>
+                        <p>Ajuste el volumen y costo de la operación. El resultado es una oportunidad bruta de revisión, no una promesa de ahorro.</p>
+                    </div>
+                    <label class="vi-range">
+                        <span><b>Servicios de grúa por año</b><output id="viTowOutput">8,500</output></span>
+                        <input id="viTowRange" type="range" min="1000" max="50000" step="500" value="8500">
+                    </label>
+                    <label class="vi-range">
+                        <span><b>Costo promedio por servicio</b><output id="viCostOutput">$3,200</output></span>
+                        <input id="viCostRange" type="range" min="1000" max="10000" step="100" value="3200">
+                    </label>
+                    <label class="vi-range">
+                        <span><b>Universo con señales revisables</b><output id="viRateOutput">14.8%</output></span>
+                        <input id="viRateRange" type="range" min="3" max="30" step="0.1" value="14.8">
+                    </label>
+                </div>
+                <div class="vi-lab__result">
+                    <span>Oportunidad bruta anual para revisión</span>
+                    <strong id="viOpportunity">$4.03 M</strong>
+                    <p id="viOpportunityDetail">1,258 servicios entrarían a una revisión priorizada.</p>
+                    <div class="vi-result-grid">
+                        <div><small>Operación observada</small><b id="viAnnualSpend">$27.20 M</b></div>
+                        <div><small>Costo por señal</small><b id="viSignalCost">$3,200</b></div>
+                    </div>
+                    <div class="vi-result-foot"><i class="fas fa-shield-alt"></i><span>Las señales orientan una revisión humana; no determinan fraude ni rechazo.</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="vi-moat" id="vi-moat">
+            <div class="vi-moat__intro">
+                <span class="vi-panel__kicker">Ventaja estructural</span>
+                <h2>Difícil de copiar.<br><em>Fácil de integrar.</em></h2>
+                <p>No vendemos expedientes ni datos personales. Licenciamos inteligencia derivada de una infraestructura operativa que ya captura el contexto que otros intentan reconstruir después.</p>
+            </div>
+            <div class="vi-moat__grid">
+                <article><b>01</b><i class="fas fa-fingerprint"></i><h3>Origen verificable</h3><p>La señal nace del registro operativo, conserva su procedencia y puede auditarse.</p></article>
+                <article><b>02</b><i class="fas fa-clock"></i><h3>Contexto temporal</h3><p>Corredor, horario y condiciones convierten un evento aislado en patrón.</p></article>
+                <article><b>03</b><i class="fas fa-route"></i><h3>Red territorial</h3><p>La cobertura institucional produce una lectura difícil de replicar desde una sola cartera.</p></article>
+                <article><b>04</b><i class="fas fa-sync-alt"></i><h3>Aprendizaje continuo</h3><p>Cada validación mejora reglas, umbrales y capacidad de priorización.</p></article>
+            </div>
+        </section>
+
         <section class="vi-value">
             <div class="vi-section-title">
                 <span>Producto modular</span>
@@ -196,16 +317,20 @@
             </div>
         </section>
 
-        <section class="vi-commercial">
+        <section class="vi-commercial" id="vi-pilot">
             <div class="vi-commercial__copy">
                 <span class="vi-panel__kicker">Ruta comercial sugerida</span>
-                <h2>Empezar pequeño, demostrar ahorro y escalar.</h2>
-                <p>El producto puede venderse en tres etapas, con métricas de éxito acordadas desde el inicio y sin comprometer información personal.</p>
+                <h2>Una pregunta concreta. Noventa días. Una decisión informada.</h2>
+                <p>El piloto se diseña alrededor de una hipótesis económica verificable, con línea base, métricas y reglas de éxito acordadas, sin comprometer información personal.</p>
             </div>
             <div class="vi-steps">
                 <article><b>01</b><div><strong>Diagnóstico</strong><span>Muestra histórica, calidad de datos y línea base.</span></div><em>Proyecto</em></article>
                 <article><b>02</b><div><strong>Piloto de 90 días</strong><span>Un territorio, reglas de grúa y tablero ejecutivo.</span></div><em>Validación</em></article>
                 <article><b>03</b><div><strong>Suscripción</strong><span>Módulos, usuarios, alertas e integraciones.</span></div><em>Recurrente</em></article>
+            </div>
+            <div class="vi-commercial__close">
+                <span>La reunión de mañana puede ser el inicio del piloto.</span>
+                <strong>De observar el riesgo a anticiparlo.</strong>
             </div>
         </section>
 
@@ -224,5 +349,25 @@
     @media(max-width:1000px){.vi-kpis{grid-template-columns:repeat(2,1fr)}.vi-grid--main,.vi-grid--secondary,.vi-commercial{grid-template-columns:1fr}.vi-modules{grid-template-columns:repeat(2,1fr)}.vi-hero{padding-left:24px;padding-right:24px}.vi-hero__score{display:none}}
     @media(max-width:620px){.vi-topbar{padding:0 14px}.vi-brand small,.vi-brand__divider,.vi-private,.vi-print{display:none}.vi-hero{padding:38px 18px 30px}.vi-hero h1{font-size:39px;letter-spacing:-1.8px}.vi-hero__meta{gap:10px;display:grid}.vi-demo-note,.vi-toolbar,.vi-kpis,.vi-grid,.vi-value,.vi-commercial,.vi-footer{margin-left:12px;margin-right:12px}.vi-toolbar{align-items:stretch;flex-direction:column}.vi-toolbar__stamp{margin-left:0;text-align:left}.vi-select{width:100%}.vi-kpis,.vi-modules{grid-template-columns:1fr}.vi-tow__summary{grid-template-columns:1fr}.vi-tow__summary>div{border-left:0;border-top:1px solid var(--vi-line);padding:9px 0}.vi-bar-chart{gap:4px}.vi-causes__body{flex-direction:column}.vi-commercial{padding:20px}.vi-footer{gap:15px;align-items:start}.vi-footer p{text-align:right}}
     @media print{.main-sidebar,.main-header,.vi-topbar,.vi-toolbar,.vi-demo-note{display:none!important}.content-wrapper{margin:0!important}.vi-shell{background:#fff;color:#111}.vi-panel,.vi-kpi,.vi-modules article,.vi-commercial{break-inside:avoid;background:#fff;color:#111;border-color:#ccd3da}.vi-hero{min-height:auto}.vi-hero h1,.vi-panel h2,.vi-kpi strong,.vi-modules h3{color:#111}.vi-hero__score{box-shadow:none}.vi-value{padding-top:30px}}
+
+    /* Presentación privada: ocupa todo el lienzo sin alterar el resto del sistema. */
+    .main-sidebar,.main-header,.preloader,#svMessenger{display:none!important}.content-wrapper{margin-left:0!important}.wrapper{background:var(--vi-bg)!important}
+    .vi-topbar{position:sticky;top:0;z-index:50;backdrop-filter:blur(18px);background:rgba(9,20,37,.9)}
+    .vi-topnav{display:flex;gap:18px;margin-left:24px}.vi-topnav a{color:#7f94af;font-size:10px;font-weight:800;letter-spacing:.2px}.vi-topnav a:hover{color:var(--vi-green)}
+    .vi-pitch-mode .vi-topbar{height:58px}.vi-pitch-mode .vi-topnav,.vi-pitch-mode .vi-private{display:none}.vi-pitch-mode .vi-shell{padding-top:0}
+    .vi-hero{min-height:420px}.vi-hero__copy{max-width:950px}.vi-hero__score{border-color:rgba(53,214,164,.21);box-shadow:0 30px 90px rgba(0,0,0,.34),inset 0 0 45px rgba(53,214,164,.035)}
+    .vi-business-case,.vi-moat{max-width:1380px;margin-left:auto;margin-right:auto}
+    .vi-business-case{padding:88px 0 34px}.vi-section-title--wide{max-width:780px}.vi-section-title--wide h2{font-size:42px;letter-spacing:-1.6px}.vi-section-title--wide p{font-size:14px;line-height:1.6}
+    .vi-lab{display:grid;grid-template-columns:1.15fr .85fr;border:1px solid rgba(53,214,164,.2);border-radius:22px;overflow:hidden;background:linear-gradient(145deg,rgba(19,42,64,.96),rgba(8,25,42,.98));box-shadow:0 32px 90px rgba(0,0,0,.26)}
+    .vi-lab__controls{padding:34px 38px}.vi-lab__heading{margin-bottom:28px}.vi-lab__heading h3{font-size:25px;margin:7px 0 8px;letter-spacing:-.7px}.vi-lab__heading p{margin:0;max-width:650px;color:#8298b2;font-size:11px;line-height:1.55}
+    .vi-range{display:block;padding:15px 0;border-top:1px solid var(--vi-line)}.vi-range>span{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}.vi-range b{font-size:11px;color:#c5d3e3}.vi-range output{color:var(--vi-green);font-size:12px;font-weight:900}
+    .vi-range input{width:100%;height:5px;appearance:none;border-radius:20px;background:linear-gradient(90deg,var(--vi-green),#24435c);outline:none}.vi-range input::-webkit-slider-thumb{appearance:none;width:17px;height:17px;border:4px solid #dffdf4;border-radius:50%;background:var(--vi-green);box-shadow:0 0 0 5px rgba(53,214,164,.1);cursor:pointer}
+    .vi-lab__result{padding:42px;display:flex;flex-direction:column;justify-content:center;background:radial-gradient(circle at 80% 10%,rgba(53,214,164,.15),transparent 48%),rgba(4,18,30,.55);border-left:1px solid rgba(53,214,164,.14)}.vi-lab__result>span{color:#83a0b8;font-size:10px;text-transform:uppercase;letter-spacing:1.1px;font-weight:900}.vi-lab__result>strong{font-size:clamp(44px,5vw,70px);letter-spacing:-3px;line-height:1.08;margin:12px 0;color:#f6fbff}.vi-lab__result>p{color:#93a8bd;font-size:12px}.vi-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}.vi-result-grid>div{padding:14px;border:1px solid var(--vi-line);border-radius:11px;background:rgba(255,255,255,.025)}.vi-result-grid small,.vi-result-grid b{display:block}.vi-result-grid small{color:#7187a3;font-size:8px;text-transform:uppercase}.vi-result-grid b{font-size:16px;margin-top:5px}.vi-result-foot{display:flex;gap:9px;align-items:start;margin-top:20px;padding:11px;border-radius:10px;background:rgba(53,200,230,.05);color:#708ba3;font-size:9px;line-height:1.45}.vi-result-foot i{color:var(--vi-cyan)}
+    .vi-moat{padding:105px 0 45px;display:grid;grid-template-columns:.74fr 1.26fr;gap:55px;align-items:center}.vi-moat__intro h2{font-size:42px;line-height:1.06;letter-spacing:-1.8px;margin:10px 0 17px}.vi-moat__intro h2 em{display:block;color:var(--vi-green);font-style:normal}.vi-moat__intro p{color:#8499b3;font-size:13px;line-height:1.7}.vi-moat__grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vi-moat__grid article{position:relative;min-height:205px;padding:24px;background:linear-gradient(155deg,var(--vi-panel2),var(--vi-panel));border:1px solid var(--vi-line);border-radius:15px}.vi-moat__grid article>b{position:absolute;right:18px;top:15px;color:#304862;font-size:24px}.vi-moat__grid article>i{color:var(--vi-green);font-size:19px}.vi-moat__grid h3{font-size:13px;margin:28px 0 8px}.vi-moat__grid p{color:#7f94af;font-size:10.5px;line-height:1.55}
+    .vi-commercial{position:relative;overflow:hidden}.vi-commercial__close{grid-column:1/-1;border-top:1px solid rgba(53,214,164,.14);padding-top:20px;display:flex;align-items:end;justify-content:space-between;gap:20px}.vi-commercial__close span{color:#7f97af;font-size:10px}.vi-commercial__close strong{font-size:18px;color:#b9f5df}
+    .vi-kpi,.vi-panel,.vi-modules article,.vi-moat__grid article{transition:transform .22s ease,border-color .22s ease,background .22s ease}.vi-kpi:hover,.vi-panel:hover,.vi-modules article:hover,.vi-moat__grid article:hover{transform:translateY(-3px);border-color:rgba(53,214,164,.23)}
+    @media(max-width:1450px){.vi-business-case,.vi-moat{margin-left:24px;margin-right:24px}}
+    @media(max-width:1180px){.vi-topnav{display:none}.vi-lab,.vi-moat{grid-template-columns:1fr}.vi-lab__result{border-left:0;border-top:1px solid rgba(53,214,164,.14)}.vi-moat{gap:28px}}
+    @media(max-width:620px){.vi-business-case,.vi-moat{margin-left:12px;margin-right:12px}.vi-business-case{padding-top:58px}.vi-section-title--wide h2{font-size:32px}.vi-lab__controls,.vi-lab__result{padding:24px 18px}.vi-result-grid,.vi-moat__grid{grid-template-columns:1fr}.vi-moat{padding-top:72px}.vi-moat__intro h2{font-size:34px}.vi-commercial__close{align-items:start;flex-direction:column}.vi-pitch-toggle{display:none}}
 </style>
 @stop

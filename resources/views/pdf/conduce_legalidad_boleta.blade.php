@@ -57,6 +57,13 @@
 
     <div class="section">
         <div class="section-title">II. MOTIVACIÓN</div>
+        <table>
+            <tr>
+                <td><div class="label">Día</div><div class="value">{{ $boleta['fecha'] }}</div></td>
+                <td><div class="label">Hora</div><div class="value">{{ $boleta['hora'] }}</div></td>
+            </tr>
+        </table>
+        <div class="block"><div class="label">Lugar</div><div class="value">{{ $boleta['lugar'] }}</div></div>
         <div class="block"><div class="label">Descripción breve de la conducta</div><div>{{ $boleta['conducta'] }}</div></div>
     </div>
 
@@ -72,18 +79,22 @@
 
     <div class="section">
         <div class="section-title">VEHÍCULO</div>
-        <div class="block"><div class="label">Descripción</div><div>{{ $boleta['vehiculo_resumen'] }}</div></div>
         <table>
             <tr>
                 <td><div class="label">Placas/permiso</div><div class="value">{{ $boleta['placas'] }}</div></td>
                 <td><div class="label">Estado placas</div><div class="value">{{ $boleta['estado_placas'] }}</div></td>
-                <td><div class="label">Número de inventario</div><div class="value">{{ $boleta['numero_inventario'] }}</div></td>
-            </tr>
-            <tr>
-                <td colspan="2"><div class="label">Corralón de destino</div><div class="value">{{ $boleta['corralon'] }}</div></td>
-                <td><div class="label">Grúa</div><div class="value">{{ $boleta['grua'] }}</div></td>
             </tr>
         </table>
+        <div class="block"><div class="label">Descripción</div><div>{{ $boleta['vehiculo_resumen'] }}</div></div>
+        @if ($boleta['requiere_liberacion'])
+            <table>
+                <tr>
+                    <td><div class="label">Número de inventario</div><div class="value">{{ $boleta['numero_inventario'] }}</div></td>
+                    <td><div class="label">Corralón de destino</div><div class="value">{{ $boleta['corralon'] }}</div></td>
+                    <td><div class="label">Grúa</div><div class="value">{{ $boleta['grua'] }}</div></td>
+                </tr>
+            </table>
+        @endif
     </div>
 
     @if ($boleta['requiere_liberacion'])
@@ -95,28 +106,22 @@
 
     <div class="section">
         <div class="section-title">LICENCIA O PERMISO</div>
-        <div>{{ $boleta['licencia'] }}</div>
+        <table>
+            <tr>
+                <td><div class="label">Tipo</div><div class="value">{{ $boleta['licencia_tipo'] }}</div></td>
+                <td><div class="label">Número</div><div class="value">{{ $boleta['licencia_numero'] }}</div></td>
+            </tr>
+            <tr>
+                <td><div class="label">Estado</div><div class="value">{{ $boleta['licencia_estado'] }}</div></td>
+                <td><div class="label">Vigencia</div><div class="value">{{ $boleta['licencia_vigencia'] }}</div></td>
+            </tr>
+        </table>
     </div>
 
     <div class="section">
         <div class="section-title">FIRMA Y MANIFESTACIÓN</div>
         <div class="signature">Firma de la persona infractora</div>
         <div class="block" style="margin-top: 8px;"><div class="label">Manifestación de inconformidad (opcional)</div><br></div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">RESPONSABLES DEL OPERATIVO</div>
-        <div class="leadership">
-            <div class="leadership-item">
-                <div class="leadership-label">{{ $boleta['coordinador_cargo'] }}</div>
-                <div class="leadership-name">{{ $boleta['coordinador_nombre'] }}</div>
-            </div>
-            <div class="leadership-item">
-                <div class="leadership-label">Supervisión operativa</div>
-                <div class="leadership-name">{{ $boleta['supervisor_nombre'] }}</div>
-                <div>{{ $boleta['supervisor_cargo'] }}</div>
-            </div>
-        </div>
     </div>
 
     <div class="section">
@@ -129,6 +134,14 @@
         </table>
         <div class="block"><div class="label">Adscripción</div><div class="value">{{ $boleta['adscripcion'] }}</div></div>
         <div class="signature">Firma autógrafa/electrónica</div>
+        <div class="leadership">
+            <div class="leadership-item">Captura #{{ $boleta['captura_id'] }} / Operativo #{{ $boleta['operativo_id'] }}</div>
+            <div class="leadership-item">
+                <div class="leadership-label">Supervisó</div>
+                <div class="leadership-name">{{ $boleta['supervisor_nombre'] }}</div>
+                <div>{{ $boleta['supervisor_cargo'] }}</div>
+            </div>
+        </div>
     </div>
 
     <div class="notice">

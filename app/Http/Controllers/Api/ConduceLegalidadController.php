@@ -487,7 +487,8 @@ class ConduceLegalidadController extends Controller
     public function storeCaptura(
         Request $request,
         ConduceLegalidadOperativo $operativo,
-        WhatsAppCloudService $whatsApp
+        WhatsAppCloudService $whatsApp,
+        IphPuestaDisposicionDocxService $docxService
     )
     {
         $user = $request->user();
@@ -580,6 +581,7 @@ class ConduceLegalidadController extends Controller
         $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
 
         $whatsappPayload = null;
+        $whatsappBarandillasPayload = null;
         if (!$this->esOperativoAlcoholimetria($operativo)) {
             try {
                 $whatsappResponse = $this->enviarBoletaWhatsApp(
@@ -609,6 +611,23 @@ class ConduceLegalidadController extends Controller
                         ?: 'No se pudo enviar la boleta por WhatsApp.',
                 ];
             }
+
+            try {
+                $whatsappBarandillasPayload = $this->notificarBarandillasWhatsApp(
+                    $operativo,
+                    $captura,
+                    $user,
+                    $whatsApp,
+                    $docxService
+                );
+            } catch (\Throwable $e) {
+                report($e);
+                $whatsappBarandillasPayload = [
+                    'ok' => false,
+                    'enviado' => false,
+                    'message' => 'No se pudo notificar a Barandillas: ' . (trim($e->getMessage()) ?: 'error no identificado.'),
+                ];
+            }
         }
 
         $message = 'Captura guardada correctamente.';
@@ -618,12 +637,21 @@ class ConduceLegalidadController extends Controller
                 : ' La captura quedó guardada, pero la boleta no se envió por WhatsApp: '
                     . ($whatsappPayload['message'] ?? 'revisa el teléfono o la configuración de Meta.');
         }
+        if (($whatsappBarandillasPayload['enviado'] ?? false) === true) {
+            $message .= ($whatsappBarandillasPayload['ok'] ?? false)
+                ? ' Barandillas recibió anticipadamente la boleta y el IPH.'
+                : ' Se avisó a Barandillas, pero uno de los documentos no pudo enviarse.';
+        } elseif (config('services.whatsapp.conduce_legalidad.barandillas_enabled', false)
+            && ($whatsappBarandillasPayload['ok'] ?? true) === false) {
+            $message .= ' No se pudo enviar la documentación a Barandillas.';
+        }
 
         return response()->json([
             'ok' => true,
             'message' => $message,
             'data' => $this->capturaPayload($captura, $user),
             'whatsapp_boleta' => $whatsappPayload,
+            'whatsapp_barandillas' => $whatsappBarandillasPayload,
         ], 201);
     }
 
@@ -1007,6 +1035,159 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
+    private function notificarBarandillasWhatsApp(
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        $user,
+        WhatsAppCloudService $whatsApp,
+        IphPuestaDisposicionDocxService $docxService
+    ): array {
+        if (!config('services.whatsapp.conduce_legalidad.barandillas_enabled', false)) {
+            return [
+                'ok' => true,
+                'enviado' => false,
+                'message' => 'La notificación automática a Barandillas está desactivada.',
+            ];
+        }
+
+        $captura->loadMissing([
+            'creador.personal.unidad',
+            'creador.unidad',
+            'unidad',
+            'delegacion',
+            'infraccion',
+            'fundamentos.infraccion',
+            'vehiculos.infraccion',
+            'vehiculos.gruaRelacion',
+            'vehiculos.corralonRelacion',
+            'personas.infraccion',
+            'fotos',
+        ]);
+
+        $vehiculo = $captura->vehiculos->first(
+            fn (ConduceLegalidadVehiculo $item) => $this->vehiculoResguardado($item)
+        );
+        if (!$vehiculo) {
+            return [
+                'ok' => true,
+                'enviado' => false,
+                'message' => 'No se notificó a Barandillas porque no hay un vehículo remitido.',
+            ];
+        }
+
+        $to = preg_replace('/\D+/', '', (string) config(
+            'services.whatsapp.conduce_legalidad.barandillas_to',
+            '5214433163728'
+        ));
+        if (!$to) {
+            return [
+                'ok' => false,
+                'enviado' => false,
+                'message' => 'No está configurado el WhatsApp de Barandillas.',
+            ];
+        }
+
+        $language = trim((string) config(
+            'services.whatsapp.conduce_legalidad.barandillas_template_language',
+            'es_MX'
+        )) ?: 'es_MX';
+        $boletaTemplate = trim((string) config(
+            'services.whatsapp.conduce_legalidad.barandillas_boleta_template',
+            'aviso_barandillas_conduce_v1'
+        ));
+        $iphTemplate = trim((string) config(
+            'services.whatsapp.conduce_legalidad.barandillas_iph_template',
+            'iph_barandillas_conduce_v1'
+        ));
+
+        $persona = $captura->personas->first() ?: new ConduceLegalidadPersona();
+        $boleta = $this->boletaWhatsAppData($operativo, $captura, $persona, $user);
+        $pdfFilename = 'boleta_' . Str::slug($boleta['folio'], '_') . '.pdf';
+        $pdfPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR
+            . 'boleta_barandillas_' . Str::uuid() . '.pdf';
+        $iphPath = null;
+        $resultados = [];
+
+        try {
+            $pdf = Pdf::loadView('pdf.conduce_legalidad_boleta', [
+                'boleta' => $boleta,
+            ])->setPaper('letter');
+            file_put_contents($pdfPath, $pdf->output());
+
+            $pdfUpload = $whatsApp->uploadMedia($pdfPath, 'application/pdf');
+            $pdfMediaId = data_get($pdfUpload, 'body.id');
+            if (($pdfUpload['ok'] ?? false) && $pdfMediaId) {
+                $resultados['boleta'] = $whatsApp->sendDocumentTemplate(
+                    $to,
+                    $boletaTemplate,
+                    (string) $pdfMediaId,
+                    $pdfFilename,
+                    [
+                        $boleta['folio'],
+                        $boleta['fecha_hora'],
+                        $boleta['vehiculo_resumen'],
+                        $boleta['corralon'],
+                    ],
+                    $language
+                );
+            } else {
+                $resultados['boleta'] = ['ok' => false, 'stage' => 'upload'];
+            }
+
+            $hecho = $this->hechoTemporalIph($operativo, $captura);
+            $mapeo = $this->mapearIphDesdeCaptura($operativo, $captura, $user);
+            [$iphPath, $iphFilename] = $docxService->generarConduceLegalidadBarandillas($hecho, $mapeo);
+            $iphUpload = $whatsApp->uploadMedia(
+                $iphPath,
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            );
+            $iphMediaId = data_get($iphUpload, 'body.id');
+            if (($iphUpload['ok'] ?? false) && $iphMediaId) {
+                $resultados['iph'] = $whatsApp->sendDocumentTemplate(
+                    $to,
+                    $iphTemplate,
+                    (string) $iphMediaId,
+                    $iphFilename,
+                    [
+                        $boleta['folio'],
+                        $boleta['fecha_hora'],
+                        $boleta['vehiculo_resumen'],
+                        $boleta['agente_nombre'],
+                    ],
+                    $language
+                );
+            } else {
+                $resultados['iph'] = ['ok' => false, 'stage' => 'upload'];
+            }
+        } finally {
+            foreach ([$pdfPath, $iphPath] as $path) {
+                if ($path && is_file($path)) {
+                    @unlink($path);
+                }
+            }
+        }
+
+        $boletaOk = (bool) data_get($resultados, 'boleta.ok', false);
+        $iphOk = (bool) data_get($resultados, 'iph.ok', false);
+
+        return [
+            'ok' => $boletaOk && $iphOk,
+            'enviado' => $boletaOk || $iphOk,
+            'message' => $boletaOk && $iphOk
+                ? 'Boleta e IPH enviados automáticamente a Barandillas.'
+                : 'No fue posible entregar a Barandillas todos los documentos.',
+            'data' => [
+                'folio' => $boleta['folio'],
+                'telefono_terminacion' => substr($to, -4),
+                'boleta_enviada' => $boletaOk,
+                'iph_enviado' => $iphOk,
+                'boleta_template' => $boletaTemplate,
+                'iph_template' => $iphTemplate,
+                'language' => $language,
+            ],
+        ];
+    }
+
     private function boletaWhatsAppData(
         ConduceLegalidadOperativo $operativo,
         ConduceLegalidadCaptura $captura,
@@ -1073,6 +1254,8 @@ class ConduceLegalidadController extends Controller
 
         return [
             'folio' => 'CL-' . $operativo->id . '-' . $captura->id,
+            'operativo_id' => $operativo->id,
+            'captura_id' => $captura->id,
             'municipio' => $captura->municipio ?: $operativo->municipio ?: 'No capturado',
             'fecha' => optional($captura->fecha)->format('d/m/Y') ?: 'No capturada',
             'hora' => $this->horaCorta($captura->hora) ?: 'No capturada',
@@ -1090,6 +1273,10 @@ class ConduceLegalidadController extends Controller
             'corralon' => $vehiculo ? ($this->valorCorralon($vehiculo) ?: 'No capturado') : 'No capturado',
             'grua' => $vehiculo ? ($this->valorGrua($vehiculo) ?: 'No capturada') : 'No capturada',
             'licencia' => $licencia ?: 'No capturada',
+            'licencia_tipo' => $persona->tipo_licencia ?: 'No capturado',
+            'licencia_numero' => $persona->numero_licencia ?: 'No capturado',
+            'licencia_estado' => $persona->estado_licencia ?: 'No capturado',
+            'licencia_vigencia' => $vigenciaLicencia,
             'requiere_liberacion' => $vehiculo ? $this->vehiculoResguardado($vehiculo) : false,
             'liberacion' => 'La liberación del vehículo deberá tramitarse ante la autoridad competente, presentando la documentación aplicable y esta boleta.',
             'agente_nombre' => $this->nullableString($captura->agente_nombre)

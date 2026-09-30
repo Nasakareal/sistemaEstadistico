@@ -68,6 +68,21 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
                 $texto
             );
             $this->assertStringNotContainsString('$grua', $texto);
+            $this->assertSame(4, substr_count($texto, '29092026'));
+            $this->assertSame(3, substr_count($texto, '14:30'));
+            $fechaNacimientoInicio = strpos($texto, 'Fecha de nacimiento:');
+            $fechaNacimientoFin = strpos($texto, 'Firma:', $fechaNacimientoInicio);
+            $this->assertNotFalse($fechaNacimientoInicio);
+            $this->assertNotFalse($fechaNacimientoFin);
+            $this->assertStringNotContainsString(
+                '29092026',
+                substr($texto, $fechaNacimientoInicio, $fechaNacimientoFin - $fechaNacimientoInicio)
+            );
+            $this->assertStringNotContainsString('$d', $texto);
+            $this->assertStringNotContainsString('$me', $texto);
+            $this->assertStringNotContainsString('$ye', $texto);
+            $this->assertStringNotContainsString('$ho', $texto);
+            $this->assertStringNotContainsString('$min', $texto);
         } finally {
             if (is_file($path)) {
                 @unlink($path);

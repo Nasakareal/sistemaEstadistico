@@ -356,9 +356,29 @@ class IphPuestaDisposicionDocxService
 
         $index = 0;
         $pattern = '/' . preg_quote($placeholder, '/') . '/u';
+        $occurrences = substr_count($xml, $placeholder);
 
-        return preg_replace_callback($pattern, function () use (&$index, $chars) {
-            $char = $chars[$index] ?? '';
+        return preg_replace_callback($pattern, function () use (&$index, $chars, $placeholder, $occurrences) {
+            $isFechaNacimiento = (
+                in_array($placeholder, ['$d', '$me'], true)
+                && $occurrences === 10
+                && $index >= 6
+                && $index <= 7
+            ) || (
+                $placeholder === '$ye'
+                && $occurrences === 20
+                && $index >= 12
+                && $index <= 15
+            );
+            if ($isFechaNacimiento) {
+                $index++;
+
+                return '';
+            }
+
+            $char = $placeholder === '$foc'
+                ? ($chars[$index] ?? '')
+                : ($chars[$index % count($chars)] ?? '');
             $index++;
 
             return $this->escapeDocxText($char);

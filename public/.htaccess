@@ -31,7 +31,10 @@ ServerSignature Off
     # Rechaza archivos ocultos y rutas de herramientas que buscan los escaneres.
     # Se conserva .well-known para validaciones de certificados TLS.
     RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L,NC]
-    RewriteRule ^(?:vendor|storage/logs|bootstrap/cache|config|database|tests)(?:/|$) - [F,L,NC]
+    # Este .htaccess vive dentro de public/: /vendor contiene los assets
+    # publicos de AdminLTE y sus plugins. Bloquearlo deja la aplicacion sin CSS.
+    # El vendor de Composer esta fuera de este document root y no queda expuesto.
+    RewriteRule ^(?:storage/logs|bootstrap/cache|config|database|tests)(?:/|$) - [F,L,NC]
     RewriteRule ^(?:wp-admin|wp-login\.php|xmlrpc\.php|phpmyadmin|pma|server-status|cgi-bin)(?:/|$) - [F,L,NC]
 
     # Las fotos de personal se sirven por una ruta autenticada, no por /storage.

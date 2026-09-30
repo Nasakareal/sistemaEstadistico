@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <link rel="icon" href="http://localhost/sistemaEstadistico/public/icon.ico" type="image/x-icon">
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="7KOygtKcE0m5TlECypts8GFDiZei0SeSI5V4QXhI">
+
+    
+    <title>
+                Seguridad Vial            </title>
+
+            <link rel="stylesheet" href="http://localhost/sistemaEstadistico/public/vendor/overlayScrollbars/css/OverlayScrollbars.min.css">
+        <link rel="stylesheet" href="http://localhost/sistemaEstadistico/public/vendor/adminlte/dist/css/adminlte.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="http://localhost/sistemaEstadistico/public/css/sv-theme.css">
+            
+        
+            
+
+            
+            
+
+            
+            
+
+    
+
+    
+    
+
+            
+            
+
+            
+            
+
+                            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+            
+            
+
+    
+
+    
+    
+
+            
+            
+
+            
+            
+
+                            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+            
+        
+            
+
+            
+            
+
+            
+            
+
+    
+
+    
+    
+
+            
+            
+
+            
+            
+
+                            <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css">
+            
+        
+            
+
+            
+            
+
+                            <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
+            
+        
+            
+
+            
+            
+
+                            <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap4.min.css">
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+            
+
+    
+
+    
+    
+
+    
+
+    
+
+    
+    
+
+    
+
+    
+
+    
+    
+
+    
+
+    
+    <style>
+    :root{
+        --bg0:#070B14;
+        --bg1:#0B1224;
+        --text:#EAF0FF;
+        --muted: rgba(234,240,255,.75);
+        --stroke: rgba(255,255,255,.14);
+        --card: rgba(255,255,255,.08);
+        --card2: rgba(255,255,255,.06);
+        --brand:#2DA8FF;
+        --brand2:#7C5CFF;
+        --shadow: 0 18px 55px rgba(0,0,0,.45);
+    }
+
+    /* Fondo general (auth) */
+    body.login-page{
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+        color: var(--text) !important;
+        background:
+            radial-gradient(1200px 900px at 20% 10%, rgba(45,168,255,.25), transparent 60%),
+            radial-gradient(1000px 800px at 80% 20%, rgba(124,92,255,.22), transparent 55%),
+            radial-gradient(900px 650px at 60% 85%, rgba(25,211,140,.12), transparent 60%),
+            linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #050813) !important;
+        min-height: 100vh;
+    }
+
+    /* Contenedor principal */
+    .login-box{
+        width: min(420px, calc(100% - 44px));
+    }
+
+    /* Card glass */
+    .login-box .card{
+        background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)) !important;
+        border: 1px solid rgba(255,255,255,.12) !important;
+        border-radius: 22px !important;
+        box-shadow: var(--shadow) !important;
+        overflow: hidden;
+    }
+
+    /* Header */
+    .login-logo, .login-box-msg{
+        color: rgba(234,240,255,.92) !important;
+    }
+
+    .login-box .card-header,
+    .login-box .card-header .login-box-msg{
+        background: rgba(0,0,0,.14) !important;
+        border-bottom: 1px solid rgba(255,255,255,.10) !important;
+    }
+
+    /* Texto del header que ponemos abajo */
+    .sv-kicker{
+        display:flex;
+        align-items:center;
+        gap: 10px;
+        justify-content: center;
+        margin: 6px 0 10px;
+        color: rgba(234,240,255,.88);
+        font-weight: 800;
+        font-size: 12.5px;
+        letter-spacing: .35px;
+    }
+    .sv-dot{
+        width: 8px; height: 8px; border-radius: 999px;
+        background: #19D38C;
+        box-shadow: 0 0 0 5px rgba(25,211,140,.14);
+    }
+
+    /* Body */
+    .login-box .card-body{
+        background: transparent !important;
+        padding: 18px 18px 16px !important;
+    }
+
+    /* Inputs premium */
+    .login-box .form-control{
+        background: rgba(0,0,0,.18) !important;
+        border: 1px solid rgba(255,255,255,.12) !important;
+        color: rgba(234,240,255,.92) !important;
+        border-radius: 14px !important;
+        height: 44px;
+        padding-left: 14px;
+        transition: .18s ease;
+    }
+    .login-box .form-control::placeholder{
+        color: rgba(234,240,255,.55) !important;
+    }
+    .login-box .form-control:focus{
+        box-shadow: none !important;
+        border-color: rgba(45,168,255,.45) !important;
+        background: rgba(0,0,0,.22) !important;
+    }
+
+    /* Iconos a la derecha */
+    .login-box .input-group-text{
+        background: rgba(0,0,0,.18) !important;
+        border: 1px solid rgba(255,255,255,.12) !important;
+        border-left: none !important;
+        color: rgba(234,240,255,.78) !important;
+        border-radius: 0 14px 14px 0 !important;
+        width: 44px;
+        justify-content: center;
+    }
+    .login-box .input-group .form-control{
+        border-right: none !important;
+        border-radius: 14px 0 0 14px !important;
+    }
+
+    /* iCheck */
+    .icheck-primary label{
+        color: rgba(234,240,255,.78) !important;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    /* Botón principal */
+    .login-box .btn-primary{
+        border: 1px solid rgba(45,168,255,.35) !important;
+        background: linear-gradient(135deg, rgba(45,168,255,.25), rgba(124,92,255,.22)) !important;
+        border-radius: 14px !important;
+        font-weight: 800 !important;
+        height: 44px;
+        box-shadow: 0 18px 55px rgba(0,0,0,.30);
+        transition: .18s ease;
+    }
+    .login-box .btn-primary:hover{
+        transform: translateY(-1px);
+        border-color: rgba(45,168,255,.55) !important;
+        background: linear-gradient(135deg, rgba(45,168,255,.34), rgba(124,92,255,.30)) !important;
+    }
+
+    /* Links */
+    .login-box a{
+        color: rgba(234,240,255,.78) !important;
+        font-weight: 700;
+    }
+    .login-box a:hover{
+        color: rgba(234,240,255,.92) !important;
+        text-decoration: none;
+    }
+
+    /* Separadores y footer */
+    .login-box .card-footer{
+        background: transparent !important;
+        border-top: 1px solid rgba(255,255,255,.10) !important;
+        padding: 14px 18px 18px !important;
+    }
+
+    /* Mensajes de error */
+    .invalid-feedback{
+        color: #FFCC66 !important;
+        font-weight: 700;
+    }
+</style>
+
+    <style>
+        :root{
+            --bg0:#070B14;
+            --bg1:#0B1224;
+            --text:#EAF0FF;
+            --muted: rgba(234,240,255,.75);
+            --muted2: rgba(234,240,255,.55);
+            --stroke: rgba(255,255,255,.14);
+            --card: rgba(255,255,255,.08);
+            --card2: rgba(255,255,255,.06);
+            --brand:#2DA8FF;
+            --brand2:#7C5CFF;
+            --ok:#19D38C;
+            --warn:#FFCC66;
+            --shadow: 0 18px 55px rgba(0,0,0,.45);
+            --shadow2: 0 12px 35px rgba(0,0,0,.35);
+            --radius: 18px;
+            --radius2: 22px;
+        }
+
+        html, body{ height: 100%; }
+        body{
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 900px at 20% 10%, rgba(45,168,255,.25), transparent 60%),
+                radial-gradient(1000px 800px at 80% 20%, rgba(124,92,255,.22), transparent 55%),
+                radial-gradient(900px 650px at 60% 85%, rgba(25,211,140,.12), transparent 60%),
+                linear-gradient(180deg, var(--bg0), var(--bg1) 60%, #050813) !important;
+        }
+
+        .content-wrapper, .main-footer{
+            background: transparent !important;
+        }
+
+        .main-header.navbar{
+            background: linear-gradient(180deg, rgba(7,11,20,.88), rgba(7,11,20,.55)) !important;
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(255,255,255,.10) !important;
+        }
+        .main-header .nav-link{
+            color: rgba(234,240,255,.82) !important;
+            font-weight: 800;
+        }
+        .main-header .nav-link:hover{
+            color: rgba(234,240,255,.95) !important;
+        }
+
+        .main-sidebar{
+            background: rgba(0,0,0,.26) !important;
+            backdrop-filter: blur(14px);
+            border-right: 1px solid rgba(255,255,255,.10) !important;
+            z-index: 1040 !important;
+        }
+
+        .sidebar-overlay{
+            background: rgba(0,0,0,.55) !important;
+            z-index: 1039 !important;
+        }
+
+        .main-header{
+            z-index: 1038 !important;
+        }
+
+        @media (max-width: 991.98px){
+            .main-sidebar{
+                background: #0B1224 !important;
+                backdrop-filter: none !important;
+            }
+            body.sidebar-open .content-wrapper{
+                filter: blur(2px);
+            }
+        }
+
+        .brand-link{
+            background: transparent !important;
+            border-bottom: 1px solid rgba(255,255,255,.10) !important;
+        }
+        .brand-link .brand-text{
+            color: rgba(234,240,255,.92) !important;
+            font-weight: 900 !important;
+            letter-spacing: .2px;
+        }
+
+        .nav-sidebar{
+    padding-top: 6px !important;
+}
+
+.nav-sidebar .nav-item{
+    margin: 6px 10px !important;
+}
+
+.nav-sidebar .nav-link{
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    margin: 0 !important;
+    background: rgba(0,0,0,.12) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    color: rgba(234,240,255,.92) !important;
+    transition: .18s ease !important;
+}
+
+.nav-sidebar .nav-link:hover{
+    transform: translateY(-1px);
+    background: rgba(255,255,255,.06) !important;
+    border-color: rgba(255,255,255,.14) !important;
+    color: rgba(234,240,255,.95) !important;
+}
+
+.nav-sidebar .nav-link.active{
+    background: linear-gradient(135deg, rgba(45,168,255,.35), rgba(124,92,255,.24)) !important;
+    border-color: rgba(45,168,255,.35) !important;
+    color: rgba(234,240,255,.98) !important;
+}
+
+.nav-sidebar .nav-link > i{
+    width: 28px !important;
+    height: 28px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    margin: 0 !important;
+    font-size: 15px !important;
+    flex: 0 0 auto !important;
+}
+
+.nav-sidebar .nav-link p{
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    font-weight: 900 !important;
+    letter-spacing: .15px !important;
+    white-space: nowrap !important;
+    font-size: 14px !important;
+}
+
+.nav-sidebar .nav-link p i.right{
+    display: none !important;
+}
+
+.nav-sidebar .nav-link p::after{
+    content: "›";
+    font-size: 20px;
+    line-height: 1;
+    opacity: .85;
+    margin-left: 10px;
+    transform: translateY(-1px);
+}
+
+.nav-sidebar .menu-open > .nav-link p::after{
+    content: "⌄";
+    font-size: 16px;
+    transform: translateY(-1px);
+}
+
+.nav-sidebar .nav-treeview{
+    padding-left: 0 !important;
+    margin: 6px 0 0 0 !important;
+    border-top: 1px solid rgba(255,255,255,.08) !important;
+}
+
+.nav-sidebar .nav-treeview .nav-item{
+    margin: 6px 0 0 0 !important;
+}
+
+.nav-sidebar .nav-treeview .nav-link{
+    margin: 0 0 0 10px !important;
+    padding: 9px 12px !important;
+    border-radius: 13px !important;
+    background: rgba(0,0,0,.10) !important;
+}
+
+.nav-sidebar .nav-treeview .nav-link > i{
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 14px !important;
+}
+
+.badge.right{
+    position: static !important;
+    margin-left: 8px !important;
+    padding: 3px 8px !important;
+    border-radius: 999px !important;
+    font-weight: 900 !important;
+    font-size: 12px !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    background: rgba(0,0,0,.18) !important;
+}
+
+        .card{
+            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)) !important;
+            border: 1px solid rgba(255,255,255,.12) !important;
+            border-radius: var(--radius2) !important;
+            box-shadow: var(--shadow2) !important;
+        }
+        .card-header{
+            background: rgba(0,0,0,.14) !important;
+            border-bottom: 1px solid rgba(255,255,255,.10) !important;
+        }
+        .card-title, .card-header .btn-tool{
+            color: rgba(234,240,255,.92) !important;
+        }
+
+        .btn{
+            border-radius: 14px !important;
+            font-weight: 900 !important;
+        }
+        .btn-primary{
+            border: 1px solid rgba(45,168,255,.35) !important;
+            background: linear-gradient(135deg, rgba(45,168,255,.25), rgba(124,92,255,.22)) !important;
+            box-shadow: 0 18px 55px rgba(0,0,0,.30);
+        }
+        .btn-primary:hover{
+            transform: translateY(-1px);
+            border-color: rgba(45,168,255,.55) !important;
+            background: linear-gradient(135deg, rgba(45,168,255,.34), rgba(124,92,255,.30)) !important;
+        }
+
+        .form-control, .custom-select{
+            background: rgba(0,0,0,.18) !important;
+            border: 1px solid rgba(255,255,255,.12) !important;
+            color: rgba(234,240,255,.92) !important;
+            border-radius: 14px !important;
+        }
+        .form-control::placeholder{ color: rgba(234,240,255,.55) !important; }
+        .form-control:focus, .custom-select:focus{
+            box-shadow: none !important;
+            border-color: rgba(45,168,255,.45) !important;
+            background: rgba(0,0,0,.22) !important;
+        }
+        label{ color: rgba(234,240,255,.78) !important; font-weight: 800; }
+
+        input[type="date"].form-control::-webkit-calendar-picker-indicator{
+            filter: invert(1);
+            opacity: .9;
+            cursor: pointer;
+        }
+
+        .table{
+            color: rgba(234,240,255,.90) !important;
+        }
+        .table thead th{
+            background: rgba(0,0,0,.18) !important;
+            border-bottom: 1px solid rgba(255,255,255,.12) !important;
+            color: rgba(234,240,255,.92) !important;
+        }
+        .table td, .table th{
+            border-top: 1px solid rgba(255,255,255,.08) !important;
+        }
+        .table-striped tbody tr:nth-of-type(odd){
+            background: rgba(255,255,255,.03) !important;
+        }
+        .table-hover tbody tr:hover{
+            background: rgba(255,255,255,.06) !important;
+        }
+        .table-hover tbody tr:hover td,
+        .table-hover tbody tr:hover th,
+        .table-hover tbody tr:hover a{
+            color: rgba(234,240,255,.95) !important;
+        }
+
+        .alert{
+            border-radius: var(--radius) !important;
+            border: 1px solid rgba(255,255,255,.14) !important;
+            background: rgba(0,0,0,.18) !important;
+            color: rgba(234,240,255,.92) !important;
+        }
+
+        .modal-content{
+            border-radius: var(--radius2) !important;
+            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)) !important;
+            border: 1px solid rgba(255,255,255,.12) !important;
+            box-shadow: var(--shadow) !important;
+        }
+        .modal-header{
+            border-bottom: 1px solid rgba(255,255,255,.10) !important;
+        }
+        .modal-footer{
+            border-top: 1px solid rgba(255,255,255,.10) !important;
+        }
+
+        .content-header .breadcrumb{
+            background: rgba(0,0,0,.14) !important;
+            border: 1px solid rgba(255,255,255,.10) !important;
+            border-radius: 14px !important;
+        }
+        .breadcrumb-item a{ color: rgba(234,240,255,.78) !important; font-weight: 800; }
+        .breadcrumb-item.active{ color: rgba(234,240,255,.92) !important; }
+
+        .content-header h1{
+            color: rgba(234,240,255,.92) !important;
+            font-weight: 900;
+            letter-spacing: -.3px;
+        }
+    </style>
+    <style>
+        .main-header .nav-link {
+            position: relative;
+        }
+
+        .main-header .nav-link .hechos-revision-badge {
+            position: absolute;
+            top: 2px;
+            right: -10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 999px;
+        }
+    </style>
+
+    <style>
+        .main-header .nav-link {
+            position: relative;
+        }
+
+        .main-header .nav-link .hechos-revision-badge {
+            position: absolute;
+            top: 2px;
+            right: -10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 999px;
+        }
+
+        .main-header .nav-link .guardianes-revision-badge {
+            position: absolute;
+            top: 2px;
+            right: -10px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 999px;
+        }
+    </style>
+
+    </head>
+
+<body class="login-page dark-mode" >
+        <div class="login-box">
+
+    <center><img src="http://localhost/sistemaEstadistico/public/img/guardiacivil.png" width="60%" alt=""></center>
+
+    <br>
+
+        <!-- 
+        <div class="login-logo">
+            <a href="http://localhost/sistemaEstadistico/public/home">
+
+                
+                                    <img src="http://localhost/sistemaEstadistico/public/img/UTM.png"
+                         alt="Seguridad Vial" height="50">
+                
+                
+                <b style="color:white;">Seguridad Vial</b>
+
+            </a>
+        </div> -->
+
+        
+        <div class="card card-outline card-primary" style="box-shadow: 5px 5px 5px 0px #cccccc">
+
+            
+            
+            
+            <div class="card-body login-card-body ">
+                    <form action="http://localhost/sistemaEstadistico/public/login" method="POST">
+        <input type="hidden" name="_token" value="7KOygtKcE0m5TlECypts8GFDiZei0SeSI5V4QXhI">
+        
+        <div class="input-group mb-3">
+            <input
+                type="email"
+                name="email"
+                class="form-control "
+                value=""
+                placeholder="Email"
+                required
+                autofocus>
+            <div class="input-group-append">
+                <div class="input-group-text">
+                    <span class="fas fa-envelope "></span>
+                </div>
+            </div>
+                    </div>
+
+        
+        <div class="input-group mb-3">
+            <input
+                type="password"
+                name="password"
+                class="form-control "
+                placeholder="Contraseña"
+                required>
+            <div class="input-group-append">
+                <div class="input-group-text">
+                    <span class="fas fa-lock "></span>
+                </div>
+            </div>
+                    </div>
+
+        <div class="row" style="align-items:center;">
+            <div class="col-7">
+                <div class="icheck-primary" title="Mantenerme autenticado indefinidamente o hasta cerrar la sesión manualmente">
+                    <input
+                        type="checkbox"
+                        name="remember"
+                        id="remember"
+                        >
+                    <label for="remember">
+                        Recordarme
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-5">
+                <button
+                    type="submit"
+                    class="btn btn-primary btn-block">
+                    <span class="fas fa-sign-in-alt"></span>
+                    Acceder
+                </button>
+            </div>
+        </div>
+    </form>
+            </div>
+
+            
+            
+        </div>
+
+    </div>
+
+            <script src="http://localhost/sistemaEstadistico/public/vendor/jquery/jquery.min.js"></script>
+        <script src="http://localhost/sistemaEstadistico/public/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+        <script src="http://localhost/sistemaEstadistico/public/vendor/overlayScrollbars/js/jquery.overlayScrollbars.min.js"></script>
+        <script src="http://localhost/sistemaEstadistico/public/vendor/adminlte/dist/js/adminlte.min.js"></script>
+    
+    <script src="http://localhost/sistemaEstadistico/public/js/sv-theme.js" ></script>
+            
+            
+
+    
+
+    
+    
+
+            
+            
+
+            
+            
+
+            
+            
+
+    
+
+    
+    
+
+            
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js" ></script>
+            
+            
+
+    
+
+    
+    
+
+            
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap4.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js" ></script>
+            
+        
+            
+
+            
+            
+
+                            <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap4.min.js" ></script>
+            
+            
+
+    
+
+    
+    
+
+    
+
+    
+
+    
+    
+
+    
+
+    
+
+    
+    
+
+    
+
+    
+            <script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    function findRevisionBell() {
+        return Array.from(document.querySelectorAll('.main-header .nav-link')).find(link => {
+            const text = (link.textContent || '').replace(/\s+/g, ' ').trim();
+            return text.includes('Revisión');
+        });
+    }
+
+    function updateHechosRevisionBadge() {
+        const bell = findRevisionBell();
+
+        if (!bell) return;
+
+        fetch('http://localhost/sistemaEstadistico/public/hechos/revision/pendientes/count', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.querySelectorAll('.hechos-revision-badge').forEach(el => {
+                if (!bell.contains(el)) {
+                    el.remove();
+                }
+            });
+
+            let badge = bell.querySelector('.hechos-revision-badge');
+
+            if (parseInt(data.count) > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge badge-danger ml-1 hechos-revision-badge';
+                    bell.appendChild(badge);
+                }
+
+                badge.textContent = data.count;
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
+            }
+        })
+        .catch(() => {});
+    }
+
+    updateHechosRevisionBadge();
+    setInterval(updateHechosRevisionBadge, 15000);
+
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    function findGuardianesBell() {
+        return Array.from(document.querySelectorAll('.main-header .nav-link')).find(link => {
+            const text = (link.textContent || '').replace(/\s+/g, ' ').trim();
+            return text.includes('Guardianes');
+        });
+    }
+
+    function updateGuardianesRevisionBadge() {
+        const bell = findGuardianesBell();
+
+        if (!bell) return;
+
+        fetch('http://localhost/sistemaEstadistico/public/guardianes-camino/dispositivos/count-pendientes-revision', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.querySelectorAll('.guardianes-revision-badge').forEach(el => {
+                if (!bell.contains(el)) {
+                    el.remove();
+                }
+            });
+
+            let badge = bell.querySelector('.guardianes-revision-badge');
+
+            if (parseInt(data.total) > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge badge-danger ml-1 guardianes-revision-badge';
+                    bell.appendChild(badge);
+                }
+
+                badge.textContent = data.total;
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
+            }
+        })
+        .catch(() => {});
+    }
+
+    updateGuardianesRevisionBadge();
+    setInterval(updateGuardianesRevisionBadge, 15000);
+
+});
+</script>
+    </body>
+</html>

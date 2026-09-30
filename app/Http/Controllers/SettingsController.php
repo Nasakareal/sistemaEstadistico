@@ -39,6 +39,7 @@ class SettingsController extends Controller
                 's.id',
                 's.grua_id',
                 's.vehiculo_id',
+                's.tipo_vehiculo',
                 's.created_at',
                 DB::raw("COALESCE(NULLIF(TRIM(s.aseguradora), ''), NULLIF(TRIM(v.aseguradora), '')) as aseguradora"),
             ])
@@ -87,6 +88,13 @@ class SettingsController extends Controller
             ->sortByDesc('total')
             ->values();
 
+        $gnpRows = $conAseguradora->filter(function ($row) use ($normalizarAseguradora) {
+            $nombre = $normalizarAseguradora($row->aseguradora);
+            return str_contains($nombre, 'GNP') || str_contains($nombre, 'GRUPO NACIONAL PROVINCIAL');
+        });
+        $gnpInicio = $gnpRows->isNotEmpty() ? Carbon::parse($gnpRows->min('created_at')) : null;
+        $gnpCorte = $gnpRows->isNotEmpty() ? Carbon::parse($gnpRows->max('created_at')) : null;
+
         $total = $rows->count();
         $totalAsegurados = $conAseguradora->count();
         $stats = [
@@ -102,6 +110,14 @@ class SettingsController extends Controller
             'fecha_corte' => $fechaCorte,
             'meses' => $meses,
             'top_aseguradoras' => $aseguradoras->take(5),
+            'gnp' => [
+                'servicios' => $gnpRows->count(),
+                'gruas' => $gnpRows->whereNotNull('grua_id')->pluck('grua_id')->unique()->count(),
+                'tipos_vehiculo' => $gnpRows->pluck('tipo_vehiculo')->filter(fn ($tipo) => trim((string) $tipo) !== '')->map(fn ($tipo) => mb_strtoupper(trim((string) $tipo), 'UTF-8'))->unique()->count(),
+                'fecha_inicio' => $gnpInicio,
+                'fecha_corte' => $gnpCorte,
+                'porcentaje_asegurados' => $totalAsegurados > 0 ? round(($gnpRows->count() / $totalAsegurados) * 100, 1) : 0,
+            ],
         ];
 
         $legacyStats = $this->aseguradorasLegacyStats();

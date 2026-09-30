@@ -18,10 +18,10 @@
             <a href="#vi-history">Histórico</a>
             <a href="#vi-business-case">Caso de negocio</a>
             <a href="#vi-moat">Ventaja</a>
-            <a href="#vi-pilot">Piloto</a>
+            <a href="#vi-gnp">Piloto GNP</a>
         </nav>
         <div class="vi-topbar__actions">
-            <span class="vi-private"><i class="fas fa-lock"></i> Vista privada</span>
+            <span class="vi-private"><i class="fas fa-lock"></i> Preparado para GNP · Vista privada</span>
             <button type="button" class="vi-print vi-pitch-toggle" id="viPitchToggle">
                 <i class="fas fa-expand"></i> Modo presentación
             </button>
@@ -105,10 +105,10 @@
                 </div>
             </div>
             <div class="vi-hero__score">
-                <span>Servicios con aseguradora identificada</span>
-                <strong>{{ number_format($stats['asegurados']) }}</strong>
-                <div class="vi-scorebar"><i style="width:{{ $stats['porcentaje_asegurados'] }}%"></i></div>
-                <b><i class="fas fa-database"></i> {{ number_format($stats['porcentaje_asegurados'], 1) }}% del registro disponible</b>
+                <span>Coincidencias GNP identificadas</span>
+                <strong>{{ number_format($stats['gnp']['servicios']) }}</strong>
+                <div class="vi-scorebar"><i style="width:{{ min(100, $stats['gnp']['porcentaje_asegurados']) }}%"></i></div>
+                <b><i class="fas fa-link"></i> Base inicial para contrastar una muestra</b>
             </div>
         </section>
 
@@ -153,10 +153,10 @@
                 <small><b>{{ number_format($stats['porcentaje_asegurados'], 1) }}%</b> del total registrado</small>
             </article>
             <article class="vi-kpi">
-                <div class="vi-kpi__icon vi-green"><i class="fas fa-building"></i></div>
-                <span>Aseguradoras reconocidas</span>
-                <strong>{{ number_format($stats['aseguradoras']) }}</strong>
-                <small>Nombres normalizados en el registro</small>
+                <div class="vi-kpi__icon vi-green"><i class="fas fa-link"></i></div>
+                <span>Coincidencias GNP</span>
+                <strong>{{ number_format($stats['gnp']['servicios']) }}</strong>
+                <small>Identificadas en el registro actual</small>
             </article>
             <article class="vi-kpi">
                 <div class="vi-kpi__icon vi-orange"><i class="fas fa-warehouse"></i></div>
@@ -204,22 +204,21 @@
             <article class="vi-panel vi-risk">
                 <header class="vi-panel__header">
                     <div>
-                        <span class="vi-panel__kicker">Composición observada</span>
-                        <h2>Aseguradoras en el registro</h2>
+                        <span class="vi-panel__kicker">Punto de partida para la reunión</span>
+                        <h2>Coincidencias identificadas de GNP</h2>
                     </div>
-                    <span class="vi-status vi-status--green">Top {{ $stats['top_aseguradoras']->count() }}</span>
+                    <span class="vi-status vi-status--green">Dato operativo</span>
                 </header>
                 <ol class="vi-ranking">
-                    @forelse($stats['top_aseguradoras'] as $index => $aseguradora)
-                        <li>
-                            <b>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</b>
-                            <div><strong>{{ $aseguradora['nombre'] }}</strong><span>Servicios de grúa vinculados</span></div>
-                            <em>{{ number_format($aseguradora['total']) }}</em>
-                        </li>
-                    @empty
-                        <li><div><strong>Sin datos disponibles</strong><span>No hay aseguradoras identificadas en el periodo.</span></div></li>
-                    @endforelse
+                    <li><b>01</b><div><strong>Servicios vinculados</strong><span>Registros donde la aseguradora capturada corresponde a GNP</span></div><em>{{ number_format($stats['gnp']['servicios']) }}</em></li>
+                    <li><b>02</b><div><strong>Proveedores de grúa</strong><span>Proveedores distintos dentro de esas coincidencias</span></div><em>{{ number_format($stats['gnp']['gruas']) }}</em></li>
+                    <li><b>03</b><div><strong>Tipos de vehículo</strong><span>Categorías distintas observadas en la muestra</span></div><em>{{ number_format($stats['gnp']['tipos_vehiculo']) }}</em></li>
+                    <li><b>04</b><div><strong>Periodo observado</strong><span>Fuente institucional disponible</span></div><em>{{ $stats['gnp']['fecha_inicio'] && $stats['gnp']['fecha_corte'] ? $stats['gnp']['fecha_inicio']->format('d/m') . '–' . $stats['gnp']['fecha_corte']->format('d/m') : '—' }}</em></li>
                 </ol>
+                <div class="vi-insight">
+                    <i class="fas fa-handshake"></i>
+                    <p><strong>La propuesta:</strong> contrastar esta evidencia con una muestra controlada de servicios pagados por GNP, sin exponer datos personales ni convertir una señal en una decisión automática.</p>
+                </div>
             </article>
         </section>
 
@@ -301,6 +300,45 @@
                 </div>
             </section>
         @endif
+
+        <section class="vi-gnp" id="vi-gnp">
+            <div class="vi-section-title vi-section-title--wide">
+                <span>Propuesta específica para GNP</span>
+                <h2>No pedimos toda la cartera. Empezamos con una muestra controlada.</h2>
+                <p>El objetivo de la reunión es acordar un cruce limitado, medible y reversible entre servicios pagados por GNP y evidencia operativa institucional.</p>
+            </div>
+            <div class="vi-gnp__exchange">
+                <article>
+                    <div class="vi-gnp__number">01</div>
+                    <span class="vi-panel__kicker">Lo que aporta GNP</span>
+                    <h3>Una muestra seudonimizada de asistencia vial</h3>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Identificador interno no nominativo</li>
+                        <li><i class="fas fa-check"></i> Fecha y hora del servicio</li>
+                        <li><i class="fas fa-check"></i> Proveedor de grúa</li>
+                        <li><i class="fas fa-check"></i> Origen, destino y kilómetros facturados</li>
+                        <li><i class="fas fa-check"></i> Importe pagado y concepto</li>
+                    </ul>
+                </article>
+                <div class="vi-gnp__bridge"><i class="fas fa-exchange-alt"></i><span>Cruce controlado</span></div>
+                <article>
+                    <div class="vi-gnp__number">02</div>
+                    <span class="vi-panel__kicker">Lo que entregamos</span>
+                    <h3>Un resultado que GNP pueda verificar</h3>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Porcentaje de coincidencia con evidencia institucional</li>
+                        <li><i class="fas fa-check"></i> Distribución de costos por proveedor y territorio</li>
+                        <li><i class="fas fa-check"></i> Servicios repetidos y concentraciones atípicas</li>
+                        <li><i class="fas fa-check"></i> Expediente de soporte para revisión humana</li>
+                        <li><i class="fas fa-check"></i> Método documentado y resultado reproducible</li>
+                    </ul>
+                </article>
+            </div>
+            <div class="vi-gnp__close">
+                <i class="fas fa-shield-alt"></i>
+                <p><strong>Condición de entrada:</strong> sin nombres de asegurados, teléfonos, domicilios particulares ni decisiones automáticas. Si el cruce no produce una señal útil y comprobable, no se escala.</p>
+            </div>
+        </section>
 
         <section class="vi-business-case" id="vi-business-case">
             <div class="vi-section-title vi-section-title--wide">
@@ -412,12 +450,13 @@
     .vi-topnav{display:flex;gap:18px;margin-left:24px}.vi-topnav a{color:#7f94af;font-size:10px;font-weight:800;letter-spacing:.2px}.vi-topnav a:hover{color:var(--vi-green)}
     .vi-pitch-mode .vi-topbar{height:58px}.vi-pitch-mode .vi-topnav,.vi-pitch-mode .vi-private{display:none}.vi-pitch-mode .vi-shell{padding-top:0}
     .vi-hero{min-height:420px}.vi-hero__copy{max-width:950px}.vi-hero__score{border-color:rgba(53,214,164,.21);box-shadow:0 30px 90px rgba(0,0,0,.34),inset 0 0 45px rgba(53,214,164,.035)}
-    .vi-history,.vi-business-case,.vi-moat{max-width:1380px;margin-left:auto;margin-right:auto}
+    .vi-history,.vi-gnp,.vi-business-case,.vi-moat{max-width:1380px;margin-left:auto;margin-right:auto}
     .vi-history{margin-top:70px;padding:34px;border:1px solid rgba(53,200,230,.18);border-radius:20px;background:linear-gradient(145deg,rgba(16,36,58,.96),rgba(8,22,38,.98));box-shadow:0 30px 80px rgba(0,0,0,.22)}
     .vi-history__header{display:flex;justify-content:space-between;align-items:end;gap:30px;padding-bottom:25px;border-bottom:1px solid var(--vi-line)}.vi-history__header h2{font-size:30px;letter-spacing:-1px;margin:7px 0}.vi-history__header p{max-width:760px;margin:0;color:#8398b2;font-size:11px;line-height:1.6}.vi-history__period{text-align:right;white-space:nowrap}.vi-history__period small,.vi-history__period strong{display:block}.vi-history__period small{color:#667e9a;text-transform:uppercase;font-size:8px;letter-spacing:1px}.vi-history__period strong{color:#b7cce2;font-size:12px;margin-top:5px}
     .vi-history__body{display:grid;grid-template-columns:.72fr 1.28fr;gap:26px;padding-top:26px}.vi-history__focus{padding:28px;border:1px solid rgba(53,214,164,.18);border-radius:16px;background:radial-gradient(circle at 90% 0,rgba(53,214,164,.13),transparent 48%),rgba(5,18,31,.55)}.vi-history__focus>span{display:block;color:#88a0b9;font-size:10px;text-transform:uppercase;letter-spacing:.9px;font-weight:850}.vi-history__focus>strong{display:block;font-size:62px;line-height:1;margin:13px 0 12px;letter-spacing:-3px;color:#f4fbff}.vi-history__focus>p{color:#8298b2;font-size:10.5px;line-height:1.6}.vi-history__support{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:23px}.vi-history__support>div{padding:12px;border:1px solid var(--vi-line);border-radius:10px}.vi-history__support b,.vi-history__support span{display:block}.vi-history__support b{font-size:17px;color:var(--vi-green)}.vi-history__support span{font-size:8.5px;color:#748ba5;margin-top:3px}
     .vi-history__evidence{display:flex;flex-direction:column;gap:22px}.vi-history__cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.vi-history__cards article{position:relative;padding:16px;border:1px solid var(--vi-line);border-radius:12px;background:rgba(255,255,255,.025)}.vi-history__cards i{position:absolute;right:14px;top:14px;color:var(--vi-cyan);opacity:.7}.vi-history__cards b,.vi-history__cards span{display:block}.vi-history__cards b{font-size:22px}.vi-history__cards span{color:#778ea8;font-size:9px;margin-top:3px}
     .vi-history__chart{height:180px;display:flex;align-items:end;gap:8px;border-bottom:1px solid #2b3c54;padding:8px 4px 0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 44px,rgba(145,167,198,.07) 45px)}.vi-history__chart>div{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0}.vi-history__chart i{display:block;width:66%;min-height:3px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--vi-green),rgba(53,214,164,.18))}.vi-history__chart b{font-size:7px;color:#8198b1;margin-top:4px}.vi-history__chart span{font-size:8px;color:#647b96;margin:3px 0 7px}.vi-history__note{display:flex;gap:11px;align-items:start;margin-top:22px;padding:12px;border-radius:10px;background:rgba(255,180,84,.055);border:1px solid rgba(255,180,84,.12)}.vi-history__note i{color:var(--vi-amber);margin-top:2px}.vi-history__note p{margin:0;color:#8298b2;font-size:9.5px;line-height:1.55}.vi-history__note strong{color:#c9d7e7}
+    .vi-gnp{padding:98px 0 20px}.vi-gnp__exchange{display:grid;grid-template-columns:1fr 90px 1fr;align-items:stretch}.vi-gnp__exchange>article{position:relative;padding:30px;border:1px solid var(--vi-line);border-radius:17px;background:linear-gradient(155deg,var(--vi-panel2),var(--vi-panel));overflow:hidden}.vi-gnp__number{position:absolute;right:20px;top:12px;color:#263e58;font-size:54px;line-height:1;font-weight:900}.vi-gnp__exchange h3{position:relative;font-size:20px;max-width:390px;margin:9px 0 21px}.vi-gnp__exchange ul{list-style:none;padding:0;margin:0}.vi-gnp__exchange li{display:flex;gap:10px;align-items:start;padding:9px 0;border-top:1px solid rgba(145,170,201,.08);color:#8ba0b9;font-size:10.5px}.vi-gnp__exchange li i{color:var(--vi-green);font-size:8px;margin-top:4px}.vi-gnp__bridge{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--vi-green);gap:8px}.vi-gnp__bridge i{width:45px;height:45px;display:grid;place-items:center;border:1px solid rgba(53,214,164,.22);border-radius:50%;background:#0b1d30}.vi-gnp__bridge span{font-size:8px;text-transform:uppercase;letter-spacing:.7px;color:#6e879f;text-align:center}.vi-gnp__close{display:flex;align-items:start;gap:11px;max-width:900px;margin:18px auto 0;padding:12px 16px;border:1px solid rgba(53,214,164,.12);border-radius:10px;background:rgba(53,214,164,.045)}.vi-gnp__close i{color:var(--vi-green);margin-top:2px}.vi-gnp__close p{margin:0;color:#7d93ad;font-size:9.5px;line-height:1.55}.vi-gnp__close strong{color:#c4d6e8}
     .vi-business-case{padding:88px 0 34px}.vi-section-title--wide{max-width:780px}.vi-section-title--wide h2{font-size:42px;letter-spacing:-1.6px}.vi-section-title--wide p{font-size:14px;line-height:1.6}
     .vi-lab{display:grid;grid-template-columns:1.15fr .85fr;border:1px solid rgba(53,214,164,.2);border-radius:22px;overflow:hidden;background:linear-gradient(145deg,rgba(19,42,64,.96),rgba(8,25,42,.98));box-shadow:0 32px 90px rgba(0,0,0,.26)}
     .vi-lab__controls{padding:34px 38px}.vi-lab__heading{margin-bottom:28px}.vi-lab__heading h3{font-size:25px;margin:7px 0 8px;letter-spacing:-.7px}.vi-lab__heading p{margin:0;max-width:650px;color:#8298b2;font-size:11px;line-height:1.55}
@@ -427,8 +466,9 @@
     .vi-moat{padding:105px 0 45px;display:grid;grid-template-columns:.74fr 1.26fr;gap:55px;align-items:center}.vi-moat__intro h2{font-size:42px;line-height:1.06;letter-spacing:-1.8px;margin:10px 0 17px}.vi-moat__intro h2 em{display:block;color:var(--vi-green);font-style:normal}.vi-moat__intro p{color:#8499b3;font-size:13px;line-height:1.7}.vi-moat__grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vi-moat__grid article{position:relative;min-height:205px;padding:24px;background:linear-gradient(155deg,var(--vi-panel2),var(--vi-panel));border:1px solid var(--vi-line);border-radius:15px}.vi-moat__grid article>b{position:absolute;right:18px;top:15px;color:#304862;font-size:24px}.vi-moat__grid article>i{color:var(--vi-green);font-size:19px}.vi-moat__grid h3{font-size:13px;margin:28px 0 8px}.vi-moat__grid p{color:#7f94af;font-size:10.5px;line-height:1.55}
     .vi-commercial{position:relative;overflow:hidden}.vi-commercial__close{grid-column:1/-1;border-top:1px solid rgba(53,214,164,.14);padding-top:20px;display:flex;align-items:end;justify-content:space-between;gap:20px}.vi-commercial__close span{color:#7f97af;font-size:10px}.vi-commercial__close strong{font-size:18px;color:#b9f5df}
     .vi-kpi,.vi-panel,.vi-modules article,.vi-moat__grid article{transition:transform .22s ease,border-color .22s ease,background .22s ease}.vi-kpi:hover,.vi-panel:hover,.vi-modules article:hover,.vi-moat__grid article:hover{transform:translateY(-3px);border-color:rgba(53,214,164,.23)}
-    @media(max-width:1450px){.vi-history,.vi-business-case,.vi-moat{margin-left:24px;margin-right:24px}}
+    @media(max-width:1450px){.vi-history,.vi-gnp,.vi-business-case,.vi-moat{margin-left:24px;margin-right:24px}}
     @media(max-width:1180px){.vi-topnav{display:none}.vi-lab,.vi-moat,.vi-history__body{grid-template-columns:1fr}.vi-lab__result{border-left:0;border-top:1px solid rgba(53,214,164,.14)}.vi-moat{gap:28px}}
-    @media(max-width:620px){.vi-history,.vi-business-case,.vi-moat{margin-left:12px;margin-right:12px}.vi-history{padding:22px 16px;margin-top:48px}.vi-history__header{align-items:start;flex-direction:column}.vi-history__period{text-align:left}.vi-history__focus>strong{font-size:48px}.vi-history__support,.vi-history__cards{grid-template-columns:1fr}.vi-history__chart{gap:3px;height:155px}.vi-history__chart b{display:none}.vi-business-case{padding-top:58px}.vi-section-title--wide h2{font-size:32px}.vi-lab__controls,.vi-lab__result{padding:24px 18px}.vi-result-grid,.vi-moat__grid{grid-template-columns:1fr}.vi-moat{padding-top:72px}.vi-moat__intro h2{font-size:34px}.vi-commercial__close{align-items:start;flex-direction:column}.vi-pitch-toggle{display:none}}
+    @media(max-width:760px){.vi-gnp__exchange{grid-template-columns:1fr}.vi-gnp__bridge{padding:15px}.vi-gnp__bridge i{transform:rotate(90deg)}}
+    @media(max-width:620px){.vi-history,.vi-gnp,.vi-business-case,.vi-moat{margin-left:12px;margin-right:12px}.vi-history{padding:22px 16px;margin-top:48px}.vi-history__header{align-items:start;flex-direction:column}.vi-history__period{text-align:left}.vi-history__focus>strong{font-size:48px}.vi-history__support,.vi-history__cards{grid-template-columns:1fr}.vi-history__chart{gap:3px;height:155px}.vi-history__chart b{display:none}.vi-gnp{padding-top:72px}.vi-gnp__exchange>article{padding:24px 18px}.vi-business-case{padding-top:58px}.vi-section-title--wide h2{font-size:32px}.vi-lab__controls,.vi-lab__result{padding:24px 18px}.vi-result-grid,.vi-moat__grid{grid-template-columns:1fr}.vi-moat{padding-top:72px}.vi-moat__intro h2{font-size:34px}.vi-commercial__close{align-items:start;flex-direction:column}.vi-pitch-toggle{display:none}}
 </style>
 @stop

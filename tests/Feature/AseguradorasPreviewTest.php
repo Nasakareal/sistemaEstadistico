@@ -39,6 +39,8 @@ class AseguradorasPreviewTest extends TestCase
             ->assertSee('Auditoría de grúas')
             ->assertSee('Datos del sistema')
             ->assertSee('Costo promedio supuesto por servicio')
+            ->assertSee('Propuesta específica para GNP')
+            ->assertDontSee('QUALITAS')
             ->assertDontSee('12,480')
             ->assertDontSee('$18.6 M')
             ->assertDontSee('$3.4 M');

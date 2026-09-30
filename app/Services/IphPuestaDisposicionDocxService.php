@@ -97,7 +97,13 @@ class IphPuestaDisposicionDocxService
 
         $values = $this->valoresBarandillasConduce($data);
         $this->reemplazarNombresBarandillasDocx($path, $data);
-        unset($values['$apellidoPaterno'], $values['$apellidoMaterno'], $values['$nombre']);
+        $this->reemplazarGruaBarandillasDocx($path, $data);
+        unset(
+            $values['$apellidoPaterno'],
+            $values['$apellidoMaterno'],
+            $values['$nombre'],
+            $values['$grua']
+        );
         $this->reemplazarVariablesDocx($path, $values);
         $this->normalizarImagenesDocx($path);
 
@@ -278,6 +284,46 @@ class IphPuestaDisposicionDocxService
         $zip->close();
     }
 
+    private function reemplazarGruaBarandillasDocx(string $path, array $data): void
+    {
+        $vehiculo = $this->vehiculoBarandillas($data) ?: [];
+        $nombre = $this->valorGrua($vehiculo['grua_nombre'] ?? null)
+            ?: $this->valorGrua($vehiculo['grua'] ?? null)
+            ?: $this->valorGrua($vehiculo['corralon'] ?? null)
+            ?: '';
+        $ubicacion = $this->valorGrua($vehiculo['grua_direccion'] ?? null)
+            ?: $this->valorGrua($vehiculo['grua_ubicacion_corralon'] ?? null)
+            ?: $this->valorGrua($vehiculo['corralon'] ?? null)
+            ?: $nombre;
+
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('No se pudo abrir el DOCX para insertar la grúa.');
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            throw new \RuntimeException('La plantilla IPH no contiene word/document.xml.');
+        }
+
+        $placeholder = '$grua';
+        $xml = $this->unirVariablesPartidasDocx($xml, [$placeholder]);
+        $values = [$nombre, $ubicacion];
+        $index = 0;
+        $pattern = '/' . preg_quote($placeholder, '/') . '/u';
+        $xml = preg_replace_callback($pattern, function () use (&$index, $values) {
+            $value = $values[$index] ?? '';
+            $index++;
+
+            return $this->escapeDocxText($value);
+        }, $xml) ?? $xml;
+
+        $zip->addFromString($entry, $xml);
+        $zip->close();
+    }
+
     private function reemplazarVariableDocx(string $xml, string $placeholder, $value): string
     {
         if ($this->debeRepartirVariableDocx($xml, $placeholder, $value)) {
@@ -326,45 +372,53 @@ class IphPuestaDisposicionDocxService
 
     private function unirVariablesPartidasDocx(string $xml, array $placeholders): string
     {
-        preg_match_all('/<w:t(?:\s[^>]*)?>(.*?)<\/w:t>/su', $xml, $matches, PREG_OFFSET_CAPTURE);
+        $previous = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument();
+        $loaded = $dom->loadXML($xml, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
 
-        if (empty($matches[0])) {
+        if (!$loaded) {
             return $xml;
         }
 
         usort($placeholders, fn ($a, $b) => mb_strlen($b, 'UTF-8') <=> mb_strlen($a, 'UTF-8'));
-        $nodes = [];
-
-        foreach ($matches[0] as $index => $match) {
-            $nodes[] = [
-                'xml' => $match[0],
-                'offset' => $match[1],
-                'text' => html_entity_decode($matches[1][$index][0], ENT_QUOTES | ENT_XML1, 'UTF-8'),
-            ];
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $nodeList = $xpath->query('//w:t');
+        if ($nodeList === false || $nodeList->length === 0) {
+            return $xml;
         }
 
-        $replacements = [];
+        $nodes = iterator_to_array($nodeList);
         $count = count($nodes);
+        $changed = false;
 
         for ($i = 0; $i < $count; $i++) {
-            if (isset($replacements[$i]) || strpos($nodes[$i]['text'], '$') === false) {
+            $initial = (string) $nodes[$i]->textContent;
+            if (strpos($initial, '$') === false) {
                 continue;
             }
 
-            $combined = '';
+            $dollarPosition = mb_strrpos($initial, '$', 0, 'UTF-8');
+            if ($dollarPosition === false) {
+                continue;
+            }
+
+            $prefix = mb_substr($initial, 0, $dollarPosition, 'UTF-8');
+            $combined = mb_substr($initial, $dollarPosition, null, 'UTF-8');
             $indices = [];
 
-            for ($j = $i; $j < min($count, $i + 6); $j++) {
-                $combined .= $nodes[$j]['text'];
+            for ($j = $i + 1; $j < min($count, $i + 6); $j++) {
+                $combined .= (string) $nodes[$j]->textContent;
                 $indices[] = $j;
 
-                if (in_array($combined, $placeholders, true) && count($indices) > 1) {
-                    $replacements[$indices[0]] = $combined;
-
-                    foreach (array_slice($indices, 1) as $idx) {
-                        $replacements[$idx] = '';
+                if (in_array($combined, $placeholders, true)) {
+                    $nodes[$i]->nodeValue = $prefix . $combined;
+                    foreach ($indices as $idx) {
+                        $nodes[$idx]->nodeValue = '';
                     }
-
+                    $changed = true;
                     break;
                 }
 
@@ -383,32 +437,11 @@ class IphPuestaDisposicionDocxService
             }
         }
 
-        if (empty($replacements)) {
+        if (!$changed) {
             return $xml;
         }
 
-        $output = '';
-        $position = 0;
-
-        foreach ($nodes as $index => $node) {
-            $output .= substr($xml, $position, $node['offset'] - $position);
-            $output .= array_key_exists($index, $replacements)
-                ? $this->escribirNodoTextoDocx($node['xml'], $replacements[$index])
-                : $node['xml'];
-            $position = $node['offset'] + strlen($node['xml']);
-        }
-
-        return $output . substr($xml, $position);
-    }
-
-    private function escribirNodoTextoDocx(string $nodeXml, string $text): string
-    {
-        return preg_replace_callback(
-            '/^(<w:t(?:\s[^>]*)?>).*?(<\/w:t>)$/su',
-            fn ($match) => $match[1] . $text . $match[2],
-            $nodeXml,
-            1
-        ) ?? $nodeXml;
+        return $dom->saveXML() ?: $xml;
     }
 
     private function escapeDocxText($value): string

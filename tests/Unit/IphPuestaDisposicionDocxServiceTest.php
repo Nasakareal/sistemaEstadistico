@@ -35,7 +35,13 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
                 'agente_apellido_paterno' => 'Bautista',
                 'agente_apellido_materno' => 'Gonzalez',
             ],
-            'vehiculos_hecho' => [],
+            'vehiculos_hecho' => [[
+                'marca' => 'AJP',
+                'linea' => 'Prueba',
+                'grua_nombre' => 'Grúas Morelia',
+                'grua_direccion' => 'Autopista 123',
+                'corralon' => 'Corralón Autopista',
+            ]],
             'lesionados_hecho' => [],
             'objetos' => [],
             'anexos' => [],
@@ -57,6 +63,11 @@ class IphPuestaDisposicionDocxServiceTest extends TestCase
             $this->assertLessThan(strpos($texto, $persona), strpos($texto, $agente));
             $this->assertSame(1, substr_count($texto, $agente));
             $this->assertSame(1, substr_count($texto, $persona));
+            $this->assertStringContainsString(
+                'grúa particular Grúas Morelia, resguardándolo en sus propias instalaciones, ubicadas en Autopista 123',
+                $texto
+            );
+            $this->assertStringNotContainsString('$grua', $texto);
         } finally {
             if (is_file($path)) {
                 @unlink($path);

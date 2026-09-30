@@ -104,16 +104,16 @@
                 </div>
             </div>
             <div class="vi-hero__score">
-                <span>Inteligencia accionable</span>
-                <strong>86</strong><small>/100</small>
-                <div class="vi-scorebar"><i style="width:86%"></i></div>
-                <b><i class="fas fa-bolt"></i> Señal contextual en minutos</b>
+                <span>Servicios con aseguradora identificada</span>
+                <strong>{{ number_format($stats['asegurados']) }}</strong>
+                <div class="vi-scorebar"><i style="width:{{ $stats['porcentaje_asegurados'] }}%"></i></div>
+                <b><i class="fas fa-database"></i> {{ number_format($stats['porcentaje_asegurados'], 1) }}% del registro disponible</b>
             </div>
         </section>
 
         <div class="vi-demo-note">
-            <div><i class="fas fa-flask"></i></div>
-            <p><strong>Demostración comercial.</strong> Las cifras de esta pantalla son ilustrativas y no representan resultados reales. La versión para clientes utilizará únicamente información agregada, reglas documentadas y umbrales de privacidad.</p>
+            <div><i class="fas fa-database"></i></div>
+            <p><strong>Datos del sistema.</strong> Los volúmenes de esta pantalla provienen del registro operativo de servicios de grúa. Los importes del simulador son supuestos editables porque el sistema no captura el costo facturado por la grúa.</p>
         </div>
 
         <section class="vi-toolbar" id="vi-command">
@@ -123,38 +123,45 @@
             </div>
             <div>
                 <span class="vi-toolbar__label">Periodo</span>
-                <button type="button" class="vi-select">Últimos 12 meses <i class="fas fa-chevron-down"></i></button>
+                <button type="button" class="vi-select">
+                    @if($stats['fecha_inicio'] && $stats['fecha_corte'])
+                        {{ $stats['fecha_inicio']->locale('es')->translatedFormat('d M Y') }} — {{ $stats['fecha_corte']->locale('es')->translatedFormat('d M Y') }}
+                    @else
+                        Sin registros
+                    @endif
+                    <i class="fas fa-calendar-alt"></i>
+                </button>
             </div>
             <div class="vi-toolbar__stamp">
-                <span>Actualización</span>
-                <strong>Hoy · 05:40 h</strong>
+                <span>Corte de la información</span>
+                <strong>{{ $stats['fecha_corte'] ? $stats['fecha_corte']->locale('es')->translatedFormat('d \d\e F \d\e Y') : 'Sin registros' }}</strong>
             </div>
         </section>
 
         <section class="vi-kpis" aria-label="Indicadores principales">
             <article class="vi-kpi">
-                <div class="vi-kpi__icon vi-cyan"><i class="fas fa-car-crash"></i></div>
-                <span>Siniestros analizados</span>
-                <strong>12,480</strong>
-                <small><b>+8.1%</b> volumen interanual</small>
+                <div class="vi-kpi__icon vi-cyan"><i class="fas fa-truck-pickup"></i></div>
+                <span>Servicios registrados</span>
+                <strong>{{ number_format($stats['total']) }}</strong>
+                <small>Universo real disponible para análisis</small>
             </article>
             <article class="vi-kpi">
-                <div class="vi-kpi__icon vi-violet"><i class="fas fa-coins"></i></div>
-                <span>Exposición estimada</span>
-                <strong>$18.6 M</strong>
-                <small>Modelo ilustrativo de severidad</small>
+                <div class="vi-kpi__icon vi-violet"><i class="fas fa-shield-alt"></i></div>
+                <span>Con aseguradora identificada</span>
+                <strong>{{ number_format($stats['asegurados']) }}</strong>
+                <small><b>{{ number_format($stats['porcentaje_asegurados'], 1) }}%</b> del total registrado</small>
             </article>
             <article class="vi-kpi">
-                <div class="vi-kpi__icon vi-green"><i class="fas fa-piggy-bank"></i></div>
-                <span>Ahorro identificable</span>
-                <strong>14.8%</strong>
-                <small><b>$3.4 M</b> oportunidad anual</small>
+                <div class="vi-kpi__icon vi-green"><i class="fas fa-building"></i></div>
+                <span>Aseguradoras reconocidas</span>
+                <strong>{{ number_format($stats['aseguradoras']) }}</strong>
+                <small>Nombres normalizados en el registro</small>
             </article>
             <article class="vi-kpi">
-                <div class="vi-kpi__icon vi-orange"><i class="fas fa-check-double"></i></div>
-                <span>Cobertura de datos</span>
-                <strong>82%</strong>
-                <small>Campos críticos completos</small>
+                <div class="vi-kpi__icon vi-orange"><i class="fas fa-warehouse"></i></div>
+                <span>Proveedores de grúa</span>
+                <strong>{{ number_format($stats['gruas']) }}</strong>
+                <small>Con al menos un servicio registrado</small>
             </article>
         </section>
 
@@ -165,54 +172,52 @@
                         <span class="vi-panel__kicker">Control de costos</span>
                         <h2>Eficiencia de asistencia vial</h2>
                     </div>
-                    <span class="vi-status vi-status--green"><i></i> Oportunidad alta</span>
+                    <span class="vi-status vi-status--green"><i></i> Dato operativo</span>
                 </header>
                 <div class="vi-tow__summary">
-                    <div><span>Servicios de grúa</span><strong>1,942</strong></div>
-                    <div><span>Para revisión</span><strong>286</strong><small>14.7%</small></div>
-                    <div><span>Impacto estimado</span><strong>$3.4 M</strong></div>
+                    <div><span>Servicios de grúa</span><strong>{{ number_format($stats['total']) }}</strong></div>
+                    <div><span>Con aseguradora</span><strong>{{ number_format($stats['asegurados']) }}</strong><small>{{ number_format($stats['porcentaje_asegurados'], 1) }}%</small></div>
+                    <div><span>Sin aseguradora identificada</span><strong>{{ number_format($stats['sin_aseguradora']) }}</strong></div>
                 </div>
                 <div class="vi-bar-chart" aria-label="Servicios de grúa por mes">
-                    @foreach([44, 58, 50, 66, 62, 76, 71, 86, 69, 82, 91, 78] as $index => $height)
+                    @foreach($stats['meses'] as $mes)
                         <div class="vi-bar-chart__month">
-                            <div class="vi-bar-chart__bar">
-                                <i style="height:{{ $height }}%"></i>
-                                <b style="height:{{ max(9, round($height * .15)) }}%"></b>
+                            <div class="vi-bar-chart__bar" title="{{ number_format($mes['total']) }} servicios; {{ number_format($mes['asegurados']) }} con aseguradora">
+                                <i style="height:{{ $mes['altura_total'] }}%"></i>
+                                <b style="height:{{ $mes['altura_asegurados'] }}%"></b>
                             </div>
-                            <span>{{ ['OCT','NOV','DIC','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP'][$index] }}</span>
+                            <span>{{ $mes['label'] }}</span>
                         </div>
                     @endforeach
                 </div>
                 <div class="vi-legend">
                     <span><i class="vi-legend__all"></i> Total de servicios</span>
-                    <span><i class="vi-legend__review"></i> Señales para revisión</span>
+                    <span><i class="vi-legend__review"></i> Con aseguradora identificada</span>
                 </div>
                 <div class="vi-insight">
-                    <i class="fas fa-lightbulb"></i>
-                    <p><strong>Hallazgo demostrativo:</strong> la mayor oportunidad se concentra en arrastres de corta distancia, vehículos aparentemente circulables y servicios repetidos dentro de una misma ventana temporal.</p>
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Lo que ya existe:</strong> cada servicio está vinculado a un vehículo y a una grúa. La información de la aseguradora permitiría contrastar importe, recurrencia y proveedor durante el piloto.</p>
                 </div>
             </article>
 
             <article class="vi-panel vi-risk">
                 <header class="vi-panel__header">
                     <div>
-                        <span class="vi-panel__kicker">Suscripción y prevención</span>
-                        <h2>Corredores con mayor riesgo</h2>
+                        <span class="vi-panel__kicker">Composición observada</span>
+                        <h2>Aseguradoras en el registro</h2>
                     </div>
-                    <button class="vi-icon-button" type="button" title="Vista de mapa"><i class="fas fa-map"></i></button>
+                    <span class="vi-status vi-status--green">Top {{ $stats['top_aseguradoras']->count() }}</span>
                 </header>
-                <div class="vi-risk__map" aria-hidden="true">
-                    <div class="vi-road vi-road--one"></div><div class="vi-road vi-road--two"></div>
-                    <div class="vi-road vi-road--three"></div><div class="vi-road vi-road--four"></div>
-                    <span class="vi-hotspot vi-hotspot--1"></span><span class="vi-hotspot vi-hotspot--2"></span>
-                    <span class="vi-hotspot vi-hotspot--3"></span><span class="vi-hotspot vi-hotspot--4"></span>
-                    <div class="vi-map-label">MORELIA</div>
-                </div>
                 <ol class="vi-ranking">
-                    <li><b>01</b><div><strong>Periférico Paseo de la República</strong><span>Frecuencia alta · severidad media</span></div><em>89</em></li>
-                    <li><b>02</b><div><strong>Av. Madero Poniente</strong><span>Motocicletas · horario nocturno</span></div><em>83</em></li>
-                    <li><b>03</b><div><strong>Calz. La Huerta</strong><span>Alcances · lluvia</span></div><em>78</em></li>
-                    <li><b>04</b><div><strong>Salida a Salamanca</strong><span>Severidad alta · fin de semana</span></div><em>74</em></li>
+                    @forelse($stats['top_aseguradoras'] as $index => $aseguradora)
+                        <li>
+                            <b>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</b>
+                            <div><strong>{{ $aseguradora['nombre'] }}</strong><span>Servicios de grúa vinculados</span></div>
+                            <em>{{ number_format($aseguradora['total']) }}</em>
+                        </li>
+                    @empty
+                        <li><div><strong>Sin datos disponibles</strong><span>No hay aseguradoras identificadas en el periodo.</span></div></li>
+                    @endforelse
                 </ol>
             </article>
         </section>
@@ -220,27 +225,27 @@
         <section class="vi-grid vi-grid--secondary">
             <article class="vi-panel vi-causes">
                 <header class="vi-panel__header">
-                    <div><span class="vi-panel__kicker">Composición</span><h2>Factores de severidad</h2></div>
+                    <div><span class="vi-panel__kicker">Calidad del dato</span><h2>Estado del registro</h2></div>
                 </header>
                 <div class="vi-causes__body">
-                    <div class="vi-donut"><div><strong>38%</strong><span>principal factor</span></div></div>
+                    <div class="vi-donut" style="background:conic-gradient(#35d6c3 0 {{ $stats['porcentaje_asegurados'] }}%, #52627e {{ $stats['porcentaje_asegurados'] }}% 100%)"><div><strong>{{ number_format($stats['porcentaje_asegurados'], 1) }}%</strong><span>con aseguradora</span></div></div>
                     <div class="vi-causes__legend">
-                        <p><i style="background:#35d6c3"></i><span>Tipo de impacto</span><b>38%</b></p>
-                        <p><i style="background:#7e6bf2"></i><span>Horario / día</span><b>24%</b></p>
-                        <p><i style="background:#ffb454"></i><span>Condición vial</span><b>21%</b></p>
-                        <p><i style="background:#52627e"></i><span>Otros factores</span><b>17%</b></p>
+                        <p><i style="background:#35d6c3"></i><span>Vehículo vinculado</span><b>{{ number_format($stats['porcentaje_vinculados'], 1) }}%</b></p>
+                        <p><i style="background:#7e6bf2"></i><span>Aseguradora identificada</span><b>{{ number_format($stats['asegurados']) }}</b></p>
+                        <p><i style="background:#ffb454"></i><span>Proveedores observados</span><b>{{ number_format($stats['gruas']) }}</b></p>
+                        <p><i style="background:#52627e"></i><span>Servicios por completar</span><b>{{ number_format($stats['sin_aseguradora']) }}</b></p>
                     </div>
                 </div>
             </article>
             <article class="vi-panel vi-alerts">
                 <header class="vi-panel__header">
                     <div><span class="vi-panel__kicker">Detección temprana</span><h2>Señales que ameritan revisión</h2></div>
-                    <span class="vi-status vi-status--amber">12 nuevas</span>
+                    <span class="vi-status vi-status--amber">A validar en piloto</span>
                 </header>
                 <div class="vi-alert-list">
-                    <div><i class="fas fa-route"></i><p><strong>Distancia atípica de arrastre</strong><span>Por encima del patrón territorial</span></p><b>Alta</b></div>
-                    <div><i class="fas fa-redo-alt"></i><p><strong>Servicio repetido</strong><span>Mismo vehículo y ventana menor a 24 h</span></p><b>Alta</b></div>
-                    <div><i class="fas fa-network-wired"></i><p><strong>Concentración por proveedor</strong><span>Desviación respecto del promedio mensual</span></p><b>Media</b></div>
+                    <div><i class="fas fa-file-invoice-dollar"></i><p><strong>Costo fuera del rango acordado</strong><span>Requiere factura o detalle de la aseguradora</span></p><b>Piloto</b></div>
+                    <div><i class="fas fa-redo-alt"></i><p><strong>Servicio repetido</strong><span>Mismo vehículo dentro de una ventana definida</span></p><b>Piloto</b></div>
+                    <div><i class="fas fa-network-wired"></i><p><strong>Concentración por proveedor</strong><span>Comparación contra el volumen real observado</span></p><b>Piloto</b></div>
                 </div>
                 <p class="vi-human-review"><i class="fas fa-user-check"></i> Cada señal requiere validación humana. No constituye por sí sola fraude, abuso ni servicio innecesario.</p>
             </article>
@@ -248,48 +253,48 @@
 
         <section class="vi-business-case" id="vi-business-case">
             <div class="vi-section-title vi-section-title--wide">
-                <span>Business case lab</span>
-                <h2>Ponga su cartera sobre la mesa.</h2>
-                <p>En menos de un minuto convertimos una hipótesis operativa en una conversación financiera.</p>
+                <span>Escenario para la reunión</span>
+                <h2>Partimos del volumen real. El costo lo define la aseguradora.</h2>
+                <p>El sistema aporta la cantidad observada de servicios. El costo y el porcentaje sujeto a revisión se ajustan durante la conversación y quedan identificados como supuestos.</p>
             </div>
             <div class="vi-lab">
                 <div class="vi-lab__controls">
                     <div class="vi-lab__heading">
-                        <span class="vi-panel__kicker">Simulador de oportunidad</span>
-                        <h3>Auditoría inteligente de asistencia vial</h3>
-                        <p>Ajuste el volumen y costo de la operación. El resultado es una oportunidad bruta de revisión, no una promesa de ahorro.</p>
+                        <span class="vi-panel__kicker">Modelo de alcance económico</span>
+                        <h3>Servicios de grúa con vehículos asegurados</h3>
+                        <p>La base inicia con los {{ number_format($stats['asegurados']) }} servicios que tienen aseguradora identificada. El importe no es un dato del sistema; se usa únicamente para dimensionar el piloto.</p>
                     </div>
                     <label class="vi-range">
-                        <span><b>Servicios de grúa por año</b><output id="viTowOutput">8,500</output></span>
-                        <input id="viTowRange" type="range" min="1000" max="50000" step="500" value="8500">
+                        <span><b>Servicios de grúa a analizar</b><output id="viTowOutput">{{ number_format($stats['asegurados']) }}</output></span>
+                        <input id="viTowRange" type="range" min="1" max="{{ max(5000, $stats['asegurados'] * 5) }}" step="1" value="{{ max(1, $stats['asegurados']) }}">
                     </label>
                     <label class="vi-range">
-                        <span><b>Costo promedio por servicio</b><output id="viCostOutput">$3,200</output></span>
-                        <input id="viCostRange" type="range" min="1000" max="10000" step="100" value="3200">
+                        <span><b>Costo promedio supuesto por servicio</b><output id="viCostOutput">$25,000</output></span>
+                        <input id="viCostRange" type="range" min="20000" max="100000" step="1000" value="25000">
                     </label>
                     <label class="vi-range">
-                        <span><b>Universo con señales revisables</b><output id="viRateOutput">14.8%</output></span>
-                        <input id="viRateRange" type="range" min="3" max="30" step="0.1" value="14.8">
+                        <span><b>Supuesto de servicios a revisar</b><output id="viRateOutput">10.0%</output></span>
+                        <input id="viRateRange" type="range" min="1" max="30" step="0.5" value="10">
                     </label>
                 </div>
                 <div class="vi-lab__result">
-                    <span>Oportunidad bruta anual para revisión</span>
-                    <strong id="viOpportunity">$4.03 M</strong>
-                    <p id="viOpportunityDetail">1,258 servicios entrarían a una revisión priorizada.</p>
+                    <span>Valor de servicios sujeto a revisión</span>
+                    <strong id="viOpportunity">—</strong>
+                    <p id="viOpportunityDetail">—</p>
                     <div class="vi-result-grid">
-                        <div><small>Operación observada</small><b id="viAnnualSpend">$27.20 M</b></div>
-                        <div><small>Costo por señal</small><b id="viSignalCost">$3,200</b></div>
+                        <div><small>Gasto modelado</small><b id="viAnnualSpend">—</b></div>
+                        <div><small>Costo supuesto</small><b id="viSignalCost">$25,000</b></div>
                     </div>
-                    <div class="vi-result-foot"><i class="fas fa-shield-alt"></i><span>Las señales orientan una revisión humana; no determinan fraude ni rechazo.</span></div>
+                    <div class="vi-result-foot"><i class="fas fa-info-circle"></i><span>No es ahorro prometido ni importe auditado. Es el tamaño económico del universo que se revisaría bajo los supuestos seleccionados.</span></div>
                 </div>
             </div>
         </section>
 
         <section class="vi-moat" id="vi-moat">
             <div class="vi-moat__intro">
-                <span class="vi-panel__kicker">Ventaja estructural</span>
-                <h2>Difícil de copiar.<br><em>Fácil de integrar.</em></h2>
-                <p>No vendemos expedientes ni datos personales. Licenciamos inteligencia derivada de una infraestructura operativa que ya captura el contexto que otros intentan reconstruir después.</p>
+                <span class="vi-panel__kicker">Qué tenemos hoy</span>
+                <h2>Un registro operativo.<br><em>Una base auditable.</em></h2>
+                <p>La propuesta no depende de comprar expedientes ni de compartir datos personales. Parte de información que ya se genera durante la operación y conserva su vínculo con vehículo, proveedor y fecha.</p>
             </div>
             <div class="vi-moat__grid">
                 <article><b>01</b><i class="fas fa-fingerprint"></i><h3>Origen verificable</h3><p>La señal nace del registro operativo, conserva su procedencia y puede auditarse.</p></article>
@@ -301,9 +306,9 @@
 
         <section class="vi-value">
             <div class="vi-section-title">
-                <span>Producto modular</span>
-                <h2>Una sola fuente, múltiples decisiones</h2>
-                <p>La aseguradora activa únicamente los módulos que producen valor para su operación.</p>
+                <span>Alcance propuesto</span>
+                <h2>Lo que puede validar el piloto</h2>
+                <p>Cada módulo se habilita sólo si existen los datos necesarios y una métrica de éxito acordada con la aseguradora.</p>
             </div>
             <div class="vi-modules">
                 <article><i class="fas fa-calculator"></i><h3>Tarificación territorial</h3><p>Frecuencia y severidad por zona, corredor, horario y tipo de vehículo.</p><span>Suscripción</span></article>
@@ -319,18 +324,18 @@
 
         <section class="vi-commercial" id="vi-pilot">
             <div class="vi-commercial__copy">
-                <span class="vi-panel__kicker">Ruta comercial sugerida</span>
-                <h2>Una pregunta concreta. Noventa días. Una decisión informada.</h2>
-                <p>El piloto se diseña alrededor de una hipótesis económica verificable, con línea base, métricas y reglas de éxito acordadas, sin comprometer información personal.</p>
+                <span class="vi-panel__kicker">Propuesta para acordar</span>
+                <h2>Una pregunta concreta. Una muestra definida. Un resultado medible.</h2>
+                <p>El alcance y la duración se determinan con la aseguradora después de revisar disponibilidad, calidad y reglas de tratamiento de sus datos.</p>
             </div>
             <div class="vi-steps">
                 <article><b>01</b><div><strong>Diagnóstico</strong><span>Muestra histórica, calidad de datos y línea base.</span></div><em>Proyecto</em></article>
-                <article><b>02</b><div><strong>Piloto de 90 días</strong><span>Un territorio, reglas de grúa y tablero ejecutivo.</span></div><em>Validación</em></article>
+                <article><b>02</b><div><strong>Piloto controlado</strong><span>Un territorio, reglas de grúa y tablero ejecutivo.</span></div><em>Validación</em></article>
                 <article><b>03</b><div><strong>Suscripción</strong><span>Módulos, usuarios, alertas e integraciones.</span></div><em>Recurrente</em></article>
             </div>
             <div class="vi-commercial__close">
-                <span>La reunión de mañana puede ser el inicio del piloto.</span>
-                <strong>De observar el riesgo a anticiparlo.</strong>
+                <span>Siguiente paso: acordar una muestra y la métrica que decidirá si el piloto continúa.</span>
+                <strong>Primero medir. Después escalar.</strong>
             </div>
         </section>
 

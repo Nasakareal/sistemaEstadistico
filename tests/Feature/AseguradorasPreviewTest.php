@@ -37,7 +37,11 @@ class AseguradorasPreviewTest extends TestCase
             ->assertSee('VIALYTICS')
             ->assertSee('Eficiencia de asistencia vial')
             ->assertSee('Auditoría de grúas')
-            ->assertSee('Demostración comercial');
+            ->assertSee('Datos del sistema')
+            ->assertSee('Costo promedio supuesto por servicio')
+            ->assertDontSee('12,480')
+            ->assertDontSee('$18.6 M')
+            ->assertDontSee('$3.4 M');
     }
 
     public function test_non_superadmin_cannot_open_insurer_preview(): void

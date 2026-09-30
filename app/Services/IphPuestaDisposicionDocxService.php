@@ -95,7 +95,10 @@ class IphPuestaDisposicionDocxService
             throw new \RuntimeException('No se pudo preparar la plantilla IPH de Barandillas.');
         }
 
-        $this->reemplazarVariablesDocx($path, $this->valoresBarandillasConduce($data));
+        $values = $this->valoresBarandillasConduce($data);
+        $this->reemplazarNombresBarandillasDocx($path, $data);
+        unset($values['$apellidoPaterno'], $values['$apellidoMaterno'], $values['$nombre']);
+        $this->reemplazarVariablesDocx($path, $values);
         $this->normalizarImagenesDocx($path);
 
         $folio = Str::slug((string) ($hecho->folio_c5i ?: $hecho->id), '_') ?: (string) $hecho->id;
@@ -207,6 +210,71 @@ class IphPuestaDisposicionDocxService
             $zip->addFromString($name, $xml);
         }
 
+        $zip->close();
+    }
+
+    private function reemplazarNombresBarandillasDocx(string $path, array $data): void
+    {
+        $zip = new \ZipArchive();
+
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('No se pudo abrir el DOCX para separar agente y persona detenida.');
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if ($xml === false) {
+            $zip->close();
+            throw new \RuntimeException('La plantilla IPH no contiene word/document.xml.');
+        }
+
+        $placeholders = ['$apellidoPaterno', '$apellidoMaterno', '$nombre'];
+        $xml = $this->unirVariablesPartidasDocx($xml, $placeholders);
+
+        $agenteIph = $this->partesPoliciaIph($data);
+        $agente = [
+            'apellido_paterno' => $agenteIph['primer_apellido'] ?? '',
+            'apellido_materno' => $agenteIph['segundo_apellido'] ?? '',
+            'nombre' => $agenteIph['nombres'] ?? '',
+        ];
+        $personaData = $this->personaBarandillas($data);
+        $persona = $personaData
+            ? $this->partesNombreBarandillas($personaData['nombre_completo'] ?? ($personaData['nombre'] ?? ''))
+            : null;
+
+        $sequences = [
+            '$apellidoPaterno' => [
+                $agente['apellido_paterno'],
+                $persona['apellido_paterno'] ?? '',
+                '',
+                '',
+            ],
+            '$apellidoMaterno' => [
+                $agente['apellido_materno'],
+                $persona['apellido_materno'] ?? '',
+                '',
+                '',
+            ],
+            '$nombre' => [
+                $agente['nombre'],
+                $persona['nombre'] ?? '',
+                '',
+                '',
+            ],
+        ];
+
+        foreach ($sequences as $placeholder => $values) {
+            $index = 0;
+            $pattern = '/' . preg_quote($placeholder, '/') . '/u';
+            $xml = preg_replace_callback($pattern, function () use (&$index, $values) {
+                $value = $values[$index] ?? '';
+                $index++;
+
+                return $this->escapeDocxText($value);
+            }, $xml) ?? $xml;
+        }
+
+        $zip->addFromString($entry, $xml);
         $zip->close();
     }
 

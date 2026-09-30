@@ -10,6 +10,60 @@ use ZipArchive;
 
 class IphPuestaDisposicionDocxServiceTest extends TestCase
 {
+    public function test_barandillas_no_confunde_al_agente_con_la_persona_detenida(): void
+    {
+        if (!class_exists(ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is required to inspect generated DOCX files.');
+        }
+
+        $hecho = new Hechos([
+            'id' => 901,
+            'folio_c5i' => 'CL-77-901',
+        ]);
+        $mapeo = [
+            'hecho' => [
+                'folio_c5i' => 'CL-77-901',
+                'fecha' => '2026-09-29',
+                'hora' => '14:30',
+                'creador_nombre' => 'Juan Bautista Gonzalez',
+                'unidad_org_nombre' => 'Unidad de Protección en Vialidades Urbanas',
+                'ubicacion' => [],
+            ],
+            'puesta_disposicion' => [
+                'nombre_policia' => 'Juan Bautista Gonzalez',
+                'agente_nombres' => 'Juan',
+                'agente_apellido_paterno' => 'Bautista',
+                'agente_apellido_materno' => 'Gonzalez',
+            ],
+            'vehiculos_hecho' => [],
+            'lesionados_hecho' => [],
+            'objetos' => [],
+            'anexos' => [],
+            'personas' => [[
+                'nombre_completo' => 'Enrique Velazquez Navarro',
+            ]],
+        ];
+
+        [$path] = app(IphPuestaDisposicionDocxService::class)
+            ->generarConduceLegalidadBarandillas($hecho, $mapeo);
+
+        try {
+            $texto = $this->textoDocx($path);
+            $agente = 'BAUTISTAGONZALEZJUAN';
+            $persona = 'VelazquezNavarroEnrique';
+
+            $this->assertStringContainsString($agente, $texto);
+            $this->assertStringContainsString($persona, $texto);
+            $this->assertLessThan(strpos($texto, $persona), strpos($texto, $agente));
+            $this->assertSame(1, substr_count($texto, $agente));
+            $this->assertSame(1, substr_count($texto, $persona));
+        } finally {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
     public function test_folio_del_ticket_se_reparte_en_las_casillas_del_expediente_de_barandillas(): void
     {
         if (!class_exists(ZipArchive::class)) {

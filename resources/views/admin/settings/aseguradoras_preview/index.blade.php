@@ -15,6 +15,7 @@
         </div>
         <nav class="vi-topnav" aria-label="Secciones de la presentación">
             <a href="#vi-command">Command center</a>
+            <a href="#vi-history">Histórico</a>
             <a href="#vi-business-case">Caso de negocio</a>
             <a href="#vi-moat">Ventaja</a>
             <a href="#vi-pilot">Piloto</a>
@@ -251,6 +252,56 @@
             </article>
         </section>
 
+        @if($legacyStats)
+            <section class="vi-history" id="vi-history">
+                <div class="vi-history__header">
+                    <div>
+                        <span class="vi-panel__kicker">Archivo histórico recuperado</span>
+                        <h2>Serie disponible para análisis: 2014–2026</h2>
+                        <p>Fuente: base histórica de Peritos. Se presenta separada del registro operativo actual para conservar trazabilidad y evitar sumar universos distintos.</p>
+                    </div>
+                    <div class="vi-history__period">
+                        <small>Periodo documentado</small>
+                        <strong>{{ $legacyStats['fecha_inicio']->locale('es')->translatedFormat('M Y') }} — {{ $legacyStats['fecha_corte']->locale('es')->translatedFormat('M Y') }}</strong>
+                    </div>
+                </div>
+
+                <div class="vi-history__body">
+                    <div class="vi-history__focus">
+                        <span>Vehículos asegurados con grúa utilizada</span>
+                        <strong>{{ number_format($legacyStats['asegurados_con_grua']) }}</strong>
+                        <p>Registros históricos donde coinciden ambos indicadores. Es el universo inicial para un estudio retrospectivo de asistencia vial.</p>
+                        <div class="vi-history__support">
+                            <div><b>{{ number_format($legacyStats['asegurados']) }}</b><span>marcados como asegurados</span></div>
+                            <div><b>{{ number_format($legacyStats['con_grua']) }}</b><span>con grúa utilizada</span></div>
+                        </div>
+                    </div>
+
+                    <div class="vi-history__evidence">
+                        <div class="vi-history__cards">
+                            <article><i class="fas fa-car-crash"></i><b>{{ number_format($legacyStats['hechos']) }}</b><span>hechos de tránsito</span></article>
+                            <article><i class="fas fa-car"></i><b>{{ number_format($legacyStats['vehiculos']) }}</b><span>registros de vehículos</span></article>
+                            <article><i class="fas fa-map-marker-alt"></i><b>{{ number_format($legacyStats['georreferenciados']) }}</b><span>hechos con coordenadas</span></article>
+                        </div>
+                        <div class="vi-history__chart" aria-label="Hechos históricos por año, de 2016 a 2025">
+                            @foreach($legacyStats['por_anio'] as $anio)
+                                <div title="{{ $anio['anio'] }}: {{ number_format($anio['total']) }} hechos">
+                                    <i style="height:{{ $anio['altura'] }}%"></i>
+                                    <b>{{ number_format($anio['total']) }}</b>
+                                    <span>{{ $anio['anio'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vi-history__note">
+                    <i class="fas fa-clipboard-check"></i>
+                    <p><strong>Lectura correcta:</strong> la fuente histórica identifica si el vehículo estaba asegurado, pero no conserva el nombre de la compañía. Los montos de daños requieren depuración de valores extremos antes de cualquier análisis económico.</p>
+                </div>
+            </section>
+        @endif
+
         <section class="vi-business-case" id="vi-business-case">
             <div class="vi-section-title vi-section-title--wide">
                 <span>Escenario para la reunión</span>
@@ -361,7 +412,12 @@
     .vi-topnav{display:flex;gap:18px;margin-left:24px}.vi-topnav a{color:#7f94af;font-size:10px;font-weight:800;letter-spacing:.2px}.vi-topnav a:hover{color:var(--vi-green)}
     .vi-pitch-mode .vi-topbar{height:58px}.vi-pitch-mode .vi-topnav,.vi-pitch-mode .vi-private{display:none}.vi-pitch-mode .vi-shell{padding-top:0}
     .vi-hero{min-height:420px}.vi-hero__copy{max-width:950px}.vi-hero__score{border-color:rgba(53,214,164,.21);box-shadow:0 30px 90px rgba(0,0,0,.34),inset 0 0 45px rgba(53,214,164,.035)}
-    .vi-business-case,.vi-moat{max-width:1380px;margin-left:auto;margin-right:auto}
+    .vi-history,.vi-business-case,.vi-moat{max-width:1380px;margin-left:auto;margin-right:auto}
+    .vi-history{margin-top:70px;padding:34px;border:1px solid rgba(53,200,230,.18);border-radius:20px;background:linear-gradient(145deg,rgba(16,36,58,.96),rgba(8,22,38,.98));box-shadow:0 30px 80px rgba(0,0,0,.22)}
+    .vi-history__header{display:flex;justify-content:space-between;align-items:end;gap:30px;padding-bottom:25px;border-bottom:1px solid var(--vi-line)}.vi-history__header h2{font-size:30px;letter-spacing:-1px;margin:7px 0}.vi-history__header p{max-width:760px;margin:0;color:#8398b2;font-size:11px;line-height:1.6}.vi-history__period{text-align:right;white-space:nowrap}.vi-history__period small,.vi-history__period strong{display:block}.vi-history__period small{color:#667e9a;text-transform:uppercase;font-size:8px;letter-spacing:1px}.vi-history__period strong{color:#b7cce2;font-size:12px;margin-top:5px}
+    .vi-history__body{display:grid;grid-template-columns:.72fr 1.28fr;gap:26px;padding-top:26px}.vi-history__focus{padding:28px;border:1px solid rgba(53,214,164,.18);border-radius:16px;background:radial-gradient(circle at 90% 0,rgba(53,214,164,.13),transparent 48%),rgba(5,18,31,.55)}.vi-history__focus>span{display:block;color:#88a0b9;font-size:10px;text-transform:uppercase;letter-spacing:.9px;font-weight:850}.vi-history__focus>strong{display:block;font-size:62px;line-height:1;margin:13px 0 12px;letter-spacing:-3px;color:#f4fbff}.vi-history__focus>p{color:#8298b2;font-size:10.5px;line-height:1.6}.vi-history__support{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:23px}.vi-history__support>div{padding:12px;border:1px solid var(--vi-line);border-radius:10px}.vi-history__support b,.vi-history__support span{display:block}.vi-history__support b{font-size:17px;color:var(--vi-green)}.vi-history__support span{font-size:8.5px;color:#748ba5;margin-top:3px}
+    .vi-history__evidence{display:flex;flex-direction:column;gap:22px}.vi-history__cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.vi-history__cards article{position:relative;padding:16px;border:1px solid var(--vi-line);border-radius:12px;background:rgba(255,255,255,.025)}.vi-history__cards i{position:absolute;right:14px;top:14px;color:var(--vi-cyan);opacity:.7}.vi-history__cards b,.vi-history__cards span{display:block}.vi-history__cards b{font-size:22px}.vi-history__cards span{color:#778ea8;font-size:9px;margin-top:3px}
+    .vi-history__chart{height:180px;display:flex;align-items:end;gap:8px;border-bottom:1px solid #2b3c54;padding:8px 4px 0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 44px,rgba(145,167,198,.07) 45px)}.vi-history__chart>div{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0}.vi-history__chart i{display:block;width:66%;min-height:3px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--vi-green),rgba(53,214,164,.18))}.vi-history__chart b{font-size:7px;color:#8198b1;margin-top:4px}.vi-history__chart span{font-size:8px;color:#647b96;margin:3px 0 7px}.vi-history__note{display:flex;gap:11px;align-items:start;margin-top:22px;padding:12px;border-radius:10px;background:rgba(255,180,84,.055);border:1px solid rgba(255,180,84,.12)}.vi-history__note i{color:var(--vi-amber);margin-top:2px}.vi-history__note p{margin:0;color:#8298b2;font-size:9.5px;line-height:1.55}.vi-history__note strong{color:#c9d7e7}
     .vi-business-case{padding:88px 0 34px}.vi-section-title--wide{max-width:780px}.vi-section-title--wide h2{font-size:42px;letter-spacing:-1.6px}.vi-section-title--wide p{font-size:14px;line-height:1.6}
     .vi-lab{display:grid;grid-template-columns:1.15fr .85fr;border:1px solid rgba(53,214,164,.2);border-radius:22px;overflow:hidden;background:linear-gradient(145deg,rgba(19,42,64,.96),rgba(8,25,42,.98));box-shadow:0 32px 90px rgba(0,0,0,.26)}
     .vi-lab__controls{padding:34px 38px}.vi-lab__heading{margin-bottom:28px}.vi-lab__heading h3{font-size:25px;margin:7px 0 8px;letter-spacing:-.7px}.vi-lab__heading p{margin:0;max-width:650px;color:#8298b2;font-size:11px;line-height:1.55}
@@ -371,8 +427,8 @@
     .vi-moat{padding:105px 0 45px;display:grid;grid-template-columns:.74fr 1.26fr;gap:55px;align-items:center}.vi-moat__intro h2{font-size:42px;line-height:1.06;letter-spacing:-1.8px;margin:10px 0 17px}.vi-moat__intro h2 em{display:block;color:var(--vi-green);font-style:normal}.vi-moat__intro p{color:#8499b3;font-size:13px;line-height:1.7}.vi-moat__grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vi-moat__grid article{position:relative;min-height:205px;padding:24px;background:linear-gradient(155deg,var(--vi-panel2),var(--vi-panel));border:1px solid var(--vi-line);border-radius:15px}.vi-moat__grid article>b{position:absolute;right:18px;top:15px;color:#304862;font-size:24px}.vi-moat__grid article>i{color:var(--vi-green);font-size:19px}.vi-moat__grid h3{font-size:13px;margin:28px 0 8px}.vi-moat__grid p{color:#7f94af;font-size:10.5px;line-height:1.55}
     .vi-commercial{position:relative;overflow:hidden}.vi-commercial__close{grid-column:1/-1;border-top:1px solid rgba(53,214,164,.14);padding-top:20px;display:flex;align-items:end;justify-content:space-between;gap:20px}.vi-commercial__close span{color:#7f97af;font-size:10px}.vi-commercial__close strong{font-size:18px;color:#b9f5df}
     .vi-kpi,.vi-panel,.vi-modules article,.vi-moat__grid article{transition:transform .22s ease,border-color .22s ease,background .22s ease}.vi-kpi:hover,.vi-panel:hover,.vi-modules article:hover,.vi-moat__grid article:hover{transform:translateY(-3px);border-color:rgba(53,214,164,.23)}
-    @media(max-width:1450px){.vi-business-case,.vi-moat{margin-left:24px;margin-right:24px}}
-    @media(max-width:1180px){.vi-topnav{display:none}.vi-lab,.vi-moat{grid-template-columns:1fr}.vi-lab__result{border-left:0;border-top:1px solid rgba(53,214,164,.14)}.vi-moat{gap:28px}}
-    @media(max-width:620px){.vi-business-case,.vi-moat{margin-left:12px;margin-right:12px}.vi-business-case{padding-top:58px}.vi-section-title--wide h2{font-size:32px}.vi-lab__controls,.vi-lab__result{padding:24px 18px}.vi-result-grid,.vi-moat__grid{grid-template-columns:1fr}.vi-moat{padding-top:72px}.vi-moat__intro h2{font-size:34px}.vi-commercial__close{align-items:start;flex-direction:column}.vi-pitch-toggle{display:none}}
+    @media(max-width:1450px){.vi-history,.vi-business-case,.vi-moat{margin-left:24px;margin-right:24px}}
+    @media(max-width:1180px){.vi-topnav{display:none}.vi-lab,.vi-moat,.vi-history__body{grid-template-columns:1fr}.vi-lab__result{border-left:0;border-top:1px solid rgba(53,214,164,.14)}.vi-moat{gap:28px}}
+    @media(max-width:620px){.vi-history,.vi-business-case,.vi-moat{margin-left:12px;margin-right:12px}.vi-history{padding:22px 16px;margin-top:48px}.vi-history__header{align-items:start;flex-direction:column}.vi-history__period{text-align:left}.vi-history__focus>strong{font-size:48px}.vi-history__support,.vi-history__cards{grid-template-columns:1fr}.vi-history__chart{gap:3px;height:155px}.vi-history__chart b{display:none}.vi-business-case{padding-top:58px}.vi-section-title--wide h2{font-size:32px}.vi-lab__controls,.vi-lab__result{padding:24px 18px}.vi-result-grid,.vi-moat__grid{grid-template-columns:1fr}.vi-moat{padding-top:72px}.vi-moat__intro h2{font-size:34px}.vi-commercial__close{align-items:start;flex-direction:column}.vi-pitch-toggle{display:none}}
 </style>
 @stop

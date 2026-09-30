@@ -104,6 +104,61 @@ class SettingsController extends Controller
             'top_aseguradoras' => $aseguradoras->take(5),
         ];
 
-        return view('admin.settings.aseguradoras_preview.index', compact('stats'));
+        $legacyStats = $this->aseguradorasLegacyStats();
+
+        return view('admin.settings.aseguradoras_preview.index', compact('stats', 'legacyStats'));
+    }
+
+    private function aseguradorasLegacyStats(): ?array
+    {
+        $disponible = DB::table('information_schema.tables')
+            ->where('table_schema', 'peritos_legacy')
+            ->whereIn('table_name', ['accidentest', 'vehiculos'])
+            ->distinct()
+            ->count('table_name') === 2;
+
+        if (!$disponible) {
+            return null;
+        }
+
+        $hechos = DB::table('peritos_legacy.accidentest')
+            ->whereRaw('COALESCE(borrado, 0) = 0');
+        $vehiculos = DB::table('peritos_legacy.vehiculos');
+        $gruaUtilizada = static function ($query) {
+            $query->whereNotNull('grua')
+                ->whereRaw("TRIM(grua) <> ''")
+                ->whereRaw("UPPER(TRIM(grua)) NOT LIKE '%NO SE UTIL%'")
+                ->whereNotIn(DB::raw('UPPER(TRIM(grua))'), ['N/A', 'NA', 'NO', 'NINGUNO', 'NULL', 'S/D', 'SD', 'SIN DATO']);
+        };
+
+        $totalHechos = (clone $hechos)->count();
+        $georreferenciados = (clone $hechos)
+            ->whereNotNull('coordenadas')
+            ->whereRaw("TRIM(coordenadas) <> ''")
+            ->count();
+        $porAnio = (clone $hechos)
+            ->selectRaw('YEAR(fecha) as anio, COUNT(*) as total')
+            ->whereBetween('fecha', ['2016-01-01', '2025-12-31'])
+            ->groupByRaw('YEAR(fecha)')
+            ->orderBy('anio')
+            ->get();
+        $maximoAnual = max(1, (int) $porAnio->max('total'));
+
+        return [
+            'hechos' => $totalHechos,
+            'vehiculos' => (clone $vehiculos)->count(),
+            'asegurados' => (clone $vehiculos)->where('asegurado', 1)->count(),
+            'con_grua' => (clone $vehiculos)->where($gruaUtilizada)->count(),
+            'asegurados_con_grua' => (clone $vehiculos)->where('asegurado', 1)->where($gruaUtilizada)->count(),
+            'georreferenciados' => $georreferenciados,
+            'porcentaje_georreferenciado' => $totalHechos > 0 ? round(($georreferenciados / $totalHechos) * 100, 2) : 0,
+            'fecha_inicio' => Carbon::parse((clone $hechos)->whereNotNull('fecha')->where('fecha', '<>', '0000-00-00')->min('fecha')),
+            'fecha_corte' => Carbon::parse((clone $hechos)->whereNotNull('fecha')->where('fecha', '<>', '0000-00-00')->max('fecha')),
+            'por_anio' => $porAnio->map(fn ($row) => [
+                'anio' => (int) $row->anio,
+                'total' => (int) $row->total,
+                'altura' => max(3, (int) round(((int) $row->total / $maximoAnual) * 100)),
+            ]),
+        ];
     }
 }

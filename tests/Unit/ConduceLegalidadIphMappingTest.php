@@ -12,6 +12,30 @@ use Tests\TestCase;
 
 class ConduceLegalidadIphMappingTest extends TestCase
 {
+    public function test_separa_el_nombre_escrito_del_agente_para_el_iph(): void
+    {
+        $method = new ReflectionMethod(ConduceLegalidadController::class, 'agenteCapturaData');
+        $method->setAccessible(true);
+
+        $agente = $method->invoke(
+            new ConduceLegalidadController(),
+            [
+                'agente_nombres' => 'Ana María',
+                'agente_apellido_paterno' => 'Pérez',
+                'agente_apellido_materno' => 'López',
+                'agente_numero_placa' => 'PLACA-7788',
+            ],
+            (object) ['name' => 'Usuario que captura']
+        );
+
+        $this->assertSame('Ana María Pérez López', $agente['nombre']);
+        $this->assertSame('Ana María', $agente['nombres']);
+        $this->assertSame('Pérez', $agente['apellido_paterno']);
+        $this->assertSame('López', $agente['apellido_materno']);
+        $this->assertSame('PLACA-7788', $agente['numero_placa']);
+        $this->assertSame('Unidad de Protección en Vialidades Urbanas', $agente['adscripcion']);
+    }
+
     public function test_mapeo_iph_usa_numero_y_codigo_postal_del_operativo(): void
     {
         $operativo = new ConduceLegalidadOperativo();
@@ -39,6 +63,12 @@ class ConduceLegalidadIphMappingTest extends TestCase
             'lat' => null,
             'lng' => null,
             'observaciones' => null,
+            'agente_nombre' => 'Ana María Pérez López',
+            'agente_nombres' => 'Ana María',
+            'agente_apellido_paterno' => 'Pérez',
+            'agente_apellido_materno' => 'López',
+            'agente_numero_placa' => 'PLACA-7788',
+            'agente_adscripcion' => 'Unidad de Protección en Vialidades Urbanas',
         ]);
         $captura->setRelation('vehiculos', new Collection());
         $captura->setRelation('fundamentos', new Collection());
@@ -58,5 +88,14 @@ class ConduceLegalidadIphMappingTest extends TestCase
         $this->assertSame('Avenida Test 123', $mapeo['hecho']['ubicacion']['calle']);
         $this->assertSame('58000', $mapeo['hecho']['ubicacion']['codigo_postal']);
         $this->assertStringContainsString('CP 58000', $mapeo['hecho']['ubicacion']['ubicacion_formateada']);
+        $this->assertSame('Ana María Pérez López', $mapeo['puesta_disposicion']['nombre_policia']);
+        $this->assertSame('Ana María', $mapeo['puesta_disposicion']['agente_nombres']);
+        $this->assertSame('Pérez', $mapeo['puesta_disposicion']['agente_apellido_paterno']);
+        $this->assertSame('López', $mapeo['puesta_disposicion']['agente_apellido_materno']);
+        $this->assertSame('PLACA-7788', $mapeo['puesta_disposicion']['agente_numero_placa']);
+        $this->assertSame(
+            'Unidad de Protección en Vialidades Urbanas',
+            $mapeo['puesta_disposicion']['area']
+        );
     }
 }

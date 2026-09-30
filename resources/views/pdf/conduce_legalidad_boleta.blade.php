@@ -20,7 +20,10 @@
         .value { font-weight: 600; }
         .block { margin: 3px 0; }
         .signature { margin-top: 18px; border-top: 1px solid #111827; width: 48%; text-align: center; padding-top: 2px; }
-        .footer { margin-top: 8px; text-align: center; font-size: 8px; }
+        .leadership { margin-top: 3px; padding: 5px 7px; border-left: 3px solid #111827; background: #f3f4f6; }
+        .leadership-item + .leadership-item { margin-top: 5px; }
+        .leadership-label { color: #4b5563; font-size: 7px; text-transform: uppercase; letter-spacing: .03em; }
+        .leadership-name { margin-top: 1px; font-size: 9px; font-weight: 700; }
         .notice { margin-top: 7px; padding: 5px; background: #f3f4f6; font-size: 7px; }
         .sample { margin: 0 0 7px; padding: 5px; border: 1px solid #b91c1c; color: #b91c1c; text-align: center; font-weight: 700; }
     </style>
@@ -102,6 +105,21 @@
     </div>
 
     <div class="section">
+        <div class="section-title">RESPONSABLES DEL OPERATIVO</div>
+        <div class="leadership">
+            <div class="leadership-item">
+                <div class="leadership-label">{{ $boleta['coordinador_cargo'] }}</div>
+                <div class="leadership-name">{{ $boleta['coordinador_nombre'] }}</div>
+            </div>
+            <div class="leadership-item">
+                <div class="leadership-label">Supervisión operativa</div>
+                <div class="leadership-name">{{ $boleta['supervisor_nombre'] }}</div>
+                <div>{{ $boleta['supervisor_cargo'] }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
         <div class="section-title">AGENTE</div>
         <table>
             <tr>
@@ -113,10 +131,6 @@
         <div class="signature">Firma autógrafa/electrónica</div>
     </div>
 
-    <div class="footer">
-        <strong>Supervisó: {{ $boleta['supervisor_nombre'] }}</strong><br>
-        {{ $boleta['supervisor_cargo'] }}
-    </div>
     <div class="notice">
         Documento generado por el sistema institucional. La copia enviada por WhatsApp contiene la información registrada en la boleta al momento del envío.
     </div>

@@ -1447,7 +1447,10 @@ class ComunicacionController extends Controller
 
     private function queryUsuariosParaMensajeIndividual(User $actor)
     {
-        return \App\Services\ComunicacionConversationAccess::recipients($actor, $this->actorTieneAlcanceGlobal($actor));
+        return \App\Services\ComunicacionConversationAccess::discoverableRecipients(
+            $actor,
+            $this->actorTieneAlcanceGlobal($actor)
+        );
     }
 
 
@@ -1463,43 +1466,11 @@ class ComunicacionController extends Controller
             return false;
         }
 
-        $destinatarioActivo = User::query()
+        return \App\Services\ComunicacionConversationAccess::messageableRecipients(
+            $actor,
+            $this->actorTieneAlcanceGlobal($actor)
+        )
             ->whereKey($userId)
-            ->where('estado', 'Activo')
-            ->exists();
-
-        if (!$destinatarioActivo) {
-            return false;
-        }
-
-        if ($this->existeConversacionDirecta($actor, $userId)) {
-            return true;
-        }
-
-        return $this
-            ->queryUsuariosParaMensajeIndividual($actor)
-            ->whereKey($userId)
-            ->exists();
-    }
-
-    private function existeConversacionDirecta(
-        User $actor,
-        int $userId
-    ): bool {
-        return Comunicacion::query()
-            ->where('tipo', 'mensaje')
-            ->where('alcance', 'usuario')
-            ->where(function ($query) use ($actor, $userId) {
-                $query->where(function ($outgoing) use ($actor, $userId) {
-                    $outgoing
-                        ->where('remitente_user_id', $actor->id)
-                        ->where('destinatario_user_id', $userId);
-                })->orWhere(function ($incoming) use ($actor, $userId) {
-                    $incoming
-                        ->where('remitente_user_id', $userId)
-                        ->where('destinatario_user_id', $actor->id);
-                });
-            })
             ->exists();
     }
 

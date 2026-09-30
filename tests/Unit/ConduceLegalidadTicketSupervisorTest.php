@@ -17,9 +17,13 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
         $controller = $this->controllerWithDelegate();
         $lines = $this->appendSupervisor($controller, 2, 6);
 
-        $this->assertContains('Supervisó: Ángel Peralta Hernández', $lines);
+        $this->assertContains('Supervisión operativa: Ángel Peralta Hernández', $lines);
         $this->assertContains('Delegado de la Delegación de Pátzcuaro', $lines);
-        $this->assertNotContains('Supervisó: Luis Eduardo Lugo Ordorica', $lines);
+        $this->assertNotContains('Supervisión operativa: Luis Eduardo Lugo Ordorica', $lines);
+        $this->assertCoordinatorPrecedesSupervisor(
+            $lines,
+            'Supervisión operativa: Ángel Peralta Hernández'
+        );
     }
 
     public function test_vialidades_ticket_keeps_subdirector_signature(): void
@@ -27,8 +31,12 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
         $controller = $this->controllerWithDelegate();
         $lines = $this->appendSupervisor($controller, 5, null);
 
-        $this->assertContains('Supervisó: Luis Eduardo Lugo Ordorica', $lines);
+        $this->assertContains('Supervisión operativa: Luis Eduardo Lugo Ordorica', $lines);
         $this->assertContains('Subdirector de la Unidad de Protección en Vialidades Urbanas', $lines);
+        $this->assertCoordinatorPrecedesSupervisor(
+            $lines,
+            'Supervisión operativa: Luis Eduardo Lugo Ordorica'
+        );
     }
 
     public function test_supervisor_payload_uses_delegate_from_specific_delegation(): void
@@ -130,6 +138,30 @@ class ConduceLegalidadTicketSupervisorTest extends TestCase
         $method->invokeArgs($controller, $arguments);
 
         return $lines;
+    }
+
+    private function assertCoordinatorPrecedesSupervisor(
+        array $lines,
+        string $supervisorLine
+    ): void {
+        $cargoIndex = array_search(
+            'Coordinador del Agrupamiento de Seguridad Vial',
+            $lines,
+            true
+        );
+        $nombreIndex = array_search(
+            'Lic. Luis Roberto Rosiles Soberanis',
+            $lines,
+            true
+        );
+        $supervisorIndex = array_search($supervisorLine, $lines, true);
+
+        $this->assertIsInt($cargoIndex);
+        $this->assertIsInt($nombreIndex);
+        $this->assertIsInt($supervisorIndex);
+        $this->assertContains('RESPONSABLES DEL OPERATIVO:', $lines);
+        $this->assertLessThan($nombreIndex, $cargoIndex);
+        $this->assertLessThan($supervisorIndex, $nombreIndex);
     }
 
     private function controllerWithDelegate(): ConduceLegalidadController

@@ -707,6 +707,10 @@ class IphPuestaDisposicionDocxService
             'expediente' => $this->valor($puesta['carpeta_investigacion'] ?? null, ''),
             'nombre_policia' => $nombrePolicia,
             'nombre_policia_mayus' => mb_strtoupper($nombrePolicia, 'UTF-8'),
+            'agente_nombres' => mb_strtoupper($this->clean($puesta['agente_nombres'] ?? null), 'UTF-8'),
+            'agente_apellido_paterno' => mb_strtoupper($this->clean($puesta['agente_apellido_paterno'] ?? null), 'UTF-8'),
+            'agente_apellido_materno' => mb_strtoupper($this->clean($puesta['agente_apellido_materno'] ?? null), 'UTF-8'),
+            'agente_numero_placa' => $this->clean($puesta['agente_numero_placa'] ?? null),
             'adscripcion' => $adscripcion,
             'unidad_arribo' => mb_strtoupper($unidadArribo, 'UTF-8'),
             'autoridad_portada_iph' => 'FISCALÍA GENERAL DEL ESTADO',
@@ -964,7 +968,7 @@ class IphPuestaDisposicionDocxService
         $this->barra($section, 'Apartado 1.1. Fecha y hora de la puesta a disposición.', self::CREAM, '000000', true);
         $this->iphFechaHoraPuesta($section, $d);
         $this->iphAnexosPuesta($section, $d);
-        $this->iphPersonaLineas($section, 'Datos de quien realiza la puesta a disposición', $this->partesNombreIph($d['nombre_policia_mayus']), [
+        $this->iphPersonaLineas($section, 'Datos de quien realiza la puesta a disposición', $this->partesPoliciaIph($d), [
             'Adscripción:' => $d['adscripcion'],
             'Cargo/grado:' => 'POLICÍA',
             'Firma:' => '',
@@ -978,7 +982,7 @@ class IphPuestaDisposicionDocxService
 
     private function iphPrimerRespondiente($section, array $d): void
     {
-        $nombre = $this->partesNombreIph($d['nombre_policia_mayus']);
+        $nombre = $this->partesPoliciaIph($d);
 
         $this->texto($section, 'SECCIÓN 2. PRIMER RESPONDIENTE.', ['bold' => true, 'size' => 9], ['spaceAfter' => 45]);
         $this->barra($section, 'Apartado 2.1. Datos de identificación', self::CREAM, '000000', true);
@@ -2002,6 +2006,23 @@ class IphPuestaDisposicionDocxService
             'segundo_apellido' => '',
             'nombres' => $tokens[0] ?? '',
         ];
+    }
+
+    private function partesPoliciaIph(array $data): array
+    {
+        $nombres = trim((string) ($data['agente_nombres'] ?? ''));
+        $apellidoPaterno = trim((string) ($data['agente_apellido_paterno'] ?? ''));
+        $apellidoMaterno = trim((string) ($data['agente_apellido_materno'] ?? ''));
+
+        if ($nombres !== '' || $apellidoPaterno !== '' || $apellidoMaterno !== '') {
+            return [
+                'primer_apellido' => $apellidoPaterno,
+                'segundo_apellido' => $apellidoMaterno,
+                'nombres' => $nombres,
+            ];
+        }
+
+        return $this->partesNombreIph((string) ($data['nombre_policia_mayus'] ?? ''));
     }
 
     private function tokenNombreComunIph(string $token): bool

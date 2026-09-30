@@ -33,6 +33,9 @@ class ConduceLegalidadBoletaWhatsappTest extends TestCase
             'hora' => '18:05',
             'narrativa' => 'Conducía sin licencia vigente.',
             'fundamento_legal' => 'Artículo 402.',
+            'agente_nombre' => 'Ana María Pérez López',
+            'agente_numero_placa' => 'PLACA-7788',
+            'agente_adscripcion' => 'Unidad de Protección en Vialidades Urbanas',
         ]);
         $captura->id = 81;
 
@@ -84,6 +87,12 @@ class ConduceLegalidadBoletaWhatsappTest extends TestCase
         $this->assertSame('INV-0042', $boleta['numero_inventario']);
         $this->assertSame('Corralón Morelia', $boleta['corralon']);
         $this->assertStringContainsString('KTM', $boleta['vehiculo_resumen']);
+        $this->assertSame('Ana María Pérez López', $boleta['agente_nombre']);
+        $this->assertSame('PLACA-7788', $boleta['agente_placa']);
+        $this->assertStringStartsWith(
+            'Unidad de Protección en Vialidades Urbanas',
+            $boleta['adscripcion']
+        );
 
         $pdf = Pdf::loadView('pdf.conduce_legalidad_boleta', [
             'boleta' => $boleta,

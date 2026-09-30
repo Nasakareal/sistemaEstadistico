@@ -43,6 +43,9 @@ class ConduceLegalidadController extends Controller
     private const FORMATO_IPH_ANTERIOR = 'anterior';
     private const TICKET_SUPERVISOR_NOMBRE = 'Luis Eduardo Lugo Ordorica';
     private const TICKET_SUPERVISOR_CARGO = 'Subdirector de la Unidad de Protección en Vialidades Urbanas';
+    private const TICKET_COORDINADOR_NOMBRE = 'Lic. Luis Roberto Rosiles Soberanis';
+    private const TICKET_COORDINADOR_CARGO = 'Coordinador del Agrupamiento de Seguridad Vial';
+    private const AGENTE_ADSCRIPCION_DEFAULT = 'Unidad de Protección en Vialidades Urbanas';
     private const FUNDAMENTO_SIN_LICENCIA_CODIGO = 'OP_CL_SIN_LICENCIA_SIN_HABILITADO';
     private const NARRATIVA_SIN_LICENCIA = 'Se hace constar que la persona conductora no exhibe licencia vigente expedida por autoridad competente, por lo que, conforme al articulo 402, carece de habilitacion juridica para continuar conduciendo el vehiculo. Se le informa que la marcha no puede continuar bajo su mando. Al no encontrarse en el lugar persona legalmente habilitada que pueda hacerse cargo inmediato y seguro del vehiculo, la autoridad adopta la medida necesaria para retirar el vehiculo de la via y evitar la continuacion de la conducta. Se deja constancia de que la medida no se funda en una causal automatica de "sin licencia = deposito", sino en la imposibilidad de permitir que el vehiculo continue bajo el mando de persona no habilitada y en la falta de alternativa inmediata legalmente viable, tomando en cuenta el marco de retiro y remision previsto para supuestos expresos en los articulos 700 y 702.';
     private const FUNDAMENTOS_EXCLUIDOS_OPERATIVO = [
@@ -528,6 +531,7 @@ class ConduceLegalidadController extends Controller
                 : [];
             $infraccion = $fundamentos[0] ?? null;
             $infraccionSnapshot = $this->capturaInfraccionSnapshot($validated, $infraccion);
+            $agente = $this->agenteCapturaData($validated, $user);
             $now = now();
             $captura = $operativo->capturas()->create([
                 'client_uuid' => $clientUuid,
@@ -535,6 +539,12 @@ class ConduceLegalidadController extends Controller
                 'infraccion_codigo' => $infraccionSnapshot['codigo'],
                 'fundamento_legal' => $infraccionSnapshot['fundamento_legal'],
                 'created_by' => $user->id,
+                'agente_nombre' => $agente['nombre'],
+                'agente_nombres' => $agente['nombres'],
+                'agente_apellido_paterno' => $agente['apellido_paterno'],
+                'agente_apellido_materno' => $agente['apellido_materno'],
+                'agente_numero_placa' => $agente['numero_placa'],
+                'agente_adscripcion' => $agente['adscripcion'],
                 'unidad_id' => $user->unidad_id,
                 'delegacion_id' => $user->delegacion_id,
                 'fecha' => $validated['fecha'] ?? $operativo->fecha ?? $now->toDateString(),
@@ -651,6 +661,7 @@ class ConduceLegalidadController extends Controller
                     'fundamento_legal' => $captura->fundamento_legal,
                 ];
             $usaFundamentoUnificado = $campoFundamentoPresente || count($fundamentos) > 0;
+            $agente = $this->agenteCapturaData($validated, $user, $captura);
             $captura->fill([
                 'licencia_punto_infraccion_id' => $campoFundamentoPresente
                     ? ($infraccion ? $infraccion->id : null)
@@ -661,6 +672,12 @@ class ConduceLegalidadController extends Controller
                 'fundamento_legal' => $campoFundamentoPresente
                     ? $infraccionSnapshot['fundamento_legal']
                     : $captura->fundamento_legal,
+                'agente_nombre' => $agente['nombre'],
+                'agente_nombres' => $agente['nombres'],
+                'agente_apellido_paterno' => $agente['apellido_paterno'],
+                'agente_apellido_materno' => $agente['apellido_materno'],
+                'agente_numero_placa' => $agente['numero_placa'],
+                'agente_adscripcion' => $agente['adscripcion'],
                 'fecha' => $validated['fecha'] ?? $captura->fecha,
                 'hora' => $validated['hora'] ?? $captura->hora,
                 'municipio' => array_key_exists('municipio', $validated) ? $this->nullableString($validated['municipio']) : $captura->municipio,
@@ -1043,8 +1060,10 @@ class ConduceLegalidadController extends Controller
             'Vigencia: ' . $vigenciaLicencia,
         ], ' · ');
 
-        $placaAgente = $this->nullableString(data_get($creadorPayload, 'numero_placa'));
-        $unidadAgente = $this->nullableString(data_get($creadorPayload, 'adscripcion'))
+        $placaAgente = $this->nullableString($captura->agente_numero_placa)
+            ?: $this->nullableString(data_get($creadorPayload, 'numero_placa'));
+        $unidadAgente = $this->nullableString($captura->agente_adscripcion)
+            ?: $this->nullableString(data_get($creadorPayload, 'adscripcion'))
             ?: $this->unidadOperativaTexto($adscripcion['unidad_id']);
         $delegacion = $this->delegacionTexto($adscripcion['delegacion_id']);
         $lugar = $this->lugarConNumero(
@@ -1073,9 +1092,12 @@ class ConduceLegalidadController extends Controller
             'licencia' => $licencia ?: 'No capturada',
             'requiere_liberacion' => $vehiculo ? $this->vehiculoResguardado($vehiculo) : false,
             'liberacion' => 'La liberación del vehículo deberá tramitarse ante la autoridad competente, presentando la documentación aplicable y esta boleta.',
-            'agente_nombre' => $creador ? $this->nombreUsuario($creador) : 'No capturado',
+            'agente_nombre' => $this->nullableString($captura->agente_nombre)
+                ?: ($creador ? $this->nombreUsuario($creador) : 'No capturado'),
             'agente_placa' => $placaAgente ?: 'No capturada',
             'adscripcion' => $this->joinText([$unidadAgente, $delegacion], ' · '),
+            'coordinador_nombre' => self::TICKET_COORDINADOR_NOMBRE,
+            'coordinador_cargo' => self::TICKET_COORDINADOR_CARGO,
             'supervisor_nombre' => $supervisor['nombre'],
             'supervisor_cargo' => $supervisor['cargo'],
         ];
@@ -1231,12 +1253,15 @@ class ConduceLegalidadController extends Controller
             $colonia ? 'Col. ' . $colonia : null,
             $codigoPostal ? 'CP ' . $codigoPostal : null,
         ]));
-        $unidadNombre = $this->nullableString(optional($captura->unidad)->nombre)
+        $unidadNombre = $this->nullableString($captura->agente_adscripcion)
+            ?: $this->nullableString(optional($captura->unidad)->nombre)
             ?: $this->nullableString(optional($captura->creador)->unidad->nombre ?? null)
             ?: 'Coordinación del Agrupamiento de Seguridad Vial';
-        $agenteNombre = $this->nullableString(optional($captura->creador)->name)
+        $agenteNombre = $this->nullableString($captura->agente_nombre)
+            ?: $this->nullableString(optional($captura->creador)->name)
             ?: $this->nullableString($user->name ?? null)
             ?: 'Elemento actuante';
+        $agentePartes = $this->partesAgenteCaptura($agenteNombre, $captura);
         $narrativaOperativa = $this->narrativaIphConduceLegalidad($operativo, $captura);
         $dinamica = $this->dinamicaIphConduceLegalidad($operativo, $captura, $narrativaOperativa);
         $fundamento = $this->fundamentosIphCaptura($captura);
@@ -1295,6 +1320,10 @@ class ConduceLegalidadController extends Controller
                 'motivo' => $fundamento,
                 'estatus' => 'Generado desde operativo',
                 'nombre_policia' => $agenteNombre,
+                'agente_nombres' => $agentePartes['nombres'],
+                'agente_apellido_paterno' => $agentePartes['apellido_paterno'],
+                'agente_apellido_materno' => $agentePartes['apellido_materno'],
+                'agente_numero_placa' => $this->nullableString($captura->agente_numero_placa),
                 'nombre_mp' => '',
                 'autoridad_receptora' => 'AUTORIDAD COMPETENTE PARA LOS FINES LEGALES PROCEDENTES',
                 'area' => $unidadNombre,
@@ -1872,7 +1901,11 @@ class ConduceLegalidadController extends Controller
         $supervisor = $this->supervisorTicket($unidadId, $delegacionId);
 
         $lines[] = '';
-        $lines[] = 'Supervisó: ' . $supervisor['nombre'];
+        $lines[] = 'RESPONSABLES DEL OPERATIVO:';
+        $lines[] = self::TICKET_COORDINADOR_CARGO;
+        $lines[] = self::TICKET_COORDINADOR_NOMBRE;
+        $lines[] = '';
+        $lines[] = 'Supervisión operativa: ' . $supervisor['nombre'];
         $lines[] = $supervisor['cargo'];
     }
 
@@ -2189,12 +2222,112 @@ class ConduceLegalidadController extends Controller
         ];
     }
 
+    private function agenteCapturaData(
+        array $validated,
+        $user,
+        ?ConduceLegalidadCaptura $captura = null
+    ): array {
+        $partesExplicitas = array_key_exists('agente_nombres', $validated)
+            || array_key_exists('agente_apellido_paterno', $validated)
+            || array_key_exists('agente_apellido_materno', $validated);
+
+        if ($partesExplicitas) {
+            $partes = [
+                'nombres' => $this->nullableString($validated['agente_nombres'] ?? null),
+                'apellido_paterno' => $this->nullableString($validated['agente_apellido_paterno'] ?? null),
+                'apellido_materno' => $this->nullableString($validated['agente_apellido_materno'] ?? null),
+            ];
+            $nombre = $this->joinText([
+                $partes['nombres'],
+                $partes['apellido_paterno'],
+                $partes['apellido_materno'],
+            ], ' ');
+        } else {
+            $nombre = array_key_exists('agente_nombre', $validated)
+                ? $this->nullableString($validated['agente_nombre'])
+                : $this->nullableString(optional($captura)->agente_nombre);
+            $nombre = $nombre
+                ?: $this->nullableString($user->name ?? null)
+                ?: 'Elemento actuante';
+            $partes = $this->partesAgenteCaptura($nombre, $captura);
+        }
+
+        $nombre = $this->nullableString($nombre)
+            ?: $this->nullableString($validated['agente_nombre'] ?? null)
+            ?: 'Elemento actuante';
+
+        $numeroPlaca = array_key_exists('agente_numero_placa', $validated)
+            ? $this->nullableString($validated['agente_numero_placa'])
+            : $this->nullableString(optional($captura)->agente_numero_placa);
+        $numeroPlaca = $numeroPlaca
+            ?: $this->nullableString(data_get($user, 'numero_placa'))
+            ?: $this->nullableString(data_get($user, 'personal.numero_placa'));
+
+        return [
+            'nombre' => $nombre,
+            'nombres' => $partes['nombres'],
+            'apellido_paterno' => $partes['apellido_paterno'],
+            'apellido_materno' => $partes['apellido_materno'],
+            'numero_placa' => $numeroPlaca,
+            'adscripcion' => self::AGENTE_ADSCRIPCION_DEFAULT,
+        ];
+    }
+
+    private function partesAgenteCaptura(
+        string $nombre,
+        ?ConduceLegalidadCaptura $captura = null
+    ): array {
+        $nombresGuardados = $this->nullableString(optional($captura)->agente_nombres);
+        $paternoGuardado = $this->nullableString(optional($captura)->agente_apellido_paterno);
+        $maternoGuardado = $this->nullableString(optional($captura)->agente_apellido_materno);
+
+        if ($nombresGuardados !== null || $paternoGuardado !== null || $maternoGuardado !== null) {
+            return [
+                'nombres' => $nombresGuardados,
+                'apellido_paterno' => $paternoGuardado,
+                'apellido_materno' => $maternoGuardado,
+            ];
+        }
+
+        $tokens = preg_split('/\s+/u', trim($nombre), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (count($tokens) >= 3) {
+            $apellidoMaterno = array_pop($tokens);
+            $apellidoPaterno = array_pop($tokens);
+
+            return [
+                'nombres' => implode(' ', $tokens),
+                'apellido_paterno' => $apellidoPaterno,
+                'apellido_materno' => $apellidoMaterno,
+            ];
+        }
+
+        if (count($tokens) === 2) {
+            return [
+                'nombres' => $tokens[0],
+                'apellido_paterno' => $tokens[1],
+                'apellido_materno' => null,
+            ];
+        }
+
+        return [
+            'nombres' => $tokens[0] ?? $nombre,
+            'apellido_paterno' => null,
+            'apellido_materno' => null,
+        ];
+    }
+
     private function capturaRules(?ConduceLegalidadOperativo $operativo = null): array
     {
         $requiereVehiculo = $operativo === null || !$this->esOperativoAlcoholimetria($operativo);
 
         return [
             'client_uuid' => ['nullable', 'string', 'max:80'],
+            'agente_nombre' => ['nullable', 'string', 'max:255'],
+            'agente_nombres' => ['nullable', 'string', 'max:120'],
+            'agente_apellido_paterno' => ['nullable', 'string', 'max:100'],
+            'agente_apellido_materno' => ['nullable', 'string', 'max:100'],
+            'agente_numero_placa' => ['nullable', 'string', 'max:80'],
+            'agente_adscripcion' => ['nullable', 'string', 'max:180'],
             'fecha' => ['nullable', 'date'],
             'hora' => ['nullable', 'date_format:H:i'],
             'municipio' => ['nullable', 'string', 'max:120'],
@@ -3105,6 +3238,12 @@ class ConduceLegalidadController extends Controller
                 ->values(),
             'created_by' => $captura->created_by,
             'creador' => $this->userPayload($captura->creador),
+            'agente_nombre' => $captura->agente_nombre,
+            'agente_nombres' => $captura->agente_nombres,
+            'agente_apellido_paterno' => $captura->agente_apellido_paterno,
+            'agente_apellido_materno' => $captura->agente_apellido_materno,
+            'agente_numero_placa' => $captura->agente_numero_placa,
+            'agente_adscripcion' => $captura->agente_adscripcion,
             'unidad' => $this->refPayload($captura->unidad),
             'delegacion' => $this->refPayload($captura->delegacion),
             'fecha' => optional($captura->fecha)->toDateString(),

@@ -261,6 +261,21 @@
         return ne;
     }
 
+    function localDateTimeFromCapturedAt(capturedAt){
+        const dt = parseDt(capturedAt);
+        if(!dt) return capturedAt || 'Sin dato';
+
+        return dt.toLocaleString('es-MX', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        });
+    }
+
     function mergePersonalWithMap(personalList, mapList){
         const byUser = new Map();
         mapList.forEach(x => byUser.set(Number(x.user_id), x));
@@ -314,7 +329,7 @@
         const popup = `
             <strong>${loc.name ?? ''}</strong><br>
             Núm. Económico: ${(label && label.trim() !== '') ? label : 'N/D'}<br>
-            Última: ${loc.captured_at ?? ''}
+            Última: ${localDateTimeFromCapturedAt(loc.captured_at)}
         `;
 
         const divIcon = L.divIcon({
@@ -378,7 +393,7 @@
                     <span class="dot ${dot}"></span>
                     <div class="info">
                         <strong>${p.name}</strong>
-                        <small>Núm. Económico: ${neTxt} · ${enabled ? (stale ? 'Sin señal reciente' : 'En línea') : 'Ubicación desactivada'}</small>
+                        <small>Núm. Económico: ${neTxt} · ${enabled ? (stale ? 'Sin señal reciente (no se muestra en el mapa)' : 'En línea') : 'Ubicación desactivada'}</small>
                     </div>
                     <span class="badge badge-secondary badge-time">${timeTxt}</span>
                     ${canToggle ? `
@@ -391,7 +406,7 @@
 
             li.addEventListener('click', (ev) => {
                 if(ev.target && ev.target.matches('input.mini-switch')) return;
-                if(p.last_lat != null && p.last_lng != null){
+                if(!stale && p.last_lat != null && p.last_lng != null){
                     map.setView([p.last_lat, p.last_lng], 17);
                     const marker = markers.get(String(p.user_id));
                     if(marker) marker.openPopup();
@@ -482,6 +497,9 @@
         const visible = merged.filter(p => {
             const enabled = !!p.compartir_ubicacion;
             if(!enabled) return false;
+            // Una coordenada histórica no debe parecer la ubicación actual.
+            // Se conserva en el listado para diagnóstico, pero se retira del mapa.
+            if(p.stale === true) return false;
             if(p.last_lat == null || p.last_lng == null) return false;
             return true;
         });

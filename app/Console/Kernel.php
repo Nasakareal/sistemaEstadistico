@@ -36,6 +36,13 @@ class Kernel extends ConsoleKernel
             ->everyTwoMinutes()
             ->withoutOverlapping();
 
+        // Mantiene coherente el estado del mapa con la recepción real de GPS.
+        // El comando ya existía, pero si no se agenda un usuario puede permanecer
+        // como "conectado" indefinidamente después de dejar de reportar.
+        $schedule->command('users:detect-disconnected --minutes=3')
+            ->everyMinute()
+            ->withoutOverlapping();
+
         $schedule->command('estadofuerza:enviar-diario')
             ->timezone($timezone)
             ->dailyAt('18:00')

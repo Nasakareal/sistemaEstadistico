@@ -9,6 +9,7 @@ use App\Services\LocationTrackingEligibilityService;
 use App\Services\C5iResponseTimeService;
 use App\Services\SuspiciousPlaceDwellService;
 use App\Support\MapaPatrullasAccess;
+use App\Support\UtcDatabaseDate;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -77,9 +78,16 @@ class LocationController extends Controller
             'captured_at' => 'nullable|date',
         ]);
 
+        $nowUtc = now('UTC');
         $capturedAt = isset($validated['captured_at'])
-            ? Carbon::parse($validated['captured_at'])
-            : now();
+            ? Carbon::parse($validated['captured_at'])->utc()
+            : $nowUtc->copy();
+
+        // Un reloj de teléfono adelantado no debe inmovilizar la patrulla en
+        // una coordenada que el servidor considere más nueva durante horas.
+        if ($capturedAt->gt($nowUtc->copy()->addMinutes(2))) {
+            $capturedAt = $nowUtc->copy();
+        }
 
         if ((int) $user->unidad_id === 1 && isset($validated['accuracy'])
             && $validated['accuracy'] <= 100 && $capturedAt->lte(now())
@@ -97,9 +105,11 @@ class LocationController extends Controller
 
         // Las ubicaciones pueden llegar tarde desde la cola offline. No se permite
         // que una muestra vieja reemplace la posición más reciente ni dispare eventos.
-        if ($currentLocation
-            && $currentLocation->captured_at
-            && $capturedAt->lte($currentLocation->captured_at)) {
+        $currentCapturedAt = $currentLocation
+            ? UtcDatabaseDate::parseRaw($currentLocation->getRawOriginal('captured_at'))
+            : null;
+
+        if ($currentCapturedAt && $capturedAt->lte($currentCapturedAt)) {
             return response()->json([
                 'message' => 'Ubicación anterior ignorada',
                 'data' => $currentLocation,

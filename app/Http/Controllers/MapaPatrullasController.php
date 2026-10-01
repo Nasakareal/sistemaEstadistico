@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\UserLocation;
 use App\Support\MapaPatrullasAccess;
+use App\Support\UtcDatabaseDate;
 use Illuminate\Http\Request;
 
 class MapaPatrullasController extends Controller
@@ -76,7 +77,11 @@ class MapaPatrullasController extends Controller
                     'numero_economico' => $row->numero_economico,
                     'lat'              => (float)$row->lat,
                     'lng'              => (float)$row->lng,
-                    'captured_at'      => $row->captured_at ? \Carbon\Carbon::parse($row->captured_at)->toDateTimeString() : null,
+                    // El sufijo +00:00 evita que el navegador confunda UTC con
+                    // hora local y mantenga ubicaciones viejas como futuras.
+                    'captured_at'      => UtcDatabaseDate::toIso8601(
+                        $row->getRawOriginal('captured_at')
+                    ),
                 ];
             });
     }

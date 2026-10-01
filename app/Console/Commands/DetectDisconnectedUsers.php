@@ -17,7 +17,9 @@ class DetectDisconnectedUsers extends Command
         $minutes = (int) $this->option('minutes');
         if ($minutes <= 0) { $minutes = 5; }
 
-        $threshold = now()->subMinutes($minutes);
+        // last_seen_at se persiste en UTC; comparar contra hora local retrasa
+        // incorrectamente la desconexión varias horas.
+        $threshold = now('UTC')->subMinutes($minutes);
 
         $disconnectedUsersQuery = User::query()
             ->where('compartir_ubicacion', 1)
@@ -35,7 +37,7 @@ class DetectDisconnectedUsers extends Command
 
         foreach ($disconnectedUsers as $u) {
             $u->connection_status = 'offline';
-            $u->disconnected_alert_sent_at = now();
+            $u->disconnected_alert_sent_at = now('UTC');
             $u->save();
             $marked++;
         }

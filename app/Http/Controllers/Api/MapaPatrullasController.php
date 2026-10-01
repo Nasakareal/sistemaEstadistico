@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserLocation;
 use App\Support\MapaPatrullasAccess;
+use App\Support\UtcDatabaseDate;
 
 class MapaPatrullasController extends Controller
 {
@@ -59,8 +60,8 @@ class MapaPatrullasController extends Controller
                     'compartir_ubicacion' => (int) (optional($user)->compartir_ubicacion ?? 0),
 
                     'connection_status' => optional($user)->connection_status,
-                    'last_seen_at'       => optional($user)->last_seen_at
-                        ? optional($user)->last_seen_at->toDateTimeString()
+                    'last_seen_at'       => $user
+                        ? UtcDatabaseDate::toIso8601($user->getRawOriginal('last_seen_at'))
                         : null,
 
                     'lat'            => (float) $loc->lat,
@@ -68,7 +69,9 @@ class MapaPatrullasController extends Controller
                     'accuracy'       => $loc->accuracy !== null ? (float)$loc->accuracy : null,
                     'speed'          => $loc->speed !== null ? (float)$loc->speed : null,
                     'heading'        => $loc->heading !== null ? (float)$loc->heading : null,
-                    'captured_at'    => $loc->captured_at ? $loc->captured_at->toDateTimeString() : null,
+                    'captured_at'    => UtcDatabaseDate::toIso8601(
+                        $loc->getRawOriginal('captured_at')
+                    ),
                 ];
             });
 

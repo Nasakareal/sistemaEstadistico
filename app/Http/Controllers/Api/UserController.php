@@ -187,8 +187,14 @@ class UserController extends Controller
                 'patrulla_id' => $validated['patrulla_id'] ?? null,
                 'delegacion_id' => $validated['delegacion_id'] ?? null,
                 'destacamento_id' => $validated['destacamento_id'] ?? null,
-                'compartir_ubicacion' => (bool) ($validated['compartir_ubicacion'] ?? false),
             ];
+
+            // Clientes anteriores no enviaban esta propiedad al editar otros
+            // datos del usuario. Omitirla debe conservar el valor actual, no
+            // desactivar silenciosamente el rastreo.
+            if (array_key_exists('compartir_ubicacion', $validated)) {
+                $updates['compartir_ubicacion'] = (bool) $validated['compartir_ubicacion'];
+            }
 
             if (!empty($validated['password'])) {
                 $updates['password'] = Hash::make($validated['password']);

@@ -50,6 +50,12 @@ class SecurityEvent extends Model
                 (COALESCE(method, '') = ? AND COALESCE(status_code, 0) = ? AND COALESCE(path, '') = ?)
                 OR (COALESCE(method, '') = ? AND COALESCE(status_code, 0) = ? AND COALESCE(path, '') IN (?, ?, ?))
                 OR (COALESCE(method, '') = ? AND COALESCE(status_code, 0) = ? AND COALESCE(path, '') = ?)
+                OR (
+                    COALESCE(event_code, '') = ?
+                    AND COALESCE(status_code, 0) = ?
+                    AND user_id IS NOT NULL
+                    AND COALESCE(path, '') IN (?, ?, ?)
+                )
             )",
             [
                 'GET', 401, '/api/app/version',
@@ -58,6 +64,10 @@ class SecurityEvent extends Model
                 '/api/estadisticas-actividades/catalogos/unidades',
                 '/api/estadisticas-actividades/catalogos/delegaciones',
                 'POST', 503, '/api/whatsapp/webhook',
+                'authenticated_rate_limit_reached', 429,
+                '/api/me',
+                '/api/location',
+                '/api/location/response-route',
             ]
         );
     }

@@ -16,6 +16,12 @@ ServerSignature Off
 
 <IfModule mod_headers.c>
     Header always unset X-Powered-By
+
+    # PHP-FPM y mod_headers conservan tablas separadas de encabezados. Limpiar
+    # la tabla "onsuccess" antes de fijar el valor evita duplicados en la salida.
+    Header onsuccess unset X-Content-Type-Options
+    Header onsuccess unset X-Frame-Options
+    Header onsuccess unset Referrer-Policy
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
@@ -35,7 +41,9 @@ ServerSignature Off
     # publicos de AdminLTE y sus plugins. Bloquearlo deja la aplicacion sin CSS.
     # El vendor de Composer esta fuera de este document root y no queda expuesto.
     RewriteRule ^(?:storage/logs|bootstrap/cache|config|database|tests)(?:/|$) - [F,L,NC]
-    RewriteRule ^(?:wp-admin|wp-login\.php|xmlrpc\.php|phpmyadmin|pma|server-status|cgi-bin)(?:/|$) - [F,L,NC]
+    # Detiene sondeos automatizados conocidos antes de arrancar PHP/Laravel.
+    RewriteRule ^(?:wp-admin(?:\.php)?|wp-login\.php|wp-content|xmlrpc\.php|phpmyadmin|pma|server-status|cgi-bin|actuator|userfiles)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:config|shell)\.php(?:\.(?:bak|old|save|swp|txt))?$ - [F,L,NC]
 
     # Las fotos de personal se sirven por una ruta autenticada, no por /storage.
     RewriteRule ^storage/personals/fotos/ - [F,L]

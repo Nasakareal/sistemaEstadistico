@@ -24,7 +24,13 @@ class SecurityEventController extends Controller
             'search' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $query = SecurityEvent::withoutKnownOperationalNoise()->with('user:id,name,email');
+        $query = SecurityEvent::query();
+
+        if (($filters['event'] ?? null) !== 'authenticated_rate_limit_reached') {
+            $query->withoutKnownOperationalNoise();
+        }
+
+        $query->with('user:id,name,email');
         $this->applyFilters($query, $filters);
 
         $events = $query

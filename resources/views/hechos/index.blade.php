@@ -16,6 +16,7 @@
         $origenFiltro = $origenFiltro ?? request('origen', 'todos');
         $sinFecha = (bool) ($sinFecha ?? request()->boolean('sin_fecha'));
         $fechaFiltro = $sinFecha ? '' : ($fechaSeleccionada ?? now('America/Mexico_City')->format('Y-m-d'));
+        $busqueda = $busqueda ?? trim((string) request('query', ''));
     @endphp
 
     <div class="row">
@@ -35,6 +36,36 @@
                 <div class="card-body">
 
                     <form method="GET" action="{{ route('hechos.index') }}" class="row mb-3" autocomplete="off">
+                        <div class="col-12 mb-3">
+                            <label for="query">Buscar en todos los hechos:</label>
+                            <div class="input-group">
+                                <input
+                                    type="search"
+                                    id="query"
+                                    name="query"
+                                    class="form-control hechos-search-control"
+                                    value="{{ $busqueda }}"
+                                    maxlength="150"
+                                    placeholder="Folio, ubicación, placa, serie, vehículo o conductor..."
+                                >
+                                <div class="input-group-append">
+                                    <button type="submit" class="btn hechos-date-filter-btn">
+                                        <i class="fa-solid fa-magnifying-glass"></i> Buscar
+                                    </button>
+                                    @if($busqueda !== '')
+                                        <a href="{{ route('hechos.index') }}" class="btn btn-secondary" title="Limpiar búsqueda">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                            @if($busqueda !== '')
+                                <small class="form-text text-muted">
+                                    Resultados en todas las fechas para “{{ $busqueda }}”.
+                                </small>
+                            @endif
+                        </div>
+
                         <div class="col-md-3">
                             <label for="fecha_filtro">Fecha:</label>
                             <input
@@ -83,7 +114,7 @@
                                 <i class="fa-solid fa-filter"></i> Filtrar
                             </button>
 
-                            <a href="{{ route('hechos.index', array_filter(['origen' => 'historicos', 'sin_fecha' => 1, 'unidad_filtro' => $unidadFiltro ?: null])) }}" class="btn btn-outline-info mr-2">
+                            <a href="{{ route('hechos.index', array_filter(['query' => $busqueda ?: null, 'origen' => 'historicos', 'sin_fecha' => 1, 'unidad_filtro' => $unidadFiltro ?: null])) }}" class="btn btn-outline-info mr-2">
                                 <i class="fa-solid fa-clock-rotate-left"></i> Históricos
                             </a>
 
@@ -345,6 +376,22 @@
             background: linear-gradient(180deg, #5ff4ff 0%, #18c8d8 100%) !important;
             border: 1px solid #90f8ff !important;
             box-shadow: 0 6px 16px rgba(24, 200, 216, .28);
+        }
+
+        .hechos-search-control.form-control {
+            min-height: 48px;
+            padding: .68rem 1rem;
+            font-size: 1.02rem;
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, .06) !important;
+            border: 1px solid rgba(255, 255, 255, .15) !important;
+        }
+
+        .hechos-search-control.form-control:focus {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, .10) !important;
+            border-color: rgba(95, 244, 255, .65) !important;
+            box-shadow: 0 0 0 .2rem rgba(33, 212, 228, .16) !important;
         }
 
         .hechos-date-picker.form-control:focus {

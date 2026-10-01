@@ -30,13 +30,18 @@ class HechosController extends Controller
     {
         $tz = 'America/Mexico_City';
 
+        $busqueda = mb_substr(trim((string) $request->query('query', '')), 0, 150, 'UTF-8');
+        $busquedaActiva = $busqueda !== '';
+
         $origenFiltro = (string) $request->query('origen', 'todos');
 
         if (!in_array($origenFiltro, ['todos', 'actuales', 'historicos'], true)) {
             $origenFiltro = 'todos';
         }
 
-        $sinFecha = $request->boolean('sin_fecha') || ($origenFiltro === 'historicos' && !$request->has('fecha'));
+        $sinFecha = $busquedaActiva
+            || $request->boolean('sin_fecha')
+            || ($origenFiltro === 'historicos' && !$request->has('fecha'));
         $fechaSeleccionada = $sinFecha ? '' : (string) $request->query('fecha', now($tz)->toDateString());
 
         if ($fechaSeleccionada !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaSeleccionada)) {
@@ -65,6 +70,10 @@ class HechosController extends Controller
                 $query->whereNull('fuente_ubicacion')
                     ->orWhere('fuente_ubicacion', '<>', 'legacy_peritos');
             });
+        }
+
+        if ($busquedaActiva) {
+            $this->applyIndexSearch($hechosQuery, $busqueda);
         }
 
         $this->applyHechosVisibilityScope($hechosQuery, $usuario);
@@ -104,7 +113,62 @@ class HechosController extends Controller
             return $hecho;
         });
 
-        return view('hechos.index', compact('hechos', 'fechaSeleccionada', 'unidadFiltro', 'origenFiltro', 'sinFecha'));
+        return view('hechos.index', compact(
+            'hechos',
+            'fechaSeleccionada',
+            'unidadFiltro',
+            'origenFiltro',
+            'sinFecha',
+            'busqueda'
+        ));
+    }
+
+    private function applyIndexSearch($query, string $search): void
+    {
+        $like = '%' . addcslashes($search, "%_\\") . '%';
+        $normalized = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $search));
+        $id = trim($search, "# \t\n\r\0\x0B");
+
+        $query->where(function ($hechos) use ($like, $normalized, $id) {
+            if (ctype_digit($id)) {
+                $hechos->orWhere('id', (int) $id);
+            }
+
+            $hechos->orWhere('folio_c5i', 'LIKE', $like)
+                ->orWhere('calle', 'LIKE', $like)
+                ->orWhere('colonia', 'LIKE', $like)
+                ->orWhere('municipio', 'LIKE', $like)
+                ->orWhere('tipo_hecho', 'LIKE', $like)
+                ->orWhere('situacion', 'LIKE', $like)
+                ->orWhereHas('vehiculos', function ($vehiculos) use ($like, $normalized) {
+                    $vehiculos->where(function ($vehiculo) use ($like, $normalized) {
+                        $vehiculo->where('marca', 'LIKE', $like)
+                            ->orWhere('linea', 'LIKE', $like)
+                            ->orWhere('modelo', 'LIKE', $like)
+                            ->orWhere('color', 'LIKE', $like)
+                            ->orWhere('placas', 'LIKE', $like)
+                            ->orWhere('serie', 'LIKE', $like);
+
+                        if ($normalized !== '') {
+                            $vehiculo->orWhereRaw(
+                                "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(vehiculos.placas, ''), '-', ''), ' ', ''), '.', ''), '/', '')) LIKE ?",
+                                ['%' . $normalized . '%']
+                            )->orWhereRaw(
+                                "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(vehiculos.serie, ''), '-', ''), ' ', ''), '.', ''), '/', '')) LIKE ?",
+                                ['%' . $normalized . '%']
+                            );
+                        }
+                    });
+                })
+                ->orWhereHas('vehiculos.conductores', function ($conductores) use ($like) {
+                    $conductores->where(function ($conductor) use ($like) {
+                        $conductor->where('nombre', 'LIKE', $like)
+                            ->orWhere('telefono', 'LIKE', $like)
+                            ->orWhere('domicilio', 'LIKE', $like)
+                            ->orWhere('numero_licencia', 'LIKE', $like);
+                    });
+                });
+        });
     }
 
     public function create()

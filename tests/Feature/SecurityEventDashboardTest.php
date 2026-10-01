@@ -90,6 +90,41 @@ class SecurityEventDashboardTest extends TestCase
         ]);
     }
 
+    public function test_dashboard_hides_mobile_rate_limit_noise_unless_explicitly_filtered(): void
+    {
+        $user = $this->userWithSettingsPermission();
+        $role = Role::firstOrCreate(['name' => 'Superadmin', 'guard_name' => 'web']);
+        $user->assignRole($role);
+
+        SecurityEvent::create([
+            'occurred_at' => now(),
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+            'bucket_at' => now()->startOfMinute(),
+            'occurrences' => 31,
+            'severity' => 'warning',
+            'category' => 'operational',
+            'event_code' => 'authenticated_rate_limit_reached',
+            'description' => 'Ruido de sondeo móvil autenticado',
+            'ip_address' => '192.0.2.201',
+            'user_id' => $user->id,
+            'method' => 'GET',
+            'path' => '/api/me',
+            'status_code' => 429,
+            'fingerprint' => hash('sha256', 'mobile-rate-limit-noise-test'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin/settings/security-events')
+            ->assertOk()
+            ->assertDontSee('Ruido de sondeo móvil autenticado');
+
+        $this->actingAs($user)
+            ->get('/admin/settings/security-events?event=authenticated_rate_limit_reached')
+            ->assertOk()
+            ->assertSee('Ruido de sondeo móvil autenticado');
+    }
+
     public function test_non_superadmin_cannot_open_security_dashboard(): void
     {
         $user = $this->userWithSettingsPermission();

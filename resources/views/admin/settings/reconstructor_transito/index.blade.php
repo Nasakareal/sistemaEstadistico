@@ -89,33 +89,29 @@
                 </div>
 
                 <div class="rt-library__group">
-                    <h3>Participantes</h3>
-                    <div class="rt-object-grid">
-                        <button type="button" class="rt-object" data-add-actor="automovil">
-                            <span class="rt-object__preview"><img src="{{ asset('img/croquis/vehiculos/automovil/Sedán_Red.png') }}" alt=""></span>
-                            <span>Automóvil</span>
-                        </button>
-                        <button type="button" class="rt-object" data-add-actor="motocicleta">
-                            <span class="rt-object__preview"><img src="{{ asset('img/croquis/vehiculos/motocicleta/DeportivaAc.png') }}" alt=""></span>
-                            <span>Motocicleta</span>
-                        </button>
-                        <button type="button" class="rt-object" data-add-actor="camioneta">
-                            <span class="rt-object__preview"><img src="{{ asset('img/croquis/vehiculos/camioneta/pickup.png') }}" alt=""></span>
-                            <span>Camioneta</span>
-                        </button>
-                        <button type="button" class="rt-object" data-add-actor="camion">
-                            <span class="rt-object__preview"><img src="{{ asset('img/croquis/vehiculos/camion/Camión.png') }}" alt=""></span>
-                            <span>Camión</span>
-                        </button>
-                        <button type="button" class="rt-object" data-add-actor="bicicleta">
-                            <span class="rt-object__preview"><img src="{{ asset('img/croquis/vehiculos/bicicleta/Imagen4.png') }}" alt=""></span>
-                            <span>Bicicleta</span>
-                        </button>
-                        <button type="button" class="rt-object" data-add-actor="peaton">
-                            <span class="rt-object__preview"><img src="{{ asset('img/croquis/vehiculos/peatones/peaton_1.png') }}" alt=""></span>
-                            <span>Peatón</span>
-                        </button>
+                    <h3>Modelos a escala</h3>
+                    <div class="rt-object-grid rt-object-grid--models">
+                        @foreach([
+                            ['sedan_compact', 'automovil', 'Sedán compacto', '4.55 × 1.80 m'],
+                            ['hatchback', 'automovil', 'Hatchback', '4.10 × 1.76 m'],
+                            ['suv_midsize', 'camioneta', 'SUV mediana', '4.72 × 1.90 m'],
+                            ['pickup_crew', 'camioneta', 'Pickup doble cabina', '5.35 × 1.92 m'],
+                            ['cargo_van', 'camioneta', 'Van de carga', '5.15 × 1.99 m'],
+                            ['city_bus', 'camion', 'Autobús urbano', '12.00 × 2.55 m'],
+                            ['rigid_truck', 'camion', 'Camión rígido', '8.20 × 2.50 m'],
+                            ['tractor_trailer', 'camion', 'Tractocamión', '16.50 × 2.55 m'],
+                            ['sport_motorcycle', 'motocicleta', 'Motocicleta', '2.10 × 0.82 m'],
+                            ['urban_bicycle', 'bicicleta', 'Bicicleta', '1.80 × 0.62 m'],
+                            ['adult_pedestrian', 'peaton', 'Peatón adulto', '0.55 × 0.45 m'],
+                        ] as [$model, $type, $label, $dimensions])
+                            <button type="button" class="rt-object" data-add-actor="{{ $type }}" data-actor-model="{{ $model }}">
+                                <span class="rt-object__preview"><canvas width="104" height="46" data-model-preview="{{ $model }}" aria-hidden="true"></canvas></span>
+                                <span>{{ $label }}</span>
+                                <small>{{ $dimensions }}</small>
+                            </button>
+                        @endforeach
                     </div>
+                    <p class="rt-hint">Cada modelo conserva sus dimensiones físicas según la escala del proyecto.</p>
                 </div>
 
                 <div class="rt-library__group">
@@ -274,9 +270,9 @@
                         </div>
                         <small>La trayectoria guía al conductor. Curvas, impactos, taludes y el impulso lateral pueden inclinar el vehículo, apoyarlo sobre un costado o dejarlo sobre el techo.</small>
                     </div>
-                    <div class="rt-field-row">
-                        <label class="rt-field"><span>Largo</span><div class="input-group input-group-sm"><input id="rtActorLength" type="number" class="form-control" min="40" max="400" step="5"><div class="input-group-append"><span class="input-group-text">%</span></div></div></label>
-                        <label class="rt-field"><span>Ancho</span><div class="input-group input-group-sm"><input id="rtActorWidth" type="number" class="form-control" min="40" max="400" step="5"><div class="input-group-append"><span class="input-group-text">%</span></div></div></label>
+                    <div class="rt-model-spec">
+                        <div><span>Modelo físico</span><strong id="rtActorModelName">—</strong></div>
+                        <div><span>Dimensiones reales</span><strong id="rtActorDimensions">—</strong></div>
                     </div>
                     <div class="rt-rotation-control">
                         <div class="rt-rotation-control__head">
@@ -291,7 +287,7 @@
                             <input id="rtActorRotationRange" type="range" min="-180" max="180" step="1" value="0">
                             <button type="button" data-rotate-actor="15" title="Girar 15° a la derecha">15° <i class="fas fa-redo"></i></button>
                         </div>
-                        <small>Usa los cuadros laterales para alargar o ensanchar; las esquinas ajustan ambas dimensiones. El círculo sirve para girar.</small>
+                        <small>El tamaño lo determina el modelo y la escala. El círculo sirve para orientar el participante.</small>
                     </div>
                     <button id="rtStartPath" type="button" class="btn btn-sm btn-block btn-outline-info"><i class="fas fa-route mr-1"></i> Trazar trayectoria</button>
                     <small class="d-block mt-2 text-muted">También puedes hacer clic sobre una trayectoria existente y arrastrar sus puntos numerados para corregirla.</small>
@@ -425,15 +421,7 @@
 @section('js')
     <script>
         window.ReconstructorTransitoConfig = {
-            storageKey: 'sistemaEstadistico.reconstructorTransito.v1',
-            actorImages: {
-                automovil: @json(asset('img/croquis/vehiculos/automovil/Sedán_Red.png')),
-                motocicleta: @json(asset('img/croquis/vehiculos/motocicleta/DeportivaAc.png')),
-                camioneta: @json(asset('img/croquis/vehiculos/camioneta/pickup.png')),
-                camion: @json(asset('img/croquis/vehiculos/camion/Camión.png')),
-                bicicleta: @json(asset('img/croquis/vehiculos/bicicleta/Imagen4.png')),
-                peaton: @json(asset('img/croquis/vehiculos/peatones/peaton_1.png'))
-            }
+            storageKey: 'sistemaEstadistico.reconstructorTransito.v1'
         };
     </script>
     <script src="{{ asset('js/reconstructor-transito-vehicle.js') }}?v={{ filemtime(public_path('js/reconstructor-transito-vehicle.js')) }}"></script>

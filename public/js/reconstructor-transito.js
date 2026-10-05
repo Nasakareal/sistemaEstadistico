@@ -10,6 +10,8 @@
     const ctx = canvas.getContext('2d');
     const vehicleRenderer = window.ReconstructorVehicleRenderer || null;
     const ROLLOVER_TYPES = ['automovil', 'camioneta', 'camion'];
+    const ACTOR_MODELS = vehicleRenderer ? vehicleRenderer.models : {};
+    const DEFAULT_MODEL_BY_TYPE = vehicleRenderer ? vehicleRenderer.defaultModelByType : {};
 
     const EVENT_META = {
         PR: { label: 'Punto de reacción', color: '#38bdf8' },
@@ -54,7 +56,7 @@
         'rtPlaybackSpeed', 'rtTimeline', 'rtCurrentTime', 'rtDurationLabel',
         'rtEventTicks', 'rtNoSelection', 'rtActorInspector', 'rtEventInspector',
         'rtActorSwatch', 'rtActorTitle', 'rtActorName', 'rtActorColor', 'rtActorSpeed',
-        'rtActorLength', 'rtActorWidth',
+        'rtActorModelName', 'rtActorDimensions',
         'rtActorRotation', 'rtActorRotationRange',
         'rtRolloverControls', 'rtActorInitialRoll', 'rtActorRollImpulse', 'rtActorRollImpulseValue',
         'rtStartPath', 'rtAddKeyframe', 'rtKeyframeList', 'rtEventCode', 'rtEventTitle',
@@ -72,7 +74,6 @@
         'rtZoneDepth', 'rtZoneDepthLabel'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
-    const imageCache = {};
     const surfacePatternCache = {};
     const history = [];
     let project = loadProject() || demoProject();
@@ -106,10 +107,39 @@
         return ((angle + 180) % 360 + 360) % 360 - 180;
     }
 
-    function actorScale(actor, axis) {
-        const legacyScale = Number(actor && actor.scale) || 1;
-        const value = axis === 'x' ? actor && actor.scaleX : actor && actor.scaleY;
-        return clamp(value || legacyScale, .4, 4);
+    function actorModelKey(actor) {
+        const requested = actor && ACTOR_MODELS[actor.model];
+        if (requested && requested.type === actor.type) return actor.model;
+        return DEFAULT_MODEL_BY_TYPE[actor && actor.type] || null;
+    }
+
+    function actorModel(actor) {
+        const key = actorModelKey(actor);
+        return key ? ACTOR_MODELS[key] : null;
+    }
+
+    function actorDimensions(actor) {
+        const spec = actorModel(actor);
+        if (spec) {
+            const pixelsPerMeter = project && project.metadata
+                ? (project.metadata.pixelsPerMeter || 20)
+                : 20;
+            return {
+                width: Math.max(10, spec.lengthMeters * pixelsPerMeter),
+                height: Math.max(8, spec.widthMeters * pixelsPerMeter),
+                lengthMeters: spec.lengthMeters,
+                widthMeters: spec.widthMeters,
+                heightMeters: spec.heightMeters
+            };
+        }
+        const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
+        return {
+            width: meta.width,
+            height: meta.height,
+            lengthMeters: null,
+            widthMeters: null,
+            heightMeters: null
+        };
     }
 
     function deepClone(value) {
@@ -118,7 +148,7 @@
 
     function demoProject() {
         return {
-            version: 2,
+            version: 3,
             metadata: {
                 name: 'Ejemplo · Cruce con punto de conflicto',
                 hypothesis: 'Hipótesis A',
@@ -138,7 +168,7 @@
             actors: [
                 {
                     id: uid('actor'), type: 'automovil', name: 'Vehículo 1',
-                    image: (config.actorImages || {}).automovil || '', color: '#ef4444', speedKmh: 48,
+                    model: 'sedan_compact', color: '#ef4444', speedKmh: 48,
                     massKg: 1450, cgHeight: .55, grip: .9,
                     keyframes: [
                         { time: 0, x: 120, y: 420, rotation: 0 },
@@ -150,7 +180,7 @@
                 },
                 {
                     id: uid('actor'), type: 'motocicleta', name: 'Vehículo 2',
-                    image: (config.actorImages || {}).motocicleta || '', color: '#38bdf8', speedKmh: 38,
+                    model: 'sport_motorcycle', color: '#38bdf8', speedKmh: 38,
                     massKg: 240, cgHeight: .65, grip: .95,
                     keyframes: [
                         { time: 0, x: 650, y: 650, rotation: -90 },
@@ -173,7 +203,7 @@
 
     function blankProject() {
         return {
-            version: 2,
+            version: 3,
             metadata: { name: 'Hecho de tránsito sin título', hypothesis: 'Hipótesis A', duration: 10, pixelsPerMeter: 20, mode: 'physical', physicsEnabled: true },
             scene: { roads: [], zones: [] },
             layers: { road: true, environment: true, actors: true, paths: true, events: true, grid: true },
@@ -239,6 +269,11 @@
         normalized.actors = Array.isArray(raw.actors) ? raw.actors.map(function (actor, index) {
             const type = ACTOR_META[actor.type] ? actor.type : 'automovil';
             const meta = ACTOR_META[type];
+            const requestedModel = ACTOR_MODELS[actor.model];
+            const modelKey = requestedModel && requestedModel.type === type
+                ? actor.model
+                : DEFAULT_MODEL_BY_TYPE[type];
+            const modelSpec = ACTOR_MODELS[modelKey] || null;
             const frames = Array.isArray(actor.keyframes) ? actor.keyframes.map(function (frame) {
                 return {
                     time: clamp(frame.time, 0, normalized.metadata.duration),
@@ -248,11 +283,10 @@
                     rotationManual: Boolean(frame.rotationManual)
                 };
             }).sort(function (a, b) { return a.time - b.time; }) : [];
-            const defaults = PHYSICS_DEFAULTS[type];
+            const defaults = modelSpec || PHYSICS_DEFAULTS[type];
             return {
-                id: actor.id || uid('actor'), type: type,
-                name: String(actor.name || (meta.label + ' ' + (index + 1))).slice(0, 80),
-                image: actor.image || (config.actorImages || {})[type] || '',
+                id: actor.id || uid('actor'), type: type, model: modelKey,
+                name: String(actor.name || ((modelSpec ? modelSpec.label : meta.label) + ' ' + (index + 1))).slice(0, 80),
                 color: /^#[0-9a-f]{6}$/i.test(actor.color || '') ? actor.color : meta.color,
                 speedKmh: clamp(actor.speedKmh, 0, 300),
                 massKg: clamp(actor.massKg || defaults.massKg, 40, 50000),
@@ -260,8 +294,6 @@
                 grip: clamp(actor.grip || defaults.grip, .15, 1.3),
                 initialRoll: ROLLOVER_TYPES.includes(type) ? clamp(actor.initialRoll, -180, 180) : 0,
                 rollImpulse: ROLLOVER_TYPES.includes(type) ? clamp(actor.rollImpulse, -360, 360) : 0,
-                scaleX: actorScale(actor, 'x'),
-                scaleY: actorScale(actor, 'y'),
                 keyframes: frames
             };
         }) : [];
@@ -487,6 +519,47 @@
         state.roll += state.rollRate * step;
     }
 
+    function orientedActorCollision(first, actorA, second, actorB) {
+        const dimensionsA = actorDimensions(actorA);
+        const dimensionsB = actorDimensions(actorB);
+        const angleA = (first.rotation || 0) * Math.PI / 180;
+        const angleB = (second.rotation || 0) * Math.PI / 180;
+        const forwardA = { x: Math.cos(angleA), y: Math.sin(angleA) };
+        const lateralA = { x: -forwardA.y, y: forwardA.x };
+        const forwardB = { x: Math.cos(angleB), y: Math.sin(angleB) };
+        const lateralB = { x: -forwardB.y, y: forwardB.x };
+        const axes = [forwardA, lateralA, forwardB, lateralB];
+        const delta = { x: second.x - first.x, y: second.y - first.y };
+        let minimumOverlap = Infinity;
+        let collisionAxis = null;
+
+        axes.forEach(function (axis) {
+            if (minimumOverlap <= 0) return;
+            const radiusA = (dimensionsA.width / 2) * Math.abs((forwardA.x * axis.x) + (forwardA.y * axis.y))
+                + (dimensionsA.height / 2) * Math.abs((lateralA.x * axis.x) + (lateralA.y * axis.y));
+            const radiusB = (dimensionsB.width / 2) * Math.abs((forwardB.x * axis.x) + (forwardB.y * axis.y))
+                + (dimensionsB.height / 2) * Math.abs((lateralB.x * axis.x) + (lateralB.y * axis.y));
+            const centerDistance = Math.abs((delta.x * axis.x) + (delta.y * axis.y));
+            const overlap = radiusA + radiusB - centerDistance;
+            if (overlap <= 0) {
+                minimumOverlap = 0;
+                collisionAxis = null;
+                return;
+            }
+            if (overlap < minimumOverlap) {
+                minimumOverlap = overlap;
+                const direction = ((delta.x * axis.x) + (delta.y * axis.y)) < 0 ? -1 : 1;
+                collisionAxis = { x: axis.x * direction, y: axis.y * direction };
+            }
+        });
+
+        return collisionAxis ? {
+            nx: collisionAxis.x,
+            ny: collisionAxis.y,
+            penetration: minimumOverlap
+        } : null;
+    }
+
     function initialPhysicsState(actor) {
         const start = guidedActorPosition(actor, 0) || guidedActorPosition(actor, actor.keyframes[0] ? actor.keyframes[0].time : 0) || { x: 0, y: 0, rotation: 0 };
         const radians = start.rotation * Math.PI / 180;
@@ -555,7 +628,7 @@
 
                 if (canRollover(actor)) {
                     const lateralAcceleration = Math.abs(speedMps * (yaw / step));
-                    const trackMeters = Math.max(.7, ((ACTOR_META[actor.type] || ACTOR_META.automovil).height * actorScale(actor, 'y')) / pixelsPerMeter);
+                    const trackMeters = Math.max(.45, actorDimensions(actor).widthMeters || .7);
                     const rolloverLimit = 9.81 * trackMeters / Math.max(.4, 2 * actor.cgHeight);
                     if (lateralAcceleration > rolloverLimit) {
                         state.rollRate += Math.sign(yaw || lateralSpeed || 1) * (lateralAcceleration / rolloverLimit) * 72 * step;
@@ -614,12 +687,9 @@
                     const first = states[a]; const second = states[b];
                     if (Math.abs(first.z - second.z) > 1.5) continue;
                     const actorA = project.actors[a]; const actorB = project.actors[b];
-                    const radiusA = Math.max(10, (ACTOR_META[actorA.type] || ACTOR_META.automovil).width * actorScale(actorA, 'x') * .34);
-                    const radiusB = Math.max(10, (ACTOR_META[actorB.type] || ACTOR_META.automovil).width * actorScale(actorB, 'x') * .34);
-                    const dx = second.x - first.x; const dy = second.y - first.y;
-                    const separation = Math.sqrt(dx * dx + dy * dy) || .001;
-                    if (separation >= radiusA + radiusB) continue;
-                    const nx = dx / separation; const ny = dy / separation;
+                    const collision = orientedActorCollision(first, actorA, second, actorB);
+                    if (!collision) continue;
+                    const nx = collision.nx; const ny = collision.ny;
                     const relative = (second.vx - first.vx) * nx + (second.vy - first.vy) * ny;
                     if (relative < 0) {
                         const invA = 1 / actorA.massKg; const invB = 1 / actorB.massKg;
@@ -629,7 +699,7 @@
                         first.rollRate -= relative * .08; second.rollRate += relative * .08;
                         first.status = 'colisión'; second.status = 'colisión';
                     }
-                    const correction = (radiusA + radiusB - separation) / 2;
+                    const correction = collision.penetration / 2;
                     first.x -= nx * correction; first.y -= ny * correction;
                     second.x += nx * correction; second.y += ny * correction;
                 }
@@ -685,22 +755,6 @@
                 frames[i].rotation = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
             }
         }
-    }
-
-    function preloadImages() {
-        Object.keys(config.actorImages || {}).forEach(function (type) { getImage(config.actorImages[type]); });
-        project.actors.forEach(function (actor) { getImage(actor.image); });
-    }
-
-    function getImage(src) {
-        if (!src) return null;
-        if (!imageCache[src]) {
-            const image = new Image();
-            image.onload = draw;
-            image.src = src;
-            imageCache[src] = image;
-        }
-        return imageCache[src];
     }
 
     function draw() {
@@ -1279,16 +1333,15 @@
     function drawActor(actor) {
         const position = actorPosition(actor, currentTime);
         if (!position) return;
-        const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-        const width = meta.width * actorScale(actor, 'x');
-        const height = meta.height * actorScale(actor, 'y');
-        const image = getImage(actor.image);
+        const dimensions = actorDimensions(actor);
+        const width = dimensions.width;
+        const height = dimensions.height;
         const active = selected && selected.kind === 'actor' && selected.id === actor.id;
         const elevationOffset = Math.max(0, position.z || 0) * (project.metadata.pixelsPerMeter || 20) * .18;
         const renderedY = position.y - elevationOffset;
         const roll = canRollover(actor) ? (position.roll || 0) : 0;
-        const rollGeometry = canRollover(actor) && vehicleRenderer
-            ? vehicleRenderer.geometry(actor.type, width, height, roll)
+        const rollGeometry = vehicleRenderer
+            ? vehicleRenderer.geometry(actor.type, width, height, roll, actorModelKey(actor))
             : null;
         const renderedHeight = rollGeometry ? rollGeometry.projectedWidth : height;
         if (position.z > .05) {
@@ -1298,7 +1351,7 @@
         ctx.save();
         ctx.translate(position.x, renderedY);
         ctx.rotate(position.rotation * Math.PI / 180);
-        if (canRollover(actor) && vehicleRenderer) {
+        if (vehicleRenderer) {
             if (active) {
                 ctx.shadowColor = actor.color;
                 ctx.shadowBlur = 18;
@@ -1309,7 +1362,7 @@
                 width: width,
                 height: height,
                 roll: roll,
-                image: image,
+                model: actorModelKey(actor),
                 alpha: position.submerged ? .48 : 1,
                 active: active
             });
@@ -1324,14 +1377,8 @@
                 ctx.strokeRect(-width / 2 - 7, -height / 2 - 7, width + 14, height + 14);
                 ctx.setLineDash([]);
             }
-            if (image && image.complete && image.naturalWidth) {
-                ctx.drawImage(image, -width / 2, -height / 2, width, height);
-            } else {
-                ctx.fillStyle = actor.color;
-                ctx.fillRect(-width / 2, -height / 2, width, height);
-                ctx.fillStyle = '#e5e7eb';
-                ctx.fillRect(-width * .2, -height * .38, width * .38, height * .76);
-            }
+            ctx.fillStyle = actor.color;
+            ctx.fillRect(-width / 2, -height / 2, width, height);
         }
         ctx.restore();
         ctx.save();
@@ -1356,9 +1403,10 @@
 
     function actorResizeHandles(actor, position) {
         if (!actor || !position) return [];
-        const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-        const halfWidth = (meta.width * actorScale(actor, 'x') / 2) + 7;
-        const halfHeight = (meta.height * actorScale(actor, 'y') / 2) + 7;
+        if (actorModel(actor)) return [];
+        const dimensions = actorDimensions(actor);
+        const halfWidth = (dimensions.width / 2) + 7;
+        const halfHeight = (dimensions.height / 2) + 7;
         const angle = position.rotation * Math.PI / 180;
         const cosine = Math.cos(angle);
         const sine = Math.sin(angle);
@@ -1396,9 +1444,9 @@
 
     function rotationHandle(actor, position) {
         if (!actor || !position) return null;
-        const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-        const width = meta.width * actorScale(actor, 'x');
-        const height = meta.height * actorScale(actor, 'y');
+        const dimensions = actorDimensions(actor);
+        const width = dimensions.width;
+        const height = dimensions.height;
         const distanceFromCenter = (Math.max(width, height) / 2) + 28;
         const angle = (position.rotation - 90) * Math.PI / 180;
         return {
@@ -1555,9 +1603,9 @@
             }
         });
         project.actors.forEach(function (actor) {
-            const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-            const width = meta.width * actorScale(actor, 'x');
-            const height = meta.height * actorScale(actor, 'y');
+            const dimensions = actorDimensions(actor);
+            const width = dimensions.width;
+            const height = dimensions.height;
             const padding = (Math.max(width, height) / 2) + 35;
             actor.keyframes.forEach(function (frame) { include(frame, padding); });
         });
@@ -1614,16 +1662,14 @@
             for (let i = project.actors.length - 1; i >= 0; i--) {
                 const actor = project.actors[i];
                 const position = actorPosition(actor, currentTime);
-                const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
                 if (!position) continue;
+                const dimensions = actorDimensions(actor);
                 const angle = -position.rotation * Math.PI / 180;
                 const dx = point.x - position.x;
                 const dy = point.y - position.y;
                 const localX = (dx * Math.cos(angle)) - (dy * Math.sin(angle));
                 const localY = (dx * Math.sin(angle)) + (dy * Math.cos(angle));
-                const scaleX = actorScale(actor, 'x');
-                const scaleY = actorScale(actor, 'y');
-                if (Math.abs(localX) <= (meta.width * scaleX / 2) + 12 && Math.abs(localY) <= (meta.height * scaleY / 2) + 12) {
+                if (Math.abs(localX) <= (dimensions.width / 2) + 12 && Math.abs(localY) <= (dimensions.height / 2) + 12) {
                     return { kind: 'actor', id: actor.id };
                 }
             }
@@ -1827,22 +1873,25 @@
         markDirty();
     }
 
-    function addActor(type) {
+    function addActor(type, requestedModel) {
         const meta = ACTOR_META[type] || ACTOR_META.automovil;
+        const modelKey = ACTOR_MODELS[requestedModel] && ACTOR_MODELS[requestedModel].type === type
+            ? requestedModel
+            : DEFAULT_MODEL_BY_TYPE[type];
+        const modelSpec = ACTOR_MODELS[modelKey] || PHYSICS_DEFAULTS[type];
         pushHistory();
-        const sameType = project.actors.filter(function (actor) { return actor.type === type; }).length;
+        const sameType = project.actors.filter(function (actor) { return actor.model === modelKey; }).length;
         const offset = project.actors.length * 28;
         const center = cameraWorldCenter();
         const actor = {
-            id: uid('actor'), type: type, name: meta.label + ' ' + (sameType + 1),
-            image: (config.actorImages || {})[type] || '', color: meta.color, speedKmh: 0,
-            massKg: PHYSICS_DEFAULTS[type].massKg, cgHeight: PHYSICS_DEFAULTS[type].cgHeight, grip: PHYSICS_DEFAULTS[type].grip,
+            id: uid('actor'), type: type, model: modelKey,
+            name: (modelSpec.label || meta.label) + ' ' + (sameType + 1),
+            color: meta.color, speedKmh: 0,
+            massKg: modelSpec.massKg, cgHeight: modelSpec.cgHeight, grip: modelSpec.grip,
             initialRoll: 0, rollImpulse: 0,
-            scaleX: 1, scaleY: 1,
             keyframes: [{ time: currentTime, x: center.x + offset, y: center.y + (offset % 180), rotation: 0 }]
         };
         project.actors.push(actor);
-        getImage(actor.image);
         selected = { kind: 'actor', id: actor.id };
         setTool('select');
         renderAll();
@@ -1964,8 +2013,11 @@
             el.rtActorName.value = actor.name;
             el.rtActorColor.value = actor.color;
             el.rtActorSpeed.value = actor.speedKmh;
-            el.rtActorLength.value = Math.round(actorScale(actor, 'x') * 100);
-            el.rtActorWidth.value = Math.round(actorScale(actor, 'y') * 100);
+            const spec = actorModel(actor);
+            el.rtActorModelName.textContent = spec ? spec.label : ACTOR_META[actor.type].label;
+            el.rtActorDimensions.textContent = spec
+                ? spec.lengthMeters.toFixed(2) + ' × ' + spec.widthMeters.toFixed(2) + ' × ' + spec.heightMeters.toFixed(2) + ' m'
+                : 'Sin ficha física';
             el.rtActorMass.value = actor.massKg;
             el.rtActorCgHeight.value = actor.cgHeight;
             el.rtActorGrip.value = actor.grip;
@@ -2041,15 +2093,54 @@
         });
     }
 
+    function drawModelPreview(canvasElement, modelKey, color) {
+        if (!canvasElement || !vehicleRenderer) return;
+        const spec = ACTOR_MODELS[modelKey];
+        if (!spec) return;
+        const previewCtx = canvasElement.getContext('2d');
+        const padding = 6;
+        const availableWidth = canvasElement.width - (padding * 2);
+        const availableHeight = canvasElement.height - (padding * 2);
+        const pixelsPerMeter = Math.min(
+            availableWidth / spec.lengthMeters,
+            availableHeight / spec.widthMeters
+        );
+        previewCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        previewCtx.save();
+        previewCtx.translate(canvasElement.width / 2, canvasElement.height / 2);
+        vehicleRenderer.draw(previewCtx, {
+            type: spec.type,
+            model: modelKey,
+            color: color || (ACTOR_META[spec.type] || ACTOR_META.automovil).color,
+            width: spec.lengthMeters * pixelsPerMeter,
+            height: spec.widthMeters * pixelsPerMeter,
+            roll: 0,
+            alpha: 1,
+            active: false
+        });
+        previewCtx.restore();
+    }
+
+    function renderModelPreviews() {
+        document.querySelectorAll('[data-model-preview]').forEach(function (preview) {
+            const spec = ACTOR_MODELS[preview.dataset.modelPreview];
+            drawModelPreview(preview, preview.dataset.modelPreview, spec && ACTOR_META[spec.type]
+                ? ACTOR_META[spec.type].color
+                : '#ef4444');
+        });
+    }
+
     function renderActorList() {
         el.rtActorList.innerHTML = '';
         el.rtActorCount.textContent = project.actors.length;
         project.actors.forEach(function (actor) {
             const row = document.createElement('div');
             row.className = 'rt-actor-item' + (selected && selected.kind === 'actor' && selected.id === actor.id ? ' active' : '');
-            row.innerHTML = '<span style="background:' + actor.color + '"></span><img src="' + actor.image + '" alt=""><div><strong></strong><small></small></div>';
+            row.innerHTML = '<span style="background:' + actor.color + '"></span><canvas width="88" height="44" aria-hidden="true"></canvas><div><strong></strong><small></small></div>';
+            drawModelPreview(row.querySelector('canvas'), actorModelKey(actor), actor.color);
             row.querySelector('strong').textContent = actor.name;
-            row.querySelector('small').textContent = actor.keyframes.length + ' fotogramas · ' + actor.speedKmh + ' km/h';
+            const spec = actorModel(actor);
+            row.querySelector('small').textContent = (spec ? spec.label + ' · ' : '') + actor.keyframes.length + ' fotogramas · ' + actor.speedKmh + ' km/h';
             row.addEventListener('click', function () { selected = { kind: 'actor', id: actor.id }; setTool('select'); renderAll(); });
             el.rtActorList.appendChild(row);
         });
@@ -2308,25 +2399,6 @@
                 upsertKeyframe(actor, currentTime, position.x, position.y, normalizeAngle(rotation), { manualRotation: true });
                 updateActorRotationControls();
             }
-        } else if (dragging.kind === 'resize-actor') {
-            const actor = project.actors.find(function (item) { return item.id === dragging.id; });
-            const position = actor ? actorPosition(actor, currentTime) : null;
-            if (actor && position) {
-                const meta = ACTOR_META[actor.type] || ACTOR_META.automovil;
-                const angle = -position.rotation * Math.PI / 180;
-                const dx = point.x - position.x;
-                const dy = point.y - position.y;
-                const localX = (dx * Math.cos(angle)) - (dy * Math.sin(angle));
-                const localY = (dx * Math.sin(angle)) + (dy * Math.cos(angle));
-                if (/[ew]/.test(dragging.handle)) {
-                    actor.scaleX = clamp((Math.abs(localX) - 7) / (meta.width / 2), .4, 4);
-                }
-                if (/[ns]/.test(dragging.handle)) {
-                    actor.scaleY = clamp((Math.abs(localY) - 7) / (meta.height / 2), .4, 4);
-                }
-                el.rtActorLength.value = Math.round(actorScale(actor, 'x') * 100);
-                el.rtActorWidth.value = Math.round(actorScale(actor, 'y') * 100);
-            }
         } else if (dragging.kind === 'actor') {
             const actor = project.actors.find(function (item) { return item.id === dragging.id; });
             if (actor) {
@@ -2363,7 +2435,10 @@
     }, { passive: false });
 
     document.querySelectorAll('[data-add-actor]').forEach(function (button) {
-        button.addEventListener('click', function () { pause(); addActor(button.dataset.addActor); });
+        button.addEventListener('click', function () {
+            pause();
+            addActor(button.dataset.addActor, button.dataset.actorModel);
+        });
     });
 
     document.querySelectorAll('[data-add-event]').forEach(function (button) {
@@ -2464,14 +2539,6 @@
     el.rtActorName.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.name = (el.rtActorName.value || ACTOR_META[actor.type].label).trim(); renderAll(); markDirty(); });
     el.rtActorColor.addEventListener('input', function () { const actor = selectedActor(); if (!actor) return; actor.color = el.rtActorColor.value; renderAll(); markDirty(); });
     el.rtActorSpeed.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.speedKmh = clamp(el.rtActorSpeed.value, 0, 300); renderAll(); markDirty(); });
-    el.rtActorLength.addEventListener('change', function () {
-        const actor = selectedActor(); if (!actor) return;
-        pushHistory(); actor.scaleX = clamp(Number(el.rtActorLength.value) / 100, .4, 4); renderAll(); markDirty();
-    });
-    el.rtActorWidth.addEventListener('change', function () {
-        const actor = selectedActor(); if (!actor) return;
-        pushHistory(); actor.scaleY = clamp(Number(el.rtActorWidth.value) / 100, .4, 4); renderAll(); markDirty();
-    });
     el.rtActorMass.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.massKg = clamp(el.rtActorMass.value, 40, 50000); renderAll(); markDirty(); });
     el.rtActorCgHeight.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.cgHeight = clamp(el.rtActorCgHeight.value, .2, 3); renderAll(); markDirty(); });
     el.rtActorGrip.addEventListener('input', function () { const actor = selectedActor(); if (!actor) return; actor.grip = clamp(el.rtActorGrip.value, .15, 1.3); renderAll(); markDirty(); });
@@ -2600,7 +2667,7 @@
         reader.onload = function () {
             try {
                 pushHistory(); project = normalizeProject(JSON.parse(reader.result)); selected = null; currentTime = 0;
-                preloadImages(); syncInputsFromProject(); renderAll(); fitScene(); saveProject(false); toast('Proyecto importado correctamente.');
+                syncInputsFromProject(); renderAll(); fitScene(); saveProject(false); toast('Proyecto importado correctamente.');
             } catch (error) { toast(error.message || 'No se pudo importar el proyecto.', true); }
             el.rtImportInput.value = '';
         };
@@ -2643,7 +2710,7 @@
         }
     });
 
-    preloadImages();
+    renderModelPreviews();
     syncInputsFromProject();
     setCurrentTime(0);
     setTool('select');

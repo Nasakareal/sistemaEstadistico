@@ -62,6 +62,10 @@ class ReconstructorTransitoModuleTest extends TestCase
         $this->assertStringContainsString('function drawSide', $vehicleRenderer);
         $this->assertStringContainsString('function drawUnderside', $vehicleRenderer);
         $this->assertStringContainsString("return 'sobre techo'", $vehicleRenderer);
+        $this->assertStringContainsString('sedan_compact', $vehicleRenderer);
+        $this->assertStringContainsString('tractor_trailer', $vehicleRenderer);
+        $this->assertStringContainsString('lengthMeters: 16.50', $vehicleRenderer);
+        $this->assertStringContainsString('orientedActorCollision', $script);
         $this->assertStringContainsString('data-add-road="puente"', $view);
         $this->assertStringContainsString('data-add-zone="water"', $view);
         $this->assertStringContainsString('id="rtPhysicsEnabled"', $view);
@@ -69,5 +73,10 @@ class ReconstructorTransitoModuleTest extends TestCase
         $this->assertStringContainsString('id="rtActorInitialRoll"', $view);
         $this->assertStringContainsString('id="rtActorRollImpulse"', $view);
         $this->assertStringContainsString('reconstructor-transito-vehicle.js', $view);
+        $this->assertStringContainsString('data-actor-model="{{ $model }}"', $view);
+        $this->assertStringContainsString('id="rtActorDimensions"', $view);
+        $this->assertStringNotContainsString('id="rtActorLength"', $view);
+        $this->assertStringNotContainsString('img/croquis/vehiculos', $view);
+        $this->assertStringNotContainsString('drawImage(', $script);
     }
 }

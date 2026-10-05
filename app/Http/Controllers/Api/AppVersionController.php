@@ -16,7 +16,11 @@ class AppVersionController extends Controller
             ? $configuredDownloadUrl
             : url('/app/seguridad-vial-michoacan.apk');
         $forceRequested = (bool) config('app_update.android_force_update', false);
-        $force = $forceRequested && filter_var($downloadUrl, FILTER_VALIDATE_URL) !== false;
+        // Una actualización obligatoria sólo es segura cuando producción
+        // configuró explícitamente el APK que debe descargar.
+        $force = $forceRequested
+            && $configuredDownloadUrl !== ''
+            && filter_var($configuredDownloadUrl, FILTER_VALIDATE_URL) !== false;
 
         return response()->json([
             'platform'       => 'android',

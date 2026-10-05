@@ -9,12 +9,14 @@ class AppVersionController extends Controller
 {
     public function show(Request $request)
     {
-        $min    = env('ANDROID_MIN_VERSION', '1.0.0');
-        $latest = env('ANDROID_LATEST_VERSION', '1.0.0');
-        $force  = (bool) env('ANDROID_FORCE_UPDATE', false);
-
-        $playUrl = 'https://play.google.com/store/apps/details?id=com.nasaka.seguridad_vial_app';
-        $marketUrl = 'market://details?id=com.nasaka.seguridad_vial_app';
+        $min = (string) config('app_update.android_min_version', '1.0.0');
+        $latest = (string) config('app_update.android_latest_version', '1.0.0');
+        $configuredDownloadUrl = trim((string) config('app_update.android_download_url', ''));
+        $downloadUrl = $configuredDownloadUrl !== ''
+            ? $configuredDownloadUrl
+            : url('/app/seguridad-vial-michoacan.apk');
+        $forceRequested = (bool) config('app_update.android_force_update', false);
+        $force = $forceRequested && filter_var($downloadUrl, FILTER_VALIDATE_URL) !== false;
 
         return response()->json([
             'platform'       => 'android',
@@ -24,8 +26,10 @@ class AppVersionController extends Controller
             'message'        => $force
                 ? 'Debes actualizar para continuar.'
                 : 'Hay una actualización disponible.',
-            'store_url'      => env('ANDROID_STORE_URL', $playUrl),
-            'market_url'     => env('ANDROID_MARKET_URL', $marketUrl),
+            // La aplicación es de distribución interna: nunca debe intentar
+            // resolver este paquete en Google Play o en la tienda del fabricante.
+            'store_url'      => $downloadUrl,
+            'market_url'     => '',
         ]);
     }
 }

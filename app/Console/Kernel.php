@@ -141,6 +141,13 @@ class Kernel extends ConsoleKernel
             ->dailyAt('02:30')
             ->withoutOverlapping();
 
+        // Repara capturas historicas o solicitudes moviles que hayan quedado
+        // sin su espejo en Estadisticas de Actividades por una falla externa.
+        $schedule->command('conduce-legalidad:sync-actividades')
+            ->timezone($timezone)
+            ->dailyAt('02:40')
+            ->withoutOverlapping();
+
         $schedule->command('whatsapp:resumen-siniestros')
             ->dailyAt('18:03')
             ->timezone($timezone);

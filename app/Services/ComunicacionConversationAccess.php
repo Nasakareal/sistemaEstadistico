@@ -28,13 +28,20 @@ class ComunicacionConversationAccess
     /**
      * Users the actor may message. Existing direct conversations remain
      * replyable even when the other participant is outside the directory.
+     * A received order or notice also authorizes a private reply to its
+     * sender, because those communications store their recipients in the
+     * comunicacion_destinatarios table instead of destinatario_user_id.
      */
     public static function messageableRecipients(User $actor, bool $global)
     {
         $discoverable = self::discoverableRecipients($actor, $global)
             ->select('users.id');
 
-        return User::query()->where('estado', 'Activo')
+        return User::query()
+            ->where(function ($status) {
+                $status->where('estado', 'Activo')
+                    ->orWhereNull('estado');
+            })
             ->where('users.id', '!=', $actor->id)
             ->where(function ($query) use ($discoverable, $actor) {
                 $query->whereIn('users.id', $discoverable)
@@ -56,6 +63,24 @@ class ComunicacionConversationAccess
                                             ->whereColumn('comunicaciones.destinatario_user_id', 'users.id');
                                     });
                             });
+                    })
+                    ->orWhereExists(function ($received) use ($actor) {
+                        $received->selectRaw('1')
+                            ->from('comunicaciones')
+                            ->join(
+                                'comunicacion_destinatarios',
+                                'comunicacion_destinatarios.comunicacion_id',
+                                '=',
+                                'comunicaciones.id'
+                            )
+                            ->whereColumn(
+                                'comunicaciones.remitente_user_id',
+                                'users.id'
+                            )
+                            ->where(
+                                'comunicacion_destinatarios.user_id',
+                                $actor->id
+                            );
                     });
             });
     }

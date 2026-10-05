@@ -20,7 +20,7 @@ class CaptureMessagingRegressionTest extends TestCase
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
         DB::purge('sqlite');
         Schema::create('users', function (Blueprint $t) {
-            $t->id(); $t->string('name'); $t->string('estado'); $t->integer('unidad_id')->nullable();
+            $t->id(); $t->string('name'); $t->string('estado')->nullable(); $t->integer('unidad_id')->nullable();
             $t->string('nombres')->nullable(); $t->string('apellido_paterno')->nullable();
             $t->string('apellido_materno')->nullable();
             $t->integer('turno_id')->nullable();
@@ -35,7 +35,7 @@ class CaptureMessagingRegressionTest extends TestCase
             $t->integer('role_id'); $t->string('model_type'); $t->integer('model_id');
         });
         Schema::create('comunicaciones', function (Blueprint $t) {
-            $t->id(); $t->integer('remitente_user_id'); $t->integer('destinatario_user_id');
+            $t->id(); $t->integer('remitente_user_id'); $t->integer('destinatario_user_id')->nullable();
             $t->string('tipo'); $t->string('alcance'); $t->string('contenido')->nullable();
             $t->string('asunto')->nullable();
         });
@@ -89,6 +89,91 @@ class CaptureMessagingRegressionTest extends TestCase
 
         DB::table('users')->where('id', 1)->update(['estado' => 'Inactivo']);
         $this->assertFalse(ComunicacionConversationAccess::messageableRecipients($actor, false)->whereKey(1)->exists());
+    }
+
+    public function test_recipient_can_privately_reply_to_sender_of_received_order(): void
+    {
+        $actor = User::findOrFail(2);
+
+        DB::table('comunicaciones')->insert([
+            'id' => 11,
+            'remitente_user_id' => 1,
+            'destinatario_user_id' => null,
+            'tipo' => 'orden',
+            'alcance' => 'todos',
+            'contenido' => 'Orden general',
+        ]);
+        DB::table('comunicacion_destinatarios')->insert([
+            'comunicacion_id' => 11,
+            'user_id' => 2,
+        ]);
+
+        $this->assertTrue(
+            ComunicacionConversationAccess::messageableRecipients($actor, false)
+                ->whereKey(1)
+                ->exists()
+        );
+        $this->assertFalse(
+            ComunicacionConversationAccess::messageableRecipients($actor, false)
+                ->whereKey(3)
+                ->exists()
+        );
+
+        $controller = new \App\Http\Controllers\Api\ComunicacionController();
+        $resolver = new \ReflectionMethod($controller, 'resolverDestinatarios');
+        $resolver->setAccessible(true);
+        $this->assertSame(
+            [1],
+            $resolver->invoke($controller, $actor, [
+                'alcance' => 'usuario',
+                'destinatario_user_id' => 1,
+            ])->all()
+        );
+
+        $request = \Illuminate\Http\Request::create('/comunicaciones/conversacion/1');
+        $request->setUserResolver(fn () => $actor);
+
+        $response = $controller->conversacion($request, User::findOrFail(1));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getData(true)['usuario']['puede_enviar']);
+    }
+
+    public function test_recipient_can_reply_to_normal_message_from_legacy_null_state_sender(): void
+    {
+        $actor = User::findOrFail(2);
+        DB::table('users')->where('id', 1)->update(['estado' => null]);
+        $this->incoming();
+        DB::table('comunicacion_destinatarios')->insert([
+            'comunicacion_id' => 10,
+            'user_id' => 2,
+        ]);
+
+        $this->assertTrue(
+            ComunicacionConversationAccess::messageableRecipients($actor, false)
+                ->whereKey(1)
+                ->exists()
+        );
+
+        $controller = new \App\Http\Controllers\Api\ComunicacionController();
+        $resolver = new \ReflectionMethod($controller, 'resolverDestinatarios');
+        $resolver->setAccessible(true);
+        $this->assertSame(
+            [1],
+            $resolver->invoke($controller, $actor, [
+                'alcance' => 'usuario',
+                'destinatario_user_id' => 1,
+            ])->all()
+        );
+
+        $request = \Illuminate\Http\Request::create('/comunicaciones/conversacion/1');
+        $request->setUserResolver(fn () => $actor);
+        $response = $controller->conversacion($request, User::findOrFail(1));
+        $data = $response->getData(true);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($data['usuario']['puede_enviar']);
+        $this->assertCount(1, $data['mensajes']);
     }
 
     public function test_push_targets_only_recipients_and_contains_chat_navigation(): void

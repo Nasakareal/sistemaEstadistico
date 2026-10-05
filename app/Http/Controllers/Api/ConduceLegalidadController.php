@@ -16,6 +16,7 @@ use App\Models\LicenciaPuntoInfraccion;
 use App\Models\Unidad;
 use App\Models\User;
 use App\Services\CodigoPostalGeoService;
+use App\Services\ConduceLegalidadActividadSyncService;
 use App\Services\ImageThumbnailService;
 use App\Services\IphPuestaDisposicionDocxService;
 use App\Services\WhatsAppCloudService;
@@ -470,13 +471,31 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
-    public function destroyOperativo(Request $request, ConduceLegalidadOperativo $operativo)
+    public function destroyOperativo(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadActividadSyncService $actividadSync
+    )
     {
         $user = $request->user();
         abort_unless($this->canDeleteOperativo($user), 403);
         $this->assertPuedeVerOperativo($operativo, $user);
 
-        $operativo->delete();
+        DB::transaction(function () use ($operativo, $actividadSync) {
+            $actividades = $operativo->capturas()
+                ->with('actividad')
+                ->get()
+                ->pluck('actividad')
+                ->filter()
+                ->unique('id')
+                ->values();
+
+            $operativo->delete();
+
+            foreach ($actividades as $actividad) {
+                $actividadSync->deleteLinkedActivity($actividad);
+            }
+        });
 
         return response()->json([
             'ok' => true,
@@ -488,7 +507,8 @@ class ConduceLegalidadController extends Controller
         Request $request,
         ConduceLegalidadOperativo $operativo,
         WhatsAppCloudService $whatsApp,
-        IphPuestaDisposicionDocxService $docxService
+        IphPuestaDisposicionDocxService $docxService,
+        ConduceLegalidadActividadSyncService $actividadSync
     )
     {
         $user = $request->user();
@@ -507,6 +527,10 @@ class ConduceLegalidadController extends Controller
                 ->first();
 
             if ($existing) {
+                DB::transaction(function () use ($existing, $actividadSync) {
+                    $actividadSync->sync($existing);
+                });
+
                 return response()->json([
                     'ok' => true,
                     'message' => 'Captura guardada correctamente.',
@@ -521,7 +545,7 @@ class ConduceLegalidadController extends Controller
         $this->assertCapturaHasContent($validated, $request);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
-        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request) {
+        $captura = DB::transaction(function () use ($operativo, $user, $validated, $clientUuid, $request, $actividadSync) {
             $operativo->refresh();
             $this->assertPuedeAlimentarOperativo($operativo, $user);
             $usaFundamentoUnificado = array_key_exists('fundamentos', $validated)
@@ -574,6 +598,7 @@ class ConduceLegalidadController extends Controller
                 $usaFundamentoUnificado
             );
             $this->storeFotos($captura, $request, $user);
+            $actividadSync->sync($captura);
 
             return $captura;
         });
@@ -655,7 +680,12 @@ class ConduceLegalidadController extends Controller
         ], 201);
     }
 
-    public function updateCaptura(Request $request, ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura)
+    public function updateCaptura(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        ConduceLegalidadActividadSyncService $actividadSync
+    )
     {
         $user = $request->user();
         $this->assertPuedeVerOperativo($operativo, $user);
@@ -671,7 +701,7 @@ class ConduceLegalidadController extends Controller
         $this->assertCapturaHasContent($validated, $request, $captura);
         $this->assertVehiculosCorrespondenOperativo($validated, $operativo);
 
-        DB::transaction(function () use ($captura, $operativo, $validated, $request, $user) {
+        DB::transaction(function () use ($captura, $operativo, $validated, $request, $user, $actividadSync) {
             $operativo->refresh();
             $this->assertPuedeAlimentarOperativo($operativo, $user);
             $campoFundamentoPresente = array_key_exists('fundamentos', $validated)
@@ -738,6 +768,7 @@ class ConduceLegalidadController extends Controller
                 $usaFundamentoUnificado
             );
             $this->storeFotos($captura, $request, $user);
+            $actividadSync->sync($captura);
         });
 
         $captura->load(['creador', 'unidad', 'delegacion', 'infraccion', 'fundamentos.infraccion', 'vehiculos.infraccion', 'personas.infraccion', 'fotos']);
@@ -749,7 +780,12 @@ class ConduceLegalidadController extends Controller
         ]);
     }
 
-    public function destroyCaptura(Request $request, ConduceLegalidadOperativo $operativo, ConduceLegalidadCaptura $captura)
+    public function destroyCaptura(
+        Request $request,
+        ConduceLegalidadOperativo $operativo,
+        ConduceLegalidadCaptura $captura,
+        ConduceLegalidadActividadSyncService $actividadSync
+    )
     {
         $user = $request->user();
         $this->assertPuedeVerOperativo($operativo, $user);
@@ -757,7 +793,11 @@ class ConduceLegalidadController extends Controller
         abort_unless($this->canDeleteCaptura($user), 403);
         $this->assertPuedeAlimentarOperativo($operativo, $user);
 
-        $captura->delete();
+        DB::transaction(function () use ($captura, $actividadSync) {
+            $actividad = $captura->actividad()->first();
+            $captura->delete();
+            $actividadSync->deleteLinkedActivity($actividad);
+        });
 
         return response()->json([
             'ok' => true,

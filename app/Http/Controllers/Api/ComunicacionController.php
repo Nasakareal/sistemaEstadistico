@@ -1436,7 +1436,6 @@ class ComunicacionController extends Controller
 
             return User::query()
                 ->whereKey($userId)
-                ->where('estado', 'Activo')
                 ->pluck('id')
                 ->unique()
                 ->values();

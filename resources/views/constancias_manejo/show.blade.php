@@ -61,6 +61,11 @@
                 </div>
 
                 <div class="info-item">
+                    <label>Edad</label>
+                    <strong>{{ $constancia->edad ?? '—' }}</strong>
+                </div>
+
+                <div class="info-item">
                     <label>Teléfono</label>
                     <strong>{{ $constancia->telefono ?? '—' }}</strong>
                 </div>

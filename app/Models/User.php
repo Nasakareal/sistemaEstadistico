@@ -32,6 +32,7 @@ class User extends Authenticatable
         'turno_id',
         'patrulla_id',
         'delegacion_id',
+        'constancia_modulo_id',
         'destacamento_id',
         'compartir_ubicacion',
         'receive_waze_alerts',
@@ -127,6 +128,11 @@ class User extends Authenticatable
     public function delegacion()
     {
         return $this->belongsTo(\App\Models\Delegacion::class, 'delegacion_id');
+    }
+
+    public function constanciaModulo()
+    {
+        return $this->belongsTo(\App\Models\ConstanciaModulo::class, 'constancia_modulo_id');
     }
 
     public function destacamento()

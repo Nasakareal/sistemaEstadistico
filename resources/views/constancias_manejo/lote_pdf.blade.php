@@ -221,6 +221,15 @@
                 </tr>
             </table>
 
+            @if($constancia->edad)
+                <table class="field-row">
+                    <tr>
+                        <td class="field-label">Edad:</td>
+                        <td class="field-line">{{ $constancia->edad }} años</td>
+                    </tr>
+                </table>
+            @endif
+
             <table class="field-row">
                 <tr>
                     <td class="field-label">Con domicilio en:</td>

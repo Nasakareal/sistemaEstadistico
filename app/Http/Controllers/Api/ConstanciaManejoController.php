@@ -9,6 +9,7 @@ use App\Models\ConstanciaExamenSolicitud;
 use App\Models\ConstanciaFolio;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaModulo;
+use App\Services\ConstanciaManejoWhatsAppService;
 use Carbon\Carbon;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
@@ -190,6 +191,7 @@ class ConstanciaManejoController extends Controller
             'modulo_id' => ['required', 'integer', 'exists:constancia_modulos,id'],
             'nombre_solicitante' => ['required', 'string', 'max:255'],
             'sexo' => ['required', 'in:HOMBRE,MUJER'],
+            'edad' => ['required', 'integer', 'min:16', 'max:120'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['required', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
@@ -220,6 +222,7 @@ class ConstanciaManejoController extends Controller
                 'constancia_id' => null,
                 'nombre_solicitante' => mb_strtoupper($request->input('nombre_solicitante'), 'UTF-8'),
                 'sexo' => $request->input('sexo'),
+                'edad' => (int) $request->input('edad'),
                 'curp' => $request->filled('curp') ? mb_strtoupper($request->input('curp'), 'UTF-8') : null,
                 'telefono' => $request->input('telefono'),
                 'tipo_licencia' => $request->input('tipo_licencia'),
@@ -340,7 +343,7 @@ class ConstanciaManejoController extends Controller
         ]);
     }
 
-    public function activarConExamen(Request $request, ConstanciaExamenSolicitud $solicitud)
+    public function activarConExamen(Request $request, ConstanciaExamenSolicitud $solicitud, ConstanciaManejoWhatsAppService $whatsApp)
     {
         $this->authorizeConstanciasUnidad();
         $this->authorizeExamenSolicitud($solicitud);
@@ -396,6 +399,7 @@ class ConstanciaManejoController extends Controller
             $constancia->update([
                 'nombre_solicitante' => $solicitud->nombre_solicitante,
                 'sexo' => $solicitud->sexo,
+                'edad' => $solicitud->edad,
                 'curp' => $solicitud->curp,
                 'telefono' => $solicitud->telefono,
                 'tipo_licencia' => $solicitud->tipo_licencia,
@@ -438,10 +442,12 @@ class ConstanciaManejoController extends Controller
 
         $constancia->load(['modulo', 'examen', 'peritoActivador']);
         $solicitud->load(['modulo', 'constancia']);
+        $envioWhatsApp = $whatsApp->enviarConstanciaActivada($constancia);
 
         return response()->json([
             'ok' => true,
-            'message' => 'Constancia activada.',
+            'message' => $this->mensajeActivacion($envioWhatsApp),
+            'whatsapp' => $envioWhatsApp,
             'constancia' => $this->constanciaPayload($constancia),
             'examen' => $this->examenSolicitudPayload($solicitud),
         ]);
@@ -480,7 +486,7 @@ class ConstanciaManejoController extends Controller
         ], 409);
     }
 
-    public function activar(Request $request, ConstanciaManejo $constancia)
+    public function activar(Request $request, ConstanciaManejo $constancia, ConstanciaManejoWhatsAppService $whatsApp)
     {
         $this->authorizeConstanciasUnidad();
         $this->authorizeConstancia($constancia);
@@ -501,6 +507,7 @@ class ConstanciaManejoController extends Controller
         $request->validate([
             'nombre_solicitante' => ['nullable', 'string', 'max:255'],
             'sexo' => ['nullable', 'in:HOMBRE,MUJER'],
+            'edad' => ['nullable', 'integer', 'min:16', 'max:120'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['nullable', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
@@ -510,6 +517,7 @@ class ConstanciaManejoController extends Controller
             ? mb_strtoupper($request->input('nombre_solicitante'), 'UTF-8')
             : $constancia->nombre_solicitante;
         $sexo = $request->filled('sexo') ? $request->input('sexo') : $constancia->sexo;
+        $edad = $request->filled('edad') ? (int) $request->input('edad') : $constancia->edad;
         $curp = $request->filled('curp') ? mb_strtoupper($request->input('curp'), 'UTF-8') : $constancia->curp;
         $telefono = $request->has('telefono') ? $request->input('telefono') : $constancia->telefono;
         $tipoLicencia = $request->filled('tipo_licencia') ? $request->input('tipo_licencia') : $constancia->tipo_licencia;
@@ -523,10 +531,10 @@ class ConstanciaManejoController extends Controller
             ], 400);
         }
 
-        if (!$nombre || !$sexo || !$tipoLicencia) {
+        if (!$nombre || !$sexo || !$edad || !$tipoLicencia) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Faltan datos del solicitante, sexo o tipo de licencia.'
+                'message' => 'Faltan datos del solicitante, sexo, edad o tipo de licencia.'
             ], 400);
         }
 
@@ -543,10 +551,11 @@ class ConstanciaManejoController extends Controller
 
         $ahora = Carbon::now('America/Mexico_City');
 
-        DB::transaction(function () use ($constancia, $ahora, $nombre, $sexo, $curp, $telefono, $tipoLicencia, $tipoExamen, $activacionDirecta) {
+        DB::transaction(function () use ($constancia, $ahora, $nombre, $sexo, $edad, $curp, $telefono, $tipoLicencia, $tipoExamen, $activacionDirecta) {
             $constancia->update([
                 'nombre_solicitante' => $nombre,
                 'sexo' => $sexo,
+                'edad' => $edad,
                 'curp' => $curp,
                 'telefono' => $telefono,
                 'tipo_licencia' => $tipoLicencia,
@@ -569,10 +578,12 @@ class ConstanciaManejoController extends Controller
         });
 
         $constancia->load(['modulo', 'examen', 'peritoActivador']);
+        $envioWhatsApp = $whatsApp->enviarConstanciaActivada($constancia);
 
         return response()->json([
             'ok' => true,
-            'message' => 'Constancia activada.',
+            'message' => $this->mensajeActivacion($envioWhatsApp),
+            'whatsapp' => $envioWhatsApp,
             'fecha_expiracion' => $constancia->fecha_expiracion,
             'constancia' => $this->constanciaPayload($constancia),
         ]);
@@ -740,6 +751,7 @@ class ConstanciaManejoController extends Controller
             'delegacion_id' => $constancia->delegacion_id,
             'nombre_solicitante' => $constancia->nombre_solicitante,
             'sexo' => $constancia->sexo,
+            'edad' => $constancia->edad,
             'curp' => $constancia->curp,
             'telefono' => $constancia->telefono,
             'tipo_licencia' => $constancia->tipo_licencia,
@@ -774,6 +786,7 @@ class ConstanciaManejoController extends Controller
             'puede_activar' => $estaPendiente
                 && $constancia->nombre_solicitante
                 && $constancia->sexo
+                && $constancia->edad
                 && $constancia->tipo_licencia
                 && (
                     ($examenAprobado && $constancia->tipo_examen)
@@ -840,6 +853,7 @@ class ConstanciaManejoController extends Controller
             'constancia_folio' => $solicitud->constancia->folio ?? null,
             'nombre_solicitante' => $solicitud->nombre_solicitante,
             'sexo' => $solicitud->sexo,
+            'edad' => $solicitud->edad,
             'curp' => $solicitud->curp,
             'telefono' => $solicitud->telefono,
             'tipo_licencia' => $solicitud->tipo_licencia,
@@ -911,6 +925,19 @@ class ConstanciaManejoController extends Controller
         return $value ?: null;
     }
 
+    private function mensajeActivacion(array $envioWhatsApp): string
+    {
+        if (($envioWhatsApp['sent'] ?? false) === true) {
+            return 'Constancia activada y enviada por WhatsApp.';
+        }
+
+        if (($envioWhatsApp['status'] ?? '') === 'sin_telefono') {
+            return 'Constancia activada. No se envio por WhatsApp porque no se capturo un telefono.';
+        }
+
+        return 'Constancia activada. El envio por WhatsApp quedo pendiente; la constancia sigue activa.';
+    }
+
     private function signedPrintUrl(array $ids): string
     {
         return URL::temporarySignedRoute(
@@ -936,38 +963,7 @@ class ConstanciaManejoController extends Controller
 
     private function queryModulosPermitidos()
     {
-        $user = auth()->user();
-        $query = ConstanciaModulo::where('activo', true)->orderBy('nombre');
-
-        if (!$user) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($user->isSuperadmin()) {
-            return $query;
-        }
-
-        $unidadIds = $this->unidadIdsUsuario($user);
-        $delegacionIds = $this->delegacionIdsUsuario($user);
-        $puedeSiniestros = in_array(1, $unidadIds, true);
-        $puedeDelegacion = in_array(2, $unidadIds, true) && count($delegacionIds) > 0;
-
-        if (!$puedeSiniestros && !$puedeDelegacion) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function ($q) use ($puedeSiniestros, $puedeDelegacion, $delegacionIds) {
-            if ($puedeSiniestros) {
-                $q->orWhere('tipo', 'SINIESTROS');
-            }
-
-            if ($puedeDelegacion) {
-                $q->orWhere(function ($delegacion) use ($delegacionIds) {
-                    $delegacion->where('tipo', 'DELEGACION')
-                        ->whereIn('delegacion_id', $delegacionIds);
-                });
-            }
-        });
+        return ConstanciaModulo::permitidosPara(auth()->user())->orderBy('nombre');
     }
 
     private function queryConstanciasPermitidas()
@@ -998,28 +994,4 @@ class ConstanciaManejoController extends Controller
         );
     }
 
-    private function unidadIdsUsuario($user): array
-    {
-        return array_values(array_filter([(int) ($user->unidad_id ?? 0)]));
-    }
-
-    private function delegacionIdsUsuario($user): array
-    {
-        $ids = [(int) ($user->delegacion_id ?? 0)];
-
-        try {
-            $ids = array_merge(
-                $ids,
-                DB::table('delegacion_user')
-                    ->where('user_id', $user->id)
-                    ->pluck('delegacion_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all()
-            );
-        } catch (\Throwable $e) {
-            // La delegacion principal basta en instalaciones sin pivote sincronizado.
-        }
-
-        return array_values(array_unique(array_filter($ids)));
-    }
 }

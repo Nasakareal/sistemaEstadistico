@@ -9,6 +9,7 @@ use App\Services\WhatsApp\WhatsAppMenuService;
 use App\Services\WhatsApp\WhatsAppQueryService;
 use App\Services\WhatsApp\WhatsAppStateService;
 use App\Services\WhatsApp\WhatsAppUserResolverService;
+use App\Services\WhatsApp\CitizenIncidentReportService;
 use App\Services\WhatsAppCloudService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
@@ -99,7 +100,8 @@ class WhatsAppWebhookAuthorizationTest extends TestCase
                 {
                 }
             },
-            $cloud
+            $cloud,
+            new CitizenIncidentReportService($cloud)
         ) extends WhatsAppWebhookController {
             public function process(array $message): void
             {
@@ -151,6 +153,69 @@ class WhatsAppWebhookAuthorizationTest extends TestCase
         $this->assertSame('5214431234567', $variants[0]);
         $this->assertContains('524431234567', $variants);
         $this->assertContains('4431234567', $variants);
+    }
+
+    public function test_numero_externo_recibe_menu_de_reporte_ciudadano_desde_el_primer_mensaje(): void
+    {
+        config(['services.whatsapp.citizen_reports.enabled' => true]);
+
+        $resolver = new class extends WhatsAppUserResolverService {
+            public function findAuthorizedUserByPhone(string $from): ?User
+            {
+                return null;
+            }
+        };
+
+        $cloud = new class extends WhatsAppCloudService {
+            public array $texts = [];
+            public array $interactives = [];
+
+            public function sendText(string $to, string $body): array
+            {
+                $this->texts[] = compact('to', 'body');
+
+                return ['ok' => true];
+            }
+
+            public function sendInteractive(string $to, array $interactive): array
+            {
+                $this->interactives[] = compact('to', 'interactive');
+
+                return ['ok' => true];
+            }
+        };
+
+        $controller = new class(
+            new WhatsAppInboundService(),
+            $resolver,
+            new WhatsAppMenuService(),
+            new WhatsAppStateService(),
+            new class extends WhatsAppQueryService {
+                public function __construct()
+                {
+                }
+            },
+            $cloud,
+            new CitizenIncidentReportService($cloud)
+        ) extends WhatsAppWebhookController {
+            public function process(array $message): void
+            {
+                $this->processIncomingMessage($message);
+            }
+        };
+
+        $controller->process([
+            'id' => 'wamid.external-first-message',
+            'from' => '5214439998877',
+            'type' => 'text',
+            'text' => ['body' => 'Buenas tardes'],
+        ]);
+
+        $this->assertStringContainsString('canal de reportes ciudadanos', $cloud->texts[0]['body']);
+        $this->assertSame(
+            'citizen:start',
+            $cloud->interactives[0]['interactive']['action']['buttons'][0]['reply']['id']
+        );
     }
 
     public function test_telefono_operativo_no_autoriza_respuestas_del_bot(): void

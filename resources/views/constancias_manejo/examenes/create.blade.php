@@ -63,7 +63,7 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <div class="form-group">
                                     <label>Nombre del solicitante</label>
                                     <input type="text" name="nombre_solicitante" class="form-control @error('nombre_solicitante') is-invalid @enderror" value="{{ old('nombre_solicitante') }}" required>
@@ -73,7 +73,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="form-group">
                                     <label>Sexo</label>
                                     <select name="sexo" class="form-control @error('sexo') is-invalid @enderror" required>
@@ -82,6 +82,16 @@
                                         <option value="MUJER" {{ old('sexo') === 'MUJER' ? 'selected' : '' }}>Mujer</option>
                                     </select>
                                     @error('sexo')
+                                        <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>Edad</label>
+                                    <input type="number" name="edad" class="form-control @error('edad') is-invalid @enderror" min="16" max="120" value="{{ old('edad') }}" required>
+                                    @error('edad')
                                         <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>

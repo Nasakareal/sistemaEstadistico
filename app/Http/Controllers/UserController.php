@@ -8,6 +8,7 @@ use App\Models\Turno;
 use App\Models\Patrulla;
 use App\Models\Delegacion;
 use App\Models\Destacamento;
+use App\Models\ConstanciaModulo;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -44,9 +45,11 @@ class UserController extends Controller
 
         $patrullas = $this->patrullasDisponiblesParaActor($actor, $unidadIdDefault);
         $delegaciones = $this->delegacionesDisponiblesParaActor();
+        $constanciaModulos = $this->constanciaModulosDisponiblesParaActor($actor);
 
         $unidadDelegacionesId = $this->unidadDelegacionesId();
         $unidadCarreterasId = $this->unidadCarreterasId();
+        $unidadSiniestrosId = 1;
 
         $destacamentos = $this->destacamentosDisponiblesParaActor($actor, $unidadIdDefault);
 
@@ -56,7 +59,9 @@ class UserController extends Controller
             'turnos',
             'patrullas',
             'delegaciones',
+            'constanciaModulos',
             'unidadDelegacionesId',
+            'unidadSiniestrosId',
             'unidadIdDefault',
             'unidadCarreterasId',
             'destacamentos'
@@ -84,6 +89,7 @@ class UserController extends Controller
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
+            'constancia_modulo_id' => 'nullable|integer|exists:constancia_modulos,id',
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
         ]);
 
@@ -127,6 +133,11 @@ class UserController extends Controller
             ]);
         }
 
+        $validatedData['constancia_modulo_id'] = $this->normalizarConstanciaModulo(
+            $validatedData['unidad_id'] ?? null,
+            $validatedData['constancia_modulo_id'] ?? null
+        );
+
         if (!$this->isUnidadCarreteras($validatedData['unidad_id'] ?? null)) {
             $validatedData['destacamento_id'] = null;
         } else {
@@ -161,6 +172,7 @@ class UserController extends Controller
                 'turno_id' => $validatedData['turno_id'] ?? null,
                 'patrulla_id' => $validatedData['patrulla_id'] ?? null,
                 'delegacion_id' => $validatedData['delegacion_id'] ?? null,
+                'constancia_modulo_id' => $validatedData['constancia_modulo_id'] ?? null,
                 'destacamento_id' => $validatedData['destacamento_id'] ?? null,
             ]);
 
@@ -185,7 +197,7 @@ class UserController extends Controller
         $actor = Auth::user();
 
         $user = $this->queryUsuariosVisiblesParaActor($actor)
-            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'constanciaModulo', 'destacamento'])
             ->findOrFail($id);
 
         return view('admin.settings.users.show', compact('user'));
@@ -209,7 +221,9 @@ class UserController extends Controller
 
         $patrullas = $this->patrullasDisponiblesParaActor($actor, $unidadIdParaPatrullas);
         $delegaciones = $this->delegacionesDisponiblesParaActor();
+        $constanciaModulos = $this->constanciaModulosDisponiblesParaActor($actor);
         $unidadDelegacionesId = $this->unidadDelegacionesId();
+        $unidadSiniestrosId = 1;
 
         $unidadCarreterasId = $this->unidadCarreterasId();
         $destacamentos = $this->destacamentosDisponiblesParaActor($actor, $user->unidad_id ?? null);
@@ -221,7 +235,9 @@ class UserController extends Controller
             'turnos',
             'patrullas',
             'delegaciones',
+            'constanciaModulos',
             'unidadDelegacionesId',
+            'unidadSiniestrosId',
             'unidadCarreterasId',
             'destacamentos'
         ));
@@ -253,6 +269,7 @@ class UserController extends Controller
             'turno_id' => 'nullable|exists:turnos,id',
             'patrulla_id' => 'nullable|exists:patrullas,id',
             'delegacion_id' => 'nullable|integer|exists:delegaciones,id',
+            'constancia_modulo_id' => 'nullable|integer|exists:constancia_modulos,id',
             'destacamento_id' => 'nullable|integer|exists:destacamentos,id',
         ]);
 
@@ -306,6 +323,11 @@ class UserController extends Controller
             ]);
         }
 
+        $validatedData['constancia_modulo_id'] = $this->normalizarConstanciaModulo(
+            $validatedData['unidad_id'] ?? null,
+            $validatedData['constancia_modulo_id'] ?? null
+        );
+
         if (!$this->isUnidadCarreteras($validatedData['unidad_id'] ?? null)) {
             $validatedData['destacamento_id'] = null;
         } else {
@@ -338,6 +360,7 @@ class UserController extends Controller
                 'turno_id' => $validatedData['turno_id'] ?? null,
                 'patrulla_id' => $validatedData['patrulla_id'] ?? null,
                 'delegacion_id' => $validatedData['delegacion_id'] ?? null,
+                'constancia_modulo_id' => $validatedData['constancia_modulo_id'] ?? null,
                 'destacamento_id' => $validatedData['destacamento_id'] ?? null,
             ]);
 
@@ -714,6 +737,44 @@ class UserController extends Controller
             ->whereKey($delegacionId)
             ->where('activa', 1)
             ->exists();
+    }
+
+    private function constanciaModulosDisponiblesParaActor(User $actor)
+    {
+        if (!$this->actorEsSuperadmin($actor) && (int) ($actor->unidad_id ?? 0) !== 1) {
+            return collect();
+        }
+
+        return ConstanciaModulo::query()
+            ->where('activo', true)
+            ->where('tipo', 'SINIESTROS')
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function normalizarConstanciaModulo(?int $unidadId, ?int $moduloId): ?int
+    {
+        if ((int) $unidadId !== 1) {
+            return null;
+        }
+
+        if (empty($moduloId)) {
+            return null;
+        }
+
+        $valido = ConstanciaModulo::query()
+            ->whereKey($moduloId)
+            ->where('activo', true)
+            ->where('tipo', 'SINIESTROS')
+            ->exists();
+
+        if (!$valido) {
+            throw ValidationException::withMessages([
+                'constancia_modulo_id' => 'Selecciona un modulo activo de Siniestros.',
+            ]);
+        }
+
+        return (int) $moduloId;
     }
 
     private function queryUsuariosVisiblesParaActor(User $actor)

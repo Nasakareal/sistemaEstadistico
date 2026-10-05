@@ -13,6 +13,7 @@ use App\Services\WhatsApp\WhatsAppUserResolverService;
 use App\Services\WhatsApp\WhatsAppMenuService;
 use App\Services\WhatsApp\WhatsAppStateService;
 use App\Services\WhatsApp\WhatsAppQueryService;
+use App\Services\WhatsApp\CitizenIncidentReportService;
 
 class WhatsAppWebhookController extends Controller
 {
@@ -33,6 +34,7 @@ class WhatsAppWebhookController extends Controller
     protected WhatsAppStateService $stateService;
     protected WhatsAppQueryService $queryService;
     protected WhatsAppCloudService $cloudService;
+    protected CitizenIncidentReportService $citizenReportService;
 
     public function __construct(
         WhatsAppInboundService $inboundService,
@@ -40,7 +42,8 @@ class WhatsAppWebhookController extends Controller
         WhatsAppMenuService $menuService,
         WhatsAppStateService $stateService,
         WhatsAppQueryService $queryService,
-        WhatsAppCloudService $cloudService
+        WhatsAppCloudService $cloudService,
+        CitizenIncidentReportService $citizenReportService
     ) {
         $this->inboundService = $inboundService;
         $this->userResolverService = $userResolverService;
@@ -48,6 +51,7 @@ class WhatsAppWebhookController extends Controller
         $this->stateService = $stateService;
         $this->queryService = $queryService;
         $this->cloudService = $cloudService;
+        $this->citizenReportService = $citizenReportService;
     }
 
     public function verify(Request $request)
@@ -159,6 +163,12 @@ class WhatsAppWebhookController extends Controller
         $user = $this->userResolverService->findAuthorizedUserByPhone($from);
 
         if (!$user) {
+            if ($this->citizenReportService->enabled()) {
+                $this->clearUnauthorizedSender($from);
+                $this->citizenReportService->handle($from, $message, $input);
+                return;
+            }
+
             if ($this->shouldSkipUnauthorizedLookup($from)) {
                 return;
             }

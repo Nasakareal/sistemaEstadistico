@@ -92,6 +92,21 @@
 
                         <div class="col-md-4">
                             <div class="form-group">
+                                <label>Edad</label>
+                                <input
+                                    type="number"
+                                    name="edad"
+                                    class="form-control"
+                                    value="{{ old('edad') }}"
+                                    min="16"
+                                    max="120"
+                                    required
+                                >
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="form-group">
                                 <label>CURP</label>
                                 <input
                                     type="text"

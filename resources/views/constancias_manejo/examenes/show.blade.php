@@ -46,6 +46,10 @@
                             {{ $solicitud->sexo }}
                         </div>
                         <div class="col-md-3 mb-3">
+                            <strong>Edad:</strong><br>
+                            {{ $solicitud->edad ?? 'N/A' }}
+                        </div>
+                        <div class="col-md-3 mb-3">
                             <strong>Licencia:</strong><br>
                             {{ $tiposLicencia[$solicitud->tipo_licencia] ?? $solicitud->tipo_licencia }}
                         </div>
@@ -62,7 +66,6 @@
                             {{ $solicitud->fecha_examen ? $solicitud->fecha_examen->format('d-m-Y H:i') : 'N/A' }}
                         </div>
                     </div>
-
                     <hr>
 
                     <div class="row">

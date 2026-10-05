@@ -8,6 +8,7 @@ use App\Models\ConstanciaExamenSolicitud;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaModulo;
 use App\Services\ConstanciaExamenCuestionarioService;
+use App\Services\ConstanciaManejoWhatsAppService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Endroid\QrCode\Color\Color;
@@ -89,6 +90,7 @@ class ConstanciaExamenSolicitudController extends Controller
             'modulo_id' => ['required', 'integer', 'exists:constancia_modulos,id'],
             'nombre_solicitante' => ['required', 'string', 'max:255'],
             'sexo' => ['required', 'in:HOMBRE,MUJER'],
+            'edad' => ['required', 'integer', 'min:16', 'max:120'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['required', 'in:' . implode(',', array_keys(self::TIPOS_LICENCIA))],
@@ -118,6 +120,7 @@ class ConstanciaExamenSolicitudController extends Controller
                 'constancia_id' => null,
                 'nombre_solicitante' => mb_strtoupper($validated['nombre_solicitante'], 'UTF-8'),
                 'sexo' => $validated['sexo'],
+                'edad' => (int) $validated['edad'],
                 'curp' => !empty($validated['curp']) ? mb_strtoupper($validated['curp'], 'UTF-8') : null,
                 'telefono' => $validated['telefono'] ?? null,
                 'tipo_licencia' => $validated['tipo_licencia'],
@@ -239,7 +242,7 @@ class ConstanciaExamenSolicitudController extends Controller
             ->with('success', 'Resultado de examen escrito guardado.');
     }
 
-    public function activar(Request $request, ConstanciaExamenSolicitud $solicitud)
+    public function activar(Request $request, ConstanciaExamenSolicitud $solicitud, ConstanciaManejoWhatsAppService $whatsApp)
     {
         $this->authorizeSolicitud($solicitud);
 
@@ -293,6 +296,7 @@ class ConstanciaExamenSolicitudController extends Controller
             $constancia->update([
                 'nombre_solicitante' => $solicitud->nombre_solicitante,
                 'sexo' => $solicitud->sexo,
+                'edad' => $solicitud->edad,
                 'curp' => $solicitud->curp,
                 'telefono' => $solicitud->telefono,
                 'tipo_licencia' => $solicitud->tipo_licencia,
@@ -331,9 +335,15 @@ class ConstanciaExamenSolicitudController extends Controller
             ]);
         });
 
+        $constancia->load(['modulo', 'examen', 'peritoActivador']);
+        $envioWhatsApp = $whatsApp->enviarConstanciaActivada($constancia);
+        $mensaje = ($envioWhatsApp['sent'] ?? false)
+            ? 'Constancia activada con examen ' . $solicitud->folio_examen . ' y enviada por WhatsApp.'
+            : 'Constancia activada con examen ' . $solicitud->folio_examen . '. El envio por WhatsApp no se completo.';
+
         return redirect()
             ->route('constancias_manejo.show', $constancia)
-            ->with('success', 'Constancia activada con examen ' . $solicitud->folio_examen . '.');
+            ->with('success', $mensaje);
     }
 
     private function querySolicitudesDisponibles()
@@ -368,64 +378,7 @@ class ConstanciaExamenSolicitudController extends Controller
 
     private function queryModulosDisponibles()
     {
-        $usuario = auth()->user();
-
-        $query = ConstanciaModulo::where('activo', true)->orderBy('nombre');
-
-        if (!$usuario) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($usuario->hasRole('Superadmin')) {
-            return $query;
-        }
-
-        $unidadIds = $this->unidadIdsUsuario($usuario);
-        $delegacionIds = $this->delegacionIdsUsuario($usuario);
-        $puedeSiniestros = in_array(1, $unidadIds, true);
-        $puedeDelegacion = in_array(2, $unidadIds, true) && count($delegacionIds) > 0;
-
-        if (!$puedeSiniestros && !$puedeDelegacion) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function ($q) use ($puedeSiniestros, $puedeDelegacion, $delegacionIds) {
-            if ($puedeSiniestros) {
-                $q->orWhere('tipo', 'SINIESTROS');
-            }
-
-            if ($puedeDelegacion) {
-                $q->orWhere(function ($delegacion) use ($delegacionIds) {
-                    $delegacion->where('tipo', 'DELEGACION')
-                        ->whereIn('delegacion_id', $delegacionIds);
-                });
-            }
-        });
-    }
-
-    private function unidadIdsUsuario($usuario): array
-    {
-        return array_values(array_filter([(int) ($usuario->unidad_id ?? 0)]));
-    }
-
-    private function delegacionIdsUsuario($usuario): array
-    {
-        $ids = [(int) ($usuario->delegacion_id ?? 0)];
-
-        try {
-            $ids = array_merge(
-                $ids,
-                DB::table('delegacion_user')
-                    ->where('user_id', $usuario->id)
-                    ->pluck('delegacion_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all()
-            );
-        } catch (\Throwable $e) {
-            // La delegación principal basta en instalaciones sin pivote sincronizado.
-        }
-
-        return array_values(array_unique(array_filter($ids)));
+        return ConstanciaModulo::permitidosPara(auth()->user())->orderBy('nombre');
     }
 
     private function tokenVigente(ConstanciaExamenSolicitud $solicitud): bool

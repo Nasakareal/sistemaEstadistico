@@ -7,6 +7,7 @@ use App\Models\ConstanciaExamen;
 use App\Models\ConstanciaFolio;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaModulo;
+use App\Services\ConstanciaManejoWhatsAppService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,39 +26,7 @@ class ConstanciaManejoController extends Controller
 
     private function queryModulosDisponibles()
     {
-        $usuario = auth()->user();
-
-        $query = ConstanciaModulo::where('activo', true)->orderBy('nombre');
-
-        if (!$usuario) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($usuario->hasRole('Superadmin')) {
-            return $query;
-        }
-
-        $unidadIds = $this->unidadIdsUsuario($usuario);
-        $delegacionIds = $this->delegacionIdsUsuario($usuario);
-        $puedeSiniestros = in_array(1, $unidadIds, true);
-        $puedeDelegacion = in_array(2, $unidadIds, true) && count($delegacionIds) > 0;
-
-        if (!$puedeSiniestros && !$puedeDelegacion) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return $query->where(function ($q) use ($puedeSiniestros, $puedeDelegacion, $delegacionIds) {
-            if ($puedeSiniestros) {
-                $q->orWhere('tipo', 'SINIESTROS');
-            }
-
-            if ($puedeDelegacion) {
-                $q->orWhere(function ($delegacion) use ($delegacionIds) {
-                    $delegacion->where('tipo', 'DELEGACION')
-                        ->whereIn('delegacion_id', $delegacionIds);
-                });
-            }
-        });
+        return ConstanciaModulo::permitidosPara(auth()->user())->orderBy('nombre');
     }
 
     private function queryConstanciasDisponibles()
@@ -73,31 +42,6 @@ class ConstanciaManejoController extends Controller
             403,
             'No tienes permiso para ver esta constancia.'
         );
-    }
-
-    private function unidadIdsUsuario($usuario): array
-    {
-        return array_values(array_filter([(int) ($usuario->unidad_id ?? 0)]));
-    }
-
-    private function delegacionIdsUsuario($usuario): array
-    {
-        $ids = [(int) ($usuario->delegacion_id ?? 0)];
-
-        try {
-            $ids = array_merge(
-                $ids,
-                DB::table('delegacion_user')
-                    ->where('user_id', $usuario->id)
-                    ->pluck('delegacion_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all()
-            );
-        } catch (\Throwable $e) {
-            // La delegacion principal basta en instalaciones sin pivote sincronizado.
-        }
-
-        return array_values(array_unique(array_filter($ids)));
     }
 
     public function index(Request $request)
@@ -305,6 +249,7 @@ class ConstanciaManejoController extends Controller
             'modulo_id' => ['required', 'exists:constancia_modulos,id'],
             'nombre_solicitante' => ['nullable', 'string', 'max:255'],
             'sexo' => ['nullable', 'in:HOMBRE,MUJER'],
+            'edad' => ['nullable', 'integer', 'min:16', 'max:120'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['nullable', 'in:SERVICIO_PUBLICO,AUTOMOVILISTA,CHOFER,MOTOCICLISTA,PERMISO'],
@@ -326,6 +271,7 @@ class ConstanciaManejoController extends Controller
             'delegacion_id' => $modulo->delegacion_id,
             'nombre_solicitante' => $request->nombre_solicitante ? mb_strtoupper($request->nombre_solicitante, 'UTF-8') : null,
             'sexo' => $request->sexo,
+            'edad' => $request->filled('edad') ? (int) $request->edad : null,
             'curp' => $request->curp ? mb_strtoupper($request->curp, 'UTF-8') : null,
             'telefono' => $request->telefono,
             'tipo_licencia' => $request->tipo_licencia,
@@ -487,7 +433,7 @@ class ConstanciaManejoController extends Controller
             ->with('error', 'Captura el examen como registro independiente y actívalo después con una constancia impresa.');
     }
 
-    public function activar(ConstanciaManejo $constancia)
+    public function activar(ConstanciaManejo $constancia, ConstanciaManejoWhatsAppService $whatsApp)
     {
         $this->authorizeConstancia($constancia);
         $constancia->load('examen');
@@ -497,7 +443,7 @@ class ConstanciaManejoController extends Controller
         }
 
         if (!$constancia->tieneDatosMinimosActivacion()) {
-            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Faltan datos del solicitante, sexo o tipo de licencia.');
+            return redirect()->route('constancias_manejo.show', $constancia)->with('error', 'Faltan datos del solicitante, sexo, edad o tipo de licencia.');
         }
 
         $examenAprobado = $constancia->tieneExamenAprobado();
@@ -525,7 +471,15 @@ class ConstanciaManejoController extends Controller
             'observaciones' => $activacionDirecta ? 'Activada sin examen asociado.' : null,
         ]);
 
-        return redirect()->route('constancias_manejo.show', $constancia)->with('success', 'Constancia activada.');
+        $constancia->load(['modulo', 'examen', 'peritoActivador']);
+        $envioWhatsApp = $whatsApp->enviarConstanciaActivada($constancia);
+
+        return redirect()->route('constancias_manejo.show', $constancia)->with(
+            'success',
+            ($envioWhatsApp['sent'] ?? false)
+                ? 'Constancia activada y enviada por WhatsApp.'
+                : 'Constancia activada. El envio por WhatsApp no se completo.'
+        );
     }
 
     public function activarManualForm(Request $request)
@@ -537,7 +491,7 @@ class ConstanciaManejoController extends Controller
         ]);
     }
 
-    public function activarManual(Request $request)
+    public function activarManual(Request $request, ConstanciaManejoWhatsAppService $whatsApp)
     {
         $request->merge([
             'sexo' => $this->normalizarSexo($request->input('sexo')),
@@ -547,6 +501,7 @@ class ConstanciaManejoController extends Controller
             'folio' => ['required', 'string', 'max:50'],
             'nombre_solicitante' => ['required', 'string', 'max:255'],
             'sexo' => ['required', 'in:HOMBRE,MUJER'],
+            'edad' => ['required', 'integer', 'min:16', 'max:120'],
             'curp' => ['nullable', 'string', 'max:18'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'tipo_licencia' => ['required', 'in:' . implode(',', array_keys(self::TIPOS_LICENCIA))],
@@ -588,6 +543,7 @@ class ConstanciaManejoController extends Controller
             $constancia->update([
                 'nombre_solicitante' => mb_strtoupper($validated['nombre_solicitante'], 'UTF-8'),
                 'sexo' => $validated['sexo'],
+                'edad' => (int) $validated['edad'],
                 'curp' => !empty($validated['curp']) ? mb_strtoupper($validated['curp'], 'UTF-8') : null,
                 'telefono' => $validated['telefono'] ?? null,
                 'tipo_licencia' => $validated['tipo_licencia'],
@@ -608,9 +564,14 @@ class ConstanciaManejoController extends Controller
             ]);
         });
 
+        $constancia->load(['modulo', 'examen', 'peritoActivador']);
+        $envioWhatsApp = $whatsApp->enviarConstanciaActivada($constancia);
+
         return redirect()
             ->route('constancias_manejo.show', $constancia)
-            ->with('success', 'Constancia activada manualmente.');
+            ->with('success', ($envioWhatsApp['sent'] ?? false)
+                ? 'Constancia activada manualmente y enviada por WhatsApp.'
+                : 'Constancia activada manualmente. El envio por WhatsApp no se completo.');
     }
 
     public function cancelar(Request $request, ConstanciaManejo $constancia)

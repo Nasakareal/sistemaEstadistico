@@ -17,6 +17,7 @@ class ConstanciaExamenSolicitud extends Model
         'constancia_id',
         'nombre_solicitante',
         'sexo',
+        'edad',
         'curp',
         'telefono',
         'tipo_licencia',

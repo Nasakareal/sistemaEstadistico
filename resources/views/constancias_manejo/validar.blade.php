@@ -139,6 +139,8 @@
 
             <dt>Solicitante</dt>
             <dd>{{ $constancia->nombre_solicitante ?: 'Pendiente' }}</dd>
+            <dt>Edad</dt>
+            <dd>{{ $constancia->edad ?: 'Pendiente' }}</dd>
 
             <dt>Tipo</dt>
             <dd>{{ $constancia->tipo_licencia ?: 'Pendiente' }}</dd>

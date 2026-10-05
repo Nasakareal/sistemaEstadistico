@@ -21,6 +21,7 @@ class ConstanciaManejo extends Model
         'perito_activador_id',
         'nombre_solicitante',
         'sexo',
+        'edad',
         'curp',
         'telefono',
         'tipo_licencia',
@@ -104,6 +105,7 @@ class ConstanciaManejo extends Model
         return (bool) (
             $this->nombre_solicitante
             && $this->sexo
+            && $this->edad
             && $this->tipo_licencia
         );
     }

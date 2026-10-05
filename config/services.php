@@ -54,12 +54,18 @@ return [
     ],
 
     'whatsapp' => [
-        'app_secret' => env('WHATSAPP_APP_SECRET'),
         'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v25.0'),
         'token' => env('WHATSAPP_ACCESS_TOKEN'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN', 'seguridadvial_token'),
         'default_to' => env('WHATSAPP_DEFAULT_TO'),
+
+        'constancias_manejo' => [
+            'enabled' => filter_var(env('WHATSAPP_CONSTANCIAS_MANEJO_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            'country_prefix' => env('WHATSAPP_CONSTANCIAS_MANEJO_COUNTRY_PREFIX', '521'),
+            'template' => env('WHATSAPP_CONSTANCIAS_MANEJO_TEMPLATE', 'constancia_manejo_activada_v1'),
+            'template_language' => env('WHATSAPP_CONSTANCIAS_MANEJO_TEMPLATE_LANGUAGE', 'es_MX'),
+        ],
 
         'web_reader' => [
             'secret' => env('WHATSAPP_WEB_READER_SECRET'),
@@ -69,15 +75,13 @@ return [
         ],
 
         'c5i_recommendation' => [
-            'enabled' => filter_var(env('WHATSAPP_C5I_RECOMMENDATION_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
-            'dry_run' => filter_var(env('WHATSAPP_C5I_RECOMMENDATION_DRY_RUN', false), FILTER_VALIDATE_BOOLEAN),
-            'internal_recipient_user_ids' => array_values(array_filter(array_map(
-                'intval',
-                explode(',', env('C5I_RECOMMENDATION_USER_IDS', '1,2,21,42,47,74'))
-            ))),
-            'internal_sender_user_id' => (int) env('C5I_RECOMMENDATION_SENDER_USER_ID', 21),
+            'enabled' => filter_var(env('WHATSAPP_C5I_RECOMMENDATION_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'dry_run' => filter_var(env('WHATSAPP_C5I_RECOMMENDATION_DRY_RUN', true), FILTER_VALIDATE_BOOLEAN),
+            'to' => env('WHATSAPP_C5I_RECOMMENDATION_TO', ''),
             'group_ids' => env('WHATSAPP_C5I_RECOMMENDATION_GROUP_IDS', ''),
             'source_author_ids' => env('WHATSAPP_C5I_RECOMMENDATION_SOURCE_AUTHOR_IDS', ''),
+            'template' => env('WHATSAPP_C5I_RECOMMENDATION_TEMPLATE', 'recomendacion_unidad_siniestros_c5i_v1'),
+            'template_language' => env('WHATSAPP_C5I_RECOMMENDATION_TEMPLATE_LANGUAGE', 'es_MX'),
             'unit_slug' => env('WHATSAPP_C5I_RECOMMENDATION_UNIT_SLUG', 'siniestros'),
             'location_max_age_minutes' => (int) env('WHATSAPP_C5I_RECOMMENDATION_LOCATION_MAX_AGE_MINUTES', 10),
             'max_accuracy_meters' => (int) env('WHATSAPP_C5I_RECOMMENDATION_MAX_ACCURACY_METERS', 200),
@@ -129,14 +133,6 @@ return [
             'rnd_chatbot_to' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TO', '5214433163728'),
             'rnd_chatbot_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TEMPLATE', 'solicitud_rnd_faltas_administrativas'),
             'rnd_chatbot_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_RND_CHATBOT_TEMPLATE_LANGUAGE', 'es_MX'),
-            'boleta_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_TEMPLATE', 'boleta_conduce_legalidad_v1'),
-            'boleta_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_TEMPLATE_LANGUAGE', 'es_MX'),
-            'boleta_country_prefix' => env('WHATSAPP_CONDUCE_LEGALIDAD_BOLETA_COUNTRY_PREFIX', '521'),
-            'barandillas_enabled' => filter_var(env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
-            'barandillas_to' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_TO', '5214433163728'),
-            'barandillas_boleta_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_BOLETA_TEMPLATE', 'aviso_barandillas_conduce_v1'),
-            'barandillas_iph_template' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_IPH_TEMPLATE', 'iph_barandillas_conduce_v1'),
-            'barandillas_template_language' => env('WHATSAPP_CONDUCE_LEGALIDAD_BARANDILLAS_TEMPLATE_LANGUAGE', 'es_MX'),
         ],
 
         'equinos_bridge' => [

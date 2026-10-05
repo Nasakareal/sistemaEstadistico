@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Delegacion;
+use App\Models\ConstanciaModulo;
 use App\Models\Destacamento;
 use App\Models\Patrulla;
 use App\Models\Role;
@@ -26,7 +27,7 @@ class UserController extends Controller
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
 
         $users = $this->queryUsuariosVisiblesParaActor($actor)
-            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento'])
+            ->with(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'constanciaModulo', 'destacamento'])
             ->when($this->actorTieneVisibilidadGlobal($actor) && $unidadId > 0, function ($query) use ($unidadId) {
                 $query->where('unidad_id', $unidadId);
             })
@@ -89,6 +90,12 @@ class UserController extends Controller
                     'municipio' => $delegacion->municipio,
                 ]))
                 ->values(),
+            'constancia_modulos' => $this->constanciaModulosDisponiblesParaActor($actor)
+                ->map(fn (ConstanciaModulo $modulo) => $this->serializeSimple($modulo, 'nombre', [
+                    'tipo' => $modulo->tipo,
+                    'municipio' => $modulo->municipio,
+                ]))
+                ->values(),
             'destacamentos' => $this->destacamentosDisponiblesParaActor($actor)
                 ->map(fn (Destacamento $destacamento) => $this->serializeSimple($destacamento, 'nombre', [
                     'clave' => $destacamento->clave,
@@ -124,6 +131,7 @@ class UserController extends Controller
                 'turno_id' => $validated['turno_id'] ?? null,
                 'patrulla_id' => $validated['patrulla_id'] ?? null,
                 'delegacion_id' => $validated['delegacion_id'] ?? null,
+                'constancia_modulo_id' => $validated['constancia_modulo_id'] ?? null,
                 'destacamento_id' => $validated['destacamento_id'] ?? null,
                 'compartir_ubicacion' => (bool) ($validated['compartir_ubicacion'] ?? true),
             ]);
@@ -133,7 +141,7 @@ class UserController extends Controller
             return $user;
         });
 
-        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento']);
+        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'constanciaModulo', 'destacamento']);
 
         return response()->json([
             'message' => 'Usuario creado correctamente.',
@@ -146,7 +154,7 @@ class UserController extends Controller
         $actor = $request->user();
         abort_unless($this->queryUsuariosVisiblesParaActor($actor)->whereKey($user->id)->exists(), 404);
 
-        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento']);
+        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'constanciaModulo', 'destacamento']);
 
         return response()->json([
             'data' => $this->serializeUser($user),
@@ -186,6 +194,7 @@ class UserController extends Controller
                 'turno_id' => $validated['turno_id'] ?? null,
                 'patrulla_id' => $validated['patrulla_id'] ?? null,
                 'delegacion_id' => $validated['delegacion_id'] ?? null,
+                'constancia_modulo_id' => $validated['constancia_modulo_id'] ?? null,
                 'destacamento_id' => $validated['destacamento_id'] ?? null,
             ];
 
@@ -204,7 +213,7 @@ class UserController extends Controller
             $user->syncRoles([$role->name]);
         });
 
-        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'destacamento']);
+        $user->load(['roles', 'unidad', 'turno', 'patrulla', 'delegacion', 'constanciaModulo', 'destacamento']);
 
         return response()->json([
             'message' => 'Usuario actualizado correctamente.',
@@ -240,6 +249,7 @@ class UserController extends Controller
             'turno_id' => ['nullable', 'integer', 'exists:turnos,id'],
             'patrulla_id' => ['nullable', 'integer', 'exists:patrullas,id'],
             'delegacion_id' => ['nullable', 'integer', 'exists:delegaciones,id'],
+            'constancia_modulo_id' => ['nullable', 'integer', 'exists:constancia_modulos,id'],
             'destacamento_id' => ['nullable', 'integer', 'exists:destacamentos,id'],
             'compartir_ubicacion' => ['nullable', 'boolean'],
         ]);
@@ -325,6 +335,11 @@ class UserController extends Controller
             ]);
         }
 
+        $validated['constancia_modulo_id'] = $this->normalizarConstanciaModulo(
+            $unidadId,
+            $validated['constancia_modulo_id'] ?? null
+        );
+
         if (!$this->isUnidadCarreteras($unidadId)) {
             $validated['destacamento_id'] = null;
         } elseif (!empty($validated['destacamento_id'])) {
@@ -362,6 +377,7 @@ class UserController extends Controller
             'turno_id' => $user->turno_id,
             'patrulla_id' => $user->patrulla_id,
             'delegacion_id' => $user->delegacion_id,
+            'constancia_modulo_id' => $user->constancia_modulo_id,
             'destacamento_id' => $user->destacamento_id,
             'compartir_ubicacion' => (bool) ($user->compartir_ubicacion ?? false),
             'role_id' => $primaryRole ? $primaryRole->id : null,
@@ -371,6 +387,7 @@ class UserController extends Controller
             'turno' => $this->serializeNullableSimple($user->turno, 'nombre'),
             'patrulla' => $this->serializeNullableSimple($user->patrulla, 'numero_economico'),
             'delegacion' => $this->serializeNullableSimple($user->delegacion, 'nombre'),
+            'constancia_modulo' => $this->serializeNullableSimple($user->constanciaModulo, 'nombre'),
             'destacamento' => $this->serializeNullableSimple($user->destacamento, 'nombre'),
             'unidades' => $user->unidad
                 ? [$this->serializeSimple($user->unidad, 'nombre', ['slug' => $user->unidad->slug])]
@@ -430,6 +447,44 @@ class UserController extends Controller
             ->whereKey($delegacionId)
             ->where('activa', 1)
             ->exists();
+    }
+
+    private function constanciaModulosDisponiblesParaActor(User $actor)
+    {
+        if (!$this->actorEsSuperadmin($actor) && (int) ($actor->unidad_id ?? 0) !== 1) {
+            return collect();
+        }
+
+        return ConstanciaModulo::query()
+            ->where('activo', true)
+            ->where('tipo', 'SINIESTROS')
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function normalizarConstanciaModulo(?int $unidadId, ?int $moduloId): ?int
+    {
+        if ((int) $unidadId !== 1) {
+            return null;
+        }
+
+        if (empty($moduloId)) {
+            return null;
+        }
+
+        $valido = ConstanciaModulo::query()
+            ->whereKey($moduloId)
+            ->where('activo', true)
+            ->where('tipo', 'SINIESTROS')
+            ->exists();
+
+        if (!$valido) {
+            throw ValidationException::withMessages([
+                'constancia_modulo_id' => ['Selecciona un modulo activo de Siniestros.'],
+            ]);
+        }
+
+        return (int) $moduloId;
     }
 
     private function unidadDelegacionesId(): ?int

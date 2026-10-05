@@ -240,6 +240,28 @@
                             </div>
                         </div>
 
+                        <div class="row" id="box_constancia_modulo" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="constancia_modulo_id">Módulo de exámenes de manejo</label>
+                                    <select name="constancia_modulo_id" id="constancia_modulo_id"
+                                            class="form-control @error('constancia_modulo_id') is-invalid @enderror">
+                                        <option value="">Sin módulo asignado</option>
+                                        @foreach ($constanciaModulos as $modulo)
+                                            <option value="{{ $modulo->id }}"
+                                                {{ (string) old('constancia_modulo_id', $user->constancia_modulo_id) === (string) $modulo->id ? 'selected' : '' }}>
+                                                {{ $modulo->nombre }}@if(!empty($modulo->municipio)) - {{ $modulo->municipio }}@endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('constancia_modulo_id')
+                                        <span class="invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                    @enderror
+                                    <small class="text-muted">Solo aplica a Siniestros en Morelia. El usuario únicamente podrá operar el módulo asignado.</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row" id="box_delegacion" style="display:none;">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -405,6 +427,7 @@
         (function () {
             const UNIDAD_DELEGACIONES_ID = @json($unidadDelegacionesId);
             const UNIDAD_CARRETERAS_ID = @json($unidadCarreterasId);
+            const UNIDAD_SINIESTROS_ID = @json($unidadSiniestrosId);
 
             function getSelectedRoleOption() {
                 const roleSelect = document.getElementById('role_id');
@@ -452,17 +475,21 @@
                 const unidadSel = document.getElementById('unidad_id');
                 const boxDelegacion = document.getElementById('box_delegacion');
                 const boxDestacamento = document.getElementById('box_destacamento');
+                const boxConstanciaModulo = document.getElementById('box_constancia_modulo');
                 const delegSel = document.getElementById('delegacion_id');
                 const destacSel = document.getElementById('destacamento_id');
+                const constanciaModuloSel = document.getElementById('constancia_modulo_id');
 
-                if (!unidadSel || !boxDelegacion || !boxDestacamento || !delegSel || !destacSel) return;
+                if (!unidadSel || !boxDelegacion || !boxDestacamento || !boxConstanciaModulo || !delegSel || !destacSel || !constanciaModuloSel) return;
 
                 const unidadId = unidadSel.value ? parseInt(unidadSel.value, 10) : null;
                 const showDelegacion = UNIDAD_DELEGACIONES_ID !== null && unidadId === parseInt(UNIDAD_DELEGACIONES_ID, 10);
                 const showDestacamento = UNIDAD_CARRETERAS_ID !== null && unidadId === parseInt(UNIDAD_CARRETERAS_ID, 10);
+                const showConstanciaModulo = UNIDAD_SINIESTROS_ID !== null && unidadId === parseInt(UNIDAD_SINIESTROS_ID, 10);
 
                 boxDelegacion.style.display = showDelegacion ? '' : 'none';
                 boxDestacamento.style.display = showDestacamento ? '' : 'none';
+                boxConstanciaModulo.style.display = showConstanciaModulo ? '' : 'none';
 
                 if (!showDelegacion) {
                     delegSel.value = '';
@@ -470,6 +497,10 @@
 
                 if (!showDestacamento) {
                     destacSel.value = '';
+                }
+
+                if (!showConstanciaModulo) {
+                    constanciaModuloSel.value = '';
                 }
             }
 

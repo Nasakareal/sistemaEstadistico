@@ -252,7 +252,27 @@
                             <label class="rt-field"><span>Altura C.G.</span><div class="input-group input-group-sm"><input id="rtActorCgHeight" type="number" class="form-control" min="0.2" max="3" step="0.1"><div class="input-group-append"><span class="input-group-text">m</span></div></div></label>
                         </div>
                         <label class="rt-field"><span>Agarre de neumáticos</span><input id="rtActorGrip" type="range" min="0.15" max="1.3" step="0.05"></label>
-                        <small>La trayectoria actúa como intención del conductor; la física limita cuánto puede acelerar, girar y recuperar el control.</small>
+                        <div id="rtRolloverControls" class="rt-rollover-control">
+                            <label class="rt-field">
+                                <span>Apoyo inicial del vehículo</span>
+                                <select id="rtActorInitialRoll" class="form-control form-control-sm">
+                                    <option value="0">Sobre sus ruedas</option>
+                                    <option value="-90">Costado izquierdo</option>
+                                    <option value="90">Costado derecho</option>
+                                    <option value="180">Sobre el techo</option>
+                                </select>
+                            </label>
+                            <label class="rt-field">
+                                <span>Impulso lateral <b id="rtActorRollImpulseValue">0 °/s</b></span>
+                                <input id="rtActorRollImpulse" type="range" min="-360" max="360" step="10" value="0">
+                            </label>
+                            <div class="rt-rollover-presets">
+                                <button type="button" data-roll-impulse="-220"><i class="fas fa-undo"></i> Volcar izquierda</button>
+                                <button type="button" data-roll-impulse="0"><i class="fas fa-car"></i> Sin impulso</button>
+                                <button type="button" data-roll-impulse="220">Volcar derecha <i class="fas fa-redo"></i></button>
+                            </div>
+                        </div>
+                        <small>La trayectoria guía al conductor. Curvas, impactos, taludes y el impulso lateral pueden inclinar el vehículo, apoyarlo sobre un costado o dejarlo sobre el techo.</small>
                     </div>
                     <div class="rt-field-row">
                         <label class="rt-field"><span>Largo</span><div class="input-group input-group-sm"><input id="rtActorLength" type="number" class="form-control" min="40" max="400" step="5"><div class="input-group-append"><span class="input-group-text">%</span></div></div></label>
@@ -416,5 +436,6 @@
             }
         };
     </script>
+    <script src="{{ asset('js/reconstructor-transito-vehicle.js') }}?v={{ filemtime(public_path('js/reconstructor-transito-vehicle.js')) }}"></script>
     <script src="{{ asset('js/reconstructor-transito.js') }}?v={{ filemtime(public_path('js/reconstructor-transito.js')) }}"></script>
 @stop

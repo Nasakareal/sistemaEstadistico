@@ -46,17 +46,28 @@ class ReconstructorTransitoModuleTest extends TestCase
     public function test_editor_includes_physics_bridges_water_and_rollover_controls(): void
     {
         $script = file_get_contents(public_path('js/reconstructor-transito.js'));
+        $vehicleRenderer = file_get_contents(public_path('js/reconstructor-transito-vehicle.js'));
         $view = file_get_contents(resource_path('views/admin/settings/reconstructor_transito/index.blade.php'));
 
         $this->assertStringContainsString('buildPhysicsCache', $script);
         $this->assertStringContainsString("status = 'en caída'", $script);
         $this->assertStringContainsString("status = 'sumergido'", $script);
-        $this->assertStringContainsString("status = 'volcado'", $script);
         $this->assertStringContainsString('actorA.massKg', $script);
         $this->assertStringContainsString('rolloverLimit', $script);
+        $this->assertStringContainsString('advanceVehicleRoll', $script);
+        $this->assertStringContainsString('vehicleRenderer.draw', $script);
+        $this->assertStringNotContainsString('ctx.scale(1, rollScale)', $script);
+        $this->assertStringNotContainsString('state.roll = Math.sign(state.roll) * 90', $script);
+        $this->assertStringContainsString('function advanceRoll', $vehicleRenderer);
+        $this->assertStringContainsString('function drawSide', $vehicleRenderer);
+        $this->assertStringContainsString('function drawUnderside', $vehicleRenderer);
+        $this->assertStringContainsString("return 'sobre techo'", $vehicleRenderer);
         $this->assertStringContainsString('data-add-road="puente"', $view);
         $this->assertStringContainsString('data-add-zone="water"', $view);
         $this->assertStringContainsString('id="rtPhysicsEnabled"', $view);
         $this->assertStringContainsString('id="rtActorCgHeight"', $view);
+        $this->assertStringContainsString('id="rtActorInitialRoll"', $view);
+        $this->assertStringContainsString('id="rtActorRollImpulse"', $view);
+        $this->assertStringContainsString('reconstructor-transito-vehicle.js', $view);
     }
 }

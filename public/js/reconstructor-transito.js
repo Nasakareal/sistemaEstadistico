@@ -8,6 +8,8 @@
     const storageKey = config.storageKey || 'reconstructorTransito.v1';
     const canvas = document.getElementById('rtCanvas');
     const ctx = canvas.getContext('2d');
+    const vehicleRenderer = window.ReconstructorVehicleRenderer || null;
+    const ROLLOVER_TYPES = ['automovil', 'camioneta', 'camion'];
 
     const EVENT_META = {
         PR: { label: 'Punto de reacción', color: '#38bdf8' },
@@ -54,6 +56,7 @@
         'rtActorSwatch', 'rtActorTitle', 'rtActorName', 'rtActorColor', 'rtActorSpeed',
         'rtActorLength', 'rtActorWidth',
         'rtActorRotation', 'rtActorRotationRange',
+        'rtRolloverControls', 'rtActorInitialRoll', 'rtActorRollImpulse', 'rtActorRollImpulseValue',
         'rtStartPath', 'rtAddKeyframe', 'rtKeyframeList', 'rtEventCode', 'rtEventTitle',
         'rtEventTime', 'rtEventDescription', 'rtActorCount', 'rtActorList',
         'rtRoadInspector', 'rtRoadTitle', 'rtRoadName', 'rtRoadSurface',
@@ -255,6 +258,8 @@
                 massKg: clamp(actor.massKg || defaults.massKg, 40, 50000),
                 cgHeight: clamp(actor.cgHeight || defaults.cgHeight, .2, 3),
                 grip: clamp(actor.grip || defaults.grip, .15, 1.3),
+                initialRoll: ROLLOVER_TYPES.includes(type) ? clamp(actor.initialRoll, -180, 180) : 0,
+                rollImpulse: ROLLOVER_TYPES.includes(type) ? clamp(actor.rollImpulse, -360, 360) : 0,
                 scaleX: actorScale(actor, 'x'),
                 scaleY: actorScale(actor, 'y'),
                 keyframes: frames
@@ -450,6 +455,38 @@
         return ({ asphalt: 1, concrete: .96, pavers: .8, cobblestone: .68, dirt: .55, gravel: .45, natural: .38 })[surface] || .65;
     }
 
+    function canRollover(actor) {
+        return Boolean(actor && ROLLOVER_TYPES.includes(actor.type));
+    }
+
+    function rolloverState(roll) {
+        if (vehicleRenderer) return vehicleRenderer.classifyRoll(roll);
+        const phase = ((Number(roll) || 0) % 360 + 360) % 360;
+        if (Math.min(phase, 360 - phase) <= 12) return 'sobre ruedas';
+        if (Math.abs(phase - 90) <= 12) return 'sobre costado derecho';
+        if (Math.abs(phase - 180) <= 12) return 'sobre techo';
+        if (Math.abs(phase - 270) <= 12) return 'sobre costado izquierdo';
+        return 'volcando';
+    }
+
+    function advanceVehicleRoll(state, actor, step) {
+        if (!canRollover(actor)) {
+            state.roll = 0;
+            state.rollRate = 0;
+            return;
+        }
+
+        if (vehicleRenderer && vehicleRenderer.advanceRoll) {
+            const next = vehicleRenderer.advanceRoll(state.roll, state.rollRate, step);
+            state.roll = next.roll;
+            state.rollRate = next.rollRate;
+            return;
+        }
+
+        state.rollRate *= Math.pow(.98, step * 60);
+        state.roll += state.rollRate * step;
+    }
+
     function initialPhysicsState(actor) {
         const start = guidedActorPosition(actor, 0) || guidedActorPosition(actor, actor.keyframes[0] ? actor.keyframes[0].time : 0) || { x: 0, y: 0, rotation: 0 };
         const radians = start.rotation * Math.PI / 180;
@@ -460,7 +497,9 @@
         return {
             x: start.x, y: start.y, rotation: start.rotation,
             vx: Math.cos(radians) * speed, vy: Math.sin(radians) * speed,
-            z: elevation, vz: 0, roll: 0, rollRate: 0,
+            z: elevation, vz: 0,
+            roll: canRollover(actor) ? (Number(actor.initialRoll) || 0) : 0,
+            rollRate: canRollover(actor) ? (Number(actor.rollImpulse) || 0) : 0,
             status: elevation > 0 ? 'sobre puente' : 'en marcha',
             roadId: contact ? contact.road.id : null, supportedBridgeId: elevation > 0 ? contact.road.id : null,
             submerged: false
@@ -514,28 +553,31 @@
                 state.vx = Math.cos(nextHeading) * forwardSpeed - Math.sin(nextHeading) * lateralSpeed * lateralRetention;
                 state.vy = Math.sin(nextHeading) * forwardSpeed + Math.cos(nextHeading) * lateralSpeed * lateralRetention;
 
-                const lateralAcceleration = Math.abs(speedMps * (yaw / step));
-                const trackMeters = Math.max(.7, ((ACTOR_META[actor.type] || ACTOR_META.automovil).height * actorScale(actor, 'y')) / pixelsPerMeter);
-                const rolloverLimit = 9.81 * trackMeters / Math.max(.4, 2 * actor.cgHeight);
-                if (lateralAcceleration > rolloverLimit) {
-                    state.rollRate += Math.sign(yaw || 1) * (lateralAcceleration / rolloverLimit) * 48 * step;
-                }
-                if (oldRoad && !road && speedMps > 9 && state.z <= .05) state.rollRate += Math.sign(yaw || lateralSpeed || 1) * speedMps * .7;
-                if (slope && speedMps > 5) state.rollRate += Math.sign(yaw || 1) * slope.depthMeters * 2.1 * step;
-                state.rollRate *= Math.pow(.985, step * 60);
-                state.roll += state.rollRate * step;
-                if (Math.abs(state.roll) < 55) state.roll *= Math.pow(.97, step * 60);
-                if (Math.abs(state.roll) >= 78) {
-                    state.roll = Math.sign(state.roll) * 90;
-                    state.status = 'volcado';
-                    state.vx *= .94; state.vy *= .94;
+                if (canRollover(actor)) {
+                    const lateralAcceleration = Math.abs(speedMps * (yaw / step));
+                    const trackMeters = Math.max(.7, ((ACTOR_META[actor.type] || ACTOR_META.automovil).height * actorScale(actor, 'y')) / pixelsPerMeter);
+                    const rolloverLimit = 9.81 * trackMeters / Math.max(.4, 2 * actor.cgHeight);
+                    if (lateralAcceleration > rolloverLimit) {
+                        state.rollRate += Math.sign(yaw || lateralSpeed || 1) * (lateralAcceleration / rolloverLimit) * 72 * step;
+                    }
+                    if (oldRoad && !road && speedMps > 9 && state.z <= .05) {
+                        state.rollRate += Math.sign(yaw || lateralSpeed || 1) * speedMps * 1.1;
+                    }
+                    if (slope && speedMps > 5) {
+                        state.rollRate += Math.sign(yaw || lateralSpeed || 1) * slope.depthMeters * 3.2 * step;
+                    }
+                    advanceVehicleRoll(state, actor, step);
+                    if (rolloverState(state.roll) !== 'sobre ruedas') {
+                        state.vx *= .985;
+                        state.vy *= .985;
+                    }
                 }
 
                 if (road && road.isBridge) {
                     state.z = road.elevationMeters;
                     state.vz = 0;
                     state.supportedBridgeId = road.id;
-                    if (state.status !== 'volcado') state.status = 'sobre puente';
+                    if (rolloverState(state.roll) === 'sobre ruedas') state.status = 'sobre puente';
                 } else if (state.supportedBridgeId && state.z > .01) {
                     state.supportedBridgeId = null;
                     state.status = 'en caída';
@@ -559,8 +601,11 @@
                 state.x += state.vx * step;
                 state.y += state.vy * step;
                 state.roadId = road ? road.id : null;
-                if (!state.submerged && state.status !== 'volcado' && state.status !== 'en caída' && !(road && road.isBridge)) {
-                    state.status = road ? 'en calzada' : (slope ? 'en talud' : 'fuera del camino');
+                if (!state.submerged && state.status !== 'en caída' && !(road && road.isBridge)) {
+                    const rollStatus = rolloverState(state.roll);
+                    state.status = rollStatus === 'sobre ruedas'
+                        ? (road ? 'en calzada' : (slope ? 'en talud' : 'fuera del camino'))
+                        : rollStatus;
                 }
             });
 
@@ -1241,46 +1286,66 @@
         const active = selected && selected.kind === 'actor' && selected.id === actor.id;
         const elevationOffset = Math.max(0, position.z || 0) * (project.metadata.pixelsPerMeter || 20) * .18;
         const renderedY = position.y - elevationOffset;
-        const rollScale = Math.max(.18, Math.abs(Math.cos((position.roll || 0) * Math.PI / 180)));
+        const roll = canRollover(actor) ? (position.roll || 0) : 0;
+        const rollGeometry = canRollover(actor) && vehicleRenderer
+            ? vehicleRenderer.geometry(actor.type, width, height, roll)
+            : null;
+        const renderedHeight = rollGeometry ? rollGeometry.projectedWidth : height;
         if (position.z > .05) {
             ctx.save(); ctx.globalAlpha = .24; ctx.fillStyle = '#000';
-            ctx.beginPath(); ctx.ellipse(position.x + 9, position.y + 12, width * .45, height * .35, position.rotation * Math.PI / 180, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            ctx.beginPath(); ctx.ellipse(position.x + 9, position.y + 12, width * .45, renderedHeight * .35, position.rotation * Math.PI / 180, 0, Math.PI * 2); ctx.fill(); ctx.restore();
         }
         ctx.save();
-        ctx.globalAlpha = position.submerged ? .48 : 1;
         ctx.translate(position.x, renderedY);
         ctx.rotate(position.rotation * Math.PI / 180);
-        ctx.scale(1, rollScale);
-        if (active) {
-            ctx.shadowColor = actor.color;
-            ctx.shadowBlur = 18;
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 4]);
-            ctx.strokeRect(-width / 2 - 7, -height / 2 - 7, width + 14, height + 14);
-            ctx.setLineDash([]);
-        }
-        if (image && image.complete && image.naturalWidth) {
-            ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        if (canRollover(actor) && vehicleRenderer) {
+            if (active) {
+                ctx.shadowColor = actor.color;
+                ctx.shadowBlur = 18;
+            }
+            vehicleRenderer.draw(ctx, {
+                type: actor.type,
+                color: actor.color,
+                width: width,
+                height: height,
+                roll: roll,
+                image: image,
+                alpha: position.submerged ? .48 : 1,
+                active: active
+            });
         } else {
-            ctx.fillStyle = actor.color;
-            ctx.fillRect(-width / 2, -height / 2, width, height);
-            ctx.fillStyle = '#e5e7eb';
-            ctx.fillRect(-width * .2, -height * .38, width * .38, height * .76);
+            ctx.globalAlpha = position.submerged ? .48 : 1;
+            if (active) {
+                ctx.shadowColor = actor.color;
+                ctx.shadowBlur = 18;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 4]);
+                ctx.strokeRect(-width / 2 - 7, -height / 2 - 7, width + 14, height + 14);
+                ctx.setLineDash([]);
+            }
+            if (image && image.complete && image.naturalWidth) {
+                ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            } else {
+                ctx.fillStyle = actor.color;
+                ctx.fillRect(-width / 2, -height / 2, width, height);
+                ctx.fillStyle = '#e5e7eb';
+                ctx.fillRect(-width * .2, -height * .38, width * .38, height * .76);
+            }
         }
         ctx.restore();
         ctx.save();
         ctx.font = '700 10px Arial';
         const labelWidth = ctx.measureText(actor.name).width + 12;
         ctx.fillStyle = 'rgba(4, 10, 18, .82)';
-        ctx.fillRect(position.x - labelWidth / 2, renderedY + height / 2 + 9, labelWidth, 17);
+        ctx.fillRect(position.x - labelWidth / 2, renderedY + renderedHeight / 2 + 9, labelWidth, 17);
         ctx.fillStyle = '#f8fafc';
         ctx.textAlign = 'center';
-        ctx.fillText(actor.name, position.x, renderedY + height / 2 + 21);
+        ctx.fillText(actor.name, position.x, renderedY + renderedHeight / 2 + 21);
         if (project.metadata.physicsEnabled && position.status) {
             ctx.font = '800 9px Arial';
             ctx.fillStyle = position.status === 'en calzada' ? '#86efac' : '#fde68a';
-            ctx.fillText(String(position.status).toUpperCase(), position.x, renderedY + height / 2 + 34);
+            ctx.fillText(String(position.status).toUpperCase(), position.x, renderedY + renderedHeight / 2 + 34);
         }
         ctx.restore();
         if (active && !playing) {
@@ -1772,6 +1837,7 @@
             id: uid('actor'), type: type, name: meta.label + ' ' + (sameType + 1),
             image: (config.actorImages || {})[type] || '', color: meta.color, speedKmh: 0,
             massKg: PHYSICS_DEFAULTS[type].massKg, cgHeight: PHYSICS_DEFAULTS[type].cgHeight, grip: PHYSICS_DEFAULTS[type].grip,
+            initialRoll: 0, rollImpulse: 0,
             scaleX: 1, scaleY: 1,
             keyframes: [{ time: currentTime, x: center.x + offset, y: center.y + (offset % 180), rotation: 0 }]
         };
@@ -1903,6 +1969,12 @@
             el.rtActorMass.value = actor.massKg;
             el.rtActorCgHeight.value = actor.cgHeight;
             el.rtActorGrip.value = actor.grip;
+            el.rtRolloverControls.hidden = !canRollover(actor);
+            if (canRollover(actor)) {
+                el.rtActorInitialRoll.value = String(Number(actor.initialRoll) || 0);
+                el.rtActorRollImpulse.value = Number(actor.rollImpulse) || 0;
+                el.rtActorRollImpulseValue.textContent = (Number(actor.rollImpulse) || 0) + ' °/s';
+            }
             updateActorRotationControls();
             renderKeyframes();
         }
@@ -2403,6 +2475,40 @@
     el.rtActorMass.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.massKg = clamp(el.rtActorMass.value, 40, 50000); renderAll(); markDirty(); });
     el.rtActorCgHeight.addEventListener('change', function () { const actor = selectedActor(); if (!actor) return; pushHistory(); actor.cgHeight = clamp(el.rtActorCgHeight.value, .2, 3); renderAll(); markDirty(); });
     el.rtActorGrip.addEventListener('input', function () { const actor = selectedActor(); if (!actor) return; actor.grip = clamp(el.rtActorGrip.value, .15, 1.3); renderAll(); markDirty(); });
+    el.rtActorInitialRoll.addEventListener('change', function () {
+        const actor = selectedActor();
+        if (!canRollover(actor)) return;
+        pushHistory();
+        actor.initialRoll = clamp(el.rtActorInitialRoll.value, -180, 180);
+        physicsCache = null;
+        renderAll();
+        markDirty();
+    });
+    el.rtActorRollImpulse.addEventListener('pointerdown', function () {
+        if (canRollover(selectedActor())) pushHistory();
+    });
+    el.rtActorRollImpulse.addEventListener('input', function () {
+        const actor = selectedActor();
+        if (!canRollover(actor)) return;
+        actor.rollImpulse = clamp(el.rtActorRollImpulse.value, -360, 360);
+        el.rtActorRollImpulseValue.textContent = actor.rollImpulse + ' °/s';
+        physicsCache = null;
+        renderAll();
+        markDirty();
+    });
+    document.querySelectorAll('[data-roll-impulse]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const actor = selectedActor();
+            if (!canRollover(actor)) return;
+            pushHistory();
+            actor.rollImpulse = clamp(button.dataset.rollImpulse, -360, 360);
+            el.rtActorRollImpulse.value = actor.rollImpulse;
+            el.rtActorRollImpulseValue.textContent = actor.rollImpulse + ' °/s';
+            physicsCache = null;
+            renderAll();
+            markDirty();
+        });
+    });
     el.rtActorRotation.addEventListener('change', function () { if (!selectedActor()) return; pushHistory(); setActorRotation(el.rtActorRotation.value); });
     el.rtActorRotationRange.addEventListener('pointerdown', function () { if (selectedActor()) pushHistory(); });
     el.rtActorRotationRange.addEventListener('input', function () { setActorRotation(el.rtActorRotationRange.value); });

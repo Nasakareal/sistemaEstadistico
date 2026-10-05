@@ -10,7 +10,7 @@ class ConstanciaExamenCuestionarioService
 
     public function generar(string $tipoLicencia, string $semilla)
     {
-        return ConstanciaPregunta::with(['respuestas' => function ($query) {
+        $preguntas = ConstanciaPregunta::with(['respuestas' => function ($query) {
                 $query->orderBy('id');
             }])
             ->where('activo', true)
@@ -25,5 +25,27 @@ class ConstanciaExamenCuestionarioService
             })
             ->take(self::TOTAL_PREGUNTAS)
             ->values();
+
+        if ($preguntas->count() >= self::TOTAL_PREGUNTAS
+            || !in_array($tipoLicencia, ['CHOFER', 'SERVICIO_PUBLICO', 'PERMISO'], true)) {
+            return $preguntas;
+        }
+
+        $faltantes = self::TOTAL_PREGUNTAS - $preguntas->count();
+        $respaldo = ConstanciaPregunta::with(['respuestas' => function ($query) {
+                $query->orderBy('id');
+            }])
+            ->where('activo', true)
+            ->where('tipo_licencia', 'AUTOMOVILISTA')
+            ->whereNotIn('id', $preguntas->pluck('id'))
+            ->orderBy('id')
+            ->get()
+            ->sortBy(function (ConstanciaPregunta $pregunta) use ($semilla) {
+                return hash('sha256', $semilla . '|respaldo|' . $pregunta->id);
+            })
+            ->take($faltantes)
+            ->values();
+
+        return $preguntas->concat($respaldo)->values();
     }
 }

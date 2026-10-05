@@ -9,6 +9,7 @@ use App\Models\ConstanciaExamenSolicitud;
 use App\Models\ConstanciaFolio;
 use App\Models\ConstanciaManejo;
 use App\Models\ConstanciaModulo;
+use App\Services\ConstanciaExamenCuestionarioService;
 use App\Services\ConstanciaManejoWhatsAppService;
 use Carbon\Carbon;
 use Endroid\QrCode\Color\Color;
@@ -22,6 +23,13 @@ use Illuminate\Support\Str;
 
 class ConstanciaManejoController extends Controller
 {
+    private ConstanciaExamenCuestionarioService $cuestionarios;
+
+    public function __construct(ConstanciaExamenCuestionarioService $cuestionarios)
+    {
+        $this->cuestionarios = $cuestionarios;
+    }
+
     public function index(Request $request)
     {
         $this->authorizeConstanciasUnidad();
@@ -76,6 +84,50 @@ class ConstanciaManejoController extends Controller
             'ok' => true,
             'data' => $modulos,
         ]);
+    }
+
+    public function examenesImprimibles()
+    {
+        $this->authorizeConstanciasUnidad();
+
+        $usuario = auth()->user();
+        $moduloId = (int) ($this->queryModulosPermitidos()->value('id') ?? 0);
+        $tipos = [
+            'SERVICIO_PUBLICO' => 'Servicio publico',
+            'AUTOMOVILISTA' => 'Automovilista',
+            'CHOFER' => 'Chofer',
+            'MOTOCICLISTA' => 'Motociclista',
+            'PERMISO' => 'Permiso',
+        ];
+
+        $data = collect($tipos)->map(function ($label, $tipo) use ($usuario, $moduloId) {
+            $semilla = hash('sha256', implode('|', [
+                'examen-imprimible',
+                (int) $usuario->id,
+                $moduloId,
+                $tipo,
+                Carbon::now('America/Mexico_City')->format('Y-m-d'),
+            ]));
+            $preguntas = $this->cuestionarios->generar($tipo, $semilla);
+            $disponible = $preguntas->count() === ConstanciaExamenCuestionarioService::TOTAL_PREGUNTAS;
+
+            return [
+                'tipo_licencia' => $tipo,
+                'label' => $label,
+                'total_preguntas' => $preguntas->count(),
+                'disponible' => $disponible,
+                'url_imprimir' => $disponible
+                    ? URL::temporarySignedRoute(
+                        'constancias_manejo.preguntas.imprimir_firmado',
+                        Carbon::now('America/Mexico_City')->addMinutes(30),
+                        ['tipoLicencia' => $tipo, 'semilla' => $semilla]
+                    )
+                    : null,
+                'solucionario' => $disponible ? $this->solucionario($preguntas) : [],
+            ];
+        })->values();
+
+        return response()->json(['ok' => true, 'data' => $data]);
     }
 
     public function store(Request $request)
@@ -841,6 +893,7 @@ class ConstanciaManejoController extends Controller
             && Carbon::now('America/Mexico_City')->lessThanOrEqualTo($solicitud->token_expira)
             && !$solicitud->constancia_id
         );
+        $preguntas = $this->cuestionarios->generar($solicitud->tipo_licencia, $solicitud->token);
 
         return [
             'id' => $solicitud->id,
@@ -871,7 +924,21 @@ class ConstanciaManejoController extends Controller
             'qr_examen_base64' => $tokenVigente ? base64_encode($this->qrPng($this->examenSolicitudUrl($solicitud))) : null,
             'puede_capturar_impreso' => $solicitud->modalidad === 'IMPRESO' && !$solicitud->constancia_id,
             'puede_activar_constancia' => $solicitud->estatus === 'APROBADO' && !$solicitud->constancia_id,
+            'solucionario' => $this->solucionario($preguntas),
         ];
+    }
+
+    private function solucionario($preguntas): array
+    {
+        return $preguntas->values()->map(function ($pregunta, $index) {
+            $correcta = $pregunta->respuestas->firstWhere('es_correcta', true);
+
+            return [
+                'numero' => $index + 1,
+                'pregunta' => $pregunta->texto_impresion,
+                'respuesta_correcta' => $correcta ? $correcta->texto_impresion : null,
+            ];
+        })->all();
     }
 
     private function examenSolicitudUrl(ConstanciaExamenSolicitud $solicitud): string

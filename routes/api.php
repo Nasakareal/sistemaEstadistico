@@ -255,6 +255,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('constancias-manejo')->middleware('can:ver modulo examenes')->group(function () {
         Route::get('/', [ApiConstanciaManejoController::class, 'index'])->name('api.constancias_manejo.index');
         Route::get('/modulos', [ApiConstanciaManejoController::class, 'modulos'])->name('api.constancias_manejo.modulos');
+        Route::get('/examenes-imprimibles', [ApiConstanciaManejoController::class, 'examenesImprimibles'])->name('api.constancias_manejo.examenes_imprimibles');
         Route::post('/', [ApiConstanciaManejoController::class, 'store'])->middleware('can:crear modulo examenes')->name('api.constancias_manejo.store');
         Route::post('/examenes', [ApiConstanciaManejoController::class, 'storeExamen'])->middleware('can:editar modulo examenes')->name('api.constancias_manejo.examenes.store');
         Route::get('/examenes/qr/{token}', [ApiConstanciaManejoController::class, 'buscarExamenPorQr'])->name('api.constancias_manejo.examenes.qr');

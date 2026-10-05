@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConstanciaPregunta;
+use App\Services\ConstanciaExamenCuestionarioService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,13 @@ use Illuminate\Validation\ValidationException;
 
 class ConstanciaPreguntaController extends Controller
 {
+    private ConstanciaExamenCuestionarioService $cuestionarios;
+
+    public function __construct(ConstanciaExamenCuestionarioService $cuestionarios)
+    {
+        $this->cuestionarios = $cuestionarios;
+    }
+
     public const TIPOS_LICENCIA = [
         'GENERAL' => 'General',
         'MOTOCICLISTA' => 'Motociclista',
@@ -31,18 +39,11 @@ class ConstanciaPreguntaController extends Controller
 
     public function descargas()
     {
-        $conteosPorTipo = ConstanciaPregunta::query()
-            ->where('activo', true)
-            ->selectRaw('tipo_licencia, COUNT(*) as total')
-            ->groupBy('tipo_licencia')
-            ->pluck('total', 'tipo_licencia');
-
-        $preguntasGenerales = (int) $conteosPorTipo->get('GENERAL', 0);
         $tiposExamen = collect(self::TIPOS_EXAMEN_DESCARGABLES)
             ->map(fn ($label, $tipo) => [
                 'tipo' => $tipo,
                 'label' => $label,
-                'total' => $preguntasGenerales + (int) $conteosPorTipo->get($tipo, 0),
+                'total' => $this->cuestionarios->generar($tipo, 'catalogo-' . $tipo)->count(),
             ])
             ->values();
 
@@ -75,6 +76,29 @@ class ConstanciaPreguntaController extends Controller
             ])
             ->setPaper('letter')
             ->download('examen_' . Str::slug($tipoLicenciaLabel, '_') . '.pdf');
+    }
+
+    public function imprimirFirmado(Request $request, string $tipoLicencia)
+    {
+        abort_unless(array_key_exists($tipoLicencia, self::TIPOS_EXAMEN_DESCARGABLES), 404);
+
+        $semilla = trim((string) $request->query('semilla'));
+        abort_unless((bool) preg_match('/^[a-f0-9]{64}$/', $semilla), 404);
+
+        $preguntas = $this->cuestionarios->generar($tipoLicencia, $semilla);
+        abort_unless($preguntas->count() === ConstanciaExamenCuestionarioService::TOTAL_PREGUNTAS, 422);
+
+        $label = self::TIPOS_EXAMEN_DESCARGABLES[$tipoLicencia];
+
+        return Pdf::loadView('constancia_preguntas.imprimir', [
+                'preguntas' => $preguntas,
+                'tipoLicencia' => $tipoLicencia,
+                'tipoLicenciaLabel' => $label,
+                'logoSrc' => $this->imageDataUri(public_path('img/blanco.png')) ?? asset('img/blanco.png'),
+                'modoPdf' => true,
+            ])
+            ->setPaper('letter')
+            ->stream('examen_' . Str::slug($label, '_') . '.pdf');
     }
 
     public function index(Request $request)
@@ -219,17 +243,7 @@ class ConstanciaPreguntaController extends Controller
 
     private function preguntasParaTipo(string $tipoLicencia)
     {
-        return ConstanciaPregunta::with(['respuestas' => function ($query) {
-                $query->orderBy('id');
-            }])
-            ->where('activo', true)
-            ->where(function ($query) use ($tipoLicencia) {
-                $query->where('tipo_licencia', $tipoLicencia)
-                    ->orWhere('tipo_licencia', 'GENERAL');
-            })
-            ->inRandomOrder()
-            ->limit(20)
-            ->get();
+        return $this->cuestionarios->generar($tipoLicencia, (string) Str::uuid());
     }
 
     private function imageDataUri(string $path): ?string

@@ -122,6 +122,10 @@ Route::prefix('constancias-manejo')->group(function () {
     Route::get('/examen-escrito/{token}', [ConstanciaExamenPublicoController::class, 'escrito'])->name('constancias_manejo.examen.escrito');
     Route::get('/validar/{token}', [ConstanciaValidacionController::class, 'validar'])->name('constancias_manejo.validar');
     Route::get('/imprimir-lote-firmado', [ConstanciaManejoController::class, 'imprimirLoteFirmado'])->middleware('signed')->name('constancias_manejo.imprimir_lote_firmado');
+    Route::get('/imprimir-examen/{tipoLicencia}', [ConstanciaPreguntaController::class, 'imprimirFirmado'])
+        ->where('tipoLicencia', 'MOTOCICLISTA|AUTOMOVILISTA|CHOFER|SERVICIO_PUBLICO|PERMISO')
+        ->middleware('signed')
+        ->name('constancias_manejo.preguntas.imprimir_firmado');
 });
 
 Route::prefix('calea')->middleware(['auth', 'can:ver calea'])->group(function () {

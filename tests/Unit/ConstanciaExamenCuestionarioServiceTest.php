@@ -9,6 +9,7 @@ use App\Services\ConstanciaExamenCuestionarioService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class ConstanciaExamenCuestionarioServiceTest extends TestCase
@@ -84,15 +85,29 @@ class ConstanciaExamenCuestionarioServiceTest extends TestCase
         $this->assertSame('A) Ceder el paso', $respuesta->respuesta);
     }
 
-    public function test_pagina_de_descargas_muestra_solo_tipos_de_examen_y_suma_preguntas_generales(): void
+    public function test_pagina_de_descargas_muestra_solo_los_cinco_tipos_de_examen(): void
     {
         $view = app(ConstanciaPreguntaController::class)->descargas();
         $tipos = $view->getData()['tiposExamen']->keyBy('tipo');
 
         $this->assertCount(5, $tipos);
         $this->assertFalse($tipos->has('GENERAL'));
-        $this->assertSame(30, $tipos->get('AUTOMOVILISTA')['total']);
-        $this->assertSame(5, $tipos->get('CHOFER')['total']);
+        $this->assertSame(20, $tipos->get('AUTOMOVILISTA')['total']);
+        $this->assertSame(20, $tipos->get('CHOFER')['total']);
+    }
+
+    public function test_completa_modalidades_vehiculares_con_banco_automovilista(): void
+    {
+        $service = app(ConstanciaExamenCuestionarioService::class);
+
+        foreach (['CHOFER', 'SERVICIO_PUBLICO', 'PERMISO'] as $tipo) {
+            $preguntas = $service->generar($tipo, 'semilla-' . $tipo);
+
+            $this->assertCount(20, $preguntas);
+            $this->assertTrue($preguntas->every(
+                fn ($pregunta) => in_array($pregunta->tipo_licencia, ['GENERAL', 'AUTOMOVILISTA'], true)
+            ));
+        }
     }
 
     public function test_descarga_directamente_el_examen_como_pdf(): void
@@ -105,6 +120,19 @@ class ConstanciaExamenCuestionarioServiceTest extends TestCase
             'attachment; filename="examen_automovilista.pdf"',
             $response->headers->get('content-disposition')
         );
+    }
+
+    public function test_pdf_firmado_usa_la_semilla_y_no_imprime_solucionario(): void
+    {
+        $request = Request::create('/constancias-manejo/imprimir-examen/CHOFER', 'GET', [
+            'semilla' => str_repeat('a', 64),
+        ]);
+
+        $response = app(ConstanciaPreguntaController::class)->imprimirFirmado($request, 'CHOFER');
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+        $this->assertStringNotContainsString('Solucionario', $response->getContent());
     }
 
     private function crearPregunta(string $tipoLicencia, string $texto): void

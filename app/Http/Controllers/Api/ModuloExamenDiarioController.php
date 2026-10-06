@@ -136,9 +136,9 @@ class ModuloExamenDiarioController extends Controller
 
         $data['total'] = array_sum(array_map(fn ($field) => $data[$field], self::TIPOS_EXAMEN));
 
-        if (trim((string) ($data['informado_por'] ?? '')) === '') {
-            $data['informado_por'] = optional($request->user())->name;
-        }
+        // El informante siempre es la cuenta autenticada. No se acepta un
+        // nombre capturado manualmente para evitar atribuir el reporte a otra persona.
+        $data['informado_por'] = optional($request->user())->name;
 
         return $data;
     }

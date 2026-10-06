@@ -37,6 +37,7 @@
 </div>
 @endif
 
+@if($puedeGenerarLotes)
 <div class="row">
     <div class="col-md-12">
         <div class="card card-outline card-success">
@@ -102,6 +103,7 @@
         </div>
     </div>
 </div>
+@endif
 
 <div class="row">
     <div class="col-md-12">
@@ -112,11 +114,11 @@
 
                 <div class="card-tools">
 
-                    @can('crear modulo examenes')
+                    @if($puedeGenerarLotes)
                         <a href="{{ route('constancias_manejo.create') }}" class="btn btn-primary">
                             <i class="fa-solid fa-print"></i> Generar lote
                         </a>
-                    @endcan
+                    @endif
 
                     @can('editar modulo examenes')
                         <a href="{{ route('constancias_manejo.activar_manual') }}" class="btn btn-success">

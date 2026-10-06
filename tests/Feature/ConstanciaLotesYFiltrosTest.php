@@ -161,6 +161,41 @@ class ConstanciaLotesYFiltrosTest extends TestCase
         $this->assertDatabaseCount('constancias_manejo', 2);
     }
 
+    public function test_evaluador_solo_ve_constancias_que_el_mismo_activo(): void
+    {
+        DB::table('constancias_manejo')->insert([
+            array_merge($this->constancia(3, 'S-0002', 1, '33333333-3333-4333-8333-333333333333'), [
+                'perito_activador_id' => 1,
+                'estatus' => 'ACTIVA',
+            ]),
+            array_merge($this->constancia(4, 'S-0003', 1, '44444444-4444-4444-8444-444444444444'), [
+                'perito_activador_id' => 99,
+                'estatus' => 'ACTIVA',
+            ]),
+        ]);
+
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 1;
+        $user->unidad_id = 1;
+        $user->constancia_modulo_id = 1;
+        $user->shouldReceive('isSuperadmin')->andReturn(false);
+        $user->shouldReceive('hasRole')->with('Superadmin')->andReturn(false);
+        $user->shouldReceive('hasAnyRole')
+            ->with(['Evaluador Teórico', 'Evaluador Teorico'])
+            ->andReturn(true);
+        Auth::setUser($user);
+
+        $view = $this->app->make(ConstanciaManejoController::class)->index(
+            Request::create('/constancias-manejo', 'GET')
+        );
+
+        $data = $view->getData();
+        $this->assertSame(1, $data['constancias']->total());
+        $this->assertSame('S-0002', $data['constancias']->first()->folio);
+        $this->assertFalse($data['puedeGenerarLotes']);
+        $this->assertSame(0, $data['lotes']->total());
+    }
+
     public function test_descarga_el_lote_completo_como_pdf(): void
     {
         $response = $this->app->make(ConstanciaManejoController::class)

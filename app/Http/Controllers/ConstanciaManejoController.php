@@ -42,6 +42,14 @@ class ConstanciaManejoController extends Controller
             403,
             'No tienes permiso para ver esta constancia.'
         );
+
+        if (
+            $this->esEvaluadorTeoricoSiniestros()
+            && $constancia->perito_activador_id
+            && (int) $constancia->perito_activador_id !== (int) auth()->id()
+        ) {
+            abort(403, 'Esta constancia fue activada por otro evaluador.');
+        }
     }
 
     public function index(Request $request)
@@ -49,6 +57,10 @@ class ConstanciaManejoController extends Controller
         $query = $this->queryConstanciasDisponibles()
             ->with(['modulo', 'usuario', 'peritoActivador', 'examen'])
             ->orderByDesc('id');
+
+        if ($this->esEvaluadorTeoricoSiniestros()) {
+            $query->where('perito_activador_id', auth()->id());
+        }
 
         $this->aplicarFiltrosModulo($query, $request);
 
@@ -70,9 +82,14 @@ class ConstanciaManejoController extends Controller
             ->paginate(25, ['*'], 'pagina_constancias')
             ->appends($request->query());
 
+        $puedeGenerarLotes = !$this->esEvaluadorTeoricoSiniestros();
         $lotesQuery = $this->queryConstanciasDisponibles()
             ->with(['modulo:id,nombre,tipo', 'usuario:id,name'])
             ->whereNotNull('lote_uuid');
+
+        if (!$puedeGenerarLotes) {
+            $lotesQuery->whereRaw('1 = 0');
+        }
 
         $this->aplicarFiltrosModulo($lotesQuery, $request);
 
@@ -94,7 +111,8 @@ class ConstanciaManejoController extends Controller
             'lotes',
             'modulosFiltro',
             'tipoModulo',
-            'isSuperadmin'
+            'isSuperadmin',
+            'puedeGenerarLotes'
         ));
     }
 
@@ -113,6 +131,12 @@ class ConstanciaManejoController extends Controller
 
     public function create()
     {
+        abort_if(
+            $this->esEvaluadorTeoricoSiniestros(),
+            403,
+            'Los evaluadores teoricos no pueden generar lotes de constancias.'
+        );
+
         $modulos = $this->queryModulosDisponibles()->get();
         $tiposModuloDisponibles = $modulos
             ->pluck('tipo')
@@ -124,6 +148,12 @@ class ConstanciaManejoController extends Controller
 
     public function store(Request $request)
     {
+        abort_if(
+            $this->esEvaluadorTeoricoSiniestros(),
+            403,
+            'Los evaluadores teoricos no pueden generar lotes de constancias.'
+        );
+
         $request->validate([
             'tipo_modulo' => ['required', 'in:SINIESTROS,DELEGACION'],
             'modulo_id' => ['required', 'exists:constancia_modulos,id'],
@@ -324,6 +354,15 @@ class ConstanciaManejoController extends Controller
             'loteIds' => $ids,
             'loteUuid' => $loteUuids->count() === 1 ? $loteUuids->first() : null,
         ]);
+    }
+
+    private function esEvaluadorTeoricoSiniestros(): bool
+    {
+        $usuario = auth()->user();
+
+        return $usuario
+            && (int) ($usuario->unidad_id ?? 0) === 1
+            && $usuario->hasAnyRole(['Evaluador Teórico', 'Evaluador Teorico']);
     }
 
     public function descargarLote(string $lote)

@@ -38,6 +38,10 @@ class ConstanciaManejoController extends Controller
             ->with(['modulo', 'examen', 'peritoActivador'])
             ->orderByDesc('id');
 
+        if ($this->esEvaluadorTeoricoSiniestros()) {
+            $query->where('perito_activador_id', auth()->id());
+        }
+
         if ($request->filled('estatus')) {
             $query->where('estatus', $request->query('estatus'));
         }
@@ -130,9 +134,73 @@ class ConstanciaManejoController extends Controller
         return response()->json(['ok' => true, 'data' => $data]);
     }
 
+    public function resumenDiario(Request $request)
+    {
+        $this->authorizeConstanciasUnidad();
+
+        $request->validate([
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $fecha = $request->filled('fecha')
+            ? Carbon::createFromFormat('Y-m-d', (string) $request->query('fecha'), 'America/Mexico_City')
+            : Carbon::now('America/Mexico_City');
+        $usuario = auth()->user();
+        $modulo = $this->queryModulosPermitidos()->first();
+
+        $examenesQuery = ConstanciaExamenSolicitud::query()
+            ->with('constancia:id,folio')
+            ->where('user_id', $usuario->id)
+            ->whereDate('fecha_examen', $fecha->format('Y-m-d'))
+            ->whereIn('estatus', ['APROBADO', 'REPROBADO']);
+
+        if ($modulo) {
+            $examenesQuery->where('modulo_id', $modulo->id);
+        }
+
+        $examenes = $examenesQuery->get();
+
+        $conteoTipo = fn (string $tipo): int => $examenes
+            ->where('tipo_licencia', $tipo)
+            ->count();
+        $folios = $examenes
+            ->map(fn (ConstanciaExamenSolicitud $examen) => optional($examen->constancia)->folio)
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'id' => 0,
+                'fecha' => $fecha->format('Y-m-d'),
+                'modulo_nombre' => $modulo->nombre ?? 'Sin modulo asignado',
+                'servicio_publico' => $conteoTipo('SERVICIO_PUBLICO'),
+                'automovilista' => $conteoTipo('AUTOMOVILISTA'),
+                'chofer' => $conteoTipo('CHOFER'),
+                'motociclista' => $conteoTipo('MOTOCICLISTA'),
+                'permiso' => $conteoTipo('PERMISO'),
+                'total' => $examenes->count(),
+                'hombres' => $examenes->where('sexo', 'HOMBRE')->count(),
+                'mujeres' => $examenes->where('sexo', 'MUJER')->count(),
+                'aprobados' => $examenes->where('estatus', 'APROBADO')->count(),
+                'reprobados' => $examenes->where('estatus', 'REPROBADO')->count(),
+                'folios' => $folios !== '' ? $folios : null,
+                'informado_por' => $usuario->name,
+            ],
+        ]);
+    }
+
     public function store(Request $request)
     {
         $this->authorizeConstanciasUnidad();
+
+        abort_if(
+            $this->esEvaluadorTeoricoSiniestros(),
+            403,
+            'Los evaluadores teoricos no pueden generar lotes de constancias.'
+        );
 
         $request->validate([
             'modulo_id' => ['required', 'integer', 'exists:constancia_modulos,id'],
@@ -1046,6 +1114,23 @@ class ConstanciaManejoController extends Controller
             403,
             'No tienes permiso para ver esta constancia.'
         );
+
+        if (
+            $this->esEvaluadorTeoricoSiniestros()
+            && $constancia->perito_activador_id
+            && (int) $constancia->perito_activador_id !== (int) auth()->id()
+        ) {
+            abort(403, 'Esta constancia fue activada por otro evaluador.');
+        }
+    }
+
+    private function esEvaluadorTeoricoSiniestros(): bool
+    {
+        $usuario = auth()->user();
+
+        return $usuario
+            && (int) ($usuario->unidad_id ?? 0) === 1
+            && $usuario->hasAnyRole(['Evaluador Teórico', 'Evaluador Teorico']);
     }
 
     private function authorizeConstanciasUnidad(): void

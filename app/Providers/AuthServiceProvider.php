@@ -32,7 +32,10 @@ class AuthServiceProvider extends ServiceProvider
 
             if (
                 in_array($this->normalizeAbility($ability), ['ver actividades', 'crear actividades'], true)
-                && $this->isMotociclistaVialidadesUser($user)
+                && (
+                    $this->isMotociclistaVialidadesUser($user)
+                    || $this->isEvaluadorTeoricoSiniestrosUser($user)
+                )
             ) {
                 return true;
             }
@@ -405,6 +408,15 @@ class AuthServiceProvider extends ServiceProvider
     {
         return (int) ($user->unidad_id ?? 0) === 5
             && $user->hasRole('Motociclista');
+    }
+
+    private function isEvaluadorTeoricoSiniestrosUser($user): bool
+    {
+        return (int) ($user->unidad_id ?? 0) === 1
+            && $user->hasAnyRole([
+                'Evaluador Teórico',
+                'Evaluador Teorico',
+            ]);
     }
 
     private function isOficiosAbility($ability): bool

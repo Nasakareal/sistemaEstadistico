@@ -574,10 +574,24 @@ return [
                     'icon' => 'fa-solid fa-road',
                     'submenu' => [
                         [
+                            'text'    => 'Concentrado',
+                            'icon'    => 'fa-solid fa-table-cells-large',
+                            'classes' => 'text-warning',
+                            'route'   => 'estadisticas_carreteras.concentrado',
+                            'can'     => 'menu-estadisticas-carreteras',
+                        ],
+                        [
                             'text'    => 'Panel Carreteras',
                             'icon'    => 'fa-solid fa-chart-line',
                             'classes' => 'text-white',
                             'url'     => 'estadisticas-carreteras',
+                            'can'     => 'menu-estadisticas-carreteras',
+                        ],
+                        [
+                            'text'    => 'Puestas por elemento',
+                            'icon'    => 'fa-solid fa-ranking-star',
+                            'classes' => 'text-success',
+                            'route'   => 'estadisticas_carreteras.elementos',
                             'can'     => 'menu-estadisticas-carreteras',
                         ],
                         [

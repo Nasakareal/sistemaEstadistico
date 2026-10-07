@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\EstadisticasCarreterasController;
+use App\Models\Destacamento;
 use App\Models\PuestaDisposicion;
 use App\Models\Unidad;
 use App\Models\User;
@@ -58,14 +59,101 @@ class EstadisticasCarreterasElementosTest extends TestCase
         $this->assertCount(2, $puestas['data']);
     }
 
+    public function test_concentrado_calcula_totales_por_destacamento_y_conserva_sexo_no_especificado(): void
+    {
+        $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();
+        $usuario = User::factory()->create(['unidad_id' => $unidad->id]);
+        $destacamento = Destacamento::query()->create([
+            'unidad_id' => $unidad->id,
+            'clave' => 'PRUEBA-CONCENTRADO-' . uniqid(),
+            'nombre' => 'DESTACAMENTO PRUEBA CONCENTRADO',
+            'activo' => true,
+        ]);
+        $fecha = now()->toDateString();
+        $anio = (int) now()->year;
+        $numero = $this->siguienteNumero($anio, $unidad->id);
+
+        $this->crearPuesta($numero, $anio, $unidad->id, $fecha, 'PRIMER ELEMENTO', [
+            'destacamento_id' => $destacamento->id,
+            'numero_aseguramientos' => 2,
+            'numero_faltas_administrativas' => 1,
+            'numero_detenidos' => 2,
+            'sexo_resumen' => 'H',
+        ]);
+        $this->crearPuesta($numero + 1, $anio, $unidad->id, $fecha, 'SEGUNDO ELEMENTO', [
+            'destacamento_id' => $destacamento->id,
+            'numero_aseguramientos' => 3,
+            'numero_detenidos' => 1,
+            'sexo_resumen' => null,
+        ]);
+
+        $request = Request::create('/estadisticas-carreteras/concentrado', 'GET', [
+            'desde' => $fecha,
+            'hasta' => $fecha,
+            'destacamento_id' => $destacamento->id,
+        ]);
+        $request->setUserResolver(fn () => $usuario);
+
+        $data = (new EstadisticasCarreterasController())->concentrado($request)->getData();
+
+        $this->assertSame(2, $data['totales']['puestas']);
+        $this->assertSame(5, $data['totales']['aseguramientos']);
+        $this->assertSame(4, $data['totales']['detenciones']);
+        $this->assertSame(3, $data['totales']['hombres']);
+        $this->assertSame(1, $data['totales']['no_especificado']);
+        $this->assertSame('DESTACAMENTO PRUEBA CONCENTRADO', $data['filas']->first()->destacamento);
+    }
+
+    public function test_vista_elementos_suma_primer_respondiente_y_participaciones_sin_duplicar_una_puesta(): void
+    {
+        $unidad = Unidad::query()->where('slug', 'carreteras')->firstOrFail();
+        $usuario = User::factory()->create(['unidad_id' => $unidad->id]);
+        $destacamento = Destacamento::query()->create([
+            'unidad_id' => $unidad->id,
+            'clave' => 'PRUEBA-ELEMENTOS-' . uniqid(),
+            'nombre' => 'DESTACAMENTO PRUEBA ELEMENTOS',
+            'activo' => true,
+        ]);
+        $fecha = now()->toDateString();
+        $anio = (int) now()->year;
+        $numero = $this->siguienteNumero($anio, $unidad->id);
+
+        $this->crearPuesta($numero, $anio, $unidad->id, $fecha, 'ANA MARIA LOPEZ', [
+            'destacamento_id' => $destacamento->id,
+            'personal_participante' => 'JUAN PEREZ',
+        ]);
+        $this->crearPuesta($numero + 1, $anio, $unidad->id, $fecha, 'LOPEZ ANA MARIA, JUAN PEREZ', [
+            'destacamento_id' => $destacamento->id,
+            'personal_participante' => 'JUAN PEREZ',
+        ]);
+
+        $request = Request::create('/estadisticas-carreteras/elementos', 'GET', [
+            'desde' => $fecha,
+            'hasta' => $fecha,
+            'destacamento_id' => $destacamento->id,
+        ]);
+        $request->setUserResolver(fn () => $usuario);
+
+        $data = (new EstadisticasCarreterasController())->elementos($request)->getData();
+        $ana = $data['ranking']->firstWhere('nombre', 'ANA MARIA LOPEZ');
+        $juan = $data['ranking']->firstWhere('nombre', 'JUAN PEREZ');
+
+        $this->assertSame(2, $ana['total']);
+        $this->assertSame(2, $ana['primer_respondiente']);
+        $this->assertSame(2, $juan['total']);
+        $this->assertSame(2, $juan['participaciones']);
+        $this->assertSame(2, $data['totalPuestas']);
+    }
+
     private function crearPuesta(
         int $numero,
         int $anio,
         int $unidadId,
         string $fecha,
-        string $nombrePolicia
+        string $nombrePolicia,
+        array $extra = []
     ): PuestaDisposicion {
-        return PuestaDisposicion::query()->create([
+        return PuestaDisposicion::query()->create(array_merge([
             'numero_puesta' => $numero,
             'anio' => $anio,
             'tipo_puesta' => 'PERSONA',
@@ -75,6 +163,14 @@ class EstadisticasCarreterasElementosTest extends TestCase
             'area' => 'CARRETERAS',
             'fecha_puesta' => $fecha,
             'unidad_id' => $unidadId,
-        ]);
+        ], $extra));
+    }
+
+    private function siguienteNumero(int $anio, int $unidadId): int
+    {
+        return (int) PuestaDisposicion::query()
+            ->where('anio', $anio)
+            ->where('unidad_id', $unidadId)
+            ->max('numero_puesta') + 100;
     }
 }

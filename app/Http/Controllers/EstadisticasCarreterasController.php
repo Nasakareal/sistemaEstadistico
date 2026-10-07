@@ -7,6 +7,7 @@ use App\Models\Unidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EstadisticasCarreterasController extends Controller
@@ -22,6 +23,137 @@ class EstadisticasCarreterasController extends Controller
     public function index(Request $request)
     {
         return view('estadisticas_carreteras.index');
+    }
+
+    public function concentrado(Request $request)
+    {
+        $this->applyDefaultReportDates($request);
+        $q = $this->basePuestasQuery($request)
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'puestas_disposicion.destacamento_id');
+        $this->applyCarreterasUnitFilter($q);
+        $this->applyReportDetachmentFilter($q, $request);
+
+        $rows = $q->selectRaw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento")
+            ->selectRaw('COUNT(puestas_disposicion.id) as puestas')
+            ->selectRaw('SUM(COALESCE(puestas_disposicion.numero_aseguramientos, 0)) as aseguramientos')
+            ->selectRaw('SUM(COALESCE(puestas_disposicion.numero_faltas_administrativas, 0)) as faltas')
+            ->selectRaw('SUM(COALESCE(puestas_disposicion.numero_detenidos, 0)) as delitos')
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(puestas_disposicion.sexo_resumen, ''))) IN ('H', 'HOMBRE', 'MASCULINO') THEN COALESCE(puestas_disposicion.numero_faltas_administrativas, 0) + COALESCE(puestas_disposicion.numero_detenidos, 0) ELSE 0 END) as hombres")
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(puestas_disposicion.sexo_resumen, ''))) IN ('M', 'MUJER', 'F', 'FEMENINO') THEN COALESCE(puestas_disposicion.numero_faltas_administrativas, 0) + COALESCE(puestas_disposicion.numero_detenidos, 0) ELSE 0 END) as mujeres")
+            ->groupBy('destacamentos.id', 'destacamentos.nombre')
+            ->orderByDesc('puestas')
+            ->orderBy('destacamento')
+            ->get()
+            ->map(function ($row) {
+                $row->puestas = (int) $row->puestas;
+                $row->aseguramientos = (int) $row->aseguramientos;
+                $row->faltas = (int) $row->faltas;
+                $row->delitos = (int) $row->delitos;
+                $row->detenciones = $row->faltas + $row->delitos;
+                $row->hombres = (int) $row->hombres;
+                $row->mujeres = (int) $row->mujeres;
+                $row->no_especificado = max(0, $row->detenciones - $row->hombres - $row->mujeres);
+                return $row;
+            });
+
+        $totales = [
+            'puestas' => (int) $rows->sum('puestas'),
+            'aseguramientos' => (int) $rows->sum('aseguramientos'),
+            'faltas' => (int) $rows->sum('faltas'),
+            'delitos' => (int) $rows->sum('delitos'),
+            'detenciones' => (int) $rows->sum('detenciones'),
+            'hombres' => (int) $rows->sum('hombres'),
+            'mujeres' => (int) $rows->sum('mujeres'),
+            'no_especificado' => (int) $rows->sum('no_especificado'),
+        ];
+
+        return view('estadisticas_carreteras.concentrado', [
+            'filas' => $rows,
+            'totales' => $totales,
+            'lider' => $rows->first(),
+            'maxPuestas' => max(1, (int) $rows->max('puestas')),
+            'destacamentos' => $this->reportDetachments($request),
+            'filtros' => $this->reportFilters($request),
+        ]);
+    }
+
+    public function elementos(Request $request)
+    {
+        $this->applyDefaultReportDates($request);
+        $q = $this->basePuestasQuery($request)
+            ->leftJoin('destacamentos', 'destacamentos.id', '=', 'puestas_disposicion.destacamento_id');
+        $this->applyCarreterasUnitFilter($q);
+        $this->applyReportDetachmentFilter($q, $request);
+
+        $puestas = $q->select([
+            'puestas_disposicion.id',
+            'puestas_disposicion.destacamento_id',
+            'puestas_disposicion.nombre_policia',
+            'puestas_disposicion.personal_participante',
+            'puestas_disposicion.motivo',
+            'puestas_disposicion.descripcion_origen',
+            DB::raw("COALESCE(destacamentos.nombre, 'SIN DESTACAMENTO') as destacamento"),
+        ])->get();
+
+        $totalesDestacamento = $puestas->groupBy(fn ($row) => (string) ($row->destacamento_id ?: 0))
+            ->map->count();
+        $personas = [];
+
+        foreach ($puestas as $puesta) {
+            $participantes = $this->splitElementNames($puesta->personal_participante);
+            $participantKeys = collect($participantes)->map(fn ($name) => $this->personKey($name))->flip();
+            $primeros = $this->splitElementNames($puesta->nombre_policia);
+            if (count($primeros) > 1 && $participantKeys->isNotEmpty()) {
+                $filtrados = collect($primeros)
+                    ->reject(fn ($name) => $participantKeys->has($this->personKey($name)))
+                    ->values()
+                    ->all();
+                if ($filtrados) $primeros = $filtrados;
+            }
+
+            $primaryKeys = collect($primeros)->map(fn ($name) => $this->personKey($name))->flip();
+            foreach ($primeros as $name) {
+                $this->addElementParticipation($personas, $puesta, $name, 'primer_respondiente');
+            }
+            foreach ($participantes as $name) {
+                if (!$primaryKeys->has($this->personKey($name))) {
+                    $this->addElementParticipation($personas, $puesta, $name, 'participante');
+                }
+            }
+        }
+
+        $search = $this->normalizePersonName($request->query('q', ''));
+        $ranking = collect($personas)
+            ->map(function ($row) use ($totalesDestacamento) {
+                $row['primer_respondiente'] = count($row['primer_ids']);
+                $row['participaciones'] = count($row['participacion_ids']);
+                $row['total'] = count($row['puesta_ids']);
+                $row['total_destacamento'] = (int) ($totalesDestacamento[(string) $row['destacamento_id']] ?? 0);
+                arsort($row['motivos']);
+                $row['motivos_relevantes'] = collect($row['motivos'])->take(3)->keys()->implode(' · ');
+                unset($row['primer_ids'], $row['participacion_ids'], $row['puesta_ids'], $row['motivos']);
+                return $row;
+            })
+            ->when($search !== '', fn ($items) => $items->filter(fn ($row) => str_contains($this->normalizePersonName($row['nombre']), $search)))
+            ->sort(function ($a, $b) {
+                if ($a['total'] !== $b['total']) return $b['total'] <=> $a['total'];
+                if ($a['primer_respondiente'] !== $b['primer_respondiente']) return $b['primer_respondiente'] <=> $a['primer_respondiente'];
+                return strcmp($a['nombre'], $b['nombre']);
+            })
+            ->values()
+            ->map(function ($row, $index) {
+                $row['posicion'] = $index + 1;
+                return $row;
+            });
+
+        return view('estadisticas_carreteras.elementos', [
+            'ranking' => $ranking,
+            'podio' => $ranking->take(3),
+            'maxTotal' => max(1, (int) $ranking->max('total')),
+            'totalPuestas' => $puestas->count(),
+            'destacamentos' => $this->reportDetachments($request),
+            'filtros' => $this->reportFilters($request),
+        ]);
     }
 
     public function kpis(Request $request)
@@ -797,6 +929,114 @@ class EstadisticasCarreterasController extends Controller
                 ->orWhere('puestas_disposicion_objetos.descripcion', 'like', "%$search%")
                 ->orWhere('puestas_disposicion_objetos.cadena_custodia', 'like', "%$search%");
         });
+    }
+
+    private function applyDefaultReportDates(Request $request): void
+    {
+        if (!$request->query->has('desde') && !$request->query->has('hasta')) {
+            $request->query->set('desde', now()->startOfYear()->toDateString());
+            $request->query->set('hasta', now()->toDateString());
+        }
+    }
+
+    private function reportFilters(Request $request): array
+    {
+        return [
+            'desde' => trim((string) $request->query('desde', '')),
+            'hasta' => trim((string) $request->query('hasta', '')),
+            'destacamento_id' => (int) $request->query('destacamento_id', 0),
+            'q' => trim((string) $request->query('q', '')),
+        ];
+    }
+
+    private function applyReportDetachmentFilter($query, Request $request): void
+    {
+        $detachmentId = (int) $request->query('destacamento_id', 0);
+        if ($detachmentId > 0) {
+            $query->where('puestas_disposicion.destacamento_id', $detachmentId);
+        }
+    }
+
+    private function applyCarreterasUnitFilter($query): void
+    {
+        $unitId = (int) Unidad::query()->where('slug', 'carreteras')->value('id');
+        $query->where('puestas_disposicion.unidad_id', $unitId);
+    }
+
+    private function reportDetachments(Request $request)
+    {
+        $unitId = (int) Unidad::query()->where('slug', 'carreteras')->value('id');
+        $query = DB::table('destacamentos')
+            ->where('unidad_id', $unitId)
+            ->where('activo', true)
+            ->orderBy('nombre');
+
+        $user = $request->user();
+        if ($user && !$user->hasRole('Superadmin') && !is_null($user->destacamento_id)) {
+            $query->where('id', $user->destacamento_id);
+        }
+
+        return $query->get(['id', 'nombre']);
+    }
+
+    private function splitElementNames(?string $value): array
+    {
+        $value = trim((string) $value);
+        if ($value === '') return [];
+
+        return collect(preg_split('/\s*(?:,|;|\r?\n|\s+Y\s+)\s*/iu', $value) ?: [])
+            ->map(fn ($name) => trim((string) preg_replace('/\s+/', ' ', $name)))
+            ->filter(function ($name) {
+                if ($name === '') return false;
+                $normalized = $this->normalizePersonName($name);
+                return !in_array($normalized, ['SIN PARTICIPACION', 'SIN PERSONAL', 'NINGUNO', 'NINGUNA', 'NO APLICA', 'NA'], true);
+            })
+            ->unique(fn ($name) => $this->personKey($name))
+            ->values()
+            ->all();
+    }
+
+    private function personKey(?string $name): string
+    {
+        $tokens = array_values(array_filter(explode(' ', $this->normalizePersonName($name))));
+        sort($tokens);
+        return implode(' ', $tokens);
+    }
+
+    private function normalizePersonName(?string $name): string
+    {
+        return trim((string) preg_replace('/\s+/', ' ', preg_replace('/[^A-Z0-9]+/', ' ', Str::upper(Str::ascii((string) $name)))));
+    }
+
+    private function addElementParticipation(array &$people, $puesta, string $name, string $role): void
+    {
+        $personKey = $this->personKey($name);
+        if ($personKey === '') return;
+
+        $detachmentId = (int) ($puesta->destacamento_id ?? 0);
+        $key = $detachmentId . '|' . $personKey;
+        if (!isset($people[$key])) {
+            $people[$key] = [
+                'nombre' => Str::upper(trim((string) preg_replace('/\s+/', ' ', $name))),
+                'destacamento_id' => $detachmentId,
+                'destacamento' => $puesta->destacamento,
+                'primer_ids' => [],
+                'participacion_ids' => [],
+                'puesta_ids' => [],
+                'motivos' => [],
+            ];
+        }
+
+        $id = (int) $puesta->id;
+        $people[$key]['puesta_ids'][$id] = true;
+        if ($role === 'primer_respondiente') {
+            $people[$key]['primer_ids'][$id] = true;
+        } else {
+            $people[$key]['participacion_ids'][$id] = true;
+        }
+
+        $reason = trim((string) ($puesta->motivo ?: 'SIN MOTIVO ESPECIFICADO'));
+        $people[$key]['motivos'][$reason] = ($people[$key]['motivos'][$reason] ?? 0) + 1;
     }
 
     private function applyOperativosVisibilityScope($query, $usuario): void

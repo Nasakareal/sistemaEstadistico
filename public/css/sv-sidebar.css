@@ -1,0 +1,281 @@
+/* Navegación lateral: jerarquía, ubicación actual y búsqueda sin scroll horizontal. */
+.main-sidebar.sv-sidebar {
+    --side-text: #dbe8f7;
+    --side-muted: #8295ad;
+    --side-line: rgba(148, 163, 184, .14);
+    --side-cyan: #22d3ee;
+    --side-blue: #3b82f6;
+    --side-violet: #8b5cf6;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 15% 9%, rgba(14, 165, 233, .10), transparent 22rem),
+        linear-gradient(180deg, rgba(7, 19, 34, .99), rgba(5, 12, 23, .99)) !important;
+}
+
+.main-sidebar .sidebar,
+.main-sidebar .os-viewport,
+.main-sidebar .os-content {
+    overflow-x: hidden !important;
+}
+
+.main-sidebar .sidebar {
+    padding: 0 9px 18px !important;
+}
+
+.sv-sidebar-current {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    margin: 8px 1px 4px;
+    padding: 11px 12px 10px 15px;
+    overflow: hidden;
+    border: 1px solid rgba(34, 211, 238, .25);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(8, 47, 73, .97), rgba(30, 27, 75, .96));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+    backdrop-filter: blur(12px);
+}
+
+.sv-sidebar-current::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: linear-gradient(180deg, #67e8f9, #818cf8);
+    box-shadow: 0 0 14px rgba(34, 211, 238, .65);
+}
+
+.sv-sidebar-current span,
+.sv-sidebar-current strong,
+.sv-sidebar-current small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sv-sidebar-current span {
+    margin-bottom: 3px;
+    color: #70e6f5;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+
+.sv-sidebar-current span i { margin-right: 4px; }
+.sv-sidebar-current strong { color: #f8fbff; font-size: 13px; font-weight: 850; }
+.sv-sidebar-current small { margin-top: 2px; color: #a5b6cb; font-size: 10px; }
+
+.sv-sidebar-nav {
+    width: 100% !important;
+    padding: 2px 0 12px !important;
+    overflow: visible !important;
+}
+
+/* Buscador del menú. */
+.sv-sidebar-nav > li:not(.nav-item) {
+    position: sticky;
+    top: 74px;
+    z-index: 7;
+    margin: 0 1px 8px;
+    padding: 3px 0 5px;
+    background: rgba(6, 15, 28, .96);
+}
+
+.sv-sidebar-nav [data-widget="sidebar-search"] { width: 100%; }
+.sv-sidebar-nav .form-control-sidebar,
+.sv-sidebar-nav .btn-sidebar {
+    height: 39px;
+    color: #dce8f5 !important;
+    border-color: rgba(148, 163, 184, .17) !important;
+    background: rgba(15, 27, 44, .94) !important;
+}
+.sv-sidebar-nav .form-control-sidebar {
+    border-radius: 11px 0 0 11px !important;
+    font-size: 12px;
+}
+.sv-sidebar-nav .btn-sidebar { border-radius: 0 11px 11px 0 !important; }
+.sv-sidebar-nav .form-control-sidebar:focus {
+    border-color: rgba(34, 211, 238, .58) !important;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, .07) !important;
+}
+.sidebar-search-results .list-group-item {
+    color: #d9e6f5 !important;
+    border-color: var(--side-line) !important;
+    background: #101c2d !important;
+}
+
+/* Primer nivel: módulos principales. */
+.sv-sidebar-nav > .nav-item {
+    width: auto !important;
+    margin: 5px 1px !important;
+}
+
+.sv-sidebar-nav .nav-link {
+    position: relative;
+    width: 100% !important;
+    min-width: 0;
+    gap: 9px !important;
+    padding: 9px 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--side-text) !important;
+    transform: none !important;
+}
+
+.sv-sidebar-nav > .nav-item > .nav-link {
+    min-height: 47px;
+    border-color: rgba(148, 163, 184, .13) !important;
+    background: rgba(12, 25, 41, .66) !important;
+}
+
+.sv-sidebar-nav .nav-link:hover {
+    color: #fff !important;
+    border-color: rgba(125, 211, 252, .26) !important;
+    background: rgba(30, 57, 80, .56) !important;
+}
+
+.sv-sidebar-nav .nav-link > i:first-child {
+    width: 29px !important;
+    height: 29px !important;
+    border: 1px solid rgba(148, 163, 184, .16) !important;
+    border-radius: 9px !important;
+    color: #b9c9dc !important;
+    background: rgba(148, 163, 184, .075) !important;
+    font-size: 13px !important;
+}
+
+.sv-sidebar-nav .nav-link p {
+    min-width: 0;
+    line-height: 1.18;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    font-size: 13px !important;
+    font-weight: 750 !important;
+    letter-spacing: 0 !important;
+}
+
+/* Sólo los grupos llevan flecha; las pantallas finales ya no aparentan otro nivel. */
+.sv-sidebar-nav .nav-link p::after { content: none !important; }
+.sv-sidebar-nav .has-treeview > .nav-link p::after {
+    content: '\203A' !important;
+    flex: 0 0 auto;
+    align-self: center;
+    margin-left: 7px;
+    color: #7f93aa;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1;
+    transition: transform .2s ease, color .2s ease;
+}
+.sv-sidebar-nav .has-treeview.menu-open > .nav-link p::after {
+    content: '\2304' !important;
+    color: #67e8f9;
+    font-size: 15px;
+}
+
+/* Ruta abierta: el padre acompaña, pero no compite con la pantalla actual. */
+.sv-sidebar-nav .menu-open > .nav-link.active {
+    color: #dff8ff !important;
+    border-color: rgba(34, 211, 238, .24) !important;
+    background: linear-gradient(100deg, rgba(8, 78, 112, .36), rgba(45, 36, 104, .23)) !important;
+}
+.sv-sidebar-nav .menu-open > .nav-link.active > i:first-child {
+    color: #7eeafb !important;
+    border-color: rgba(34, 211, 238, .22) !important;
+    background: rgba(34, 211, 238, .09) !important;
+}
+
+/* Segundo y tercer nivel: sangría y línea guía. */
+.sv-sidebar-nav .nav-treeview {
+    position: relative;
+    margin: 5px 0 7px 15px !important;
+    padding: 3px 0 3px 10px !important;
+    border: 0 !important;
+    border-left: 1px solid rgba(86, 169, 214, .22) !important;
+}
+.sv-sidebar-nav .nav-treeview::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 7px;
+    width: 3px;
+    height: 22px;
+    border-radius: 99px;
+    background: rgba(34, 211, 238, .20);
+}
+.sv-sidebar-nav .nav-treeview .nav-item {
+    width: auto !important;
+    margin: 3px 0 !important;
+}
+.sv-sidebar-nav .nav-treeview .nav-link {
+    min-height: 40px;
+    margin: 0 !important;
+    padding: 7px 8px !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+}
+.sv-sidebar-nav .nav-treeview .nav-link > i:first-child {
+    width: 25px !important;
+    height: 25px !important;
+    border: 0 !important;
+    border-radius: 7px !important;
+    background: rgba(148, 163, 184, .07) !important;
+    font-size: 11px !important;
+}
+.sv-sidebar-nav .nav-treeview .nav-treeview {
+    margin-left: 11px !important;
+    padding-left: 9px !important;
+    border-left-color: rgba(139, 92, 246, .24) !important;
+}
+
+/* Pantalla actual: un único punto de atención muy claro. */
+.sv-sidebar-nav .nav-item:not(.menu-open) > .nav-link.active {
+    padding-left: 12px !important;
+    color: #fff !important;
+    border-color: rgba(96, 220, 250, .45) !important;
+    background: linear-gradient(105deg, rgba(14, 116, 144, .72), rgba(67, 56, 202, .55)) !important;
+    box-shadow: 0 9px 24px rgba(8, 145, 178, .17) !important;
+}
+.sv-sidebar-nav .nav-item:not(.menu-open) > .nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 99px;
+    background: #a5f3fc;
+    box-shadow: 0 0 12px rgba(103, 232, 249, .8);
+}
+.sv-sidebar-nav .nav-item:not(.menu-open) > .nav-link.active > i:first-child {
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, .18) !important;
+    background: rgba(255, 255, 255, .13) !important;
+}
+
+/* El scrollbar vertical permanece discreto; nunca aparece uno horizontal. */
+.main-sidebar .os-scrollbar-horizontal { display: none !important; }
+.main-sidebar .os-scrollbar-vertical { width: 6px !important; }
+.main-sidebar .os-scrollbar-handle { background: rgba(148, 163, 184, .42) !important; }
+
+/* El modo compacto conserva únicamente los iconos y recupera las ayudas al expandirse. */
+.sidebar-mini.sidebar-collapse .main-sidebar:not(:hover) .sv-sidebar-current,
+.sidebar-mini.sidebar-collapse .main-sidebar:not(:hover) .sv-sidebar-nav > li:not(.nav-item) {
+    display: none !important;
+}
+.sidebar-mini.sidebar-collapse .main-sidebar:not(:hover) .sidebar { padding-left: 5px !important; padding-right: 5px !important; }
+.sidebar-mini.sidebar-collapse .main-sidebar:not(:hover) .sv-sidebar-nav > .nav-item { margin-left: 0 !important; margin-right: 0 !important; }
+
+@media (max-width: 991.98px) {
+    .sv-sidebar-current { border-radius: 12px; }
+    .sv-sidebar-nav .nav-link p { font-size: 12.5px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sv-sidebar-nav *, .sv-sidebar-nav *::after { transition: none !important; }
+}

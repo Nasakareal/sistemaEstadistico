@@ -385,6 +385,8 @@
         }
     </style>
 
+    <link rel="stylesheet" href="{{ asset('css/sv-sidebar.css') }}">
+
     @stack('styles')
 </head>
 
@@ -411,6 +413,7 @@
     @endif
 
     @yield('adminlte_js')
+<script src="{{ asset('js/sv-sidebar.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 

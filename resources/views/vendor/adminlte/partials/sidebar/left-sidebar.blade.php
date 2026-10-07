@@ -10,6 +10,11 @@
 
     {{-- Sidebar menu --}}
     <div class="sidebar">
+        <div class="sv-sidebar-current" id="svSidebarCurrent" hidden>
+            <span><i class="fas fa-location-arrow"></i> Estás en</span>
+            <strong></strong>
+            <small></small>
+        </div>
         <nav class="pt-2">
             <ul class="nav nav-pills nav-sidebar flex-column {{ config('adminlte.classes_sidebar_nav', '') }}"
                 data-widget="treeview" role="menu"

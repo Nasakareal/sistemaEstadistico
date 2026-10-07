@@ -156,6 +156,12 @@ return [
         ],
 
         [
+            'type' => 'sidebar-menu-search',
+            'text' => 'Buscar en el menú...',
+            'id'   => 'svSidebarSearch',
+        ],
+
+        [
             'text'    => 'Siniestros (CHOQUES)',
             'icon'    => 'fa-solid fa-car-side',
             'classes' => 'bg-blue text-white',

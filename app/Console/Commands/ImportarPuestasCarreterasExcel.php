@@ -84,10 +84,11 @@ class ImportarPuestasCarreterasExcel extends Command
         }
 
         $this->info(sprintf(
-            'Importacion terminada: %d creados, %d vinculados y %d omitidos.',
+            'Importacion terminada: %d creados, %d vinculados, %d omitidos y %d personas agregadas.',
             $result['creados'],
             $result['vinculados'],
-            $result['omitidos']
+            $result['omitidos'],
+            $result['personas_creadas']
         ));
 
         return self::SUCCESS;

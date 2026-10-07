@@ -12,6 +12,20 @@ use PHPUnit\Framework\TestCase;
 
 class PuestasCarreterasExcelImportServiceTest extends TestCase
 {
+    public function test_separa_nombres_de_detenidos_sin_crear_registros_para_sin_detenidos(): void
+    {
+        $method = new \ReflectionMethod(PuestasCarreterasExcelImportService::class, 'parseDetainedNames');
+        $method->setAccessible(true);
+        $service = new PuestasCarreterasExcelImportService();
+
+        $this->assertSame([
+            'LUIS BASURTO SANCHEZ',
+            'ANGEL GABRIEL CISNEROS ANDRADE',
+            'ANTONIO SANCHEZ BASURTO',
+        ], $method->invoke($service, 'LUIS BASURTO SANCHEZ, ANGEL GABRIEL CISNEROS ANDRADE Y ANTONIO SANCHEZ BASURTO'));
+        $this->assertSame([], $method->invoke($service, 'SIN DETENIDOS'));
+    }
+
     public function test_distingue_puestas_del_mismo_dia_por_identificadores_del_vehiculo(): void
     {
         $existing = new PuestaDisposicion();

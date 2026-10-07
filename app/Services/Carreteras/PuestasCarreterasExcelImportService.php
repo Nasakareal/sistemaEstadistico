@@ -313,11 +313,15 @@ class PuestasCarreterasExcelImportService
         }
 
         return DB::transaction(function () use ($plan, $createdBy, $linkExisting) {
-            $result = ['creados' => 0, 'vinculados' => 0, 'omitidos' => 0];
+            $result = ['creados' => 0, 'vinculados' => 0, 'omitidos' => 0, 'personas_creadas' => 0];
             $nextNumbers = [];
 
             foreach ($plan['registros'] as $record) {
                 if ($record['accion'] === 'omitido') {
+                    $puesta = PuestaDisposicion::query()->find($record['existente_id']);
+                    if ($puesta) {
+                        $result['personas_creadas'] += $this->syncImportedPersons($puesta, $record);
+                    }
                     $result['omitidos']++;
                     continue;
                 }
@@ -325,7 +329,9 @@ class PuestasCarreterasExcelImportService
                 $origin = $this->originAttributes($plan['fuente'], $record);
 
                 if ($record['accion'] === 'vincular' && $linkExisting) {
-                    PuestaDisposicion::query()->whereKey($record['existente_id'])->update($origin);
+                    $puesta = PuestaDisposicion::query()->findOrFail($record['existente_id']);
+                    $puesta->update($origin);
+                    $result['personas_creadas'] += $this->syncImportedPersons($puesta, $record);
                     $result['vinculados']++;
                     continue;
                 }
@@ -345,7 +351,7 @@ class PuestasCarreterasExcelImportService
                     $nextNumbers[$year] = $last ? ((int) $last->numero_puesta + 1) : 1;
                 }
 
-                PuestaDisposicion::query()->create(array_merge($origin, [
+                $puesta = PuestaDisposicion::query()->create(array_merge($origin, [
                     'numero_puesta' => $nextNumbers[$year]++,
                     'anio' => $year,
                     'tipo_puesta' => $record['tipo_puesta_destino'],
@@ -367,6 +373,7 @@ class PuestasCarreterasExcelImportService
                     'destacamento_id' => $record['destacamento_id'],
                     'created_by' => $createdBy,
                 ]));
+                $result['personas_creadas'] += $this->syncImportedPersons($puesta, $record);
                 $result['creados']++;
             }
 
@@ -564,6 +571,67 @@ class PuestasCarreterasExcelImportService
         }
 
         return $best;
+    }
+
+    private function syncImportedPersons(PuestaDisposicion $puesta, array $record): int
+    {
+        $names = $this->parseDetainedNames($record['detenidos_descripcion'] ?? null);
+        if (!$names) {
+            return 0;
+        }
+
+        $existingNames = $puesta->personas()
+            ->pluck('nombre_completo')
+            ->mapWithKeys(fn ($name) => [$this->normalize($name) => true]);
+        $sex = count($names) === 1 ? $this->singlePersonSex($record['sexo_resumen'] ?? null) : null;
+        $created = 0;
+
+        foreach ($names as $name) {
+            if ($existingNames->has($this->normalize($name))) {
+                continue;
+            }
+
+            $puesta->personas()->create([
+                'nombre_completo' => Str::upper($name),
+                'sexo' => $sex,
+                'calidad' => 'DETENIDA',
+                'delito_o_motivo' => $record['motivo_destino'] ?? $puesta->motivo,
+                'observaciones' => 'IMPORTADA DEL LISTADO IPH DE CARRETERAS.',
+            ]);
+            $existingNames->put($this->normalize($name), true);
+            $created++;
+        }
+
+        return $created;
+    }
+
+    private function parseDetainedNames(?string $value): array
+    {
+        $value = trim((string) $value);
+        if ($value === '' || preg_match('/^\s*(SIN|NO)\s+(PERSONAS?\s+)?DETENID/', $this->normalize($value))) {
+            return [];
+        }
+
+        $parts = preg_split('/\s*(?:,|;|\r?\n|\s+Y\s+)\s*/iu', $value) ?: [];
+
+        return collect($parts)
+            ->map(fn ($name) => trim((string) preg_replace('/\s+/', ' ', $name)))
+            ->filter(fn ($name) => $name !== '' && !preg_match('/^(SIN|NO)\s+(PERSONAS?\s+)?DETENID/i', $this->normalize($name)))
+            ->unique(fn ($name) => $this->normalize($name))
+            ->values()
+            ->all();
+    }
+
+    private function singlePersonSex(?string $value): ?string
+    {
+        $value = $this->normalize($value);
+        if (in_array($value, ['H', 'HOMBRE', 'MASCULINO'], true)) {
+            return 'HOMBRE';
+        }
+        if (in_array($value, ['M', 'MUJER', 'F', 'FEMENINO'], true)) {
+            return 'MUJER';
+        }
+        return null;
     }
 
     private function compactNormalize($value): string

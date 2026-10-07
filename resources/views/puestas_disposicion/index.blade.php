@@ -269,7 +269,7 @@
 
         @if($puestas->hasPages())
             <div class="card-footer d-flex justify-content-center">
-                {{ $puestas->links() }}
+                {{ $puestas->onEachSide(1)->links('pagination::bootstrap-4') }}
             </div>
         @endif
     </div>
